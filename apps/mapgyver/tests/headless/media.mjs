@@ -1,6 +1,7 @@
-// M04 source intent parity through the ordinary host. No frontend, GPU or process fixtures.
+// M04 source intent parity through the ordinary host. No GPU or process fixtures.
 // Build: cargo build --locked -p MapGyver --bin MapGyver
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
+// Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -10,6 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+const withUi = process.argv.includes('--ui-reload');
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
 const listener = createServer();
@@ -20,7 +22,13 @@ await new Promise((resolve) => listener.close(resolve));
 const base = `http://127.0.0.1:${port}`;
 const app = spawn(
 	path.resolve('target/debug/MapGyver.exe'),
-	['--headless', '--no-frontend', '--no-remote', '--automation-shutdown-file', shutdown],
+	[
+		'--headless',
+		...(withUi ? [] : ['--no-frontend']),
+		'--no-remote',
+		'--automation-shutdown-file',
+		shutdown
+	],
 	{
 		windowsHide: true,
 		env: { ...process.env, APPDATA: path.join(directory, 'data'), GC_UI_BIND: `127.0.0.1:${port}` },
@@ -202,6 +210,10 @@ try {
 	assert.equal((await inspect()).assets[0].id, asset);
 	assert((await intent({ kind: 'undo' })).success);
 	assert.deepEqual(await inspect(), saved);
+	if (withUi) {
+		const { verifyPictureReloadUi } = await import('../browser/picture-reload.mjs');
+		await verifyPictureReloadUi({ base, inspect, picture, asset });
+	}
 	console.log(
 		JSON.stringify({
 			result: 'pass',

@@ -2,31 +2,29 @@
 
 ## At a glance
 
-**Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
+**Updated: 2026-10-31 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current topic / only active phase:** M04 intent parity gate 6; **5/6 gates (83%)**.
-Completion audit found that Picture replacement retry lacked a public caller route. `ReloadAsset`
-and its UI control are now implemented; live UI/HTTP/native verification of that route remains.
+**Current topic:** M04 source acceptance complete, **6/6 gates (100%)**. **Next active phase:**
+M03 renderer recovery gate 4, retaining **7/9** accepted gates and all original requirements.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** verify the new Reload Picture UI/HTTP intent and the updated existing native Picture
-replacement test through `ReloadAsset`, after terminal prerequisites. This batch's two live runs
-are used, so checkpoint the implementation and open gate now; no third live invocation. Record
-the next fixed cases/stop before execution. Do not begin M03 or restore its parked stash.
-**Blocker:** none external; final acceptance awaits the named new-route live checks.
+**Next:** reconcile M03's genuine device-removal/stuck-retirement evidence and define one bounded
+owned-device check or demonstrated ownership fix. Preserve actual GPU-use/resource fences and
+healthy outputs; do not restore the parked performance/collector stash or change driver settings.
+Record prerequisites, observable success and a stop before the next batch. **Blocker:** none
+external for this reconciliation; M03 gates 4 and 9 remain unverified.
 
-**Last accepted capability:** source gates 2–4 and Media Manager UI gate 5, including Intel/NVIDIA
-pixels/lifecycles and actual browser authoring. **New implementation:** explicit Picture reload
-uses the same backend intent for UI/commands/scripts/headless, preserves identity/locator/history
-and invalidates runtime capture guards so the existing IO worker reprepares the file.
-**Latest evidence (batch 51):** **152 caller executions** across UI intents, generic/hosted QuickJS
-and command triggers; atomic rejection, callbacks, owned IDs, peer isolation and history pass.
-Public-intent worker recovery and sparse/full codecs pass. The prior ordinary headless matrix
-passes three media/six channels and Save/New/Load in **282 ms**, with normal exit; the newly added
-reload assertions are not rerun. **192 app tests pass / one existing hardware ignore**, strict
-all-target/all-feature Clippy, Svelte zero errors/warnings and **58 frontend tests** pass. Reload
-UI input, updated HTTP assertions and native replacement via the new intent remain unverified.
+**Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
+rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
+headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest evidence (batch 52):** the updated ordinary HTTP matrix plus actual Reload Picture UI
+passes in **2,375 ms**, including a single selected-asset request and preserved redo/undo. The
+updated native Picture matrix passes **1/1 in 46.09 s** on Intel/NVIDIA, including replacement
+through `ReloadAsset`, full color/alpha pixels, 4K reload/recreation and actual retirement. Both
+live invocations pass within the fixed window; host/browser cleanup completes. Prior **152 caller
+executions**, sparse/full codecs, **192 app tests / one existing hardware ignore**, strict Clippy,
+**58 frontend tests**, zero Svelte diagnostics and generated-contract drift remain verified.
 
 **Remaining product qualification:** M05 physical output/DPI/hotplug and editor input; M06/M07
 composition/Matrix native pixels, interactions and scale; M08 complete mode/control/unsupported-
@@ -45,16 +43,16 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Active: source/UI gates accepted; public Picture reload parity verification remains | `█████████████████░░░` 83% | 5/6 |
+| [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
-Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
+Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 5 / 6 = 83%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -67,7 +65,7 @@ These counts measure accepted scope, not effort or product readiness. Partial ev
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
-**Closure return queue:** finish M04 gate 6. Revisit remaining M03 gates 4 then 9, followed by
+**Closure return queue:** M04 is complete. Revisit remaining M03 gates 4 then 9, followed by
 M05, M06, M07 and M08 acceptance before M09's
 complete-app/artifact gate. Every original requirement remains required. A small optimization
 consuming roughly a full day warrants a specific user-reviewed deferral/lower-gate proposal, not
@@ -2031,6 +2029,79 @@ physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
 
+**Qualification batch 52:** started 2026-10-31 **16:43 UTC**, recorded stop **17:28 UTC**.
+M04 gate 6 is the only active work. Previous turn is progress: pushed `f18de683` adds the missing
+public Picture reload path, generated contract/UI/snippet and passing worker/caller tests.
+Verify that concrete new behavior, reusing current proven binaries and existing finite fixtures.
+Fixed live matrix: (1) one isolated ordinary host runs the complete source HTTP/history/Save/New/
+Load check including new reload/history assertions, then opens its bundled UI and verifies the
+actual Reload Picture control sends the same asset intent, preserves the exact catalog and adds
+no undo step; (2) run the updated existing Picture native pixel test on both hardware adapters,
+whose in-place replacement now uses `ReloadAsset` plus normal recapture instead of the direct
+runtime hook. Keep the previous 2/255 oracle, production limits, payload ownership and retirement.
+At most two live invocations/20 minutes, also bounded by 17:28; no third corrective run, GPU timing,
+driver, desktop recovery or other phase scope. Compile/check the browser helper before execution.
+Only close gate 6 after both terminal results and a requirement-by-requirement M04 reconciliation.
+
+Batch 52 live matrix starts **16:46 UTC**, cutoff **17:06 UTC**, before the 17:28 batch stop.
+Checkout is clean at `f18de683` before adding the finite UI helper. Prerequisites remain terminal
+for the unchanged Rust/UI candidate: **192 app tests / one existing hardware ignore**, **152 caller
+executions**, strict all-target/all-feature Clippy, **58 frontend tests**, Svelte zero diagnostics,
+ordinary bundled build and updated native test compilation. Candidate app/test hashes match batch
+51's recorded values. New JS helpers pass syntax/Prettier; outbound UI intents are JSON, as the
+existing WebSocket transport specifies. Invocation one is `media.mjs --ui-reload`; only after its
+terminal success run the exact updated ignored Picture test as invocation two. A failure retains
+gate 6; no extra invocation, threshold relaxation or alternative fixture is permitted this batch.
+
+Invocation one passes in **2,375 ms** of checked operations: the full ordinary HTTP matrix,
+including ReloadAsset followed by undo of the preceding relink and redo, preserves exact source
+catalog/IDs; the real bundled browser Reload Picture control sends exactly one selected-asset
+request, leaves no alert/page error, and preserves the preceding RemoveMedia redo/undo entry.
+Chromium **149.0.7827.55**, viewport **1440×1000**; the owned browser closes and host exits **0**.
+Proceed only with the predeclared updated native Picture test, invocation two, within the same
+16:46–17:06 window. Native public-intent replacement remains unverified until its terminal result.
+
+**Batch 52 result — M04 gate 6 accepted, 16:48 UTC:** invocation two passes **1/1 in 46.09 s**
+on Intel Graphics LUID `0:93226` and NVIDIA GeForce RTX 5080 Laptop GPU LUID `0:94419`.
+The existing fixed matrix now replaces the file through the public `ReloadAsset` intent plus
+ordinary capture/publication. **54 complete output images / 33,177,836 texels** meet the original
+**2/255** oracle, including partial/zero alpha, missing/JPEG recovery, sharing, undo, relink,
+in-place replacement, unsupported-gamma rejection, recovery and 4K save/reload/recreation. Peer
+prepared identity, upload sharing/no per-frame upload, stable references, observer pool release
+and actual asset-worker/GPU retirement all pass. No tolerance, production budget, driver setting
+or runtime code changes were needed in this batch.
+
+The new [optional browser helper](../../apps/mapgyver/tests/browser/picture-reload.mjs) is loaded
+only with `--ui-reload`; the default [HTTP test](../../apps/mapgyver/tests/headless/media.mjs)
+keeps its ordinary Node-only path. Actual browser input records exactly one selected-asset reload
+request, then verifies unchanged catalog, no error, preserved redo and undo, and zero page errors.
+The same owned host verifies the complete source HTTP matrix with new reload/history assertions,
+peer isolation and exact Save/New/Load restoration before normal exit. Both live invocations are
+terminal successes within the original window; no third or corrective run occurs.
+
+**Original M04 acceptance audit:**
+
+| Requirement | Accepted evidence |
+| --- | --- |
+| Default Media Manager, detached creation/import, authoritative IDs, commands/methods/callbacks/snippets | Gate 1 module tests and app-owned registration; batch 51's 152 caller executions additionally verify returned owned identities, defaults, single committed callbacks and atomic history/allocation. |
+| At least two differently sized channels per source kind, Automatic/Fixed sizing and shared consumers | Native Solid Color batch 47, Picture batches 48/52 and Shared Texture batch 49 use two channels in one relevant media and independent A/A/B consumers. Source extents/output policies and shared production/resources are checked. |
+| Worker Picture decode, color/alpha and source/pixel/decode/cache bounds | Gate 3 codec/Golden Assets/renderer tests establish admission, worker execution, retained lease/cancellation/retirement and production 4K PNG bounds. Batches 48/52 observe actual PNG/JPEG output; unsupported layouts fail explicitly, not by silently raising budgets. |
+| Missing/relinked/replaced pictures; one failed source leaves a healthy peer | Native Picture matrix plus public-intent worker tests and batch 52 replacement now exercise the real caller route. Reload changes no locator/asset/channel ID or authored history. No automatic watcher is claimed. |
+| Exact independent Spout selection/discovery, absence/restart/rename/resize, isolated failure and explicit adapter mismatch | Accepted gate 4 / batch 49 checks actual outputs, advancing healthy peer, exact-name discovery, no implicit renamed selection, bounded oversize recovery and both cross-adapter error directions without fallback. |
+| Media Manager UI, project/history, UI/script/headless parity and functional native resource recreation | Gate 5 actual UI authoring; batch 51 typed caller matrix, sparse/full codecs and source recreation evidence; batch 52 actual new Reload Picture UI/HTTP plus updated native replacement. Original source-gate tests retain controlled renderer/device teardown/recreation, upload/resource ownership and stable references. |
+
+Candidate hashes match their actual runs: ordinary bundled app
+`7e354546503c10fc2a532ecff8c4d187ed981903757c91bdb57363291973b1c4`; native test
+`c9b851d1721f08bc375d8465939dec393055265d73ede5a1ba2da2f2797bb681`.
+New JS helpers pass syntax/Prettier and both Cargo formatters/whitespace checks pass; Rust/UI
+production sources are unchanged from the verified batch 51 candidate.
+
+**M04 closes at 6/6 = 100%; overall is 4/10 = 40%.** Denominators, acceptance scope, prior failed
+evidence and original budgets are unchanged. Native picker/preview input is not inferred from
+the browser route and is not invented as an extra source gate. Genuine device removal/stuck
+retirement and full rendering performance remain M03 gates 4/9; physical/display/editor/full-app
+requirements stay with M05–M09. Return to M03 gate 4 as the only next active gate after delivery.
+
 **Qualification batch 51:** started 2026-10-31 **16:08 UTC**, recorded stop **16:53 UTC**.
 M04 gate 6 is the only active acceptance work. Owners: app media intents/module commands/QuickJS,
 shared headless transport and existing source capture/rendering. Audit the original gate scope:
@@ -2482,7 +2553,7 @@ overall remains fully accepted phases divided by ten.
 | 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA |
 | 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Accepted — batch 49: fixed app/native pixel/lifecycle matrix on Intel and NVIDIA, including both cross-adapter rejection directions and healthy peer continuity |
 | 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Accepted — batch 50: real bundled browser UI authoring with read-only backend correlation, stable references/peer independence, deletion guards, undo and reload; complete intent parity remains gate 6 |
-| 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Open — batch 51 adds 152 caller executions, codecs and ordinary HTTP/history evidence, then implements the missing public Picture reload route; its actual UI/HTTP/native verification remains |
+| 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Accepted — batches 51–52: 152 caller executions, sparse/full codecs, full ordinary HTTP/history/Save/New/Load, actual Reload Picture UI and native public-intent replacement/recreation on Intel/NVIDIA |
 
 #### Media module commands and scripts — 2026-10-30
 
@@ -3011,7 +3082,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
-| M04 Source media | IN_PROGRESS | [Source acceptance](#m04-acceptance-items): gates 1–5 accepted (5/6); caller/codec/headless evidence and the missing public Picture reload route are implemented. New reload UI/HTTP/native verification keeps final gate 6 open. |
+| M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
@@ -3020,14 +3091,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Finish **M04 intent parity gate 6**. Verify the new Reload Picture UI action and public headless
-reload/history semantics, then run the updated existing native Picture test whose in-place
-replacement now uses `ReloadAsset` plus normal recapture. Reuse the fixed bounded observers;
-verify software/build prerequisites first and allow at most two live invocations/20 minutes.
-This checks a newly implemented missing product path, not another repeat of unchanged evidence.
-Do not start M03, restore its stash or change driver/overlay settings.
+M04 is complete. Return to **M03 recovery gate 4** as the only next active gate. Reconcile the
+existing genuine device-removal/stuck-retirement requirement and choose one bounded owned-device
+check or demonstrated ownership fix. Define its boundary, prerequisite checks, actual resource/
+completion proof and stop before execution. Preserve source pixel passes; do not restore the
+parked performance/collector stash or change driver/overlay settings.
 
-After M04 closes, return to M03 gates 4 then 9, then M05/M06/M07/M08 and M09. A genuinely blocked
+Continue M03 gate 9 after recovery, then M05/M06/M07/M08 and M09. A genuinely blocked
 gate must retain its exact missing prerequisite/evidence and next decision in the return queue.
 Every original requirement and budget remains required. Missing editor/UI/physical evidence stays
 open. No incidental feature or concurrent phase expansion is scheduled. Preserve Chataigne's root
