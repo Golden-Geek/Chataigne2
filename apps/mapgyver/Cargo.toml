@@ -9,6 +9,7 @@ default-run = "MapGyver"
 name = "mapgyver"
 
 [features]
+application-process-fixture = []
 default = ["native-video"]
 native-video = ["golden_video/d3d11", "dep:windows", "dep:golden_time"]
 native-presentation-smoke = ["dep:windows"]
@@ -47,6 +48,13 @@ path = "tests/native_presentation/smoke.rs"
 test = false
 bench = false
 required-features = ["native-presentation-smoke"]
+
+[[bin]]
+name = "application_process_fixture"
+path = "tests/application_process/fixture.rs"
+test = false
+bench = false
+required-features = ["application-process-fixture"]
 
 [[bin]]
 name = "native_video_smoke"

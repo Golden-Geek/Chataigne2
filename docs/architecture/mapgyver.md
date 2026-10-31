@@ -24,7 +24,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
-| `apps/mapgyver/src/applications/` | Persistent shared executable definitions, typed authoring and pure clamped neighbor/retained demand resolution; background launch/readiness/restart integration remains M08 |
+| `apps/mapgyver/src/applications/` | Shared executable definitions, typed authoring, clamped aggregate demand and independent bounded lifecycle workers; automatic Matrix/render-retirement capture and native readiness observation remain M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
@@ -430,13 +430,35 @@ executable. Dedicated application forms and full lifecycle control/observation r
 `applications::demand::resolve` computes one deterministic next set from committed column cursors
 and direct retained holds. Preparation, active and outgoing scopes contribute a union; final-use
 holds survive authored column/definition deletion. Missing, disabled and unconfigured definitions
-remain distinguishable. This pure resolver does not yet feed an OS worker, bind renderer leases or
-prove readiness. It admits 128 matrices, 100,000 aggregate columns, 128 cursors, 4,096 holds and
+remain distinguishable. Automatic Matrix-to-worker capture and renderer lease binding remain open;
+the resolver alone never proves readiness. It admits 128 matrices, 100,000 aggregate columns, 128 cursors, 4,096 holds and
 4,096 application identities, with at most 64 associations per column. It materializes no cells
 and does not run as a periodic engine-node task.
 
-The public `golden_io::owned_process` mechanism is implemented; MapGyver's lifecycle worker and
-committed runtime demand capture remain M08 integration work. Its typed suspended owner enters
+`applications::runtime::ApplicationRuntime` is the explicit live-project controller. `reconcile`
+validates/captures a whole demand set, admits workers before publishing it atomically and leaves
+unchanged shared identities running. It never starts from authoring, Undo or candidate loading.
+Each application has an independent Golden IO bounded worker; a global 64-slot pool counts blocked
+launches and retirement across replacement projects. Workers retain only their own captured
+definition rather than old whole demand snapshots. Failed admission preserves the previous set.
+Idle owners can be pruned on a later reconciliation; active/retiring owners keep capacity charged.
+
+Workers own suspended creation/resume, process observation, sender-readiness timeout, capped crash
+backoff, graceful close, forced termination and retirement proof. Resume errors return suspended
+ownership. Missing/disabled definitions cannot start a process; explicit retained holds can preserve
+an existing owner. Intentional release cancels retries. An unverified retirement keeps the owner and
+global slot, reports `RetirementUnverified` and prevents a replacement until proof arrives. Native
+creation has no hard OS latency guarantee; it cannot block the actor or another app's worker.
+
+`InspectRuntime` uses the generated Media operation/script/result callback route. Observations carry
+the project instance, launch UUID, process/exit status, explicit phase and bounded error text. Deadline
+and elapsed milliseconds share a runtime-local monotonic origin. Process-start readiness is distinct
+from sender/first-frame evidence, which requires matching project, launch and sender and the configured
+first-frame condition. The real Spout observer and automatic Matrix final-use capture are not yet
+connected; injected tagged evidence tests the controller without claiming actual sender ownership.
+Dropping the controller cancels without joining; project guards stop old workers after replacement.
+
+The public `golden_io::owned_process` mechanism is implemented. Its typed suspended owner enters
 a private kill-on-close job during creation and verifies membership before resume. Arguments,
 environment and working directory remain explicit; no shell/name lookup or elevation fallback is
 implicit. Creation, observation and bounded waits belong on a background owner. Graceful close
@@ -444,7 +466,7 @@ posts only to windows whose job-member identities remain pinned, and a request c
 exit acknowledgement. Root exit, active accounting, pending observed handles and unobserved
 lifetimes remain distinct. Missed transient members leave retirement unverified rather than
 converting a zero job count into a cleanup guarantee. MapGyver must preserve that outcome in its
-later lifecycle policy. See the [public ownership contract and bounds](../../crates/golden_core/runtime/io/src/owned_process/README.md).
+lifecycle observations. See the [public ownership contract and bounds](../../crates/golden_core/runtime/io/src/owned_process/README.md).
 
 Preloading and postloading are **column distances**, confirmed by the user. For app-bearing
 column `j`, with `pre_j` and `post_j`, a loading/current column cursor `i` creates neighbor demand

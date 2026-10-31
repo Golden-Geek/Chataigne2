@@ -159,9 +159,43 @@ pub struct ApplicationPage {
     pub start: u32,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ApplicationPhase {
+    Idle,
+    Starting,
+    WaitingForSender,
+    Ready,
+    Backoff,
+    Stopping,
+    RetirementUnverified,
+    Failed,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationRuntimeStatus {
+    pub application: ApplicationId,
+    pub launch: Option<uuid::Uuid>,
+    pub phase: ApplicationPhase,
+    pub process_id: Option<u32>,
+    pub exit_code: Option<u32>,
+    pub failures: u32,
+    pub next_action_ms: Option<u64>,
+    pub message: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ApplicationRuntimeSnapshot {
+    pub project: uuid::Uuid,
+    /// Monotonic milliseconds since this runtime started; deadlines use the same origin.
+    pub elapsed_ms: u64,
+    pub applications: Vec<ApplicationRuntimeStatus>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
+    InspectRuntime {},
     Create {
         label: Option<String>,
     },

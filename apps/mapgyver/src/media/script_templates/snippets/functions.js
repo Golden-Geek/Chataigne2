@@ -28,6 +28,9 @@
 // search/start/count (1..128). These authored operations never launch a process.
 // Matrix ConfigureColumn preserves transition plus applications: [{application: applicationId, pre:1, post:1}].
 // Distances are clamped column neighbors, not time; copies keep shared app IDs. Missing refs survive Undo.
+// InspectRuntime returns the live project/launch identities and explicit lifecycle phases through
+// the same onAppOperationResult callback. elapsed_ms and next_action_ms share one monotonic origin.
+// An explicitly started backend lifecycle owner supplies demand/readiness; authoring never runs it.
 // local.editMedia("layers", JSON.stringify({ kind: "Matrix", media: matrixMediaId,
 //   edit: { kind: "AddLayers", parent: null, count: 4 } }));
 // Matrix Inspect returns ordered items/columns and sparse cells. AddColumns does not create cells.

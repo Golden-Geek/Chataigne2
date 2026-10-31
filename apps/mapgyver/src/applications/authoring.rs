@@ -55,6 +55,15 @@ fn create(
 }
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
+        ApplicationEdit::InspectRuntime {} => {
+            let manager = crate::media::authoring::manager(engine)?;
+            let Some(AppNode::MediaManager(node)) = engine.nodes.get(manager) else {
+                unreachable!()
+            };
+            Ok(MediaEditResult::ApplicationRuntime {
+                snapshot: node.applications.snapshot(node.instance),
+            })
+        }
         ApplicationEdit::Create { label } => create(engine, label, Default::default()),
         ApplicationEdit::Inspect { application } => Ok(MediaEditResult::Application {
             snapshot: inspect(engine, application)?,

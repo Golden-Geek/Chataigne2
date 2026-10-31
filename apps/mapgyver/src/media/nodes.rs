@@ -16,6 +16,7 @@ use super::protocol::{ChannelDefinition, MediaKind};
 pub struct MediaManagerNode {
     data: NodeData,
     pub(crate) instance: uuid::Uuid,
+    pub(crate) applications: crate::applications::runtime::RuntimeView,
     project: RevisionSource,
     membership: RevisionSource,
     operation_owner: Arc<()>,
@@ -28,6 +29,7 @@ impl MediaManagerNode {
         Self {
             data,
             instance: uuid::Uuid::new_v4(),
+            applications: Default::default(),
             project: RevisionSource::default(),
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
@@ -60,6 +62,7 @@ impl Node for MediaManagerNode {
         self.project.advance();
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
+        self.applications = Default::default();
         self.operation_owner = Arc::new(());
     }
     fn node_data(&self) -> &NodeData {

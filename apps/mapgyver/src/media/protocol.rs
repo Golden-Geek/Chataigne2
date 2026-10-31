@@ -216,6 +216,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ApplicationRuntime {
+        snapshot: crate::applications::protocol::ApplicationRuntimeSnapshot,
+    },
     ApplicationCreated {
         application: crate::applications::protocol::ApplicationId,
     },

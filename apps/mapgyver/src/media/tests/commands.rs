@@ -305,6 +305,26 @@ fn application_preset_and_hosted_inspection_return_committed_identities_without_
     assert_eq!(inspected[1]["request_id"], "app-inspect");
     assert_eq!(inspected[1]["value"]["kind"], "Application");
     assert_eq!(engine.undo_len(), history);
+    call(
+        &mut engine,
+        manager,
+        "editMedia",
+        vec![
+            ParamValue::Str("app-runtime".into()),
+            ParamValue::Str(
+                serde_json::to_string(&MediaEdit::Applications {
+                    edit: ApplicationEdit::InspectRuntime {},
+                })
+                .unwrap(),
+            ),
+        ],
+    );
+    service_script_app_operations(&mut engine).unwrap();
+    let runtime = replies(&engine);
+    assert_eq!(runtime[2]["request_id"], "app-runtime");
+    assert_eq!(runtime[2]["value"]["kind"], "ApplicationRuntime");
+    assert_eq!(runtime[2]["value"]["snapshot"]["applications"], serde_json::json!([]));
+    assert_eq!(engine.undo_len(), history);
 }
 
 #[test]

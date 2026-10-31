@@ -77,6 +77,32 @@ impl ProcessSnapshot {
 /// A suspended primary thread whose entire descendant tree is already in a private kill-on-close job.
 /// Dropping this value cancels execution; resume consumes it, preserving the same ownership.
 pub struct SuspendedProcess(OwnedProcess);
+
+/// A failed resume retains suspended ownership so the caller can prove bounded cleanup.
+pub struct ResumeError {
+    error: io::Error,
+    process: Box<SuspendedProcess>,
+}
+impl ResumeError {
+    pub fn into_parts(self) -> (io::Error, SuspendedProcess) {
+        (self.error, *self.process)
+    }
+}
+impl std::fmt::Debug for ResumeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(f)
+    }
+}
+impl std::fmt::Display for ResumeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.error.fmt(f)
+    }
+}
+impl std::error::Error for ResumeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
 impl SuspendedProcess {
     pub fn create(spec: &ProcessSpec) -> io::Result<Self> {
         platform::Process::create(spec).map(|process| Self(OwnedProcess(process)))
@@ -87,9 +113,14 @@ impl SuspendedProcess {
     pub fn snapshot(&self) -> io::Result<ProcessSnapshot> {
         self.0.snapshot()
     }
-    pub fn resume(self) -> io::Result<OwnedProcess> {
+    pub fn resume(self) -> Result<OwnedProcess, ResumeError> {
         let mut process = self.0;
-        process.0.resume()?;
+        if let Err(error) = process.0.resume() {
+            return Err(ResumeError {
+                error,
+                process: Box::new(Self(process)),
+            });
+        }
         Ok(process)
     }
     pub fn terminate(&self, exit_code: u32) -> io::Result<()> {
