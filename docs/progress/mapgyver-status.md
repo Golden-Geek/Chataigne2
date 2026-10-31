@@ -11,12 +11,14 @@ and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** run the prescribed NVIDIA Q02 release series with the verified environment mechanism
-and fresh paired observations, then Q01 on that same route. Batch 61 establishes the actual
-RTX 5080 renderer → Intel display route and verifies environment bracketing in a short native
-control. Full Q01/Q02 on NVIDIA remain unqualified. Intel's complete Q02 failures remain retained.
-The contract requires one named qualified route, not both vendors; do not combine Intel Q01 and
-NVIDIA Q02 into one pass. Preserve the exact built behavior/SDK and unchanged numerical budgets.
+**Next:** inspect the existing NVIDIA Q02 scheduler/Present/display records to distinguish a
+window-scheduling defect from a deadline/cohort mapping defect before choosing a correction.
+The full prescribed series now passes environment identity, Spout deadlines, exact image
+capture/age and editor independence; **window displayed deadlines remain its only observed
+failure**. No cause or gate reduction is inferred. Q01 on this same route remains queued after
+that decision. The contract requires one named qualified route, not both vendors; do not combine
+different adapters' workloads into a pass. Preserve the exact build, original failures/budgets
+and the NVIDIA renderer → Intel display route; no repeated baseline or parameter sweep.
 Complete GPU-path, queue and lifecycle-growth evidence still remain required. No timeout/Present
 sweep, silent adapter switch or budget reduction is approved.
 M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
@@ -29,6 +31,15 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest sustained NVIDIA evidence (batch 62):** full prescribed Q02 release series completes
+with **environment identity PASSED_NATIVE in all three samples**, fresh overlay-Off observations
+and unchanged paired inventories. Every other observed criterion passes except window display
+deadlines: main misses **4,572/1,841/139**, editor **4,572/1,846/141**, each out of **7,200** against
+unchanged **0.1%**. Spout misses **1/1/0**; exact sample captures **7,199/7,199**, **7,199/7,199**,
+**7,200/7,200**, with no missing accepted image in any sample or interruption. CPU p95
+**0.557/0.656/0.695 ms**, renderer-context GPU p95 **3.523/4.218/3.383 ms**, shutdown
+**446/454/426 ms**. Full GPU-path, lifecycle-growth and queue requirements remain unavailable;
+M03 stays **7/9**. [Compact evidence](evidence/mapgyver-m03-nvidia-q02-prescribed-2026-10-31.json).
 **Latest verified mechanism (batch 61):** public read-only GPU/output metadata and app-owned
 build/environment capture now record the actual selected MSVC/SDK, drivers, default WebView,
 AC power, overlay observations and display route. A finite NVIDIA Q02 control verifies paired
@@ -100,9 +111,9 @@ retained failures remain under their owning phase sections below.
 M06, M07 and M08 acceptance, then M09. An implemented phase with open acceptance is unfinished,
 not another simultaneous workstream. Time limits end a work batch; they never waive a gate.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
-retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Environment capture
-is now implemented and verified in a finite control; complete-series environment acceptance is
-still open. Latest Intel Q02
+retains full GPU/queue, growth and window deadline requirements. Complete-series NVIDIA Q02
+environment, exact capture/age, Spout deadlines and independence now pass; the full renderer gate
+and Q01 on that route remain open. Historical Intel Q02
 sample Spout acceptance is **7,199/7,196/7,199** with **4/7/2** missing exact captures. Minimized
 intervals miss **1/1/2** accepted Spout images; disconnected intervals miss **1/0/0**. Captured
 source-age p95 stays below 50 ms, but missing images leave the complete age requirement unqualified.
@@ -3123,6 +3134,77 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**NVIDIA Q02 acceptance batch 62:** started 2026-10-31 **21:28 UTC**, stop by **22:13 UTC**.
+Previous turn is progress: `471ee4db` implements and verifies paired build/environment evidence
+and the actual GPU/display route. Only M03 gate 9 is active. The existing executable and all
+303 selected execution inputs still match the verified build: MSVC **14.51.36231**, explicit
+Windows SDK **10.0.26100.0**, executable SHA-256
+`1d24d813a817d7cfef8d4028b1e0521cb26eb857070a6e1bffca51d561da5cc8`.
+Existing **163 Golden Video / 192 app / 107 analysis** tests, strict Clippy, formatting, selected
+release build and real environment preflight remain applicable; do not repeat unchanged checks.
+
+Explicitly select NVIDIA hardware index **1**, LUID **`00000000:000170d3`**, rendering to the
+Intel-owned display route established in batch 61. Capture fresh overlay-Off/UIA and complete
+environment evidence before and after one full Q02 release series: three samples, each **30 s
+warmup + 120 s measurement**, separate **60 s minimized / 60 s disconnected** editor intervals,
+held previews, unchanged 4K/two-source workload and all original budgets, with PresentMon. Native
+start **21:29 UTC**, cutoff **21:49 UTC**, before the batch stop. Keep source/assets and the
+same verified process handle fixed; a polling timeout never authorizes a restart. Preserve raw
+and initial analysis, then add a new environment-aware analysis after actual terminal cleanup.
+No timing/SDK/driver/power/overlay setting change, source edit, new profiler, second performance
+candidate or parked-stash restoration. A passing Q02 still requires Q01 on this same build/route;
+do not mix adapters' samples or infer physical 4K/full GPU-path/queue/lifecycle qualification.
+
+**Terminal result, 21:49 UTC:** original and additional environment-aware analyses are retained.
+The complete prescribed NVIDIA Q02 series is **FAILED_NATIVE**, with **window displayed
+deadlines as its only observed failing criterion**. Full-series **environment identity passes
+in all three samples**: actual MSVC/SDK/executable/source, driver/default WebView/AC power and
+display identity stay fixed, before/after QPC snapshots bracket the native work, fresh native
+Home UIA exposes `Enable and open overlay` at both ends, and the setting is unchanged.
+
+| NVIDIA Q02 measured evidence | Sample 1 | Sample 2 | Sample 3 |
+| --- | --- | --- | --- |
+| Main accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
+| Editor accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
+| Spout accepted / Busy, of 7,200 | 7,199 / 1 | 7,199 / 1 | 7,200 / 0 |
+| Main deadline misses, of 7,200 | 4,572 | 1,841 | 139 |
+| Editor deadline misses, of 7,200 | 4,572 | 1,846 | 141 |
+| Spout deadline misses, of 7,200 | 1 | 1 | 0 |
+| Exact accepted Spout image captures | 7,199 / 7,199 | 7,199 / 7,199 | 7,200 / 7,200 |
+| Missing accepted images, minimized / disconnected | 0 / 0 | 0 / 0 | 0 / 0 |
+| Editor independence | Pass | Pass | Pass |
+| Environment identity | Pass | Pass | Pass |
+| CPU inclusive wall p95 / p99, ms | 0.5569 / 0.6511 | 0.6564 / 0.7761 | 0.6950 / 0.7996 |
+| Renderer-context GPU p95 / p99, ms | 3.5225 / 4.1014 | 4.2178 / 5.7830 | 3.3831 / 3.5038 |
+| Complete shutdown, ms | 446.4 | 454.0 | 426.0 |
+| Actual runtime retirement, ms | 134.4 | 130.1 | 123.9 |
+
+All remaining observed criteria, including API cadence, exact capture/age and Spout deadline
+bounds, pass. The complete GPU critical path, renderer lifecycle handle/private growth and
+published queue/age requirements remain unavailable. Renderer-context timings do not certify
+the complete GPU path. Native/client backing is genuinely 4K, but the selected physical display
+is still 1920×1080; physical 4K/DPI/input remain with M05. No cross-adapter guarantee is inferred.
+
+The exact same native/collector process handles finish normally, with zero forced cleanup. Each
+submitted frame has exactly three final output records, **zero duplicate token/output rows** and
+raw outcome totals matching runtime counters. All **48 raw hashes** verify and execution inputs
+stay unchanged. All three owned trace sessions are independently absent (`4201`), no recorded
+renderer/source PID remains live, and both HWNDs are retained until actual retirement before
+output destruction. The initial and environment-aware analyses stay separate and hashed.
+
+This evidence verifies complete-series environment pinning and narrows the observed failure to
+the window display endpoint. It does not establish whether the cause is scheduling, presentation
+or a deadline/cohort mapping defect. Next inspect the existing native schedule, Present and
+display-event epochs, with a specific decision and bounded scope, before selecting a correction.
+Do not repeat this baseline, sweep timeouts/Present modes, restore the parked collector stash,
+redefine the deadline gate or spend another batch on GPU shader tuning from these timings.
+Q01 on this same build/route remains required after that decision. M03 **7/9**, overall **40%**,
+with gate 9 alone active. [Hashed compact evidence](evidence/mapgyver-m03-nvidia-q02-prescribed-2026-10-31.json).
+
+Final root/Golden Core formatters, whitespace and compact-evidence integrity checks pass.
+Checkpoint preparation completes by **21:54 UTC**, before the recorded 22:13 stop. This batch
+changes status/evidence only; no further native experiment or implementation/threshold change.
+
 **Environment/route acceptance batch 61:** started 2026-10-31 **20:46 UTC**, stop by **21:31 UTC**.
 Previous turn is progress: `37901bea` captures the complete unchanged Q02 failure, ruling out
 accepting the Q01 correction as sufficient 4K qualification. Gate 9 alone remains active.
@@ -3771,13 +3853,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 M04 is complete. The scheduled M05 gate 4 batch proves independent Spout/rectangle colors and
 retains the native UI-activation blocker; fullscreen pixels/editor state are still unverified.
-Continue **M03 gate 9** with the full prescribed NVIDIA Q02 release series, using the verified
-paired environment capture and exact build from batch 61, then Q01 on that same route. Fresh
-overlay observations and snapshots must bracket the actual series, and PresentMon must retain
-its exact owned collector session. The finite NVIDIA control cannot qualify either workload.
-The complete corrected Q02 series fails on Intel; preserve it without repeating that baseline
-or sweeping modes. Do not combine different adapters' samples into a pass. Complete GPU-path,
-lifecycle-growth, queue and sustained environment requirements remain open.
+Continue **M03 gate 9** by inspecting the existing full NVIDIA Q02 native schedule, Present and
+display-event epochs. Its environment, Spout deadlines, exact captures/age and independence pass;
+windows remain the only observed failing endpoint. Distinguish a scheduling defect from a
+deadline/cohort mapping defect before implementing a correction; retain all original counts and
+budgets. No baseline repeat, timeout/Present sweep or shader-tuning expansion is scheduled. Q01
+on that same build/route returns after this decision. Complete GPU-path, lifecycle-growth and
+queue requirements remain unavailable, and both adapters' historical failures remain retained.
 Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
 drain acceptance stays open. M05 returns after supported activation is available. Preserve source
 pixel passes; do not restore the parked stash or change driver/overlay settings.
