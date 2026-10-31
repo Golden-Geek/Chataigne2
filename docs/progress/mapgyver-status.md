@@ -12,15 +12,19 @@ M03 stays **7/9**; qualification no longer serializes product work. The
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** bounded M08 acceptance of singleton/launcher/unsupported-target outcomes through the
-ordinary app, preserving external-process isolation. Define the exact cases before native execution;
-at most two invocations/20 minutes. M07 interaction
+**Next:** M08 launch-definition executable selection using Golden's public file dialog, with
+explicit path entry in browser/headless clients. The bounded target-outcome check is stopped after
+two invocations; preserve its unresolved retirement result and failed full invocation. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
 **Last delivered capability:** Applications can block/allow new launches through one generated
 UI/command/script intent (batch 42). Backend snapshots distinguish local and ancestor disablement;
 Undo, duplicate and project reload preserve the local flag. The ordinary headless app verifies
 disabled admission and same-PID retention/re-enable while in use. Service failure/recovery remains
 visible. **187 app / 177 headless / 54 frontend tests** pass.
+**Latest acceptance evidence (batch 43):** singleton isolation, known launcher-descendant termination,
+breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
+is unresolved; the full check failed on an overly specific invalid-image error expectation. That
+test assumption is corrected without a third native run. Elevated-target denial remains unexercised.
 Batch 40's controller gate remains accepted. Actual form input and complete app recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
@@ -70,6 +74,69 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Qualification batch 43:** started 2026-10-31 **13:29 UTC**, recorded stop **14:14 UTC**.
+Use the third diagnostic allocation (40 product deliveries permit ten; two used). Verify ordinary
+headless application outcomes through the existing HTTP check: a rejected singleton launch must
+not adopt/stop the external instance; launcher-root exit must fail readiness and retire its known
+descendants; breakaway must remain denied by the owned job; missing/invalid executable failures
+must stay explicit without shell/elevation fallback. Use finite app-owned fixtures and unique
+temporary paths/names. Elevated-target denial is accepted only with an actual relevant native
+result, otherwise retain it open. No user process, GPU/display, desktop automation or M03 work.
+
+Before native execution, finish fixture/app builds, relevant software tests, Clippy and syntax/
+format checks. Record the native start/deadline; allow at most two invocations and 20 minutes,
+also bounded by 14:14 UTC. A failed expected outcome authorizes a minimal reproduced correctness
+fix; it does not authorize another probe family. These checks alone cannot close M08 gate 4.
+
+Batch 43's native baseline starts **13:35 UTC**, investigation cutoff **13:55 UTC** (also before
+the 14:14 batch stop). Prerequisites passed: **187 app tests / one existing hardware ignore**,
+**177 GPU-off/headless tests**, strict all-target/all-feature Clippy, current ordinary app/fixture
+builds, JS syntax/Prettier, generated drift, both Cargo formatters and whitespace checks. One
+existing HTTP-check invocation exercises all fixed outcomes and the prior lifecycle/recovery
+checks. A second invocation is reserved for a concrete failure; no unrelated experiment.
+
+**First native invocation:** 13:35 UTC, **7.37 s**, failed the expected terminal `Failed` state
+for the singleton duplicate. The generated snapshot instead reports **`RetirementUnverified`**,
+root exit **17**, PID **48008**, no retry deadline; the baseline owned PID **36196** remains Ready.
+This is unresolved tree-retirement evidence, not a successful retirement. Keep the runtime's
+conservative state and the acceptance debt. The remaining invocation will explicitly retain
+`RetirementUnverified` in its result while checking known-root termination, external isolation
+and all other fixed cases. It does not convert that state into complete cleanup. No native
+driver/overlay/GPU investigation or runtime change is authorized by this outcome.
+
+**Second/final native invocation:** **13:37 UTC**, **4.86 s**. Sequential assertions reach the
+invalid-image case after verifying singleton non-adoption/external survival, launcher root exit
+with known descendant termination, actual breakaway rejection (**Windows error 5**), and missing
+executable failure (**error 2**). The missing-file case also verifies `.cmd` authoring rejection
+without snapshot mutation and no retry when disabled. The check then fails: this Windows loader
+returns **error 216**, while the test expected only **193** for invalid test-image bytes. The
+result is a failed invocation, not a green aggregate check or a cleanup qualification pass.
+
+Corrected the test assumption to accept explicit native-image rejection **193 or 216**, recording
+the actual code. Partial outcomes are now printed if a future invocation fails. Native retirement
+gaps remain explicit `RetirementUnverified` results, never `Idle`/cleanup proof; known-root/child
+termination and external non-adoption are checked separately. The expanded suite is opt-in:
+`node apps/mapgyver/tests/headless/check.mjs --target-outcomes`; the default check retains batch
+42's ordinary lifecycle/availability behavior. **No third native invocation ran**. The corrected
+complete target-outcome check remains unverified. No production runtime or shared Golden code
+changed; no driver/overlay/GPU/desktop recovery or additional probe was attempted.
+
+Finite test-owned Windows fixtures use a unique named mutex, one launcher child and an explicit
+breakaway attempt. All spawned targets are hidden and have a 20-second fallback lifetime. Their
+test external singleton is explicitly closed; the app's owned job handles are released by the
+test's `finally` host shutdown. Do not infer full unobserved-tree cleanup from that release.
+
+**Software validation:** current app/fixture builds, **187 app tests / one existing hardware
+ignore**, **177 headless tests**, strict all-target/all-feature Clippy, generated drift, JS syntax/
+Prettier, both Cargo formatters and whitespace checks pass. Existing native error-code tests cover
+access/unsupported/elevation-required propagation without fallback; actual elevated-target denial
+is still open. The invalid-image expectation correction received syntax/format review only.
+
+**No gate closes:** M08 remains **3/4 = 75%**, overall **3/10 = 30%**. Fixed denominators are unchanged.
+Product deliveries remain **40**; ten diagnostic-only batches are allowed, now **three used**.
+Next is the product launch-definition file-picker workflow. No consecutive diagnostic batch and
+no repeated retirement investigation are scheduled; retain the explicit unresolved cases in gate 4.
 
 **Product batch 42:** started 2026-10-31 **12:58 UTC**, recorded stop **13:43 UTC**.
 Add shared-application availability control through generated backend intents, the Applications
@@ -2428,9 +2495,12 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Verify **M08 singleton/launcher/unsupported-target outcomes** through the ordinary app in one
-bounded acceptance batch. Use existing owned-process fixtures and public intents; define expected
-outcomes first, preserve independent-process isolation, and retain unavailable evidence explicitly.
+Deliver **M08 executable selection** in launch-definition editing using Golden's public native
+file dialog and existing backend configuration intent. Preserve explicit path entry for non-native
+clients; choosing a path must not launch the target or commit until the user saves the definition.
+Keep app policy and path validation in the backend. The bounded unsupported-target batch is finished
+after two invocations; its full-check failure, unverified retirement and elevated-target evidence
+remain open. Do not run another diagnostic-only batch next.
 Availability controls and supervision/admission failures use the common generated contracts.
 Gate 3's lifecycle acceptance is complete. Default headless supervision/
 callback delivery and the ordinary HTTP process-ownership path work. Keep the ordered
@@ -2451,7 +2521,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 Forty product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
-batches are allowed by the ratio, two are used after the completed M08 batch. Continue the product path;
+batches are allowed by the ratio, three are used after the bounded M08 target-outcome batch. Continue the product path;
 retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and

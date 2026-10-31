@@ -1,10 +1,12 @@
 // Run after building MapGyver and application_process_fixture with application-process-fixture.
 // Exercises the ordinary --headless entrypoint through public HTTP intents, without a frontend/GPU.
+// Add --target-outcomes for the bounded singleton/launcher/breakaway/invalid-image acceptance cases.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { verifyTargetOutcomes } from './outcomes.mjs';
 
 const listener = createServer();
 await new Promise((resolve, reject) => {
@@ -236,6 +238,9 @@ try {
 		);
 		await delay(25);
 	}
+	const targetOutcomes = process.argv.includes('--target-outcomes')
+		? await verifyTargetOutcomes({ applications, matrix, edit, fixture, alive })
+		: undefined;
 	app.kill();
 	await appExit;
 	const cleanupDeadline = Date.now() + 3000;
@@ -256,6 +261,7 @@ try {
 			acknowledged: restarted.callbacks.acknowledged,
 			admission_recovered: true,
 			availability_verified: true,
+			target_outcomes: targetOutcomes,
 			admission_message: admissionMessage
 		})
 	);

@@ -1,6 +1,13 @@
 use std::time::Duration;
 
+#[cfg(windows)]
+mod outcomes;
+
 fn main() {
+    #[cfg(windows)]
+    if outcomes::run() {
+        return;
+    }
     if std::env::args().nth(1).as_deref() == Some("--lifecycle-exit") {
         std::thread::sleep(Duration::from_millis(40));
         std::process::exit(23);
