@@ -30,6 +30,13 @@ The implemented foundations are:
   choose cell counts, palettes and activation policy. Procedural draws consume the same submitted
   draw/dependency admission units as sampled layers. Both shared shader constant buffers are
   charged by native resource accounting; the configured resource ceiling is unchanged.
+- `plan/envelope.rs` provides checked Linear/SmoothStep opacity factors evaluated from each
+  submission's Golden Time observation. Layers multiply authored opacity by that factor on the
+  native render worker, without frame-driven plan publication or heap allocation. Fades use the
+  authority's monotonic coordinate; show transport changes do not restart them. Replacing the
+  authority settles to the target instead of comparing unrelated origins. Applications own
+  transition policy, interruption weights, source demand and completion cleanup; Golden retains
+  the resources of replaced generations until their actual GPU uses retire.
 - `runtime/` owns bounded publication, preparation, frame scheduling, generation installation
   and completion-based resource retirement. `VideoRuntime` starts either the pixel-free null
   qualification backend or the opt-in Windows D3D11 backend through the same control/core path.

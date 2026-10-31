@@ -22,6 +22,254 @@ const WAIT: Duration = Duration::from_secs(5);
 
 #[test]
 #[ignore = "requires explicit hardware D3D11 and native Spout output availability"]
+fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
+    use mapgyver::matrix::protocol::*;
+    use mapgyver::media::capture_channels_at;
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(60)).is_err() {
+            eprintln!("native Matrix test exceeded retirement deadline");
+            std::process::exit(1);
+        }
+    });
+    let adapter = adapters()
+        .unwrap()
+        .into_iter()
+        .find(|adapter| !adapter.software)
+        .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
+    engine.apply_edits().unwrap();
+    let mut sources = Vec::new();
+    for rgba in [[1., 0., 0., 0.5], [0., 1., 0., 0.25], [0., 0., 1., 1.]] {
+        let MediaEditResult::Created { reference } = edit(
+            &mut engine,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::SolidColor,
+                label: None,
+            },
+        ) else {
+            panic!()
+        };
+        let mut definition = channel(&engine, reference).unwrap().definition;
+        definition.size = SizePolicy::Fixed {
+            extent: Extent2D::new(2, 2).unwrap(),
+        };
+        definition.source = ChannelSource::SolidColor { rgba };
+        edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        sources.push(reference);
+    }
+    let MediaEditResult::Created { reference: matrix } = edit(
+        &mut engine,
+        MediaEdit::CreateMedia {
+            media_kind: MediaKind::Matrix,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let matrix_edit = |engine: &mut AppEngine, operation| {
+        edit(
+            engine,
+            MediaEdit::Matrix {
+                media: matrix.media,
+                edit: operation,
+            },
+        )
+    };
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::Configure {
+            definition: MatrixDefinition {
+                canvas: Extent2D::new(2, 2).unwrap(),
+                transition: TransitionDefinition {
+                    duration_ms: 500,
+                    curve: TransitionCurve::SmoothStep,
+                },
+                ..Default::default()
+            },
+        },
+    );
+    let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
+        &mut engine,
+        MatrixEdit::AddGroup {
+            parent: None,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let group = items[0];
+    let MatrixItemId::Group { id: group_id } = group else {
+        panic!()
+    };
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::ConfigureItem {
+            item: group,
+            settings: CompositeSettings {
+                opacity: 0.5,
+                ..Default::default()
+            },
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::AddLayers {
+            parent: Some(group_id),
+            count: 2,
+        },
+    );
+    matrix_edit(&mut engine, MatrixEdit::AddColumns { count: 3 });
+    let MediaEditResult::Matrix { snapshot } = matrix_edit(&mut engine, MatrixEdit::Inspect) else {
+        panic!()
+    };
+    let rows = snapshot
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let MatrixItemId::Layer { id } = item.id {
+                Some((id, item.channel))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::SetCells {
+            assignments: rows
+                .iter()
+                .flat_map(|(layer, _)| {
+                    sources.iter().enumerate().map(|(i, source)| CellAssignment {
+                        layer: *layer,
+                        column: snapshot.columns[i].id,
+                        source: Some(*source),
+                    })
+                })
+                .collect(),
+        },
+    );
+    let roots = [matrix, rows[0].1];
+    let mut owned = renderer(adapter.id, directory.path());
+    let live = owned.0.as_mut().unwrap();
+    let await_frame = |live: &mut ChannelRenderer| {
+        let mut installed = None;
+        wait("Matrix native generation/frame", || {
+            live.refresh().unwrap();
+            let mut outcomes = Vec::new();
+            live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+            for outcome in outcomes {
+                if Some(outcome.request) == live.latest_request() {
+                    match outcome.result {
+                        OutcomeKind::Installed { generation, .. } => installed = Some(generation.identity),
+                        OutcomeKind::Rejected(failure) => panic!("Matrix publication rejected: {failure:?}"),
+                        _ => {}
+                    }
+                }
+            }
+            let snapshot = live.snapshot();
+            snapshot
+                .last_frame
+                .is_some_and(|frame| Some(frame.identity) == installed)
+                && snapshot
+                    .resources
+                    .is_some_and(|resources| resources.active.is_some_and(|active| active.output_count == 2))
+        });
+    };
+    let publish_timed = |live: &mut ChannelRenderer, engine: &AppEngine| {
+        let time = live.read_time().unwrap();
+        live.publish(capture_channels_at(engine, &roots, 16, time).unwrap(), routes(roots))
+            .unwrap();
+    };
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: snapshot.columns[0].id,
+            mode: LaunchMode::Cut,
+        },
+    );
+    publish_timed(live, &engine);
+    await_frame(live);
+    let targets = roots.map(|reference| {
+        live.channels()
+            .iter()
+            .find(|channel| channel.reference == reference)
+            .unwrap()
+            .target
+    });
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: snapshot.columns[1].id,
+            mode: LaunchMode::Configured,
+        },
+    );
+    publish_timed(live, &engine);
+    await_frame(live);
+    assert!(
+        sources[..2]
+            .iter()
+            .all(|reference| live.channels().iter().any(|channel| channel.reference == *reference))
+    );
+    // Wait for real shared-time progress, then interrupt before the 500 ms endpoint.
+    let progress = live.read_time().unwrap().monotonic();
+    wait("Matrix transition progress", || {
+        live.read_time().unwrap().monotonic().duration_since(progress).unwrap() >= Duration::from_millis(25)
+    });
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: snapshot.columns[2].id,
+            mode: LaunchMode::Configured,
+        },
+    );
+    publish_timed(live, &engine);
+    await_frame(live);
+    assert!(
+        sources
+            .iter()
+            .all(|reference| live.channels().iter().any(|channel| channel.reference == *reference))
+    );
+    let transitioning = live.latest_request().unwrap();
+    wait("Matrix outgoing demand release", || {
+        live.refresh().unwrap();
+        let mut outcomes = Vec::new();
+        live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+        assert!(
+            !outcomes
+                .iter()
+                .any(|outcome| matches!(outcome.result, OutcomeKind::Rejected(_)))
+        );
+        !live
+            .channels()
+            .iter()
+            .any(|channel| sources[..2].contains(&channel.reference))
+    });
+    assert_eq!(live.latest_request().unwrap().get(), transitioning.get() + 1);
+    assert!(live.channels().iter().any(|channel| channel.reference == sources[2]));
+    assert_eq!(
+        roots.map(|reference| live
+            .channels()
+            .iter()
+            .find(|channel| channel.reference == reference)
+            .unwrap()
+            .target),
+        targets
+    );
+    let cleaned = live.latest_request().unwrap();
+    assert!(live.refresh().unwrap().is_none());
+    assert_eq!(live.latest_request(), Some(cleaned));
+    let resources = live.snapshot().resources.unwrap();
+    assert!(resources.bytes_used <= resources.byte_limit);
+    assert!(resources.in_flight <= 2 && resources.retiring_generations <= 2);
+    assert!(live.native_control().unwrap().sources().is_empty());
+    drop(owned);
+    done.send(()).unwrap();
+}
+
+#[test]
+#[ignore = "requires explicit hardware D3D11 and native Spout output availability"]
 fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_undo() {
     use mapgyver::media::composition::protocol::*;
     let (done, finished) = std::sync::mpsc::channel();

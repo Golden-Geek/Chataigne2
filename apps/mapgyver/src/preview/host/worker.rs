@@ -2,7 +2,7 @@ use crate::{
     app::AppNode,
     media::rendering::{ChannelRenderer, PreviewLayout},
     preview::{
-        capture::{CapturedPreview, capture_presentation},
+        capture::{CapturedPreview, capture_presentation_at, capture_presentation_with_time},
         protocol::{PREVIEW_STATUS_EVENT, PreviewSource, PreviewStatus},
     },
 };
@@ -197,11 +197,18 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 let mut changed = published != Some(layout.generation)
                     || capture.as_ref().is_none_or(|capture| !capture.is_current());
                 if changed {
+                    let time = owner
+                        .as_ref()
+                        .map(|owner| owner.renderer.read_time())
+                        .transpose()
+                        .map_err(|e| e.to_string())?;
                     let sources = preview.sources()?;
                     let displays = display_snapshot.displays.clone();
                     let mut next = input
                         .runtime
-                        .capture_app(move |engine| capture_presentation(engine, &sources, 8, 128, &displays))
+                        .capture_app(move |engine| {
+                            capture_presentation_with_time(engine, &sources, 8, 128, &displays, time)
+                        })
                         .map_err(|e| e.to_string())??;
                     next.add_revision_guard(input.displays.guard());
                     let desired = targets.assign(&mut next)?;
@@ -230,6 +237,25 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         create(input.hwnd, extent, &topology, input.notifier.clone()).map_err(|e| e.to_string())?;
                     native = Some(control);
                     owner = Some(created);
+                    // Topology discovery precedes runtime construction. Recapture timed demand
+                    // against the newly created authority before publishing its first frame.
+                    let time = owner
+                        .as_ref()
+                        .unwrap()
+                        .renderer
+                        .read_time()
+                        .map_err(|e| e.to_string())?;
+                    let sources = preview.sources()?;
+                    let displays = display_snapshot.displays.clone();
+                    let mut next = input
+                        .runtime
+                        .capture_app(move |engine| capture_presentation_at(engine, &sources, 8, 128, &displays, time))
+                        .map_err(|e| e.to_string())??;
+                    next.add_revision_guard(input.displays.guard());
+                    if targets.assign(&mut next)? != topology {
+                        return Err("output topology changed during time binding; recapture required".into());
+                    }
+                    capture = Some(next);
                     changed = true;
                 }
                 let renderer = &mut owner.as_mut().unwrap().renderer;

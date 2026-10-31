@@ -185,6 +185,7 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
                     Layer {
                         source: TextureId::new(1).unwrap().into(),
                         opacity: Opacity::OPAQUE,
+                        opacity_envelope: None,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Nearest,
                         mapping: None,
@@ -192,6 +193,7 @@ fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
                     Layer {
                         source: TextureId::new(2).unwrap().into(),
                         opacity: Opacity::new(0.5).unwrap(),
+                        opacity_envelope: None,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Nearest,
                         mapping: None,

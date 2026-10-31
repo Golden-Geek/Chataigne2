@@ -1,6 +1,7 @@
 use super::*;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
+mod envelope;
 mod mapping;
 mod pattern;
 mod regions;
@@ -62,6 +63,7 @@ fn layer(source: u64) -> Layer {
     Layer {
         source: texture(source).into(),
         opacity: Opacity::OPAQUE,
+        opacity_envelope: None,
         blend: BlendMode::Normal,
         filter: SampleFilter::Linear,
         mapping: None,

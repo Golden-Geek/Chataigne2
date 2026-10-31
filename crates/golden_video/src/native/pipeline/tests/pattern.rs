@@ -11,6 +11,7 @@ fn layer(pattern: Pattern, opacity: f32, mapping: Option<ProjectiveMapping>) -> 
     Layer {
         source: LayerSource::Pattern(pattern),
         opacity: Opacity::new(opacity).unwrap(),
+        opacity_envelope: None,
         blend: BlendMode::Normal,
         filter: SampleFilter::Nearest,
         mapping,

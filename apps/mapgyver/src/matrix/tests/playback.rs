@@ -54,7 +54,7 @@ fn current(engine: &mut AppEngine, media: MediaId) -> MatrixPlaybackSnapshot {
 }
 
 #[test]
-fn cut_bursts_are_ephemeral_and_configured_fades_reject_without_changing_live_state() {
+fn cut_bursts_and_configured_launches_are_ephemeral_without_authored_history() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
     let columns = columns(&mut engine, matrix.media, 2);
@@ -75,7 +75,6 @@ fn cut_bursts_are_ephemeral_and_configured_fades_reject_without_changing_live_st
     }
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
-    let committed = current(&mut engine, matrix.media);
     let ack = invoke(
         &mut engine,
         MediaEdit::Matrix {
@@ -86,8 +85,10 @@ fn cut_bursts_are_ephemeral_and_configured_fades_reject_without_changing_live_st
             },
         },
     );
-    assert!(!ack.success);
-    assert_eq!(current(&mut engine, matrix.media), committed);
+    assert!(ack.success);
+    assert_eq!(current(&mut engine, matrix.media).transition.duration_ms, 250);
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
     let mut restored = from_sparse_project_json::<AppNode>(&authored).unwrap();
     assert_eq!(current(&mut restored, matrix.media), MatrixPlaybackSnapshot::default());
 }

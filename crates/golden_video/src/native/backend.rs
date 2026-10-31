@@ -412,7 +412,7 @@ impl Backend for D3d11Backend {
         resources: &Self::Resources,
         plan: &CompiledPlan,
         token: CompletionToken,
-        _time: TimeSnapshot,
+        time: TimeSnapshot,
     ) -> Result<(), BackendError> {
         let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
         if token.device != self.generation || native.device.removed() {
@@ -502,6 +502,7 @@ impl Backend for D3d11Backend {
                         pipeline.clear(context, output, LinearColor::TRANSPARENT);
                     }
                     for (index, layer) in layers.iter().enumerate() {
+                        let layer = layer.evaluated(time);
                         let to_output = (layers.len() - index) % 2 == 1;
                         let target = if to_output {
                             output
@@ -523,7 +524,7 @@ impl Backend for D3d11Backend {
                                 .map(|source| resources.textures[&source].as_ref()),
                             previous.map(Rc::as_ref),
                             target.as_ref().into(),
-                            layer,
+                            &layer,
                         );
                     }
                 }

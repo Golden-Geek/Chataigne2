@@ -101,6 +101,7 @@ pub(super) fn composition_layers(
         result.push(Layer {
             source: source.target.into(),
             opacity: Opacity::new(instance.opacity).map_err(|error| error.to_string())?,
+            opacity_envelope: None,
             blend: instance.blend,
             filter,
             mapping: Some(mapping),
@@ -148,6 +149,7 @@ pub(super) fn matrix_layers(
             (source.resolution.availability == ChannelAvailability::Ready).then(|| Layer {
                 source: source.target.into(),
                 opacity: Opacity::OPAQUE,
+                opacity_envelope: input.weight,
                 blend: input.blend,
                 filter,
                 mapping: None,

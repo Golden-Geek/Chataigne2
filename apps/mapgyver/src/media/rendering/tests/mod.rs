@@ -6,6 +6,7 @@ mod pictures;
 mod preview;
 mod publication;
 mod screens;
+mod transitions;
 
 use super::*;
 use crate::app::AppEngine;

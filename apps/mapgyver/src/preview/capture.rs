@@ -3,7 +3,7 @@
 use super::protocol::{PreviewSource, PreviewStatus};
 use crate::{
     app::AppEngine,
-    media::{CapturedChannels, capture_channels},
+    media::CapturedChannels,
     screens::{
         protocol::{DisplayInfo, ScreenId},
         rendering::{CapturedOutput, ScreenRoute, capture_outputs, capture_screen, membership_guard},
@@ -80,6 +80,15 @@ pub fn capture_preview(
     maximum_sources: usize,
     maximum_surfaces: usize,
 ) -> Result<CapturedPreview, String> {
+    capture_preview_with_time(engine, sources, maximum_sources, maximum_surfaces, None)
+}
+fn capture_preview_with_time(
+    engine: &AppEngine,
+    sources: &[PreviewSource],
+    maximum_sources: usize,
+    maximum_surfaces: usize,
+    time: Option<golden_time::TimeSnapshot>,
+) -> Result<CapturedPreview, String> {
     if sources.len() > maximum_sources {
         return Err("preview exceeds admitted view count".into());
     }
@@ -127,7 +136,7 @@ pub fn capture_preview(
     let mut unique = HashSet::new();
     channels.retain(|source| unique.insert(*source));
     Ok(CapturedPreview {
-        channels: capture_channels(engine, &channels, maximum_sources)?,
+        channels: crate::media::capture_channels_with_time(engine, &channels, maximum_sources, time)?,
         screens,
         catalog: Vec::new(),
         outputs: Vec::new(),
@@ -145,7 +154,28 @@ pub fn capture_presentation(
     maximum_surfaces: usize,
     displays: &[DisplayInfo],
 ) -> Result<CapturedPreview, String> {
-    let mut result = capture_preview(engine, sources, maximum_sources, maximum_surfaces)?;
+    capture_presentation_with_time(engine, sources, maximum_sources, maximum_surfaces, displays, None)
+}
+/// Capture presentation and timed Matrix demand against the owning renderer's shared time.
+pub fn capture_presentation_at(
+    engine: &AppEngine,
+    sources: &[PreviewSource],
+    maximum_sources: usize,
+    maximum_surfaces: usize,
+    displays: &[DisplayInfo],
+    time: golden_time::TimeSnapshot,
+) -> Result<CapturedPreview, String> {
+    capture_presentation_with_time(engine, sources, maximum_sources, maximum_surfaces, displays, Some(time))
+}
+pub(crate) fn capture_presentation_with_time(
+    engine: &AppEngine,
+    sources: &[PreviewSource],
+    maximum_sources: usize,
+    maximum_surfaces: usize,
+    displays: &[DisplayInfo],
+    time: Option<golden_time::TimeSnapshot>,
+) -> Result<CapturedPreview, String> {
+    let mut result = capture_preview_with_time(engine, sources, maximum_sources, maximum_surfaces, time)?;
     let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_SCREEN_OUTPUTS, displays)?;
     result.catalog = captured.catalog;
     result.guards.extend(captured.guards);
@@ -204,7 +234,7 @@ pub fn capture_presentation(
     }
     let mut seen = HashSet::new();
     references.retain(|reference| seen.insert(*reference));
-    result.channels = capture_channels(engine, &references, maximum_sources)?;
+    result.channels = crate::media::capture_channels_with_time(engine, &references, maximum_sources, time)?;
     result.outputs = captured.outputs;
     for (screen, reason) in captured.unavailable {
         let source = PreviewSource::Screen { screen };

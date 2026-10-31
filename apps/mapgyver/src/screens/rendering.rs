@@ -199,6 +199,7 @@ impl CapturedScreen {
             layers.push(Layer {
                 source,
                 opacity: Opacity::new(surface.opacity).map_err(|error| error.to_string())?,
+                opacity_envelope: None,
                 blend: BlendMode::Normal,
                 filter: SampleFilter::Linear,
                 mapping: Some(ProjectiveMapping::new(crop, surface.quad).map_err(|error| error.to_string())?),

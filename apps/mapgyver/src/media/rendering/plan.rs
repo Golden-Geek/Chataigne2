@@ -250,6 +250,7 @@ pub(super) fn build(
                             });
                             layers = vec![golden_video::plan::Layer {
                                 source: scratch.into(),
+                                opacity_envelope: None,
                                 opacity: golden_video::Opacity::new(matrix.opacity)
                                     .map_err(|error| error.to_string())?,
                                 blend: golden_video::plan::BlendMode::Normal,

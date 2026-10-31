@@ -74,6 +74,7 @@ pub fn plan(outputs: &[u64]) -> RenderPlan {
                 Layer {
                     source: texture(1).into(),
                     opacity: Opacity::OPAQUE,
+                    opacity_envelope: None,
                     blend: BlendMode::Normal,
                     filter: SampleFilter::Nearest,
                     mapping: None,
@@ -81,6 +82,7 @@ pub fn plan(outputs: &[u64]) -> RenderPlan {
                 Layer {
                     source: texture(2).into(),
                     opacity: Opacity::new(0.2).unwrap(),
+                    opacity_envelope: None,
                     blend: BlendMode::Add,
                     filter: SampleFilter::Linear,
                     mapping: None,
@@ -88,6 +90,7 @@ pub fn plan(outputs: &[u64]) -> RenderPlan {
                 Layer {
                     source: texture(2).into(),
                     opacity: Opacity::new(0.3).unwrap(),
+                    opacity_envelope: None,
                     blend: BlendMode::Multiply,
                     filter: SampleFilter::Nearest,
                     mapping: None,
@@ -95,6 +98,7 @@ pub fn plan(outputs: &[u64]) -> RenderPlan {
                 Layer {
                     source: texture(2).into(),
                     opacity: Opacity::new(0.4).unwrap(),
+                    opacity_envelope: None,
                     blend: BlendMode::Screen,
                     filter: SampleFilter::Linear,
                     mapping: None,

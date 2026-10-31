@@ -79,6 +79,7 @@ impl PreviewLayout {
                     .map(|source| Layer {
                         source: source.into(),
                         opacity: Opacity::OPAQUE,
+                        opacity_envelope: None,
                         blend: BlendMode::Normal,
                         filter: SampleFilter::Linear,
                         mapping: None,

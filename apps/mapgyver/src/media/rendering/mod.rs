@@ -134,6 +134,10 @@ impl ChannelRenderer {
     pub fn source_observations(&self) -> SourceObservations {
         sources::capture(&self.runtime)
     }
+    /// Read-only observation of the video runtime's shared monotonic authority.
+    pub fn read_time(&self) -> Result<golden_time::TimeSnapshot, golden_time::TimeError> {
+        self.runtime.read_time()
+    }
 
     pub fn publish(&mut self, capture: CapturedChannels, routes: Vec<ChannelRoute>) -> Result<RequestId, String> {
         self.publish_targets(capture, routes, None)
@@ -274,6 +278,11 @@ impl ChannelRenderer {
     /// Invoke on a worker notification. Frame counters are excluded from observation equality;
     /// unchanged metadata produces no plan construction/publication.
     pub fn refresh(&mut self) -> Result<Option<RequestId>, String> {
+        let time = self.runtime.read_time().map_err(|error| error.to_string())?;
+        let transitions_finished = self
+            .desired
+            .as_ref()
+            .is_some_and(|desired| desired.capture.transitions_finished(time));
         let pictures_changed = self
             .pictures
             .as_mut()
@@ -282,6 +291,7 @@ impl ChannelRenderer {
             .unwrap_or(false);
         let observations = self.source_observations();
         if !pictures_changed
+            && !transitions_finished
             && self
                 .observations
                 .as_ref()
@@ -289,9 +299,12 @@ impl ChannelRenderer {
         {
             return Ok(None);
         }
-        let Some(desired) = self.desired.clone() else {
+        let Some(mut desired) = self.desired.clone() else {
             return Ok(None);
         };
+        if transitions_finished {
+            desired.capture.settle_transitions(time);
+        }
         self.publish_observed_targets(
             desired.capture,
             desired.routes,

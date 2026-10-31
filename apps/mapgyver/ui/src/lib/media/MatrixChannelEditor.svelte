@@ -252,7 +252,7 @@
 					? (columnLabels.get(playback.desired_column) ?? 'Missing column')
 					: 'None'}
 			</p>
-			<p>Cut launches switch immediately. Timed transitions are not available yet.</p>
+			<p>Launch uses the column transition override or Matrix default. Cut switches immediately.</p>
 			<input
 				type="search"
 				aria-label="Find column to launch"
@@ -260,6 +260,10 @@
 				bind:value={columnSearch} />
 			<div class="actions">
 				{#each visibleColumns as column (column.id)}
+					<button
+						type="button"
+						onclick={() => mutate({ kind: 'LaunchColumn', column: column.id, mode: 'Configured' })}
+						>Launch {column.label}</button>
 					<button
 						type="button"
 						onclick={() => mutate({ kind: 'LaunchColumn', column: column.id, mode: 'Cut' })}

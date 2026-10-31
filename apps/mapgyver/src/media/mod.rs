@@ -17,7 +17,8 @@ mod scripting;
 
 pub use assets::{AssetNode, asset};
 pub use authoring::{apply_operation, channel, initialize, validate_project};
-pub use capture::{CapturedChannels, capture_channels};
+pub(crate) use capture::capture_channels_with_time;
+pub use capture::{CapturedChannels, capture_channels, capture_channels_at};
 pub use commands::MediaCommandNode;
 pub use nodes::{ChannelNode, MediaManagerNode, MediaNode};
 

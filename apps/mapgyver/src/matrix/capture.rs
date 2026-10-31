@@ -14,12 +14,15 @@ use std::{
 pub(crate) struct MatrixInput {
     pub source: ChannelReference,
     pub blend: golden_video::plan::BlendMode,
+    pub weight: Option<golden_video::plan::OpacityEnvelope>,
 }
 #[derive(Clone)]
 pub(crate) struct CapturedMatrix {
     pub canvas: golden_video::Extent2D,
     pub opacity: f32,
     pub inputs: Vec<MatrixInput>,
+    pub until: Option<golden_video::plan::OpacityEnvelope>,
+    pub control: super::playback::PlaybackControl,
 }
 impl CapturedMatrix {
     pub fn needs_scratch(&self) -> bool {
@@ -34,6 +37,7 @@ pub(crate) fn capture(
     budget: &mut usize,
     guarded: &mut HashSet<MediaId>,
     guards: &mut Vec<RevisionGuard>,
+    time: Option<golden_time::TimeSnapshot>,
 ) -> Result<Option<CapturedMatrix>, String> {
     let root_id = super::playback::root(engine, reference.media)?;
     let Some(AppNode::MediaChannel(root)) = engine.nodes.get(root_id) else {
@@ -46,7 +50,7 @@ pub(crate) fn capture(
         return Err("Matrix export belongs to another media".into());
     }
     let control = root.matrix_playback().ok_or("Matrix runtime owner is missing")?;
-    let playback = control.snapshot();
+    let frame = control.frame(time)?;
     let index = match control.cached() {
         Some(index) => index,
         None => {
@@ -66,10 +70,15 @@ pub(crate) fn capture(
         guards.push(root.guard());
         guards.push(control.guard());
     }
+    let Some(frame) = frame else {
+        return Ok(None);
+    };
     let mut captured = CapturedMatrix {
         canvas: index.canvas,
         opacity: 1.0,
         inputs: vec![],
+        until: frame.interval.map(|interval| interval.envelope(0.0, 1.0)),
+        control: control.clone(),
     };
     let item = match output {
         MatrixOutput::Final { .. } => {
@@ -91,17 +100,28 @@ pub(crate) fn capture(
             return Ok(Some(captured));
         }
     }
-    let Some(column) = playback.desired_column else {
-        return Ok(Some(captured));
-    };
-    let Some(cells) = index.cells.get(&column) else {
-        return Ok(Some(captured));
-    };
     if let Some(MatrixItemId::Layer { .. }) = item {
-        if let Some((_, source)) = cells.get(&index.items[&item.unwrap()].order) {
+        let mut sources = Vec::<(ChannelReference, f32, f32)>::new();
+        for (column, from, to) in &frame.columns {
+            let Some((_, source)) = index
+                .cells
+                .get(column)
+                .and_then(|cells| cells.get(&index.items[&item.unwrap()].order))
+            else {
+                continue;
+            };
+            if let Some((_, current_from, current_to)) = sources.iter_mut().find(|(id, _, _)| id == source) {
+                *current_from += from;
+                *current_to += to;
+            } else {
+                sources.push((*source, *from, *to));
+            }
+        }
+        for (source, from, to) in sources {
             captured.inputs.push(MatrixInput {
-                source: *source,
-                blend: golden_video::plan::BlendMode::Normal,
+                source,
+                blend: golden_video::plan::BlendMode::Add,
+                weight: frame.interval.map(|interval| interval.envelope(from, to)),
             });
         }
     } else {
@@ -119,25 +139,30 @@ pub(crate) fn capture(
             })
             .unwrap_or(0..index.items.len());
         let mut children = HashMap::<MatrixItemId, usize>::new();
-        let mut next = range.start;
-        while let Some((&order, (layer, _))) = cells.range(next..range.end).next() {
-            if *budget == 0 {
-                return Ok(None);
-            }
-            *budget -= 1;
-            next = order + 1;
-            let mut current = MatrixItemId::Layer { id: *layer };
-            loop {
-                let entry = &index.items[&current];
-                if entry.parent == scope {
-                    children.insert(current, entry.order);
-                    next = entry.end;
-                    break;
+        for (column, _, _) in &frame.columns {
+            let Some(cells) = index.cells.get(column) else {
+                continue;
+            };
+            let mut next = range.start;
+            while let Some((&order, (layer, _))) = cells.range(next..range.end).next() {
+                if *budget == 0 {
+                    return Ok(None);
                 }
-                let Some(parent) = entry.parent else {
-                    break;
-                };
-                current = MatrixItemId::Group { id: parent };
+                *budget -= 1;
+                next = order + 1;
+                let mut current = MatrixItemId::Layer { id: *layer };
+                loop {
+                    let entry = &index.items[&current];
+                    if entry.parent == scope {
+                        children.insert(current, entry.order);
+                        next = entry.end;
+                        break;
+                    }
+                    let Some(parent) = entry.parent else {
+                        break;
+                    };
+                    current = MatrixItemId::Group { id: parent };
+                }
             }
         }
         let mut children = children.into_iter().collect::<Vec<_>>();
@@ -148,6 +173,7 @@ pub(crate) fn capture(
                 captured.inputs.push(MatrixInput {
                     source: entry.channel,
                     blend: entry.settings.blend,
+                    weight: None,
                 });
             }
         }

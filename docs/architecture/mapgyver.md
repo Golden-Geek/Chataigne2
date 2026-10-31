@@ -8,7 +8,7 @@ and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media
 authoring contracts use the shared engine/history/codec and publish guarded channel plans through
 an app-owned preparation boundary. Screen/Surface authoring and output, Composition production/editor
 mechanisms and the sparse Matrix document/module are implemented to the extent recorded in the ledger.
-Matrix Cut playback is implemented; timed transitions/grid and full native/editor qualification remain open. Execution belongs to the
+Matrix timed playback is implemented; the virtualized grid and full native/editor qualification remain open. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -22,7 +22,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
-| `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, ephemeral atomic Cut launches and indexed layer/group/final demand. Timed transitions and app demand/lifetimes remain M07/M08 |
+| `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app demand/lifetimes remain M07/M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
@@ -347,16 +347,17 @@ requires Matrix operations for those targets. Golden contains no Matrix policy.
 Media Manager provides Matrix creation, document inspection, canvas/transition settings, root
 layer/group/column creation and source assignment with bounded selectors/readback. Generic media
 commands, hosted `editMedia`, callbacks and app snippets use the same generated contracts. The
-virtualized Matrix grid and shared-time transitions remain M07 work. Explicit `LaunchColumn` Cut
+virtualized Matrix grid remains M07 work. Explicit `LaunchColumn`
 requests use existing edit-completion receipts: pending or failed transactions cannot publish runtime
 state. One latest request is ephemeral, does not create authored Undo history and resets on reload.
-Configured launches with a nonzero transition reject explicitly until timed fades are implemented;
-zero-duration overrides can launch. A dedicated playback event avoids full catalog reads per cut.
-Media Manager provides bounded searchable Cut controls and committed requested-column feedback,
+`Configured` resolves the column override or Matrix default once when the backend accepts the
+request; `Cut` uses zero duration. The committed playback snapshot includes that resolved transition.
+A dedicated playback event avoids full catalog reads per launch. Media Manager provides bounded
+searchable Launch/Cut controls and committed requested-column feedback,
 which does not claim actual renderer installation or replace selection/preparation state.
 
 The Final channel owns an immutable sparse index cached per authored revision. The first capture
-after an edit rebuilds that document index; cuts reuse it and visit only populated demanded subtrees.
+after an edit rebuilds that document index; launches reuse it and visit only populated demanded subtrees.
 Weak invalidation bindings fence cached metadata on content, structure, enable and Undo changes.
 Capture shares the existing channel/metadata budget; preparation orders Composition and Matrix in
 one DAG, with one shared pass per demanded channel. Empty cells/columns are transparent and demand
@@ -365,6 +366,36 @@ scratch pass when multiple children overlap. Layer/group/final exports remain in
 Insufficient scratch/edge admission rejects the affected producer without raising plan limits.
 The first-index rebuild and full large-grid cost remain qualification work. No native Matrix pixels,
 interactive grid behavior or app process control is inferred from software checks.
+
+`matrix/timeline.rs` owns one bounded runtime mix per Matrix. The first demanded capture binds a
+committed launch to the owning Video runtime's Golden Time observation; frames derive progress from
+that immutable monotonic anchor. `capture_channels_at` / `capture_presentation_at` require that same
+authority. Topology-only captures without time leave timed output unavailable; the desktop owner
+recaptures against its new authority before first publication. Show transport changes do not restart
+fades; authority replacement settles the prior interval to its target. These are desired-time fades;
+late installation or an unavailable input does not move the anchor or imply source readiness.
+
+Each row forms a normalized premultiplied sum of its active column sources. Sources shared across
+columns merge before capture, and all row/group/final consumers share the same interval. Interruption
+samples current weights, preserves positive outgoing contributions and fades that mix to the new
+column using Linear or SmoothStep interpolation. Golden's optional layer `OpacityEnvelope` evaluates
+on the render worker; it contains no Matrix types or product policy. Empty incoming cells fade the
+row to transparent. Missing media references remain transparent rather than inventing source data.
+**Remaining M07 gate 2 work:** bind outgoing contributions to their resolved launch-time sources
+through authored cell/column removal or reassignment, including a same-column relaunch. Current
+capture still resolves those contributions from the edited live index; it can withdraw an outgoing
+source early. The retained regression records that failure. This is a required follow-up, not a
+new live-edit policy or an accepted exception to outgoing-demand lifetime requirements.
+
+The explicit initial runtime admission is **32 simultaneously retained column contributions** per
+Matrix, independent of authored grid size. A further distinct configured interruption rejects without
+changing requested state; Cut or a retained-column launch remains available. Completion drops zero
+weights and restores admission. Existing channel, dependency, byte, publication and generation limits
+still apply; no qualification budget is raised. One completion refresh on the preparation worker
+prunes outgoing source demand and removes envelopes, without another actor capture or per-frame plan
+publication. Replaced generations retain GPU/input leases through their actual final completion.
+Native finite envelope pixels and app runtime smoke are evidence at their recorded scope; complete
+Matrix pixel/input/recovery/large-grid qualification remains owned by M07 gate 4.
 
 During a transition, incoming and outgoing media remain demanded. Layer/group/final channels
 render from the same plan and are independently routable to Surfaces or other media. Exported

@@ -1,12 +1,14 @@
 //! Immutable, app-neutral render plans prepared before any backend resources are created.
 
 mod compile;
+mod envelope;
 mod error;
 mod mapping;
 mod pattern;
 mod region;
 mod weight;
 
+pub use envelope::{InterpolationCurve, OpacityEnvelope};
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
 pub use pattern::{GridPattern, LayerSource, Pattern};
@@ -46,12 +48,27 @@ pub struct Layer {
     pub source: LayerSource,
     /// Layer opacity applied before blending.
     pub opacity: Opacity,
+    /// Optional shared-time factor multiplied by authored opacity on each render submission.
+    pub opacity_envelope: Option<OpacityEnvelope>,
     /// Blend mode against the accumulated destination.
     pub blend: BlendMode,
     /// Sampling when the source and destination extents differ.
     pub filter: SampleFilter,
     /// Checked during preparation, never solved on the rendering thread.
     pub mapping: Option<ProjectiveMapping>,
+}
+
+impl Layer {
+    /// Resolves temporal opacity into a fixed-size layer value, without heap allocation.
+    pub fn evaluated(&self, now: golden_time::TimeSnapshot) -> Self {
+        let mut result = self.clone();
+        if let Some(envelope) = self.opacity_envelope {
+            result.opacity =
+                Opacity::new(self.opacity.get() * envelope.sample(now).get()).expect("checked opacity product");
+            result.opacity_envelope = None;
+        }
+        result
+    }
 }
 
 /// A generic pass operation; no app node or native handle crosses this boundary.

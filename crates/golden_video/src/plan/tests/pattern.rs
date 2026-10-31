@@ -13,6 +13,7 @@ fn procedural_layers_have_no_texture_dependencies_but_consume_draw_admission_uni
             .map(|_| Layer {
                 source: LayerSource::Pattern(pattern),
                 opacity: crate::Opacity::OPAQUE,
+                opacity_envelope: None,
                 blend: BlendMode::Normal,
                 filter: SampleFilter::Nearest,
                 mapping: None,

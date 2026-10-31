@@ -65,6 +65,7 @@ fn hardware_pipeline_projective_crop_matches_independent_texel_and_alpha_oracles
         let layer = Layer {
             source: TextureId::new(1).unwrap().into(),
             opacity: Opacity::new(0.5).unwrap(),
+            opacity_envelope: None,
             blend: BlendMode::Normal,
             filter: SampleFilter::Nearest,
             mapping: Some(ProjectiveMapping::new(crop, quad).unwrap()),

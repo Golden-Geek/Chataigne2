@@ -58,6 +58,26 @@ impl CapturedChannel {
 }
 
 impl CapturedChannels {
+    pub(crate) fn transitions_finished(&self, time: golden_time::TimeSnapshot) -> bool {
+        self.channels
+            .iter()
+            .filter_map(|channel| channel.matrix.as_ref())
+            .any(|matrix| matrix.until.is_some_and(|until| until.finished(time)))
+    }
+    pub(crate) fn settle_transitions(&mut self, time: golden_time::TimeSnapshot) {
+        for matrix in self.channels.iter_mut().filter_map(|channel| channel.matrix.as_mut()) {
+            if matrix.until.is_some_and(|until| until.finished(time)) {
+                matrix.control.settle(time);
+                matrix
+                    .inputs
+                    .retain(|input| input.weight.is_none_or(|weight| weight.target().get() > 0.0));
+                for input in &mut matrix.inputs {
+                    input.weight = None;
+                }
+                matrix.until = None;
+            }
+        }
+    }
     pub fn is_current(&self) -> bool {
         self.guards.iter().all(RevisionGuard::is_current)
             && self
@@ -72,6 +92,25 @@ pub fn capture_channels(
     engine: &AppEngine,
     references: &[ChannelReference],
     limit: usize,
+) -> Result<CapturedChannels, String> {
+    capture_channels_with_time(engine, references, limit, None)
+}
+
+/// Captures timed Matrix demand using the same authority observed by the owning video runtime.
+pub fn capture_channels_at(
+    engine: &AppEngine,
+    references: &[ChannelReference],
+    limit: usize,
+    time: golden_time::TimeSnapshot,
+) -> Result<CapturedChannels, String> {
+    capture_channels_with_time(engine, references, limit, Some(time))
+}
+
+pub(crate) fn capture_channels_with_time(
+    engine: &AppEngine,
+    references: &[ChannelReference],
+    limit: usize,
+    time: Option<golden_time::TimeSnapshot>,
 ) -> Result<CapturedChannels, String> {
     if references.len() > limit {
         return Err("channel capture exceeds admitted demand count".into());
@@ -195,6 +234,7 @@ pub fn capture_channels(
                 &mut instance_budget,
                 &mut guarded_matrices,
                 &mut guards,
+                time,
             )?;
             let additions = matrix
                 .iter()

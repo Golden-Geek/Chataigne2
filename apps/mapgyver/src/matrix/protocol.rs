@@ -230,4 +230,5 @@ pub enum LaunchMode {
 pub struct MatrixPlaybackSnapshot {
     pub desired_column: Option<ColumnId>,
     pub launch_id: Option<uuid::Uuid>,
+    pub transition: TransitionDefinition,
 }

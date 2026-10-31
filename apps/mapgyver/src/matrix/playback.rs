@@ -29,6 +29,7 @@ struct State {
     current: MatrixPlaybackSnapshot,
     pending: Option<(MatrixPlaybackSnapshot, EditCompletion)>,
     index: Option<Arc<RenderIndex>>,
+    timeline: super::timeline::Timeline,
 }
 
 #[derive(Clone)]
@@ -43,6 +44,31 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub fn settle(&self, time: golden_time::TimeSnapshot) {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .timeline
+            .settle(time);
+    }
+    pub fn frame(&self, time: Option<golden_time::TimeSnapshot>) -> Result<Option<super::timeline::Frame>, String> {
+        let desired = self.snapshot();
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .timeline
+            .frame(&desired, time)
+    }
+    fn admits(&self, column: ColumnId) -> bool {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .timeline
+            .accepts(column)
+    }
     pub fn snapshot(&self) -> MatrixPlaybackSnapshot {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         if let Some((_, receipt)) = &state.pending {
@@ -133,16 +159,24 @@ pub(super) fn launch(
         return Err("column belongs to another Matrix".into());
     }
     let transition = column_definition.transition.unwrap_or(definition.transition);
-    if mode == LaunchMode::Configured && transition.duration_ms != 0 {
-        return Err("Configured Matrix transitions are unavailable; choose Cut explicitly".into());
-    }
     let control = root
         .matrix_playback()
         .ok_or("Matrix playback owner is missing")?
         .clone();
+    if mode == LaunchMode::Configured && transition.duration_ms != 0 && !control.admits(column) {
+        return Err("Matrix interrupted mix retains 32 columns; use Cut or relaunch a retained column".into());
+    }
     let desired = MatrixPlaybackSnapshot {
         desired_column: Some(column),
         launch_id: Some(uuid::Uuid::new_v4()),
+        transition: if mode == LaunchMode::Cut {
+            TransitionDefinition {
+                duration_ms: 0,
+                ..transition
+            }
+        } else {
+            transition
+        },
     };
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired)
         .map_err(|error| error.to_string())?;
