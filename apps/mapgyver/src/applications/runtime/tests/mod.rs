@@ -1,6 +1,7 @@
 use super::{agent::*, *};
 use golden_io::owned_process::{ProcessSnapshot, ProcessSpec, RootProcessState};
 use std::sync::atomic::{AtomicBool, Ordering};
+mod observation;
 
 struct Fake {
     creates: usize,
@@ -330,6 +331,8 @@ fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_res
         reader.guard_at(reader.current())
     };
     let target = Target {
+        definition_revision: Some(1),
+        definition_instance: Some(uuid::Uuid::new_v4()),
         epoch: uuid::Uuid::new_v4(),
         retain_existing: false,
         definition: Some(definition()),

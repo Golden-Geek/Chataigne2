@@ -1,6 +1,8 @@
 //! App policy and independent background process owners. Explicitly start only for a live project.
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
+mod observation;
+pub use observation::{ApplicationObservations, ApplicationSubscription};
 mod readiness;
 mod retention;
 mod worker;
@@ -24,6 +26,8 @@ struct Target {
     definition: Option<Arc<ApplicationDefinition>>,
     guard: Option<RevisionGuard>,
     admission: Arc<[RevisionGuard]>,
+    definition_revision: Option<u64>,
+    definition_instance: Option<uuid::Uuid>,
 }
 struct Request {
     targets: HashMap<ApplicationId, Target>,
@@ -54,24 +58,46 @@ pub(crate) struct RuntimeView {
     claimed: Arc<std::sync::atomic::AtomicBool>,
     origin: Arc<OnceLock<Instant>>,
     statuses: Arc<Mutex<Statuses>>,
+    revision: Arc<std::sync::atomic::AtomicU64>,
+    observer: Arc<Mutex<Option<(uuid::Uuid, WorkerNotifier)>>>,
 }
 impl RuntimeView {
     pub(crate) fn snapshot(&self, project: uuid::Uuid) -> ApplicationRuntimeSnapshot {
-        let mut applications = self
-            .statuses
-            .lock()
-            .expect("application observation lock poisoned")
-            .values()
-            .map(|(_, status)| status.clone())
-            .collect::<Vec<_>>();
+        let statuses = self.statuses.lock().expect("application observation lock poisoned");
+        let revision = self.revision.load(std::sync::atomic::Ordering::Acquire);
+        let mut applications = statuses.values().map(|(_, status)| status.clone()).collect::<Vec<_>>();
+        drop(statuses);
         applications.sort_by_key(|entry| entry.application.0.0);
         let elapsed_ms = self.origin.get().map_or(0, |origin| {
             u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX)
         });
         ApplicationRuntimeSnapshot {
             project,
+            revision,
             elapsed_ms,
             applications,
+        }
+    }
+    fn changed(&self) {
+        self.revision
+            .fetch_update(
+                std::sync::atomic::Ordering::Release,
+                std::sync::atomic::Ordering::Relaxed,
+                |revision| revision.checked_add(1),
+            )
+            .expect("application observation revision exhausted");
+        if let Some((_, notifier)) = &*self.observer.lock().expect("application observer lock poisoned") {
+            notifier.notify();
+        }
+    }
+    fn publish(&self, id: ApplicationId, owner: uuid::Uuid, status: &ApplicationRuntimeStatus) {
+        let mut statuses = self.statuses.lock().expect("application observation lock poisoned");
+        if let Some((registered, observed)) = statuses.get_mut(&id)
+            && *registered == owner
+            && *observed != *status
+        {
+            *observed = status.clone();
+            self.changed();
         }
     }
 }
@@ -184,6 +210,8 @@ impl ApplicationRuntime {
                         definition,
                         guard: Some(node.guard()),
                         admission: admission.clone(),
+                        definition_revision: Some(snapshot.revision),
+                        definition_instance: Some(snapshot.definition_instance),
                     }
                 }
                 _ => Target {
@@ -192,6 +220,8 @@ impl ApplicationRuntime {
                     definition: None,
                     guard: None,
                     admission: admission.clone(),
+                    definition_revision: None,
+                    definition_instance: None,
                 },
             };
             target.retain_existing = entry.reasons.iter().any(|reason| {
@@ -222,11 +252,13 @@ impl ApplicationRuntime {
                 && !old.contains_key(id)
                 && handle.view.lock().expect("application status lock poisoned").phase == ApplicationPhase::Idle;
             if prune {
-                self.view
+                let mut statuses = self
+                    .view
                     .statuses
                     .lock()
-                    .expect("application observation lock poisoned")
-                    .remove(id);
+                    .expect("application observation lock poisoned");
+                statuses.remove(id);
+                self.view.changed();
             }
             !prune
         });
@@ -268,11 +300,15 @@ impl ApplicationRuntime {
                 )
             })
             .collect::<Vec<_>>();
-        self.view
-            .statuses
-            .lock()
-            .expect("application observation lock poisoned")
-            .extend(registered);
+        if !registered.is_empty() {
+            let mut statuses = self
+                .view
+                .statuses
+                .lock()
+                .expect("application observation lock poisoned");
+            statuses.extend(registered);
+            self.view.changed();
+        }
         self.handles.extend(added);
         *self.shared.desired.lock().expect("application demand lock poisoned") = Request { targets };
         for handle in self.handles.values() {
@@ -282,6 +318,9 @@ impl ApplicationRuntime {
     }
     pub fn snapshot(&self) -> ApplicationRuntimeSnapshot {
         self.view.snapshot(self.shared.project)
+    }
+    pub fn observations(&self) -> ApplicationObservations {
+        ApplicationObservations::new(self.shared.project, self.shared.guard.clone(), self.view.clone())
     }
     pub fn readiness(&self, evidence: ReadinessEvidence) -> Result<(), String> {
         if evidence.project != self.shared.project

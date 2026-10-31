@@ -12,6 +12,7 @@ pub struct ApplicationNode {
     data: NodeData,
     definition: ApplicationDefinition,
     revision: RevisionSource,
+    definition_instance: uuid::Uuid,
 }
 impl ApplicationNode {
     pub(crate) fn availability(&self) -> super::demand::DefinitionAvailability {
@@ -29,6 +30,7 @@ impl ApplicationNode {
             data: NodeData::new(label),
             definition,
             revision: Default::default(),
+            definition_instance: uuid::Uuid::new_v4(),
         }
     }
     pub fn snapshot(&self) -> ApplicationSnapshot {
@@ -37,6 +39,7 @@ impl ApplicationNode {
             label: self.data.meta.label.clone(),
             enabled: self.data.effective_enabled,
             revision: self.revision.reader().current(),
+            definition_instance: self.definition_instance,
             definition: self.definition.clone(),
         }
     }
@@ -92,6 +95,11 @@ impl Node for ApplicationNode {
         serde_json::to_value(&self.definition).map_err(|e| e.to_string())
     }
     fn project_decode_data(&mut self, value: &Value) -> Result<(), String> {
+        // Sparse projects omit custom data when every authored field has its backend default.
+        if value.is_null() {
+            self.set_definition(ApplicationDefinition::default());
+            return Ok(());
+        }
         let definition: ApplicationDefinition = serde_json::from_value(value.clone()).map_err(|e| e.to_string())?;
         definition.validate()?;
         self.set_definition(definition);

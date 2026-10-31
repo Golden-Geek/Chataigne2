@@ -163,11 +163,33 @@ fn observe(
     }
 }
 
+fn emitted(
+    received: &std::sync::mpsc::Receiver<ApplicationRuntimeSnapshot>,
+    expected: impl Fn(&ApplicationRuntimeStatus) -> bool,
+) -> ApplicationRuntimeSnapshot {
+    let deadline = Instant::now() + Duration::from_secs(4);
+    loop {
+        let snapshot = received
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .unwrap();
+        if snapshot.applications.iter().any(&expected) {
+            return snapshot;
+        }
+    }
+}
+
 #[test]
 fn actual_owned_process_shared_demand_missing_definition_and_final_release_preserve_identity_and_history() {
     let (mut engine, application) = fixture(ApplicationReadiness::ProcessStarted);
     let mut runtime = ApplicationRuntime::start(&engine, None).unwrap();
     let retirement = runtime.retirement();
+    let (send, received) = std::sync::mpsc::sync_channel(16);
+    let subscription = runtime
+        .observations()
+        .subscribe(move |snapshot| {
+            send.try_send(snapshot).unwrap();
+        })
+        .unwrap();
     let history = engine.undo_len();
     runtime
         .reconcile(
@@ -176,6 +198,18 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
         )
         .unwrap();
     let first = wait(&runtime, ApplicationPhase::Ready);
+    let observed = emitted(&received, |status| {
+        status.phase == ApplicationPhase::Ready && status.configuration == ApplicationConfigurationState::Current
+    });
+    assert_eq!(observed.applications[0].process_id, first.process_id);
+    assert_eq!(
+        observed.applications[0].definition_instance,
+        Some(
+            mapgyver::applications::inspect(&engine, application)
+                .unwrap()
+                .definition_instance
+        )
+    );
     assert!(first.process_id.is_some());
     for _ in 0..3 {
         runtime
@@ -200,6 +234,11 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
         .unwrap();
     std::thread::sleep(Duration::from_millis(60));
     assert_eq!(wait(&runtime, ApplicationPhase::Ready).process_id, first.process_id);
+    let retained = emitted(&received, |status| {
+        status.configuration == ApplicationConfigurationState::Retained
+    });
+    assert!(retained.revision > observed.revision);
+    assert_eq!(retained.project, observed.project);
     assert!(engine.undo().unwrap());
     runtime
         .reconcile(&engine, &demand(application, &[DemandReason::Active]))
@@ -224,6 +263,12 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
         .unwrap();
     std::thread::sleep(Duration::from_millis(60));
     assert_eq!(wait(&runtime, ApplicationPhase::Ready).launch, first.launch);
+    let pending = emitted(&received, |status| {
+        status.configuration == ApplicationConfigurationState::Pending
+    });
+    assert!(pending.revision > retained.revision);
+    assert_eq!(pending.applications[0].process_id, first.process_id);
+    assert!(!serde_json::to_string(&pending).unwrap().contains("\"arguments\""));
     runtime
         .reconcile(&engine, &demand(application, &[DemandReason::Active]))
         .unwrap();
@@ -234,8 +279,13 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
     let stopped = wait(&runtime, ApplicationPhase::Idle);
     assert_eq!(stopped.process_id, None);
     assert_eq!(stopped.exit_code, Some(1));
+    let retired = emitted(&received, |status| {
+        status.phase == ApplicationPhase::Idle && status.configuration == ApplicationConfigurationState::NotRunning
+    });
+    assert!(retired.revision > pending.revision);
     assert_eq!(engine.undo_len(), history + 1);
     drop(runtime);
+    drop(subscription);
     assert!(retirement.wait_for_idle(Duration::from_secs(4)));
 }
 

@@ -7,6 +7,9 @@
 	import ApplicationDefinitionForm from './ApplicationDefinitionForm.svelte';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
+	import { ApplicationRuntimeReader, runtimeState } from './runtime';
+	import { createRuntimeTransport } from './runtime-transport';
+	import RuntimeStatus from './RuntimeStatus.svelte';
 	let { panelId, panelType, title }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
 	export const setPanelState = (next: PanelState) => {
@@ -22,6 +25,23 @@
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy);
+	const runtime = $state(runtimeState());
+	const runtimeReader = new ApplicationRuntimeReader(
+		() => session,
+		runtime,
+		invokeMediaEdit,
+		createRuntimeTransport()
+	);
+	$effect(() => {
+		const current = session;
+		if (current) {
+			void current.status;
+			void current.loading.visible;
+			void current.snapshotGeneration;
+		}
+		untrack(() => runtimeReader.observe());
+	});
+	onDestroy(() => runtimeReader.dispose());
 	$effect(() => {
 		const current = session;
 		if (current) {
@@ -63,6 +83,15 @@
 	{#if view.error || view.readError}<p role="alert">{view.error || view.readError}</p>{/if}
 	{#if session?.status !== 'connected'}<p>Connect to MapGyver to edit applications.</p>
 	{:else}
+		<RuntimeStatus
+			snapshot={runtime.snapshot}
+			selected={view.snapshot}
+			catalog={catalog.page}
+			live={runtime.live}
+			loading={runtime.loading}
+			error={runtime.error || runtime.transportError}
+			disabled={busy}
+			refresh={() => runtimeReader.refresh()} />
 		<div class="workspace">
 			<nav aria-label="Shared applications">
 				<ul>
@@ -116,7 +145,7 @@
 						Removing a definition preserves saved column references; retained outgoing/render use
 						releases its process when finished.
 					</p>
-					{#key JSON.stringify([application.id, application.definition])}
+					{#key JSON.stringify( [application.id, application.definition_instance, application.definition] )}
 						<ApplicationDefinitionForm
 							definition={application.definition}
 							disabled={busy}

@@ -4,23 +4,24 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 shared-application editing and Matrix column app/pre/post controls are
-implemented through generated backend intents; **2/4 gates (50%)**. Live lifecycle observation,
-full control/parity and complete qualification remain open.
+**Current topic:** M08 live application status and backend-owned saved/in-use configuration
+presentation are implemented; **2/4 gates (50%)**. Reliable script callbacks, default headless
+integration, full control/parity and complete qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** deliver live shared-app lifecycle status with project/launch fencing and truthful
-saved versus in-use configuration presentation, then finish callback/headless integration. M07 interaction
+**Next:** deliver reliable script lifecycle callbacks through the shared generated contracts,
+then wire the default headless application service. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** the dockable Applications panel creates/duplicates/renames/removes
-shared definitions and edits complete launch, environment, readiness and recovery settings.
-Matrix columns can associate shared apps and edit explicit pre/post distances; bounded reference
-lookup shows names and backend-reported missing definitions (batch 36). All 47 frontend tests,
-173 app tests and 163 headless tests pass; Svelte reports zero errors/warnings. Actual form input
-and complete native lifecycle/recovery/scale qualification remain open. **Product blocker:** none
+**Last delivered capability:** the Applications panel shows phase, PID, launch, errors, deadlines
+and backend-owned current/pending/retained configuration state from an independent observation
+worker, without periodic engine inspection (batch 37). Project/owner/launch and definition-lifetime
+fences reject stale metadata. Four owned-process regressions pass, including real configuration
+retention/publication/final cleanup; 176 app, 166 headless and 52 frontend tests pass. An unconfigured
+app also now survives sparse reload. Actual form input and complete native lifecycle/recovery/scale
+qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual Matrix editor
 interaction remains M07 gate 3; app-form input/full parity remains M08 gate 4. Independent app
@@ -49,7 +50,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness and editing implemented; observation/parity/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/live status implemented; callback/headless/full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
@@ -68,6 +69,59 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 37:** started 2026-10-31 **10:18 UTC**, recorded stop **11:03 UTC**.
+Deliver live app lifecycle observations and saved versus in-use configuration presentation in the
+Applications panel. App workers own process/configuration truth; publish bounded generated metadata
+without recurring actor/engine polling. Fence project, owner, launch and observation revisions;
+preserve final-use retirement and avoid exposing secrets from executable arguments/environment.
+Verify retained configuration, status changes, coalescing and stale subscription/reply rejection
+with focused fake/backend/UI tests. Keep native qualification bounded if a real process check is
+needed after software prerequisites; no GPU timing, desktop recovery or parked M03 investigation.
+
+The owned-process observation baseline starts **10:51 UTC**, stops by the batch's **11:03 UTC**
+cutoff and admits at most two invocations. Prerequisites are terminal: **176 app tests** with one
+existing hardware ignore, **166 headless tests**, strict all-target/all-feature Clippy, **52 frontend
+tests**, Svelte check (zero errors/warnings), generated-protocol drift and the owned-process test
+executable build. Verify Current/Retained/Pending/NotRunning observations and advancing revisions
+through a real owned process's shared demand, delete/Undo, retained configuration change and final
+cleanup, plus the existing lifecycle regressions. No GPU/desktop interaction qualification is inferred.
+
+**Batch 37 result (checks complete 10:57 UTC, before the 11:03 cutoff):** application workers now
+publish coherent revisioned status metadata and decide
+whether their captured in-use settings are current, pending replacement, retained without an
+admitted definition, or no longer in use. Runtime payloads omit argument/environment values.
+Reconciled definition instance/revision pairs fence UI comparisons; retained-node Undo advances
+revision, while reload creates a fresh ephemeral definition lifetime. Stable application IDs and
+authored persistence remain unchanged. Regression testing also found that the sparse codec omitted
+all-default application data, which its decoder rejected; the app codec now restores its own
+default definition so an unconfigured shared app is not skipped on reload.
+
+Public app-owned `ApplicationObservations` subscribes outside the actor. One publisher per project,
+a global two-worker lifetime bound and full-snapshot coalescing at 10 Hz keep publication separate
+from process supervision and renderer retirement. Old worker owners and retired project guards
+cannot replace current observations; sink callbacks run outside metadata locks. The desktop host
+shares the generated snapshot stream with the Applications panel. UI bootstrap closes the subscribe/
+read race, rejects stale projects/revisions/listeners and retries event registration independently
+of engine inspection. Non-desktop UI retains explicit snapshot refresh; explicit headless callers
+can use the same public subscription. This is latest-state observation, not a reliable lifecycle
+transition journal. Full script callbacks and default headless host wiring remain next.
+
+**Validation:** the first/only native invocation passes all **four owned-process regressions**
+(1.15 s), including Current/Retained/Pending/NotRunning emissions with increasing revisions,
+unchanged PID during retained configuration, delete/Undo and final cleanup. No second native
+experiment ran. Final **176 app tests / one existing hardware ignore**, **166 headless tests**,
+strict all-target/all-feature Clippy, ordinary MapGyver build and Chataigne binary check pass.
+All **52 frontend tests**, Svelte check (**zero errors/warnings**), generated-protocol drift,
+changed-file Prettier, both required Cargo formatters and whitespace checks pass. Tests cover
+metadata backpressure/coalescing, stale owners/projects, exact configuration policy, listener/
+bootstrap races, reconnect and definition lifetime/revision fencing. No actual desktop UI input,
+GPU qualification, external/singleton/elevated target or full recovery/scale claim is made.
+
+**No gate closes:** M08 stays **2/4 = 50%**, overall **3/10 = 30%**. Reliable lifecycle callbacks,
+default headless service/control parity and complete UI/native lifecycle/recovery/scale acceptance
+retain gates 3–4. Product-delivery count is **36**; nine diagnostic-only batches are allowed by
+the four-product ratio, one used, none scheduled next. Continue callback/headless product work.
 
 **Product batch 36:** started 2026-10-31 **09:55 UTC**, recorded stop **10:40 UTC**.
 Deliver app-owned shared-application forms and Matrix column association/pre/post controls through
@@ -1870,7 +1924,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 35. Diagnostic-only batch allowance: 8, one used.**
+**Product-delivery count since correction: 36. Diagnostic-only batch allowance: 9, one used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1919,8 +1973,9 @@ controller and generated runtime observation are the thirty-first. Rendered Matr
 demand and final-plan process retention are the thirty-second. No-consumer application demand
 and explicit Matrix unload are the thirty-third. Real native Spout startup/image readiness without
 a renderer is the thirty-fourth. Shared-application definition forms and Matrix app/distance
-controls are the thirty-fifth. The allowance is eight at
-`floor(35 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
+controls are the thirty-fifth. Live process/configuration observations are the thirty-sixth.
+The allowance is nine at
+`floor(36 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
 diagnostic batch is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
@@ -2115,16 +2170,16 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives shared workers through explicit unload and plan retirement; real sender/image startup and dedicated application/column editing are implemented. Live observation/full parity and UI/native lifecycle/recovery/scale qualification remain open. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; sender readiness, editing and live saved/in-use status are implemented. Reliable callbacks/default headless/full parity and UI/native lifecycle/recovery/scale qualification remain open. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M08 live shared-app lifecycle status and truthful pending/in-use configuration presentation**
-through generated backend observations. Shared application/column forms are implemented, and native
-sender/first-image startup works without a renderer. Preserve project/launch fencing, preparation/
-active/outgoing/final-use boundaries and shared scopes while finishing lifecycle observation/control
-and callback parity. Preserve independent admission and truthful
+Deliver **M08 reliable script lifecycle callbacks**, then default headless application service wiring,
+through the same generated backend contracts. Shared application/column forms, native sender/image
+readiness and live saved/in-use status are implemented. Latest-state snapshots do not guarantee
+every transition callback. Preserve project/launch fencing, preparation/active/outgoing/final-use
+boundaries and shared scopes while finishing lifecycle control/callback parity. Preserve independent admission and truthful
 retirement; never dispatch from authoring/Undo or infer actual sender readiness from a running process.
 Default headless bootstrap wiring and full parity remain gate 4 work. Actual bundled/native
 qualification stays open. Preserve existing qualification
@@ -2139,7 +2194,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Thirty-five product slices are delivered; documentation checkpoints are excluded. Eight diagnostic-only
+Thirty-six product slices are delivered; documentation checkpoints are excluded. Nine diagnostic-only
 batches are allowed by the ratio, one has been used, and none is scheduled next. Continue the product path;
 retained M03 qualification is not the default work queue.
 

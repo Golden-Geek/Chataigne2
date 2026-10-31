@@ -35,15 +35,7 @@ pub(super) fn run(
         let mut current = output.lock().expect("application status lock poisoned");
         if *current != *status {
             *current = status.clone();
-            if let Some((registered, observed)) = observations
-                .statuses
-                .lock()
-                .expect("application observation lock poisoned")
-                .get_mut(&id)
-                && *registered == owner
-            {
-                *observed = status.clone();
-            }
+            observations.publish(id, owner, status);
             drop(current);
             if let Some(notifier) = &notifier {
                 notifier.notify();
@@ -67,6 +59,8 @@ pub(super) fn run(
             .get(&id)
             .is_some_and(|lifetimes| lifetimes.iter().any(|lifetime| !lifetime.is_complete()));
         let demanded = (!cancelled && target.is_some()) || final_use;
+        agent.status.definition_revision = target.as_ref().and_then(|target| target.definition_revision);
+        agent.status.definition_instance = target.as_ref().and_then(|target| target.definition_instance);
         let definition = (!cancelled)
             .then(|| target.as_ref().and_then(|target| target.definition.clone()))
             .flatten();

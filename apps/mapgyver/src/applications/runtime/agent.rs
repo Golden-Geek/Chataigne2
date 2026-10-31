@@ -102,6 +102,9 @@ impl<B: Backend> Agent<B> {
                 failures: 0,
                 next_action_ms: None,
                 message: None,
+                configuration: ApplicationConfigurationState::NotRunning,
+                definition_revision: None,
+                definition_instance: None,
             },
             backend,
             process: None,
@@ -167,6 +170,30 @@ impl<B: Backend> Agent<B> {
     /// One background service turn. A target with no definition retains an existing owner only.
     /// The admission closure is checked again after suspended creation, before any target executes.
     pub fn tick(
+        &mut self,
+        now: u64,
+        desired: Desired,
+        ready: bool,
+        admitted: impl Fn() -> bool,
+        publish: impl Fn(&ApplicationRuntimeStatus),
+    ) {
+        let target = desired.definition.clone();
+        self.update_configuration(target.as_deref());
+        self.service(now, desired, ready, admitted, publish);
+        self.update_configuration(target.as_deref());
+    }
+    fn update_configuration(&mut self, target: Option<&ApplicationDefinition>) {
+        self.status.configuration = if self.process.is_none() {
+            ApplicationConfigurationState::NotRunning
+        } else {
+            match target {
+                None => ApplicationConfigurationState::Retained,
+                Some(target) if self.definition.as_deref() == Some(target) => ApplicationConfigurationState::Current,
+                Some(_) => ApplicationConfigurationState::Pending,
+            }
+        };
+    }
+    fn service(
         &mut self,
         now: u64,
         desired: Desired,

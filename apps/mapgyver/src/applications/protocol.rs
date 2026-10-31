@@ -143,6 +143,8 @@ pub struct ApplicationSnapshot {
     pub label: String,
     pub enabled: bool,
     pub revision: u64,
+    /// Ephemeral node lifetime; Undo/reload can recreate the same persistent application ID.
+    pub definition_instance: uuid::Uuid,
     pub definition: ApplicationDefinition,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -179,6 +181,14 @@ pub enum ApplicationPhase {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ApplicationConfigurationState {
+    NotRunning,
+    Current,
+    Pending,
+    Retained,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApplicationRuntimeStatus {
     pub application: ApplicationId,
     pub launch: Option<uuid::Uuid>,
@@ -188,11 +198,16 @@ pub struct ApplicationRuntimeStatus {
     pub failures: u32,
     pub next_action_ms: Option<u64>,
     pub message: Option<String>,
+    pub configuration: ApplicationConfigurationState,
+    /// Saved definition revision against which this observation was reconciled.
+    pub definition_revision: Option<u64>,
+    pub definition_instance: Option<uuid::Uuid>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ApplicationRuntimeSnapshot {
     pub project: uuid::Uuid,
+    pub revision: u64,
     /// Monotonic milliseconds since this runtime started; deadlines use the same origin.
     pub elapsed_ms: u64,
     pub applications: Vec<ApplicationRuntimeStatus>,

@@ -30,6 +30,7 @@ const snapshot = (id: string): ApplicationSnapshot => ({
 	label: id,
 	enabled: true,
 	revision: 1,
+	definition_instance: 'definition-lifetime',
 	definition: {
 		executable: null,
 		arguments: [],

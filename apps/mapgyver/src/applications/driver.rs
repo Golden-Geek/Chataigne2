@@ -36,6 +36,9 @@ impl ApplicationDriver {
     pub fn retirement(&self) -> Option<golden_io::RetirementPool> {
         self.owner.as_ref().map(ApplicationRuntime::retirement)
     }
+    pub fn observations(&self) -> Option<super::runtime::ApplicationObservations> {
+        self.owner.as_ref().map(ApplicationRuntime::observations)
+    }
     pub fn needs_sync(&self, project: uuid::Uuid, demand: &[ApplicationDemand]) -> bool {
         self.project != Some(project) || self.demand != demand
     }

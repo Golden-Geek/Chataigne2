@@ -1,6 +1,29 @@
 use super::*;
 
 #[test]
+fn undo_and_reload_preserve_data_without_reusing_definition_observation_fences() {
+    let mut engine = fixture();
+    let application = create(&mut engine);
+    let before = crate::applications::inspect(&engine, application).unwrap();
+    let authored = to_sparse_project_json_pretty(&engine).unwrap();
+    app_edit(&mut engine, ApplicationEdit::Remove { application });
+    assert!(engine.undo().unwrap());
+    let restored = crate::applications::inspect(&engine, application).unwrap();
+    assert_eq!(restored.id, before.id);
+    assert_eq!(restored.definition, before.definition);
+    assert_ne!(
+        (restored.definition_instance, restored.revision),
+        (before.definition_instance, before.revision)
+    );
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
+    let loaded = from_sparse_project_json::<AppNode>(&authored).unwrap();
+    let reloaded = crate::applications::inspect(&loaded, application).unwrap();
+    assert_eq!(reloaded.id, before.id);
+    assert_eq!(reloaded.definition, before.definition);
+    assert_ne!(reloaded.definition_instance, before.definition_instance);
+}
+
+#[test]
 fn bounded_reference_lookup_resolves_names_and_missing_definitions_without_authored_or_runtime_effects() {
     let mut engine = fixture();
     let application = create(&mut engine);

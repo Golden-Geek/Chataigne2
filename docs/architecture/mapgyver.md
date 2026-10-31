@@ -507,7 +507,30 @@ creation has no hard OS latency guarantee; it cannot block the actor or another 
 
 `InspectRuntime` uses the generated Media operation/script/result callback route. Observations carry
 the project instance, launch UUID, process/exit status, explicit phase and bounded error text. Deadline
-and elapsed milliseconds share a runtime-local monotonic origin. Process-start readiness is distinct
+and elapsed milliseconds share a runtime-local monotonic origin. The app worker compares its captured
+in-use definition with reconciled saved settings and publishes `NotRunning`, `Current`, `Pending`
+or `Retained`; it never exposes argument/environment values in runtime metadata. A definition's
+ephemeral instance plus revision fences comparisons across retained-node Undo and fresh-node reload.
+The instance is not persisted; stable application IDs and authored data remain independent.
+
+`ApplicationRuntime::observations()` exposes an app-owned guarded source. Hosts subscribe outside
+the actor; one publisher per project coalesces full snapshots at 10 Hz, and a global two-worker
+pool bounds overlap through cancellation/blocked sinks. Worker-owner checks reject stale process
+publications. Status registration/change/pruning advances a coherent observation revision. The
+publisher waits on notifications and owns no process, engine, renderer or native resource. Sink
+callbacks must return promptly; transport backpressure belongs to the host. These latest-state
+snapshots do not replace reliable lifecycle transition callbacks.
+
+The desktop host attaches that publisher independently of renderer retirement and emits the generated
+runtime snapshot contract. The Applications panel bootstraps the authoritative project and closes
+the subscribe/read race, then accepts only newer same-project observations. Session replacement,
+disconnect and disposal fence reads/listeners; failed local event registration retries without
+periodic engine inspection. Saved-instance/revision mismatches show waiting for reconciliation;
+configuration policy remains backend-owned. Non-desktop UI uses explicit snapshot refresh, and
+explicit headless owners can subscribe to the same public source. Default headless host wiring,
+reliable script callbacks and full UI/native acceptance remain M08 work.
+
+Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured
 first-frame condition. Native-video workers sample the public Golden `SpoutProbe` at most every
 100 ms while waiting for startup readiness. Exact sender registration can satisfy sender-only

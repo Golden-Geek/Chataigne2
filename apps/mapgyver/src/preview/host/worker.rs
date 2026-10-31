@@ -137,6 +137,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut applications = crate::applications::driver::ApplicationDriver::default();
     let mut application_retry = Instant::now();
     let mut application_error = None;
+    let mut application_observer: Option<(uuid::Uuid, crate::applications::runtime::ApplicationSubscription)> = None;
+    let mut observation_retry = Instant::now();
     while !input.stop.is_requested() {
         if applications.needs_service() && Instant::now() >= application_retry {
             let mut driver = std::mem::take(&mut applications);
@@ -159,6 +161,29 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     }
                     application_error = Some(error);
                     application_retry = Instant::now() + Duration::from_millis(500);
+                }
+            }
+        }
+        let observation_source = applications.observations().filter(|source| source.is_current());
+        if observation_source.as_ref().map(|source| source.project())
+            != application_observer.as_ref().map(|(project, _)| *project)
+        {
+            application_observer.take();
+        }
+        if let Some(source) = observation_source
+            && application_observer
+                .as_ref()
+                .is_none_or(|(project, _)| *project != source.project())
+            && Instant::now() >= observation_retry
+        {
+            let window = input.window.clone();
+            match source.subscribe(move |snapshot| {
+                let _ = window.emit(crate::media::protocol::APPLICATION_RUNTIME_EVENT, snapshot);
+            }) {
+                Ok(subscription) => application_observer = Some((source.project(), subscription)),
+                Err(error) => {
+                    eprintln!("[mapgyver-applications] observation unavailable: {error}");
+                    observation_retry = Instant::now() + Duration::from_secs(1);
                 }
             }
         }

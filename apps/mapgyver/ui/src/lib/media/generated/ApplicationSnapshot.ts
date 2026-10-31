@@ -2,4 +2,8 @@
 import type { ApplicationDefinition } from "./ApplicationDefinition";
 import type { ApplicationId } from "./ApplicationId";
 
-export type ApplicationSnapshot = { id: ApplicationId, label: string, enabled: boolean, revision: number, definition: ApplicationDefinition, };
+export type ApplicationSnapshot = { id: ApplicationId, label: string, enabled: boolean, revision: number,
+/**
+ * Ephemeral node lifetime; Undo/reload can recreate the same persistent application ID.
+ */
+definition_instance: string, definition: ApplicationDefinition, };
