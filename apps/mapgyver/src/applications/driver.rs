@@ -16,6 +16,14 @@ pub struct ApplicationDriver {
     admission: Arc<[RevisionGuard]>,
     logical: Option<LogicalApplicationCapture>,
 }
+/// Immutable actor capture. Applying it on the host owner may admit background workers.
+pub struct PreparedApplicationService {
+    logical: LogicalApplicationCapture,
+    rendered: Vec<ApplicationDemand>,
+    admission: Arc<[RevisionGuard]>,
+    runtime: super::runtime::PreparedApplications,
+    has_demand: bool,
+}
 impl ApplicationDriver {
     /// Check on an IO/host owner; unchanged projects require no actor capture.
     pub fn needs_service(&self) -> bool {
@@ -24,11 +32,27 @@ impl ApplicationDriver {
     }
     /// Services committed project-wide demand without a renderer, device, window or video clock.
     pub fn service(&mut self, engine: &AppEngine, notifier: WorkerNotifier) -> Result<Option<PlanRetainer>, String> {
-        let capture = capture_logical_applications(engine)?;
-        let same = self.project == Some(capture.project) && self.admission.iter().all(RevisionGuard::is_current);
-        let demand = if same { self.demand.clone() } else { Vec::new() };
-        let admission = if same { self.admission.clone() } else { Arc::from([]) };
-        self.sync_captured(engine, capture, demand, admission, notifier)
+        let prepared = self.capture_service(engine)?;
+        self.apply_prepared(prepared, notifier)
+    }
+    /// Pure metadata capture for the authoritative actor; no worker creation or process IO.
+    pub fn capture_service(&self, engine: &AppEngine) -> Result<PreparedApplicationService, String> {
+        self.service_capture()(engine)
+    }
+    /// Owned metadata request; a failed actor call cannot drop the live process controller.
+    pub fn service_capture(
+        &self,
+    ) -> impl FnOnce(&AppEngine) -> Result<PreparedApplicationService, String> + Send + 'static {
+        let project = self.project;
+        let demand = self.demand.clone();
+        let admission = self.admission.clone();
+        move |engine| {
+            let capture = capture_logical_applications(engine)?;
+            let same = project == Some(capture.project) && admission.iter().all(RevisionGuard::is_current);
+            let demand = if same { demand } else { Vec::new() };
+            let admission = if same { admission } else { Arc::from([]) };
+            Self::prepare(engine, capture, demand, admission)
+        }
     }
     pub fn snapshot(&self) -> Option<super::protocol::ApplicationRuntimeSnapshot> {
         self.owner.as_ref().map(ApplicationRuntime::snapshot)
@@ -54,34 +78,50 @@ impl ApplicationDriver {
         admission: Arc<[RevisionGuard]>,
         notifier: WorkerNotifier,
     ) -> Result<Option<PlanRetainer>, String> {
-        let manager = crate::media::authoring::manager(engine)?;
-        if !matches!(engine.nodes.get(manager), Some(AppNode::MediaManager(node)) if node.instance == project) {
-            return Err("application demand capture belongs to a replaced project".into());
-        }
-        if !admission.iter().all(RevisionGuard::is_current) {
-            return Err("rendered application capture is stale".into());
-        }
-        let logical = match &self.logical {
-            Some(capture) if capture.project == project && capture.is_current() => capture.clone(),
-            _ => capture_logical_applications(engine)?,
-        };
-        self.sync_captured(engine, logical, demand, admission, notifier)
+        let prepared = self.capture_sync(engine, project, demand, admission)?;
+        self.apply_prepared(prepared, notifier)
     }
-    fn sync_captured(
-        &mut self,
+    /// Pure rendered/logical metadata capture. Apply its result outside the actor.
+    pub fn capture_sync(
+        &self,
+        engine: &AppEngine,
+        project: uuid::Uuid,
+        demand: Vec<ApplicationDemand>,
+        admission: Arc<[RevisionGuard]>,
+    ) -> Result<PreparedApplicationService, String> {
+        self.rendered_capture(project, demand, admission)(engine)
+    }
+    /// Owned rendered metadata request, retaining no process/controller owner on the actor.
+    pub fn rendered_capture(
+        &self,
+        project: uuid::Uuid,
+        demand: Vec<ApplicationDemand>,
+        admission: Arc<[RevisionGuard]>,
+    ) -> impl FnOnce(&AppEngine) -> Result<PreparedApplicationService, String> + Send + 'static {
+        let logical = self.logical.clone();
+        move |engine| {
+            let manager = crate::media::authoring::manager(engine)?;
+            if !matches!(engine.nodes.get(manager), Some(AppNode::MediaManager(node)) if node.instance == project) {
+                return Err("application demand capture belongs to a replaced project".into());
+            }
+            if !admission.iter().all(RevisionGuard::is_current) {
+                return Err("rendered application capture is stale".into());
+            }
+            let logical = match logical {
+                Some(capture) if capture.project == project && capture.is_current() => capture,
+                _ => capture_logical_applications(engine)?,
+            };
+            Self::prepare(engine, logical, demand, admission)
+        }
+    }
+    fn prepare(
         engine: &AppEngine,
         logical: LogicalApplicationCapture,
         rendered: Vec<ApplicationDemand>,
         admission: Arc<[RevisionGuard]>,
-        notifier: WorkerNotifier,
-    ) -> Result<Option<PlanRetainer>, String> {
+    ) -> Result<PreparedApplicationService, String> {
         if !logical.is_current() || !admission.iter().all(RevisionGuard::is_current) {
             return Err("application demand changed before reconciliation".into());
-        }
-        if self.project != Some(logical.project) {
-            self.owner.take();
-            self.project = Some(logical.project);
-            self.demand.clear();
         }
         let mut merged = std::collections::HashMap::<_, ApplicationDemand>::new();
         for entry in logical.demand.iter().chain(&rendered) {
@@ -92,17 +132,47 @@ impl ApplicationDriver {
         }
         let mut demand = merged.into_values().collect::<Vec<_>>();
         demand.sort_by_key(|entry| entry.application.0.0);
-        if self.owner.is_none() && !demand.is_empty() {
-            self.owner = Some(ApplicationRuntime::start(engine, Some(notifier))?);
+        let guards = logical
+            .guards
+            .iter()
+            .chain(admission.iter())
+            .cloned()
+            .collect::<Vec<_>>();
+        let runtime = super::runtime::PreparedApplications::capture(engine, &demand, guards.into())?;
+        Ok(PreparedApplicationService {
+            logical,
+            rendered,
+            admission,
+            runtime,
+            has_demand: !demand.is_empty(),
+        })
+    }
+    /// Host-side admission: validates capture fences again before creating any worker.
+    pub fn apply_prepared(
+        &mut self,
+        prepared: PreparedApplicationService,
+        notifier: WorkerNotifier,
+    ) -> Result<Option<PlanRetainer>, String> {
+        let PreparedApplicationService {
+            logical,
+            rendered,
+            admission,
+            runtime,
+            has_demand,
+        } = prepared;
+        if !runtime.is_current() {
+            return Err("application demand changed before reconciliation".into());
+        }
+        if self.project != Some(logical.project) {
+            self.owner.take();
+            self.project = Some(logical.project);
+            self.demand.clear();
+        }
+        if self.owner.is_none() && has_demand {
+            self.owner = Some(ApplicationRuntime::start_prepared(&runtime, Some(notifier))?);
         }
         if let Some(owner) = &mut self.owner {
-            let guards = logical
-                .guards
-                .iter()
-                .chain(admission.iter())
-                .cloned()
-                .collect::<Vec<_>>();
-            owner.reconcile_guarded(engine, &demand, guards.into())?;
+            owner.reconcile_prepared(runtime)?;
         }
         self.demand = rendered;
         self.admission = admission;

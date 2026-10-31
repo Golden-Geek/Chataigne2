@@ -1,7 +1,7 @@
 use golden_core::{
     app::{
-        DesktopHostConfig, LaunchArgs, NativePresentation, ProjectLifecycle, launch_engine_with_args,
-        launch_engine_with_config, launch_engine_with_native_presentation,
+        DesktopHostConfig, HostServices, LaunchArgs, NativePresentation, ProjectLifecycle, launch_engine_with_args,
+        launch_engine_with_config, launch_engine_with_native_presentation, launch_engine_with_services,
     },
     engine::Engine,
 };
@@ -18,6 +18,25 @@ where
     R: Runtime,
 {
     launch_engine_with_args(engine, args, context)
+}
+
+#[allow(dead_code)]
+fn launch_with_public_mode_services<T, R>(
+    engine: Engine<T>,
+    args: LaunchArgs,
+    context: tauri::Context<R>,
+) -> std::io::Result<()>
+where
+    T: ProjectLifecycle + 'static,
+    R: Runtime,
+{
+    launch_engine_with_services(
+        engine,
+        args,
+        context,
+        DesktopHostConfig::default(),
+        HostServices::default().with_headless(|_runtime| Ok(())),
+    )
 }
 
 #[allow(dead_code)]

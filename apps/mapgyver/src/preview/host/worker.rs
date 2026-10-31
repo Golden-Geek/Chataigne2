@@ -145,16 +145,11 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     )> = None;
     while !input.stop.is_requested() {
         if applications.needs_service() && Instant::now() >= application_retry {
-            let mut driver = std::mem::take(&mut applications);
-            let notifier = input.notifier.clone();
-            let (returned, result) = input
+            let result = input
                 .runtime
-                .capture_app(move |engine| {
-                    let result = driver.service(engine, notifier);
-                    (driver, result)
-                })
+                .capture_app(applications.service_capture())
                 .map_err(io::Error::other)?;
-            applications = returned;
+            let result = result.and_then(|prepared| applications.apply_prepared(prepared, input.notifier.clone()));
             match result {
                 Ok(_) => {
                     application_error = None;
@@ -565,15 +560,9 @@ fn sync_applications(
     demand: Vec<crate::applications::demand::ApplicationDemand>,
     admission: std::sync::Arc<[golden_io::RevisionGuard]>,
 ) -> Result<Option<crate::applications::runtime::PlanRetainer>, String> {
-    let mut bridge = std::mem::take(applications);
-    let notifier = input.notifier.clone();
-    let (returned, result) = input
+    let result = input
         .runtime
-        .capture_app(move |engine| {
-            let result = bridge.sync(engine, project, demand, admission, notifier);
-            (bridge, result)
-        })
+        .capture_app(applications.rendered_capture(project, demand, admission))
         .map_err(|e| e.to_string())?;
-    *applications = returned;
-    result
+    result.and_then(|prepared| applications.apply_prepared(prepared, input.notifier.clone()))
 }

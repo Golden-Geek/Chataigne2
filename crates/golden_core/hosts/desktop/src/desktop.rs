@@ -11,17 +11,14 @@ use tauri::{Runtime, Url};
 
 use crate::desktop_window::run_tauri;
 use crate::host_config::{DesktopHostConfig, FrontendDevServerConfig, apply_listener_overrides};
+use crate::host_services::HostServices;
 use crate::native_presentation::{NativePresentation, host::validate_platform};
 #[cfg(target_os = "windows")]
 use crate::windows_process_job::WindowsProcessJob;
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
 use golden_engine::application::ProductionRuntime;
 use golden_engine::engine::Engine;
-use golden_transport_server::{
-    UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config, run_with_ui_server_config_and_ready,
-};
-
-type PresentationFactory<T, R> = Box<dyn FnOnce(ProductionRuntime<T>) -> std::io::Result<NativePresentation<R>> + Send>;
+use golden_transport_server::{UiAsset, UiPreferencesConfig, UiServerConfig, run_with_ui_server_config_and_ready};
 
 const UI_STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const UI_PROBE_INTERVAL: Duration = Duration::from_millis(50);
@@ -148,15 +145,11 @@ where
     launch_with_config::<T, R>(args, tauri_context, config)
 }
 
-/// Launches the shared host with optional native rendering attached to its main window.
-///
-/// The current underlay route is Windows-only. Headless mode does not prepare or start the
-/// presentation. The host owns native window construction, UI-thread preparation, cancellation
-/// and worker retirement before window destruction.
-pub fn run_default_with_native_presentation<T, R>(
+/// Launches the shared host with app-owned services for the selected desktop/headless mode.
+pub fn run_default_with_services<T, R>(
     tauri_context: tauri::Context<R>,
     config: DesktopHostConfig,
-    presentation: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<NativePresentation<R>> + Send + 'static,
+    services: HostServices<T, R>,
 ) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
@@ -169,7 +162,7 @@ where
         return Ok(());
     }
     let engine = create_new_project_engine::<T>().map_err(Error::other)?;
-    launch_engine_with_native_presentation(engine, args, tauri_context, config, presentation)
+    launch_engine_with_services(engine, args, tauri_context, config, services)
 }
 
 /// Parses launch flags from the current process environment.
@@ -340,7 +333,7 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
-    launch_configured_engine(engine, args, tauri_context, host_config, None)
+    launch_engine_with_services(engine, args, tauri_context, host_config, HostServices::default())
 }
 
 /// Launches a caller-provided engine with a host-owned native presentation lifecycle.
@@ -359,20 +352,28 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
-    launch_configured_engine(engine, args, tauri_context, host_config, Some(Box::new(presentation)))
+    launch_engine_with_services(
+        engine,
+        args,
+        tauri_context,
+        host_config,
+        HostServices::default().with_native_presentation(presentation),
+    )
 }
 
-fn launch_configured_engine<T, R>(
+/// Launches a provided engine with mode-specific services on the shared authoritative host.
+pub fn launch_engine_with_services<T, R>(
     engine: Engine<T>,
     args: LaunchArgs,
     tauri_context: tauri::Context<R>,
     host_config: DesktopHostConfig,
-    presentation: Option<PresentationFactory<T, R>>,
+    services: HostServices<T, R>,
 ) -> std::io::Result<()>
 where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
+    let HostServices { presentation, headless } = services;
     validate_platform(presentation.is_some(), args.headless)?;
     if !cfg!(target_os = "windows") && args.automation_shutdown_file.is_some() {
         return Err(Error::new(
@@ -436,7 +437,9 @@ where
 
         // Headless mode renders no frontend. A requested dev server is already gated by
         // `spawn_frontend_dev_server`; bundled assets start with the UI server below.
-        let run_result = run_with_ui_server_config(engine, config);
+        let run_result = run_with_ui_server_config_and_ready(engine, config, move |runtime| {
+            headless.map(|factory| factory(runtime)).transpose()
+        });
         drop(dev_server_process);
         return run_result;
     }
@@ -446,6 +449,7 @@ where
     thread::spawn(move || {
         let result = run_with_ui_server_config_and_ready(engine, config, move |runtime| {
             let _ = runtime_tx.send(runtime);
+            Ok(())
         });
         let _ = startup_tx.send(result);
     });

@@ -11,6 +11,7 @@ use golden_core::{
 };
 
 mod demand;
+mod headless;
 mod logical;
 mod references;
 fn fixture() -> AppEngine {

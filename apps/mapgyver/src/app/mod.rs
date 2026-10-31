@@ -89,18 +89,11 @@ pub fn run() -> std::io::Result<()> {
             url: "http://127.0.0.1:5174",
         }),
     };
+    let services = golden_core::app::HostServices::default()
+        .with_headless(crate::applications::headless::HeadlessApplications::start);
     #[cfg(all(windows, feature = "native-video"))]
-    {
-        golden_core::app::run_default_with_native_presentation::<AppNode, tauri::Wry>(
-            tauri::generate_context!(),
-            config,
-            crate::preview::host::presentation,
-        )
-    }
-    #[cfg(not(all(windows, feature = "native-video")))]
-    {
-        golden_core::app::run_default_with_config::<AppNode, tauri::Wry>(tauri::generate_context!(), config)
-    }
+    let services = services.with_native_presentation(crate::preview::host::presentation);
+    golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)
 }
 
 #[cfg(test)]

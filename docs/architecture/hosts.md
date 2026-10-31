@@ -4,6 +4,14 @@
 
 The default desktop host lives in `golden_core`.
 
+Apps compose mode-specific background work with `golden_core::app::HostServices` and
+`run_default_with_services` (or `launch_engine_with_services` for an existing engine).
+`with_native_presentation` retains the desktop window/worker lifecycle; `with_headless` starts
+an app-owned service only after the headless listener binds and retains its guard for the server's
+lifetime. Factories return promptly and startup failures propagate. Neither hook runs during
+project candidate validation or Undo. The shared host owns startup and lifetime; app services own
+product policy and use the authoritative runtime's public transaction/capture contracts.
+
 - `crates/golden_core/hosts/desktop/src/lib.rs` is the public desktop-host entry point used through the `golden_core::app` facade.
 - `crates/golden_core/hosts/desktop/src/desktop.rs` launches the built-in UI server and the Tauri window.
 - By default the desktop runtime points Tauri at the built-in Rust host and serves the shipped frontend bundle from `/`; no separate Vite server is required.
@@ -67,6 +75,9 @@ The default built-in browser/headless path also starts from `golden_core`.
 - `crates/golden_core/hosts/transport/src/lib.rs` is the public transport-host entry point used through the `golden_core::app` facade.
 - `crates/golden_core/hosts/transport/src/ui_server/mod.rs` exposes the current HTTP and WebSocket runtime endpoints and serves any bundled frontend assets provided by the app shell.
 - `--headless` runs the server without launching the Tauri window.
+- Transport-only hosts can use `run_with_ui_server_config_and_ready`; its fallible ready callback
+  returns a service guard retained while the server runs. Bind/service startup failures occur before
+  launching the recurring engine and WebSocket loops.
 - Browser-triggered `Load From...` project imports are handled by the transport host, which currently stores uploaded project JSON files under `~/Documents/Chataigne` before loading them into the live engine.
 - Browser-side `Open Remote` and `Save As` remain intentionally unwired until the browser file chooser workflow is designed.
 - Apps can still supply custom bootstrap if they need it, but the reusable default transport server lives in `golden_core`.

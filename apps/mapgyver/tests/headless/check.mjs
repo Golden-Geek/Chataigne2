@@ -1,0 +1,181 @@
+// Run after building MapGyver and application_process_fixture with application-process-fixture.
+// Exercises the ordinary --headless entrypoint through public HTTP intents, without a frontend/GPU.
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+
+const listener = createServer();
+await new Promise((resolve, reject) => {
+	listener.once('error', reject);
+	listener.listen(0, '127.0.0.1', resolve);
+});
+const port = listener.address().port;
+await new Promise((resolve) => listener.close(resolve));
+const base = `http://127.0.0.1:${port}`;
+const fixture = path.resolve('target/debug/application_process_fixture.exe');
+const external = spawn(fixture, [], { windowsHide: true, stdio: 'ignore' });
+const app = spawn(
+	path.resolve('target/debug/MapGyver.exe'),
+	['--headless', '--no-frontend', '--no-remote'],
+	{
+		env: { ...process.env, GC_UI_BIND: `127.0.0.1:${port}` },
+		windowsHide: true,
+		stdio: ['ignore', 'pipe', 'pipe']
+	}
+);
+let log = '';
+let token;
+const appExit = new Promise((resolve, reject) => {
+	app.once('error', reject);
+	app.once('close', (code) => resolve(code));
+});
+const externalExit = new Promise((resolve, reject) => {
+	external.once('error', reject);
+	external.once('close', resolve);
+});
+for (const stream of [app.stdout, app.stderr]) {
+	stream.on('data', (data) => {
+		log = (log + data).slice(-65536);
+	});
+}
+async function post(route, payload) {
+	const response = await fetch(`${base}${route}`, {
+		method: 'POST',
+		signal: AbortSignal.timeout(5000),
+		headers: {
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		},
+		body: JSON.stringify(payload)
+	});
+	const value = await response.json();
+	assert(response.ok, `${route}: ${JSON.stringify(value)}`);
+	return value;
+}
+async function edit(payload) {
+	const ack = await post('/api/ui/intent', {
+		kind: 'invokeAppOperation',
+		namespace: 'mapgyver.media',
+		operation: 'edit',
+		payload
+	});
+	assert(ack.success, JSON.stringify(ack));
+	return ack.result.value;
+}
+const applications = (editValue) => edit({ kind: 'Applications', edit: editValue });
+const matrix = (media, editValue) => edit({ kind: 'Matrix', media, edit: editValue });
+async function waitFor(phase) {
+	const deadline = Date.now() + 7000;
+	while (true) {
+		const { snapshot } = await applications({ kind: 'InspectRuntime' });
+		assert.equal(snapshot.callbacks.fault, null);
+		if (
+			snapshot.applications[0]?.phase === phase &&
+			snapshot.callbacks.pending === 0 &&
+			snapshot.callbacks.acknowledged > 0
+		)
+			return snapshot;
+		assert(Date.now() < deadline, `headless ${phase} timeout: ${JSON.stringify(snapshot)}\n${log}`);
+		await delay(25);
+	}
+}
+function alive(pid) {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		if (error.code === 'ESRCH') return false;
+		throw error;
+	}
+}
+try {
+	const deadline = Date.now() + 15000;
+	while (true) {
+		assert.equal(app.exitCode, null, `headless app exited: ${log}`);
+		try {
+			if ((await fetch(`${base}/api/ui/health`, { signal: AbortSignal.timeout(500) })).ok) break;
+		} catch {
+			/* Bounded startup; never restart the process. */
+		}
+		assert(Date.now() < deadline, `headless startup timeout: ${log}`);
+		await delay(50);
+	}
+	token = (await post('/api/ui/session', {})).token;
+	const { application } = await applications({ kind: 'Create', label: 'Headless owned fixture' });
+	const { snapshot: configured } = await applications({ kind: 'Inspect', application });
+	await applications({
+		kind: 'Configure',
+		application,
+		definition: {
+			...configured.definition,
+			executable: fixture,
+			readiness: { kind: 'ProcessStarted' },
+			stop: { graceful_ms: 30, retirement_ms: 1000 },
+			restart: { ...configured.definition.restart, enabled: false }
+		}
+	});
+	const { reference } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Matrix',
+		label: 'Headless columns'
+	});
+	const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 4 });
+	const { snapshot: authored } = await matrix(reference.media, { kind: 'Inspect' });
+	await matrix(reference.media, {
+		kind: 'ConfigureColumn',
+		column: columns[1],
+		definition: {
+			...authored.columns.find((column) => column.id === columns[1]).definition,
+			applications: [{ application, pre: 1, post: 1 }]
+		}
+	});
+	const launch = (column) => matrix(reference.media, { kind: 'LaunchColumn', column, mode: 'Cut' });
+	await launch(columns[0]);
+	const initial = await waitFor('Ready');
+	const first = initial.applications[0];
+	assert(first.process_id && first.launch);
+	assert.notEqual(first.process_id, external.pid);
+	assert(initial.callbacks.acknowledged >= 2);
+	await launch(columns[2]);
+	const retained = (await waitFor('Ready')).applications[0];
+	assert.equal(retained.launch, first.launch);
+	assert.equal(retained.process_id, first.process_id);
+	await launch(columns[3]);
+	const unloaded = await waitFor('Idle');
+	assert.equal(unloaded.applications[0].process_id, null);
+	assert(!alive(first.process_id), 'unload must retire the owned process');
+	assert(alive(external.pid), 'same-executable external process must survive owned unload');
+	await delay(200);
+	assert.equal((await waitFor('Idle')).applications[0].phase, 'Idle');
+	await launch(columns[0]);
+	const restarted = await waitFor('Ready');
+	const second = restarted.applications[0];
+	assert.notEqual(second.launch, first.launch);
+	assert(restarted.callbacks.acknowledged > unloaded.callbacks.acknowledged);
+	app.kill();
+	await appExit;
+	const cleanupDeadline = Date.now() + 3000;
+	while (alive(second.process_id) && Date.now() < cleanupDeadline) await delay(25);
+	assert(!alive(second.process_id), 'host exit must release its owned process tree');
+	assert(alive(external.pid), 'host exit must not kill the external same-executable process');
+	assert(
+		!log.includes('[mapgyver-output] native session'),
+		'headless startup must not create native rendering'
+	);
+	console.log(
+		JSON.stringify({
+			passed: true,
+			host: app.pid,
+			external: external.pid,
+			first: first.process_id,
+			second: second.process_id,
+			acknowledged: restarted.callbacks.acknowledged
+		})
+	);
+} finally {
+	if (app.exitCode === null) app.kill();
+	if (external.exitCode === null) external.kill();
+	await Promise.all([appExit, externalExit]);
+}

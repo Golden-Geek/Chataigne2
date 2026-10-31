@@ -2,6 +2,7 @@
 mod authoring;
 pub mod demand;
 pub mod driver;
+pub mod headless;
 pub mod logical;
 mod node;
 pub mod protocol;

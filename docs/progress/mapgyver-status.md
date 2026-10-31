@@ -4,23 +4,23 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 ordered script lifecycle callbacks, live application status and backend-owned
-saved/in-use configuration presentation are implemented; **2/4 gates (50%)**. Default headless
-integration, full control/parity and complete qualification remain open.
+**Current topic:** M08 default headless supervision/callback delivery, ordered script callbacks,
+live status and saved/in-use configuration presentation are implemented; **2/4 gates (50%)**.
+Full control/parity and complete qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** wire the default headless application service and its ordered callback consumer through
-the existing public host/transaction contracts. M07 interaction
+**Next:** one bounded M08 lifecycle acceptance batch for remaining actual crash/restart, launch
+cancellation and forced process-tree/replacement cases, within the diagnostic allocation. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** scripts receive ordered application phase callbacks independently of
-coalesced UI snapshots (batch 38). Bounded launch/cleanup reservations preserve process termination;
-receipt acknowledgements release capacity, and failures halt admission visibly without blind replay.
-Hosted QuickJS, cancellation/backpressure, stale-ticket and removed-listener regressions pass;
-180 app, 170 headless and 52 frontend tests pass. Desktop attachment compiles; this batch makes
-no new native interaction claim. Actual form input and complete native lifecycle/recovery/scale
+**Last delivered capability:** ordinary `MapGyver --headless` now supervises column-owned apps
+and delivers ordered callbacks (batch 39). Its HTTP check preloads, retains, unloads and restarts an
+owned process; host exit cleans it up while a separate same-executable process survives. Six phase
+events are acknowledged. Hosted scripts and project replacement pass without a renderer. Actor
+captures retain only metadata; worker admission stays on the host. **182 app / 172 headless tests**
+and shared host/transport checks pass. Actual form input and complete native lifecycle/recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual Matrix editor
@@ -50,7 +50,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/status/ordered callbacks implemented; headless/full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/status/callbacks/default headless implemented; full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
@@ -69,6 +69,57 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 39:** started 2026-10-31 **11:35 UTC**, recorded stop **12:20 UTC**.
+Wire default headless application demand supervision and ordered script callbacks through a
+public shared-host service hook, with MapGyver policy in the app layer. Preserve thin startup,
+event-driven actor access, project replacement, cancellation and process ownership. Verify the
+public headless path with hosted lifecycle tests and an owned process only after software checks
+pass. Shared host changes require focused Golden and Chataigne regression checks. No renderer,
+desktop recovery or performance-qualification investigation is scheduled.
+
+The bounded owned-process checks start after terminal software prerequisites: **182 app tests**
+with one existing hardware ignore, **172 headless tests**, **90 transport tests / one ignore**,
+**30 desktop-host tests / two ignores**, the public default-host fixture, strict all-target/
+all-feature MapGyver/host/transport Clippy and the Chataigne binary check. First build the ordinary
+app and finite owned fixture. Admit at most two native invocations, stopping by **12:12 UTC**
+(or the original 12:20 batch cutoff, whichever arrives first). The ordinary `--headless` HTTP
+baseline must start/retain/unload/restart only its owned fixture, acknowledge callbacks and clean
+up on host exit while a separate same-executable process survives. Then run the existing four
+owned-process regressions if the allowance remains. A failure changes only the reproduced product
+boundary; no GPU, display or measurement investigation is admitted.
+
+**Batch 39 result (native checks complete 11:55 UTC, before the 12:12/12:20 cutoffs):** ordinary
+`--headless` startup attaches app-owned supervision and callback delivery through Golden's public
+`HostServices`. The shared host retains a fallible service guard after listener binding; bind or
+service-start failure occurs before recurring engine/transport loops start. Desktop native
+presentation remains a separate mode-specific factory. App startup stays thin.
+
+Application drivers now capture immutable metadata/guards on the actor and admit workers on the
+host owner. Capture requests retain no process/controller owner; failed actor calls cannot discard
+it. Prepared demand is revalidated before admission. Desktop logical/rendered and headless paths
+share this boundary. The headless service checks guards off-actor, retries admission errors coarsely,
+replaces retired project subscriptions and cancels without joining process retirement.
+
+**Validation:** **182 app tests / one existing hardware ignore**, **172 headless tests**,
+**90 transport tests / one ignore**, **30 desktop-host tests / two ignores**, public default-host
+compilation, strict all-target/all-feature MapGyver/host/transport Clippy, Chataigne binary check,
+ordinary app/fixture build, generated drift, JS syntax/Prettier and whitespace checks pass. New
+tests cover prepared-engine service startup/failure, bind failure, stale definition/scope captures,
+hosted script launch/unload callbacks and project replacement without a renderer.
+
+The first native invocation, `node apps/mapgyver/tests/headless/check.mjs`, passes in **0.915 s**:
+host **18756** starts owned PID **44912**, retains it through the post window, unloads it, restarts
+as PID **40044** and acknowledges **six** phase events. Host exit retires its second process;
+separate same-executable PID **42064** survives both owned unload and host exit. The test then
+cleans up its external fixture. The second/final invocation passes all **four existing owned-process
+regressions** in **0.51 s**, preserving sender fences, retained configuration, shared demand and
+actual final-plan cleanup. No GPU, desktop-input or timing qualification ran.
+
+**No gate closes:** M08 remains **2/4 = 50%**, overall **3/10 = 30%**, with unchanged denominators.
+Complete restart/cancellation/process-tree/recovery acceptance and full UI/mode/unsupported-target
+parity retain gates 3–4. Product-delivery count is **38**; nine diagnostic-only batches are allowed,
+one used. Next is one bounded M08 lifecycle acceptance batch, not parked M03 work.
 
 **Product batch 38:** started 2026-10-31 **11:00 UTC**, recorded stop **11:45 UTC**.
 Deliver ordered app lifecycle callbacks through the app-owned Media/script boundary, distinct from
@@ -1962,7 +2013,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 37. Diagnostic-only batch allowance: 9, one used.**
+**Product-delivery count since correction: 38. Diagnostic-only batch allowance: 9, one used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -2013,9 +2064,10 @@ and explicit Matrix unload are the thirty-third. Real native Spout startup/image
 a renderer is the thirty-fourth. Shared-application definition forms and Matrix app/distance
 controls are the thirty-fifth. Live process/configuration observations are the thirty-sixth.
 Ordered, receipt-gated lifecycle callbacks are the thirty-seventh.
+Default headless application supervision/callback attachment is the thirty-eighth.
 The allowance is nine at
-`floor(37 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
-diagnostic batch is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
+`floor(38 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. One bounded
+M08 lifecycle acceptance batch is scheduled next; consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -2209,18 +2261,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; sender readiness, editing, live status and ordered callbacks are implemented. Default headless/full parity and UI/native lifecycle/recovery/scale qualification remain open. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; readiness, editing, live status, ordered callbacks and default headless supervision are implemented. Full parity and UI/native lifecycle/recovery/scale qualification remain open. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M08 default headless application service and callback attachment** through public reusable
-host hooks and the same generated backend contracts. Shared application/column forms, native
-sender/image readiness, live status and ordered script callbacks are implemented. Keep the ordered
+Run **one bounded M08 lifecycle acceptance batch** for remaining actual crash/restart/backoff,
+launch cancellation, forced process-tree shutdown and project replacement. Use the existing owned
+fixture and controller/host boundaries; at most two native invocations/20 minutes within a
+45-minute batch. This consumes the diagnostic allocation only when executed. Default headless
+supervision/callback delivery and the ordinary HTTP process-ownership path now work. Keep the ordered
 phase journal separate from coalesced snapshots. Preserve project/launch fencing, preparation/active/outgoing/final-use
 boundaries and shared scopes while finishing lifecycle control/callback parity. Preserve independent admission and truthful
 retirement; never dispatch from authoring/Undo or infer actual sender readiness from a running process.
-Default headless bootstrap wiring and full parity remain gate 4 work. Actual bundled/native
+Full UI/script/transport/mode parity and unsupported-target scenarios remain gate 4 work. Actual bundled/native
 qualification stays open. Preserve existing qualification
 requirements. M07's bounded input check is finished with missing interaction evidence retained. Do not
 reopen browser/privilege/driver/clock recovery to qualify that editor before implementing M08.

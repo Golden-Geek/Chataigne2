@@ -489,15 +489,16 @@ pub fn run_with_ui_server_config<T: ProjectLifecycle + 'static>(
     engine: Engine<T>,
     config: UiServerConfig,
 ) -> std::io::Result<()> {
-    run_with_ui_server_config_and_ready(engine, config, |_| {})
+    run_with_ui_server_config_and_ready(engine, config, |_| Ok(()))
 }
 
 /// Prepares the authoritative runtime and exposes its facade once the listener is bound.
 /// The callback only wires host services; it must not block or start another engine.
-pub fn run_with_ui_server_config_and_ready<T: ProjectLifecycle + 'static>(
+/// Its returned guard is retained until the server returns; startup errors propagate.
+pub fn run_with_ui_server_config_and_ready<T: ProjectLifecycle + 'static, S>(
     mut engine: Engine<T>,
     config: UiServerConfig,
-    ready: impl FnOnce(ProductionRuntime<T>),
+    ready: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<S>,
 ) -> std::io::Result<()> {
     project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
     startup::prepare_engine_for_host_startup(&mut engine)?;
@@ -507,13 +508,13 @@ pub fn run_with_ui_server_config_and_ready<T: ProjectLifecycle + 'static>(
 
 /// Runs the built-in HTTP and WebSocket host through the production application facade.
 pub fn run_ui_server<T: ProjectLifecycle + 'static>(engine: Engine<T>, config: UiServerConfig) -> std::io::Result<()> {
-    run_ui_server_with_ready(engine, config, |_| {})
+    run_ui_server_with_ready(engine, config, |_| Ok(()))
 }
 
-fn run_ui_server_with_ready<T: ProjectLifecycle + 'static>(
+fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
     engine: Engine<T>,
     config: UiServerConfig,
-    ready: impl FnOnce(ProductionRuntime<T>),
+    ready: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<S>,
 ) -> std::io::Result<()> {
     let frontend_security = Arc::new(FrontendSecurity::prepare(config.frontend_assets)?);
     let request_access = Arc::new(RequestAccessPolicy::new(
@@ -525,6 +526,8 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static>(
     if let Some(preferences) = config.preferences.as_ref() {
         project_host::save_preferences(&runtime, preferences).map_err(Error::other)?;
     }
+    let listener = TcpListener::bind(&config.bind_addr)?;
+    let _services = ready(runtime.clone())?;
     let read_model = runtime.read_model();
     let snapshot_encoding = SnapshotEncodingService::spawn()?;
     spawn_runtime_loop(runtime.clone(), read_model.clone());
@@ -538,8 +541,6 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static>(
         snapshot_encoding.clone(),
     );
 
-    let listener = TcpListener::bind(&config.bind_addr)?;
-    ready(runtime.clone());
     println!(
         "UI host listening on http://{} (bundled_frontend={})",
         config.bind_addr,

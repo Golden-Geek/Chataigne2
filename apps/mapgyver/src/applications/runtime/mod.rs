@@ -1,6 +1,8 @@
 //! App policy and independent background process owners. Explicitly start only for a live project.
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
+mod capture;
+pub(crate) use capture::PreparedApplications;
 pub(crate) mod callbacks;
 pub use callbacks::{ApplicationCallbackSubscription, ApplicationCallbacks};
 mod observation;
@@ -153,21 +155,23 @@ fn global_pool() -> RetirementPool {
 impl ApplicationRuntime {
     /// Called by a host/runtime owner after project activation, never candidate validation/Undo.
     pub fn start(engine: &AppEngine, notifier: Option<WorkerNotifier>) -> Result<Self, String> {
-        let id = crate::media::authoring::manager(engine)?;
-        let Some(AppNode::MediaManager(manager)) = engine.nodes.get(id) else {
-            unreachable!()
-        };
+        Self::start_context(capture::Context::capture(engine)?, notifier)
+    }
+    fn start_context(context: capture::Context, notifier: Option<WorkerNotifier>) -> Result<Self, String> {
+        if !context.guard.is_current() {
+            return Err("application runtime project is retired".into());
+        }
         use std::sync::atomic::Ordering;
-        manager
-            .applications
+        context
+            .view
             .claimed
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
             .map_err(|_| "application runtime is already owned for this project")?;
-        let origin = *manager.applications.origin.get_or_init(Instant::now);
+        let origin = *context.view.origin.get_or_init(Instant::now);
         Ok(Self {
             shared: Arc::new(Shared {
-                project: manager.instance,
-                guard: manager.project_guard(),
+                project: context.project,
+                guard: context.guard,
                 origin,
                 desired: Mutex::new(Request {
                     targets: HashMap::new(),
@@ -175,7 +179,7 @@ impl ApplicationRuntime {
                 readiness: Mutex::new(HashMap::new()),
                 final_use: Mutex::new(HashMap::new()),
             }),
-            view: manager.applications.clone(),
+            view: context.view,
             handles: HashMap::new(),
             pool: global_pool(),
             notifier,
@@ -192,19 +196,23 @@ impl ApplicationRuntime {
         demand: &[ApplicationDemand],
         admission: Arc<[RevisionGuard]>,
     ) -> Result<(), String> {
-        if !admission.iter().all(RevisionGuard::is_current) {
+        self.reconcile_prepared(PreparedApplications::capture(engine, demand, admission)?)
+    }
+    pub(crate) fn start_prepared(
+        capture: &PreparedApplications,
+        notifier: Option<WorkerNotifier>,
+    ) -> Result<Self, String> {
+        if !capture.is_current() {
             return Err("application demand capture is stale".into());
         }
-        if !self.shared.guard.is_current() {
-            return Err("application runtime project is retired".into());
+        Self::start_context(capture.context.clone(), notifier)
+    }
+    pub(crate) fn reconcile_prepared(&mut self, capture: PreparedApplications) -> Result<(), String> {
+        if !self.shared.guard.is_current() || !capture.is_current() {
+            return Err("application demand capture is stale".into());
         }
-        let manager = crate::media::authoring::manager(engine)?;
-        if !matches!(engine.nodes.get(manager), Some(AppNode::MediaManager(node)) if node.instance == self.shared.project)
-        {
+        if capture.context.project != self.shared.project {
             return Err("application demand belongs to another project".into());
-        }
-        if demand.len() > MAX_APPLICATIONS {
-            return Err("application runtime admits at most 64 active/retiring definitions".into());
         }
         let old = self
             .shared
@@ -213,68 +221,14 @@ impl ApplicationRuntime {
             .expect("application demand lock poisoned")
             .targets
             .clone();
-        let mut targets = HashMap::new();
-        let mut identities = HashSet::new();
-        for entry in demand {
-            if entry.reasons.is_empty() {
-                return Err("application demand requires a lease reason".into());
-            }
-            if !identities.insert(entry.application) {
-                return Err("duplicate application demand identity".into());
-            }
-            let mut target = match engine
-                .node_id_by_uuid(entry.application.0)
-                .and_then(|id| engine.nodes.get(id))
-            {
-                Some(AppNode::Application(node)) => {
-                    let snapshot = node.snapshot();
-                    let definition = if snapshot.enabled && snapshot.definition.executable.is_some() {
-                        snapshot.definition.validate()?;
-                        Some(Arc::new(snapshot.definition))
-                    } else {
-                        None
-                    };
-                    Target {
-                        epoch: uuid::Uuid::new_v4(),
-                        retain_existing: false,
-                        definition,
-                        guard: Some(node.guard()),
-                        admission: admission.clone(),
-                        definition_revision: Some(snapshot.revision),
-                        definition_instance: Some(snapshot.definition_instance),
-                    }
-                }
-                _ => Target {
-                    epoch: uuid::Uuid::new_v4(),
-                    retain_existing: false,
-                    definition: None,
-                    guard: None,
-                    admission: admission.clone(),
-                    definition_revision: None,
-                    definition_instance: None,
-                },
-            };
-            target.retain_existing = entry.reasons.iter().any(|reason| {
-                matches!(
-                    reason,
-                    super::demand::DemandReason::Outgoing | super::demand::DemandReason::FinalUse
-                )
-            });
-            if target.definition.is_none()
-                && entry
-                    .reasons
-                    .iter()
-                    .all(|reason| *reason == super::demand::DemandReason::Neighbor)
-            {
-                continue;
-            }
-            if let Some(previous) = old.get(&entry.application)
+        let mut targets = capture.targets;
+        for (id, target) in &mut targets {
+            if let Some(previous) = old.get(id)
                 && previous.definition == target.definition
                 && previous.guard.as_ref().is_some_and(RevisionGuard::is_current)
             {
                 target.epoch = previous.epoch;
             }
-            targets.insert(entry.application, target);
         }
         // Prune only owners already idle under the old set; cancellation fences an in-flight create.
         self.handles.retain(|id, handle| {

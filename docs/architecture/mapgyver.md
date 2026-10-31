@@ -463,7 +463,8 @@ renderer/topology incarnations. It services committed project-wide column demand
 setup, including no previews or Screen outputs, then unions rendered preparation/active/outgoing
 scopes and binds `PlanRetainer` before publication. Explicit headless owners can call the same
 `service`/capture API after settlement without constructing a window, video runtime or clock;
-automatic default headless-bootstrap parity remains unverified under M08 gate 4.
+the default headless host now attaches the same policy through Golden's `HostServices` hook.
+Full mode/scenario qualification remains M08 gate 4.
 
 `applications::logical::capture_logical_applications` reads only media headers and direct column
 metadata. Column-only indices are cached separately from cell/render indices. Column/launch/
@@ -489,6 +490,12 @@ plans alive. Failed/rejected/superseded inputs release their hold when actually 
 Installed outcome is never a retirement barrier. Workers preserve an existing process through live
 plan holds even after controller close/drop or project invalidation; no new process can start from
 such a hold. Actual GPU/resource retirement must occur before process shutdown is requested.
+
+`applications::driver` separates owned metadata capture from host-side admission. Actor requests
+contain only cached immutable demand/guards; the process controller stays on the host owner even
+when an actor request fails. `PreparedApplicationService` is revalidated before runtime claims,
+worker creation and guarded reconciliation. Desktop logical/rendered demand and headless demand
+use this same boundary; actor capture never creates a thread or performs process IO.
 
 `applications::runtime::ApplicationRuntime` is the explicit live-project controller. `reconcile`
 validates/captures a whole demand set, admits workers before publishing it atomically and leaves
@@ -527,8 +534,8 @@ the subscribe/read race, then accepts only newer same-project observations. Sess
 disconnect and disposal fence reads/listeners; failed local event registration retries without
 periodic engine inspection. Saved-instance/revision mismatches show waiting for reconciliation;
 configuration policy remains backend-owned. Non-desktop UI uses explicit snapshot refresh, and
-explicit headless owners can subscribe to the same public source. Default headless host wiring
-and full UI/native acceptance remain M08 work.
+explicit headless owners can subscribe to the same public source. Full UI/native acceptance remains
+M08 work.
 
 `ApplicationRuntime::callbacks()` supplies a separate ordered process-phase journal. It retains
 published phase/launch changes even when the UI snapshot has already advanced. One project admits
@@ -551,7 +558,12 @@ replayed. Faults last until project replacement. A host-side error before dispat
 ticket with coarse backoff. Cancellation keeps the consumer claim until an in-flight sink returns,
 preventing replacement consumers from racing batch preparation. Retired projects cannot dispatch
 into the replacement engine. Explicit hosts must attach the same consumer and submit tickets through
-their public project transaction facade; default headless-bootstrap attachment follows separately.
+their public project transaction facade. `applications::headless::HeadlessApplications` supplies
+that attachment in ordinary `--headless` startup, alongside its independent application driver.
+One of two global headless-service workers checks guards off-actor at a coarse 100 ms interval;
+unchanged projects perform no actor inspection. Service/consumer admission failures retry at one
+second without dropping the current controller. Project replacement retires old subscriptions and
+captures a fresh instance. Dropping the guard cancels without joining native process retirement.
 
 Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured
@@ -569,7 +581,7 @@ releases its one-shot probe after a nonblocking completion check, including when
 evidence arrives before that probe's copy completes. Cancellation stops the process before
 potentially delayed probe cleanup.
 Non-native hosts can supply independently observed tagged evidence through the same runtime API;
-default headless host wiring and full callback parity remain M08 qualification work.
+full callback/mode/scenario parity remains M08 qualification work.
 `golden_time` is an ordinary MapGyver backend dependency: Matrix playback/capture uses its
 types with native video disabled as well. It must not be enabled only through a GPU feature or
 dev-dependency, which would mask a broken standalone headless library build.
