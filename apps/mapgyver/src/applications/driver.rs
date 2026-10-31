@@ -24,6 +24,11 @@ pub struct PreparedApplicationService {
     runtime: super::runtime::PreparedApplications,
     has_demand: bool,
 }
+impl PreparedApplicationService {
+    pub fn project(&self) -> uuid::Uuid {
+        self.logical.project
+    }
+}
 impl ApplicationDriver {
     /// Check on an IO/host owner; unchanged projects require no actor capture.
     pub fn needs_service(&self) -> bool {

@@ -78,7 +78,8 @@ impl Journal {
     ) {
         let mut state = self.state.lock().unwrap();
         let Some(reservation) = reservation.filter(|permit| permit.remaining > 0) else {
-            state.fault = Some("lifecycle transition exceeded its reserved callback budget".into());
+            state.fault =
+                Some("lifecycle transition exceeded its reserved callback budget; reload the project to resume".into());
             return;
         };
         reservation.remaining -= 1;
@@ -252,7 +253,7 @@ impl ApplicationCallbacks {
                 self.view.changed();
             }
             Some(EditCompletionStatus::Failed) if state.fault.is_none() => {
-                state.fault = Some("lifecycle callback transaction failed; partial delivery cannot be replayed".into());
+                state.fault = Some("lifecycle callback transaction failed; partial delivery cannot be replayed; reload the project to resume".into());
                 self.view.changed();
             }
             _ => {}

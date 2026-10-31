@@ -7,6 +7,7 @@ use golden_core::{
     ui_sync::UiProjectFileSpec,
 };
 use std::time::{Duration, Instant};
+static HEADLESS_SERVICE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn launch(engine: &mut AppEngine, media: MediaId, column: ColumnId) {
     edit(
@@ -114,6 +115,7 @@ fn immutable_service_capture_cannot_launch_or_admit_after_definition_or_scope_ch
 
 #[test]
 fn headless_host_service_observes_launch_unload_and_project_replacement_without_a_renderer() {
+    let _exclusive = HEADLESS_SERVICE_TEST.lock().unwrap();
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
@@ -183,5 +185,80 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
     assert_ne!(replaced.project, initial.project);
     assert_eq!(replaced.callbacks.acknowledged, 1);
     assert!(replaced.callbacks.fault.is_none());
+    drop(service);
+}
+
+#[test]
+fn headless_admission_errors_are_visible_without_processes_and_clear_after_demand_recovers() {
+    let _exclusive = HEADLESS_SERVICE_TEST.lock().unwrap();
+    let mut engine = fixture();
+    let applications = (0..65).map(|_| create(&mut engine)).collect::<Vec<_>>();
+    let (first, columns) = matrix(&mut engine);
+    let (second, others) = matrix(&mut engine);
+    for (media, column, assigned) in [
+        (first, columns[0], applications[..64].to_vec()),
+        (second, others[0], applications[64..].to_vec()),
+    ] {
+        edit(
+            &mut engine,
+            MediaEdit::Matrix {
+                media,
+                edit: MatrixEdit::ConfigureColumn {
+                    column,
+                    definition: ColumnDefinition {
+                        applications: assigned
+                            .into_iter()
+                            .map(|application| ColumnApplication {
+                                application,
+                                pre: 0,
+                                post: 0,
+                            })
+                            .collect(),
+                        ..Default::default()
+                    },
+                },
+            },
+        );
+        launch(&mut engine, media, column);
+    }
+    let history = engine.undo_len();
+    let runtime = ProductionRuntime::new(engine, UiProjectFileSpec::default()).unwrap();
+    let service = HeadlessApplications::start(runtime.clone()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(4);
+    loop {
+        let current = snapshot(&runtime);
+        if let ApplicationServiceStatus::Retrying { message } = &current.supervision.demand {
+            assert!(message.contains("at most 64"), "{message}");
+            assert_eq!(current.supervision.host, Some(ApplicationHost::Headless));
+            assert!(
+                current.applications.is_empty(),
+                "capture failure must never start a process owner"
+            );
+            break;
+        }
+        assert!(Instant::now() < deadline, "no visible admission error: {current:?}");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    for media in [first, second] {
+        transaction(
+            &runtime,
+            MediaEdit::Matrix {
+                media,
+                edit: MatrixEdit::ClearPlayback,
+            },
+        );
+    }
+    loop {
+        let current = snapshot(&runtime);
+        if current.supervision.demand == ApplicationServiceStatus::Running {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "demand recovery was not published: {current:?}"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(runtime.capture_app(|engine| engine.undo_len()).unwrap(), history);
     drop(service);
 }

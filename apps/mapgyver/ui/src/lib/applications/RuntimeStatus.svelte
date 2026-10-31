@@ -2,7 +2,7 @@
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import type { ApplicationSnapshot } from '../media/generated/ApplicationSnapshot';
 	import type { ApplicationPage } from '../media/generated/ApplicationPage';
-	import { configurationLabel } from './runtime-presentation';
+	import { configurationLabel, serviceLabel } from './runtime-presentation';
 	let {
 		snapshot,
 		selected,
@@ -35,9 +35,17 @@
 	</p>
 	{#if error}<p role="alert">{error}</p>{/if}
 	{#if snapshot}
-		{#if snapshot.callbacks.fault}<p role="alert">
-				Lifecycle callback delivery halted: {snapshot.callbacks.fault}
-			</p>{/if}
+		<p>Application supervision: {snapshot.supervision.host ?? 'No host attached'}</p>
+		<p role={snapshot.supervision.demand.kind === 'Retrying' ? 'alert' : undefined}>
+			Demand service: {serviceLabel(snapshot.supervision.demand)}
+		</p>
+		<p
+			role={snapshot.supervision.callbacks.kind === 'Retrying' ||
+			snapshot.supervision.callbacks.kind === 'Halted'
+				? 'alert'
+				: undefined}>
+			Callback service: {serviceLabel(snapshot.supervision.callbacks)}
+		</p>
 		<small
 			>{snapshot.callbacks.pending} lifecycle callbacks pending · acknowledged through {snapshot
 				.callbacks.acknowledged}</small>

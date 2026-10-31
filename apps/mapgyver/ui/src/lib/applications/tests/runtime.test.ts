@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplicationRuntimeReader, runtimeState } from '../runtime.ts';
-import { configurationLabel } from '../runtime-presentation.ts';
+import { configurationLabel, serviceLabel } from '../runtime-presentation.ts';
 import type { ApplicationRuntimeSnapshot } from '../../media/generated/ApplicationRuntimeSnapshot';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
 import type { ApplicationSnapshot } from '../../media/generated/ApplicationSnapshot';
@@ -23,6 +23,7 @@ const connection = () => ({
 });
 function snapshot(project: string, revision: number): ApplicationRuntimeSnapshot {
 	return {
+		supervision: { host: 'Desktop', demand: { kind: 'Running' }, callbacks: { kind: 'Running' } },
 		callbacks: { pending: 0, acknowledged: 0, fault: null },
 		project,
 		revision,
@@ -45,6 +46,51 @@ function snapshot(project: string, revision: number): ApplicationRuntimeSnapshot
 		]
 	};
 }
+
+test('service admission errors survive stale observations and recovery preserves an independent callback fault', async () => {
+	const session = connection(),
+		state = runtimeState();
+	let listener!: (snapshot: ApplicationRuntimeSnapshot) => void;
+	const reader = new ApplicationRuntimeReader(
+		() => session,
+		state,
+		async () => ({ kind: 'ApplicationRuntime', snapshot: snapshot('project', 1) }),
+		{
+			available: () => true,
+			subscribe: async (accept) => {
+				listener = accept;
+				return () => {};
+			}
+		}
+	);
+	reader.observe();
+	await flush();
+	const failed = snapshot('project', 2);
+	failed.applications = [];
+	failed.supervision.host = 'Headless';
+	failed.supervision.demand = { kind: 'Retrying', message: 'Capacity held by retiring owners' };
+	listener(failed);
+	listener(snapshot('project', 1));
+	assert.equal(
+		serviceLabel(state.snapshot!.supervision.demand),
+		'Retrying: Capacity held by retiring owners'
+	);
+	assert.deepEqual(state.snapshot!.applications, []);
+	const recovered = snapshot('project', 3);
+	recovered.supervision.callbacks = {
+		kind: 'Halted',
+		message: 'Partial delivery cannot be replayed'
+	};
+	listener(recovered);
+	listener(snapshot('foreign', 99));
+	listener(failed);
+	assert.equal(serviceLabel(state.snapshot!.supervision.demand), 'Running');
+	assert.equal(
+		serviceLabel(state.snapshot!.supervision.callbacks),
+		'Halted: Partial delivery cannot be replayed'
+	);
+	reader.dispose();
+});
 
 test('runtime bootstrap closes the subscribe race and accepts only newer same-project observations without polling', async () => {
 	const session = connection(),

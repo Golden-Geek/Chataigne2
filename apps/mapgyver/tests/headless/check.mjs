@@ -134,6 +134,9 @@ try {
 	const launch = (column) => matrix(reference.media, { kind: 'LaunchColumn', column, mode: 'Cut' });
 	await launch(columns[0]);
 	const initial = await waitFor('Ready');
+	assert.equal(initial.supervision.host, 'Headless');
+	assert.equal(initial.supervision.demand.kind, 'Running');
+	assert.equal(initial.supervision.callbacks.kind, 'Running');
 	const first = initial.applications[0];
 	assert(first.process_id && first.launch);
 	assert.notEqual(first.process_id, external.pid);
@@ -154,6 +157,61 @@ try {
 	const second = restarted.applications[0];
 	assert.notEqual(second.launch, first.launch);
 	assert(restarted.callbacks.acknowledged > unloaded.callbacks.acknowledged);
+	const extra = [];
+	for (let i = 0; i < 65; i++)
+		extra.push((await applications({ kind: 'Create', label: null })).application);
+	const overloaded = [];
+	for (const assigned of [extra.slice(0, 64), extra.slice(64)]) {
+		const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label: null });
+		const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
+		await matrix(reference.media, {
+			kind: 'ConfigureColumn',
+			column: columns[0],
+			definition: {
+				transition: null,
+				applications: assigned.map((application) => ({ application, pre: 0, post: 0 }))
+			}
+		});
+		await matrix(reference.media, { kind: 'LaunchColumn', column: columns[0], mode: 'Cut' });
+		overloaded.push(reference.media);
+	}
+	const admissionDeadline = Date.now() + 5000;
+	let admissionMessage;
+	while (true) {
+		const { snapshot } = await applications({ kind: 'InspectRuntime' });
+		if (snapshot.supervision.demand.kind === 'Retrying') {
+			admissionMessage = snapshot.supervision.demand.message;
+			assert(admissionMessage.includes('at most 64'));
+			assert.equal(
+				snapshot.applications.length,
+				1,
+				'failed aggregate admission must preserve the prior process set'
+			);
+			assert.equal(snapshot.applications[0].process_id, second.process_id);
+			break;
+		}
+		assert(
+			Date.now() < admissionDeadline,
+			'ordinary headless host did not expose admission failure'
+		);
+		await delay(25);
+	}
+	for (const media of overloaded) await matrix(media, { kind: 'ClearPlayback' });
+	while (true) {
+		const { snapshot } = await applications({ kind: 'InspectRuntime' });
+		if (snapshot.supervision.demand.kind === 'Running') {
+			assert.equal(
+				snapshot.applications.find((entry) => entry.application === application).process_id,
+				second.process_id
+			);
+			break;
+		}
+		assert(
+			Date.now() < admissionDeadline,
+			'ordinary headless host did not publish demand recovery'
+		);
+		await delay(25);
+	}
 	app.kill();
 	await appExit;
 	const cleanupDeadline = Date.now() + 3000;
@@ -171,7 +229,9 @@ try {
 			external: external.pid,
 			first: first.process_id,
 			second: second.process_id,
-			acknowledged: restarted.callbacks.acknowledged
+			acknowledged: restarted.callbacks.acknowledged,
+			admission_recovered: true,
+			admission_message: admissionMessage
 		})
 	);
 } finally {

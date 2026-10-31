@@ -4,24 +4,24 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 default headless supervision/callback delivery, ordered script callbacks,
-live status and saved/in-use configuration presentation are implemented; **3/4 gates (75%)**.
+**Current topic:** M08 operator-visible host/service health, default headless supervision,
+ordered callbacks and saved/in-use configuration presentation are implemented; **3/4 gates (75%)**.
 Controller lifecycle acceptance is verified; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M08 operator-visible supervision/admission failures and UI/script/headless control parity.
+**Next:** M08 shared-application availability controls through UI/commands/scripts, preserving
+backend-owned admission and retained in-use lifetimes.
 The bounded lifecycle acceptance batch is complete; no consecutive diagnostic batch. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** ordinary `MapGyver --headless` now supervises column-owned apps
-and delivers ordered callbacks (batch 39). Its HTTP check preloads, retains, unloads and restarts an
-owned process; host exit cleans it up while a separate same-executable process survives. Six phase
-events are acknowledged. Hosted scripts and project replacement pass without a renderer. Actor
-captures retain only metadata; worker admission stays on the host. **182 app / 172 headless tests**
-and shared host/transport checks pass. Batch 40 closes controller gate 3 with actual crash/backoff,
-suspended cancellation, timeout and pinned descendant cleanup. Actual form input and complete app recovery/scale
+**Last delivered capability:** the Applications panel and generated `InspectRuntime` response now
+expose host attachment, demand/callback service health and bounded retry/halt reasons, even before
+process admission (batch 41). The ordinary headless HTTP check reports over-capacity demand while
+preserving an admitted PID, then clears the error on recovery. Stale owners/projects and callback
+startup receipts cannot overwrite newer errors. **184 app / 174 headless / 53 frontend tests** pass.
+Batch 40's controller gate remains accepted. Actual form input and complete app recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual Matrix editor
@@ -70,6 +70,61 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 41:** started 2026-10-31 **12:17 UTC**, recorded stop **13:02 UTC**.
+Expose active host supervision, demand-admission failures/recovery and callback-service failures
+through generated runtime status in the Applications panel and the same UI/script/headless query
+contract. App-owned publishers must fence project and service owner, bound error metadata and
+publish only changes; no periodic actor inspection or authored history. Verify an actual headless
+over-capacity demand error and recovery without starting processes, plus stale publisher/project
+and UI status cases. Preserve M08 gate 3 and leave full gate 4 acceptance open. No hardware,
+GPU, desktop recovery or diagnostic-only experiment is scheduled.
+
+After terminal software/Clippy prerequisites, run the existing ordinary headless HTTP check once
+to verify the new health contract with an already-running owned process: over-capacity aggregate
+admission must publish its reason, preserve the admitted PID and recover after the extra scopes
+unload. Build the current app and finite fixture first. This is product verification, with at most
+two invocations and the original **13:02 UTC** batch cutoff; no GPU, display or input automation.
+
+The ordinary headless baseline starts **12:50 UTC**. Prerequisites are terminal: **184 app tests /
+one existing hardware ignore**, **174 headless tests**, **53 frontend tests**, Svelte check with
+zero errors/warnings, strict all-target/all-feature Clippy, generated drift and ordinary app/finite
+fixture builds. Verify healthy host/services, visible aggregate-admission error and same-PID recovery,
+then retain the existing unload/restart/host-exit/external-process checks.
+
+**Batch 41 result (checks complete 12:50 UTC, before the 13:02 cutoff):** generated runtime
+snapshots expose the attached Desktop/Headless host and independent demand/callback service
+states. App-owned publishers fence project/owner identity, retain at most 512 error characters and
+advance observations only when published values change. Callback attempt revisions prevent a late
+startup acknowledgement from clearing an already-reported delivery failure, including an unchanged
+retry error. Unreplayable journal faults remain backend-owned `Halted` outcomes with reload guidance.
+
+Desktop observation attaches before process admission; an empty process list no longer hides a
+capture/capacity failure. Headless and rendered/logical desktop admission use the same health
+contract. Prepared captures must match the active supervisor before worker admission. Ordinary
+desktop capture errors now retry while retaining the controller. The panel renders these generated
+states; scripts/headless clients read the same `InspectRuntime` result and result callback contract.
+No authored history, OS handles, launch argument/environment values or actor polling were added.
+
+**Validation:** **184 app tests / one existing hardware ignore**, **174 headless tests**, **53
+frontend tests**, Svelte check (**zero errors/warnings**), strict all-target/all-feature and
+headless-library Clippy, generated drift, ordinary app/fixture build, JS syntax/Prettier, both
+required Cargo formatters and whitespace checks pass. Software checks cover bounded publication,
+project/owner/startup fences, callback halt projection, stale UI observations and real headless
+65-definition capture failure/recovery with no admitted processes or authored-history changes.
+No shared Golden boundary changed.
+
+The first/only ordinary headless invocation passes in **2.04 s**: host **41228**, owned PIDs
+**16580/28240**, independent same-executable PID **14924**, six lifecycle acknowledgements.
+Over-capacity demand reports `application runtime admits at most 64 active/retiring definitions`,
+preserves the currently admitted PID and clears after excess scopes unload. Existing preload/
+post-retention/unload/restart/host-exit and external-process survival checks also pass; test-owned
+processes are cleaned up. No second invocation or GPU/display/input experiment ran.
+
+**No gate closes:** M08 remains **3/4 = 75%**, overall **3/10 = 30%**; denominators are unchanged.
+Full app/mode/UI/control/unsupported-target parity and recovery/scale acceptance retain gate 4.
+Product-delivery count is **39**; nine diagnostic-only batches are allowed, **two used**. Next is
+shared-application availability control parity, not another diagnostic-only batch.
 
 **Qualification batch 40:** started 2026-10-31 **11:58 UTC**, recorded stop **12:43 UTC**.
 Use the second diagnostic allocation (38 product deliveries permit nine; one used previously).
@@ -2073,7 +2128,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 38. Diagnostic-only batch allowance: 9, two used.**
+**Product-delivery count since correction: 39. Diagnostic-only batch allowance: 9, two used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -2125,8 +2180,9 @@ a renderer is the thirty-fourth. Shared-application definition forms and Matrix 
 controls are the thirty-fifth. Live process/configuration observations are the thirty-sixth.
 Ordered, receipt-gated lifecycle callbacks are the thirty-seventh.
 Default headless application supervision/callback attachment is the thirty-eighth.
+Operator-visible supervision/admission health and recovery is the thirty-ninth.
 The allowance is nine at
-`floor(38 / 4)`, following the four-product-to-one-diagnostic ratio; two were used. The bounded
+`floor(39 / 4)`, following the four-product-to-one-diagnostic ratio; two were used. The bounded
 M08 lifecycle acceptance batch is complete; consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
@@ -2321,13 +2377,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/live status/callbacks/default headless work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M08 operator-visible supervision/admission failures and control parity** through the
-generated backend status/UI/script/headless contracts. Gate 3's bounded lifecycle acceptance
+Deliver **M08 shared-application availability controls** through generated UI/command/script
+intents, preserving backend defaults, admission policy and retained in-use lifetimes. Operator-visible
+supervision/admission failures and recovery now use the common status contract. Gate 3's bounded lifecycle acceptance
 batch is complete; do not run another diagnostic-only batch next. Default headless supervision/
 callback delivery and the ordinary HTTP process-ownership path work. Keep the ordered
 phase journal separate from coalesced snapshots. Preserve project/launch fencing, preparation/active/outgoing/final-use
@@ -2346,7 +2403,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Thirty-eight product slices are delivered; documentation checkpoints are excluded. Nine diagnostic-only
+Thirty-nine product slices are delivered; documentation checkpoints are excluded. Nine diagnostic-only
 batches are allowed by the ratio, two are used after the completed M08 batch. Continue the product path;
 retained M03 qualification is not the default work queue.
 

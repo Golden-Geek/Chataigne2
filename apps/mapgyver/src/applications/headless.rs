@@ -1,5 +1,9 @@
 //! App policy on a headless host owner; actor access only captures changed metadata.
 use super::{driver::ApplicationDriver, protocol::ApplicationEdit, runtime::ApplicationCallbackSubscription};
+use super::{
+    protocol::ApplicationHost,
+    runtime::supervision::{Source, Supervisor},
+};
 use crate::{
     app::AppNode,
     media::protocol::{MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit},
@@ -38,14 +42,43 @@ impl HeadlessApplications {
                 let mut retry = Instant::now();
                 let mut callback_retry = retry;
                 let mut failure = None;
+                let mut supervisor: Option<Supervisor> = None;
+                let mut supervision_retry = retry;
                 while !context.cancellation().is_cancelled() {
                     let checkpoint = context.wake_checkpoint();
+                    if supervisor.as_ref().is_some_and(|owner| !owner.is_current()) {
+                        supervisor.take();
+                    }
+                    if supervisor.is_none() && Instant::now() >= supervision_retry {
+                        match runtime
+                            .capture_app(Source::capture)
+                            .map_err(|error| error.to_string())
+                            .and_then(|source| source)
+                            .and_then(|source| source.claim(ApplicationHost::Headless))
+                        {
+                            Ok(owner) => supervisor = Some(owner),
+                            Err(error) => {
+                                eprintln!("[mapgyver-headless-applications] supervision: {error}");
+                                supervision_retry = Instant::now() + Duration::from_secs(1);
+                            }
+                        }
+                    }
+                    let Some(supervisor) = &supervisor else {
+                        context.wait_until(checkpoint, Instant::now() + Duration::from_millis(100));
+                        continue;
+                    };
                     if driver.needs_service() && Instant::now() >= retry {
                         let result = runtime.capture_app(driver.service_capture());
                         let result = match result {
-                            Ok(capture) => capture.and_then(|capture| driver.apply_prepared(capture, notifier.clone())),
+                            Ok(capture) => capture.and_then(|capture| {
+                                supervisor.validate_project(capture.project())?;
+                                driver.apply_prepared(capture, notifier.clone())
+                            }),
                             Err(error) => Err(error.to_string()),
                         };
+                        supervisor
+                            .publisher()
+                            .demand(result.as_ref().map(|_| ()).map_err(Clone::clone));
                         match result {
                             Ok(_) => failure = None,
                             Err(error) => {
@@ -57,7 +90,7 @@ impl HeadlessApplications {
                             }
                         }
                     }
-                    let source = driver.callbacks().filter(|source| source.is_current());
+                    let source = Some(supervisor.callbacks()).filter(|source| source.is_current());
                     if source.as_ref().map(|source| source.project()) != callbacks.as_ref().map(|(project, _)| *project)
                     {
                         callbacks.take();
@@ -67,8 +100,10 @@ impl HeadlessApplications {
                         && Instant::now() >= callback_retry
                     {
                         let runtime = runtime.clone();
+                        let publisher = supervisor.publisher();
+                        let attempt = publisher.callback_attempt();
                         match source.start(move |ticket| {
-                            runtime
+                            let result = runtime
                                 .apply_transaction(golden_core::ui_sync::UiEditIntent::InvokeAppOperation {
                                     namespace: MEDIA_NAMESPACE.into(),
                                     operation: MEDIA_OPERATION.into(),
@@ -78,10 +113,16 @@ impl HeadlessApplications {
                                     .map_err(|error| error.to_string())?,
                                 })
                                 .map(|_| ())
-                                .map_err(|error| error.to_string())
+                                .map_err(|error| error.to_string());
+                            publisher.callbacks(result.clone());
+                            result
                         }) {
-                            Ok(subscription) => callbacks = Some((source.project(), subscription)),
+                            Ok(subscription) => {
+                                callbacks = Some((source.project(), subscription));
+                                supervisor.publisher().callbacks_started(attempt);
+                            }
                             Err(error) => {
+                                supervisor.publisher().callbacks(Err(error.clone()));
                                 eprintln!("[mapgyver-headless-applications] callback admission: {error}");
                                 callback_retry = Instant::now() + Duration::from_secs(1);
                             }

@@ -207,12 +207,41 @@ pub struct ApplicationRuntimeStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ApplicationRuntimeSnapshot {
+    pub supervision: ApplicationSupervisionSnapshot,
     pub callbacks: ApplicationCallbackState,
     pub project: uuid::Uuid,
     pub revision: u64,
     /// Monotonic milliseconds since this runtime started; deadlines use the same origin.
     pub elapsed_ms: u64,
     pub applications: Vec<ApplicationRuntimeStatus>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ApplicationHost {
+    Desktop,
+    Headless,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum ApplicationServiceStatus {
+    #[default]
+    Inactive,
+    Starting,
+    Running,
+    Retrying {
+        message: String,
+    },
+    Halted {
+        message: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationSupervisionSnapshot {
+    pub host: Option<ApplicationHost>,
+    pub demand: ApplicationServiceStatus,
+    pub callbacks: ApplicationServiceStatus,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]

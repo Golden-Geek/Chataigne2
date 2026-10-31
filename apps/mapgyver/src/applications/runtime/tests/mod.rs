@@ -3,6 +3,7 @@ use golden_io::owned_process::{ProcessSnapshot, ProcessSpec, RootProcessState};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod callbacks;
 mod observation;
+mod supervision;
 
 struct Fake {
     creates: usize,

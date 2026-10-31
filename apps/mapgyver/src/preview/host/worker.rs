@@ -139,17 +139,47 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut application_error = None;
     let mut application_observer: Option<(uuid::Uuid, crate::applications::runtime::ApplicationSubscription)> = None;
     let mut observation_retry = Instant::now();
+    let mut callback_retry = observation_retry;
+    let mut supervision_retry = observation_retry;
+    let mut supervisor: Option<crate::applications::runtime::supervision::Supervisor> = None;
     let mut application_callbacks: Option<(
         uuid::Uuid,
         crate::applications::runtime::ApplicationCallbackSubscription,
     )> = None;
     while !input.stop.is_requested() {
-        if applications.needs_service() && Instant::now() >= application_retry {
+        if supervisor.as_ref().is_some_and(|owner| !owner.is_current()) {
+            supervisor.take();
+        }
+        if supervisor.is_none() && Instant::now() >= supervision_retry {
+            match input
+                .runtime
+                .capture_app(crate::applications::runtime::supervision::Source::capture)
+                .map_err(|error| error.to_string())
+                .and_then(|source| source)
+                .and_then(|source| source.claim(crate::applications::protocol::ApplicationHost::Desktop))
+            {
+                Ok(owner) => supervisor = Some(owner),
+                Err(error) => {
+                    eprintln!("[mapgyver-applications] supervision: {error}");
+                    supervision_retry = Instant::now() + Duration::from_secs(1);
+                }
+            }
+        }
+        if supervisor.is_some() && applications.needs_service() && Instant::now() >= application_retry {
             let result = input
                 .runtime
                 .capture_app(applications.service_capture())
-                .map_err(io::Error::other)?;
-            let result = result.and_then(|prepared| applications.apply_prepared(prepared, input.notifier.clone()));
+                .map_err(|error| error.to_string())
+                .and_then(|capture| capture);
+            let result = result.and_then(|prepared| {
+                supervisor.as_ref().unwrap().validate_project(prepared.project())?;
+                applications.apply_prepared(prepared, input.notifier.clone())
+            });
+            if let Some(owner) = &supervisor {
+                owner
+                    .publisher()
+                    .demand(result.as_ref().map(|_| ()).map_err(Clone::clone));
+            }
             match result {
                 Ok(_) => {
                     application_error = None;
@@ -163,7 +193,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 }
             }
         }
-        let callback_source = applications.callbacks().filter(|source| source.is_current());
+        let callback_source = supervisor
+            .as_ref()
+            .map(|owner| owner.callbacks())
+            .filter(|source| source.is_current());
         if callback_source.as_ref().map(|source| source.project())
             != application_callbacks.as_ref().map(|(project, _)| *project)
         {
@@ -171,12 +204,15 @@ pub(super) fn run(input: Input) -> io::Result<()> {
         }
         if let Some(source) = callback_source
             && application_callbacks.is_none()
-            && Instant::now() >= observation_retry
+            && Instant::now() >= callback_retry
         {
             let runtime = input.runtime.clone();
+            let publisher = supervisor.as_ref().unwrap().publisher();
+            let attempt = publisher.callback_attempt();
+            let delivery = publisher.clone();
             match source.start(move |ticket| {
                 use golden_core::application::ProjectTransactions;
-                runtime
+                let result = runtime
                     .apply_transaction(golden_core::ui_sync::UiEditIntent::InvokeAppOperation {
                         namespace: crate::media::protocol::MEDIA_NAMESPACE.into(),
                         operation: crate::media::protocol::MEDIA_OPERATION.into(),
@@ -192,16 +228,25 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         } else {
                             Err(format!("lifecycle callback delivery rejected: {ack:?}"))
                         }
-                    })
+                    });
+                delivery.callbacks(result.clone());
+                result
             }) {
-                Ok(subscription) => application_callbacks = Some((source.project(), subscription)),
+                Ok(subscription) => {
+                    application_callbacks = Some((source.project(), subscription));
+                    publisher.callbacks_started(attempt);
+                }
                 Err(error) => {
+                    publisher.callbacks(Err(error.clone()));
                     eprintln!("[mapgyver-applications] callbacks unavailable: {error}");
-                    observation_retry = Instant::now() + Duration::from_secs(1);
+                    callback_retry = Instant::now() + Duration::from_secs(1);
                 }
             }
         }
-        let observation_source = applications.observations().filter(|source| source.is_current());
+        let observation_source = supervisor
+            .as_ref()
+            .map(|owner| owner.observations())
+            .filter(|source| source.is_current());
         if observation_source.as_ref().map(|source| source.project())
             != application_observer.as_ref().map(|(project, _)| *project)
         {
@@ -324,6 +369,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         sync_applications(
                             &input,
                             &mut applications,
+                            &supervisor,
                             next.channels.project,
                             next.channels.application_demand(),
                             next.channels.guards.clone(),
@@ -369,9 +415,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     let next = capture.as_ref().ok_or("presentation capture missing")?;
                     let project = next.channels.project;
                     let demand = next.channels.application_demand();
-                    if let Some(retainer) =
-                        sync_applications(&input, &mut applications, project, demand, next.channels.guards.clone())?
-                    {
+                    if let Some(retainer) = sync_applications(
+                        &input,
+                        &mut applications,
+                        &supervisor,
+                        project,
+                        demand,
+                        next.channels.guards.clone(),
+                    )? {
                         renderer.bind_applications(retainer);
                     }
                     renderer.publish_screen_targets(
@@ -393,6 +444,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     && let Some(retainer) = sync_applications(
                         &input,
                         &mut applications,
+                        &supervisor,
                         project,
                         demand,
                         capture.as_ref().unwrap().channels.guards.clone(),
@@ -556,13 +608,22 @@ pub(super) fn run(input: Input) -> io::Result<()> {
 fn sync_applications(
     input: &Input,
     applications: &mut crate::applications::driver::ApplicationDriver,
+    supervisor: &Option<crate::applications::runtime::supervision::Supervisor>,
     project: uuid::Uuid,
     demand: Vec<crate::applications::demand::ApplicationDemand>,
     admission: std::sync::Arc<[golden_io::RevisionGuard]>,
 ) -> Result<Option<crate::applications::runtime::PlanRetainer>, String> {
+    let owner = supervisor.as_ref().ok_or("application supervision is not attached")?;
+    let publisher = owner.publisher();
     let result = input
         .runtime
         .capture_app(applications.rendered_capture(project, demand, admission))
-        .map_err(|e| e.to_string())?;
-    result.and_then(|prepared| applications.apply_prepared(prepared, input.notifier.clone()))
+        .map_err(|e| e.to_string())
+        .and_then(|capture| capture)
+        .and_then(|prepared| {
+            owner.validate_project(prepared.project())?;
+            applications.apply_prepared(prepared, input.notifier.clone())
+        });
+    publisher.demand(result.as_ref().map(|_| ()).map_err(Clone::clone));
+    result
 }

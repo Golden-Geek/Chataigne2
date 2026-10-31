@@ -198,6 +198,10 @@ fn stale_project_and_failed_receipt_cannot_replay_a_partially_delivered_batch() 
     assert_eq!(state.pending, 5);
     assert_eq!(state.acknowledged, 0);
     assert!(state.fault.unwrap().contains("partial delivery cannot be replayed"));
+    assert!(matches!(
+        source.view.snapshot(source.project()).supervision.callbacks,
+        ApplicationServiceStatus::Halted { .. }
+    ));
     assert!(source.prepare().is_err());
     assert!(source.view.callbacks.reserve().is_none());
     // The host may continue processing ordinary edits after callback admission halts.

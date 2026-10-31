@@ -1,5 +1,21 @@
 import type { ApplicationRuntimeStatus } from '../media/generated/ApplicationRuntimeStatus';
 import type { ApplicationSnapshot } from '../media/generated/ApplicationSnapshot';
+import type { ApplicationServiceStatus } from '../media/generated/ApplicationServiceStatus';
+
+export function serviceLabel(status: ApplicationServiceStatus) {
+	switch (status.kind) {
+		case 'Inactive':
+			return 'Not attached';
+		case 'Starting':
+			return 'Starting';
+		case 'Running':
+			return 'Running';
+		case 'Retrying':
+			return `Retrying: ${status.message}`;
+		case 'Halted':
+			return `Halted: ${status.message}`;
+	}
+}
 
 /** Identity/revision fencing is presentation; configuration policy comes from the worker. */
 export function configurationLabel(

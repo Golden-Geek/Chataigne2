@@ -537,6 +537,22 @@ configuration policy remains backend-owned. Non-desktop UI uses explicit snapsho
 explicit headless owners can subscribe to the same public source. Full UI/native acceptance remains
 M08 work.
 
+`runtime::supervision` owns host-service health independently of process admission. Desktop and
+headless hosts claim one publisher for the live Media Manager; its generated snapshot identifies
+the host and reports demand/callback services as inactive, starting, running or retrying with a
+bounded reason. Callback transaction faults project a halted state with backend-owned recovery
+guidance. Publisher tokens are fenced by project and owner; replacing/dropping the host revokes
+blocked old callbacks. Errors retain at most 512 characters and unchanged states do not publish.
+These fields are ephemeral and create no authored history.
+
+The desktop host subscribes to the metadata source before any process owner exists, so capacity
+and capture failures reach the Applications panel rather than leaving an unexplained empty process
+list. The same `InspectRuntime` response carries supervision status through UI, scripts and
+headless transports. Ordinary capture/admission errors retain the current controller and retry
+coarsely; a failed aggregate cannot partially replace the admitted process set. Callback delivery
+health remains separate from process readiness and from unreplayable journal faults. Current
+service status describes host attachment/last service outcome; individual rows report process truth.
+
 `ApplicationRuntime::callbacks()` supplies a separate ordered process-phase journal. It retains
 published phase/launch changes even when the UI snapshot has already advanced. One project admits
 1,024 queued/reserved events; each launch reserves eight credits before process creation, including

@@ -9,6 +9,7 @@ mod observation;
 pub use observation::{ApplicationObservations, ApplicationSubscription};
 mod readiness;
 mod retention;
+pub(crate) mod supervision;
 mod worker;
 pub use retention::PlanRetainer;
 
@@ -59,6 +60,7 @@ type Statuses = HashMap<ApplicationId, (uuid::Uuid, ApplicationRuntimeStatus)>;
 
 #[derive(Clone, Default)]
 pub(crate) struct RuntimeView {
+    supervision: Arc<Mutex<supervision::State>>,
     callbacks: Arc<callbacks::Journal>,
     claimed: Arc<std::sync::atomic::AtomicBool>,
     origin: Arc<OnceLock<Instant>>,
@@ -82,15 +84,24 @@ impl RuntimeView {
             .lock()
             .expect("application callback journal lock poisoned");
         let callback_state = callbacks.snapshot();
+        let supervision = self.supervision.lock().expect("application supervision lock poisoned");
+        let mut supervision_state = supervision.snapshot.clone();
+        if let Some(message) = &callback_state.fault {
+            supervision_state.callbacks = ApplicationServiceStatus::Halted {
+                message: message.clone(),
+            };
+        }
         let revision = self.revision.load(std::sync::atomic::Ordering::Acquire);
         let mut applications = statuses.values().map(|(_, status)| status.clone()).collect::<Vec<_>>();
         drop(statuses);
         drop(callbacks);
+        drop(supervision);
         applications.sort_by_key(|entry| entry.application.0.0);
         let elapsed_ms = self.origin.get().map_or(0, |origin| {
             u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX)
         });
         ApplicationRuntimeSnapshot {
+            supervision: supervision_state,
             callbacks: callback_state,
             project,
             revision,
