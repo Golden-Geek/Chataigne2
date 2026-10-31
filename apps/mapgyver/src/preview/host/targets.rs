@@ -1,6 +1,10 @@
 //! Runtime identities and immutable native topology, owned by the preparation worker.
 
-use crate::{preview::capture::CapturedPreview, screens::protocol::ScreenId};
+use crate::{
+    preview::capture::CapturedPreview,
+    screens::protocol::{PhysicalRectangle, ScreenId, ScreenTarget},
+};
+use golden_core::app::{NativeOutputBounds, NativeOutputWindow};
 use golden_video::native::OutputBinding;
 use golden_video::{AlphaMode, ColorEncoding, OutputId, PixelFormat, TextureDescriptor};
 use std::collections::HashMap;
@@ -8,16 +12,47 @@ use std::collections::HashMap;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Target {
     pub id: OutputId,
-    pub name: String,
+    pub kind: TargetKind,
     pub descriptor: TextureDescriptor,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum TargetKind {
+    Spout(String),
+    Rectangle(PhysicalRectangle),
+}
+
 impl Target {
-    pub fn binding(&self) -> OutputBinding {
-        OutputBinding::Spout {
-            id: self.id,
-            name: self.name.clone(),
-            descriptor: self.descriptor,
+    pub fn binding(&self, windows: &mut Vec<NativeOutputWindow>) -> Result<OutputBinding, String> {
+        match &self.kind {
+            TargetKind::Spout(name) => Ok(OutputBinding::Spout {
+                id: self.id,
+                name: name.clone(),
+                descriptor: self.descriptor,
+            }),
+            TargetKind::Rectangle(bounds) => {
+                let physical =
+                    NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
+                        .map_err(|error| error.to_string())?;
+                let window = NativeOutputWindow::new(&format!("MapGyver output {}", self.id.get()), physical)
+                    .map_err(|error| error.to_string())?;
+                let actual = window.physical_bounds().map_err(|error| error.to_string())?;
+                if actual != physical {
+                    return Err(format!(
+                        "output physical client bounds differ: expected {physical:?}, actual {actual:?}"
+                    ));
+                }
+                eprintln!("[mapgyver-output] window id={} physical={actual:?}", self.id.get());
+                // SAFETY: the session owner retains this HWND through actual renderer retirement.
+                let target = unsafe { golden_video::native::WindowTarget::from_raw(window.raw_handle()) }
+                    .map_err(|error| error.to_string())?;
+                windows.push(window);
+                Ok(OutputBinding::Window {
+                    id: self.id,
+                    window: target,
+                    extent: bounds.extent,
+                })
+            }
         }
     }
 }
@@ -54,12 +89,20 @@ impl Targets {
             route.output = Some(id);
             targets.push(Target {
                 id,
-                name: output.sender.clone(),
+                kind: match &output.target {
+                    ScreenTarget::Spout { sender, .. } => TargetKind::Spout(sender.clone()),
+                    ScreenTarget::Rectangle { bounds } => TargetKind::Rectangle(*bounds),
+                    ScreenTarget::Fullscreen { .. } => return Err("fullscreen display is unresolved".into()),
+                },
                 descriptor: TextureDescriptor {
                     extent: output.extent,
                     format: PixelFormat::Bgra8Unorm,
                     color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: AlphaMode::Straight,
+                    alpha_mode: if matches!(output.target, ScreenTarget::Spout { .. }) {
+                        AlphaMode::Straight
+                    } else {
+                        AlphaMode::Opaque
+                    },
                 },
             });
         }

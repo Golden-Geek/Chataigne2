@@ -107,13 +107,14 @@ verify these semantics. An ordinary-app, independent Spout receiver flow also ve
 with no editor loaded for Grid/Bars, restored media routing and enable/disable/resize recovery.
 Calibration visual/form-input acceptance remains open.
 
-Enabled virtual Spout Screen targets now publish through this same renderer. Output capture is
+Enabled rectangle and virtual Spout Screen targets now publish through this same renderer. Output capture is
 independent of preview registrations; hiding or closing views cannot remove its source demand.
-The host worker captures at most 128 Screen definitions and admits seven virtual targets plus
+The host worker captures at most 128 Screen definitions and admits seven Screen targets plus
 the host preview consumer within the existing eight-output budget. Runtime output IDs remain
 stable through toggle/rename/reorder and are separate from persisted Screen identities. Duplicate
 enabled sender names fail atomically; names admit 239 UTF-8 bytes, reserving the SDK counter
-namespace. Native output storage is BGRA8 sRGB with straight alpha; Golden converts at delivery.
+namespace. Native output storage is BGRA8 sRGB; Spout uses straight alpha and physical windows
+are opaque over black. Golden converts at delivery.
 Output availability/errors reuse app preview status; the native backend retains its bounded
 independent endpoint retry strategy.
 
@@ -121,12 +122,20 @@ Golden's public native bindings are immutable per renderer session. Target enabl
 extent changes therefore retire the shared session through actual GPU completion before creating
 the replacement; this can briefly interrupt other outputs and restarts prepared source sessions.
 Surface edits and editor geometry/visibility changes only replace the render plan. This explicit
-session boundary avoids overlapping same-name SDK senders or swapchains on one HWND. Physical
-target windows, display recovery and full graphical Screen/Surface Source editor gestures remain
-M05 work. No physical display, minimize, latency, color or full target-concurrency pass is inferred.
+session boundary avoids overlapping same-name SDK senders or swapchains on one HWND. Rectangle
+placement/extent changes use that same boundary. The session retains Golden's `NativeOutputWindow`
+owners until rendering and picture preparation finish retiring, then closes/joins their native
+threads. Windows are borderless, topmost, nonactivating and independent of the editor window.
+Checked signed physical bounds are compared with actual client geometry before binding a renderer.
+Fullscreen display selection, display recovery and full graphical Screen/Surface Source editor
+gestures remain M05 work. Native geometry/destruction and concurrent rectangle/Spout activation
+pass; no physical output pixel, minimize, mixed-DPI, latency, color or full target-concurrency pass
+is inferred.
 The finite delivery check is `node apps/mapgyver/tests/native_output/check.mjs` from the workspace
 root, after building `MapGyver` and `native_qualification` with `--features native-qualification`.
 It uses an isolated port, ephemeral unsaved authoring and clean shutdown; artifacts stay in `target`.
+Add `--rectangle` for concurrent rectangle/Spout, rectangle move/resize, and a finite 60-second
+output-window inspection interval. This flow does not automate input or certify output pixels.
 
 Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
 and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`

@@ -16,6 +16,21 @@ The default desktop host lives in `golden_core`.
 - Native file dialogs are desktop-only behavior and should remain outside pure engine or persistence layers.
 - Apps may override CLI parsing or bootstrap by calling lower-level `golden_core::app` APIs, but they should not need app-shell host files by default.
 
+Reusable independent native output windows live in
+`crates/golden_core/hosts/desktop/src/output_window`. The public `NativeOutputBounds` validates
+signed physical desktop client rectangles; `NativeOutputWindow` creates a borderless, topmost,
+nonactivating window with its own per-monitor-v2, event-driven message loop. Geometry queries run
+on that window thread, avoiding caller DPI virtualization. No WebView, engine polling, GPU objects
+or app target policy belongs there. User close/resize and DPI-suggested logical resizing cannot
+release or resize the borrowed output behind the renderer.
+
+An app presentation worker supplies physical placement and borrows the HWND through its renderer's
+public binding API. It must complete actual GPU retirement before closing/dropping this owner;
+`close` joins native destruction and is never an engine/UI-thread operation. Main-editor visibility
+does not own these windows. MapGyver's session owner implements this ordering and routes its Screen
+textures to rectangle windows and Spout through the same shared renderer. Fullscreen display
+selection, catalog identity and reconnect/hotplug policy remain app-owned M05 work.
+
 The `golden_core` facade is the ready-to-launch full-host surface. It intentionally includes the
 engine, persistence, HTTP/WebSocket transport, Tauri host, native dialogs, protocol, and scripting
 runtime. Consumers that do not need that complete stack should depend on the focused package that

@@ -22,6 +22,8 @@ await mkdir(directory, { recursive: true });
 const stop = path.join(directory, 'app.stop');
 const base = 'http://127.0.0.1:7023';
 const sender = `MapGyver-M05-${randomUUID()}`;
+const rectangle = process.argv.includes('--rectangle');
+let rectangleScreen;
 const executable = path.resolve('target/debug/MapGyver.exe');
 const receiver = path.resolve('target/debug/native_qualification.exe');
 const appLog = createWriteStream(path.join(directory, 'app.log'));
@@ -178,6 +180,37 @@ try {
 	await screens({ kind: 'ConfigureSurface', reference: surface, definition });
 	await target(true);
 	await waitForAppLog('state=Ready');
+	if (rectangle) {
+		const { screen: createdRectangle, surface: rectangleSurface } = await screens({
+			kind: 'CreateScreen',
+			label: 'Rectangle output check'
+		});
+		rectangleScreen = createdRectangle;
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: rectangleSurface,
+			definition: { ...definition, source: null, calibration: 'ColorBars' }
+		});
+		await screens({
+			kind: 'ConfigureScreen',
+			screen: rectangleScreen,
+			definition: {
+				enabled: true,
+				target: {
+					kind: 'Rectangle',
+					bounds: {
+						left: 80,
+						top: 120,
+						extent: { width: 640, height: 360 }
+					}
+				}
+			}
+		});
+		await waitForAppLog(
+			'physical=NativeOutputBounds { left: 80, top: 120, width: 640, height: 360 }'
+		);
+		await waitForAppLog('screens=2 outputs=2');
+	}
 	await receive(96, 'bars-without-editor', true);
 	await screens({
 		kind: 'ConfigureSurface',
@@ -198,6 +231,28 @@ try {
 	await target(true, 128);
 	await receive(128, 'reenabled-and-resized', true);
 	await target(false, 128);
+	if (rectangle) {
+		await screens({
+			kind: 'ConfigureScreen',
+			screen: rectangleScreen,
+			definition: {
+				enabled: true,
+				target: {
+					kind: 'Rectangle',
+					bounds: {
+						left: 120,
+						top: 180,
+						extent: { width: 480, height: 270 }
+					}
+				}
+			}
+		});
+		await waitForAppLog(
+			'physical=NativeOutputBounds { left: 120, top: 180, width: 480, height: 270 }'
+		);
+		console.log(JSON.stringify({ inspection_ready: true, directory }));
+		await delay(60000); // Finite allowance for supported native-window screenshot inspection.
+	}
 	console.log(JSON.stringify({ result: 'pass', directory }));
 } finally {
 	await writeFile(stop, 'stop\n');
@@ -212,7 +267,14 @@ try {
 }
 const log = await readFile(path.join(directory, 'app.log'), 'utf8');
 assert(
-	log.includes('channels=0 screens=1 virtual_outputs=1'),
+	log.includes('channels=0 screens=1 outputs=1') || log.includes('channels=0 screens=2 outputs=2'),
 	'calibration demanded a media channel'
 );
-assert(log.includes('channels=1 screens=1 virtual_outputs=1'), 'Off did not restore source demand');
+assert(
+	log.includes(rectangle ? 'channels=1 screens=2 outputs=2' : 'channels=1 screens=1 outputs=1'),
+	'Off did not restore source demand'
+);
+assert(
+	!log.includes('window teardown failed') && !log.includes('close failed'),
+	'output window teardown failed'
+);

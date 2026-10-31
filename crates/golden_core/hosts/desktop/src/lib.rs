@@ -7,6 +7,7 @@ mod desktop_commands;
 mod desktop_window;
 mod host_config;
 mod native_presentation;
+mod output_window;
 #[cfg(test)]
 mod tests;
 mod window_state;
@@ -24,3 +25,4 @@ pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
 pub use native_presentation::{
     NativePresentation, NativePresentationStop, NativePresentationTask, NativePresentationViewport,
 };
+pub use output_window::{NativeOutputBounds, NativeOutputWindow};

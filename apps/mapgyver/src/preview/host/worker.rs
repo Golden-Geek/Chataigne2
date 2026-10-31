@@ -22,6 +22,7 @@ use tauri::Emitter;
 
 struct Owner {
     renderer: ChannelRenderer,
+    windows: Vec<golden_core::app::NativeOutputWindow>,
 }
 impl Drop for Owner {
     fn drop(&mut self) {
@@ -30,6 +31,11 @@ impl Drop for Owner {
         while !self.renderer.retirement().wait(Duration::from_millis(20)) {}
         if let Some(pictures) = pictures {
             while !pictures.wait(Duration::from_millis(20)) {}
+        }
+        for window in self.windows.drain(..) {
+            if let Err(error) = window.close() {
+                eprintln!("[mapgyver-output] window teardown failed: {error}");
+            }
         }
     }
 }
@@ -61,7 +67,10 @@ fn create(
         window: unsafe { WindowTarget::from_raw(hwnd).map_err(io::Error::other)? },
         extent,
     }];
-    outputs.extend(targets.iter().map(super::targets::Target::binding));
+    let mut windows = Vec::new();
+    for target in targets {
+        outputs.push(target.binding(&mut windows).map_err(io::Error::other)?);
+    }
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
         D3d11Config {
@@ -77,6 +86,7 @@ fn create(
     .map_err(io::Error::other)?;
     let mut owner = Owner {
         renderer: ChannelRenderer::new(runtime, limits),
+        windows,
     };
     let native = owner
         .renderer
@@ -231,7 +241,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                             if Some(outcome.request) == renderer.latest_request() =>
                         {
                             eprintln!(
-                                "[mapgyver-presentation] plan installed; channels={} screens={} virtual_outputs={}",
+                                "[mapgyver-presentation] plan installed; channels={} screens={} outputs={}",
                                 renderer.channels().len(),
                                 capture.as_ref().map_or(0, |capture| capture.screens.len()),
                                 topology.len()
@@ -297,9 +307,9 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                             })
                             && !matches!(output.state, golden_video::native::OutputState::Ready)
                         {
-                            status.message = Some(format!("Spout output {:?}", output.state));
+                            status.message = Some(format!("Screen output {:?}", output.state));
                             if let Some(hresult) = output.hresult {
-                                status.error = Some(format!("Spout output error 0x{:08X}", hresult as u32));
+                                status.error = Some(format!("Screen output error 0x{:08X}", hresult as u32));
                             }
                         }
                     }

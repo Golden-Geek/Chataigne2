@@ -96,3 +96,48 @@ fn outputs_without_editors_keep_stable_ids_through_toggle_rename_and_reorder() {
     assert_ne!(targets[0].id, first[0].id);
     assert_eq!(registry.ids.len(), 1);
 }
+
+#[test]
+fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
+    let mut engine: AppEngine = create_new_project_engine().unwrap();
+    engine.apply_edits().unwrap();
+    let ScreenEditResult::ScreenCreated { screen, .. } = edit(&mut engine, ScreenEdit::CreateScreen { label: None })
+    else {
+        panic!()
+    };
+    let bounds = PhysicalRectangle {
+        left: -640,
+        top: -20,
+        extent: Extent2D::new(640, 360).unwrap(),
+    };
+    edit(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: ScreenDefinition {
+                enabled: true,
+                target: Some(ScreenTarget::Rectangle { bounds }),
+            },
+        },
+    );
+    let mut capture = capture_presentation(&engine, &[], 8, 128).unwrap();
+    let mut registry = Targets::default();
+    let targets = registry.assign(&mut capture).unwrap();
+    assert_eq!(targets.len(), 1);
+    assert_eq!(targets[0].kind, TargetKind::Rectangle(bounds));
+    assert_eq!(targets[0].descriptor.alpha_mode, AlphaMode::Opaque);
+    assert_eq!(capture.screens[0].output, Some(targets[0].id));
+    let ScreenEditResult::ScreenCreated { screen: second, .. } =
+        edit(&mut engine, ScreenEdit::CreateScreen { label: None })
+    else {
+        panic!()
+    };
+    configure(&mut engine, second, "Concurrent", true);
+    let mut mixed = capture_presentation(&engine, &[], 8, 128).unwrap();
+    assert!(!capture.is_current());
+    let mixed = registry.assign(&mut mixed).unwrap();
+    assert_eq!(mixed.len(), 2);
+    assert_eq!(mixed[0], targets[0]);
+    assert!(matches!(mixed[1].kind, TargetKind::Spout(_)));
+    assert!(crate::screens::rendering::capture_outputs(&engine, 128, 1).is_err());
+}

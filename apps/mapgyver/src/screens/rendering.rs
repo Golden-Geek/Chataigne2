@@ -15,7 +15,7 @@ use golden_video::{Extent2D, Opacity, OutputId, TextureId};
 use std::collections::{HashMap, HashSet};
 
 /// The shared renderer admits eight consumers, with one reserved for the host preview window.
-pub const MAX_VIRTUAL_OUTPUTS: usize = 7;
+pub const MAX_SCREEN_OUTPUTS: usize = 7;
 
 #[derive(Clone)]
 pub struct CapturedScreen {
@@ -36,15 +36,15 @@ pub struct ScreenRoute {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VirtualOutput {
+pub struct CapturedOutput {
     pub screen: ScreenId,
-    pub sender: String,
+    pub target: ScreenTarget,
     pub extent: Extent2D,
 }
 
 pub struct CapturedOutputs {
     pub catalog: Vec<ScreenId>,
-    pub outputs: Vec<VirtualOutput>,
+    pub outputs: Vec<CapturedOutput>,
     pub guards: Vec<RevisionGuard>,
 }
 
@@ -72,17 +72,27 @@ pub fn capture_outputs(
         let screen = ScreenId(node.node_data().meta.uuid);
         screens.push(screen);
         guards.push(node.guard());
-        if node.definition().enabled
-            && node.node_data().effective_enabled
-            && let Some(ScreenTarget::Spout { sender, extent }) = &node.definition().target
-        {
-            if outputs.len() == maximum_outputs || !names.insert(sender.clone()) {
-                return Err("virtual outputs exceed admitted count or duplicate a sender name".into());
+        if node.definition().enabled && node.node_data().effective_enabled {
+            let Some(target) = &node.definition().target else {
+                continue;
+            };
+            let extent = match target {
+                ScreenTarget::Spout { sender, extent } => {
+                    if !names.insert(sender.clone()) {
+                        return Err("duplicate Spout output sender name".into());
+                    }
+                    *extent
+                }
+                ScreenTarget::Rectangle { bounds } => bounds.extent,
+                ScreenTarget::Fullscreen { .. } => continue, // Display identity resolution remains separate.
+            };
+            if outputs.len() == maximum_outputs {
+                return Err("Screen outputs exceed admitted count".into());
             }
-            outputs.push(VirtualOutput {
+            outputs.push(CapturedOutput {
                 screen,
-                sender: sender.clone(),
-                extent: *extent,
+                target: target.clone(),
+                extent,
             });
         }
     }

@@ -6,7 +6,7 @@ use crate::{
     media::{CapturedChannels, capture_channels},
     screens::{
         protocol::ScreenId,
-        rendering::{ScreenRoute, VirtualOutput, capture_outputs, capture_screen, membership_guard},
+        rendering::{CapturedOutput, ScreenRoute, capture_outputs, capture_screen, membership_guard},
     },
 };
 use golden_io::RevisionGuard;
@@ -17,7 +17,7 @@ pub struct CapturedPreview {
     pub channels: CapturedChannels,
     pub screens: Vec<ScreenRoute>,
     pub catalog: Vec<ScreenId>,
-    pub outputs: Vec<VirtualOutput>,
+    pub outputs: Vec<CapturedOutput>,
     statuses: Vec<PreviewStatus>,
     guards: Vec<RevisionGuard>,
 }
@@ -139,7 +139,7 @@ pub fn capture_presentation(
     maximum_surfaces: usize,
 ) -> Result<CapturedPreview, String> {
     let mut result = capture_preview(engine, sources, maximum_sources, maximum_surfaces)?;
-    let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_VIRTUAL_OUTPUTS)?;
+    let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_SCREEN_OUTPUTS)?;
     result.catalog = captured.catalog;
     result.guards.extend(captured.guards);
     let mut references = sources

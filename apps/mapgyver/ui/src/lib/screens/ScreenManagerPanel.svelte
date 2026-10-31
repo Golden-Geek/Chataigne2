@@ -68,8 +68,8 @@
 			onclick={() => controller.refresh()}>Refresh</button>
 	</header>
 	<p class="notice">
-		Enabled virtual Spout outputs keep running when this editor closes. Physical output targets are
-		not active yet.
+		Enabled rectangle and virtual Spout outputs keep running when this editor closes. Fullscreen
+		display targets are not active yet.
 	</p>
 	{#if view.error}<p class="error" role="alert">{view.error}</p>{/if}
 	{#if session?.status !== 'connected'}
