@@ -11,9 +11,9 @@ name = "mapgyver"
 [features]
 application-process-fixture = []
 default = ["native-video"]
-native-video = ["golden_video/d3d11", "dep:windows", "dep:golden_time"]
+native-video = ["golden_video/d3d11", "dep:windows"]
 native-presentation-smoke = ["dep:windows"]
-native-video-smoke = ["native-video", "dep:golden_time", "dep:windows"]
+native-video-smoke = ["native-video", "dep:windows"]
 native-preview-smoke = ["native-video-smoke"]
 native-qualification = ["native-preview-smoke", "golden_video/qualification", "tauri/unstable"]
 
@@ -25,7 +25,7 @@ golden_core = { path = "../../crates/golden_core" }
 golden_io.workspace = true
 uuid.workspace = true
 golden_video = { path = "../../crates/golden_video" }
-golden_time = { workspace = true, optional = true }
+golden_time.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 ts-rs.workspace = true
@@ -36,7 +36,6 @@ golden_codegen_support = { path = "../../crates/golden_core/support/codegen" }
 tauri-build = "2"
 
 [dev-dependencies]
-golden_time.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]

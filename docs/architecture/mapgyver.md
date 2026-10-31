@@ -24,7 +24,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
-| `apps/mapgyver/src/applications/` | Shared definitions, logical/rendered aggregate demand, public application driver, independent lifecycle workers and renderer final-use retention. Real readiness and full parity remain M08 |
+| `apps/mapgyver/src/applications/` | Shared definitions, logical/rendered aggregate demand, public application driver, independent lifecycle workers, native sender/image readiness and renderer final-use retention. Full parity/qualification remain M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, payload-free plan lifetime observation, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; qualification continues in M03 |
@@ -494,8 +494,25 @@ creation has no hard OS latency guarantee; it cannot block the actor or another 
 the project instance, launch UUID, process/exit status, explicit phase and bounded error text. Deadline
 and elapsed milliseconds share a runtime-local monotonic origin. Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured
-first-frame condition. The real Spout observer is not connected; injected tagged evidence tests
-the controller without claiming actual sender ownership. Dropping the controller cancels without
+first-frame condition. Native-video workers sample the public Golden `SpoutProbe` at most every
+100 ms while waiting for startup readiness. Exact sender registration can satisfy sender-only
+readiness without a graphics device. First-frame readiness requires a successful SDK image copy
+and actual completion on an explicitly selected adapter; busy/unchanged/registration alone cannot
+satisfy it. The probe reuses Golden's receiver and completion mechanisms, allocates no CPU pixels
+and starts no renderer/window/video clock. A shared 64-image/256 MiB pool reserves receiving storage
+before allocation and retains it through completion or observed device removal. Endpoint storage
+changes withdraw prior evidence; device removal permits recreation. Project/configuration/admission
+and launch fences are rechecked after sampling. The observation establishes endpoint availability,
+not ownership of a sender by a particular PID, cadence or continuous endpoint health. A ready launch
+releases its one-shot probe after a nonblocking completion check, including when independent tagged
+evidence arrives before that probe's copy completes. Cancellation stops the process before
+potentially delayed probe cleanup.
+Non-native hosts can supply independently observed tagged evidence through the same runtime API;
+default headless host wiring and full callback parity remain M08 qualification work.
+`golden_time` is an ordinary MapGyver backend dependency: Matrix playback/capture uses its
+types with native video disabled as well. It must not be enabled only through a GPU feature or
+dev-dependency, which would mask a broken standalone headless library build.
+Dropping the controller cancels without
 joining; old workers stop after project replacement and all actual final-use holds release.
 
 The public `golden_io::owned_process` mechanism is implemented. Its typed suspended owner enters

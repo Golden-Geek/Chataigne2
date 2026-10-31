@@ -17,6 +17,7 @@ mod memory;
 mod observation;
 mod outputs;
 mod pipeline;
+mod probe;
 mod process;
 mod texture;
 pub(crate) mod timing;
@@ -31,6 +32,7 @@ pub use memory::{
 pub use observation::{
     D3d11Control, D3d11Snapshot, NativeFailure, OutputSnapshot, OutputState, SourceObservationSnapshot,
 };
+pub use probe::{SpoutProbe, SpoutProbeSnapshot};
 pub use process::{
     ProcessMemorySnapshot, ProcessQueryError, ProcessResourceSnapshot, ProcessTimeSnapshot, query_process_resources,
 };

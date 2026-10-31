@@ -29,6 +29,9 @@ fn edit(engine: &mut AppEngine, edit: ApplicationEdit) -> MediaEditResult {
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
 fn fixture(readiness: ApplicationReadiness) -> (AppEngine, ApplicationId) {
+    fixture_arguments(readiness, Vec::new())
+}
+fn fixture_arguments(readiness: ApplicationReadiness, arguments: Vec<String>) -> (AppEngine, ApplicationId) {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     let MediaEditResult::ApplicationCreated { application } =
@@ -42,6 +45,7 @@ fn fixture(readiness: ApplicationReadiness) -> (AppEngine, ApplicationId) {
             application,
             definition: ApplicationDefinition {
                 executable: Some(env!("CARGO_BIN_EXE_application_process_fixture").into()),
+                arguments,
                 readiness,
                 stop: ApplicationStop {
                     graceful_ms: 30,
@@ -66,6 +70,78 @@ fn demand(application: ApplicationId, reasons: &[DemandReason]) -> Vec<Applicati
 }
 fn wait(runtime: &ApplicationRuntime, phase: ApplicationPhase) -> ApplicationRuntimeStatus {
     observe(runtime, |status| status.phase == phase)
+}
+
+#[cfg(feature = "native-qualification")]
+#[test]
+#[ignore = "requires hardware D3D11 and the native-qualification owned fixture"]
+fn actual_spout_sender_and_completed_first_image_make_the_owned_application_ready_without_renderer() {
+    use golden_video::native::{SpoutProbe, SpoutProbeSnapshot, adapters};
+    let sender = format!("MapGyver readiness {}", uuid::Uuid::new_v4());
+    let adapter = adapters()
+        .unwrap()
+        .into_iter()
+        .find(|adapter| !adapter.software)
+        .unwrap()
+        .id;
+    let budget = golden_io::PayloadPool::new("readiness-probe-test", 1, 128 * 128 * 4).unwrap();
+    let mut probe = SpoutProbe::new(&sender, adapter, budget.clone()).unwrap();
+    assert_eq!(probe.poll(true).unwrap(), SpoutProbeSnapshot::default());
+    assert!(budget.try_reserve(128 * 128 * 4).is_ok(), "absence allocates no image");
+    let (engine, application) = fixture_arguments(
+        ApplicationReadiness::Spout {
+            sender: sender.clone(),
+            first_frame: true,
+            timeout_ms: 3500,
+        },
+        vec![sender],
+    );
+    let history = engine.undo_len();
+    let authored = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut runtime = ApplicationRuntime::start(&engine, None).unwrap();
+    let retirement = runtime.retirement();
+    runtime
+        .reconcile(&engine, &demand(application, &[DemandReason::Neighbor]))
+        .unwrap();
+    let waiting = wait(&runtime, ApplicationPhase::WaitingForSender);
+    assert!(waiting.process_id.is_some());
+    std::thread::sleep(Duration::from_millis(50));
+    assert_eq!(
+        runtime.snapshot().applications[0].phase,
+        ApplicationPhase::WaitingForSender
+    );
+    // No injected ReadinessEvidence, preview, Screen, ChannelRenderer or video time authority.
+    let ready = wait(&runtime, ApplicationPhase::Ready);
+    assert_eq!(ready.launch, waiting.launch);
+    assert_eq!(ready.process_id, waiting.process_id);
+    assert_eq!(
+        probe.poll(false).unwrap(),
+        SpoutProbeSnapshot {
+            present: true,
+            first_frame: false
+        }
+    );
+    assert!(
+        budget.try_reserve(128 * 128 * 4).is_ok(),
+        "sender-only checks allocate no image"
+    );
+    let deadline = Instant::now() + Duration::from_secs(4);
+    while !probe.poll(true).unwrap().first_frame {
+        assert!(Instant::now() < deadline, "real first-image receive did not complete");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(budget.try_reserve(1).is_err(), "the receiving image remains charged");
+    drop(probe);
+    assert!(
+        budget.try_reserve(128 * 128 * 4).is_ok(),
+        "actual completion releases storage"
+    );
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
+    runtime.reconcile(&engine, &[]).unwrap();
+    wait(&runtime, ApplicationPhase::Idle);
+    drop(runtime);
+    assert!(retirement.wait_for_idle(Duration::from_secs(4)));
 }
 fn observe(
     runtime: &ApplicationRuntime,

@@ -46,6 +46,11 @@ The implemented foundations are:
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.
+  Public `SpoutProbe` observes an exact sender on an IO worker without a renderer/window.
+  Sender-only checks allocate no graphics storage. Image checks reserve a caller-shared payload
+  budget before one receiving texture, reuse the native receiver and require actual copy completion.
+  Endpoint replacement withdraws evidence; cleanup retains storage until completion/device removal.
+  Apps own startup deadlines, polling/backoff, project/launch fences and process policy.
 - `qualification/` owns Rust-generated metadata for the held native-preview test fixture.
   The opt-in Windows `qualification` feature also exposes GPU source/consumer marker fixtures;
   app-owned runners select scenarios and own processes, without putting product policy in Golden.

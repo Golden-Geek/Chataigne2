@@ -30,6 +30,7 @@ pub(super) fn run(
     context: WorkerContext<(), ()>,
 ) {
     let mut agent = Agent::new(id, Native);
+    let mut readiness = super::readiness::Observer::default();
     let publish = |status: &ApplicationRuntimeStatus| {
         let mut current = output.lock().expect("application status lock poisoned");
         if *current != *status {
@@ -69,21 +70,54 @@ pub(super) fn run(
         let definition = (!cancelled)
             .then(|| target.as_ref().and_then(|target| target.definition.clone()))
             .flatten();
-        let ready = shared
-            .readiness
-            .lock()
-            .expect("application readiness lock poisoned")
-            .get(&id)
-            .is_some_and(|evidence| {
-                evidence.project == shared.project
-                    && Some(evidence.launch) == agent.status.launch
-                    && agent.readiness_rule().is_some_and(|readiness| match readiness {
-                        ApplicationReadiness::Spout {
-                            sender, first_frame, ..
-                        } => evidence.sender == *sender && (!first_frame || evidence.first_frame),
-                        _ => false,
-                    })
-            });
+        if !cancelled
+            && agent.status.phase == ApplicationPhase::WaitingForSender
+            && target
+                .as_ref()
+                .is_some_and(|target| current_target_is_admitted(&shared, id, target))
+            && let (Some(launch), Some(rule)) = (agent.status.launch, agent.readiness_rule())
+            && let Some((sender, first_frame)) = readiness.sample(launch, rule)
+            && shared.guard.is_current()
+            && !context.cancellation().is_cancelled()
+            && target
+                .as_ref()
+                .is_some_and(|target| current_target_is_admitted(&shared, id, target))
+        {
+            shared
+                .readiness
+                .lock()
+                .expect("application readiness lock poisoned")
+                .insert(
+                    id,
+                    ReadinessEvidence {
+                        project: shared.project,
+                        application: id,
+                        launch,
+                        sender,
+                        first_frame,
+                    },
+                );
+        }
+        let ready = !cancelled
+            && shared.guard.is_current()
+            && target
+                .as_ref()
+                .is_some_and(|target| current_target_is_admitted(&shared, id, target))
+            && shared
+                .readiness
+                .lock()
+                .expect("application readiness lock poisoned")
+                .get(&id)
+                .is_some_and(|evidence| {
+                    evidence.project == shared.project
+                        && Some(evidence.launch) == agent.status.launch
+                        && agent.readiness_rule().is_some_and(|readiness| match readiness {
+                            ApplicationReadiness::Spout {
+                                sender, first_frame, ..
+                            } => evidence.sender == *sender && (!first_frame || evidence.first_frame),
+                            _ => false,
+                        })
+                });
         let admitted = || {
             !context.cancellation().is_cancelled()
                 && shared.guard.is_current()
@@ -104,6 +138,18 @@ pub(super) fn run(
             publish,
         );
         publish(&agent.status);
+        if agent.status.phase == ApplicationPhase::Ready {
+            // Tagged external evidence can arrive before our own receive has completed.
+            // Keep servicing process ownership while the probe retires without blocking here.
+            readiness.release_completed();
+        } else if matches!(
+            agent.status.phase,
+            ApplicationPhase::Idle | ApplicationPhase::Failed | ApplicationPhase::Backoff
+        ) {
+            // These launches have already stopped their process. Cancellation must not delay
+            // process termination behind potentially blocked GPU cleanup.
+            readiness = super::readiness::Observer::default();
+        }
         if cancelled && agent.idle() {
             return;
         }

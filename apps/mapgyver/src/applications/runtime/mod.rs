@@ -1,6 +1,7 @@
 //! App policy and independent background process owners. Explicitly start only for a live project.
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
+mod readiness;
 mod retention;
 mod worker;
 pub use retention::PlanRetainer;
