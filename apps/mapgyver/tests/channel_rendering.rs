@@ -22,6 +22,9 @@ use windows::Win32::System::Threading::CREATE_NO_WINDOW;
 
 const WAIT: Duration = Duration::from_secs(8);
 
+#[cfg(feature = "native-qualification")]
+mod shared_texture;
+
 struct Producer {
     child: Arc<Mutex<Child>>,
     stdin: ChildStdin,
