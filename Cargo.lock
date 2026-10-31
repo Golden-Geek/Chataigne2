@@ -2975,6 +2975,10 @@ dependencies = [
 [[package]]
 name = "golden_io"
 version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "windows 0.61.3",
+]
 
 [[package]]
 name = "golden_model"

@@ -3,6 +3,7 @@
 mod bounded_worker;
 mod deadline;
 mod notifier;
+pub mod owned_process;
 mod payload;
 mod pending;
 mod queue;

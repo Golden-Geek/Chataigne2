@@ -25,6 +25,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app demand/lifetimes remain M07/M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
+| `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `crates/golden_assets/` | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners |
@@ -416,6 +417,17 @@ Columns can reference app definitions with stable IDs, executable, argument vect
 directory, readiness and stop/restart policies. Multiple columns may share an app definition.
 MapGyver computes app demand; a generic Golden IO owned-process service handles OS resources.
 Do not copy or path-import Chataigne's private App Control implementation.
+
+The public `golden_io::owned_process` mechanism is implemented; MapGyver's app definitions,
+column demand and lifecycle worker remain M08 integration work. Its typed suspended owner enters
+a private kill-on-close job during creation and verifies membership before resume. Arguments,
+environment and working directory remain explicit; no shell/name lookup or elevation fallback is
+implicit. Creation, observation and bounded waits belong on a background owner. Graceful close
+posts only to windows whose job-member identities remain pinned, and a request count is not an
+exit acknowledgement. Root exit, active accounting, pending observed handles and unobserved
+lifetimes remain distinct. Missed transient members leave retirement unverified rather than
+converting a zero job count into a cleanup guarantee. MapGyver must preserve that outcome in its
+later lifecycle policy. See the [public ownership contract and bounds](../../crates/golden_core/runtime/io/src/owned_process/README.md).
 
 Preloading and postloading are **column distances**, confirmed by the user. For app-bearing
 column `j`, with `pre_j` and `post_j`, a loading/current column cursor `i` creates neighbor demand
