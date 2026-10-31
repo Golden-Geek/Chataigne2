@@ -21,7 +21,7 @@ use std::{
 use uuid::Uuid;
 
 use super::{
-    config::Arguments,
+    config::{Arguments, FIXTURE_MAX_SECONDS},
     roles::{self, OwnedRole},
 };
 use contract::{BASELINE_CYCLE, CYCLES, DRAIN_SECONDS, EDIT_INTERVAL_MS, EDITS_PER_CYCLE, SPACING_MS};
@@ -105,7 +105,7 @@ fn fixture(
         "--instance".into(),
         Uuid::new_v4().to_string(),
         "--max-seconds".into(),
-        "900".into(),
+        FIXTURE_MAX_SECONDS.to_string(),
         "--trace-capacity".into(),
         "65536".into(),
     ];
@@ -193,9 +193,10 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
     row(
         &mut output,
         json!({"kind":"config","process_id":std::process::id(),"adapter":adapter,"adapter_memory":memory,
-        "cycles":config.cycles,"spacing_ms":config.spacing_ms,"diagnostic":config.diagnostic,"source_names":names,
+        "cycles":config.cycles,"spacing_ms":config.spacing_ms,"diagnostic":config.diagnostic,"source_names":names,"qpc_frequency":roles::frequency()?,
         "output_name":output_name,"initial_fixture_pids":[source.id(),healthy.id(),consumer.id()],
         "baseline_cycle":BASELINE_CYCLE,"drain_seconds":DRAIN_SECONDS,"edits_per_cycle":EDITS_PER_CYCLE,
+        "fixture_max_seconds":FIXTURE_MAX_SECONDS,"spacing_semantics":"pause after lifecycle work, before checkpoint/next cycle",
         "scope":"renderer lifecycle; two native host windows; no WebView or Matrix lifecycle claim"}),
     )?;
     let mut owner = create_owner(adapter, &output_name, ceiling, &names, full)?;
@@ -250,12 +251,10 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
         let retirement = owner.retire()?;
         drop(owner);
         owner = create_owner(adapter, &output_name, ceiling, &names, extent)?;
-        if cycle == BASELINE_CYCLE || cycle == config.cycles {
-            owner.settle(Duration::from_secs(DRAIN_SECONDS))?;
-        } else {
-            owner.settle(Duration::ZERO)?;
-        }
-        pace(context, cycle_began + Duration::from_millis(config.spacing_ms))?;
+        let post_cycle_settle = contract::post_cycle_settle(cycle, config.cycles, config.spacing_ms);
+        let settle_begin_qpc = roles::qpc()?;
+        owner.settle(post_cycle_settle)?;
+        let settle_end_qpc = roles::qpc()?;
         let counters = owner.counters()?;
         if cycle == BASELINE_CYCLE {
             baseline = Some(counters);
@@ -270,6 +269,8 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
             "source_extent":[extent.width(),extent.height()],"source_resize_restarts":cycle,"project_replacements":cycle,
             "output_remove_recreates":cycle,"superseding_edits":edits,"superseded_outcomes":superseded,
             "installed_outcomes":installed,"healthy_source_advanced_while_peer_absent":true,
+            "post_cycle_settle_begin_qpc":settle_begin_qpc,"post_cycle_settle_end_qpc":settle_end_qpc,
+            "post_cycle_settle_requested_seconds":post_cycle_settle.as_secs_f64(),
             "edit_burst_begin_qpc":burst_begin_qpc,"edit_burst_end_qpc":burst_end_qpc,"edit_receipts_qpc":edit_receipts_qpc,
             "output_retirement_ms":retirement.as_secs_f64()*1000.0,"counters":counters}),
         )?;

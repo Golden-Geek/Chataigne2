@@ -46,6 +46,16 @@ fn short_or_unexercised_runs_never_qualify() {
 }
 
 #[test]
+fn lifecycle_work_is_followed_by_spacing_and_warmed_final_drains() {
+    use std::time::Duration;
+    assert_eq!(post_cycle_settle(11, 100, 2000), Duration::from_secs(2));
+    assert_eq!(post_cycle_settle(BASELINE_CYCLE, 100, 2000), Duration::from_secs(10));
+    assert_eq!(post_cycle_settle(100, 100, 2000), Duration::from_secs(10));
+    assert_eq!(post_cycle_settle(12, 100, 5000), Duration::from_secs(5));
+    assert_eq!(post_cycle_settle(100, 100, 12000), Duration::from_secs(12));
+}
+
+#[test]
 fn retained_resources_and_handle_leaks_fail_exact_boundary_checks() {
     let base = stable();
     let mut changed = base;
@@ -83,4 +93,26 @@ fn lifecycle_scene_keeps_three_outputs_and_resizes_actual_source_contract() {
             .compile(&super::super::scene::config(512 * 1024 * 1024, golden_io::WorkerNotifier::new(|| {})).plan_limits)
             .is_ok()
     );
+}
+
+#[test]
+fn sender_resize_adopts_actual_extent_within_the_same_admitted_subscription() {
+    use golden_video::{Extent2D, plan::ExternalSource};
+    let names = ["a".into(), "b".into()];
+    let full = Extent2D::new(1920, 1080).unwrap();
+    let small = Extent2D::new(1280, 720).unwrap();
+    let original = super::owner::plan(&names, full, 0).unwrap();
+    let resized = super::owner::plan(&names, small, 0).unwrap();
+    let original = &original.plan.external_textures[0];
+    let resized = &resized.plan.external_textures[0];
+    assert_eq!(original.id, resized.id);
+    assert_eq!(resized.descriptor.extent, small);
+    let (Some(ExternalSource::Spout(a)), Some(ExternalSource::Spout(b))) = (&original.source, &resized.source) else {
+        panic!("lifecycle inputs must use Spout");
+    };
+    assert_eq!(
+        a, b,
+        "actual size changes cannot replace the admitted receiver contract"
+    );
+    assert_eq!(b.descriptor.extent, full);
 }

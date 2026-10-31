@@ -12,7 +12,7 @@ use golden_video::native::{
     AdapterId, D3d11Config, D3d11Control, InputLimits, OutputBinding, SourceSnapshot, SourceState, WindowTarget,
     query_process_resources,
 };
-use golden_video::plan::{ExternalSource, RenderOperation};
+use golden_video::plan::RenderOperation;
 use golden_video::preview::PreviewController;
 use golden_video::runtime::{
     LatePolicy, OutcomeKind, PlanActivation, PlanSubmission, RequestId, RuntimeState, VideoRuntime,
@@ -42,11 +42,9 @@ pub fn plan(names: &[String; 2], source: Extent2D, edit: u32) -> io::Result<Plan
         &receiver.snapshot(),
     );
     let external = &mut plan.plan.external_textures[0];
+    // The receiver retains its admitted Q01 maximum across sender resizes. Adopt the
+    // observed target extent without changing the immutable Spout subscription contract.
     external.descriptor = scene::source_descriptor(source);
-    let Some(ExternalSource::Spout(binding)) = &mut external.source else {
-        unreachable!()
-    };
-    binding.descriptor = external.descriptor;
     // This finite renderer test uses two fixed native viewports. DOM/session ownership is
     // qualified separately; both viewports must remain active throughout these lifecycle cycles.
     plan.plan.passes[1].operation = plan.plan.passes[0].operation.clone();
@@ -223,20 +221,25 @@ impl Owner {
     }
 
     pub fn streaming(&mut self, extent: Extent2D) -> io::Result<()> {
+        let copied_before = self.source(1).map_or(0, |source| source.renderer_copies);
+        let submitted_before = self.runtime.snapshot().resources.map_or(0, |r| r.last_submitted.serial);
         self.wait("both source copies and all output APIs", |s| {
             let sources = s.native.sources();
             let copied = |id| {
                 sources.iter().any(|v| {
                     v.texture == TextureId::new(id).unwrap()
                         && v.state == SourceState::Streaming
-                        && v.renderer_copies > 0
+                        && v.renderer_copies > if id == 1 { copied_before } else { 0 }
                         && (id != 1 || v.observed_descriptor.is_some_and(|d| d.extent == extent))
                 })
             };
             copied(1)
                 && copied(2)
                 && s.native.output_snapshots().len() == 3
-                && s.native.output_snapshots().iter().all(|v| v.last_accepted.is_some())
+                && s.native
+                    .output_snapshots()
+                    .iter()
+                    .all(|v| v.last_accepted.is_some_and(|token| token.serial > submitted_before))
         })
     }
 

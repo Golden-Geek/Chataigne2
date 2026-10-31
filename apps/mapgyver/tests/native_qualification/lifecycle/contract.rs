@@ -7,6 +7,16 @@ pub const EDITS_PER_CYCLE: u32 = 10;
 pub const EDIT_INTERVAL_MS: u64 = 10;
 pub const DRAIN_SECONDS: u64 = 10;
 
+/// Delay follows completed lifecycle work; slow native operations never consume this pause.
+pub fn post_cycle_settle(cycle: u32, final_cycle: u32, spacing_ms: u64) -> std::time::Duration {
+    let spacing = std::time::Duration::from_millis(spacing_ms);
+    if cycle == BASELINE_CYCLE || cycle == final_cycle {
+        spacing.max(std::time::Duration::from_secs(DRAIN_SECONDS))
+    } else {
+        spacing
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct StableCounters {
     pub handles: u32,

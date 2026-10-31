@@ -98,6 +98,8 @@
   "cause": "InputPool::ensure looks up an existing binding by TextureId and returns UnsupportedPlan if its SpoutSource differs; source A resized in the same production runtime on cycle 1",
   "next_action": "Support completion-retained source binding incarnations at the Golden input boundary while preserving plan-local texture and app channel identities. Keep the failing lifecycle workload.",
   "gate_change": "none; M03 remains 7/9",
+  "interpretation_superseded_by": "mapgyver-m03-lifecycle-prefix-2026-11-01.json",
+  "contract_correction": "Batch 65 changed the admitted Spout maximum, so rejection was correct. Resize within the retained maximum only changes the actual texture extent. The initial Golden ownership-defect diagnosis and next_action above are withdrawn; raw failure/build evidence is unchanged.",
   "limits": [
     "No completed lifecycle baseline, 100-cycle acceptance, private/handle growth or exact live-texture proof",
     "Current source additionally writes child exit sidecars; that post-capture correction has not run natively",

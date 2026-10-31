@@ -16,10 +16,14 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** fix Golden's source binding-incarnation ownership for a valid resized source under
-the same plan-local `TextureId`, retaining old readers through completion. Batch 65's new
-lifecycle fixture reaches this rejection on cycle 1, before any growth baseline; its full
-100-cycle measurement remains required. Gate 9 alone is active. The prescribed precise-timer
+**Next:** run the full lifecycle fixture with its corrected post-work pause and an explicit
+1,800-second fixture/outer watchdog lifetime. Batch 66 proves bounded resizing through **95**
+completed cycles, but the old 900-second watchdog stops the run before cycle 100/final drain.
+Its sampled private-memory peak is **43.75 MiB** above baseline, beyond the unchanged 32 MiB
+limit; this is not claimed fixed or accepted. Corrected pacing/lifetime has software checks
+only. Keep 100 cycles, 1,000 edits and all resource budgets. Golden's documented resize path
+works with an unchanged admitted maximum; the initial Golden-defect diagnosis is withdrawn.
+Gate 9 alone is active. The prescribed precise-timer
 Q02 series is complete and still fails window
 deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
 awaits explicit user decision. Finish missing GPU/queue/lifecycle observations before freezing
@@ -43,6 +47,16 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest lifecycle result (batch 66):** the fixture adopts actual source extents while preserving
+the admitted Spout maximum. It completes **95/100** cycles, **950** burst edits and **370**
+superseded outcomes, then the outer watchdog forces cleanup at **900.101 s**. No final drain
+or full growth verdict exists. Prefix checkpoint private growth peaks at **43.75 MiB**, above
+32 MiB; matched-extent checkpoint handles are **−5** from baseline. The old start-based wait
+gave slow cycles no post-work pause. It now waits two seconds after the work, records that
+pause and gives fixtures 30 minutes; those corrections have six tests/strict Clippy, not native
+verification. All 337 captured inputs and paired overlay-Off identities match. All 100 recorded
+PIDs are absent. **No gate closes; M03 remains 7/9.**
+[Prefix evidence](evidence/mapgyver-m03-lifecycle-prefix-2026-11-01.json).
 **Latest lifecycle prerequisite (batch 65):** the new production-runtime fixture implements
 100 source restart/resize, project-replacement and native-output recreate cycles plus 1,000
 100 Hz preview edits, with cycle-10 baseline and 10-second drain. Its one native attempt fails
@@ -3176,6 +3190,88 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**Lifecycle fixture correction batch 66:** started 2026-10-31 **23:13 UTC**, stop by **23:58 UTC**.
+Previous turn is progress: `2f1c575e` adds the fixed lifecycle workload and preserves its first
+resize rejection. Only gate 9 remains active. **Initial hypothesis, withdrawn after the public
+contract check below:** correct Golden's source pool to distinguish the
+same logical texture ID across completion-retained binding incarnations. Each prepared plan
+must retain and select its exact subscription/readers, including same-ID descriptor or sender
+changes; source/worker/storage bounds, healthy paths, project acknowledgement and retirement
+must remain intact. No app/channel identity churn or renderer restart workaround. Verify old/
+new plan overlap and capacity refusal with meaningful tests, then run the unchanged 100-cycle
+fixture once after software/strict Clippy/build prerequisites pass. Investigation ends by
+**23:33 UTC** or two experiments; no timing/Present or driver investigation. Preserve batch 65's
+failure. Keep the same live handle through observation timeouts. Checkpoint/push the bounded
+correction and actual native outcome before opening more scope. Missing full GPU/queue/physical
+allocation evidence and unapproved window/recovery decisions remain open; no partial check
+closes the full renderer gate.
+
+**Contract reconciliation, 23:16 UTC:** Golden's documented contract and existing native
+regressions explicitly distinguish a Spout subscription's admitted maximum from each plan's
+actual texture descriptor. Resize within that maximum retains the binding; genuinely changing
+the immutable selector/maximum requires a fresh resource identity, as the app compiler already
+does. Batch 65 mistakenly rewrote both descriptors, so its `UnsupportedPlan` rejection is
+correct. The initial diagnosis of a Golden pool defect is withdrawn. Fix the fixture to keep
+the Q01 maximum and change only its actual external target; add regression coverage for this
+distinction. Stop broader ownership investigation now. No core/API change or identity churn is
+needed for the fixed 100-cycle resize workload. All original lifecycle counts, spacing, bursts,
+growth/drain/ownership budgets and failure evidence remain unchanged. After software/build
+checks, run that corrected fixed series once. This is a concrete correction of the failing
+fixture, not a gate relaxation or a second timing investigation.
+
+**Batch 66 result:** five regression tests and strict app/bin/test Clippy pass before the
+pinned release build. The new test would reject the old fixture: the immutable maximum remains
+1920×1080 while actual target extent alternates 1920×1080 / 1280×720. Source/channel/texture
+identity stays stable through real receiver resize. Each streaming checkpoint now requires a
+new renderer copy and API acceptance newer than the preceding submission on all three outputs.
+No Golden source code changes. The executable is
+`a729ee730dc2997373486b7dda821f4748158f4b12a5718b081bedf575d04099`, MSVC **14.51.36231**,
+Windows SDK **10.0.26100.0**.
+
+The single fixed full-count attempt is terminal at **23:36:34 UTC** after **900.101 s**:
+watchdog timeout **true**, forced cleanup **true**, exit **1**. It completes **95** cycles,
+**950** distinct preview edits and **370** superseded outcomes, with **96** normal source-exit
+sidecars. It reaches cycle 96 but never completes the 100-cycle final drain/summary. All captured
+inputs remain unchanged; all **337** selected hashes match that build. Paired fresh native Home
+UIA observations show overlay Off; inventories match. The owned job is empty after cleanup and
+all **100** recorded native PIDs are absent. The raw failure and original batch-65 capture stay
+preserved. The planned live check was allowed to finish on its original handle beyond the
+23:33 investigation cutoff; no new investigation or second native experiment started.
+
+Cycle-10 baseline: **939 handles / 226,955,264 private bytes**. Last matched-size checkpoint,
+cycle 94: **934 handles / 265,527,296 private bytes**. Maximum post-baseline checkpoint growth
+is **45,875,200 bytes (43.75 MiB)**, beyond the unchanged **32 MiB** budget; maximum checkpoint
+handle delta is **−1**, final matched delta **−5**. These are incomplete-prefix observations,
+not a full pass or a diagnosed leak. Matched-size logical reservation and active-plan bytes
+equal baseline; physical allocation identities remain unverified. Completed-cycle retirement
+maximum is **2,678.7643 ms**. No full shutdown/retirement certificate is inferred from the
+watchdog's forced end.
+
+The minimum cycle work is **8.8951 s**. The old wait used `cycle_start + 2 seconds`, so work
+that already took longer received no two-second pause after completion. Private checkpoints
+were taken immediately after constructing the replacement renderer. Correct that fixture:
+wait the full requested pause **after** lifecycle work, retaining the required 10-second
+baseline/final drains; record the pause's QPC bracket. Keep the memory/handle verdict unchanged,
+including peak checkpoint growth, and do not call the observed memory excess fixed. The source/
+consumer fixture lifetime is now **1,800 seconds**, and the next owned-process watchdog must
+use that same bound. This permits the unchanged 100-cycle workload to finish; it reduces no
+workload count or acceptance budget. The new pacing and lifetime have **six** passing tests,
+strict app/bin/test Clippy and both formatters, but **no native verification yet**. Their five
+changed input files are explicitly separated from the captured source version.
+
+The [compact prefix artifact](evidence/mapgyver-m03-lifecycle-prefix-2026-11-01.json) retains
+the exact limits, counters, launcher, build/environment identities, primary hashes and a
+reproducible hash of all **399** raw files. Full logs remain local. The earlier artifact's
+ownership-defect interpretation is explicitly superseded; its raw failure is unchanged.
+Next is the corrected fixed 100-cycle measurement, with a properly sized external watchdog;
+if growth still exceeds budget after the proper pause/drain, investigate that measured resource
+boundary before another run. Full GPU path, queue, physical texture identity and all other
+acceptance remain required. The window deadline proposal remains unapproved. **No gate closes:
+M03 stays 7/9; overall stays 4/10 (40%).** Checkpoint/push before the next batch.
+All final artifact/source/build checks, six tests, strict Clippy, both formatters and remote
+reconciliation complete by **23:46 UTC**, before the **23:58 UTC** stop. Deliver this bounded
+correction/evidence checkpoint; no second native attempt runs in this batch.
+
 **Renderer lifecycle measurement batch 65:** started 2026-10-31 **22:47 UTC**, stop by
 **23:32 UTC**. Previous turn is progress: `df3a8600` verifies the prescribed precise-timer Q02
 series, preserves its window failures and delivers an unapproved window-only gate proposal.
@@ -3218,7 +3314,8 @@ these narrow observations do not qualify the requested lifecycle series.
 
 The error is `Rejected(Backend: render plan has an unsupported or unbound native resource)`.
 The owning branch is `native/inputs/mod.rs`'s `InputPool::ensure`: its cache looks up only
-`TextureId`, then returns `UnsupportedPlan` when the requested `SpoutSource` differs. Golden's
+`TextureId`, then returns `UnsupportedPlan` when the requested `SpoutSource` differs. **The
+following initial diagnosis was superseded by batch 66's contract reconciliation above.** Golden's
 public `TextureId` is logical identity **within a render plan**. Retaining an older plan must
 not permanently forbid a valid new source descriptor in a later plan. The next correction
 belongs at this Golden binding/resource-generation boundary, preserving old reader/import

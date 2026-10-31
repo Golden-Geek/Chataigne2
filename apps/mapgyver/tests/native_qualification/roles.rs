@@ -20,7 +20,7 @@ use uuid::Uuid;
 use windows::Win32::System::Performance::{QueryPerformanceCounter, QueryPerformanceFrequency};
 use windows::Win32::System::Threading::CREATE_NO_WINDOW;
 
-use super::config::{Arguments, RunConfig};
+use super::config::{Arguments, FIXTURE_MAX_SECONDS, RunConfig};
 use super::host::{self, HostConfig};
 
 pub(super) fn selected(index: usize) -> io::Result<AdapterId> {
@@ -42,7 +42,7 @@ pub fn qpc() -> io::Result<u64> {
         .ok_or_else(|| Error::other("invalid QPC"))
 }
 
-fn frequency() -> io::Result<u64> {
+pub(super) fn frequency() -> io::Result<u64> {
     let mut value = 0_i64;
     // SAFETY: the API writes only to this initialized local frequency.
     unsafe { QueryPerformanceFrequency(&mut value) }.map_err(Error::other)?;
@@ -127,7 +127,10 @@ impl FixtureArguments {
             capacity: NonZeroUsize::new(args.number("trace-capacity", "65536")?)
                 .ok_or_else(|| Error::other("zero trace capacity"))?,
         };
-        if result.maximum.is_zero() || result.maximum > Duration::from_secs(900) || result.capacity.get() > 65536 {
+        if result.maximum.is_zero()
+            || result.maximum > Duration::from_secs(FIXTURE_MAX_SECONDS)
+            || result.capacity.get() > 65536
+        {
             return Err(Error::other("fixture duration/capacity out of bounds"));
         }
         Ok(result)

@@ -6,6 +6,9 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+/// Bounded lifetime for owned qualification fixtures, including the 100-cycle lifecycle run.
+pub const FIXTURE_MAX_SECONDS: u64 = 1800;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Workload {
     Q01,
