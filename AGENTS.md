@@ -77,6 +77,13 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - End each handoff with the new app capability, relevant checks, actual gate changes and the
   next product deliverable. Keep qualification debt visible without making it the default work
   queue. Explicit user priorities override these default allocations.
+- Check the recorded stopping time before each new experiment or scope expansion. At the
+  cutoff, stop adding work, finish or report the running check, and checkpoint the verified
+  partial result. A continuation, context reset or renamed batch does not reset an investigation
+  limit. Reopening the same question requires new evidence that changes a named product decision.
+- Make stalled progress visible in the dashboard: name the current usable feature and the last
+  delivered capability, alongside open acceptance gates. A phase percentage alone must never
+  become the work queue. Do not grow evidence reports when the next action is already known.
 
 ## Core Stance
 

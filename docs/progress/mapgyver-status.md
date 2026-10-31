@@ -18,6 +18,8 @@ native preview, recovery and UI parity acceptance remains open.
 
 **Next:** M05 graphical Screen editor: Surface selection and corner dragging through backend intents,
 with one complete drag represented by one undoable gesture.
+**Last delivered capability:** three independent Screen output modes, with exact-identity
+fullscreen selection and missing/restored-display recovery (batch 15).
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -61,6 +63,21 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 16:** started 2026-10-31 **00:40 UTC**, recorded stop **01:25 UTC**.
+Deliver graphical Screen Surface selection/corner dragging through backend-owned corner intents
+and grouped history, preserving source/crop/opacity and rejecting invalid quads atomically.
+The UI owns viewport coordinates, pointer capture and presentation; backend validation/mutation
+and the existing history boundary own document changes. Prove multiple drag samples make one
+undoable gesture, cancellation/invalid samples preserve coherent state, and the wired UI compiles.
+Use an available real UI flow within at most two experiments/20 minutes; retain unavailable native
+input/pixel/DPI qualification without an automation recovery detour.
+Golden will provide explicit opt-in coalescing of adjacent same-node callback history inside an
+edit session, retaining the original before/final after state so drag duration does not grow history.
+**Checkpoint:** implementation is local and Rust validation is running. Eleven frontend tests,
+Svelte checking, formatting and the production UI build pass. The automation inventory exposes
+no browser; creating the in-app browser returns unavailable. Interactive selection/drag evidence
+therefore remains open. This workflow checkpoint does not count as product delivery or gate closure.
 
 **Product batch 15:** started 2026-10-31 **00:01 UTC**, recorded stop **00:46 UTC**.
 Deliver native display enumeration with stable device-path identities, a generated catalog/UI
@@ -850,6 +867,9 @@ batches; investigations stop at 20 minutes or two experiments; at least four pro
 batches per diagnostic-only batch; no consecutive diagnostic-only turns by default. After
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
+The 2026-10-31 reinforcement requires checking the recorded cutoff before expanding scope;
+continuations do not reset investigation limits. The dashboard names a delivered capability
+alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
 **Product-delivery count since correction: 15. Diagnostic-only batch allowance: 3, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
