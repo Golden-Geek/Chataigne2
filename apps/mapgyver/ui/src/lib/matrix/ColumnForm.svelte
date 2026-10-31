@@ -42,6 +42,7 @@
 			kind: 'ConfigureColumn',
 			column: column.id,
 			definition: {
+				...column.definition,
 				transition: override
 					? {
 							duration_ms: Number(data.get('duration')),

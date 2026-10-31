@@ -34,6 +34,10 @@ pub struct ProcessSpec {
     pub window: ProcessWindow,
 }
 impl ProcessSpec {
+    /// Validate launch encoding and bounds without creating a process or accessing an executable.
+    pub fn validate(&self) -> io::Result<()> {
+        platform::validate(self)
+    }
     pub fn new(executable: impl Into<PathBuf>) -> Self {
         Self {
             executable: executable.into(),

@@ -115,6 +115,9 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    Applications {
+        edit: crate::applications::protocol::ApplicationEdit,
+    },
     InspectChoices {
         query: ChannelChoiceQuery,
     },
@@ -213,6 +216,15 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ApplicationCreated {
+        application: crate::applications::protocol::ApplicationId,
+    },
+    Application {
+        snapshot: crate::applications::protocol::ApplicationSnapshot,
+    },
+    Applications {
+        page: crate::applications::protocol::ApplicationPage,
+    },
     MatrixTargets {
         page: crate::matrix::protocol::MatrixTargetPage,
     },

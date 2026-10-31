@@ -17,6 +17,7 @@ fn zero_duration_configured_launch_uses_column_override_and_rejects_foreign_colu
                     duration_ms: 0,
                     curve: TransitionCurve::SmoothStep,
                 }),
+                ..Default::default()
             },
         },
     );

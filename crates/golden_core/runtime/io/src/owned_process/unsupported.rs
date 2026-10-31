@@ -1,6 +1,9 @@
 use super::{ProcessSnapshot, ProcessSpec};
 use std::io;
 pub(super) struct Process;
+pub(super) fn validate(_: &ProcessSpec) -> io::Result<()> {
+    unsupported()
+}
 fn unsupported<T>() -> io::Result<T> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,

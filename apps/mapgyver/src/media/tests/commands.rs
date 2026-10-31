@@ -263,6 +263,51 @@ fn matrix_authored_intents_use_hosted_methods_and_committed_callbacks() {
 }
 
 #[test]
+fn application_preset_and_hosted_inspection_return_committed_identities_without_launching() {
+    use crate::applications::protocol::*;
+    let mut engine = fixture();
+    script(&mut engine, "function init() { local.listen({level:1}); } function onAppOperationResult(reply) { gc.emit('media-method-reply', reply); }".into());
+    let command = command(&mut engine, "Create Application");
+    let before = engine.undo_len();
+    call(&mut engine, command, "execute", vec![]);
+    service_script_app_operations(&mut engine).unwrap();
+    let first = replies(&engine);
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0]["status"], "applied");
+    let MediaEditResult::ApplicationCreated { application } =
+        serde_json::from_value(first[0]["value"].clone()).unwrap()
+    else {
+        panic!()
+    };
+    assert!(
+        crate::applications::inspect(&engine, application)
+            .unwrap()
+            .definition
+            .executable
+            .is_none()
+    );
+    assert_eq!(engine.undo_len(), before + 1);
+    let request = serde_json::to_string(&MediaEdit::Applications {
+        edit: ApplicationEdit::Inspect { application },
+    })
+    .unwrap();
+    let manager = manager(&engine).unwrap();
+    call(
+        &mut engine,
+        manager,
+        "editMedia",
+        vec![ParamValue::Str("app-inspect".into()), ParamValue::Str(request)],
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let inspected = replies(&engine);
+    assert_eq!(inspected.len(), 2);
+    assert_eq!(inspected[1]["request_id"], "app-inspect");
+    assert_eq!(inspected[1]["value"]["kind"], "Application");
+    assert_eq!(engine.undo_len(), history);
+}
+
+#[test]
 fn hosted_quickjs_methods_deliver_committed_results_then_read_only_inspection() {
     let mut engine = fixture();
     let request = serde_json::to_string(&MediaEdit::CreateMedia {

@@ -28,6 +28,9 @@ fn os_error(error: ::windows::core::Error) -> io::Error {
     io::Error::from_raw_os_error(error.code().0 & 0xffff)
 }
 const MAX_OBSERVED_PROCESSES: usize = 4096;
+pub(super) fn validate(spec: &ProcessSpec) -> io::Result<()> {
+    launch::Prepared::new(spec).map(|_| ())
+}
 
 pub(super) struct Process {
     // First drop closes the sole job handle, requesting termination even if the root already exited.

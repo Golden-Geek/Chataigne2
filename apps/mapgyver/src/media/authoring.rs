@@ -16,7 +16,7 @@ pub fn initialize(engine: &mut AppEngine) {
     engine.add_node(MediaManagerNode::new().into(), None);
 }
 
-pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
+pub(crate) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     let mut child = engine
         .nodes
         .get(engine.root)
@@ -105,6 +105,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let pending_before = engine.edits.pending.len();
     let result = match edit {
+        MediaEdit::Applications { edit } => crate::applications::apply(engine, edit)?,
         MediaEdit::InspectChoices { query } => MediaEditResult::Choices {
             page: super::catalog::choices(engine, query)?,
         },
@@ -386,5 +387,6 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
         }
     }
     crate::matrix::validate_project(engine)?;
+    crate::applications::validate_project(engine)?;
     super::dependencies::validate_project(engine)
 }

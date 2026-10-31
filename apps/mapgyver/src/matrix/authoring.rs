@@ -293,11 +293,21 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         }
         MatrixEdit::DuplicateItem { item } => return super::copying::item(engine, &document, item),
         MatrixEdit::RenameColumn { column, label } => labels::rename(engine, document.column(column)?, label)?,
-        MatrixEdit::ConfigureColumn { column, definition } => mutate(
-            engine,
-            document.column(column)?,
-            ElementDefinition::Column { definition },
-        ),
+        MatrixEdit::ConfigureColumn { column, definition } => {
+            let previous = &document
+                .snapshot
+                .columns
+                .iter()
+                .find(|entry| entry.id == column)
+                .ok_or("Matrix column is missing")?
+                .definition;
+            crate::applications::validate_associations(engine, &previous.applications, &definition.applications)?;
+            mutate(
+                engine,
+                document.column(column)?,
+                ElementDefinition::Column { definition },
+            );
+        }
         MatrixEdit::ReorderColumn { column, after } => {
             let node = document.column(column)?;
             let previous = after.map(|id| document.column(id)).transpose()?;

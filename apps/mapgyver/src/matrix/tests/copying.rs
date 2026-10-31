@@ -248,6 +248,7 @@ fn document_item_and_column_settings_rename_move_and_export_ids_survive_reload()
                     duration_ms: 0,
                     curve: TransitionCurve::Linear,
                 }),
+                ..Default::default()
             },
         },
     );

@@ -12,6 +12,10 @@ creation, verifies membership and returns ownership before resume. `resume` cons
 suspended owner. Cancellation can terminate/wait while suspended or simply drop ownership. There is
 no executable-name lookup, implicit shell, elevation fallback or ownership of pre-existing processes.
 
+`ProcessSpec::validate` checks the same launch encoding and configuration bounds without creating
+a process or opening the executable. Applications can reject invalid authored definitions before
+committing them; successful validation does not prove the target exists or will start.
+
 The implementation uses the existing `windows` bindings. The standard-library primary-thread and
 process-attribute APIs are still unstable on the repository's Rust 1.97 toolchain. The reviewed
 `win32job` wrapper covers job setup but not the complete creation/resume/retirement contract.

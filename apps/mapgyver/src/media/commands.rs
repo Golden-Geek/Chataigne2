@@ -41,6 +41,14 @@ pub(super) fn catalog() -> Vec<UserCreatableItem> {
                 .with_initial_param("request", ParamValue::Str(request)),
         );
     }
+    let request = serde_json::to_string(&MediaEdit::Applications {
+        edit: crate::applications::protocol::ApplicationEdit::Create { label: None },
+    })
+    .expect("static application command");
+    items.push(
+        UserCreatableItem::new(MEDIA_COMMAND_TYPE, MEDIA_COMMAND_TYPE, "Create Application")
+            .with_initial_param("request", ParamValue::Str(request)),
+    );
     items
 }
 

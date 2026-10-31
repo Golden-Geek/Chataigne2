@@ -23,7 +23,8 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
-| `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app demand/lifetimes remain M07/M08 |
+| `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
+| `apps/mapgyver/src/applications/` | Persistent shared executable definitions, typed authoring and pure clamped neighbor/retained demand resolution; background launch/readiness/restart integration remains M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
@@ -418,8 +419,24 @@ directory, readiness and stop/restart policies. Multiple columns may share an ap
 MapGyver computes app demand; a generic Golden IO owned-process service handles OS resources.
 Do not copy or path-import Chataigne's private App Control implementation.
 
-The public `golden_io::owned_process` mechanism is implemented; MapGyver's app definitions,
-column demand and lifecycle worker remain M08 integration work. Its typed suspended owner enters
+MapGyver's `applications` module implements shared persistent definitions under Media Manager and
+stable column associations. `MediaEdit::Applications` exposes create/configure/rename/duplicate/
+remove/inspect and a bounded catalog page through the existing generated UI, command, script and
+callback boundary. A copied column shares its application ID; deleting a definition retains an
+explicit missing reference for Undo/reload. Authored configuration never launches a process.
+Definition validation reuses Golden IO's pure launch validation, without probing or opening the
+executable. Dedicated application forms and full lifecycle control/observation remain M08 work.
+
+`applications::demand::resolve` computes one deterministic next set from committed column cursors
+and direct retained holds. Preparation, active and outgoing scopes contribute a union; final-use
+holds survive authored column/definition deletion. Missing, disabled and unconfigured definitions
+remain distinguishable. This pure resolver does not yet feed an OS worker, bind renderer leases or
+prove readiness. It admits 128 matrices, 100,000 aggregate columns, 128 cursors, 4,096 holds and
+4,096 application identities, with at most 64 associations per column. It materializes no cells
+and does not run as a periodic engine-node task.
+
+The public `golden_io::owned_process` mechanism is implemented; MapGyver's lifecycle worker and
+committed runtime demand capture remain M08 integration work. Its typed suspended owner enters
 a private kill-on-close job during creation and verifies membership before resume. Arguments,
 environment and working directory remain explicit; no shell/name lookup or elevation fallback is
 implicit. Creation, observation and bounded waits belong on a background owner. Graceful close

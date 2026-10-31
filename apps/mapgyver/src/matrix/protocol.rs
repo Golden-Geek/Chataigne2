@@ -104,6 +104,7 @@ impl CompositeSettings {
 #[serde(default)]
 pub struct ColumnDefinition {
     pub transition: Option<TransitionDefinition>,
+    pub applications: Vec<crate::applications::protocol::ColumnApplication>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CellDefinition {

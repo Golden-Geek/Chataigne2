@@ -8,6 +8,7 @@ golden_core::define_node_enum!(
         Media(crate::media::MediaNode),
         MediaChannel(crate::media::ChannelNode),
         MediaAsset(crate::media::AssetNode),
+        Application(crate::applications::ApplicationNode),
         MediaCommand(crate::media::MediaCommandNode),
         CompositionInstance(crate::media::composition::InstanceNode),
         MatrixElement(crate::matrix::ElementNode),
@@ -70,7 +71,8 @@ impl ProjectLifecycle for AppNode {
     }
 
     fn validate_ui_intent(engine: &AppEngine, intent: &golden_core::ui_sync::UiEditIntent) -> Result<(), String> {
-        crate::matrix::validate_ui_intent(engine, intent)
+        crate::matrix::validate_ui_intent(engine, intent)?;
+        crate::applications::validate_ui_intent(engine, intent)
     }
 }
 
