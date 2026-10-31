@@ -25,7 +25,9 @@
 	const session = $derived(authoring.session);
 	const screen = $derived(controller.screen);
 	const surface = $derived(controller.surface);
-	const busy = $derived(controller.busy || gestureState.active);
+	const busy = $derived(
+		controller.busy || gestureState.active || session?.hasActiveEditSession === true
+	);
 	const heading = $derived(editor === 'source' ? 'Surface Source' : 'Screen Manager');
 </script>
 

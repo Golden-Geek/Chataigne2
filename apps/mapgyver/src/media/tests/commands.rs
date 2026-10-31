@@ -167,6 +167,67 @@ fn composition_instances_use_the_hosted_method_and_committed_callback() {
 }
 
 #[test]
+fn composition_geometry_uses_hosted_method_and_returns_committed_instance() {
+    use crate::media::composition::protocol::*;
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let composition = create(&mut engine, MediaKind::Composition);
+    let MediaEditResult::InstancesCreated { instances } = apply(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: composition,
+            edit: CompositionEdit::AddInstances { sources: vec![source] },
+        },
+    ) else {
+        panic!()
+    };
+    let MediaEditResult::Composition { snapshot } = apply(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: composition,
+            edit: CompositionEdit::Inspect,
+        },
+    ) else {
+        panic!()
+    };
+    let origin = snapshot.instances[0].definition.transform;
+    let request = serde_json::to_string(&MediaEdit::Composition {
+        reference: composition,
+        edit: CompositionEdit::EditInstanceGeometry {
+            instance: instances[0].instance,
+            edit: InstanceGeometryEdit {
+                mode: InstanceGeometryMode::Translate,
+                origin,
+                start: Point { x: 20.0, y: 20.0 },
+                point: Point { x: 50.0, y: 80.0 },
+            },
+        },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            r#"function init() {{ local.listen({{level:1}}); local.editMedia('geometry', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}"#
+        ),
+    );
+    let before = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let replies = replies(&engine);
+    assert_eq!(replies.len(), 1);
+    assert_eq!(replies[0]["status"], "applied");
+    let MediaEditResult::InstanceChanged { snapshot } = serde_json::from_value(replies[0]["value"].clone()).unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(snapshot.reference, instances[0]);
+    assert_eq!(
+        snapshot.definition.transform.position,
+        [origin.position[0] + 30.0, origin.position[1] + 60.0]
+    );
+    assert_eq!(engine.undo_len(), before + 1);
+}
+
+#[test]
 fn hosted_quickjs_methods_deliver_committed_results_then_read_only_inspection() {
     let mut engine = fixture();
     let request = serde_json::to_string(&MediaEdit::CreateMedia {

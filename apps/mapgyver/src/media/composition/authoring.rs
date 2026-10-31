@@ -163,6 +163,35 @@ pub(crate) fn apply(
             labels::rename(engine, id, label)?;
             Ok(MediaEditResult::Changed)
         }
+        CompositionEdit::EditInstanceGeometry { instance: target, edit } => {
+            let id = instance(engine, parent, target)?;
+            let AppNode::CompositionInstance(current) = engine.nodes.get(id).unwrap() else {
+                unreachable!()
+            };
+            let mut definition = current.definition().clone();
+            edit.apply(&mut definition)?;
+            let snapshot = InstanceSnapshot {
+                reference: InstanceReference {
+                    composition: reference,
+                    instance: target,
+                },
+                label: current.node_data().meta.label.clone(),
+                definition: definition.clone(),
+            };
+            engine.edits.push(Edit::CallNodeMutationCoalesced {
+                scope: golden_core::edit::NodeMutationScope::SelfData,
+                node: id,
+                needs_tree_snapshot: false,
+                callback: Box::new(move |node, _| {
+                    node.as_any_mut()
+                        .downcast_mut::<InstanceNode>()
+                        .ok_or("instance type changed")?
+                        .set_definition(definition);
+                    Ok(())
+                }),
+            });
+            Ok(MediaEditResult::InstanceChanged { snapshot })
+        }
         CompositionEdit::RemoveInstance { instance: target } => {
             let id = instance(engine, parent, target)?;
             engine.edits.push(Edit::RemoveNode { node: id });

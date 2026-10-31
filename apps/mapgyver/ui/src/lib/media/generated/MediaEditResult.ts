@@ -5,6 +5,7 @@ import type { ChannelReference } from "./ChannelReference";
 import type { ChannelSnapshot } from "./ChannelSnapshot";
 import type { CompositionSnapshot } from "./CompositionSnapshot";
 import type { InstanceReference } from "./InstanceReference";
+import type { InstanceSnapshot } from "./InstanceSnapshot";
 import type { MediaManagerSnapshot } from "./MediaManagerSnapshot";
 
-export type MediaEditResult = { "kind": "Composition", snapshot: CompositionSnapshot, } | { "kind": "InstancesCreated", instances: Array<InstanceReference>, } | { "kind": "Manager", snapshot: MediaManagerSnapshot, } | { "kind": "PictureImported", reference: ChannelReference, asset: AssetId, } | { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };
+export type MediaEditResult = { "kind": "InstanceChanged", snapshot: InstanceSnapshot, } | { "kind": "Composition", snapshot: CompositionSnapshot, } | { "kind": "InstancesCreated", instances: Array<InstanceReference>, } | { "kind": "Manager", snapshot: MediaManagerSnapshot, } | { "kind": "PictureImported", reference: ChannelReference, asset: AssetId, } | { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };

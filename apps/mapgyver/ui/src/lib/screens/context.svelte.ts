@@ -63,8 +63,9 @@ export function provideScreenAuthoring() {
 		}
 		untrack(() => {
 			gesture.observe();
-			if (inspecting) void controller.refresh();
-			else gesture.stop();
+			if (inspecting) {
+				if (!current?.hasActiveEditSession) void controller.refresh();
+			} else gesture.stop();
 		});
 	});
 	onDestroy(() => {

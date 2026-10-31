@@ -25,7 +25,12 @@
 	let selected = $state<ChannelId | null>(null);
 	let pending = $state(false);
 	let importing = $state(false);
-	const busy = $derived(pending || session?.status !== 'connected' || session.loading.visible);
+	const busy = $derived(
+		pending ||
+			session?.status !== 'connected' ||
+			session.loading.visible ||
+			session.hasActiveEditSession
+	);
 	let error = $state('');
 	let request = 0;
 	const selectedMedia = $derived(
@@ -39,6 +44,8 @@
 
 	async function refresh() {
 		if (!session || session.status !== 'connected') return;
+		// A live gesture publishes samples; inspect once when its shared edit group closes.
+		if (session.hasActiveEditSession) return;
 		const current = ++request;
 		try {
 			const result = await invokeMediaEdit(session, { kind: 'InspectManager' });
@@ -63,6 +70,8 @@
 		if (current) {
 			void current.currentHistoryStateId;
 			void current.snapshotGeneration;
+			void current.hasActiveEditSession;
+			void current.editSessionEpoch;
 			void current.status;
 			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}

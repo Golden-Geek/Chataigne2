@@ -8,6 +8,8 @@ use crate::{
 };
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
+mod geometry;
+
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {
     apply(engine, MediaEdit::Composition { reference, edit })
 }

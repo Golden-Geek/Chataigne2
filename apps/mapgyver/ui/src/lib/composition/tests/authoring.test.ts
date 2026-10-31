@@ -103,6 +103,33 @@ test('only the latest overlapping catalog refresh is applied', async () => {
 	assert.equal(view.catalog?.media[0].label, 'new');
 });
 
+test('live geometry patches one instance without per-sample catalog inspection', async () => {
+	const current = session();
+	const view = createCompositionAuthoringState();
+	let reads = 0;
+	const controller = new CompositionAuthoringController(
+		() => current,
+		view,
+		async (_, edit) => {
+			reads++;
+			return edit.kind === 'InspectManager' ? catalog('a') : composition('a', 'first', 'second');
+		}
+	);
+	await controller.refresh();
+	controller.setInteracting(true);
+	const first = structuredClone(controller.instance!);
+	first.definition.transform.position = [22, 33];
+	controller.acceptInstance(first);
+	for (let n = 0; n < 100; n++) await controller.refresh();
+	assert.equal(reads, 2);
+	assert.deepEqual(controller.instance?.definition.transform.position, [22, 33]);
+	assert.equal(view.composition?.instances[1].label, 'second');
+	assert.equal(controller.busy, true);
+	controller.setInteracting(false);
+	await controller.refresh();
+	assert.equal(reads, 4);
+});
+
 test('project replacement, disconnect, loading and disposal fence old reads and errors', async () => {
 	for (const mode of ['replacement', 'disconnect', 'loading', 'dispose']) {
 		const current = session();

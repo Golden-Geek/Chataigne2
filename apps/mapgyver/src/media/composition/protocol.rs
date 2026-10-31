@@ -2,6 +2,7 @@ use super::super::protocol::ChannelReference;
 use golden_core::model::NodeUuid;
 use golden_video::Extent2D;
 pub use golden_video::plan::BlendMode;
+pub use golden_video::plan::Point;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -96,6 +97,10 @@ pub enum CompositionEdit {
         instance: InstanceId,
         definition: InstanceDefinition,
     },
+    EditInstanceGeometry {
+        instance: InstanceId,
+        edit: InstanceGeometryEdit,
+    },
     RenameInstance {
         instance: InstanceId,
         label: String,
@@ -107,6 +112,22 @@ pub enum CompositionEdit {
     RemoveInstance {
         instance: InstanceId,
     },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum InstanceGeometryMode {
+    Translate,
+    Rotate,
+    Scale,
+}
+
+/// Canvas-texel pointer samples and the authored transform at gesture start, never accumulated deltas.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct InstanceGeometryEdit {
+    pub mode: InstanceGeometryMode,
+    pub origin: Transform2D,
+    pub start: Point,
+    pub point: Point,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

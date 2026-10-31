@@ -6,8 +6,9 @@
 
 **Current topic:** M06 Composition authoring/module foundation accepted, **1/4 gates (25%)**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
-The dockable Composition editor now exposes source/instance/canvas controls and native preview;
-graphical transform gestures, real interaction and native pixel correctness remain open. M05 authoring, crop/warp
+The dockable Composition editor now includes source/instance/canvas controls, native preview binding
+and graphical selection/drag/rotate/scale with backend geometry and grouped history. Software
+verification passes; real interaction and native pixel correctness remain open. M05 authoring, crop/warp
 and calibration close **3/8 gates (38%)**. Native Screen
 preview and all three target modes now work through one renderer without an editor. The generated
 display selector preserves intended device-path identity; software checks cover catalog loss/error/
@@ -23,12 +24,13 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M06 Composition graphical selection and drag/rotate/scale gestures with typed backend
-geometry intents, one bounded gesture stream and grouped history over the existing native preview.
-**Last delivered capability:** dockable Composition editor with searchable source assignment,
-ordered instance selection/add/copy/reorder/remove, independent transform/opacity/blend/enabled
-forms, canvas settings and native preview binding (batch 20). Software checks pass; real input and
-native preview pixels have not been observed for this panel.
+**Next:** M07 Matrix document/module foundation: stable layers/groups/columns/cells, source assignment
+and validated atomic authoring with persistence/history and command/script/callback/snippet parity.
+Define its fixed acceptance breakdown before source work; preserve M06's unverified gates.
+**Last delivered capability:** Composition graphical selection and move/rotate/scale with bounded
+input, typed backend geometry, authoritative instance patches and coalesced Undo (batch 21).
+Software checks pass. The ordinary app displays the panel, but the computer-use helper reports a
+Windows integrity limit and its test click produced no visible change; real gestures remain unverified.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -51,7 +53,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Authoring accepted; producer/editor controls implemented; gestures/qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -72,6 +74,58 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M06 acceptance items
+
+**Product batch 21:** started 2026-10-31 **02:59 UTC**, recorded stop **03:44 UTC**.
+Deliver graphical Composition instance selection and drag/rotate/scale through typed backend
+geometry intents, one in-flight/latest-sample stream and coalesced grouped history. MapGyver owns
+geometry and authoring policy; Svelte converts viewport input and renders presentation handles over
+the existing native preview. Verify geometry/reference invariants, preserved unrelated fields,
+history/protocol/script parity, UI fencing/cancellation and the bundled app. At most two finite
+native/UI experiments after software prerequisites pass; stop investigation at 20 minutes or the
+batch cutoff. Do not reopen parked M03 work or browser/driver recovery.
+
+Batch 21 native/UI experiment 1 starts **03:09 UTC**, stops by **03:29 UTC** (and within the batch
+cutoff). Software prerequisites passed: 109 default tests/1 ignored, 99 headless tests, 26 frontend
+tests, 213 Golden UI tests, Svelte 0 errors/warnings, strict app Clippy and the bundled binary build.
+Hypothesis: the owned ordinary app exposes the Composition panel and its source/instance controls;
+graphical move/rotate/scale update authored values and preview, and Undo restores each gesture.
+Use only supported computer-use APIs on the owned app window. An unavailable desktop surface is
+a recorded limit, not authorization for browser/privilege recovery or another measurement tool.
+
+**Batch 21 result:** the app now overlays source outlines and instance pivots on the existing native
+Composition preview, with graphical selection, translation, rotation and nonuniform/mirrored scale.
+Outlines use exact resolved source extents already reported by the renderer; unavailable sources
+retain pivot/gizmo editing without a guessed image extent. At most 128 ordinary outlines/pivots
+are mounted plus the selected instance; list pagination retains access to the full document.
+
+Generated `EditInstanceGeometry` carries the original authored transform and absolute canvas-texel
+start/current pointer samples. Rust computes translation, signed rotation and local-axis scale in
+f64, validates the candidate and preserves current unrelated fields. Invalid/nonfinite/degenerate
+samples and wrong ownership reject atomically. The reply patches one authoritative instance.
+Self-data coalesced mutation callbacks retain one initial/final history state per explicit gesture;
+100 software translation samples Undo/Redo as one step. Hosted QuickJS uses the same intent and
+committed callback; app snippets document the shape.
+
+Golden UI now owns the shared `LatestEditGesture` lifecycle. Surface and Composition adapters use
+one in-flight request and one latest sample, project/session/group fencing, release draining and
+Escape/cancel/close disposal of unsent input. Accepted prefixes remain one undoable gesture.
+Media/Screen/Composition panels defer catalog inspection and conflicting controls while the
+shared group is active; accepted samples patch the focused document instead of rescanning it.
+
+Validation: **109 passing / 1 ignored** default Rust tests, **99/99** headless tests, generated DTO
+drift checks, **26/26** frontend tests, **213/213** Golden UI tests, Svelte **0 errors / 0 warnings**,
+strict app Clippy and root/Golden Core formatting pass. The bundled app build passes. The bounded
+UI attempt finished **03:11 UTC**: two launch attempts consume the allowance (the supported launcher
+first opened installed MapGyver 1.0.0b7; direct executable launch opened this checkout's 0.1.0 app).
+The checkout screenshot shows the Composition panel, but the helper reports higher target Windows
+integrity; one coordinate click produced no visible state change. No drag/form/preview-pixel/Undo
+claim follows. Both untouched owned test processes were stopped and their absence verified.
+No privilege/browser/driver recovery or further native experiment ran.
+
+**M06 remains 1/4 (25%)**: Matrix-inclusive dependency correctness, full native transform/blend
+pixels and real editor interaction retain gates 2–4. Its software-verified functional contracts
+permit M07 implementation under the existing execution correction; these open gates are not passed
+or transferred. Next is the Matrix authoring/module foundation, not another automation investigation.
 
 **Product batch 20:** started 2026-10-31 **02:51 UTC**, recorded stop **03:36 UTC**.
 Deliver the app-owned dockable Composition editor: select a Composition, inspect its ordered
@@ -1046,7 +1100,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 20. Diagnostic-only batch allowance: 5, unused.**
+**Product-delivery count since correction: 21. Diagnostic-only batch allowance: 5, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1077,7 +1131,9 @@ Shared nested Composition production is the nineteenth, with software geometry/d
 and native submission/lifetime smoke; native transform/blend pixels and the 2D editor remain open.
 Dockable Composition source/instance/canvas controls and native preview binding are the twentieth;
 graphical transform gestures and real interactive/native preview evidence remain open.
-The allowance rises to five at `floor(20 / 4)`, following the four-product-to-one-diagnostic ratio;
+Graphical Composition selection/geometry and grouped history are the twenty-first; software/native
+submission foundations permit M07, with real input and complete native pixel qualification open.
+The allowance remains five at `floor(21 / 4)`, following the four-product-to-one-diagnostic ratio;
 none of the five allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1271,17 +1327,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and editor controls](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor routing/fencing pass. Matrix dependencies, native pixels, graphical gestures and real editor acceptance remain open. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M06 graphical instance selection and drag/rotate/scale** over the existing Composition
-panel/native preview. Add typed backend geometry intents that preserve unrelated authored fields,
-then one bounded input stream and grouped history. Keep policy/defaults/mutations in the backend
-and reuse the existing native preview. Do not reopen browser/driver/clock recovery.
+Deliver the **M07 Matrix document/module foundation** against the software-verified Composition,
+channel and shared editor contracts. Define fixed acceptance before source implementation. Own
+stable layer/group/column/cell identities, source assignment, validated atomic authoring, persistence
+and history under MapGyver; wire commands, script methods, callbacks and app snippets in the same
+slice. Keep reusable execution in Golden and product launch/transition policy in the app. Runtime
+launches/derived channels and the virtualized grid follow coherent product checkpoints. Do not
+reopen browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
 native pixel correctness retain M06 gates 2–4; authoring gate 1 is accepted.
@@ -1291,7 +1350,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
+Twenty-one product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

@@ -52,6 +52,13 @@ makes another selection. `session.selectionRevision` fences replies that arrive 
 selection intent; rendering and graph projection do not advance that revision. Apps should use
 these contracts instead of polling for an unseen child or scanning labels to infer creation results.
 
+`store/latest-edit-gesture` owns the reusable exclusive edit-group lifecycle, with one in-flight
+request and one latest pointer sample. App adapters own references, handle/sample DTOs, operation
+routing and authoritative snapshot patches. The helper fences session/project changes and cancels
+unsent samples on disposal; apps call `stop` for Escape. It closes accepted work as one group and never computes
+domain geometry. Apps defer catalog inspection and conflicting controls during a live group,
+then inspect once on completion. MapGyver Surface and Composition editors use this same helper.
+
 ## Large collections
 
 `components/common/virtual-rows/VirtualRows.svelte` owns bounded row mounting, keyed focus

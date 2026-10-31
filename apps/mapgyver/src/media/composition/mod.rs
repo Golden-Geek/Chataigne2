@@ -2,6 +2,7 @@
 
 mod authoring;
 mod dependencies;
+mod geometry;
 mod node;
 pub mod protocol;
 

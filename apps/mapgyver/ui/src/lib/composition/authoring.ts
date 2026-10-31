@@ -4,6 +4,7 @@ import type { ChannelDefinition } from '../media/generated/ChannelDefinition';
 import type { CompositionEdit } from '../media/generated/CompositionEdit';
 import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 import type { InstanceId } from '../media/generated/InstanceId';
+import type { InstanceSnapshot } from '../media/generated/InstanceSnapshot';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
 import type { MediaManagerSnapshot } from '../media/generated/MediaManagerSnapshot';
@@ -21,6 +22,7 @@ export interface CompositionAuthoringState {
 	instance: InstanceId | null;
 	pending: boolean;
 	refreshing: boolean;
+	interacting: boolean;
 	error: string;
 }
 
@@ -31,6 +33,7 @@ export const createCompositionAuthoringState = (): CompositionAuthoringState => 
 	instance: null,
 	pending: false,
 	refreshing: false,
+	interacting: false,
 	error: ''
 });
 
@@ -77,6 +80,7 @@ export class CompositionAuthoringController<S extends Connection> {
 		return (
 			this.disposed ||
 			this.state.pending ||
+			this.state.interacting ||
 			this.state.refreshing ||
 			!this.state.catalog ||
 			session?.status !== 'connected' ||
@@ -104,7 +108,7 @@ export class CompositionAuthoringController<S extends Connection> {
 		if (this.context?.session !== session || this.context.generation !== generation) this.reset();
 		this.context = { session, generation };
 		// A committed edit will inspect once after its response, including external changes.
-		if (this.state.pending) return;
+		if (this.state.pending || this.state.interacting) return;
 		const read = ++this.read;
 		this.state.refreshing = true;
 		try {
@@ -138,7 +142,7 @@ export class CompositionAuthoringController<S extends Connection> {
 	}
 
 	select(reference: ChannelReference) {
-		if (this.disposed || this.state.pending) return;
+		if (this.disposed || this.state.pending || this.state.interacting) return;
 		this.state.selected = reference;
 		this.state.instance = null;
 		this.state.composition = null;
@@ -155,6 +159,21 @@ export class CompositionAuthoringController<S extends Connection> {
 	configure(definition: ChannelDefinition) {
 		const reference = this.state.selected;
 		if (reference) return this.mutate({ kind: 'ConfigureChannel', reference, definition });
+	}
+	setInteracting(active: boolean) {
+		this.state.interacting = active;
+	}
+	acceptInstance(snapshot: InstanceSnapshot) {
+		const composition = this.state.composition;
+		if (
+			!composition ||
+			channelKey(composition.reference) !== channelKey(snapshot.reference.composition)
+		)
+			return;
+		const index = composition.instances.findIndex(
+			(instance) => instance.reference.instance === snapshot.reference.instance
+		);
+		if (index >= 0) composition.instances[index] = snapshot;
 	}
 
 	private async mutate(edit: MediaEdit): Promise<MediaEditResult | undefined> {

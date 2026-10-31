@@ -177,6 +177,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    InstanceChanged {
+        snapshot: super::composition::protocol::InstanceSnapshot,
+    },
     Composition {
         snapshot: super::composition::protocol::CompositionSnapshot,
     },

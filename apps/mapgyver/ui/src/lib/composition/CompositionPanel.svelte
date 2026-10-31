@@ -2,10 +2,13 @@
 	import { onDestroy, untrack } from 'svelte';
 	import { appState, type PanelProps, type PanelState, type WorkbenchSession } from 'golden_ui';
 	import { createCompositionAuthoringState, CompositionAuthoringController } from './authoring';
+	import { createUiEditSession } from 'golden_ui/store/ui-intents';
+	import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
+	import { createInstanceGesture } from './instance-gesture';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
 	import { channelKey, channelReferenceFromKey } from '../media/identity';
-	import ChannelPreview from '../media/ChannelPreview.svelte';
+	import CompositionPreview from './CompositionPreview.svelte';
 	import CompositionChannelEditor from '../media/CompositionChannelEditor.svelte';
 	import SourcePicker from './SourcePicker.svelte';
 	import InstanceForm from './InstanceForm.svelte';
@@ -23,7 +26,18 @@
 	);
 	const channel = $derived(controller.channel);
 	const instance = $derived(controller.instance);
-	const busy = $derived(controller.busy);
+	const busy = $derived(controller.busy || session?.hasActiveEditSession === true);
+	const gestureState = $state(createLatestEditGestureState());
+	const gesture = createInstanceGesture<WorkbenchSession>(() => session, gestureState, {
+		group: (session, handle) =>
+			createUiEditSession(`${handle.mode} instance`, 'composition-geometry', session),
+		invoke: invokeMediaEdit,
+		accepted: (snapshot) => controller.acceptInstance(snapshot),
+		active: (active) => controller.setInteracting(active),
+		finished: () => {
+			void controller.refresh();
+		}
+	});
 	const pageSize = 50;
 	let page = $state(0);
 	const instances = $derived(view.composition?.instances ?? []);
@@ -43,13 +57,19 @@
 			void current.loading.visible;
 			void current.snapshotGeneration;
 			void current.currentHistoryStateId;
+			void current.hasActiveEditSession;
+			void current.editSessionEpoch;
 			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}
 		untrack(() => {
-			void controller.refresh();
+			gesture.observe();
+			if (!current?.hasActiveEditSession) void controller.refresh();
 		});
 	});
-	onDestroy(() => controller.dispose());
+	onDestroy(() => {
+		gesture.dispose();
+		controller.dispose();
+	});
 
 	function add(event: SubmitEvent & { currentTarget: HTMLFormElement }) {
 		event.preventDefault();
@@ -72,6 +92,7 @@
 		<button disabled={busy} onclick={() => controller.create()}>Add Composition</button>
 		<button
 			disabled={view.pending ||
+				view.interacting ||
 				view.refreshing ||
 				session?.status !== 'connected' ||
 				session.loading.visible}
@@ -81,6 +102,7 @@
 			}}>Refresh</button>
 	</header>
 	{#if view.error}<p class="error" role="alert">{view.error}</p>{/if}
+	{#if gestureState.error}<p class="error" role="status">{gestureState.error}</p>{/if}
 	{#if session?.status !== 'connected'}
 		<p>Connect to MapGyver to edit Compositions.</p>
 	{:else if !view.catalog}
@@ -91,7 +113,7 @@
 		<label
 			>Composition channel
 			<select
-				disabled={view.pending}
+				disabled={view.pending || view.interacting}
 				value={view.selected ? channelKey(view.selected) : ''}
 				onchange={(event) => {
 					const channel = controller.channels.find(
@@ -109,7 +131,23 @@
 		{#if channel}
 			<div class="workspace">
 				<div class="canvas">
-					<ChannelPreview {channel} />
+					{#if view.composition}
+						{#key channel.reference.channel}
+							<CompositionPreview
+								{channel}
+								composition={view.composition}
+								selected={view.instance}
+								disabled={busy}
+								active={gestureState.active}
+								select={(id) => {
+									view.instance = id;
+								}}
+								start={(reference, handle) => gesture.start(reference, handle)}
+								move={(point) => gesture.move(point)}
+								finish={() => gesture.finish()}
+								stop={() => gesture.stop()} />
+						{/key}
+					{/if}
 					<CompositionChannelEditor
 						{channel}
 						disabled={busy}

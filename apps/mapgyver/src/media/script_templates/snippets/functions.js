@@ -19,6 +19,9 @@
 // }));
 // Inspect uses edit: { kind: "Inspect" }; DuplicateInstances, ConfigureInstance, RenameInstance,
 // ReorderInstance and RemoveInstance use the returned stable instance identity.
+// EditInstanceGeometry uses { mode: "Translate" | "Rotate" | "Scale", origin, start, point }.
+// Copy origin from the inspected instance transform; start/point are canvas-texel pointer samples.
+// The backend changes only that geometry field and returns InstanceChanged with committed state.
 
 function init() {
   // Subscribe once. No update callback or periodic polling is needed.

@@ -384,9 +384,25 @@ operations own all authored behavior. UI selection/read/mutation state is fenced
 project generation, with exclusive submissions and event-driven inspection for history/script edits.
 Closing the panel disposes its controller and preview registration. Instance rows are paged at 50;
 source search displays at most 100 matches plus the retained selection. Picker values retain exact
-IDs through catalog changes, including explicitly missing authored sources. Graphical selection
-and drag/rotate/scale with grouped history remain the next M06 slice; software controls/build checks
-do not establish real interaction or native preview-pixel correctness.
+IDs through catalog changes, including explicitly missing authored sources.
+
+Composition graphical selection/translation/rotation/scale uses `EditInstanceGeometry`: the UI
+sends the original authored transform and canvas-texel pointer start/current positions. Rust computes
+translation, signed angular change and scale along the original local axes, preserving current
+unrelated fields and rejecting invalid samples before commit. Its coalesced self-data callback
+returns one authoritative instance patch and retains initial/final state in an explicit edit group.
+The UI draws source outlines from renderer-reported resolved extents, not inferred source defaults;
+missing metadata still permits pivot/gizmo editing. At most 128 regular outlines/pivots plus the
+selected instance are mounted; the list provides access to the complete document.
+
+`golden_ui/store/latest-edit-gesture` owns the app-neutral bounded group/request lifecycle shared
+by Surface and Composition adapters: one in-flight sample plus one latest sample, revision/session
+fencing, drain on release and discard of unsent work on cancellation/closure. App adapters own
+typed intents, backend geometry and authoritative patches. Other authoring controls and catalog
+inspection defer during the shared group. Escape preserves accepted edits as one Undo group.
+Software geometry/history/script tests and bundled checks pass; real editor input and complete
+native preview/output pixels remain unverified. A bounded desktop attempt displayed the ordinary
+Composition panel but encountered a reported Windows integrity limit and no visible click result.
 
 The Screen and Surface Source editors send `EditSurfaceGeometry` with the Surface identity and
 a generated quad-corner, crop-corner or crop-origin intent. MapGyver reads the current definition
