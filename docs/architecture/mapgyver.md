@@ -445,6 +445,13 @@ does not undo OS side effects.
 
 The app-owned `ui/src/lib/applications/` supplies the dockable Applications panel, paged catalog,
 complete launch/environment/readiness/stop/restart definition form and shared-reference picker.
+Desktop executable selection uses Golden's public `openDesktopFileDialog` with an `.exe` filter;
+browser/headless clients retain explicit host-path entry. `executable-selection.ts` owns only the
+form-local path/pending state: selection does not commit configuration or launch a process.
+Pending dialogs block editing/save; cancellation preserves the draft, and disabled/disposed forms
+discard late selections. The form is keyed by application identity, instance and definition so
+project/selection replacement retires its picker. Saving uses the existing backend intent and
+validation, without inferring a working directory or changing arguments/environment.
 Arguments remain a vector; inherited and empty replacement environments remain distinct. Forms
 use backend-created defaults and IDs; newly selected Spout readiness requires explicit evidence
 and timeout inputs rather than UI policy defaults. Matrix column forms author shared associations

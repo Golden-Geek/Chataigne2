@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
+	import { hasDesktopHost, openDesktopFileDialog } from 'golden_ui/host/desktop';
 	import type { ApplicationDefinition } from '../media/generated/ApplicationDefinition';
 	import type { ApplicationReadiness } from '../media/generated/ApplicationReadiness';
 	import SpoutSenderPicker from '../media/SpoutSenderPicker.svelte';
 	import { definitionFromForm } from './definition-form';
+	import { ExecutableSelection, type ExecutableSelectionSnapshot } from './executable-selection';
 	let {
 		definition,
 		disabled,
@@ -23,11 +25,33 @@
 		untrack(() => (definition.readiness.kind === 'Spout' ? definition.readiness.sender : ''))
 	);
 	let error = $state('');
+	const initialExecutable = untrack(() => definition.executable ?? '');
+	let executableView = $state<ExecutableSelectionSnapshot>({
+		path: initialExecutable,
+		browsing: false,
+		error: null
+	});
+	const executable = new ExecutableSelection(
+		initialExecutable,
+		() =>
+			openDesktopFileDialog({
+				title: 'Choose an application executable',
+				allowedExtensions: ['exe'],
+				filterLabel: 'Applications'
+			}),
+		() => !disabled,
+		(snapshot) => {
+			executableView = snapshot;
+		}
+	);
+	const formDisabled = $derived(disabled || executableView.browsing);
+	onDestroy(() => executable.dispose());
 </script>
 
 <form
 	onsubmit={(event) => {
 		event.preventDefault();
+		if (formDisabled) return;
 		error = '';
 		try {
 			void save(
@@ -37,13 +61,24 @@
 			error = String(cause);
 		}
 	}}>
-	<fieldset {disabled}>
+	<fieldset disabled={formDisabled}>
 		<legend>Launch definition</legend>
-		<label>Executable path<input name="executable" value={definition.executable ?? ''} /></label>
+		<label
+			>Executable path<input
+				name="executable"
+				value={executableView.path}
+				oninput={(event) => executable.setPath(event.currentTarget.value)} /></label>
+		{#if hasDesktopHost()}<button type="button" onclick={() => executable.browse()}>
+				{executableView.browsing ? 'Choosing executable…' : 'Browse executable…'}
+			</button>{/if}
+		{#if executableView.error}<p role="alert">{executableView.error}</p>{/if}
 		<label>Working directory<input name="directory" value={definition.directory ?? ''} /></label>
 		<p>
 			Leave the executable empty to keep this shared definition unconfigured. Arguments are separate
 			values; shell quoting is not required.
+		</p>
+		<p>
+			Paths refer to the MapGyver host. Choosing an executable updates this draft; save to apply it.
 		</p>
 		{#each argumentsDraft as argument, index}
 			<div class="row">
@@ -71,7 +106,7 @@
 				><option>Hidden</option><option>Normal</option></select
 			></label>
 	</fieldset>
-	<fieldset {disabled}>
+	<fieldset disabled={formDisabled}>
 		<legend>Environment</legend>
 		<label
 			><input type="checkbox" name="inherit-environment" bind:checked={inherit} />Inherit the
@@ -103,7 +138,7 @@
 				}}>Add environment entry</button>
 		{/if}
 	</fieldset>
-	<fieldset {disabled}>
+	<fieldset disabled={formDisabled}>
 		<legend>Startup readiness</legend>
 		<label
 			>Ready when<select bind:value={readiness}
@@ -112,7 +147,7 @@
 				></select
 			></label>
 		{#if readiness === 'Spout'}
-			<SpoutSenderPicker bind:sender {disabled} />
+			<SpoutSenderPicker bind:sender disabled={formDisabled} />
 			<label
 				>Readiness evidence<select
 					name="readiness-evidence"
@@ -139,7 +174,7 @@
 						: ''} /></label>
 		{/if}
 	</fieldset>
-	<fieldset {disabled}>
+	<fieldset disabled={formDisabled}>
 		<legend>Stop and recovery</legend>
 		<label
 			>Graceful stop (ms)<input
@@ -182,7 +217,7 @@
 				value={definition.restart.maximum_ms} /></label>
 	</fieldset>
 	{#if error}<p role="alert">{error}</p>{/if}
-	<button {disabled}>Save application definition</button>
+	<button disabled={formDisabled}>Save application definition</button>
 	<p>
 		Saving does not launch an unloaded app. A running configuration remains retained while outgoing
 		or final render use still needs it.

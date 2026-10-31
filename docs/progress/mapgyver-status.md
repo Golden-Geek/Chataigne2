@@ -4,23 +4,24 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 shared-application availability controls, operator-visible service health,
-default headless supervision and ordered callbacks are implemented; **3/4 gates (75%)**.
+**Current topic:** M08 executable browsing and shared-application availability controls,
+operator-visible service health and default headless supervision are implemented; **3/4 gates (75%)**.
 Controller lifecycle acceptance is verified; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M08 launch-definition executable selection using Golden's public file dialog, with
-explicit path entry in browser/headless clients. The bounded target-outcome check is stopped after
-two invocations; preserve its unresolved retirement result and failed full invocation. M07 interaction
+**Next:** bounded M08 ordinary-app project-replacement/shutdown acceptance through public project
+operations. Define fixed outcomes and software prerequisites before native execution; at most two
+invocations/20 minutes. The target-outcome retirement question stays parked. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** Applications can block/allow new launches through one generated
-UI/command/script intent (batch 42). Backend snapshots distinguish local and ancestor disablement;
-Undo, duplicate and project reload preserve the local flag. The ordinary headless app verifies
-disabled admission and same-PID retention/re-enable while in use. Service failure/recovery remains
-visible. **187 app / 177 headless / 54 frontend tests** pass.
+**Last delivered capability:** the launch-definition form can browse for an executable through
+Golden's public desktop dialog (batch 44). Selection stays in the current draft until Save;
+cancellation preserves it and disabled/disposed forms reject late responses. Browser/headless
+clients retain explicit host-path entry. Availability, retained in-use processes and service health
+keep their existing backend-owned behavior. **187 app / 58 frontend tests** and Svelte/UI builds pass;
+the unchanged headless backend has **177 passing tests** from batch 43.
 **Latest acceptance evidence (batch 43):** singleton isolation, known launcher-descendant termination,
 breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
 is unresolved; the full check failed on an overly specific invalid-image error expectation. That
@@ -74,6 +75,40 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 44:** started 2026-10-31 **13:42 UTC**, recorded stop **14:27 UTC**.
+Add executable browsing to the app-owned launch-definition form through Golden's public desktop
+file-dialog API. Selection updates only the current draft; cancellation, failure, unmount and late
+responses must not mutate another application or commit/launch anything. Keep explicit host-path
+entry for browser/headless clients and backend-owned validation/configuration semantics. Verify
+the draft lifecycle with focused UI tests, Svelte/build and relevant Rust/generated checks. No native
+target-outcome rerun, desktop-automation recovery, GPU/driver or M03 investigation is scheduled.
+
+**Batch 44 result (checks complete 13:49 UTC, before the 14:27 cutoff):** the Applications launch
+definition offers a desktop `.exe` picker via `golden_ui/host/desktop`. `executable-selection.ts`
+owns only the form-local path, pending state and optional error. One pending dialog blocks duplicate
+requests and form editing/save; cancellation preserves exact paths, including spaces/Unicode.
+Selection does not submit a configuration intent, infer a working directory, change arguments or
+launch a target. The explicit Save action retains the same backend-owned configuration validation.
+
+The form's existing identity/instance/definition key disposes the previous selection owner; late
+choices and failures cannot update another application. Disabling the form discards the pending
+choice, and dialog failure releases pending state so the user can retry. Browser/headless clients
+keep explicit paths referring to the MapGyver host. No shared host/protocol/backend boundary changed.
+
+**Validation:** **58 frontend tests**, including four focused asynchronous selection suites;
+Svelte check (**zero errors/warnings**), production UI build (existing large-chunk advisory),
+**187 app tests / one existing hardware ignore**, generated drift, normal MapGyver binary compile,
+Prettier, both required Cargo formatters and whitespace checks pass. The first focused invocation
+found a Node strip-only TypeScript limitation with constructor parameter properties; explicit
+class fields repair it, and the focused/full suites pass. No native process/dialog/input or
+target-outcome invocation ran. Actual file-dialog interaction/form input remains unverified.
+
+**No gate closes:** M08 stays **3/4 = 75%**, overall **3/10 = 30%**; denominators are unchanged.
+Product deliveries are **41**; ten diagnostic-only batches are allowed, **three used**. Next is
+bounded ordinary-app project replacement/shutdown acceptance. Preserve the earlier failed complete
+target-outcome run, unverified retirement/elevated-target evidence and actual form interaction in
+gate 4; no unsupported-target, GPU or desktop-recovery detour is scheduled.
 
 **Qualification batch 43:** started 2026-10-31 **13:29 UTC**, recorded stop **14:14 UTC**.
 Use the third diagnostic allocation (40 product deliveries permit ten; two used). Verify ordinary
@@ -2495,12 +2530,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M08 executable selection** in launch-definition editing using Golden's public native
-file dialog and existing backend configuration intent. Preserve explicit path entry for non-native
-clients; choosing a path must not launch the target or commit until the user saves the definition.
-Keep app policy and path validation in the backend. The bounded unsupported-target batch is finished
-after two invocations; its full-check failure, unverified retirement and elevated-target evidence
-remain open. Do not run another diagnostic-only batch next.
+Verify **M08 ordinary-app project replacement and shutdown** through public project operations
+in one bounded acceptance batch. Keep fixed expectations for old owned-tree cleanup, external
+isolation, new-project supervision and rejection of stale launch/callback observations. Finish
+software/build prerequisites before native execution; allow at most two invocations/20 minutes.
+The executable picker product workflow is delivered; actual dialog/form input remains unverified.
+The earlier unsupported-target batch is finished after two invocations; its failed aggregate run,
+unverified retirement and elevated-target evidence stay parked and open.
 Availability controls and supervision/admission failures use the common generated contracts.
 Gate 3's lifecycle acceptance is complete. Default headless supervision/
 callback delivery and the ordinary HTTP process-ownership path work. Keep the ordered
@@ -2520,7 +2556,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Forty product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
+Forty-one product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
 batches are allowed by the ratio, three are used after the bounded M08 target-outcome batch. Continue the product path;
 retained M03 qualification is not the default work queue.
 
