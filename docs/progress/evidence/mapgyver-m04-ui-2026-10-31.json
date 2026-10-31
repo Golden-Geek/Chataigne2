@@ -1,0 +1,46 @@
+{
+  "gate": "M04.5 Media Manager UI",
+  "observed_at_utc": "2026-10-31T16:04:42Z",
+  "route": "ordinary --headless host serving bundled UI over loopback; isolated temporary APPDATA",
+  "binary": "target/debug/MapGyver.exe",
+  "binary_sha256": "56d0e7957e2e1795421c4291a1ef7b61a691c9b63113baf8f7b7540e38276f69",
+  "browser": "Chromium 149.0.7827.55, Playwright core 1.61.1",
+  "viewport": { "width": 1440, "height": 1000 },
+  "method": "Real browser clicks/fill/select/check actions; read-only public InspectManager intents verify committed state. No mocked transport or direct backend authoring.",
+  "browser_lifetimes": 2,
+  "initial_observer_failure": "Exact tab-name locator omitted the accessible close-button name; timed out before authoring. Kernel reset closed that browser, verified absent before starting its replacement. Corrected locator uses observed tab text. Host was retained.",
+  "assertion_observation": "Node REPL cross-realm prototypes caused strict comparison of structurally equal JSON to fail. Normalized both operands as JSON and verified the original committed values without repeating authoring.",
+  "checks": [
+    { "case": "Default empty Media Manager and module registration", "result": "pass" },
+    { "case": "Create Solid Color, Picture and Shared Texture through UI controls", "result": "pass" },
+    { "case": "Rename Solid media and Primary/Secondary channels with stable references", "result": "pass" },
+    { "case": "Add/select/reorder channels; retain Primary defaults while Secondary becomes fixed 320x180, Nearest, straight linear RGBA [0.25,0.5,0.75,0.5]", "result": "pass" },
+    { "case": "Delete selected Secondary; last-channel delete disabled; one UI undo restores original references and order", "result": "pass" },
+    { "case": "Picture import/assign gate50/a.png; relink gate50/b.png with stable asset/channel IDs; clear and reselect catalog asset", "result": "pass" },
+    { "case": "Spout A exact selector, admitted RGBA8/Linear/Premultiplied 4x4, fixed 64x32, Nearest; all committed values match backend inspection", "result": "pass" },
+    { "case": "Add independent Spout B; change then clear A; B's full committed channel remains identical", "result": "pass" },
+    { "case": "Delete Picture media while retaining its shared asset and unrelated Shared Texture; undo restores exact media/channel/source identity", "result": "pass" },
+    { "case": "Top-level atomic absolute-path Picture import creates asset/media/channel; one UI undo restores exact preceding catalog", "result": "pass" },
+    { "case": "Refresh and browser reload retain exact backend catalog, three media and one asset", "result": "pass" },
+    { "case": "Rendered catalog/channel editor uses wrapped controls and vertical panel scrolling; browser shows Preview unavailable", "result": "pass" }
+  ],
+  "page_errors": [],
+  "final_manager_alerts": 0,
+  "software_prerequisites": {
+    "frontend_tests": { "passed": 58, "failed": 0 },
+    "svelte_check": { "errors": 0, "warnings": 0 },
+    "prettier": "pass",
+    "ordinary_bundled_binary_build": "pass"
+  },
+  "cleanup": { "owned_browser_closed": true, "host_orderly_sentinel_exit_code": 0 },
+  "screenshots": [
+    "mapgyver-m04-ui-catalog-2026-10-31.png",
+    "mapgyver-m04-ui-channel-2026-10-31.png"
+  ],
+  "limits": [
+    "Host locators are intentionally missing files; this checks authoring, not decoding or pixels. Source pixels/lifecycle are qualified by M04 gates 2-4.",
+    "Browser route has no native preview, file dialog or discovered-sender picker. No native picker/discovery widget interaction or desktop preview input is inferred.",
+    "Browser reload is not engine project reload; complete cross-source UI/script/headless and host-mode intent parity remains M04 gate 6.",
+    "No performance, physical-display or other phase acceptance is inferred."
+  ]
+}

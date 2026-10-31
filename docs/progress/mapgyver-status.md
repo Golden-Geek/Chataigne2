@@ -4,20 +4,20 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic / only active phase:** M04 source acceptance; **4/6 gates (67%)**.
-Module, Solid Color, Picture and Shared Texture gates 1–4 are verified; Media Manager UI gate 5 is next.
+**Current topic / only active phase:** M04 source acceptance; **5/6 gates (83%)**.
+Module, all three sources and Media Manager UI gates 1–5 are verified; full intent parity gate 6 is next.
 **Execution mode:** completion first, per the user's 2026-10-31 directive. Close dependency-ready
 acceptance within the current phase; do not create incidental features or expand several phases.
 Other incomplete milestones remain an explicit return queue, not simultaneously active work.
 M08 has **3/4 gates (75%)**; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
-changes work order, not acceptance. M04's UI and complete cross-source
+changes work order, not acceptance. M04's complete cross-source
 parity/recovery acceptance remain open.
 
-**Next:** M04 Media Manager UI gate 5: map existing UI/backend checks, then verify inspection,
-channel/source/size/rename/reorder/delete operations through the actual app-owned interface.
-Keep browser/native interaction focused on the existing controls; no desktop-recovery detour.
+**Next:** M04 intent parity gate 6: map backend/command/QuickJS/headless operations, callbacks,
+history/project roundtrip and native recreation against the actual source/UI evidence. Verify
+missing parity cases without repeating the passing source qualifications or desktop recovery.
 The M08 target-outcome
 retirement question stays parked. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
@@ -27,13 +27,13 @@ option and returns normally after cancelling app services, listener, sockets and
 cleanup and external survival. **187 app / 177 headless / 95 transport / 32 desktop-host tests**,
 public API, strict Clippy and Chataigne compilation pass. Frontend remains **58 passing tests**
 from batch 44. Native app graceful-close acknowledgement/full retirement qualification stays open.
-**Latest acceptance evidence (batch 49):** Shared Texture gate 4 passes its first/only native run
-in **80.70 s** on Intel and NVIDIA: **60 complete images**, exact-name discovery/rename behavior,
-restart/resize/oversize recovery, independent healthy-channel continuity and both cross-adapter
-rejection directions with source-local HRESULT `0x80070057`, no fallback and successful recovery.
-**188 app / 161 Video unit + four public Video tests**, strict all-target/all-feature Clippy and
-both formatters pass. No production code, tolerance or budget changed. Picture gate 3 remains
-accepted by batch 48's 54 images / 33,177,836 texels. UI and complete intent parity retain gates 5–6.
+**Latest acceptance evidence (batch 50):** real bundled Media Manager browser controls pass create,
+inspect, rename, channel selection/settings/reorder/delete, Picture import/assign/relink, independent
+Spout selectors and clear, atomic import/undo, media deletion/undo and browser reload. Read-only
+backend inspection confirms committed values and stable references; **58 frontend tests**, Svelte
+zero errors/warnings, Prettier and ordinary bundled build pass. Owned browser closes; isolated
+host exits zero through its sentinel. This does not verify native picker/preview input; complete
+intent parity remains gate 6. Source gates retain batch 48/49's Intel/NVIDIA pixel/lifecycle evidence.
 **Retained M08 evidence (batch 43):** singleton isolation, known launcher-descendant termination,
 breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
 is unresolved; the full check failed on an overly specific invalid-image error expectation. That
@@ -68,7 +68,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Active closure: module/all three sources accepted; UI next | `█████████████░░░░░░░` 67% | 4/6 |
+| [M04 Source media](#m04-acceptance-items) | Active closure: module/sources/UI accepted; full parity next | `█████████████████░░░` 83% | 5/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
@@ -77,7 +77,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 4 / 6 = 67%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 5 / 6 = 83%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -2054,6 +2054,76 @@ physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
 
+**Qualification batch 50:** started 2026-10-31 **15:54 UTC**, recorded stop **16:39 UTC**.
+M04 Media Manager UI gate 5 is the only active acceptance work. Owners: app-owned media components
+and their existing backend intent contract. Map controls/software coverage, then verify inspection,
+channel/source/size/rename/reorder/delete through the running interface. Prefer the app's supported
+browser/headless route if it permits ordinary UI input without native integrity barriers; preserve
+native preview qualification limits. Record fixed interaction cases/prerequisites before execution;
+at most two interaction experiments/20 minutes and the 16:39 batch stop. Fix demonstrated defects
+at their owning boundary; no UI/domain duplication, desktop recovery or other phase expansion.
+Previous goal turn is progress: pushed `a9a280d6` closes Shared Texture gate 4 with actual evidence.
+
+**Batch 50 fixed interaction matrix, before execution:** use a fresh isolated ordinary headless
+host serving its bundled UI, and the existing Playwright Chromium installation (the in-app browser
+is unavailable). Through actual controls: inspect the default empty Media Manager; create Solid
+Color/Picture/Shared Texture; rename media and channels; add/select/reorder/delete a channel while
+retaining one; author independent Solid RGBA and automatic/fixed extents/filter; import/assign,
+select and relink a Picture host locator; set/change/clear an exact Spout selector and its admitted
+layout; delete a media and inspect the resulting catalog. Correlate committed UI results with
+read-only public backend inspection and verify stable references/peer independence. Observe the
+rendered layout and browser-native-preview limitation; no native picker/discovery/preview input
+claim is inferred from the browser route. Undo/reload may confirm authoring continuity, while
+complete cross-source script/headless parity remains gate 6. Only owned throwaway project data
+is edited. Keep 1440×1000 browser input fixed; capture observations without a new framework.
+
+Prerequisites pass: rebuilt ordinary MapGyver bundled binary, Svelte **zero errors/warnings**,
+Prettier and **58 frontend tests**. Interaction baseline starts **15:57 UTC**, cutoff **16:17 UTC**,
+also bounded by 16:39. The owned host is `http://127.0.0.1:59475`, executive session **57325**, with
+private temporary APPDATA and its recorded orderly-shutdown sentinel. No user project is opened.
+
+**Batch 50 result — Media Manager UI gate 5 accepted, 16:04 UTC:** actual browser input through
+the bundled UI passes the fixed matrix, with public **read-only** `InspectManager` calls confirming
+committed backend values. [Compact evidence](evidence/mapgyver-m04-ui-2026-10-31.json) records the
+binary/browser, cases, observer failures and limits; [catalog](evidence/mapgyver-m04-ui-catalog-2026-10-31.png)
+and [channel editor](evidence/mapgyver-m04-ui-channel-2026-10-31.png) captures show the actual layout.
+No mock transport or direct backend authoring substitutes for the UI actions.
+
+- Empty/default manager, creation of all three M04 source media, media/channel renaming, add/select/
+  reorder/delete and last-channel protection pass. Independent Solid settings preserve the Primary
+  defaults while Secondary becomes Fixed 320×180 / Nearest / RGBA `[.25,.5,.75,.5]`. Delete/undo
+  restores exact channel IDs and order.
+- Picture import/assign and relink retain the asset/channel IDs; clearing/reselecting the catalog
+  asset works. Top-level absolute-path import creates asset/media/channel atomically; one UI undo
+  restores the exact prior catalog. Paths deliberately refer to missing files: decoding/pixels are
+  owned by gate 3, not inferred from this authoring check.
+- Shared Texture sends exact user-selected sender/layout/size/filter values. Selecting, changing
+  and clearing A leaves B's complete committed channel unchanged. Browser mode explicitly offers
+  manual host selectors/locators and shows `Preview unavailable`; native picker/discovered-sender
+  widget and preview input are not claimed. Full intent parity remains gate 6; those platform
+  helpers are evidence limits, not new acceptance prerequisites added by this batch.
+- Media deletion retains the reusable shared asset and unrelated media; undo restores the exact
+  media/channel/source identity. Refresh and browser reload retain the committed catalog. Browser
+  reload does not constitute engine project reload. No page errors or final manager alerts occur.
+
+Two owned browser lifetimes are used within the original interaction window. The first exact tab
+name locator omitted its accessible close-button name and timed out before authoring; kernel reset
+closed that browser, verified absent before replacement. The second uses observed tab text and
+completes the fixed matrix. A Node REPL cross-realm strict-equality issue is resolved by normalizing
+both JSON operands and checking original committed values; no authoring is repeated to mask it.
+No production source change, new browser dependency, platform-security change or UI recovery
+framework is needed. The headless host stays live throughout, then exits **0** after its supported
+shutdown sentinel; the owned browser is closed.
+
+Validation: ordinary bundled MapGyver build, **58 frontend tests**, Svelte **0 errors/0 warnings**,
+Prettier, both Cargo formatters and whitespace checks pass. Rust/native source behavior was not
+changed or redundantly requalified. Binary SHA-256:
+`56d0e7957e2e1795421c4291a1ef7b61a691c9b63113baf8f7b7540e38276f69`.
+Only M04 gate 5 closes: **5/6 = 83%**; overall remains **3/10 = 30%**, denominators unchanged.
+Stay in M04 for full UI/script/headless/history/native-recreation intent parity gate 6. Other
+phase acceptance and physical/performance qualification stay open. Native picker/preview input
+was not observed; derive remaining prerequisites from the original gates without expanding scope.
+
 **Qualification batch 49:** started 2026-10-31 **15:45 UTC**, recorded stop **16:30 UTC**.
 M04 gate 4 Shared Texture is the only active acceptance work. Owners: app media capture/rendering
 and Golden Video's existing native discovery/input supervision. Map prior evidence to independent
@@ -2334,7 +2404,7 @@ overall remains fully accepted phases divided by ten.
 | 2 | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path | Accepted — batch 47: full-image color/alpha/extents/sharing/reload/recreation on Intel and NVIDIA |
 | 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA |
 | 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Accepted — batch 49: fixed app/native pixel/lifecycle matrix on Intel and NVIDIA, including both cross-adapter rejection directions and healthy peer continuity |
-| 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Open |
+| 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Accepted — batch 50: real bundled browser UI authoring with read-only backend correlation, stable references/peer independence, deletion guards, undo and reload; complete intent parity remains gate 6 |
 | 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Open |
 
 #### Media module commands and scripts — 2026-10-30
@@ -2864,7 +2934,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
-| M04 Source media | IN_PROGRESS | [Source acceptance](#m04-acceptance-items): module and all three source gates 1–4 accepted (4/6); Media Manager UI is next in the only active phase. Complete parity remains open. |
+| M04 Source media | IN_PROGRESS | [Source acceptance](#m04-acceptance-items): module, all sources and Media Manager UI gates 1–5 accepted (5/6); full intent parity is next in the only active phase. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
@@ -2873,13 +2943,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Close **M04 Media Manager UI gate 5**: inspect existing app-owned controls and software evidence,
-then verify inspection/channel/source/size/rename/reorder/delete operations through the real
-interface using backend intents and generated contracts. Resolve any demonstrated defect at its
-owning boundary. Keep interaction finite and focused; do not turn missing UI evidence into another
-desktop-recovery investigation. Source gates 2–4 are accepted; do not rerun them to accumulate evidence.
+Close **M04 intent parity gate 6**: map backend/commands/QuickJS/headless intents and callbacks,
+stable project/history references and native resource recreation against the accepted source/UI
+evidence. Identify and verify missing cases from the original gate scope, preserving explicit
+native picker/preview-input evidence limits without inventing new prerequisites. Do not rerun
+passing source pixel checks or begin desktop recovery
+merely to accumulate evidence. Gate 5's real browser authoring does not alone close full parity.
 
-Keep M04 as the only active phase. Continue its UI and cross-source parity gates
+Keep M04 as the only active phase. Finish its cross-source parity gate
 in order; a genuinely blocked gate must name its missing prerequisite and remain in the
 return queue. Remaining M03/M05/M06/M07/M08 requirements and M09 full-app qualification all remain
 required. Missing UI/physical evidence stays open. No new incidental product feature, parked
