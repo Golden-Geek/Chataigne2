@@ -10,6 +10,7 @@ use golden_core::{
     ui_sync::UiEditIntent,
 };
 
+mod availability;
 mod demand;
 mod headless;
 mod logical;

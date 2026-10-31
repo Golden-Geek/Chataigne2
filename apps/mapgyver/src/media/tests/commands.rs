@@ -1,4 +1,5 @@
 use super::*;
+mod availability;
 use crate::app::AppNode;
 use crate::media::{authoring::manager, commands::MEDIA_COMMAND_TYPE, scripting};
 use golden_core::{

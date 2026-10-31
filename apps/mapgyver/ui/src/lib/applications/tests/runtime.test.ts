@@ -238,7 +238,7 @@ test('configuration presentation uses worker policy and hides stale saved-revisi
 	const saved: ApplicationSnapshot = {
 		id: 'app',
 		label: 'App',
-		enabled: true,
+		enablement: 'Enabled',
 		revision: 4,
 		definition_instance: 'definition-lifetime',
 		definition: {

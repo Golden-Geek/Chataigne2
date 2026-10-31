@@ -59,7 +59,9 @@ impl PreparedApplications {
             {
                 Some(AppNode::Application(node)) => {
                     let snapshot = node.snapshot();
-                    let definition = if snapshot.enabled && snapshot.definition.executable.is_some() {
+                    let definition = if snapshot.enablement == ApplicationEnablement::Enabled
+                        && snapshot.definition.executable.is_some()
+                    {
                         snapshot.definition.validate()?;
                         Some(Arc::new(snapshot.definition))
                     } else {

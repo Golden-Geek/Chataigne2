@@ -116,7 +116,24 @@
 					{@const application = view.snapshot}
 					<h3>{application.label}</h3>
 					<small
-						>Shared ID: {application.id} · {application.enabled ? 'Enabled' : 'Disabled'}</small>
+						>Shared ID: {application.id} · {application.enablement === 'Enabled'
+							? 'Enabled'
+							: 'Disabled'}</small>
+					<button
+						disabled={busy}
+						onclick={() =>
+							controller.edit({
+								kind: 'SetEnabled',
+								application: application.id,
+								enabled: application.enablement === 'Disabled'
+							})}
+						>{application.enablement === 'Disabled'
+							? 'Allow new launches'
+							: 'Block new launches'}</button>
+					{#if application.enablement === 'DisabledByParent'}<p>
+							Enabled locally; the disabled parent blocks new launches.
+						</p>{/if}
+					<p>Processes already in use follow their existing column and render holds.</p>
 					<form
 						onsubmit={(event) => {
 							event.preventDefault();

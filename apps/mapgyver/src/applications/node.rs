@@ -37,7 +37,13 @@ impl ApplicationNode {
         ApplicationSnapshot {
             id: ApplicationId(self.data.meta.uuid),
             label: self.data.meta.label.clone(),
-            enabled: self.data.effective_enabled,
+            enablement: if !self.data.meta.enabled {
+                ApplicationEnablement::Disabled
+            } else if !self.data.effective_enabled {
+                ApplicationEnablement::DisabledByParent
+            } else {
+                ApplicationEnablement::Enabled
+            },
             revision: self.revision.reader().current(),
             definition_instance: self.definition_instance,
             definition: self.definition.clone(),

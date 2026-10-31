@@ -138,10 +138,18 @@ pub struct ColumnApplication {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ApplicationEnablement {
+    Enabled,
+    Disabled,
+    /// The local flag is enabled, but an ancestor prevents admission.
+    DisabledByParent,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApplicationSnapshot {
     pub id: ApplicationId,
     pub label: String,
-    pub enabled: bool,
+    pub enablement: ApplicationEnablement,
     pub revision: u64,
     /// Ephemeral node lifetime; Undo/reload can recreate the same persistent application ID.
     pub definition_instance: uuid::Uuid,
@@ -266,6 +274,10 @@ pub struct ApplicationCallbackTicket {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
+    SetEnabled {
+        application: ApplicationId,
+        enabled: bool,
+    },
     DispatchCallbacks {
         ticket: ApplicationCallbackTicket,
     },

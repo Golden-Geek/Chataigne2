@@ -5,7 +5,7 @@ use crate::{
 };
 use golden_core::{
     edit::{Edit, NodeTree},
-    node::{Node, NodeId},
+    node::{Node, NodeId, NodeMetaPatch},
     ui_sync::UiEditIntent,
 };
 use std::collections::HashSet;
@@ -33,6 +33,7 @@ fn create(
     engine: &mut AppEngine,
     label: Option<String>,
     definition: ApplicationDefinition,
+    enabled: bool,
 ) -> Result<MediaEditResult, String> {
     let manager = crate::media::authoring::manager(engine)?;
     let count = engine
@@ -44,7 +45,8 @@ fn create(
         return Err("application catalog exceeds 4096 definitions".into());
     }
     let label = labels::unique(engine, manager, label, "Application", &[])?;
-    let node = ApplicationNode::new(label, definition);
+    let mut node = ApplicationNode::new(label, definition);
+    node.node_data_mut().meta.enabled = enabled;
     let application = ApplicationId(node.node_data().meta.uuid);
     engine.edits.push(Edit::AddNodeTree {
         parent: manager,
@@ -55,6 +57,19 @@ fn create(
 }
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
+        ApplicationEdit::SetEnabled { application, enabled } => {
+            let node = node_id(engine, application)?;
+            if engine.nodes.get(node).unwrap().node_data().meta.enabled != enabled {
+                engine.edits.push(Edit::PatchMeta {
+                    node,
+                    patch: NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                });
+            }
+            Ok(MediaEditResult::Changed)
+        }
         ApplicationEdit::DispatchCallbacks { ticket } => super::runtime::callbacks::dispatch(engine, ticket),
         ApplicationEdit::InspectCallbacks {} => {
             let manager = crate::media::authoring::manager(engine)?;
@@ -97,7 +112,7 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
                 snapshot: node.applications.snapshot(node.instance),
             })
         }
-        ApplicationEdit::Create { label } => create(engine, label, Default::default()),
+        ApplicationEdit::Create { label } => create(engine, label, Default::default(), true),
         ApplicationEdit::Inspect { application } => Ok(MediaEditResult::Application {
             snapshot: inspect(engine, application)?,
         }),
@@ -165,7 +180,12 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
         }
         ApplicationEdit::Duplicate { application } => {
             let snapshot = inspect(engine, application)?;
-            create(engine, Some(format!("{} copy", snapshot.label)), snapshot.definition)
+            create(
+                engine,
+                Some(format!("{} copy", snapshot.label)),
+                snapshot.definition,
+                snapshot.enablement != ApplicationEnablement::Disabled,
+            )
         }
     }
 }

@@ -5,6 +5,11 @@
 // Request ids correlate callbacks; choose distinct ids for concurrent calls.
 //
 // Examples (defaults and identities are allocated by the backend):
+// local.editMedia("availability", JSON.stringify({kind:"Applications",
+//   edit:{kind:"SetEnabled", application:applicationId, enabled:false}}));
+// Inspect returns enablement: "Enabled", "Disabled" or "DisabledByParent". Availability governs
+// new starts; existing in-use processes follow their column/render holds. The generic Media
+// Operation command accepts the same request and delivers onAppOperationResult after commit.
 // local.editMedia("create", JSON.stringify({
 //   kind: "CreateMedia", media_kind: "SolidColor", label: null
 // }));

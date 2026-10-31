@@ -28,7 +28,7 @@ const connection = () => ({
 const snapshot = (id: string): ApplicationSnapshot => ({
 	id,
 	label: id,
-	enabled: true,
+	enablement: 'Enabled',
 	revision: 1,
 	definition_instance: 'definition-lifetime',
 	definition: {
@@ -41,6 +41,49 @@ const snapshot = (id: string): ApplicationSnapshot => ({
 		stop: { graceful_ms: 2000, retirement_ms: 5000 },
 		restart: { enabled: true, initial_ms: 500, maximum_ms: 30000 }
 	}
+});
+
+test('availability sends the explicit intent, waits for backend state and fences replies after selection changes', async () => {
+	const session = connection(),
+		state = applicationState(),
+		calls: MediaEdit[] = [];
+	const pending = deferred<MediaEditResult>();
+	const controller = new ApplicationController(
+		() => session,
+		state,
+		catalogState(),
+		async (_session, edit) => {
+			calls.push(edit);
+			if (edit.kind !== 'Applications') throw new Error('wrong route');
+			if (edit.edit.kind === 'SetEnabled') return pending.promise;
+			if (edit.edit.kind === 'Inspect')
+				return { kind: 'Application', snapshot: snapshot(edit.edit.application) };
+			return { kind: 'Applications', page: { applications: [], total: 0, start: 0 } };
+		}
+	);
+	controller.select('first');
+	await flush();
+	const work = controller.edit({ kind: 'SetEnabled', application: 'first', enabled: false });
+	assert.equal(
+		state.snapshot?.enablement,
+		'Enabled',
+		'the UI cannot predict a committed availability outcome'
+	);
+	await controller.edit({ kind: 'SetEnabled', application: 'first', enabled: false });
+	assert.equal(
+		calls.filter((edit) => edit.kind === 'Applications' && edit.edit.kind === 'SetEnabled').length,
+		1
+	);
+	controller.select('second');
+	await flush();
+	pending.reject(new Error('first selection rejected'));
+	await work;
+	await flush();
+	assert.equal(state.selected, 'second');
+	assert.equal(state.snapshot?.id, 'second');
+	assert.equal(state.error, '');
+	assert.equal(state.snapshot?.enablement, 'Enabled');
+	controller.dispose();
 });
 
 test('catalog search bursts retain one active read and latest 64-item page; replaced projects reject late results', async () => {

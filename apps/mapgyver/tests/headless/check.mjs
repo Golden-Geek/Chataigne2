@@ -152,11 +152,35 @@ try {
 	assert(alive(external.pid), 'same-executable external process must survive owned unload');
 	await delay(200);
 	assert.equal((await waitFor('Idle')).applications[0].phase, 'Idle');
-	await launch(columns[0]);
+	await applications({ kind: 'SetEnabled', application, enabled: false });
+	assert.equal(
+		(await applications({ kind: 'Inspect', application })).snapshot.enablement,
+		'Disabled'
+	);
+	await launch(columns[1]);
+	assert.equal((await waitFor('Unavailable')).applications[0].process_id, null);
+	await applications({ kind: 'SetEnabled', application, enabled: true });
 	const restarted = await waitFor('Ready');
 	const second = restarted.applications[0];
 	assert.notEqual(second.launch, first.launch);
 	assert(restarted.callbacks.acknowledged > unloaded.callbacks.acknowledged);
+	async function configuration(expected) {
+		const deadline = Date.now() + 5000;
+		while (true) {
+			const { snapshot } = await applications({ kind: 'InspectRuntime' });
+			const status = snapshot.applications.find((entry) => entry.application === application);
+			if (status.configuration === expected) {
+				assert.equal(status.process_id, second.process_id);
+				return;
+			}
+			assert(Date.now() < deadline, `availability did not reconcile to ${expected}`);
+			await delay(25);
+		}
+	}
+	await applications({ kind: 'SetEnabled', application, enabled: false });
+	await configuration('Retained');
+	await applications({ kind: 'SetEnabled', application, enabled: true });
+	await configuration('Current');
 	const extra = [];
 	for (let i = 0; i < 65; i++)
 		extra.push((await applications({ kind: 'Create', label: null })).application);
@@ -231,6 +255,7 @@ try {
 			second: second.process_id,
 			acknowledged: restarted.callbacks.acknowledged,
 			admission_recovered: true,
+			availability_verified: true,
 			admission_message: admissionMessage
 		})
 	);

@@ -421,13 +421,27 @@ Do not copy or path-import Chataigne's private App Control implementation.
 
 MapGyver's `applications` module implements shared persistent definitions under Media Manager and
 stable column associations. `MediaEdit::Applications` exposes create/configure/rename/duplicate/
-remove/inspect, a bounded catalog page and a batch lookup of at most 64 saved references through
+remove/inspect/set-enabled, a bounded catalog page and a batch lookup of at most 64 saved references through
 the existing generated UI, command, script and
 callback boundary. A copied column shares its application ID; deleting a definition retains an
 explicit missing reference for Undo/reload. Authored configuration never launches a process.
 Definition validation reuses Golden IO's pure launch validation, without probing or opening the
 executable. Reference lookup returns explicit missing definitions in request order without fetching
 the whole catalog, materializing columns/cells or launching anything.
+
+Availability uses the same `ApplicationEdit::SetEnabled` intent in the Applications panel,
+generic Media Operation command and `local.editMedia` script method. Golden metadata owns the
+local flag and effective inheritance. Detailed snapshots return `Enabled`, `Disabled` or
+`DisabledByParent`; a locally enabled definition cannot override a disabled ancestor. The app
+authors one ordinary metadata edit, with no-op/history/Undo behavior shared by every caller.
+Disabled definitions and their local flags survive duplicate and sparse project reload; stable
+application IDs and saved column associations remain independent.
+
+Availability governs new admission. Active captured scopes can retain their existing process
+configuration; outgoing/final-render holds keep their existing retirement guarantees. Unloading
+releases that demand, and disabled definitions cannot start a replacement. Re-enabling uses fresh
+admission guards without forcing a restart of an unchanged in-use configuration. Authored Undo
+does not undo OS side effects.
 
 The app-owned `ui/src/lib/applications/` supplies the dockable Applications panel, paged catalog,
 complete launch/environment/readiness/stop/restart definition form and shared-reference picker.
