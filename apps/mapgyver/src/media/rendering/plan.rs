@@ -77,6 +77,7 @@ pub(super) fn build(
     submission.guards = capture.guards.clone();
     let mut guards = capture.guards.to_vec();
     let mut image_sources = HashMap::new();
+    let mut prepared_channels = HashMap::new();
     for route in routes {
         if !seen_outputs.insert(route.output) {
             return Err("output routes must be unique".into());
@@ -93,6 +94,44 @@ pub(super) fn build(
         guards.extend(route.screen.guards.iter().cloned());
         references.extend(route.screen.references());
     }
+    let roots = references;
+    let mut screen_ids = HashSet::new();
+    let reserved = capture
+        .channels
+        .iter()
+        .filter(|channel| {
+            channel.enabled
+                && channel.definition.as_ref().is_some_and(|definition| {
+                    matches!(
+                        definition.source,
+                        ChannelSource::Picture { asset: Some(_) } | ChannelSource::Spout { sender: Some(_), .. }
+                    )
+                })
+        })
+        .count()
+        + screens
+            .iter()
+            .filter(|route| screen_ids.insert(route.screen.id))
+            .map(|route| route.screen.layer_count())
+            .sum::<usize>()
+        + preview.map_or(0, |preview| preview.layout.views.len().saturating_add(2));
+    let image_guards = capture
+        .assets
+        .iter()
+        .filter_map(|asset| pictures.and_then(|pictures| pictures.get(asset.record.id)))
+        .map(|image| image.guards().len())
+        .sum::<usize>();
+    let guard_budget = limits
+        .max_dependencies
+        .saturating_sub(guards.len())
+        .saturating_sub(observations.sources.len())
+        .saturating_sub(image_guards);
+    let (references, mut rejected) = super::composition::ordered(
+        capture,
+        &roots,
+        limits.max_dependencies.saturating_sub(reserved),
+        guard_budget,
+    )?;
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
             let channel = captured
@@ -173,12 +212,29 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
-                Some(ChannelSource::Composition { .. }) => {
-                    // Authoring is available before the demanded Composition producer is integrated.
-                    // Retain the same truthful unavailable-channel presentation as missing media.
+                Some(ChannelSource::Composition { canvas }) => {
                     entry.source = None;
-                    resolution =
-                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                    let definition = channel.definition.as_ref().unwrap();
+                    resolution = resolution::resolve(definition, SourceObservation::Unavailable)?;
+                    if !rejected.contains(&reference) {
+                        match super::composition::layers(channel, *canvas, definition.filter, &prepared_channels) {
+                            Ok(layers) => {
+                                guards.extend(channel.instance_guards.iter().cloned());
+                                let descriptor = TextureDescriptor {
+                                    extent: resolution.extent.unwrap(),
+                                    format: PixelFormat::Rgba8Unorm,
+                                    color_encoding: ColorEncoding::Linear,
+                                    alpha_mode: AlphaMode::Premultiplied,
+                                };
+                                resolution = resolution::resolve(definition, SourceObservation::Available(descriptor))?;
+                                operation = RenderOperation::Composite { layers };
+                            }
+                            Err(_) => {
+                                resolution.availability = ChannelAvailability::Incompatible;
+                                rejected.insert(reference);
+                            }
+                        }
+                    }
                 }
                 Some(
                     source @ ChannelSource::Spout {
@@ -252,15 +308,32 @@ pub(super) fn build(
                 },
                 operation,
             });
-            channels.push(PreparedChannel {
+            let prepared = PreparedChannel {
                 reference,
                 resolution,
                 target: entry.target,
                 source: entry.source.as_ref().map(|(id, _)| *id),
-            });
+            };
+            prepared_channels.insert(reference, prepared);
+            channels.push(prepared);
             slot.insert(entry);
         }
     }
+    // A rejected Composition never keeps otherwise-undemanded inputs or IO alive.
+    let live = super::composition::reachable(capture, &roots, &rejected);
+    entries.retain(|reference, _| live.contains(reference));
+    channels.retain(|channel| live.contains(&channel.reference));
+    let targets = entries.values().map(|entry| entry.target).collect::<HashSet<_>>();
+    let sources = entries
+        .values()
+        .filter_map(|entry| entry.source.as_ref().map(|(source, _)| *source))
+        .collect::<HashSet<_>>();
+    submission.plan.passes.retain(|pass| targets.contains(&pass.output));
+    submission
+        .plan
+        .external_textures
+        .retain(|source| sources.contains(&source.id));
+    submission.source_demands.retain(|source| sources.contains(source));
     for route in routes {
         submission.plan.outputs.push(PlanOutput {
             id: route.output,

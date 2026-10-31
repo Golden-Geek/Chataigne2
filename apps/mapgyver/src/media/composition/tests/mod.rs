@@ -215,7 +215,7 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
 }
 
 #[test]
-fn an_unimplemented_producer_is_truthfully_unavailable_even_with_a_known_canvas() {
+fn an_unprepared_composition_is_unavailable_even_with_a_known_canvas() {
     use crate::media::resolution::{ChannelAvailability, SourceObservation, resolve};
     let definition = ChannelDefinition::for_media(MediaKind::Composition);
     let resolution = resolve(&definition, SourceObservation::Unavailable).unwrap();

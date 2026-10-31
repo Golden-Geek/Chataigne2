@@ -42,10 +42,12 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
             .publish_screen_targets(capture.channels, vec![], capture.screens, None)
             .unwrap();
         installed(&renderer, request);
-        assert_eq!(
-            renderer.snapshot().resources.unwrap().active.unwrap().output_count,
-            expected
-        );
+        wait(|| {
+            renderer
+                .snapshot()
+                .resources
+                .is_some_and(|resources| resources.active.map_or(0, |active| active.output_count) == expected)
+        });
         assert_eq!(renderer.channels().len(), expected);
     }
     close(renderer);

@@ -6,6 +6,15 @@ fn unavailable_composition_preserves_healthy_output_publication() {
     let mut engine = engine();
     let composition = create(&mut engine, MediaKind::Composition);
     let solid = create(&mut engine, MediaKind::SolidColor);
+    edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: composition,
+            edit: crate::media::composition::protocol::CompositionEdit::AddInstances {
+                sources: vec![solid; 65],
+            },
+        },
+    );
     resize(&mut engine, composition, 4);
     resize(&mut engine, solid, 2);
     let mut renderer = renderer();

@@ -151,6 +151,9 @@ pub fn capture_outputs(
 }
 
 impl CapturedScreen {
+    pub(crate) fn layer_count(&self) -> usize {
+        self.surfaces.iter().filter(|surface| surface.enabled).count()
+    }
     pub fn preview_extent(&self) -> Extent2D {
         self.target_extent
             .unwrap_or_else(crate::media::resolution::default_canvas)

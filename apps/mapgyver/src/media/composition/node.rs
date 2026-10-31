@@ -1,7 +1,7 @@
 use super::protocol::{InstanceDefinition, InstanceId};
 use golden_core::node::{Node, NodeData};
 use golden_core::process_ctx::ProcessCtx;
-use golden_io::RevisionSource;
+use golden_io::{RevisionGuard, RevisionSource};
 use serde_json::Value;
 use std::any::Any;
 
@@ -26,6 +26,10 @@ impl InstanceNode {
     }
     pub(crate) fn definition(&self) -> &InstanceDefinition {
         &self.definition
+    }
+    pub(crate) fn guard(&self) -> RevisionGuard {
+        let reader = self.revision.reader();
+        reader.guard_at(reader.current())
     }
     pub(crate) fn set_definition(&mut self, definition: InstanceDefinition) {
         if self.definition != definition {

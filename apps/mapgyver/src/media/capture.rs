@@ -1,6 +1,7 @@
-//! Capture only demanded authored leaves after backend transaction settlement. No plan
+//! Capture bounded demanded authored dependencies after backend transaction settlement. No plan
 //! construction, whole-tree snapshot, device access or wait occurs on the engine owner.
 
+use super::composition::protocol::InstanceDefinition;
 use super::protocol::{AssetId, AssetRecord, ChannelDefinition, ChannelReference, ChannelSource};
 use crate::app::{AppEngine, AppNode};
 use golden_core::model::NodeUuid;
@@ -28,11 +29,19 @@ pub(super) struct CapturedChannel {
     pub reference: ChannelReference,
     pub definition: Option<ChannelDefinition>,
     pub enabled: bool,
+    /// Admitted active Composition instances; None for leaves or rejected instance admission.
+    pub instances: Option<Vec<InstanceDefinition>>,
+    pub instance_guards: Vec<RevisionGuard>,
 }
 
 impl CapturedChannels {
     pub fn is_current(&self) -> bool {
         self.guards.iter().all(RevisionGuard::is_current)
+            && self
+                .channels
+                .iter()
+                .flat_map(|channel| &channel.instance_guards)
+                .all(RevisionGuard::is_current)
     }
 }
 
@@ -53,10 +62,15 @@ pub fn capture_channels(
     let mut channels = Vec::new();
     let mut assets = Vec::new();
     let mut seen_assets = HashSet::<AssetId>::new();
+    let mut pending = std::collections::VecDeque::new();
     for &reference in references {
-        if !seen.insert(reference) {
-            continue;
+        if seen.insert(reference) {
+            pending.push_back(reference);
         }
+    }
+    // Authored graphs may be much larger than one active renderer scene.
+    let mut instance_budget = 4096usize;
+    while let Some(reference) = pending.pop_front() {
         let media = engine
             .node_id_by_uuid(reference.media.0)
             .and_then(|id| engine.nodes.get(id));
@@ -88,6 +102,58 @@ pub fn capture_channels(
             Some((definition, enabled)) => (Some(definition), enabled),
             None => (None, false),
         };
+        let mut instances = None;
+        let mut instance_guards = Vec::new();
+        if enabled
+            && definition
+                .as_ref()
+                .is_some_and(|definition| matches!(definition.source, ChannelSource::Composition { .. }))
+        {
+            let channel = engine
+                .node_id_by_uuid(reference.channel.0)
+                .and_then(|id| engine.nodes.get(id))
+                .unwrap();
+            let mut next = channel.node_data().first_child;
+            let mut active = Vec::new();
+            let mut admitted = true;
+            while let Some(id) = next {
+                if instance_budget == 0 {
+                    admitted = false;
+                    break;
+                }
+                instance_budget -= 1;
+                let Some(AppNode::CompositionInstance(node)) = engine.nodes.get(id) else {
+                    admitted = false;
+                    break;
+                };
+                next = node.node_data().next_sibling;
+                instance_guards.push(node.guard());
+                let definition = node.definition();
+                if node.node_data().effective_enabled
+                    && definition.enabled
+                    && definition.opacity > 0.0
+                    && definition.source.is_some()
+                {
+                    active.push(definition.clone());
+                }
+            }
+            let additions = active
+                .iter()
+                .filter_map(|instance| instance.source)
+                .filter(|source| !seen.contains(source))
+                .collect::<HashSet<_>>();
+            if seen.len().saturating_add(additions.len()) > limit {
+                admitted = false;
+            }
+            if admitted {
+                for source in active.iter().filter_map(|instance| instance.source) {
+                    if seen.insert(source) {
+                        pending.push_back(source);
+                    }
+                }
+                instances = Some(active);
+            }
+        }
         if enabled
             && let Some(ChannelDefinition {
                 source: ChannelSource::Picture { asset: Some(asset) },
@@ -117,6 +183,8 @@ pub fn capture_channels(
             reference,
             definition,
             enabled,
+            instances,
+            instance_guards,
         });
     }
     Ok(CapturedChannels {

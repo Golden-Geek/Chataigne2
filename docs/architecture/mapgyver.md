@@ -19,7 +19,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | Boundary | Responsibility |
 | --- | --- |
 | `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
-| `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, demanded-leaf capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
+| `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screen/` (planned) | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` (planned) | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
@@ -129,7 +129,7 @@ extent: Automatic may remain unresolved, while Fixed retains its extent during s
 The initial backend canvas is 1920×1080; dimensions are nonzero and at most 16384 texels per
 axis. Shared Texture defaults to an unconfigured exact selector and explicit BGRA8/sRGB/straight
 alpha with that maximum extent. Runtime admission can impose lower budgets. Runtime source
-observations are not project data. `media/capture.rs` copies only demanded authored leaves after
+observations are not project data. `media/capture.rs` copies only demanded authored dependencies after
 transaction settlement. Manager-instance, membership and channel revision guards invalidate old
 captures on edits, removal, history and reload, including nodes retained by history. These clocks
 are runtime-only. `media/rendering/` runs on a host/preparation worker and publishes immutable
@@ -171,8 +171,16 @@ Add/copy batches admit at most 4,096 instances and insert one detached forest; e
 100,000 authored instances. Labels are reserved once per batch. Source binding checks and iterative
 dependency validation run on edits/load, with no recursive walk or frame-loop polling. Missing
 references remain authored; transform edits do not rebind them. Matrix dependency edges still join
-with M07. The Composition producer is the next M06 slice: current captures do not yet expand its
-instance dependencies, and runtime output is truthfully unavailable while healthy channels continue.
+with M07. Capture now expands active Composition instance dependencies with bounded channel and
+instance admission, retaining guards for visited instances including disabled entries. The preparation
+worker orders the demanded DAG and builds one shared target per channel. Independent transforms
+map source texels around source-fraction pivots into logical canvas coordinates; output resizing
+does not rewrite the layout. Positive rotation is clockwise in the downward-Y canvas. Existing
+Golden projective layers own sampling, opacity and blending. Missing inputs are skipped while
+unavailable Spout inputs retain source-only demand for recovery. Instance/dependency/guard budget
+rejection leaves that Composition unavailable and prunes otherwise-undemanded IO/passes. Renderer
+budgets remain unchanged. Software mapping checks and a native submission/lifetime smoke pass;
+full native pixel/preview correctness and the Composition editor remain M06 acceptance work.
 
 Movie-file playback, audio, effects/plugin hosting, mesh warping and edge blending are not part
 of this initial feature list. Add them as explicit later scope rather than assuming that

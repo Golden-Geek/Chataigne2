@@ -1,4 +1,5 @@
 mod capture;
+mod composition;
 mod outputs;
 mod pictures;
 mod preview;

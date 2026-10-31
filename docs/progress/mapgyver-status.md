@@ -5,7 +5,8 @@
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M06 Composition authoring/module foundation accepted, **1/4 gates (25%)**;
-demanded nested rendering and the 2D editor remain open. M05 authoring, crop/warp
+demanded nested rendering is implemented with software and native submission/lifetime smoke;
+native pixel correctness and the 2D editor remain open. M05 authoring, crop/warp
 and calibration close **3/8 gates (38%)**. Native Screen
 preview and all three target modes now work through one renderer without an editor. The generated
 display selector preserves intended device-path identity; software checks cover catalog loss/error/
@@ -21,11 +22,11 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M06 demanded Composition producer: capture instance dependencies and publish shared,
-nested render passes through the existing renderer, with transform/blend/pivot reference checks.
-**Last delivered capability:** Composition creation/canvas controls and stable ordered instance
-add/copy/configure/rename/reorder/remove operations with persistence, history and module/script
-integration (batch 18). Composition rendering is explicitly unavailable until the next slice.
+**Next:** M06 Composition editor: register a dockable panel with source selection and authoritative
+instance selection/controls, followed by bounded transform gestures using the existing backend.
+**Last delivered capability:** shared nested Composition render passes with independent transforms,
+bounded dependency capture, missing-source recovery and revision-fenced publication (batch 19).
+One native D3D11/Spout smoke verifies installation/frame identity and retirement, not output pixels.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -48,7 +49,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Authoring accepted; renderer/editor open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Authoring accepted; producer implemented; pixels/editor open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -69,6 +70,44 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M06 acceptance items
+
+**Product batch 19:** started 2026-10-31 **02:11 UTC**, recorded stop **02:56 UTC**.
+Deliver demanded nested Composition capture and shared render-pass production through the existing
+ChannelRenderer. Capture only bounded active dependencies with instance/membership/content guards;
+solve affine position/scale/rotation/pivot on the preparation worker and reuse Golden layers/blends.
+Prove shared-source/pass deduplication, nested outputs, reference geometry, source loss/recovery and
+stale-plan rejection before native checks. Preserve existing render/resource budgets and isolate
+unsupported/over-budget Composition routes. At most two finite native experiments/20 minutes after
+passing software prerequisites; no new profiler/clock/driver or browser recovery investigation.
+Native experiment 1 starts **02:42 UTC**, stops no later than the batch cutoff **02:56 UTC**.
+Hypothesis: the existing D3D11/Spout backend installs and renders the app-generated shared nested
+passes across edits and source Undo, then retires. Require the current installed frame identity,
+three prepared channels/two output consumers and stale-capture rejection. This is submission/
+lifetime smoke, not pixel/color, physical output or cadence qualification.
+
+**Batch 19 result:** demanded captures now expand active Composition dependencies once per channel,
+bounded by the caller's channel limit and 4,096 visited instance records. Disabled/zero-opacity
+instances do not demand their sources. Instance, membership and content guards invalidate captures
+after authoring, source removal and Undo. The preparation worker orders nested passes, shares each
+source target and maps independent position/scale/rotation/pivot into Golden's existing projective
+layers with opacity/blend/filter. Fixed output resolution preserves the authored canvas mapping.
+Missing inputs leave transparent areas; unavailable Spout inputs retain source-only warmup demand.
+Rejected instance/dependency/guard admission keeps that Composition unavailable and prunes orphan
+source IO/passes. Existing renderer resource and dependency limits are unchanged.
+
+Final checks: **104 passing / 1 ignored** default tests, **94/94** headless tests, strict app Clippy,
+root/Golden Core formatting and the ordinary MapGyver build pass. Software references cover nested
+source/pass deduplication, affine interior coordinates including mirrored scale/rotation/pivot,
+all four blend declarations, source loss/Undo, stale captures, fixed sizing and bounded admission.
+An existing fullscreen test now waits for asynchronous resource telemetry before asserting counts.
+One native experiment passed at **02:42 UTC**: the ignored
+`nested_compositions_share_sources_and_native_outputs_across_edits_and_source_undo` fixture
+completed in **0.22 s**, installed current frames for three prepared channels/two Spout outputs,
+rejected a stale capture and retired after edits and source removal/Undo. Native fixture build and
+strict Clippy passed before execution. This is API/submission/lifetime smoke; no native pixel/color,
+preview, physical presentation or cadence acceptance is inferred. No second experiment or profiler
+investigation ran. **M06 remains 1/4 (25%)**, with Matrix-inclusive dependency correctness, full native
+transform/blend pixels and the interactive editor open. The next slice is the Composition editor.
 
 Before M06 source changes, its provisional whole-phase item is split into four fixed gates below.
 Together they preserve the complete plan acceptance; all started open. Overall remains 3/10 (30%);
@@ -975,7 +1014,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 18. Diagnostic-only batch allowance: 4, unused.**
+**Product-delivery count since correction: 19. Diagnostic-only batch allowance: 4, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1001,8 +1040,9 @@ Screen Surface selection/handles and backend corner gestures with bounded, group
 the sixteenth; actual editor input remains unverified.
 Full-source crop editing and independent docked editors with shared selection are the seventeenth;
 native source preview and actual pointer/dock behavior remain unverified.
-Composition authoring/module integration is the eighteenth and closes M06 gate 1; its actual
-producer, native transforms/blends and 2D editor remain open.
+Composition authoring/module integration is the eighteenth and closes M06 gate 1.
+Shared nested Composition production is the nineteenth, with software geometry/dependency checks
+and native submission/lifetime smoke; native transform/blend pixels and the 2D editor remain open.
 The allowance follows the four-product-to-one-diagnostic ratio; none of the four allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1196,27 +1236,27 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Composition authoring/module](#m06-acceptance-items) closes gate 1/4; dependency/Matrix, nested producer/native transform and 2D editor gates remain open. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring and nested production](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke passes. Matrix dependencies, native transform/blend pixels and 2D editor acceptance remain open. |
 | M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver the **M06 demanded Composition producer** through the existing shared renderer. Capture
-only demanded instance/source dependencies with validity guards, build reusable nested passes and
-render shared sources once while preserving independent instance transforms. Prove opacity/blends,
-canvas resize and rotation/pivot/scale against finite reference patterns; fix unavailable isolation
-without adding a second runtime. Keep OS/GPU work off the engine/UI owner and retain bounded
-admission/retirement. Native experiments must follow passing software checks and stop after two
-runs/20 minutes. The 2D editor, Matrix-inclusive cycles and complete native correctness retain M06
-gates 2–4; authoring gate 1 is accepted. M05 gates 1–3 are accepted; source-preview/actual editor
+Deliver the **M06 Composition editor** against the existing authoring and nested renderer contracts.
+Register a dockable app-owned panel, source picker and authoritative instance selection/controls;
+then add bounded transform gestures with grouped backend history. Keep policy/defaults/mutations
+in the backend and reuse the existing native preview. Do not reopen browser/driver/clock recovery.
+Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
+unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
+native pixel correctness retain M06 gates 2–4; authoring gate 1 is accepted.
+M05 gates 1–3 are accepted; source-preview/actual editor
 input, hotplug/minimize and physical presentation remain open under gates 4–8. M04 gates 2–6 retain
 their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Eighteen product slices are delivered; documentation checkpoints are excluded. Four diagnostic-only
+Nineteen product slices are delivered; documentation checkpoints are excluded. Four diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

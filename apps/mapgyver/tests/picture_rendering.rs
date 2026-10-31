@@ -20,6 +20,150 @@ use mapgyver::media::{capture_channels, channel};
 
 const WAIT: Duration = Duration::from_secs(5);
 
+#[test]
+#[ignore = "requires explicit hardware D3D11 and native Spout output availability"]
+fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_undo() {
+    use mapgyver::media::composition::protocol::*;
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(60)).is_err() {
+            eprintln!("native Composition test exceeded retirement deadline");
+            std::process::exit(1);
+        }
+    });
+    let adapter = adapters()
+        .unwrap()
+        .into_iter()
+        .find(|adapter| !adapter.software)
+        .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
+    engine.apply_edits().unwrap();
+    let mut references = Vec::new();
+    for (kind, extent) in [
+        (MediaKind::SolidColor, 4),
+        (MediaKind::Composition, 4),
+        (MediaKind::Composition, 8),
+    ] {
+        let MediaEditResult::Created { reference } = edit(
+            &mut engine,
+            MediaEdit::CreateMedia {
+                media_kind: kind,
+                label: None,
+            },
+        ) else {
+            panic!()
+        };
+        let mut definition = channel(&engine, reference).unwrap().definition;
+        definition.size = SizePolicy::Fixed {
+            extent: Extent2D::new(extent, extent).unwrap(),
+        };
+        if kind == MediaKind::Composition {
+            definition.source = ChannelSource::Composition {
+                canvas: Extent2D::new(extent, extent).unwrap(),
+            };
+        }
+        edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        references.push(reference);
+    }
+    edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: references[1],
+            edit: CompositionEdit::AddInstances {
+                sources: vec![references[0]],
+            },
+        },
+    );
+    let MediaEditResult::InstancesCreated { instances } = edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: references[2],
+            edit: CompositionEdit::AddInstances {
+                sources: vec![references[1], references[1]],
+            },
+        },
+    ) else {
+        panic!()
+    };
+    let mut owned = renderer(adapter.id, directory.path());
+    let live = owned.0.as_mut().unwrap();
+    let roots = [references[2]; 2];
+    let await_frame = |live: &mut ChannelRenderer| {
+        let mut installed = None;
+        wait("Composition native frame", || {
+            live.refresh().unwrap();
+            let mut outcomes = Vec::new();
+            live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+            for outcome in outcomes {
+                if Some(outcome.request) == live.latest_request() {
+                    match outcome.result {
+                        OutcomeKind::Installed { generation, .. } => installed = Some(generation.identity),
+                        OutcomeKind::Rejected(failure) => panic!("Composition publication rejected: {failure:?}"),
+                        _ => {}
+                    }
+                }
+            }
+            let snapshot = live.snapshot();
+            snapshot
+                .resources
+                .is_some_and(|resources| resources.active.is_some_and(|active| active.output_count == 2))
+                && snapshot
+                    .last_frame
+                    .is_some_and(|frame| Some(frame.identity) == installed)
+                && live
+                    .channels()
+                    .iter()
+                    .find(|channel| channel.reference == roots[0])
+                    .is_some_and(|channel| channel.resolution.availability == ChannelAvailability::Ready)
+        });
+    };
+    publish(live, &engine, roots);
+    await_frame(live);
+    assert_eq!(live.channels().len(), 3);
+    let stale = capture_channels(&engine, &roots, 16).unwrap();
+    let definition = InstanceDefinition {
+        source: Some(references[1]),
+        transform: Transform2D {
+            position: [3.0, 4.0],
+            scale: [-1.0, 1.0],
+            rotation: std::f32::consts::FRAC_PI_2,
+            pivot: [0.25, 0.75],
+        },
+        opacity: 0.6,
+        blend: BlendMode::Screen,
+        ..Default::default()
+    };
+    edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: references[2],
+            edit: CompositionEdit::ConfigureInstance {
+                instance: instances[0].instance,
+                definition,
+            },
+        },
+    );
+    assert!(!stale.is_current());
+    assert!(live.publish(stale, routes(roots)).is_err());
+    publish(live, &engine, roots);
+    await_frame(live);
+    edit(
+        &mut engine,
+        MediaEdit::RemoveMedia {
+            media: references[0].media,
+        },
+    );
+    publish(live, &engine, roots);
+    await_frame(live);
+    assert!(engine.undo().unwrap());
+    publish(live, &engine, roots);
+    await_frame(live);
+    assert!(live.native_control().unwrap().sources().is_empty());
+    drop(owned);
+    done.send(()).unwrap();
+}
+
 struct OwnedRenderer(Option<ChannelRenderer>);
 impl Drop for OwnedRenderer {
     fn drop(&mut self) {

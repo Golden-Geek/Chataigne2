@@ -1,6 +1,7 @@
 //! App-owned channel preparation/publication. Construct and drive this owner on a host or
 //! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
 
+mod composition;
 mod plan;
 mod sources;
 pub use crate::preview::layout::PreviewLayout;
@@ -211,6 +212,13 @@ impl ChannelRenderer {
             for screen in &screens {
                 demanded.extend(screen.screen.references());
             }
+            demanded = composition::ordered(
+                &capture,
+                &demanded,
+                self.limits.max_dependencies,
+                self.limits.max_dependencies,
+            )?
+            .0;
             pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
         }
         let prepared = plan::build(
