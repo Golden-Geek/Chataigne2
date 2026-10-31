@@ -27,7 +27,7 @@ pub enum SampleFilter {
 }
 
 /// App-neutral compositing modes, applied in authored layer order.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, TS)]
 pub enum BlendMode {
     /// Normal alpha-over composition.
     Normal,

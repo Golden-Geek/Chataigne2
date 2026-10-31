@@ -46,7 +46,7 @@ fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, MediaKind), Stri
     Ok((id, node.kind))
 }
 
-fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Result<NodeId, String> {
+pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Result<NodeId, String> {
     let (parent, kind) = media(engine, reference.media)?;
     let id = engine
         .node_id_by_uuid(reference.channel.0)
@@ -86,6 +86,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let pending_before = engine.edits.pending.len();
     let result = match edit {
+        MediaEdit::Composition { reference, edit } => super::composition::apply(engine, reference, edit)?,
         MediaEdit::ImportPicture { locator, target, label } => {
             super::importing::picture(engine, locator, target, label)?
         }
@@ -140,6 +141,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 MediaKind::Picture => "Picture",
                 MediaKind::SolidColor => "Solid Color",
                 MediaKind::SharedTexture => "Shared Texture",
+                MediaKind::Composition => "Composition",
             };
             let (tree, reference) = media_tree(
                 label(engine, parent, requested, fallback)?,
@@ -322,9 +324,20 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if parent.kind != node.definition().media_kind() {
                     return Err("channel source does not match its media kind".into());
                 }
+                if !matches!(node.definition().source, ChannelSource::Composition { .. })
+                    && node.node_data().first_child.is_some()
+                {
+                    return Err("only Composition channels may own instances".into());
+                }
+            }
+            AppNode::CompositionInstance(node) => {
+                node.definition().validate()?;
+                if !node.node_data().parent.and_then(|id| engine.nodes.get(id)).is_some_and(|node| {
+                    matches!(node, AppNode::MediaChannel(channel) if matches!(channel.definition().source, ChannelSource::Composition { .. }))
+                }) { return Err("instance is outside a Composition channel".into()); }
             }
             _ => {}
         }
     }
-    Ok(())
+    super::composition::validate_project(engine)
 }

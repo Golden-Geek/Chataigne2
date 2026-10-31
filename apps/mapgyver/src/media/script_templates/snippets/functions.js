@@ -12,6 +12,13 @@
 // Use the returned channel reference for ConfigureChannel, RenameChannel, ReorderChannel,
 // RemoveChannel or InspectChannel. ImportPicture, asset operations and media operations use
 // this same entrypoint; definitions come from the catalog rather than UI/script defaults.
+// Composition media uses media_kind: "Composition". Add ordered instances through:
+// local.editMedia("instances", JSON.stringify({
+//   kind: "Composition", reference: compositionChannelReference,
+//   edit: { kind: "AddInstances", sources: [sourceChannelReference] }
+// }));
+// Inspect uses edit: { kind: "Inspect" }; DuplicateInstances, ConfigureInstance, RenameInstance,
+// ReorderInstance and RemoveInstance use the returned stable instance identity.
 
 function init() {
   // Subscribe once. No update callback or periodic polling is needed.

@@ -217,6 +217,43 @@ impl ChannelNode {
 }
 
 impl Node for ChannelNode {
+    fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
+        self.revision.advance();
+    }
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        matches!(
+            self.definition.source,
+            super::protocol::ChannelSource::Composition { .. }
+        )
+        .then(|| UserContainerRules::new(&[super::composition::INSTANCE_TYPE]))
+    }
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        if matches!(
+            self.definition.source,
+            super::protocol::ChannelSource::Composition { .. }
+        ) {
+            vec![UserCreatableItem::new(
+                super::composition::INSTANCE_TYPE,
+                super::composition::INSTANCE_TYPE,
+                "Instance",
+            )]
+        } else {
+            Vec::new()
+        }
+    }
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        let super::protocol::ChannelSource::Composition { .. } = self.definition.source else {
+            return None;
+        };
+        (node_type == super::composition::INSTANCE_TYPE).then(|| {
+            Box::new(super::composition::InstanceNode::new(
+                "Instance".into(),
+                // Sparse codecs need the same canonical defaults as project_create.
+                // App AddInstances explicitly applies canvas-dependent placement.
+                super::composition::protocol::InstanceDefinition::default(),
+            )) as Box<dyn Node>
+        })
+    }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.revision.advance();
     }

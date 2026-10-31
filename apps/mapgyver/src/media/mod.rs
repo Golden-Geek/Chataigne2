@@ -5,6 +5,7 @@ mod authoring;
 mod capture;
 mod catalog;
 mod commands;
+pub mod composition;
 mod importing;
 mod nodes;
 pub mod picture;

@@ -68,7 +68,7 @@
 						bind:value={height} /></label>
 			</div>
 		{:else}
-			<p class="hint">Automatic size follows the source and its consumers.</p>
+			<p class="hint">Automatic size follows the source.</p>
 		{/if}
 		<label
 			>Sampling<select bind:value={filter}

@@ -88,6 +88,7 @@ fn catalog_commands_execute_through_the_public_trigger_and_undo_route() {
         ("Create Solid Color", MediaKind::SolidColor),
         ("Create Picture", MediaKind::Picture),
         ("Create Shared Texture", MediaKind::SharedTexture),
+        ("Create Composition", MediaKind::Composition),
     ] {
         let mut engine = fixture();
         script(&mut engine, "function init() { local.listen({level:1}); } function onAppOperationResult(reply) { gc.emit('media-method-reply', reply); }".into());
@@ -126,6 +127,43 @@ fn catalog_commands_execute_through_the_public_trigger_and_undo_route() {
         assert!(engine.redo().unwrap());
         assert_eq!(crate::media::catalog::inspect(&engine).unwrap(), snapshot);
     }
+}
+
+#[test]
+fn composition_instances_use_the_hosted_method_and_committed_callback() {
+    use crate::media::composition::protocol::CompositionEdit;
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let composition = create(&mut engine, MediaKind::Composition);
+    let request = serde_json::to_string(&MediaEdit::Composition {
+        reference: composition,
+        edit: CompositionEdit::AddInstances { sources: vec![source] },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            r#"
+        function init() {{ local.listen({{level:1}}); local.editMedia('instances', {request:?}); }}
+        function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}
+    "#
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let result = replies(&engine);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["status"], "applied");
+    let MediaEditResult::InstancesCreated { instances } = serde_json::from_value(result[0]["value"].clone()).unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(instances.len(), 1);
+    assert_eq!(instances[0].composition, composition);
+    assert!(engine.node_id_by_uuid(instances[0].instance.0).is_some());
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert!(engine.node_id_by_uuid(instances[0].instance.0).is_none());
 }
 
 #[test]

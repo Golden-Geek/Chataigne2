@@ -23,6 +23,9 @@ impl ChannelDefinition {
     pub fn for_media(kind: MediaKind) -> Self {
         let source = match kind {
             MediaKind::Picture => ChannelSource::Picture { asset: None },
+            MediaKind::Composition => ChannelSource::Composition {
+                canvas: default_canvas(),
+            },
             MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [1.0; 4] },
             MediaKind::SharedTexture => ChannelSource::Spout {
                 sender: None,
@@ -44,6 +47,7 @@ impl ChannelDefinition {
     pub fn media_kind(&self) -> MediaKind {
         match self.source {
             ChannelSource::Picture { .. } => MediaKind::Picture,
+            ChannelSource::Composition { .. } => MediaKind::Composition,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
             ChannelSource::Spout { .. } => MediaKind::SharedTexture,
         }
@@ -55,6 +59,7 @@ impl ChannelDefinition {
         }
         match &self.source {
             ChannelSource::Picture { .. } => {}
+            ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
             }
@@ -106,6 +111,22 @@ pub struct ChannelResolution {
 pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> Result<ChannelResolution, String> {
     definition.validate()?;
     let (intrinsic, availability) = match &definition.source {
+        ChannelSource::Composition { canvas } => (
+            Some(*canvas),
+            match observed {
+                SourceObservation::Available(actual)
+                    if actual.extent
+                        == match definition.size {
+                            SizePolicy::Automatic => *canvas,
+                            SizePolicy::Fixed { extent } => extent,
+                        } =>
+                {
+                    ChannelAvailability::Ready
+                }
+                SourceObservation::Available(_) => ChannelAvailability::Incompatible,
+                SourceObservation::Unavailable => ChannelAvailability::Unavailable,
+            },
+        ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
         ChannelSource::Picture { asset: None } => (None, ChannelAvailability::Unconfigured),
         ChannelSource::Picture { asset: Some(_) } => match observed {

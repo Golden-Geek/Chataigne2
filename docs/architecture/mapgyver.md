@@ -118,9 +118,10 @@ authored data instead of cloning the catalog. `mapgyver.media.edit` accepts Rust
 through `ProjectLifecycle::apply_app_operation`; the shared atomic transaction/history boundary
 also serves QuickJS `gc.invokeAppOperation` and headless callers. Creation uses one detached
 media/channel subtree. Labels, initial channel settings and size defaults are backend policy.
-New projects expose the authoring container; dedicated controls/command nodes/templates remain
-M04 work. This foundation defines Solid Color, Shared Texture and Picture authoring;
-Composition and Matrix definitions join with their implementing milestones.
+New projects expose the authoring container and M04's controls/commands/script methods/templates.
+The media contract now includes Solid Color, Shared Texture, Picture and Composition authoring;
+Matrix joins with M07. Composition instance editing stays under `media/composition`, using the
+same `mapgyver.media.edit` operation, module commands, hosted methods and committed callbacks.
 
 `media/protocol.rs` generates TypeScript into the app UI, including Golden Video's canonical
 descriptor/filter types. `media/resolution.rs` keeps source availability separate from resolved
@@ -156,6 +157,22 @@ duplicating an instance does not duplicate its source. Cropping for a Surface be
 Surface, not to the shared source. Composition and Matrix dependencies form a directed acyclic
 graph: reject direct or indirect feedback, including a Matrix cell referencing that Matrix's
 own exported output. Removing dependencies and undo/redo use the same validation boundary.
+
+Composition instances are separate UUID-backed child nodes under their output channel, ordered by
+document sibling order. Inspecting the media catalog does not copy their definitions; use the
+Composition inspect operation for that document. Instance position locates its pivot in logical
+canvas texels; scale is relative to source size, pivot is a source fraction, and rotation is radians
+in the canvas plane. Opacity and the four canonical Golden blend modes are authored per instance.
+Fixed output resolution preserves the logical canvas layout. Resizing the canvas leaves existing
+instance coordinates unchanged; AddInstances explicitly centers new source instances in the canvas.
+Node factories retain context-free defaults so sparse saving never drops contextual placement.
+
+Add/copy batches admit at most 4,096 instances and insert one detached forest; each output admits
+100,000 authored instances. Labels are reserved once per batch. Source binding checks and iterative
+dependency validation run on edits/load, with no recursive walk or frame-loop polling. Missing
+references remain authored; transform edits do not rebind them. Matrix dependency edges still join
+with M07. The Composition producer is the next M06 slice: current captures do not yet expand its
+instance dependencies, and runtime output is truthfully unavailable while healthy channels continue.
 
 Movie-file playback, audio, effects/plugin hosting, mesh warping and edge blending are not part
 of this initial feature list. Add them as explicit later scope rather than assuming that

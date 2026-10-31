@@ -14,13 +14,13 @@ use golden_core::ui_sync::{UiAck, UiEditIntent};
 use super::protocol::*;
 use crate::app::AppEngine;
 
-fn fixture() -> AppEngine {
+pub(super) fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     engine
 }
 
-fn invoke(engine: &mut AppEngine, edit: MediaEdit) -> UiAck {
+pub(super) fn invoke(engine: &mut AppEngine, edit: MediaEdit) -> UiAck {
     apply_project_intent(
         engine,
         UiEditIntent::InvokeAppOperation {
@@ -31,13 +31,13 @@ fn invoke(engine: &mut AppEngine, edit: MediaEdit) -> UiAck {
     )
 }
 
-fn apply(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
+pub(super) fn apply(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
     let ack = invoke(engine, edit);
     assert!(ack.success, "{ack:?}");
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
 
-fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
+pub(super) fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
     let MediaEditResult::Created { reference } = apply(
         engine,
         MediaEdit::CreateMedia {

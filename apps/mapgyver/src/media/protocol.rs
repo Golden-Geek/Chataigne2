@@ -44,6 +44,7 @@ pub enum MediaKind {
     Picture,
     SolidColor,
     SharedTexture,
+    Composition,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -56,6 +57,9 @@ pub enum SizePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ChannelSource {
+    Composition {
+        canvas: Extent2D,
+    },
     Picture {
         asset: Option<AssetId>,
     },
@@ -82,6 +86,10 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    Composition {
+        reference: ChannelReference,
+        edit: super::composition::protocol::CompositionEdit,
+    },
     InspectManager,
     /// Atomically imports an asset and creates Picture media, or assigns an existing Picture channel.
     ImportPicture {
@@ -169,6 +177,12 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    Composition {
+        snapshot: super::composition::protocol::CompositionSnapshot,
+    },
+    InstancesCreated {
+        instances: Vec<super::composition::protocol::InstanceReference>,
+    },
     Manager {
         snapshot: MediaManagerSnapshot,
     },

@@ -2,6 +2,54 @@ use super::*;
 use crate::media::resolution::ChannelAvailability;
 
 #[test]
+fn unavailable_composition_preserves_healthy_output_publication() {
+    let mut engine = engine();
+    let composition = create(&mut engine, MediaKind::Composition);
+    let solid = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, composition, 4);
+    resize(&mut engine, solid, 2);
+    let mut renderer = renderer();
+    let request = renderer
+        .publish(
+            capture_channels(&engine, &[composition, solid], 16).unwrap(),
+            vec![
+                ChannelRoute {
+                    output: OutputId::new(1).unwrap(),
+                    channel: composition,
+                },
+                ChannelRoute {
+                    output: OutputId::new(2).unwrap(),
+                    channel: solid,
+                },
+            ],
+        )
+        .unwrap();
+    installed(&renderer, request);
+    assert_eq!(
+        renderer
+            .channels()
+            .iter()
+            .find(|channel| channel.reference == composition)
+            .unwrap()
+            .resolution
+            .availability,
+        ChannelAvailability::Unavailable
+    );
+    assert_eq!(
+        renderer
+            .channels()
+            .iter()
+            .find(|channel| channel.reference == solid)
+            .unwrap()
+            .resolution
+            .availability,
+        ChannelAvailability::Ready
+    );
+    assert_eq!(renderer.snapshot().resources.unwrap().active.unwrap().output_count, 2);
+    close(renderer);
+}
+
+#[test]
 fn shared_consumers_resize_undo_reload_and_resource_recreation_preserve_channel_identity() {
     let mut engine = engine();
     let reference = create(&mut engine, MediaKind::SolidColor);

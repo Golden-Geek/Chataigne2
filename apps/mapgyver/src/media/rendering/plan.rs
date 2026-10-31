@@ -173,6 +173,13 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
+                Some(ChannelSource::Composition { .. }) => {
+                    // Authoring is available before the demanded Composition producer is integrated.
+                    // Retain the same truthful unavailable-channel presentation as missing media.
+                    entry.source = None;
+                    resolution =
+                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                }
                 Some(
                     source @ ChannelSource::Spout {
                         sender: Some(sender),
