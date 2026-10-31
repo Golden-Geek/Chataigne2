@@ -91,6 +91,22 @@ fixed acceptance breakdown before starting its implementation. Checkpoint workin
 slices instead of extending the renderer measurement chain. Functional readiness never closes
 an unverified milestone or authorizes release; M09 still requires every retained gate.
 
+### Completion priority — 2026-10-31
+
+The user explicitly requires **100% completion of the plan**, with existing open milestones
+returned to and closed. Functional dependency ordering permitted implementation to proceed;
+it did not complete acceptance. Execution now prioritizes one dependency-ready phase/gate at
+a time, starting with M04 source acceptance, while other incomplete phases remain in the
+explicit return queue. Do not add incidental features to satisfy the earlier delivery/diagnostic
+ratio or expand work in several phases at once. Consecutive qualification batches are allowed
+for closure; the 45-minute batch and 20-minute/two-experiment limits remain operative.
+
+Blocked gates retain their exact evidence, missing prerequisite and next concrete decision.
+All original requirements and budgets remain required. For a minor optimization that consumes
+roughly a full day, present a specific proposed deferral/lower gate, evidence and consequences
+for the user's decision before changing acceptance. This is not blanket authorization to lower
+gates, and correctness/ownership/data integrity/essential behavior are not small optimizations.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

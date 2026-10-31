@@ -56,6 +56,15 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   Never run consecutive diagnostic-only batches unless the user explicitly requests that work
   or a reproduced correctness/safety defect blocks the selected feature. A new report, archive,
   test count, refactor or commit alone is not a delivered product capability.
+- When the user explicitly prioritizes completing an already implemented plan, switch to
+  acceptance closure: keep one primary phase/gate active, finish dependency-ready acceptance
+  before opening more scope, and maintain an explicit return queue for blocked gates. Product/
+  diagnostic quotas must not cause unnecessary features or phase hopping in this mode;
+  consecutive qualification batches are allowed, but investigation/time limits still apply.
+  Every original requirement remains required until verified or explicitly revised by the user.
+  For a minor optimization consuming roughly a day, propose a precise deferral/lower gate with
+  evidence and consequences; never apply that revision silently or classify correctness,
+  ownership, data integrity or essential behavior as optional optimization.
 - Gate native/hardware experiments on terminal success of prerequisite compile/software checks.
   Inspect returned results before issuing dependent validation; do not spend the experiment
   allowance on a known failing build or continue a validation chain after its prerequisite fails.

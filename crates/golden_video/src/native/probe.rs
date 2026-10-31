@@ -19,6 +19,11 @@ use crate::{
     runtime::{CompletionToken, DeviceGeneration},
 };
 
+#[cfg(feature = "qualification")]
+mod pixels;
+#[cfg(feature = "qualification")]
+pub use pixels::ProbePixels;
+
 /// Actual endpoint observations; registration alone never proves an image was received.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct SpoutProbeSnapshot {
@@ -152,6 +157,8 @@ impl Drop for SpoutProbe {
 }
 
 struct Session {
+    #[cfg(feature = "qualification")]
+    readback: Option<pixels::Readback>,
     endpoint: Endpoint,
     receiver: Receiver,
     texture: Texture,
@@ -176,6 +183,8 @@ impl Session {
         let completion = EventCompletion::new(&device)?;
         let texture = Texture::new(&device.device, descriptor)?;
         Ok(Self {
+            #[cfg(feature = "qualification")]
+            readback: None,
             endpoint,
             receiver,
             texture,

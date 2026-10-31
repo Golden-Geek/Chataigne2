@@ -7,6 +7,7 @@ mod pictures;
 mod preview;
 mod publication;
 mod screens;
+mod solid_color;
 mod transitions;
 
 use super::*;

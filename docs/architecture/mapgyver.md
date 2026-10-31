@@ -88,6 +88,12 @@ and reusable UI bindings now exist; specialized app editors and full physical qu
 remain with their app milestones. See the
 [runtime/native evidence](../progress/mapgyver-m03-render-foundations.md).
 
+Finite source-pixel qualification lives in `tests/solid_color.rs`. Golden's qualification-only
+`SpoutProbe::capture_pixels` reuses the probe's receiver/device/fence, retaining staging through
+actual completion and CPU pixels through their payload reservation. It returns raw RGBA8/extent,
+without inventing color or alpha metadata. Independent test oracles interpret the declared output
+contract; these explicit readbacks are never part of production readiness, JSON or frame transport.
+
 The filesystem sketch above names responsibility boundaries, not a requirement to create one
 crate per folder. Keep cohesive app systems in the app crate until an exercised public consumer
 justifies a separate crate. Integration nodes belong beside their system in `integration/`.
