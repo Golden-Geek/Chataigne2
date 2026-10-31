@@ -27,6 +27,7 @@ function snapshot(media: string, row = 0): MediaEditResult {
 	return {
 		kind: 'MatrixViewport',
 		snapshot: {
+			project: 'project-1',
 			media,
 			final_output: {
 				reference: { media, channel: 'final' },

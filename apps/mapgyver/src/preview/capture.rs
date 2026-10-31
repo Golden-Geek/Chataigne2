@@ -39,6 +39,7 @@ impl CapturedPreview {
                 },
                 extent: channel.resolution.extent,
                 error: None,
+                matrix: None,
                 message: (channel.resolution.availability != ChannelAvailability::Ready)
                     .then(|| format!("Source {:?}", channel.resolution.availability)),
             });
@@ -125,6 +126,7 @@ fn capture_preview_with_time(
                     Err(error) => (None, Some(error), None),
                 };
                 statuses.push(PreviewStatus {
+                    matrix: None,
                     source,
                     extent,
                     error,
@@ -220,6 +222,7 @@ pub(crate) fn capture_presentation_with_time(
         }
         let screen = capture_screen(engine, output.screen, maximum_surfaces)?;
         result.statuses.push(PreviewStatus {
+            matrix: None,
             source: PreviewSource::Screen { screen: output.screen },
             extent: Some(output.extent()),
             error: None,
@@ -243,6 +246,7 @@ pub(crate) fn capture_presentation_with_time(
             status.message = message;
         } else {
             result.statuses.push(PreviewStatus {
+                matrix: None,
                 source,
                 extent: None,
                 error: None,

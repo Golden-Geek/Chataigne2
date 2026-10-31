@@ -123,6 +123,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut published = None;
     let mut installed: Option<(u64, GenerationInfo, Option<CompletionToken>)> = None;
     let mut last_status = Vec::new();
+    let mut last_status_generation = None;
     let mut confirmed = None;
     let mut retry = Instant::now();
     let mut discovery = None;
@@ -331,6 +332,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .map(|capture| capture.statuses(renderer.channels()))
                     .unwrap_or_default();
                 let observations = native.as_ref().unwrap().output_snapshots();
+                for (reference, matrix) in renderer.matrix_statuses() {
+                    if let Some(status) = statuses
+                        .iter_mut()
+                        .find(|status| status.source == PreviewSource::Channel { reference })
+                    {
+                        status.matrix = Some(matrix);
+                    }
+                }
                 for output in observations
                     .iter()
                     .filter(|output| output.id != OutputId::new(1).unwrap())
@@ -378,12 +387,15 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         }
                     }
                 }
-                if statuses != last_status {
+                // A newly registered/reconnected preview needs the current snapshot even when
+                // output metadata is unchanged; frame progression alone still emits nothing.
+                if statuses != last_status || last_status_generation != Some(layout.generation) {
                     input
                         .window
                         .emit(PREVIEW_STATUS_EVENT, &statuses)
                         .map_err(|e| e.to_string())?;
                     last_status = statuses;
+                    last_status_generation = Some(layout.generation);
                 }
                 last_error = None;
                 Ok(())
@@ -399,15 +411,17 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .iter()
                     .filter_map(|view| serde_json::from_str::<PreviewSource>(&view.source).ok())
                     .map(|source| PreviewStatus {
+                        matrix: None,
                         source,
                         extent: None,
                         error: Some(error.clone()),
                         message: None,
                     })
                     .collect::<Vec<_>>();
-                if statuses != last_status {
+                if statuses != last_status || last_status_generation != Some(layout.generation) {
                     let _ = input.window.emit(PREVIEW_STATUS_EVENT, &statuses);
                     last_status = statuses;
+                    last_status_generation = Some(layout.generation);
                 }
                 published = None;
                 retry = Instant::now() + Duration::from_millis(500);

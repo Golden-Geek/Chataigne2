@@ -6,9 +6,11 @@
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	import type { MatrixState } from './authoring';
 	import { gridSize, projectGrid } from './viewport';
+	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	let {
 		snapshot,
 		selected,
+		observation,
 		disabled,
 		viewport,
 		select,
@@ -18,6 +20,7 @@
 	}: {
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
+		observation: MatrixRenderStatus | null;
 		disabled: boolean;
 		viewport(value: MatrixViewport): void;
 		select(row: MatrixViewRow, column: ColumnSnapshot): void;
@@ -84,6 +87,7 @@
 	tabindex="0"
 	style:--row={`${gridSize.row}rem`}
 	style:--column={`${gridSize.column}rem`}
+	style:--header={`${gridSize.header}rem`}
 	style:--label={`${gridSize.label}rem`}>
 	<div
 		class="canvas"
@@ -99,13 +103,19 @@
 					role="columnheader"
 					aria-colindex={snapshot.column_start + index + 2}
 					class:requested={snapshot.playback.desired_column === column.id}
+					class:installed={observation?.installed?.columns.includes(column.id) === true}
+					class:submitted={observation?.submitted?.columns.includes(column.id) === true}
 					style:top={`${projection.top}rem`}
 					style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
-					<button {disabled} onclick={() => selectColumn(column)} title={`Select ${column.label}`}
-						>{column.label}</button>
+					<button
+						{disabled}
+						aria-pressed={selected?.column === column.id}
+						onclick={() => selectColumn(column)}
+						title={`Select ${column.label}`}>{column.label}</button>
 					<button {disabled} onclick={() => launch(column.id)} title={`Launch ${column.label}`}
 						>Launch</button>
 					{#if snapshot.playback.desired_column === column.id}<small>Requested</small>{/if}
+					{#if observation?.submitted?.columns.includes(column.id)}<small>Submitted mix</small>{/if}
 				</div>
 			{/each}
 		</div>
@@ -121,7 +131,11 @@
 					style:left={`${projection.left}rem`}
 					style:padding-left={`${0.5 + row.depth * 0.8}rem`}
 					title={row.item.label}>
-					<button {disabled} onclick={() => selectRow(row)} title={`Select ${row.item.label}`}>
+					<button
+						{disabled}
+						aria-pressed={selected?.item?.id === row.item.id.id}
+						onclick={() => selectRow(row)}
+						title={`Select ${row.item.label}`}>
 						{row.item.id.kind === 'Group' ? '▾ ' : ''}{row.item.label}
 					</button>
 				</div>
@@ -166,7 +180,7 @@
 	.corner,
 	.heading {
 		position: absolute;
-		height: 4.5rem;
+		height: var(--header);
 		box-sizing: border-box;
 		background: #292d36;
 		z-index: 3;
@@ -194,6 +208,12 @@
 	}
 	.requested {
 		background: #364c69;
+	}
+	.installed {
+		box-shadow: inset 0 -0.15rem #d9b45d;
+	}
+	.submitted {
+		box-shadow: inset 0 -0.2rem #68cb94;
 	}
 	.row {
 		position: absolute;

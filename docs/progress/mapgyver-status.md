@@ -9,6 +9,7 @@ sparse authoring, Linear/SmoothStep fades, interrupted clip mixes and shared lay
 production now preserve outgoing bindings across edits/removal/relaunch. An initial virtualized grid
 now exposes bounded source assignment, row/column authoring, copy/removal and explicit launch/Cut.
 Naming, nested grouping/reorder, blending and canvas/transition forms are wired through backend intents;
+renderer-observed preparation, installation and submitted mixes are separate from requested launch.
 full native/interactive/large-grid qualification remains open. M06 remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
@@ -29,12 +30,12 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** distinguish requested from observed preparation/installation in Matrix runtime feedback,
-then bounded real interaction/parity verification using the existing backend intents.
-**Last delivered capability:** Matrix canvas/transition forms, row blend/enable controls, naming,
-nested grouping and arbitrary reorder via bounded destination search; independent row/column
-selection supports empty axes (batch 27). Backend/software checks pass; actual UI gestures remain
-unverified. **Product blocker:** none for observed runtime feedback. Actual editor interaction remains
+**Next:** bounded Matrix editor interaction/parity verification, then M08 column-controlled app
+lifetimes against the accepted functional column/transition contracts. No automation recovery detour.
+**Last delivered capability:** Matrix runtime feedback correlates actual renderer installation and
+frame submission with captured launches and project instances, preserving previous observed output
+while a new request prepares/rejects (batch 28). Software checks pass; actual UI gestures remain
+unverified. **Product blocker:** none for the bounded interaction check or M08. Actual editor interaction remains
 under gate 3; independent app pixels and full recovery/scale remain under gate 4 and their owning phases.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
@@ -79,6 +80,58 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Product batch 28:** started 2026-10-31 **06:05 UTC**, recorded stop **06:50 UTC**.
+Expose observed Matrix preparation/installation/output activity separately from selection and
+requested launch. MapGyver owns Matrix-to-plan correlation; Golden Video owns renderer observations;
+the Svelte panel presents fenced observations without inferring success from requests. Reuse public
+runtime/host observation paths, test stalled/replaced/undemanded/error states and launch correlation,
+then run relevant checks and ordinary app build. At most two finite native/interaction checks after
+software prerequisites; no diagnostic framework, driver/clock/privilege recovery or parked M03 work.
+
+**Batch 28 native check 1:** started **06:20 UTC**, absolute experiment stop **06:40 UTC**.
+Software/build/strict Clippy prerequisites pass. Reuse the finite native Matrix Final/layer fixture:
+both observations must correlate installation/submission with the captured launch, and completion
+cleanup must report a steady incoming plan. A failure changes only the correlation implementation;
+it does not authorize GPU timing, desktop automation recovery or new diagnostic infrastructure.
+The first invocation omitted `native-video-smoke` and ran **zero tests**; it supplies no native
+evidence. The corrected invocation is the second/final attempt under the same **06:40 UTC** stop.
+The enabled fixture reached real native installation/frame submission but **failed** the added
+`statuses.len() == 2` assertion: it correctly observes four produced Matrix passes, including shared
+intermediates, rather than only the two output routes. The assertion now selects the two routed
+references explicitly. It has **not been rerun** under the exhausted attempt allowance; no native
+correlation acceptance is claimed, and the following stamp/cleanup assertions remain unverified.
+This is retained verification debt, not authorization to start another native/profiling chain.
+
+**Batch 28 result:** the Matrix pane and grid now distinguish requested launch, renderer preparation,
+installed content and an observed submitted mix. Captured stamps contain launch, authored revision
+and bounded transition participants; preparing alone never marks a mix submitted. Reliable outcomes
+authorize installation metadata, and exact active plan/resource/device observations authorize frame
+submission, including the current time-authority epoch. Pending metadata shares the runtime's
+admission bound; one installed set is retained.
+No GPU ownership or document index is pinned for feedback. Fault/recovery hides invalid generations;
+rejected preparation preserves previous observed content, and historical runtime errors do not remain
+current after recovery. The host reuses coalesced preview status events, excludes frame counters and
+redelivers unchanged metadata once per layout registration. A new ephemeral project-instance field
+in viewport reads fences stale native events even when persisted Matrix/channel IDs are identical.
+
+**Software verification:** **148 app tests pass/1 pre-existing hardware-only ignore**, **138 headless
+tests pass**, strict app all-target/all-feature Clippy and the ordinary bundled app build pass. Four
+new renderer tests cover accepted-but-unobserved requests, installation without a matching frame,
+previous output during a new launch, stale frame generations/time epochs, fault state, rejected CPU preparation,
+recovery, reload with identical persisted IDs and admission-bounded burst cleanup. All **38 frontend
+tests pass**, including project/channel/connection fences and distinct pending/previous observations;
+Svelte reports **0 errors/0 warnings**, and app Prettier passes. Generated media/preview drift and both
+workspace formatters are checked before delivery. The finite native fixture failed its new route-count
+assumption as recorded above; its corrected assertion compiles but native correlation/cleanup
+assertions have not passed. Actual UI gestures and independent output pixels remain unverified.
+Final software checks, DTO drift and both workspace formatters finished by **06:30 UTC**, within
+the recorded 45-minute batch. No further native attempt or recovery investigation ran.
+
+**No gate closes: M07 remains 2/4 = 50%; overall remains 3/10 = 30%.** Gate 3 retains real editor
+interaction and complete parity acceptance; gate 4 retains native pixels, large-grid and recovery
+qualification. Next is one bounded interaction/parity batch, followed by functionally ready M08;
+unavailable automation must not become another infrastructure investigation.
 
 **Product batch 27:** started 2026-10-31 **05:53 UTC**, recorded stop **06:38 UTC**.
 Complete Matrix editor naming, grouping/reorder and authored settings using backend-owned intents
@@ -349,7 +402,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — bounded grid and authored settings/grouping/reorder controls software-verified in batches 26–27; observed installed feedback and real interaction/parity acceptance remain |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — bounded grid/settings/reorder and correlated preparation/installed/submitted feedback software-verified in batches 26–28; actual interaction/parity acceptance remains |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -1667,18 +1720,17 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/grouping/reorder UI passes software checks. Observed installed feedback, actual interaction/parity acceptance and full qualification remain open. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M07 observed runtime feedback** on the bounded Matrix grid. Keep selection, source
-assignment, requested launch and observed preparation/installation distinct; do not infer live state
-from request acceptance or move renderer behavior into Svelte. Reuse the shared renderer/host
-observations with proper session/generation fences, then relevant software/build checks and at most
-two bounded real interaction checks. Preserve all budgets. Do not reopen
-browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
+Run **one bounded Matrix editor interaction/parity batch**, then deliver **M08 column-controlled
+app lifetimes** against the working, accepted column/transition contracts. Verify actual input and
+module/script/headless intent equivalence where the available surfaces permit it. Keep missing real
+interaction evidence open, checkpoint concrete defects/limits, and advance the ready M08 product
+path instead of reopening browser/privilege/driver/clock recovery. Preserve every acceptance budget.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
 native pixel correctness retain M06 gates 2–4; authoring gate 1 is accepted.
@@ -1688,7 +1740,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-seven product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
+Twenty-eight product slices are delivered; documentation checkpoints are excluded. Seven diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

@@ -1,5 +1,5 @@
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
-export const gridSize = { row: 2.8, column: 10, label: 14, header: 4.5, maximum: 50000 };
+export const gridSize = { row: 2.8, column: 10, label: 14, header: 5.5, maximum: 50000 };
 export interface Metrics {
 	top: number;
 	left: number;

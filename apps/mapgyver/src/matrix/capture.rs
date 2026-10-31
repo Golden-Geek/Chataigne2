@@ -18,6 +18,7 @@ pub(crate) struct MatrixInput {
 }
 #[derive(Clone)]
 pub(crate) struct CapturedMatrix {
+    pub observation: MatrixPlanStamp,
     pub canvas: golden_video::Extent2D,
     pub opacity: f32,
     pub inputs: Vec<MatrixInput>,
@@ -66,8 +67,20 @@ pub(crate) fn capture(
         }
     };
     let captured = control
-        .with_frame(time, |timeline, frame| {
+        .with_frame(time, |timeline, frame, playback| {
+            let mut columns = Vec::new();
+            for contribution in &frame.clips {
+                if !columns.contains(&contribution.clip.column) {
+                    columns.push(contribution.clip.column);
+                }
+            }
             let mut captured = CapturedMatrix {
+                observation: MatrixPlanStamp {
+                    playback: playback.clone(),
+                    revision: control.authoring_revision(),
+                    columns,
+                    transitioning: frame.interval.is_some(),
+                },
                 canvas: index.canvas,
                 opacity: 1.0,
                 inputs: vec![],

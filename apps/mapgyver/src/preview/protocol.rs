@@ -18,6 +18,7 @@ pub struct PreviewStatus {
     pub extent: Option<Extent2D>,
     pub error: Option<String>,
     pub message: Option<String>,
+    pub matrix: Option<crate::matrix::protocol::MatrixRenderStatus>,
 }
 
 pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {

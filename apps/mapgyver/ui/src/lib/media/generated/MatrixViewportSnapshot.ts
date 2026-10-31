@@ -6,4 +6,8 @@ import type { MatrixViewCell } from "./MatrixViewCell";
 import type { MatrixViewRow } from "./MatrixViewRow";
 import type { MediaId } from "./MediaId";
 
-export type MatrixViewportSnapshot = { media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, column_total: number, row_start: number, column_start: number, rows: Array<MatrixViewRow>, columns: Array<ColumnSnapshot>, cells: Array<MatrixViewCell>, playback: MatrixPlaybackSnapshot, };
+export type MatrixViewportSnapshot = {
+/**
+ * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
+ */
+project: string, media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, column_total: number, row_start: number, column_start: number, rows: Array<MatrixViewRow>, columns: Array<ColumnSnapshot>, cells: Array<MatrixViewCell>, playback: MatrixPlaybackSnapshot, };

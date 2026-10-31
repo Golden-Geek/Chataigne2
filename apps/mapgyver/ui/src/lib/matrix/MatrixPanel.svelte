@@ -12,12 +12,17 @@
 	import ColumnForm from './ColumnForm.svelte';
 	import MatrixForm from './MatrixForm.svelte';
 	import './forms.css';
+	import { usePreview } from '../preview/context.svelte';
+	import { previewKey } from '../preview/identity';
+	import { matrixFeedback } from './render-feedback';
+	import RuntimeFeedback from './RuntimeFeedback.svelte';
 	let { panelId, panelType, title }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
 	export const setPanelState = (next: PanelState) => {
 		panel = next;
 	};
 	const session = $derived(appState.session);
+	const previewOwner = usePreview();
 	const view = $state(matrixState()),
 		matrices = $state(choiceState()),
 		sources = $state(choiceState());
@@ -29,6 +34,20 @@
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy || session?.hasActiveEditSession === true);
+	const observation = $derived(
+		matrixFeedback(
+			view.window,
+			view.window
+				? previewOwner.statuses.get(
+						previewKey({
+							kind: 'Channel',
+							reference: view.window.final_output.reference
+						})
+					)
+				: undefined,
+			session?.status === 'connected' && !session.loading.visible
+		)
+	);
 	const selectedRow = $derived(
 		view.window?.rows.find((row) => row.item.id.id === view.selected?.item?.id)
 	);
@@ -158,6 +177,7 @@
 				<VirtualGrid
 					snapshot={view.window}
 					selected={view.selected}
+					{observation}
 					disabled={busy}
 					viewport={(value) => controller.setViewport(value)}
 					selectRow={(row) => controller.select(row.item.id, view.selected?.column ?? null)}
@@ -318,13 +338,7 @@
 					{/key}
 				{/if}
 				<h3>Output preview</h3>
-				<p>
-					Requested column: {view.window.playback.desired_column
-						? (view.window.columns.find(
-								(column) => column.id === view.window?.playback.desired_column
-							)?.label ?? 'Outside visible columns')
-						: 'None'}
-				</p>
+				<RuntimeFeedback snapshot={view.window} {observation} />
 				<ChannelPreview channel={view.window.final_output} />
 			</aside>
 		</div>

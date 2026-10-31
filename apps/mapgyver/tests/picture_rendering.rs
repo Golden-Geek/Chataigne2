@@ -176,6 +176,21 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
                     .resources
                     .is_some_and(|resources| resources.active.is_some_and(|active| active.output_count == 2))
         });
+        let statuses = live
+            .matrix_statuses()
+            .into_iter()
+            .filter(|(reference, _)| roots.contains(reference))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            statuses.len(),
+            2,
+            "Final and derived layer share observed native production"
+        );
+        for (_, status) in statuses {
+            assert_eq!(status.stage, MatrixPreparationStage::Installed);
+            assert_eq!(status.submitted.as_ref().unwrap().playback, status.desired.playback);
+            assert_eq!(status.installed.as_ref().unwrap().playback, status.desired.playback);
+        }
     };
     let publish_timed = |live: &mut ChannelRenderer, engine: &AppEngine| {
         let time = live.read_time().unwrap();
@@ -287,6 +302,14 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             })
     });
     assert_eq!(live.latest_request().unwrap().get(), transitioning.get() + 1);
+    for (_, status) in live.matrix_statuses() {
+        let submitted = status.submitted.unwrap();
+        assert!(!submitted.transitioning);
+        assert_eq!(
+            submitted.columns,
+            submitted.playback.desired_column.into_iter().collect::<Vec<_>>()
+        );
+    }
     assert!(live.channels().iter().any(|channel| channel.reference == sources[2]));
     assert_eq!(
         roots.map(|reference| live

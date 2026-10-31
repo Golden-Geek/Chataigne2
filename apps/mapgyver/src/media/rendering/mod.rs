@@ -2,6 +2,7 @@
 //! preparation worker, never the engine/UI thread. Golden owns frame cadence and GPU cleanup.
 
 mod derived;
+mod feedback;
 mod plan;
 mod sources;
 pub use crate::preview::layout::PreviewLayout;
@@ -42,6 +43,7 @@ struct Entry {
 }
 
 pub struct ChannelRenderer {
+    feedback: std::sync::Mutex<feedback::Feedback>,
     runtime: VideoRuntime,
     limits: PlanLimits,
     project: Option<uuid::Uuid>,
@@ -66,6 +68,7 @@ struct Desired {
 impl ChannelRenderer {
     pub fn new(runtime: VideoRuntime, limits: PlanLimits) -> Self {
         Self {
+            feedback: Default::default(),
             runtime,
             limits,
             project: None,
@@ -174,6 +177,7 @@ impl ChannelRenderer {
             self.desired = None;
             self.latest_request = None;
             self.channels.clear();
+            *self.feedback.lock().expect("Matrix feedback lock poisoned") = Default::default();
         }
         self.project = Some(capture.project);
         let observations = self.source_observations();
@@ -249,6 +253,10 @@ impl ChannelRenderer {
             .runtime
             .submit(current.project, prepared.submission, activation, LatePolicy::Activate)
             .map_err(|error| error.to_string())?;
+        self.feedback
+            .lock()
+            .expect("Matrix feedback lock poisoned")
+            .publish(request, &capture, &prepared.channels);
         self.project = Some(capture.project);
         self.entries = prepared.entries;
         self.screen_entries = prepared.screens;
@@ -326,7 +334,13 @@ impl ChannelRenderer {
         self.runtime.snapshot()
     }
     pub fn drain_outcomes(&self, outcomes: &mut Vec<RuntimeOutcome>, budget: std::num::NonZeroUsize) -> usize {
-        self.runtime.drain_outcomes(outcomes, budget)
+        let start = outcomes.len();
+        let drained = self.runtime.drain_outcomes(outcomes, budget);
+        let mut feedback = self.feedback.lock().expect("Matrix feedback lock poisoned");
+        for outcome in &outcomes[start..] {
+            feedback.complete(outcome);
+        }
+        drained
     }
     pub fn null_control(&self) -> Option<golden_video::runtime::NullControl> {
         self.runtime.null_control()
@@ -337,6 +351,7 @@ impl ChannelRenderer {
     pub fn close(&mut self) {
         self.runtime.close();
         self.desired = None;
+        *self.feedback.lock().expect("Matrix feedback lock poisoned") = Default::default();
         if let Some(pictures) = self.pictures.take() {
             pictures.close();
         }

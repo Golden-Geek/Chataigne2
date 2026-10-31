@@ -80,7 +80,11 @@ impl PlaybackControl {
     pub fn with_frame<T>(
         &self,
         time: Option<golden_time::TimeSnapshot>,
-        capture: impl FnOnce(&mut super::timeline::Timeline, &super::timeline::Frame) -> Result<T, String>,
+        capture: impl FnOnce(
+            &mut super::timeline::Timeline,
+            &super::timeline::Frame,
+            &MatrixPlaybackSnapshot,
+        ) -> Result<T, String>,
     ) -> Result<Option<T>, String> {
         let desired = self.snapshot();
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
@@ -90,7 +94,7 @@ impl PlaybackControl {
         else {
             return Ok(None);
         };
-        capture(&mut state.timeline, &frame).map(Some)
+        capture(&mut state.timeline, &frame, &desired).map(Some)
     }
     pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
         self.0

@@ -75,6 +75,11 @@ impl CapturedChannels {
                     input.weight = None;
                 }
                 matrix.until = None;
+                matrix.observation.transitioning = false;
+                matrix
+                    .observation
+                    .columns
+                    .retain(|column| Some(*column) == matrix.observation.playback.desired_column);
             }
         }
     }

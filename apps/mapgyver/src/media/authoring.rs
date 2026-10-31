@@ -35,6 +35,13 @@ pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     found.ok_or_else(|| "Media Manager is missing".into())
 }
 
+pub(crate) fn project_instance(engine: &AppEngine) -> Result<uuid::Uuid, String> {
+    match engine.nodes.get(manager(engine)?) {
+        Some(AppNode::MediaManager(manager)) => Ok(manager.instance),
+        _ => Err("media manager is missing".into()),
+    }
+}
+
 pub(crate) fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, MediaKind), String> {
     let id = engine.node_id_by_uuid(media.0).ok_or("media reference is missing")?;
     let Some(AppNode::Media(node)) = engine.nodes.get(id) else {

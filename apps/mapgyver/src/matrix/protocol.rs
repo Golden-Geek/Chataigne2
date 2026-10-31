@@ -175,6 +175,8 @@ pub struct MatrixViewCell {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewportSnapshot {
+    /// Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
+    pub project: uuid::Uuid,
     pub media: MediaId,
     pub final_output: crate::media::protocol::ChannelSnapshot,
     pub revision: u64,
@@ -301,4 +303,39 @@ pub struct MatrixPlaybackSnapshot {
     pub desired_column: Option<ColumnId>,
     pub launch_id: Option<uuid::Uuid>,
     pub transition: TransitionDefinition,
+}
+
+/// Metadata of the Matrix content carried by one renderer plan, never UI selection.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixPlanStamp {
+    pub playback: MatrixPlaybackSnapshot,
+    pub revision: u64,
+    /// Includes transition envelope participants, not a claim of positive opacity in every frame.
+    pub columns: Vec<ColumnId>,
+    pub transitioning: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum MatrixPreparationStage {
+    Published,
+    Preparing,
+    Prepared,
+    Installed,
+    Rejected,
+    Changed,
+    Faulted,
+    Recovering,
+    Stopped,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixRenderStatus {
+    pub project: uuid::Uuid,
+    pub desired: MatrixPlanStamp,
+    pub stage: MatrixPreparationStage,
+    pub availability: crate::media::resolution::ChannelAvailability,
+    pub installed: Option<MatrixPlanStamp>,
+    /// Actual shared-plan frame submission, distinct from native output acceptance/presentation.
+    pub submitted: Option<MatrixPlanStamp>,
+    pub error: Option<String>,
 }

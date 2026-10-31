@@ -223,6 +223,7 @@ pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewpo
     }
     Ok(MediaEditResult::MatrixViewport {
         snapshot: MatrixViewportSnapshot {
+            project: crate::media::authoring::project_instance(engine)?,
             media,
             final_output: crate::media::channel(
                 engine,

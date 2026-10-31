@@ -21,7 +21,7 @@ use golden_video::{Extent2D, OutputId};
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 
-fn config() -> RuntimeConfig {
+pub(super) fn config() -> RuntimeConfig {
     RuntimeConfig {
         plan_limits: PlanLimits {
             max_passes: 16,
@@ -46,12 +46,12 @@ fn config() -> RuntimeConfig {
     }
 }
 
-fn engine() -> AppEngine {
+pub(super) fn engine() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     engine
 }
-fn edit(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
+pub(super) fn edit(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
     let result = apply_project_intent(
         engine,
         UiEditIntent::InvokeAppOperation {
@@ -63,7 +63,7 @@ fn edit(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
     assert!(result.success, "{result:?}");
     serde_json::from_value(result.result.unwrap().value).unwrap()
 }
-fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
+pub(super) fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
     let MediaEditResult::Created { reference } = edit(
         engine,
         MediaEdit::CreateMedia {
@@ -82,7 +82,7 @@ fn resize(engine: &mut AppEngine, reference: ChannelReference, width: u32) {
     };
     edit(engine, MediaEdit::ConfigureChannel { reference, definition });
 }
-fn routes(reference: ChannelReference) -> Vec<ChannelRoute> {
+pub(super) fn routes(reference: ChannelReference) -> Vec<ChannelRoute> {
     vec![
         ChannelRoute {
             output: OutputId::new(1).unwrap(),
@@ -94,14 +94,14 @@ fn routes(reference: ChannelReference) -> Vec<ChannelRoute> {
         },
     ]
 }
-fn wait(mut check: impl FnMut() -> bool) {
+pub(super) fn wait(mut check: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while !check() {
         assert!(Instant::now() < deadline, "channel runtime deadline");
         std::thread::sleep(Duration::from_millis(2));
     }
 }
-fn renderer() -> ChannelRenderer {
+pub(super) fn renderer() -> ChannelRenderer {
     let config = config();
     let renderer = ChannelRenderer::new(
         VideoRuntime::spawn_null(config.clone(), NullConfig::default()).unwrap(),
@@ -110,7 +110,7 @@ fn renderer() -> ChannelRenderer {
     wait(|| renderer.snapshot().resources.is_some());
     renderer
 }
-fn installed(renderer: &ChannelRenderer, request: RequestId) {
+pub(super) fn installed(renderer: &ChannelRenderer, request: RequestId) {
     wait(|| {
         let mut outcomes = Vec::new();
         renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
@@ -126,7 +126,7 @@ fn installed(renderer: &ChannelRenderer, request: RequestId) {
         })
     });
 }
-fn close(mut renderer: ChannelRenderer) {
+pub(super) fn close(mut renderer: ChannelRenderer) {
     let retirement = renderer.retirement();
     renderer.close();
     drop(renderer);

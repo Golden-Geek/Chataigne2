@@ -489,9 +489,22 @@ Rust remains responsible for cycle/depth/sibling validation and coherent history
 Rust owns the sparse address/order index, cached at the authored revision. Visible labels, settings
 and payloads read current nodes; scrolling neither materializes empty cells nor changes history or
 playback. Initial construction/rebuild still visits the document and needs large-grid qualification.
-The grid marks only the requested column; requested state does not certify installed/live output.
-Installed state presentation and actual editor interaction/parity acceptance remain M07 gate 3
-work; complete large-grid/native/recovery checks remain gate 4.
+The grid distinguishes requested columns, installed plan participation and observed submitted mixes.
+`media/rendering/feedback` correlates admitted requests with captured Matrix launch/revision metadata,
+then reliable Golden installation outcomes with the exact active project/device generation. Frame
+submission additionally requires matching plan, resource generation, device and time-authority epoch.
+Pending correlation is bounded by runtime admission credits; only one installed metadata set is retained, with no GPU
+ownership or whole-document snapshots. Previous observed output stays distinct while a new request
+prepares or rejects. Recovery/invalid generations suppress installed/submitted claims, and steady
+frame counters do not enter status equality.
+
+The existing coalesced native `PreviewStatus` carries those Rust-generated observations. New layout
+registrations receive a fresh status even when content metadata is unchanged. Matrix viewport reads
+include the ephemeral media-manager instance so persisted channel IDs cannot admit a stale native
+event after project reload. Svelte displays the observation and keeps authored selection/assignment
+separate; a submitted mix includes envelope participants and does not certify positive opacity for
+each cell, native output API acceptance or physical presentation. Actual editor interaction/parity
+acceptance remains M07 gate 3 work; complete large-grid/native/recovery checks remain gate 4.
 
 The app-owned `ui/src/lib/composition/` panel/controller/forms expose Composition channel selection,
 searchable source assignment, ordered instance creation/copy/rename/reorder/removal, transform and
