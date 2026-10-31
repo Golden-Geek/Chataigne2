@@ -11,10 +11,13 @@ and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** qualify Q02's complete prescribed release series with the retained window-admission
-correction. Batch 59 passes every observed Q01 criterion, including the previously failing
-deadlines and independence. Complete GPU-path, queue, lifecycle-growth and environment evidence
-still remain required. Keep earlier failures and the rejected interval-one control; no sweeps.
+**Next:** close the environment-identity measurement gap and establish the actual adapter/display
+route before further performance work. The complete Q02 series now fails on the recorded Intel
+route despite Q01's observed passes. The contract requires one named qualified route, not both
+vendors: explicitly record any NVIDIA selection, verify its overlay prerequisite, and qualify
+both Q01 and Q02 on that same route. Do not combine Intel Q01 and NVIDIA Q02 into one pass.
+Complete GPU-path, queue and lifecycle-growth evidence still remain required. No timeout/Present
+sweep, silent adapter switch or budget reduction is approved.
 M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
 flow proves Spout pixels and rectangle bars, but actual fullscreen/editor-state checks stay open.
 Q02 sustained qualification and every other measurement requirement remain unchanged.
@@ -25,6 +28,14 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest Q02 evidence (batch 60):** the full prescribed release series on Intel LUID
+`00000000:00016c2a` **fails** cadence, deadlines, exact capture and independence. Main misses
+**7,037/7,087/4,277**, editor **7,198/7,173/6,984** out of **7,200** per sample. Independent
+sample Spout captures miss **4/7/2** accepted images. CPU p95 **0.562/0.592/0.530 ms**;
+renderer-context GPU p95 **15.031/15.107/13.302 ms**, with the largest median stage at outputs.
+All runs retire and exit normally; actual 4K client/backing is confirmed, physical 4K remains
+unverified. No source or budget changed; M03 stays **7/9**.
+[Compact evidence](evidence/mapgyver-m03-window-admission-q02-2026-10-31.json).
 **Latest verified correction (batch 59):** Golden Video delivers ready outputs before retrying
 initially busy windows, within the same frame/fence and one shared requested **1 ms** kernel wait.
 The complete prescribed Q01 series passes **every observed criterion**: main deadline misses
@@ -80,8 +91,10 @@ M06, M07 and M08 acceptance, then M09. An implemented phase with open acceptance
 not another simultaneous workstream. Time limits end a work batch; they never waive a gate.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
 retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Latest Q02
-sample calls remain 300/300/295; minimize/disconnect still miss four/nine Spout images and
-age budgets. All recorded failures and original budgets remain operative. These requirements
+sample Spout acceptance is **7,199/7,196/7,199** with **4/7/2** missing exact captures. Minimized
+intervals miss **1/1/2** accepted Spout images; disconnected intervals miss **1/0/0**. Captured
+source-age p95 stays below 50 ms, but missing images leave the complete age requirement unqualified.
+All recorded failures and original budgets remain operative. These requirements
 must be satisfied for production readiness, within the bounded qualification lane below.
 
 | Phase | State | Progress | Done / total items |
@@ -3098,6 +3111,70 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**Q02 acceptance batch 60:** started 2026-10-31 **20:24 UTC**, stop by **21:09 UTC**.
+Previous turn is progress: published `a105f9b0` corrects native window admission and passes every
+observed criterion in the complete Q01 release series, including previously failing deadlines
+and independence. Only M03 gate 9 remains active. Run the complete prescribed Q02 series against
+that exact implementation/executable: first source and both main outputs **3840×2160**, second
+source **1280×720**, two held editor previews, original 60 Hz cadence/budgets, three release
+samples with 30 s warmup + 120 s measurement and separate 60 s minimize/disconnect intervals,
+PresentMon enabled. No new performance candidate, parameter sweep, profiler, driver/overlay
+change or source edit. A single fixed series may finish under its original verified process
+handle; do not restart it on observation timeout. Preserve all failures and unavailable metrics;
+4K client/backing size is not physical 4K scanout or M05 display/DPI acceptance. Native start
+**20:24 UTC**, cutoff **20:44 UTC**, before the batch stop. Prerequisite software, strict Clippy,
+native pixel/ownership tests and release build passed in batch 59; compare the current executable
+and every recorded execution-input hash to that verified capture before starting instead of
+repeating unchanged checks. Update the dashboard/evidence and checkpoint/push before any next
+implementation batch. M03 gate 4 still awaits the reset decision; all later return triggers stay.
+
+**Terminal result, 20:41 UTC:** the complete three-sample Q02 series is **FAILED_NATIVE**.
+All **301** execution-input hashes and the release executable match the verified Q01 build
+before startup; inputs remain unchanged through all runs. The native window owner verifies
+actual **3840×2160** physical client/backing at **(2560, 0)**, DPI **1**, without sizing retries.
+The selected physical monitor is **1920×1080**; no physical 4K, DPI, alignment or scanout pass is
+inferred. No implementation, adapter, driver, overlay, workload, cadence or budget changed.
+
+| Q02 measured evidence | Sample 1 | Sample 2 | Sample 3 |
+| --- | --- | --- | --- |
+| Main accepted / Busy | 7,192 / 8 | 7,195 / 5 | 7,198 / 3 |
+| Editor accepted / Busy | 7,175 / 25 | 7,155 / 45 | 7,116 / 84 |
+| Spout accepted / Busy | 7,199 / 1 | 7,196 / 4 | 7,199 / 1 |
+| Main deadline misses, of 7,200 anchored slots | 7,037 | 7,087 | 4,277 |
+| Editor deadline misses, of 7,200 anchored slots | 7,198 | 7,173 | 6,984 |
+| Exact accepted Spout image captures | 7,195 / 7,199 | 7,189 / 7,196 | 7,197 / 7,199 |
+| Missing accepted images, minimized / disconnected | 1 / 1 | 1 / 0 | 2 / 0 |
+| CPU inclusive wall p95 / p99, ms | 0.5619 / 0.7097 | 0.5916 / 0.8970 | 0.5301 / 1.1823 |
+| Renderer-context GPU p95 / p99, ms | 15.0306 / 16.2581 | 15.1067 / 16.5147 | 13.3021 / 16.3720 |
+| Outputs GPU-partition median / p95, ms | 7.6141 / 11.0453 | 7.7988 / 10.3905 | 5.5720 / 8.9110 |
+| Complete shutdown, ms | 409.8 | 449.9 | 418.5 |
+| Actual runtime retirement, ms | 110.2 | 119.3 | 111.8 |
+
+The three native runs and owned collectors exit normally. Every submitted frame token has exactly
+three final output records, with **zero duplicate token/output rows**; raw outcome totals match
+runtime counters. All **48 raw hashes** verify, all three owned trace sessions are independently
+absent (`4201`), and no recorded renderer/source PID remains live. Software/API cadence, displayed
+deadlines and accepted-image capture cohorts remain separate; boundary-selected API rows are not
+renormalized to improve the anchored 7,200-slot deadline counts. Observed captured source-age p95
+is below 50 ms, but missing images prevent full capture/age acceptance. GPU partitions include
+scheduling/dependency/command-feed gaps; they do not isolate shader cost or calibrate contexts.
+The complete GPU-path, lifecycle-growth, queue and environment requirements remain unavailable.
+
+This evidence rules out treating the Q01 admission correction as sufficient 4K qualification.
+Next pin the required toolchain/SDK, driver, WebView, power and overlay identity and inspect the
+actual adapter/display route using existing inventory/public mechanisms. The qualification
+contract explicitly permits one named route: any switch to NVIDIA must be recorded before its
+run, satisfy the overlay-Off prerequisite, and qualify **both** Q01/Q02 on that same route.
+Do not claim an Intel/driver/display cause from these timings alone, add profiling prerequisites,
+repeat this fixed Intel baseline, sweep timeout/Present constants, or reduce the 4K gate.
+Q01's observed passes stay valid at their scope; all Q02 failures remain retained. M03 **7/9**,
+overall **40%**, one active gate. [Hashed compact evidence](evidence/mapgyver-m03-window-admission-q02-2026-10-31.json).
+
+Final root/Golden Core formatters, whitespace and compact-evidence integrity checks pass;
+checkpoint preparation completes **20:45 UTC**, before the recorded 21:09 stop. This batch
+changes evidence/status only; its earlier software/native prerequisite results remain applicable
+through the verified identical executable and 301 execution-input hashes. No extra native run.
+
 **Window-admission correction batch 59:** started 2026-10-31 **19:55 UTC**, stop by **20:40 UTC**.
 Previous turn is progress: `7ef717e2` removes the duplicated qualification output-window owner
 and captures the full production-route Q01 series. Its existing trace identifies admission Busy
@@ -3603,11 +3680,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 M04 is complete. The scheduled M05 gate 4 batch proves independent Spout/rectangle colors and
 retains the native UI-activation blocker; fullscreen pixels/editor state are still unverified.
-Continue **M03 gate 9** with the full Q02 prescribed release series using batch 59's retained
-window-admission correction. Q01 now passes every observed criterion, including display deadlines
-and independence; do not repeat it or sweep modes. Preserve the earlier failed Q01 baseline and
-rejected interval-one control. Q02 and the complete GPU-path, lifecycle-growth, queue and
-environment requirements remain unverified. Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
+Continue **M03 gate 9** by pinning the required environment identity and actual adapter/display
+route. The complete corrected Q02 series fails on Intel; preserve it without repeating the same
+baseline or sweeping modes. One named route is sufficient under the contract: explicitly record
+any NVIDIA selection before a run, verify overlay Off, and qualify both Q01/Q02 on that same
+route; do not mix different adapters' samples into a pass. Q01 observed criteria pass on Intel,
+while Q02 and complete GPU-path, lifecycle-growth, queue/environment requirements remain open.
+Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
 drain acceptance stays open. M05 returns after supported activation is available. Preserve source
 pixel passes; do not restore the parked stash or change driver/overlay settings.
 
