@@ -20,6 +20,9 @@ use mapgyver::media::{capture_channels, channel};
 
 const WAIT: Duration = Duration::from_secs(5);
 
+#[cfg(feature = "native-qualification")]
+mod picture_pixels;
+
 #[test]
 #[ignore = "requires explicit hardware D3D11 and native Spout output availability"]
 fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {

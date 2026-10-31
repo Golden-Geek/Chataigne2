@@ -4,20 +4,21 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic / only active phase:** M04 source acceptance; **2/6 gates (33%)**.
-Solid Color gate 2 is verified; Picture gate 3 is next within the same phase.
+**Current topic / only active phase:** M04 source acceptance; **3/6 gates (50%)**.
+Module, Solid Color and Picture gates 1–3 are verified; Shared Texture gate 4 is next.
 **Execution mode:** completion first, per the user's 2026-10-31 directive. Close dependency-ready
 acceptance within the current phase; do not create incidental features or expand several phases.
 Other incomplete milestones remain an explicit return queue, not simultaneously active work.
 M08 has **3/4 gates (75%)**; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
-changes work order, not acceptance. M04's Picture, Shared Texture, UI and complete cross-source
+changes work order, not acceptance. M04's Shared Texture, UI and complete cross-source
 parity/recovery acceptance remain open.
 
-**Next:** bounded M04 Picture gate 3 acceptance: decode/cache bounds, color/alpha, missing/relinked/
-replaced assets and shared consumers. Reuse the finite native pixel observer and define the missing
-cases/software prerequisites first; at most two native invocations/20 minutes. The M08 target-outcome
+**Next:** bounded M04 Shared Texture gate 4 acceptance: map existing independent subscription,
+discovery/recovery and adapter-mismatch evidence, then verify only missing cases through the app
+renderer. Define prerequisites and fixed cases first; at most two native invocations/20 minutes.
+The M08 target-outcome
 retirement question stays parked. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
 **Last delivered capability:** the default headless host now accepts the existing shutdown-file
@@ -26,7 +27,13 @@ option and returns normally after cancelling app services, listener, sockets and
 cleanup and external survival. **187 app / 177 headless / 95 transport / 32 desktop-host tests**,
 public API, strict Clippy and Chataigne compilation pass. Frontend remains **58 passing tests**
 from batch 44. Native app graceful-close acknowledgement/full retirement qualification stays open.
-**Latest acceptance evidence (batch 43):** singleton isolation, known launcher-descendant termination,
+**Latest acceptance evidence (batch 48):** Picture gate 3 passes the fixed native matrix on Intel
+and NVIDIA: **54 complete output images / 33,177,836 texels**, tolerance **2/255**, covering alpha,
+missing/relinked/replaced/shared sources, unsupported color rejection and 4K reload/recreation.
+**188 app / 17 asset tests**, strict all-target/all-feature Clippy and both formatters pass. The
+second/final invocation passes in **46.09 s** after correcting a test status expectation; no
+production code, tolerance or budget was changed. UI/intent parity remains gate 6.
+**Retained M08 evidence (batch 43):** singleton isolation, known launcher-descendant termination,
 breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
 is unresolved; the full check failed on an overly specific invalid-image error expectation. That
 test assumption is corrected without a third native run. Elevated-target denial remains unexercised.
@@ -60,7 +67,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Active closure: module/Solid Color accepted; Picture next | `███████░░░░░░░░░░░░░` 33% | 2/6 |
+| [M04 Source media](#m04-acceptance-items) | Active closure: module/Solid Color/Picture accepted; Shared Texture next | `██████████░░░░░░░░░░` 50% | 3/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
@@ -69,7 +76,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 2 / 6 = 33%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 3 / 6 = 50%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -2046,6 +2053,84 @@ physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
 
+**Qualification batch 48:** started 2026-10-31 **15:26 UTC**, recorded stop **16:11 UTC**.
+M04 remains the only active phase. Close Picture gate 3 only after mapping the full existing
+worker/decode/cache bounds and asset-lifecycle evidence, then verifying the missing native pixel
+cases through app authoring/capture/ChannelRenderer. Cover two differently sized channels in one
+Picture media, automatic/fixed sizing, color/alpha, shared consumers, missing/relinked/replaced
+images and stable references with a healthy independent channel. Use existing fixtures and the
+finite pixel observer; no new renderer or diagnostic framework. Preserve codec/color limits and
+honest failure states. Native execution follows terminal software/build/Clippy prerequisites and
+is limited to two invocations/20 minutes and the 16:11 batch stop. No driver/overlay/UI recovery,
+GPU timing profiling or other phase expansion; partial evidence leaves gate 3 open.
+
+**Batch 48 fixed matrix, before native execution:** one Picture media, two stable channels,
+three independent Spout receivers on routes A/A/B, on every enumerated hardware adapter. A uses
+Automatic sizing; B stays Fixed 3×2. Compare every output texel at the existing 2/255 tolerance:
+2×2 PNG straight alpha (including transparent hidden RGB), absent B/transparent fallback,
+automatic missing-file recovery to 5×3 JPEG, shared JPEG preparation without duplicate upload,
+undo, relink to partial-alpha PNG, in-place replacement through the existing explicit IO retry
+hook, unsupported gamma rejection with healthy A retained, and recovery back to JPEG. Save/reload
+stable references, recreate native rendering and compare two complete 3840×2160 PNG outputs plus
+the independent JPEG output. Check upload counts stay fixed across subsequent frames, no native
+input receivers, and both asset-worker and GPU retirement. This does not claim an automatic file
+watcher or GUI retry control; complete source intent parity remains gate 6.
+
+Keep production limits unchanged: 64 MiB encoded source, 128 MiB decode, 256 MiB prepared cache,
+512 MiB renderer resources, 257/260 MiB input/retained-input budgets. The finite observer uses a
+separate bounded 192 MiB pool for receiving/staging/CPU pixels of concurrent 4K outputs. Existing
+worker tests must establish admission-before-decode, cancellation/stale publication, bounded IO,
+retained clone/cache pressure and retirement; codec tests cover PNG/JPEG/color/orientation errors.
+Large JPEG is not qualified here and remains subject to the documented decode admission limit.
+
+Batch 48 native baseline starts **15:41 UTC**, cutoff **16:01 UTC**, also before the 16:11 batch
+stop. Prerequisites are terminal: **188 MapGyver library tests / one existing hardware ignore**,
+**17 Golden Assets tests**, strict all-target/all-feature MapGyver Clippy, both Cargo formatters
+and the exact `picture_rendering-a0263ade992b6f1b.exe` build. Execute only the fixed ignored
+Picture pixel test, looping hardware adapters in that single invocation. Reserve invocation two
+for a concrete failure and retain all original tolerances, budgets and failure evidence.
+
+Invocation one fails after passing missing/recovery, JPEG sharing, undo, relink-alpha and explicit
+in-place replacement pixel epochs: the test expected `Unavailable` for an unsupported explicit
+gamma, but the renderer correctly reports `Incompatible`. Correct only that observer expectation;
+the codec rejection and acceptance requirement stay intact. The observer's watchdog also treated
+its completion channel disconnect during panic as timeout; distinguish actual timeout so a test
+failure retains its original diagnosis. Rebuild and rerun the same fixed matrix once, within the
+original window. Unsupported-gamma pixels, subsequent recovery and 4K remain unverified until then.
+
+**Batch 48 result — Picture gate 3 accepted, 15:43 UTC:** the second/final invocation passes
+**1/1 in 46.09 s**, before the original 16:01 native cutoff and 16:11 batch stop. Both enumerated
+hardware adapters pass the same matrix: Intel Graphics LUID `0:93226` and NVIDIA GeForce RTX 5080
+Laptop GPU LUID `0:94419`. Across nine epochs × three outputs × two adapters, **54 complete images /
+33,177,836 texels** meet the unchanged **2/255** oracle. JPEG blue observes 254 against expected
+255; tested PNG alpha/colors are exact in reported samples. Unsupported explicit gamma reports
+`Incompatible` and transparent output while the independent channel retains its prepared source.
+Missing JPEG recovers automatically; replacement explicitly invokes the existing IO retry hook
+without authored history. This is not automatic file-watcher or UI retry acceptance.
+
+Automatic channel extents resolve to 2×2 PNG, 5×3 JPEG and 3840×2160 PNG; the second channel stays
+Fixed 3×2. Output A's first fixture deliberately remains 2×2 through its uniform JPEG epoch;
+the recreated 4K fixture observes every texel of both 3840×2160 outputs. Shared JPEG consumers
+retain the same prepared texture without another upload; subsequent frames do not upload images
+again. Save/reload preserves both channel and asset IDs. No native input receivers are created;
+observer pool release and actual asset-worker/GPU retirement pass on both adapters.
+
+| Picture requirement | Verified evidence |
+| --- | --- |
+| Worker preparation and bounded IO/decode/cache lifetime | [Golden Assets preparation tests](../../crates/golden_assets/tests/preparation.rs): background worker identity, source/seek/aggregate-read bounds, admission before decoder entry, held-clone item/byte pressure, cancellation, stale binding/file replacement rejection and final retirement off the consumer. All 17 crate tests pass. |
+| PNG/JPEG, color/alpha, dimensions and decode workspace | [App codec tests](../../apps/mapgyver/src/media/picture/tests/mod.rs): straight-alpha/sRGB metadata, grayscale/palette transparency, opaque JPEG, explicit unsupported color/16-bit rejection, pre-decode dimension/allocation admission, malformed/truncated inputs and EXIF orientation. Included in 188 passing app tests. |
+| Differing channels, production 4K budgets, lifecycle and relocation | [App renderer tests](../../apps/mapgyver/src/media/rendering/tests/pictures.rs): shared 4K preparation at production limits, automatic/fixed sizes, source sharing, undo/relink/reload, missing/replaced images, project-root relocation, healthy peer continuity and close/retirement. Included in the same app run. |
+| Actual color/alpha, sharing, missing/relink/replacement and recreate | [Fixed native pixel test](../../apps/mapgyver/tests/picture_pixels/mod.rs), driven through app authoring/capture/ChannelRenderer and independent Spout probe devices; the successful second invocation covers the complete predeclared matrix above. |
+
+Strict all-target/all-feature MapGyver Clippy, both Cargo formatters and whitespace checks pass.
+Qualified binary `target/debug/deps/picture_rendering-a0263ade992b6f1b.exe` SHA-256:
+`a1e6d28a946368a54345e707f4297ae2e865ce16770935e00508f6813ec4e914`.
+Only M04 gate 3 closes: **3/6 = 50%**; overall remains **3/10 = 30%**, denominators unchanged.
+Gate 4 Shared Texture is next in the same phase; UI/full intent parity retain gates 5–6.
+No production code/budget/tolerance changes, large-JPEG qualification, physical display/UI input,
+performance profiling or other phase acceptance are inferred. Retain invocation one's observer
+failure above; do not rerun this passing qualification just to accumulate evidence.
+
 **Qualification batch 47:** started 2026-10-31 **14:45 UTC**, recorded stop **15:30 UTC**.
 Use the fifth diagnostic allocation (42 product deliveries permit ten; four used). Qualify the
 fixed Solid Color gate 2 through app-owned authoring/capture/ChannelRenderer and actual D3D11/Spout
@@ -2182,7 +2267,7 @@ overall remains fully accepted phases divided by ten.
 | --- | --- | --- |
 | 1 | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30) |
 | 2 | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path | Accepted — batch 47: full-image color/alpha/extents/sharing/reload/recreation on Intel and NVIDIA |
-| 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Open |
+| 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA |
 | 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Open |
 | 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Open |
 | 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Open |
@@ -2714,7 +2799,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
-| M04 Source media | IN_PROGRESS | [Source acceptance](#m04-acceptance-items): module and Solid Color gates 1–2 accepted (2/6); Picture is the next gate in the only active phase. Shared Texture, UI and complete parity remain open. |
+| M04 Source media | IN_PROGRESS | [Source acceptance](#m04-acceptance-items): module, Solid Color and Picture gates 1–3 accepted (3/6); Shared Texture is next in the only active phase. UI and complete parity remain open. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
@@ -2723,15 +2808,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Close **M04 Picture gate 3**: map existing decode/preparation, pixel/decode/cache bounds and
-asset-lifecycle software evidence, then cover missing native color/alpha, differently sized channels,
-shared consumers and missing/relinked/replaced images through the app renderer. Reuse the finite
-pixel observer; define fixed cases before native execution and preserve every existing budget.
-Finish software prerequisites, then stop after two native invocations/20 minutes. Solid Color
-gate 2 is accepted; do not rerun it merely to accumulate evidence.
+Close **M04 Shared Texture gate 4**: map existing native discovery/subscription, absence/restart/
+rename/resize, healthy-peer and adapter-mismatch evidence; identify only the missing app-path cases.
+Define the fixed cases and finish software prerequisites before any native run, then stop after
+two invocations/20 minutes. Reuse existing sources/observers and retain all budgets. Solid Color
+and Picture gates 2–3 are accepted; do not rerun them merely to accumulate evidence.
 
 Keep M04 as the only active phase. Continue its Shared Texture, UI and cross-source parity gates
-after Picture; a genuinely blocked gate must name its missing prerequisite and remain in the
+in order; a genuinely blocked gate must name its missing prerequisite and remain in the
 return queue. Remaining M03/M05/M06/M07/M08 requirements and M09 full-app qualification all remain
 required. Missing UI/physical evidence stays open. No new incidental product feature, parked
 retirement/clock/driver investigation or concurrent phase expansion is scheduled. Preserve
