@@ -259,6 +259,16 @@ and existing shader color/alpha conversion, including encoded premultiplied outp
 Equal-extent output conversion uses one texel load; resizing retains linear filtering. Both
 paths keep the same explicit color/alpha conversion rather than copying incompatible outputs.
 
+`native/outputs/scheduling.rs` first polls admission and delivers every immediately ready output.
+Initially busy windows are retried afterward in plan order, before the same submission's GPU
+completion marker. Only the first deferred window may use a one-millisecond kernel timeout;
+the others poll, so requested waiting does not scale with output count. This runs on the native
+render worker, never the engine/UI thread, and retains preallocated retry storage. OS scheduling
+and opaque native APIs can exceed a requested timeout; the existing timing qualification still
+applies. Hidden windows do not wait or consume permits, and Spout never waits on a foreign
+consumer. An already-issued Present is never retried. Each output records one final outcome,
+with actual API brackets kept separate from admission waiting; no frame/fence is split.
+
 Each configured output has one fixed endpoint slot. An endpoint's creation or delivery failure
 enters `Recovering` independently of healthy outputs, with retries starting at 250 ms and backing
 off to two seconds. The baseline remains reserved while an endpoint is absent. Failed native

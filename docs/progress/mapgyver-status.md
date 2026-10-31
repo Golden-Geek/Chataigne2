@@ -11,9 +11,10 @@ and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** narrow M03's native window admission/pacing correction using batch 58's existing trace.
-Its production-window route is now exercised, but admission/deadline and independence failures
-remain. Keep the complete Q01 baseline and rejected interval-one control; no parameter sweeps.
+**Next:** qualify Q02's complete prescribed release series with the retained window-admission
+correction. Batch 59 passes every observed Q01 criterion, including the previously failing
+deadlines and independence. Complete GPU-path, queue, lifecycle-growth and environment evidence
+still remain required. Keep earlier failures and the rejected interval-one control; no sweeps.
 M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
 flow proves Spout pixels and rectangle bars, but actual fullscreen/editor-state checks stay open.
 Q02 sustained qualification and every other measurement requirement remain unchanged.
@@ -24,7 +25,15 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
-**Latest M03 evidence (batch 58):** qualification uses the same public `NativeOutputWindow` owner
+**Latest verified correction (batch 59):** Golden Video delivers ready outputs before retrying
+initially busy windows, within the same frame/fence and one shared requested **1 ms** kernel wait.
+The complete prescribed Q01 series passes **every observed criterion**: main deadline misses
+**0/0/0**, editor **0/1/0**, Spout **0/0/1**, each out of **7,200** against unchanged **0.1%**.
+Exact sample Spout cohorts are **7,200/7,200**, **7,200/7,200**, **7,199/7,199**; independence
+passes all three runs. CPU p95 **0.648/0.538/0.560 ms**; shutdown **387/407/398 ms**.
+Unmeasured criteria keep series status **UNAVAILABLE**, qualification false and M03 **7/9**.
+[Compact evidence](evidence/mapgyver-m03-window-admission-q01-2026-10-31.json).
+**Prior production-route baseline (batch 58):** qualification uses the same public `NativeOutputWindow` owner
 as production Screens, with exact client bounds and actual GPU-before-HWND retirement. The
 prescribed Q01 series finishes normally; sample 1 has **670/7,200** main-output Busy outcomes,
 sample 2 misses one independent Spout capture while minimized, and sample 3 misses **9/7,200**
@@ -104,8 +113,9 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 **Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
-activation blocker and exact remaining evidence. Return to M03 gate 9 with the preserved deadline
-failure; no repeated baseline or interval sweep. M03 gate 4 returns on explicit reset approval
+activation blocker and exact remaining evidence. M03 gate 9 remains active: Q01's corrected
+prescribed series now passes observed deadlines; Q02 and missing measurements remain. No repeated
+baseline or interval sweep. M03 gate 4 returns on explicit reset approval
 after current-run cleanup. Resume M05 gate 4 after successful supported window activation, then
 remaining M05, M06, M07 and M08 acceptance before M09's
 complete-app/artifact gate. Every original requirement remains required. A small optimization
@@ -3088,6 +3098,79 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**Window-admission correction batch 59:** started 2026-10-31 **19:55 UTC**, stop by **20:40 UTC**.
+Previous turn is progress: `7ef717e2` removes the duplicated qualification output-window owner
+and captures the full production-route Q01 series. Its existing trace identifies admission Busy
+before consumer APIs; no new baseline is needed. Own the correction in Golden Video's native
+output scheduling, not MapGyver UI or qualification thresholds. Deliver ready outputs first,
+then give initially busy windows one shared bounded kernel-wait opportunity within the same
+submission/fence. Never retry an already-issued Present or wait on a foreign Spout consumer.
+Prove permit consumption, bounded aggregate waiting, ready-output ordering, exact one-event/API
+accounting and actual retirement with deterministic tests and existing native checks. Only after
+compile/software prerequisites pass, allow one corrected Q01 series within 20 minutes of its
+recorded start and the 20:40 cutoff. If the correction fails, preserve/revert it as appropriate;
+do not sweep timeout/Present constants, add profilers or change acceptance budgets. Gate 9 alone
+is active; the reset decision and other phases keep their recorded return triggers.
+
+Software prerequisites pass: Golden Video **163 passed / 23 explicit native ignores**, app
+**192 passed / one existing hardware ignore**, strict Golden Video all-target and MapGyver
+qualification-bin Clippy, root/Golden Core formatting and whitespace. Two new real-kernel-event
+tests cover ready-before-retry order, exact permit consumption, no retry after an issued Present,
+hidden-window signal preservation, and **128 pending windows sharing one requested 1 ms timeout**.
+The correction uses one preallocated retry list, one final output observation and the existing
+submission completion guard; there is no extra GPU lifetime or pixel transport. OS scheduling
+can exceed the requested timeout, so no hard wall-time guarantee is inferred. Release build
+must finish before native verification. Retain the correction only if actual cadence/Busy and
+CPU evidence support it without ownership, exact accounting or healthy-output regressions;
+remaining software-display or other gate failures stay separate and required.
+
+Release build succeeds in **2m 55s**. Native verification starts **20:03 UTC**, cutoff
+**20:23 UTC**: first the existing two native window pixel/ownership tests, then one prescribed
+three-sample Q01 release series (30 s warmup, 120 s sample, separate 60 s minimize/disconnect
+intervals, PresentMon), directory `target/qualification-m03-window-admission-q01-2026-10-31-b59`.
+Keep the exact running process handle and freeze code/assets through collection and analysis.
+No further experiment or setting change is authorized by this batch.
+
+**Terminal result, 20:20 UTC:** retain the correction. Every observed Q01 criterion passes in
+the full prescribed release series, including the previously failing API cadence, anchored
+software-display/Spout deadlines and editor independence. This is a concrete renderer correction;
+it does not close gate 9 or certify unmeasured requirements. Series status is **UNAVAILABLE**,
+not fully qualified. Candidate executable SHA-256:
+`13e045b534124f23abbec9a1b8b727f1e4c85bf4079f6009cbb176da6c311bbd`.
+
+| Q01 measured acceptance | Sample 1 | Sample 2 | Sample 3 |
+| --- | --- | --- | --- |
+| Main accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
+| Editor accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
+| Spout accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,199 / 1 |
+| Main / editor / Spout deadline misses | 0 / 0 / 0 | 0 / 1 / 0 | 0 / 0 / 1 |
+| Exact accepted Spout image captures | 7,200 / 7,200 | 7,200 / 7,200 | 7,199 / 7,199 |
+| Editor independence | Pass | Pass | Pass |
+| CPU inclusive wall p95 / p99, ms | 0.6475 / 0.7280 | 0.5380 / 0.6274 | 0.5601 / 0.6227 |
+| Renderer-context GPU p95 / p99, ms | 3.2306 / 3.8086 | 3.8580 / 4.0884 | 3.4514 / 3.8922 |
+| Complete shutdown, ms | 386.6 | 406.7 | 397.6 |
+| Actual runtime retirement, ms | 95.9 | 99.2 | 102.8 |
+
+Across all phases, raw output records cover **16,225 / 16,223 / 16,225** submitted frame tokens
+with exactly three final outcomes per token and **zero duplicate token/output rows**. Raw
+Accepted/Busy/Unavailable totals match actual control counters exactly; admission retries do not
+invent deliveries or double-count Busy. All **48 raw hashes** verify and execution inputs remain
+unchanged. All renderer/source/collector processes exit normally, all three owned trace sessions
+are independently absent (`4201`), and no recorded renderer/source PID remains live. Actual
+retirement precedes HWND destruction in every run. Existing native pixel/ownership checks pass
+**2/2 in 0.23 s**, including six flip-buffer frames, all 16 pixels/frame within **2/255**.
+
+The correction is retained because its real signal/ordering behavior is verified, the prescribed
+series meets observed cadence/CPU/independence budgets, and ownership/accounting stay intact.
+This is not a claim that one comparison isolates all performance variation. Main/Spout still have
+rare Busy outcomes outside measurement; they remain recorded. Next run Q02 with this exact
+behavior in a new bounded batch, then close the remaining GPU-path, lifecycle-growth, queue and
+environment requirements. No timeout/Present sweep, new profiler, driver change or gate waiver.
+M03 remains **7/9** and overall **40%**. [Hashed compact evidence](evidence/mapgyver-m03-window-admission-q01-2026-10-31.json).
+
+Final root/Golden Core formatters, whitespace and source ownership review pass. Checkpoint
+preparation completes by **20:24 UTC**, within the recorded 20:40 stop; no third native check ran.
+
 **Production-window qualification batch 58:** started 2026-10-31 **19:13 UTC**, recorded stop
 **19:58 UTC**. Previous turn made progress: `8f9139f3` adds finite app output/pixel acceptance
 and retains its supported-activation blocker without closing M05 gate 4. The scheduled M05
@@ -3520,9 +3603,11 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 M04 is complete. The scheduled M05 gate 4 batch proves independent Spout/rectangle colors and
 retains the native UI-activation blocker; fullscreen pixels/editor state are still unverified.
-Return to **M03 gate 9** presentation pacing with the complete Q01 baseline and rejected interval-one
-control. Do not sweep modes or repeat the baseline unchanged. Retain Q02 and every measurement
-gap. Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
+Continue **M03 gate 9** with the full Q02 prescribed release series using batch 59's retained
+window-admission correction. Q01 now passes every observed criterion, including display deadlines
+and independence; do not repeat it or sweep modes. Preserve the earlier failed Q01 baseline and
+rejected interval-one control. Q02 and the complete GPU-path, lifecycle-growth, queue and
+environment requirements remain unverified. Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
 drain acceptance stays open. M05 returns after supported activation is available. Preserve source
 pixel passes; do not restore the parked stash or change driver/overlay settings.
 

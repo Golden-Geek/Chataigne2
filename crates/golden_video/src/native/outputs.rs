@@ -17,6 +17,7 @@ use recovery::Recovery;
 
 mod lifetime;
 mod recovery;
+pub(super) mod scheduling;
 pub(crate) mod spout;
 mod window;
 
@@ -61,9 +62,9 @@ impl Output {
             }
         }
     }
-    fn admit(&mut self) -> std::result::Result<(), Delivery> {
+    fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {
         match self {
-            Self::Window(output) => output.admit(),
+            Self::Window(output) => output.admit(timeout_ms),
             Self::Spout(_) => Ok(()),
         }
     }
@@ -300,6 +301,7 @@ impl OutputPool {
         context: &ID3D11DeviceContext,
         descriptor: TextureDescriptor,
         token: CompletionToken,
+        attempt: scheduling::Admission,
     ) -> std::result::Result<AdmittedOutput<'_>, Delivery> {
         let Some(binding) = self.bindings.get_mut(&id) else {
             return Err(Delivery::Unavailable);
@@ -321,9 +323,15 @@ impl OutputPool {
         } else if let Some(delivery) = binding.create(&self.device, Some(context), now) {
             Err(delivery)
         } else if let Some(endpoint) = binding.endpoint.begin_use(token.serial) {
-            endpoint
-                .admit()
-                .map_err(|delivery| binding.delivered(&self.device, delivery, now))
+            endpoint.admit(attempt.timeout_ms()).map_err(|delivery| {
+                // Only windows can be Busy at admission: Spout admission never waits on
+                // a foreign consumer. Defer this observation until the same-frame retry.
+                if delivery == Delivery::Busy && attempt == scheduling::Admission::Poll {
+                    delivery
+                } else {
+                    binding.delivered(&self.device, delivery, now)
+                }
+            })
         } else {
             // A recovering endpoint can still retain its old allocation or retry deadline.
             Err(Delivery::Unavailable)
@@ -337,6 +345,9 @@ impl OutputPool {
                 token,
             }),
             Err(delivered) => {
+                if delivered == Delivery::Busy && attempt == scheduling::Admission::Poll {
+                    return Err(delivered);
+                }
                 binding.publish(&self.control, self.generation);
                 self.control.observe_output(id, token, delivered);
                 Err(delivered)

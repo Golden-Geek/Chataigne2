@@ -24,7 +24,7 @@ fn busy_hidden_and_late_busy_preserve_one_permit_without_issuing_skipped_work() 
     let conversions = Cell::new(0);
     let accepted = Cell::new(0);
     let submit = |readiness: &mut Readiness, available, result| {
-        readiness.admit(available).map(|()| {
+        readiness.admit(available, 0).map(|()| {
             conversions.set(conversions.get() + 1);
             let delivered = readiness.presented(result);
             if delivered == Delivery::Accepted {

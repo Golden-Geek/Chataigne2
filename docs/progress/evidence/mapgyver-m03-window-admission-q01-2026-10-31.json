@@ -1,0 +1,930 @@
+{
+  "evidence_kind": "bounded_window_admission_q01_prescribed_series",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "candidate_retained": true,
+  "scope": "prescribed_series",
+  "status": "UNAVAILABLE",
+  "prescribed_three_sample_series": true,
+  "qualified": false,
+  "raw_directory_local": "target/qualification-m03-window-admission-q01-2026-10-31-b59",
+  "analysis_sha256": "60b82729ed7db1da96178e54915bb0d2692d344a22f09825c4d16ca1cf956bf5",
+  "samples": [
+    {
+      "sample": 1,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "PASSED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.5134,
+        "p95_ms": 0.6475,
+        "p99_ms": 0.728,
+        "maximum_ms": 2.0657
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 2.9105729166666667,
+        "p95_ms": 3.2305729166666666,
+        "p99_ms": 3.80859375,
+        "maximum_ms": 5.15703125
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "shutdown_ms": 386.6226,
+      "raw_sha256": {
+        "consumer.jsonl": "ca436eb5f82a5756c540847853b40c82f14bfb6c09fb0c521e5a592e1e5564e6",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "7adec1e429f09dcf5ad9ba26a0fae9d8f6a6823a6fc0916290a55a46d0e7037e",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "77788cb8628dd47b03bbdc11683a1f16778c1a6391315572ef2e942d50b92775",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "b1b4206746f59edc6335dac14f998121736bbedff6091208500ebcca02602ef0",
+        "inputs.json": "20a344be8cdae0feb4879e3cb7c3054aece4abcd202d59acdc44028d0647b90a",
+        "launcher.json": "5cf40c7e0dde325eead9aa9123a699043de635e11090afe19bf5e28cca426650",
+        "manifest.json": "4970280f3a2f7120d1a478f88bc7a25a6102abebdfcff09fe5f8b2458f9e6e21",
+        "parent-summary.json": "ff7ce5f796662ef72836690593f1e8e2fa38600d80638e1a96a454bac1515875",
+        "presentmon.json": "6e03fa8b98eed955bbac1c987e28e0e873322d77c541b39bc16d836f27962210",
+        "renderer-summary.json": "5eeb812293bab7520f1d96909300b16a1d00146a462cc1ab68f68920e8a0ab0e",
+        "renderer.jsonl": "2450e3fcca16fffdc6db26e80d66515bffcfb71f630ce36856b662f21ad0956d",
+        "source-1.jsonl": "0d616aa42652e0a068959723453a1c95b1c2b92da3f6cb5f27f8d0a62f7fd2af",
+        "source-2.jsonl": "8e933f6e997e3d3abfbaeca2a52b65f10556aa0d7d0be894a9074efd4fac5a3d"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "13e045b534124f23abbec9a1b8b727f1e4c85bf4079f6009cbb176da6c311bbd",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 31632,
+            "stop_ns": "21001400",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 47524,
+            "stop_ns": "25527400",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 35880,
+            "stop_ns": "58361800",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "105080900",
+        "qpc": 4760754461449,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:54793/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4760751991515,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.0959246,
+          "end_qpc": 4760752921716,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null
+      },
+      "accounting": {
+        "frame_tokens": 16225,
+        "unique_token_output_rows": 48675,
+        "duplicate_token_output_rows": 0,
+        "every_frame_has_exactly_three_final_output_rows": true,
+        "raw_outcome_counts": {
+          "Accepted": 45073,
+          "Busy": 1,
+          "Unavailable": 3601
+        },
+        "control_outcome_counts_match": true,
+        "actual_consumer_api_calls": {
+          "1": 16224,
+          "2": 16225,
+          "3": 12624
+        },
+        "busy_origin_all_phases": {
+          "before_api": 1
+        }
+      },
+      "launcher": {
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        30628,
+        31632,
+        47524,
+        35880
+      ]
+    },
+    {
+      "sample": 2,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "PASSED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.4127,
+        "p95_ms": 0.538,
+        "p99_ms": 0.6274,
+        "maximum_ms": 1.0848
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 3.0653645833333334,
+        "p95_ms": 3.85796875,
+        "p99_ms": 4.088385416666667,
+        "maximum_ms": 8.849010416666667
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7199,
+            "late_display": 1,
+            "Miss": 1
+          },
+          "miss_fraction_lower_bound": 0.0001388888888888889,
+          "miss_fraction_upper_bound": 0.0001388888888888889,
+          "deadline_verdict": true
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3599,
+              "Busy": 1
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "shutdown_ms": 406.7018,
+      "raw_sha256": {
+        "consumer.jsonl": "f7c2d53a8152aee9ada98fc572da6f3fce27bfd4cd818f4c9d360222ae35fbb5",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "bd3bc25d5f0ee8a01d7d417d54a8f610ecfd58bb776774df6acfc7a39eb232bd",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "984770f23452143044a91db676eaeae35871e2fc4926d8fc1ce8a0c357869a5d",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "09bc767c916477eb76774a201cb45c33c207a09b704d3225d2a3cd815845219f",
+        "inputs.json": "20a344be8cdae0feb4879e3cb7c3054aece4abcd202d59acdc44028d0647b90a",
+        "launcher.json": "362483487e7a3e6598819c792874c7489c964ce71bbf5adfe4450a7116b1f159",
+        "manifest.json": "7c9155563694709eb5e72776205c3cbffff21dab71024b71fc3daf4db360a8af",
+        "parent-summary.json": "2366b70ac878ea9cd59ef1b5b698a620e961c7fa4d3dc2cf25e7c201e1d26945",
+        "presentmon.json": "1a11a647f3a3343a6081d2557ca26883c9957f7f62a84c32a098c1a4ead7c843",
+        "renderer-summary.json": "43afa840df0771335955b7cfbf4fb8f09896062540c2f888e8844de363552246",
+        "renderer.jsonl": "42e5fda4e5a9dfe4e5f69f82f87c3f10271e3e40aa21a3df327909a4899581c6",
+        "source-1.jsonl": "a3b8f5dd476c7e61689e26874f2c680b26b346dcce1654f4c661782135a41b42",
+        "source-2.jsonl": "827852a604bd2b8db5c710fcbbd165adf24d1f8b40a7c45ef52229966ec5a98c"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "13e045b534124f23abbec9a1b8b727f1e4c85bf4079f6009cbb176da6c311bbd",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 27336,
+            "stop_ns": "25730400",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 31768,
+            "stop_ns": "20460800",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 38416,
+            "stop_ns": "56722400",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "103133900",
+        "qpc": 4763861928205,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:59975/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4763859471969,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.0991688,
+          "end_qpc": 4763860431995,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null
+      },
+      "accounting": {
+        "frame_tokens": 16223,
+        "unique_token_output_rows": 48669,
+        "duplicate_token_output_rows": 0,
+        "every_frame_has_exactly_three_final_output_rows": true,
+        "raw_outcome_counts": {
+          "Accepted": 45068,
+          "Unavailable": 3600,
+          "Busy": 1
+        },
+        "control_outcome_counts_match": true,
+        "actual_consumer_api_calls": {
+          "1": 16222,
+          "2": 16223,
+          "3": 12623
+        },
+        "busy_origin_all_phases": {
+          "before_api": 1
+        }
+      },
+      "launcher": {
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        12736,
+        27336,
+        31768,
+        38416
+      ]
+    },
+    {
+      "sample": 3,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "PASSED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.4329,
+        "p95_ms": 0.5601,
+        "p99_ms": 0.6227,
+        "maximum_ms": 1.0138
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 2.9028645833333333,
+        "p95_ms": 3.45140625,
+        "p99_ms": 3.892239583333333,
+        "maximum_ms": 5.650364583333333
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7199,
+            "Busy": 1
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7199,
+            "OnTime": 7199,
+            "not_accepted": 1,
+            "Miss": 1
+          },
+          "miss_fraction_lower_bound": 0.0001388888888888889,
+          "miss_fraction_upper_bound": 0.0001388888888888889,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7199,
+        "captured_images": 7199,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3598,
+              "Busy": 2
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "shutdown_ms": 397.567,
+      "raw_sha256": {
+        "consumer.jsonl": "ec45f1dbe4ba905b5a4a8e8486ad871e76bfeb2e2f26cb711ed5520b0f73cfb5",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "f5bc2d3129fc33ab0908e88469071d2f3c786feb44abb67ad6510dfe810a1b82",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "dbc3292a08a23dc15b6c30ec2627b6631305511fa422056bc1f9aefd830c72b3",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "48e483a5c01d695054cca186a8d1bcbe6119cf12b1442a2e205daa45f6a9017d",
+        "inputs.json": "20a344be8cdae0feb4879e3cb7c3054aece4abcd202d59acdc44028d0647b90a",
+        "launcher.json": "e58538bc53ef7cb56ea61b23b79116a3de1ed0ab87b9beb79638d73ee8e26bb1",
+        "manifest.json": "290452a383b79f70c734f825b82269ab57face487cb8e2bf0e5f031e016c9510",
+        "parent-summary.json": "e9a435953fe139857a0de69e0e233da146e5cfd6badef11f3b865d01bb708495",
+        "presentmon.json": "67a3e957530271527c22686be61bee5fb170fbd976514d71938786c6b1135277",
+        "renderer-summary.json": "ef329c46cb37568b4ea9e2911228417581604aaf42ae942d6e253b75fd14b1d8",
+        "renderer.jsonl": "cca0333a946860661b66bad1f9a298b84a308262599ff6cd12dd3b983f90ec89",
+        "source-1.jsonl": "f76847710272fe4115dc4dcd956cd15f927d7822d974ec85548a349911fa1b7a",
+        "source-2.jsonl": "2e75520f00049b7f58d99468eeb0de05ec1ff80f4fe1eb942fb4533ec15f6b64"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "13e045b534124f23abbec9a1b8b727f1e4c85bf4079f6009cbb176da6c311bbd",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 49712,
+            "stop_ns": "25406300",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 49148,
+            "stop_ns": "26080900",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 43488,
+            "stop_ns": "58787000",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "110517000",
+        "qpc": 4766970728726,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:58251/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4766968154842,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.1028144,
+          "end_qpc": 4766969152054,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null
+      },
+      "accounting": {
+        "frame_tokens": 16225,
+        "unique_token_output_rows": 48675,
+        "duplicate_token_output_rows": 0,
+        "every_frame_has_exactly_three_final_output_rows": true,
+        "raw_outcome_counts": {
+          "Accepted": 45067,
+          "Busy": 6,
+          "Unavailable": 3602
+        },
+        "control_outcome_counts_match": true,
+        "actual_consumer_api_calls": {
+          "1": 16221,
+          "2": 16225,
+          "3": 12623
+        },
+        "busy_origin_all_phases": {
+          "before_api": 4,
+          "api_called": 2
+        }
+      },
+      "launcher": {
+        "exit_code": 0,
+        "timed_out": false,
+        "forced_cleanup": false
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        18436,
+        49712,
+        49148,
+        43488
+      ]
+    }
+  ],
+  "method": {
+    "scenario": "Q01",
+    "adapter_luid": "00000000:00016c2a",
+    "release": true,
+    "samples": 3,
+    "warmup_seconds": 30,
+    "measurement_seconds": 120,
+    "editor_minimized_seconds": 60,
+    "editor_disconnected_seconds": 60,
+    "deadline_miss_budget_fraction": 0.001
+  },
+  "change": {
+    "owner": "Golden Video native output scheduling",
+    "behavior": "Deliver immediately ready outputs first, then retry initially busy windows in plan order. Only the first deferred window receives a requested 1 ms kernel timeout; all later retries poll.",
+    "same_submission_and_completion_fence": true,
+    "retries_after_issued_present": 0,
+    "per_output_final_observations": 1,
+    "hot_retry_storage": "Preallocated to configured native output count; reused per submission.",
+    "timeout_limit": "Requested kernel timeout, not a hard wall-time guarantee against OS scheduling or opaque native APIs."
+  },
+  "checks": {
+    "golden_video_software": {
+      "passed": 163,
+      "ignored_explicit_hardware": 23
+    },
+    "mapgyver_library": {
+      "passed": 192,
+      "ignored_existing_hardware": 1
+    },
+    "strict_clippy": [
+      "golden_video qualification all targets",
+      "MapGyver native-qualification bins"
+    ],
+    "native_window_tests": {
+      "passed": 2,
+      "seconds": 0.23,
+      "flip_buffer_frames": 6,
+      "rgba_pixels_per_frame": 16,
+      "tolerance": "2/255"
+    },
+    "release_build": "2m 55s"
+  },
+  "remaining_m03_gate_9": [
+    "Q02 full prescribed qualification with this correction",
+    "Complete GPU critical path across contexts",
+    "Applicable renderer lifecycle handle/private growth and drain",
+    "Published queue occupancy and age requirements",
+    "Pinned complete environment identity"
+  ],
+  "limitations": [
+    "All observed Q01 criteria pass, but series status is UNAVAILABLE and renderer qualification remains false.",
+    "Renderer GPU timing describes one context only, not the complete critical path.",
+    "Physical display/DPI/input acceptance belongs to M05; full-app Q05 belongs to M09.",
+    "The old failed production-route and interval-one control evidence remains retained; no thresholds or workloads changed."
+  ],
+  "post_run_cleanup": {
+    "remaining_owned_renderer_or_fixture_processes": 0,
+    "owned_trace_sessions_absent": 3,
+    "raw_hashes_verified": 48,
+    "all_native_and_collector_exits_normal": true
+  }
+}

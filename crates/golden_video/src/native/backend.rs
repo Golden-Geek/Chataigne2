@@ -18,6 +18,7 @@ use super::completion::EventCompletion;
 use super::device::Device;
 use super::inputs::{CopyFrame, SourceDemands, SourcePool};
 use super::outputs::OutputPool;
+use super::outputs::scheduling::{Admission, Attempt, OutputSchedule};
 use super::pipeline::{CONSTANT_BYTES, Pipeline};
 use super::texture::Texture;
 use super::timing::{
@@ -34,6 +35,7 @@ struct NativeState {
     timing: Option<GpuTiming>,
     inputs: SourcePool,
     outputs: OutputPool,
+    output_schedule: OutputSchedule,
     pipeline: Pipeline,
     completion: EventCompletion,
     device: Device,
@@ -204,6 +206,7 @@ impl D3d11Backend {
                 timing,
                 inputs,
                 outputs,
+                output_schedule: OutputSchedule::new(self.config.outputs.len()),
                 pipeline,
                 completion,
                 device,
@@ -544,14 +547,18 @@ impl Backend for D3d11Backend {
             gpu.render_complete();
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
-        for output in plan.outputs() {
+        native.output_schedule.submit(plan.outputs().len(), |index, attempt| {
+            let output = &plan.outputs()[index];
             let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
             let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
             let admission_begin = recorder.and_then(Recorder::stamp);
-            let admission = native.outputs.admit(output.id, context, descriptor, token);
+            let admission = native.outputs.admit(output.id, context, descriptor, token, attempt);
             let mut consumer_api = None;
             let mut window_present = None;
             let (conversion, delivery, outcome, spout_image) = match admission {
+                Err(super::outputs::Delivery::Busy) if attempt == Admission::Poll => {
+                    return Attempt::DeferredWindow;
+                }
                 Err(outcome) => (
                     None,
                     recorder.and_then(|recorder| recorder.interval(admission_begin)),
@@ -597,7 +604,8 @@ impl Backend for D3d11Backend {
                     window_present,
                 }));
             }
-        }
+            Attempt::Complete
+        });
         drop(gpu);
         let completion_begin = recorder.and_then(Recorder::stamp);
         drop(submission);

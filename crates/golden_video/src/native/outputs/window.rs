@@ -130,9 +130,9 @@ impl WindowOutput {
             .map(|addresses| super::super::timing::WindowPresentIdentity { generation, addresses })
     }
 
-    pub(super) fn admit(&mut self) -> std::result::Result<(), Delivery> {
+    pub(super) fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {
         let available = self.available().map_err(|error| Delivery::Failed(error.code()))?;
-        self.readiness.admit(available)
+        self.readiness.admit(available, timeout_ms)
     }
 
     fn available(&self) -> Result<bool> {
@@ -179,16 +179,16 @@ impl Readiness {
         Self { handle, permit: false }
     }
 
-    pub(super) fn admit(&mut self, available: bool) -> std::result::Result<(), Delivery> {
+    pub(super) fn admit(&mut self, available: bool, timeout_ms: u32) -> std::result::Result<(), Delivery> {
         if !available {
             return Err(Delivery::Unavailable);
         }
         if self.permit {
             return Ok(());
         }
-        // SAFETY: the owned waitable handle remains retained. Zero timeout never stalls
-        // another output, and the successful signal is consumed only once for this permit.
-        match unsafe { WaitForSingleObject(HANDLE(self.handle.as_raw_handle()), 0) } {
+        // SAFETY: the owned handle stays retained; the caller bounds the aggregate timeout
+        // after ready outputs deliver. A successful signal grants exactly one permit.
+        match unsafe { WaitForSingleObject(HANDLE(self.handle.as_raw_handle()), timeout_ms) } {
             WAIT_OBJECT_0 => {
                 self.permit = true;
                 Ok(())

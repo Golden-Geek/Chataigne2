@@ -139,7 +139,7 @@ fn hardware_direct_window_encodes_once_and_tracks_flip_buffers_across_presents()
         let deadline = Instant::now() + Duration::from_secs(5);
         loop {
             pump();
-            match window.admit() {
+            match window.admit(0) {
                 Ok(()) => break,
                 Err(Delivery::Busy) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(1)),
                 other => panic!("window admission: {other:?}"),
@@ -295,6 +295,7 @@ fn hardware_window_charge_has_only_two_backbuffers_and_rejects_foreign_context_b
             device: generation,
             serial: 1,
         },
+        crate::native::outputs::scheduling::Admission::Poll,
     );
     assert!(matches!(result, Err(Delivery::Failed(_))));
     drop(result);
