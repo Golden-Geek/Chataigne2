@@ -184,7 +184,10 @@ export class MatrixController<S extends Connection> {
 					session.snapshotGeneration === generation
 				) {
 					this.refresh();
-					if (edit.kind !== 'Matrix' || edit.edit.kind !== 'LaunchColumn') {
+					if (
+						edit.kind !== 'Matrix' ||
+						(edit.edit.kind !== 'LaunchColumn' && edit.edit.kind !== 'ClearPlayback')
+					) {
 						this.matrices.refresh();
 						this.sources.refresh();
 					}

@@ -5,6 +5,21 @@ use super::{
 use golden_io::{WorkerContext, WorkerWake};
 use std::time::Duration;
 
+pub(super) fn current_target_is_admitted(shared: &Shared, id: ApplicationId, captured: &Target) -> bool {
+    captured.guard.as_ref().is_some_and(RevisionGuard::is_current)
+        && shared
+            .desired
+            .lock()
+            .expect("application demand lock poisoned")
+            .targets
+            .get(&id)
+            .is_some_and(|current| {
+                current.epoch == captured.epoch
+                    && current.guard.as_ref().is_some_and(RevisionGuard::is_current)
+                    && current.admission.iter().all(RevisionGuard::is_current)
+            })
+}
+
 pub(super) fn run(
     id: ApplicationId,
     owner: uuid::Uuid,
@@ -72,17 +87,9 @@ pub(super) fn run(
         let admitted = || {
             !context.cancellation().is_cancelled()
                 && shared.guard.is_current()
-                && target.as_ref().is_some_and(|target| {
-                    target.guard.as_ref().is_some_and(RevisionGuard::is_current)
-                        && target.admission.iter().all(RevisionGuard::is_current)
-                        && shared
-                            .desired
-                            .lock()
-                            .expect("application demand lock poisoned")
-                            .targets
-                            .get(&id)
-                            .is_some_and(|current| current.epoch == target.epoch)
-                })
+                && target
+                    .as_ref()
+                    .is_some_and(|target| current_target_is_admitted(&shared, id, target))
         };
         let now = u64::try_from(shared.origin.elapsed().as_millis()).unwrap_or(u64::MAX);
         agent.tick(

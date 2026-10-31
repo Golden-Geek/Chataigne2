@@ -48,6 +48,9 @@ impl ElementNode {
         self.revision.advance();
         if let Some(binding) = self.runtime.get() {
             binding.invalidate();
+            if matches!(self.definition, ElementDefinition::Column { .. }) {
+                binding.invalidate_applications();
+            }
         }
     }
     pub(crate) fn set_definition(&mut self, definition: ElementDefinition) -> Result<(), String> {

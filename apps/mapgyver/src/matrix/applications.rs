@@ -1,6 +1,49 @@
 use super::{projection::RenderIndex, protocol::*, timeline::Frame};
 use crate::applications::{demand::*, protocol::ApplicationId};
+use golden_core::node::{Node, NodeId};
 use std::collections::HashMap;
+use std::sync::Arc;
+
+pub(crate) fn capture_application_columns(
+    engine: &crate::app::AppEngine,
+    root: NodeId,
+    control: &super::playback::PlaybackControl,
+    maximum: usize,
+) -> Result<Arc<[ColumnSnapshot]>, String> {
+    if let Some(columns) = control.application_columns() {
+        if columns.len() > maximum {
+            return Err("logical Matrix aggregate column capacity exceeded".into());
+        }
+        return Ok(columns);
+    }
+    let mut columns = Vec::new();
+    let mut next = engine
+        .nodes
+        .get(root)
+        .ok_or("Matrix root is missing")?
+        .node_data()
+        .first_child;
+    while let Some(id) = next {
+        let node = engine.nodes.get(id).ok_or("Matrix column index changed")?;
+        next = node.node_data().next_sibling;
+        if let crate::app::AppNode::MatrixElement(node) = node
+            && let ElementDefinition::Column { definition } = node.definition()
+        {
+            if columns.len() == maximum {
+                return Err("logical Matrix column capacity exceeded".into());
+            }
+            node.bind_runtime(control.binding());
+            columns.push(ColumnSnapshot {
+                id: ColumnId(node.node_data().meta.uuid),
+                label: node.node_data().meta.label.clone(),
+                definition: definition.clone(),
+            });
+        }
+    }
+    let columns: Arc<[ColumnSnapshot]> = columns.into();
+    control.cache_application_columns(columns.clone());
+    Ok(columns)
+}
 
 #[derive(Clone, PartialEq, Eq)]
 struct Key {

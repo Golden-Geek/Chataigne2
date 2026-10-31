@@ -97,12 +97,16 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if matches!(edit, MatrixEdit::InspectPlayback) {
         return super::playback::inspect(engine, media);
     }
+    if matches!(edit, MatrixEdit::ClearPlayback) {
+        return super::playback::unload(engine, media);
+    }
     let document = Document::load(engine, media)?;
     match edit {
         MatrixEdit::InspectTargets { .. } => unreachable!(),
         MatrixEdit::InspectViewport { .. } => unreachable!(),
         MatrixEdit::LaunchColumn { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),
+        MatrixEdit::ClearPlayback => unreachable!(),
         MatrixEdit::Inspect => {
             return Ok(MediaEditResult::Matrix {
                 snapshot: document.snapshot,

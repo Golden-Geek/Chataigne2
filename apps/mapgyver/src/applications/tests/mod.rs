@@ -11,6 +11,7 @@ use golden_core::{
 };
 
 mod demand;
+mod logical;
 fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();

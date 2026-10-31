@@ -134,8 +134,34 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut accepted_outputs = std::collections::HashMap::new();
     let mut next_display_scan = Instant::now();
     let mut display_snapshot = crate::screens::protocol::DisplayCatalogSnapshot::default();
-    let mut applications = crate::applications::bridge::Bridge::default();
+    let mut applications = crate::applications::driver::ApplicationDriver::default();
+    let mut application_retry = Instant::now();
+    let mut application_error = None;
     while !input.stop.is_requested() {
+        if applications.needs_service() && Instant::now() >= application_retry {
+            let mut driver = std::mem::take(&mut applications);
+            let notifier = input.notifier.clone();
+            let (returned, result) = input
+                .runtime
+                .capture_app(move |engine| {
+                    let result = driver.service(engine, notifier);
+                    (driver, result)
+                })
+                .map_err(io::Error::other)?;
+            applications = returned;
+            match result {
+                Ok(_) => {
+                    application_error = None;
+                }
+                Err(error) => {
+                    if application_error.as_ref() != Some(&error) {
+                        eprintln!("[mapgyver-applications] {error}");
+                    }
+                    application_error = Some(error);
+                    application_retry = Instant::now() + Duration::from_millis(500);
+                }
+            }
+        }
         let refresh = input.displays.take_refresh();
         if refresh || Instant::now() >= next_display_scan {
             next_display_scan = Instant::now() + Duration::from_secs(1);
@@ -467,7 +493,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
 
 fn sync_applications(
     input: &Input,
-    applications: &mut crate::applications::bridge::Bridge,
+    applications: &mut crate::applications::driver::ApplicationDriver,
     project: uuid::Uuid,
     demand: Vec<crate::applications::demand::ApplicationDemand>,
     admission: std::sync::Arc<[golden_io::RevisionGuard]>,

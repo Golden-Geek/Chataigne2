@@ -48,6 +48,9 @@
 // InspectPlayback reads committed desired state, independently of selection or renderer installation.
 // Launches are ephemeral and do not add authored history. Use mode: "Configured" for the column
 // override or Matrix default fade. Interrupted fades preserve current weights and outgoing demand.
+// ClearPlayback unloads the Matrix immediately through the same command/method/result callback:
+// local.editMedia("unload", JSON.stringify({kind:"Matrix", media:matrixMediaId, edit:{kind:"ClearPlayback"}}));
+// It clears logical app demand without authored history; submitted renderer uses retire separately.
 
 function init() {
   // Subscribe once. No update callback or periodic polling is needed.

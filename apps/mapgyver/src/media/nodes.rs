@@ -17,6 +17,7 @@ pub struct MediaManagerNode {
     data: NodeData,
     pub(crate) instance: uuid::Uuid,
     pub(crate) applications: crate::applications::runtime::RuntimeView,
+    pub(crate) application_revision: Arc<RevisionSource>,
     project: RevisionSource,
     membership: RevisionSource,
     operation_owner: Arc<()>,
@@ -30,6 +31,7 @@ impl MediaManagerNode {
             data,
             instance: uuid::Uuid::new_v4(),
             applications: Default::default(),
+            application_revision: Default::default(),
             project: RevisionSource::default(),
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
@@ -63,6 +65,7 @@ impl Node for MediaManagerNode {
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
         self.applications = Default::default();
+        self.application_revision.advance();
         self.operation_owner = Arc::new(());
     }
     fn node_data(&self) -> &NodeData {
@@ -268,6 +271,7 @@ impl Node for ChannelNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         if let Some(control) = &self.matrix_playback {
             control.invalidate();
+            control.invalidate_applications();
         }
         self.revision.advance();
     }
@@ -332,6 +336,9 @@ impl Node for ChannelNode {
         self.revision.advance();
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+        if let Some(control) = &self.matrix_playback {
+            control.invalidate_applications();
+        }
         self.revision.advance();
     }
     fn node_data(&self) -> &NodeData {

@@ -1,8 +1,8 @@
 //! App-owned executable definitions and column demand. Golden IO owns OS process mechanisms.
 mod authoring;
-#[cfg(all(windows, feature = "native-video"))]
-pub(crate) mod bridge;
 pub mod demand;
+pub mod driver;
+pub mod logical;
 mod node;
 pub mod protocol;
 pub mod runtime;

@@ -430,3 +430,125 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     drop(runtime);
     assert!(process_retirement.wait_for_idle(Duration::from_secs(4)));
 }
+
+#[test]
+fn project_wide_driver_starts_and_unloads_shared_timed_column_demand_with_no_renderer_or_clock() {
+    use mapgyver::{applications::driver::ApplicationDriver, matrix::protocol::*};
+    fn matrix_edit(
+        engine: &mut AppEngine,
+        media: mapgyver::media::protocol::MediaId,
+        edit: MatrixEdit,
+    ) -> MediaEditResult {
+        let ack = apply_project_intent(
+            engine,
+            UiEditIntent::InvokeAppOperation {
+                namespace: MEDIA_NAMESPACE.into(),
+                operation: MEDIA_OPERATION.into(),
+                payload: serde_json::to_value(MediaEdit::Matrix { media, edit }).unwrap(),
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        serde_json::from_value(ack.result.unwrap().value).unwrap()
+    }
+    fn matrix(
+        engine: &mut AppEngine,
+        application: ApplicationId,
+    ) -> (mapgyver::media::protocol::MediaId, Vec<ColumnId>) {
+        let ack = apply_project_intent(
+            engine,
+            UiEditIntent::InvokeAppOperation {
+                namespace: MEDIA_NAMESPACE.into(),
+                operation: MEDIA_OPERATION.into(),
+                payload: serde_json::to_value(MediaEdit::CreateMedia {
+                    media_kind: mapgyver::media::protocol::MediaKind::Matrix,
+                    label: None,
+                })
+                .unwrap(),
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        let MediaEditResult::Created { reference } = serde_json::from_value(ack.result.unwrap().value).unwrap() else {
+            panic!()
+        };
+        let MediaEditResult::MatrixCreated { columns, .. } =
+            matrix_edit(engine, reference.media, MatrixEdit::AddColumns { count: 3 })
+        else {
+            panic!()
+        };
+        matrix_edit(
+            engine,
+            reference.media,
+            MatrixEdit::ConfigureColumn {
+                column: columns[2],
+                definition: ColumnDefinition {
+                    applications: vec![ColumnApplication {
+                        application,
+                        pre: 1,
+                        post: 1,
+                    }],
+                    ..Default::default()
+                },
+            },
+        );
+        (reference.media, columns)
+    }
+    fn service(driver: &mut ApplicationDriver, engine: &AppEngine) {
+        driver.service(engine, golden_io::WorkerNotifier::new(|| {})).unwrap();
+    }
+    fn phase(driver: &ApplicationDriver, expected: ApplicationPhase) -> ApplicationRuntimeStatus {
+        let until = Instant::now() + Duration::from_secs(4);
+        loop {
+            let snapshot = driver.snapshot();
+            if let Some(status) = snapshot.as_ref().and_then(|snapshot| snapshot.applications.first())
+                && status.phase == expected
+            {
+                return status.clone();
+            }
+            assert!(Instant::now() < until, "expected {expected:?}, got {snapshot:?}");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+    let (mut engine, application) = fixture(ApplicationReadiness::ProcessStarted);
+    let (first, columns) = matrix(&mut engine, application);
+    let (second, other) = matrix(&mut engine, application);
+    let history = engine.undo_len();
+    let authored = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut driver = ApplicationDriver::default();
+    service(&mut driver, &engine);
+    assert!(driver.snapshot().is_none());
+    assert!(!driver.needs_service());
+    matrix_edit(
+        &mut engine,
+        first,
+        MatrixEdit::LaunchColumn {
+            column: columns[1],
+            mode: LaunchMode::Configured,
+        },
+    );
+    assert!(driver.needs_service());
+    service(&mut driver, &engine);
+    let original = phase(&driver, ApplicationPhase::Ready);
+    let retirement = driver.retirement().unwrap();
+    assert!(!driver.needs_service());
+    matrix_edit(
+        &mut engine,
+        second,
+        MatrixEdit::LaunchColumn {
+            column: other[2],
+            mode: LaunchMode::Configured,
+        },
+    );
+    service(&mut driver, &engine);
+    matrix_edit(&mut engine, first, MatrixEdit::ClearPlayback);
+    service(&mut driver, &engine);
+    std::thread::sleep(Duration::from_millis(80));
+    assert_eq!(phase(&driver, ApplicationPhase::Ready).process_id, original.process_id);
+    assert_eq!(driver.snapshot().unwrap().applications.len(), 1);
+    matrix_edit(&mut engine, second, MatrixEdit::ClearPlayback);
+    service(&mut driver, &engine);
+    phase(&driver, ApplicationPhase::Idle);
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
+    drop(driver);
+    assert!(retirement.wait_for_idle(Duration::from_secs(4)));
+}

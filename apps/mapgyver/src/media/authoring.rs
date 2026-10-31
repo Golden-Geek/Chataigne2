@@ -93,15 +93,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     if let MediaEdit::Matrix {
         media,
-        edit: crate::matrix::protocol::MatrixEdit::LaunchColumn { column, mode },
+        edit:
+            operation @ (crate::matrix::protocol::MatrixEdit::LaunchColumn { .. }
+            | crate::matrix::protocol::MatrixEdit::ClearPlayback),
     } = edit
     {
-        return serde_json::to_value(crate::matrix::apply(
-            engine,
-            media,
-            crate::matrix::protocol::MatrixEdit::LaunchColumn { column, mode },
-        )?)
-        .map_err(|error| error.to_string());
+        return serde_json::to_value(crate::matrix::apply(engine, media, operation)?)
+            .map_err(|error| error.to_string());
     }
     let pending_before = engine.edits.pending.len();
     let result = match edit {

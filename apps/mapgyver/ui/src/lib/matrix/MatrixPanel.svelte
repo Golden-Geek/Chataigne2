@@ -169,6 +169,9 @@
 				>Add group</button>
 			<button disabled={busy} onclick={() => controller.edit({ kind: 'AddColumns', count: 1 })}
 				>Add column</button>
+			<button
+				disabled={busy || view.window.playback.desired_column === null}
+				onclick={() => controller.edit({ kind: 'ClearPlayback' })}>Unload Matrix</button>
 			<span>{view.window.row_total} rows · {view.window.column_total} columns</span>
 			{#if view.refreshing}<span role="status">Refreshing visible cells…</span>{/if}
 		</div>

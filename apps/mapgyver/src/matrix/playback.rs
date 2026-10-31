@@ -12,7 +12,7 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::{
-    Arc, Mutex, Weak,
+    Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -24,6 +24,9 @@ struct Control {
     revision: RevisionSource,
     // Runtime launches must not change the authoring epoch used by clip binding admission.
     authored: RevisionSource,
+    columns: RevisionSource,
+    logical: RevisionSource,
+    application_parent: OnceLock<Weak<RevisionSource>>,
     dirty: AtomicBool,
 }
 #[derive(Default)]
@@ -33,11 +36,17 @@ struct State {
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
     view: Option<(u64, Arc<super::view::ViewIndex>)>,
+    application_columns: Option<(u64, Arc<[ColumnSnapshot]>)>,
 }
 
 #[derive(Clone)]
 pub(crate) struct RuntimeBinding(Weak<Control>);
 impl RuntimeBinding {
+    pub fn invalidate_applications(&self) {
+        if let Some(control) = self.0.upgrade() {
+            PlaybackControl(control).invalidate_applications();
+        }
+    }
     pub fn version(&self) -> u64 {
         self.0
             .upgrade()
@@ -53,6 +62,40 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub(crate) fn bind_application_parent(&self, source: &Arc<RevisionSource>) {
+        let _ = self.0.application_parent.set(Arc::downgrade(source));
+    }
+    fn notify_applications(&self) {
+        self.0.logical.advance();
+        if let Some(source) = self.0.application_parent.get().and_then(Weak::upgrade) {
+            source.advance();
+        }
+    }
+    pub(crate) fn invalidate_applications(&self) {
+        self.0.columns.advance();
+        self.notify_applications();
+    }
+    pub(crate) fn application_guard(&self) -> RevisionGuard {
+        let reader = self.0.logical.reader();
+        reader.guard_at(reader.current())
+    }
+    pub(crate) fn application_columns(&self) -> Option<Arc<[ColumnSnapshot]>> {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .application_columns
+            .as_ref()
+            .filter(|(revision, _)| *revision == self.0.columns.reader().current())
+            .map(|(_, columns)| columns.clone())
+    }
+    pub(crate) fn cache_application_columns(&self, columns: Arc<[ColumnSnapshot]>) {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .application_columns = Some((self.0.columns.reader().current(), columns));
+    }
     pub(crate) fn capture_applications(
         &self,
         time: golden_time::TimeSnapshot,
@@ -149,6 +192,7 @@ impl PlaybackControl {
         self.0.state.lock().expect("Matrix playback lock poisoned").pending = Some((desired, receipt));
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
+        self.notify_applications();
     }
     pub fn guard(&self) -> RevisionGuard {
         let reader = self.0.revision.reader();
@@ -158,6 +202,7 @@ impl PlaybackControl {
         *self.0.state.lock().expect("Matrix playback lock poisoned") = State::default();
         self.0.dirty.store(true, Ordering::Release);
         self.0.revision.advance();
+        self.invalidate_applications();
     }
     pub fn invalidate(&self) {
         self.binding().invalidate();
@@ -244,7 +289,28 @@ pub(super) fn launch(
     Ok(MediaEditResult::MatrixLaunched { snapshot: desired })
 }
 
-pub(super) fn root(engine: &AppEngine, media: MediaId) -> Result<golden_core::node::NodeId, String> {
+pub(crate) fn unload(engine: &mut AppEngine, media: MediaId) -> Result<MediaEditResult, String> {
+    let parent = root(engine, media)?;
+    let Some(AppNode::MediaChannel(node)) = engine.nodes.get(parent) else {
+        unreachable!()
+    };
+    let control = node.matrix_playback().ok_or("Matrix playback is missing")?.clone();
+    let desired = MatrixPlaybackSnapshot {
+        desired_column: None,
+        launch_id: Some(uuid::Uuid::new_v4()),
+        transition: TransitionDefinition {
+            duration_ms: 0,
+            curve: TransitionCurve::Linear,
+        },
+    };
+    let event =
+        CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired).map_err(|e| e.to_string())?;
+    engine.edits.push(Edit::EmitCustomEvent { event });
+    control.stage(desired.clone(), engine.edits.completion());
+    Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
+}
+
+pub(crate) fn root(engine: &AppEngine, media: MediaId) -> Result<golden_core::node::NodeId, String> {
     let (id, kind) = crate::media::authoring::media(engine, media)?;
     if kind != crate::media::protocol::MediaKind::Matrix {
         return Err("media is not a Matrix".into());

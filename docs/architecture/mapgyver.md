@@ -24,7 +24,7 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
-| `apps/mapgyver/src/applications/` | Shared definitions, aggregate demand, independent lifecycle workers and renderer final-use retention; the host binds rendered Matrix demand. No-render-consumer demand, real readiness and full parity remain M08 |
+| `apps/mapgyver/src/applications/` | Shared definitions, logical/rendered aggregate demand, public application driver, independent lifecycle workers and renderer final-use retention. Real readiness and full parity remain M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, payload-free plan lifetime observation, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; qualification continues in M03 |
@@ -443,12 +443,27 @@ layer/group/final captures. Transition settlement releases outgoing logical bind
 retirement separately releases their final-use holds. `CapturedChannels::application_demand` exposes
 the same typed backend capture to headless owners. Large-index construction/scale remains unqualified.
 
-The native host owns `applications::bridge` independently of renderer/topology incarnations. It
-reconciles committed captured demand and binds the resulting `PlanRetainer` before renderer
-publication; empty output demand releases the prior request. Project/authoring guards fence a
-suspended launch again before resume. An invalid/stale capture cannot dispatch old column demand.
-This path covers Matrices demanded by previews or enabled Screen outputs; explicit column loading
-with no render consumer still needs the separate project-wide capture path.
+The native host owns the public `applications::driver::ApplicationDriver` independently of
+renderer/topology incarnations. It services committed project-wide column demand before renderer
+setup, including no previews or Screen outputs, then unions rendered preparation/active/outgoing
+scopes and binds `PlanRetainer` before publication. Explicit headless owners can call the same
+`service`/capture API after settlement without constructing a window, video runtime or clock;
+automatic default headless-bootstrap parity remains unverified under M08 gate 4.
+
+`applications::logical::capture_logical_applications` reads only media headers and direct column
+metadata. Column-only indices are cached separately from cell/render indices. Column/launch/
+structure/project revisions invalidate a metadata capture; ordinary cell edits do not. Hosts inspect
+guards off the actor and contact it only after change, with coarse backoff for admission failure.
+The existing 128-scope/100,000 aggregate-column bound is checked before excess indexing; no cell grid
+or render plan is built. Initial large-index cost remains separate qualification work.
+
+`MatrixEdit::ClearPlayback` immediately unloads the logical scope through the same generated
+UI/command/script/result contract; the Matrix toolbar exposes Unload Matrix. Launch and unload are
+ephemeral, receipt-gated and do not create authored history or project data. Empty render demand
+alone does not unload an explicitly loaded column. Outgoing/final-use holds still retire separately.
+Project/authoring guards fence admission before resume; refreshed still-admitted configuration can
+resume under its newest valid scope fences without unnecessary cancel/recreate. Removed demand or
+a changed configuration cannot reuse that admission epoch.
 
 Golden Video's payload-free `PlanLifetime` travels with queued submission, compiled/recovery plans
 and actual backend resource generations. It signals release with an acquire/release observation

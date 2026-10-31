@@ -175,3 +175,99 @@ fn rendering_app_bound_columns_requires_the_matching_admitted_lifecycle_owner() 
     close(renderer);
     assert!(retirement.wait_for_idle(Duration::from_secs(4)));
 }
+
+#[test]
+fn interrupted_application_fades_keep_removed_outgoing_references_until_transition_settlement() {
+    let mut engine = engine();
+    let apps = [app(&mut engine), app(&mut engine), app(&mut engine)];
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 3 })
+    else {
+        panic!()
+    };
+    for (column, application) in columns.iter().zip(apps) {
+        matrix_edit(
+            &mut engine,
+            matrix,
+            MatrixEdit::ConfigureColumn {
+                column: *column,
+                definition: ColumnDefinition {
+                    applications: vec![ColumnApplication {
+                        application,
+                        pre: 0,
+                        post: 0,
+                    }],
+                    ..Default::default()
+                },
+            },
+        );
+    }
+    let owner = renderer();
+    let anchor = owner.read_time().unwrap();
+    let at = |millis| {
+        anchor
+            .at_monotonic(anchor.monotonic().checked_add(Duration::from_millis(millis)).unwrap())
+            .unwrap()
+    };
+    matrix_edit(
+        &mut engine,
+        matrix,
+        MatrixEdit::LaunchColumn {
+            column: columns[0],
+            mode: LaunchMode::Cut,
+        },
+    );
+    crate::media::capture_channels_at(&engine, &[matrix], 8, at(0)).unwrap();
+    matrix_edit(
+        &mut engine,
+        matrix,
+        MatrixEdit::LaunchColumn {
+            column: columns[1],
+            mode: LaunchMode::Configured,
+        },
+    );
+    let initial = crate::media::capture_channels_at(&engine, &[matrix], 8, at(100)).unwrap();
+    assert!(
+        initial
+            .application_demand()
+            .iter()
+            .find(|entry| entry.application == apps[0])
+            .unwrap()
+            .reasons
+            .contains(&DemandReason::Outgoing)
+    );
+    matrix_edit(
+        &mut engine,
+        matrix,
+        MatrixEdit::LaunchColumn {
+            column: columns[2],
+            mode: LaunchMode::Configured,
+        },
+    );
+    crate::media::capture_channels_at(&engine, &[matrix], 8, at(200)).unwrap();
+    matrix_edit(&mut engine, matrix, MatrixEdit::RemoveColumn { column: columns[0] });
+    edit(
+        &mut engine,
+        MediaEdit::Applications {
+            edit: ApplicationEdit::Remove { application: apps[0] },
+        },
+    );
+    let interrupted = crate::media::capture_channels_at(&engine, &[matrix], 8, at(250)).unwrap();
+    assert_eq!(interrupted.plan_applications().len(), 3);
+    for application in &apps[..2] {
+        assert!(
+            interrupted
+                .application_demand()
+                .iter()
+                .find(|entry| entry.application == *application)
+                .unwrap()
+                .reasons
+                .contains(&DemandReason::Outgoing)
+        );
+    }
+    let settled = crate::media::capture_channels_at(&engine, &[matrix], 8, at(500)).unwrap();
+    assert_eq!(settled.plan_applications(), vec![apps[2]]);
+    assert_eq!(settled.application_demand().len(), 1);
+    close(owner);
+}

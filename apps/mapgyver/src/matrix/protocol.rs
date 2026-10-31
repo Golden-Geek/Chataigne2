@@ -235,6 +235,7 @@ pub enum MatrixEdit {
         mode: LaunchMode,
     },
     InspectPlayback,
+    ClearPlayback,
     Inspect,
     Configure {
         definition: MatrixDefinition,

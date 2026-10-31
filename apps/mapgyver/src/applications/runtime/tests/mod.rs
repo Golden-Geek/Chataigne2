@@ -12,6 +12,7 @@ struct Fake {
     retire_on_kill: bool,
     fail_resume: bool,
     cancel_create: Option<Arc<AtomicBool>>,
+    on_create: Option<Box<dyn FnMut()>>,
 }
 impl Default for Fake {
     fn default() -> Self {
@@ -25,6 +26,7 @@ impl Default for Fake {
             retire_on_kill: true,
             fail_resume: false,
             cancel_create: None,
+            on_create: None,
         }
     }
 }
@@ -32,6 +34,9 @@ impl Backend for Fake {
     type Suspended = ();
     type Process = ();
     fn create(&mut self, _: &ProcessSpec) -> Result<(), String> {
+        if let Some(callback) = &mut self.on_create {
+            callback();
+        }
         self.creates += 1;
         self.running = true;
         self.retired = false;
@@ -312,4 +317,64 @@ fn explicit_disable_and_restore_rearms_a_failed_non_restarting_definition() {
     assert_eq!(agent.status.phase, ApplicationPhase::Unavailable);
     tick(&mut agent, 102, true, Some(definition), false);
     assert_eq!(agent.backend.creates, 2);
+}
+
+#[test]
+fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_restarting_creation() {
+    let mut agent = agent();
+    let id = agent.status.application;
+    let source = golden_io::RevisionSource::default();
+    let scope = golden_io::RevisionSource::default();
+    let guard = |source: &golden_io::RevisionSource| {
+        let reader = source.reader();
+        reader.guard_at(reader.current())
+    };
+    let target = Target {
+        epoch: uuid::Uuid::new_v4(),
+        retain_existing: false,
+        definition: Some(definition()),
+        guard: Some(guard(&source)),
+        admission: Arc::from([guard(&scope)]),
+    };
+    let captured = target.clone();
+    let shared = Arc::new(Shared {
+        project: uuid::Uuid::new_v4(),
+        guard: guard(&source),
+        origin: Instant::now(),
+        desired: Mutex::new(Request {
+            targets: [(id, target)].into_iter().collect(),
+        }),
+        readiness: Mutex::new(HashMap::new()),
+        final_use: Mutex::new(HashMap::new()),
+    });
+    let publication = shared.clone();
+    agent.backend.on_create = Some(Box::new(move || {
+        scope.advance();
+        publication
+            .desired
+            .lock()
+            .unwrap()
+            .targets
+            .get_mut(&id)
+            .unwrap()
+            .admission = Arc::from([guard(&scope)]);
+    }));
+    agent.tick(
+        0,
+        Desired {
+            demanded: true,
+            definition: captured.definition.clone(),
+            retain_existing: false,
+        },
+        false,
+        || worker::current_target_is_admitted(&shared, id, &captured),
+        |_| {},
+    );
+    assert!(!captured.admission[0].is_current());
+    assert_eq!(agent.backend.creates, 1);
+    assert_eq!(agent.backend.resumes, 1);
+    assert_eq!(agent.backend.closes, 0);
+    assert_eq!(agent.status.phase, ApplicationPhase::Ready);
+    shared.desired.lock().unwrap().targets.clear();
+    assert!(!worker::current_target_is_admitted(&shared, id, &captured));
 }
