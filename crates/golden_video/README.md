@@ -40,6 +40,10 @@ The implemented foundations are:
 - `runtime/` owns bounded publication, preparation, frame scheduling, generation installation
   and completion-based resource retirement. `VideoRuntime` starts either the pixel-free null
   qualification backend or the opt-in Windows D3D11 backend through the same control/core path.
+  The native render worker opts into Golden IO's worker-owned high-resolution deadline wait.
+  Its timer and notification event retire with that context; saved notifiers retain neither.
+  Ordinary workers keep their existing waits. No busy spin or global timer-resolution change
+  is used, and OS wake precision is not a hard real-time or display-deadline guarantee.
 - `preview/` owns metadata-only session negotiation, full-layout replacement, installation status,
   host geometry conversion and coalesced leased registration. Apps resolve opaque source keys;
   neither app-domain types nor native handles belong in these DTOs.

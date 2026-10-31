@@ -1,0 +1,67 @@
+{
+  "evidence_kind": "worker_owned_precise_deadline_q02_control",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "scope": "diagnostic_incomplete_series",
+  "status": "UNAVAILABLE",
+  "qualified": false,
+  "raw_directory_local": "target/qualification-m03-precise-q02-2026-10-31-b63",
+  "analysis_sha256": "d532e8ff1cece8f8c03bb65d82df833678f99acfcb454ca06868983c3b232428",
+  "environment_analysis_sha256": "ddaa996d09c8fab05307c70cafd1b76175260ba2b383ec8919ffadd51cec0933",
+  "build_manifest_local": "target/qualification-env-build-2026-10-31-b63/build.json",
+  "executable_sha256": "e77757ad83d56054d9e5ef986d8dcb9362c5a9d57b551fefa5fa74151da4ad9d",
+  "selected_msvc": "14.51.36231",
+  "selected_windows_sdk": "10.0.26100.0",
+  "renderer_adapter_luid": "00000000:000170d3",
+  "display_adapter_luid": "00000000:00016c2a",
+  "environment_observed_within_target": true,
+  "overlay_before_after": "Off; native Home UIA Enable and open overlay action",
+  "duration_seconds": {"warmup": 5, "sample": 10, "each_interruption": 1},
+  "frame_start_lateness_ms": {
+    "scope": "exact token join of FrameCpu.wall.begin to Schedule.clock.Qpc.slot_start_qpc, sample window only",
+    "samples": 600,
+    "median": 0.2573,
+    "p95": 0.5342,
+    "p99": 0.5718,
+    "maximum": 0.8529
+  },
+  "historical_baseline": {
+    "evidence": "mapgyver-m03-nvidia-q02-prescribed-2026-10-31.json",
+    "frame_start_lateness_p95_ms": [1.523, 1.522, 1.623],
+    "limitation": "historical sustained samples versus one short control; no duration-equivalent or isolated causal performance claim"
+  },
+  "sample_outputs": [
+    {"output": 1, "kind": "main_window", "accepted": 600, "expected_slots": 600, "deadline_misses": 1},
+    {"output": 2, "kind": "spout", "accepted": 600, "expected_slots": 600, "deadline_misses": 0},
+    {"output": 3, "kind": "editor_window", "accepted": 600, "expected_slots": 600, "deadline_misses": 1}
+  ],
+  "spout_sample_capture": {"expected": 600, "captured": 600, "missing": 0},
+  "interruption_observations": [
+    {"phase": "editor_minimized", "seconds": 1, "main_accepted": 60, "spout_accepted": 60, "captured": 60, "complete": true},
+    {"phase": "editor_disconnected", "seconds": 1, "main_accepted": 60, "spout_accepted": 60, "captured": 60, "complete": true}
+  ],
+  "interruption_limit": "observed cohorts complete; one-second controls do not meet the required 60-second independence gate",
+  "cpu_inclusive_wall_p95_ms": 0.6162,
+  "renderer_context_gpu_p95_ms": 1.648992,
+  "gpu_limit": "one renderer context, not the complete GPU critical path",
+  "actual_retirement_ms": 141.7658,
+  "shutdown_ms": 448.7837,
+  "both_hwnds_retained_until_retirement": true,
+  "native_exit_codes": [0, 0, 0, 0],
+  "forced_cleanup": false,
+  "owned_native_pids_verified_absent": [17252, 17572, 23340, 29684],
+  "presentmon_session": "MapGyver-M01-Present-a044d7335f9a41759280badc5759107d",
+  "presentmon_post_run_status": 4201,
+  "retained_analysis_invocation_error": "analysis-with-environment.json selected the series root instead of sample-001; its missing-manifest error is preserved. Correct sample-directory analysis is analysis-with-environment-final.json.",
+  "decision": "Retain opt-in worker-owned timer/event waiting with verified command, cancellation, checkpoint and handle ownership. No further timing experiment in this batch.",
+  "remaining": [
+    "prescribed three-sample Q02 and Q01 on this exact timing mechanism and selected route",
+    "window display deadlines at the unchanged 0.1 percent budget",
+    "complete GPU critical path",
+    "queue occupancy and plan age",
+    "lifecycle handle growth",
+    "genuine device removal and stuck-drain recovery"
+  ],
+  "gate_change": "none; M03 remains 7/9"
+}

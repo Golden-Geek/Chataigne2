@@ -702,8 +702,10 @@ def fingerprints(executable):
               Path(__file__).with_name("production_environment.py"),
               Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
+              ROOT / "crates/golden_core/runtime/io/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
+                      "crates/golden_core/runtime/io/src",
                       "apps/mapgyver/tests/native_qualification", "packages/golden-video-ui"):
         paths += [path for path in (ROOT / directory).rglob("*") if path.suffix in (".rs", ".hlsl", ".ts", ".svelte", ".html")]
     vendor = ROOT / "vendor/spout2-sys-0.1.1"

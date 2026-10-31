@@ -63,9 +63,14 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   diagnostic quotas must not cause unnecessary features or phase hopping in this mode;
   consecutive qualification batches are allowed, but investigation/time limits still apply.
   Every original requirement remains required until verified or explicitly revised by the user.
+  Keep all unfinished acceptance in the return queue until it passes; implemented, checkpointed,
+  parked and blocked work never counts as complete. Report which gate actually closed each batch.
   For a minor optimization consuming roughly a day, propose a precise deferral/lower gate with
   evidence and consequences; never apply that revision silently or classify correctness,
   ownership, data integrity or essential behavior as optional optimization.
+  Track cumulative effort on the same unresolved issue across batches and continuations; a new
+  batch does not reset that day-scale decision point. Present a recommended next action with the
+  evidence instead of silently repeating experiments or dropping the requirement.
 - Gate native/hardware experiments on terminal success of prerequisite compile/software checks.
   Inspect returned results before issuing dependent validation; do not spend the experiment
   allowance on a known failing build or continue a validation chain after its prerequisite fails.

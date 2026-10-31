@@ -112,6 +112,7 @@ fn terminal_initialization_retires_without_an_installed_shared_waker() {
                 device,
                 authority,
                 Duration::ZERO,
+                false,
                 move || {
                     Ok(UnsupportedBackend {
                         shared: backend_shared,

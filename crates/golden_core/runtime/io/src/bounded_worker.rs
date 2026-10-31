@@ -9,6 +9,12 @@ use crate::{
     RetirementCapacityError, RetirementPool, WorkerNotifier, bounded_pending_channel, notified_pending_channel,
 };
 
+#[cfg(windows)]
+mod precise;
+
+#[cfg(all(windows, test))]
+mod tests;
+
 /// Item and retained-weight bounds for both directions of a worker boundary.
 #[derive(Clone, Copy, Debug)]
 pub struct WorkerLimits {
@@ -26,6 +32,8 @@ pub struct WorkerCancellation(Arc<WakeState>);
 struct WakeState {
     state: Mutex<WakeVersion>,
     changed: Condvar,
+    #[cfg(windows)]
+    precise_signal: Mutex<std::sync::Weak<precise::Signal>>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -54,14 +62,28 @@ impl WorkerCancellation {
         let mut state = self.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         state.cancelled = true;
         drop(state);
-        self.0.changed.notify_all();
+        self.notify_waiters();
     }
 
     fn notify(&self) {
         let mut state = self.0.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         state.version = state.version.wrapping_add(1);
         drop(state);
+        self.notify_waiters();
+    }
+
+    fn notify_waiters(&self) {
         self.0.changed.notify_all();
+        #[cfg(windows)]
+        if let Some(signal) = self
+            .0
+            .precise_signal
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .upgrade()
+        {
+            signal.notify();
+        }
     }
 
     fn snapshot(&self) -> WakeVersion {
@@ -134,6 +156,8 @@ pub struct WorkerContext<C, E> {
     events: PendingSender<E>,
     cancellation: WorkerCancellation,
     maximum_event_weight: usize,
+    #[cfg(windows)]
+    precise_deadline: Option<precise::DeadlineWaiter>,
 }
 
 /// Worker startup failed before ownership of any commands was accepted.
@@ -210,6 +234,8 @@ impl<C: Send + 'static, E: Send + 'static> BoundedWorker<C, E> {
             events: event_tx,
             cancellation: cancellation.clone(),
             maximum_event_weight: limits.event_weight,
+            #[cfg(windows)]
+            precise_deadline: None,
         };
         thread::Builder::new()
             .name(name.into())
@@ -293,6 +319,43 @@ impl<C, E> Drop for BoundedWorker<C, E> {
 }
 
 impl<C, E> WorkerContext<C, E> {
+    /// Uses worker-owned high-resolution Windows deadlines, retaining normal notification,
+    /// command and cancellation semantics. Other platforms retain their native timed wait.
+    /// This requests OS timer precision, not a hard real-time scheduling guarantee.
+    pub fn enable_precise_deadlines(&mut self) -> io::Result<()> {
+        #[cfg(windows)]
+        if self.precise_deadline.is_none() {
+            let waiter = precise::DeadlineWaiter::new()?;
+            *self
+                .cancellation
+                .0
+                .precise_signal
+                .lock()
+                .unwrap_or_else(|p| p.into_inner()) = Arc::downgrade(waiter.signal());
+            self.precise_deadline = Some(waiter);
+        }
+        Ok(())
+    }
+
+    fn wait_for_change_until(&self, observed: WakeVersion, deadline: Instant) {
+        #[cfg(windows)]
+        if let Some(waiter) = &self.precise_deadline {
+            let state = self.cancellation.0.state.lock().unwrap_or_else(|p| p.into_inner());
+            if state.cancelled || state.version != observed.version || Instant::now() >= deadline {
+                return;
+            }
+            waiter
+                .prepare(deadline)
+                .expect("retained precise deadline handles must remain valid");
+            drop(state);
+            waiter
+                .wait()
+                .expect("retained precise deadline handles must remain valid");
+            return;
+        }
+        self.cancellation.wait_for_change_until(observed, deadline);
+    }
+
     /// Services one bounded, nonblocking command turn alongside unsolicited native input.
     /// Graceful admission closure drains every accepted command before disconnection;
     /// explicit cancellation abandons the remaining commands, as with `receive`.
@@ -356,7 +419,7 @@ impl<C, E> WorkerContext<C, E> {
             if Instant::now() >= deadline {
                 return WorkerWake::Deadline;
             }
-            self.cancellation.wait_for_change_until(observed, deadline);
+            self.wait_for_change_until(observed, deadline);
         }
     }
 
@@ -399,7 +462,7 @@ impl<C, E> WorkerContext<C, E> {
             if Instant::now() >= deadline {
                 return WorkerReceive::Deadline;
             }
-            self.cancellation.wait_for_change_until(observed, deadline);
+            self.wait_for_change_until(observed, deadline);
         }
     }
 

@@ -6,6 +6,7 @@ use crate::{BoundedQueue, ReconnectBackoff, RetirementPool, WorkerTask};
 
 mod bounded_worker;
 mod pending;
+mod precise_deadlines;
 mod worker_deadlines;
 
 #[test]

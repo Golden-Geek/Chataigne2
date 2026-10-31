@@ -10,9 +10,16 @@ acceptance is complete, **6/6 gates (100%)**; the one scheduled M05 batch is che
 and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
+**Completion commitment:** every unfinished M03/M05/M06/M07/M08/M09 item returns for verification;
+implementation and checkpoint commits do not close it. The user reaffirmed 100% of the agreed
+plan on 2026-10-31. A minor optimization taking roughly a day may justify a precise proposed
+lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
+effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** inspect the existing NVIDIA Q02 scheduler/Present/display records to distinguish a
-window-scheduling defect from a deadline/cohort mapping defect before choosing a correction.
+**Next:** run the prescribed NVIDIA Q02 series with the verified worker-owned precise timer,
+then Q01 on the same selected route. Batch 63's two fixed analyses verified the scheduler/Present
+join and ended the broader investigation. Its one finite control shows lower frame-start
+lateness, but cannot close sustained acceptance. No more timing probes or parameter sweeps.
 The full prescribed series now passes environment identity, Spout deadlines, exact image
 capture/age and editor independence; **window displayed deadlines remain its only observed
 failure**. No cause or gate reduction is inferred. Q01 on this same route remains queued after
@@ -31,6 +38,16 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest bounded correction (batch 63):** Golden IO offers worker-owned Windows timer/event
+deadline waiting; only native Video opts in. The finite NVIDIA Q02 control observes frame-start
+lateness **0.534 ms p95**, versus **1.52–1.62 ms** in the historical sustained captures; different
+durations do not prove sustained or isolated causal performance. All outputs accept **600/600**
+sample images, Spout captures **600/600**, and each one-second interruption captures **60/60**.
+Both window outputs miss **1/600** deadlines; the unchanged **0.1%** gate remains unmet.
+One-second interruptions observe complete cohorts but cannot meet the prescribed 60-second gate.
+Actual retirement **142 ms**, shutdown **449 ms**, environment/333 execution fingerprints match,
+all native processes exit zero and the trace session is absent. **No gate closes; M03 stays 7/9.**
+[Compact evidence](evidence/mapgyver-m03-precise-worker-q02-2026-10-31.json).
 **Latest sustained NVIDIA evidence (batch 62):** full prescribed Q02 release series completes
 with **environment identity PASSED_NATIVE in all three samples**, fresh overlay-Off observations
 and unchanged paired inventories. Every other observed criterion passes except window display
@@ -3133,6 +3150,76 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Window-deadline audit batch 63:** started 2026-10-31 **21:54 UTC**, stop by **22:39 UTC**.
+Previous turn is progress: `52bf1090` verifies full-series NVIDIA Q02 environment, exact capture/
+age, Spout deadlines and independence. Windows are the only observed failing endpoint; GPU-path,
+queue and lifecycle requirements remain unavailable. Gate 9 alone is active. Use the existing
+three captures to reconcile native scheduler slot epochs, actual Present calls and exact display
+witnesses. Decide whether the correction belongs in runtime/window scheduling or the app-owned
+deadline join; do not assume a cause or change the metric to manufacture a pass. The investigation
+ends **22:14 UTC** (20 minutes), with at most two fixed offline analyses of the existing data and
+no new profiler/baseline/driver or timeout/Present sweep. If a concrete defect is proven, implement
+its bounded correction, add meaningful regression coverage and preserve the original failures.
+Missing evidence stays open. Compile/software checks must pass before any necessary finite
+native verification, which remains bounded by the 22:39 batch stop. If a contract interpretation
+change is actually needed, prepare a precise reviewable proposal and seek user approval before
+applying it. Checkpoint/push the result before opening further work; Q01 remains in the return queue.
+
+**Audit decision, 22:09 UTC:** native slot/QPC inverse checks and exact Present joins show no
+sample-origin or epoch mismatch. Actual composed-flip display intervals vary near 8/25 ms, and
+both windows commonly share a display timestamp. Native frame CPU work begins **1.52/1.52/1.62 ms
+late at p95** relative to its recorded slot; Present is issued **1.65/1.61/1.76 ms** after slot
+start. The IO worker currently uses a condition-variable timeout. The two fixed offline analyses
+are complete (a case-sensitive CSV-column typo was corrected within the second); stop broader
+investigation now, before 22:14. Do not change the deadline join or infer a shader cause.
+
+Implement one bounded IO-boundary correction: opt-in worker-owned Windows high-resolution
+deadline timer with an event tied to the existing wake generation; native video opts in, ordinary
+workers retain their default wait. Preserve cancellation, queued-command priority, checkpoint
+race handling and kernel-handle retirement. Verify notification-before-wait, in-wait publication,
+long-deadline cancellation and repeated expiry/notification through real kernel events. Add IO
+sources to execution fingerprints. The hypothesis is that precise deadline waiting reduces
+observed frame wake jitter; it is **not** a proven fix for every display miss. Software/strict
+Clippy/build prerequisites precede at most one fixed finite NVIDIA Q02 control with PresentMon,
+within the 22:39 stop. Retain only a supported timing improvement with ownership/wake behavior
+intact; preserve all remaining window failures and original budgets. No parameter sweep.
+
+**Batch 63 result, 22:20 UTC:** implemented the opt-in timer/event at the Golden IO boundary,
+enabled only by native Video. Its worker retains both kernel handles; notification callbacks
+retain only a weak signal reference. Wake generation/checkpoint races, queued-command versus
+deadline priority, cancellation, repeated timer expiry/rearming and post-retirement notifications
+have regression coverage. No global timer-resolution change, busy spin, cadence/anchor rewrite,
+Present change or threshold change. IO source/Cargo inputs now join capture fingerprints.
+**63 IO tests, 163 video tests (23 explicit hardware ignores), 107 qualification-tool tests** and
+strict IO/video all-target and MapGyver native-bin Clippy pass. The pinned release build selects
+MSVC **14.51.36231** and Windows SDK **10.0.26100.0**; executable SHA-256
+`e77757ad83d56054d9e5ef986d8dcb9362c5a9d57b551fefa5fa74151da4ad9d`.
+
+One fixed NVIDIA Q02 control (5-second warmup, 10-second sample, one-second interruptions,
+PresentMon) completes normally. Exact token/slot frame-start lateness is **0.257/0.534/0.572 ms
+median/p95/p99** across 600 sample frames, maximum **0.853 ms**. Each output accepts **600/600**;
+main/editor each miss **1/600** display deadlines, Spout misses zero and independently captures
+**600/600** accepted images. Minimize/disconnect each observes **60/60** complete Spout images
+and 60 main deliveries; the criterion remains unavailable because its required duration is
+60 seconds. CPU wall p95 **0.616 ms**, renderer-context GPU p95 **1.649 ms**; the latter still
+does not measure the full GPU path. Both HWNDs survive actual **142 ms** resource retirement;
+shutdown is **449 ms**. All four owned native processes exit zero without forced cleanup, all
+are subsequently absent, and ETW live session query returns **4201** (absent).
+
+Fresh paired environment observations preserve overlay Off and NVIDIA-renderer/Intel-display
+identity. All **333** selected execution inputs are unchanged, including **30** IO inputs.
+The first environment-analysis invocation mistakenly selected the series root; its missing-
+manifest error is retained, and the corrected sample-directory analysis exits zero. The short
+control is **UNAVAILABLE**, never qualified. The two fixed offline analyses and single planned
+finite verification are the only experiments in this batch. Retain the supported timing
+mechanism; no further wake/Present sweep. **No acceptance item closes; M03 remains 7/9.**
+The user clarified 100% completion and explicit returns for unfinished phases; AGENTS.md now
+requires cumulative effort tracking so a new batch cannot reset the day-scale decision point.
+Next is the fixed sustained Q02 check, followed by Q01 and the remaining GPU/queue/growth
+evidence. Real removal still awaits its explicit external reset decision. Checkpoint/push this
+bounded result before opening the next batch; the recorded batch stop remains 22:39 UTC.
+[Compact evidence](evidence/mapgyver-m03-precise-worker-q02-2026-10-31.json).
 
 **NVIDIA Q02 acceptance batch 62:** started 2026-10-31 **21:28 UTC**, stop by **22:13 UTC**.
 Previous turn is progress: `471ee4db` implements and verifies paired build/environment evidence

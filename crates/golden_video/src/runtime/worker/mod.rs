@@ -69,6 +69,7 @@ pub(super) fn run(
         device,
         authority,
         null_config.preparation_delay,
+        false,
         move || {
             NullBackend::new(null_config, device, null)
                 .map_err(|error| RuntimeFailure::new(FailureCode::Backend, error))
@@ -100,6 +101,7 @@ pub(super) fn run_d3d11(
         device,
         authority,
         Duration::ZERO,
+        true,
         move || {
             Ok(
                 crate::native::D3d11Backend::with_diagnostics(native_config, native_control, device, diagnostics)
@@ -119,11 +121,18 @@ fn run_backend<B: Backend>(
     device: DeviceGeneration,
     authority: TimeAuthority<Arc<dyn Clock>>,
     preparation_delay: Duration,
+    precise_deadlines: bool,
     create: impl FnOnce() -> Result<B, RuntimeFailure>,
 ) {
     let run_shared = shared.clone();
     let prepare_pool = preparation_lifetimes.clone();
     let result = catch_unwind(AssertUnwindSafe(move || {
+        let mut context = context;
+        if precise_deadlines {
+            context
+                .enable_precise_deadlines()
+                .map_err(|error| RuntimeFailure::new(FailureCode::Backend, error))?;
+        }
         let backend = create()?;
         let core = RenderCore::admit(backend, device, config.resource_limits)
             .map_err(|error| RuntimeFailure::new(FailureCode::ResourcePressure, error))?;
