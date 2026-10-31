@@ -3,7 +3,7 @@ import type { ApplicationConfigurationState } from "./ApplicationConfigurationSt
 import type { ApplicationId } from "./ApplicationId";
 import type { ApplicationPhase } from "./ApplicationPhase";
 
-export type ApplicationRuntimeStatus = { application: ApplicationId, launch: string | null, phase: ApplicationPhase, process_id: number | null, exit_code: number | null, failures: number, next_action_ms: number | null, message: string | null, configuration: ApplicationConfigurationState,
+export type ApplicationRuntimeStatus = { callback_backpressure: boolean, application: ApplicationId, launch: string | null, phase: ApplicationPhase, process_id: number | null, exit_code: number | null, failures: number, next_action_ms: number | null, message: string | null, configuration: ApplicationConfigurationState,
 /**
  * Saved definition revision against which this observation was reconciled.
  */

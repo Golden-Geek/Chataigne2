@@ -39,6 +39,9 @@ impl ApplicationDriver {
     pub fn observations(&self) -> Option<super::runtime::ApplicationObservations> {
         self.owner.as_ref().map(ApplicationRuntime::observations)
     }
+    pub fn callbacks(&self) -> Option<super::runtime::ApplicationCallbacks> {
+        self.owner.as_ref().map(ApplicationRuntime::callbacks)
+    }
     pub fn needs_sync(&self, project: uuid::Uuid, demand: &[ApplicationDemand]) -> bool {
         self.project != Some(project) || self.demand != demand
     }

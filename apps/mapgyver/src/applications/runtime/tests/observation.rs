@@ -70,11 +70,11 @@ fn observation_publication_coalesces_backpressure_rejects_old_owners_and_cancels
     let mut status = agent.status;
     for failures in 1..=1000 {
         status.failures = failures;
-        view.publish(id, owner, &status);
+        view.publish(id, owner, &status, None, project, 0);
     }
     let revision = view.snapshot(project).revision;
     status.failures = 9000;
-    view.publish(id, uuid::Uuid::new_v4(), &status);
+    view.publish(id, uuid::Uuid::new_v4(), &status, None, project, 0);
     assert_eq!(view.snapshot(project).revision, revision);
     release.send(()).unwrap();
     let latest = received.recv_timeout(Duration::from_secs(2)).unwrap();
@@ -83,7 +83,7 @@ fn observation_publication_coalesces_backpressure_rejects_old_owners_and_cancels
     assert_eq!(latest.revision, revision);
     assert_eq!(latest.applications[0].failures, 1000);
     guard.advance();
-    view.publish(id, owner, &status);
+    view.publish(id, owner, &status, None, project, 0);
     assert!(received.recv_timeout(Duration::from_secs(2)).is_err());
     assert!(!source.is_current());
     assert!(source.subscribe(|_| {}).is_err());

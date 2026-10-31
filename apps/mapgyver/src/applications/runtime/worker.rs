@@ -31,11 +31,19 @@ pub(super) fn run(
 ) {
     let mut agent = Agent::new(id, Native);
     let mut readiness = super::readiness::Observer::default();
+    let lifecycle = std::cell::RefCell::new(None);
     let publish = |status: &ApplicationRuntimeStatus| {
         let mut current = output.lock().expect("application status lock poisoned");
         if *current != *status {
             *current = status.clone();
-            observations.publish(id, owner, status);
+            observations.publish(
+                id,
+                owner,
+                status,
+                lifecycle.borrow_mut().as_mut(),
+                shared.project,
+                u64::try_from(shared.origin.elapsed().as_millis()).unwrap_or(u64::MAX),
+            );
             drop(current);
             if let Some(notifier) = &notifier {
                 notifier.notify();
@@ -59,6 +67,19 @@ pub(super) fn run(
             .get(&id)
             .is_some_and(|lifetimes| lifetimes.iter().any(|lifetime| !lifetime.is_complete()));
         let demanded = (!cancelled && target.is_some()) || final_use;
+        if cancelled && !agent.has_process() {
+            return;
+        }
+        if !agent.has_process() && (!agent.idle() || demanded) && lifecycle.borrow().is_none() {
+            *lifecycle.borrow_mut() = observations.callbacks.reserve();
+            if lifecycle.borrow().is_none() {
+                agent.status.callback_backpressure = true;
+                publish(&agent.status);
+                context.wait_until(checkpoint, Instant::now() + Duration::from_secs(1));
+                continue;
+            }
+        }
+        agent.status.callback_backpressure = false;
         agent.status.definition_revision = target.as_ref().and_then(|target| target.definition_revision);
         agent.status.definition_instance = target.as_ref().and_then(|target| target.definition_instance);
         let definition = (!cancelled)
@@ -132,6 +153,9 @@ pub(super) fn run(
             publish,
         );
         publish(&agent.status);
+        if !agent.has_process() {
+            lifecycle.borrow_mut().take();
+        }
         if agent.status.phase == ApplicationPhase::Ready {
             // Tagged external evidence can arrive before our own receive has completed.
             // Keep servicing process ownership while the probe retires without blocking here.

@@ -4,23 +4,23 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 live application status and backend-owned saved/in-use configuration
-presentation are implemented; **2/4 gates (50%)**. Reliable script callbacks, default headless
+**Current topic:** M08 ordered script lifecycle callbacks, live application status and backend-owned
+saved/in-use configuration presentation are implemented; **2/4 gates (50%)**. Default headless
 integration, full control/parity and complete qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** deliver reliable script lifecycle callbacks through the shared generated contracts,
-then wire the default headless application service. M07 interaction
+**Next:** wire the default headless application service and its ordered callback consumer through
+the existing public host/transaction contracts. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** the Applications panel shows phase, PID, launch, errors, deadlines
-and backend-owned current/pending/retained configuration state from an independent observation
-worker, without periodic engine inspection (batch 37). Project/owner/launch and definition-lifetime
-fences reject stale metadata. Four owned-process regressions pass, including real configuration
-retention/publication/final cleanup; 176 app, 166 headless and 52 frontend tests pass. An unconfigured
-app also now survives sparse reload. Actual form input and complete native lifecycle/recovery/scale
+**Last delivered capability:** scripts receive ordered application phase callbacks independently of
+coalesced UI snapshots (batch 38). Bounded launch/cleanup reservations preserve process termination;
+receipt acknowledgements release capacity, and failures halt admission visibly without blind replay.
+Hosted QuickJS, cancellation/backpressure, stale-ticket and removed-listener regressions pass;
+180 app, 170 headless and 52 frontend tests pass. Desktop attachment compiles; this batch makes
+no new native interaction claim. Actual form input and complete native lifecycle/recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual Matrix editor
@@ -50,7 +50,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/live status implemented; callback/headless/full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/status/ordered callbacks implemented; headless/full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
@@ -69,6 +69,44 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 38:** started 2026-10-31 **11:00 UTC**, recorded stop **11:45 UTC**.
+Deliver ordered app lifecycle callbacks through the app-owned Media/script boundary, distinct from
+coalesced UI snapshots. Preserve short-lived transitions, bound retained delivery/backpressure and
+report an explicit failure rather than silently losing callbacks. Fence projects/workers, preserve
+original launch identities and current listener lifetimes; never delay process termination behind delivery. Verify
+the public ingress route, callback payload/order, recovery/backpressure and history/project fences
+with focused fake and hosted-script tests. Default headless startup integration follows this
+callback slice. No renderer/GPU/editor recovery investigation is scheduled.
+
+**Batch 38 result (checks complete 11:33 UTC, before the 11:45 cutoff):** the app-owned lifecycle
+journal retains every published phase/launch change
+independently of 10 Hz UI coalescing. Its 1,024-event queued/reserved bound admits eight cleanup
+credits per launch; a full queue pauses new admission while existing owners can still terminate.
+One off-actor consumer prepares at most 16 canonical script payloads and dispatches opaque
+project/batch tickets through generated Media operations. Applied transient event receipts release
+capacity without authored history. `onApplicationLifecycle` ships in the listening script template;
+pending/acknowledged/fault metadata and admission backpressure appear in the Applications panel.
+The desktop host attaches this consumer independently of renderer setup. Explicit hosts can attach
+the same public source; automatic default headless wiring is next, not claimed here.
+
+Failed edit receipts stop admission until project replacement rather than replay a potentially
+applied prefix. Pre-dispatch host errors retry with coarse backoff. Consumer cancellation retains
+ownership until a blocked sink actually returns. Current enabled listeners receive delayed events
+with their original project/sequence/launch; removed listeners do not receive queued callbacks.
+Acknowledgement means committed engine event delivery, not successful execution of user handlers.
+Configuration-only status remains the latest-state stream.
+
+**Validation:** **180 app tests pass / one existing hardware ignore**, **170 headless tests pass**,
+including generated-protocol drift and hosted QuickJS phase ordering, removed listeners,
+duplicate/stale dispatch, failed receipts, capacity accounting and cancelled blocked consumers.
+Strict all-target/all-feature Clippy, the ordinary MapGyver build, **52 frontend tests**, Svelte
+check (**zero errors/warnings**), changed-file Prettier, both required Cargo formatters and
+whitespace checks pass. No hardware/native experiment ran; no shared Golden boundary changed.
+**No gate closes:** M08 stays **2/4 = 50%**, overall **3/10 = 30%**; the denominator is unchanged.
+Default headless service/control parity and complete process/UI/native/recovery/scale requirements
+retain gates 3–4. Product-delivery count is **37**; nine diagnostic-only batches are allowed,
+one used, none scheduled next. Next is default headless application service/callback attachment.
 
 **Product batch 37:** started 2026-10-31 **10:18 UTC**, recorded stop **11:03 UTC**.
 Deliver live app lifecycle observations and saved versus in-use configuration presentation in the
@@ -1924,7 +1962,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 36. Diagnostic-only batch allowance: 9, one used.**
+**Product-delivery count since correction: 37. Diagnostic-only batch allowance: 9, one used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1974,8 +2012,9 @@ demand and final-plan process retention are the thirty-second. No-consumer appli
 and explicit Matrix unload are the thirty-third. Real native Spout startup/image readiness without
 a renderer is the thirty-fourth. Shared-application definition forms and Matrix app/distance
 controls are the thirty-fifth. Live process/configuration observations are the thirty-sixth.
+Ordered, receipt-gated lifecycle callbacks are the thirty-seventh.
 The allowance is nine at
-`floor(36 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
+`floor(37 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
 diagnostic batch is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
@@ -2170,15 +2209,15 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; sender readiness, editing and live saved/in-use status are implemented. Reliable callbacks/default headless/full parity and UI/native lifecycle/recovery/scale qualification remain open. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; sender readiness, editing, live status and ordered callbacks are implemented. Default headless/full parity and UI/native lifecycle/recovery/scale qualification remain open. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M08 reliable script lifecycle callbacks**, then default headless application service wiring,
-through the same generated backend contracts. Shared application/column forms, native sender/image
-readiness and live saved/in-use status are implemented. Latest-state snapshots do not guarantee
-every transition callback. Preserve project/launch fencing, preparation/active/outgoing/final-use
+Deliver **M08 default headless application service and callback attachment** through public reusable
+host hooks and the same generated backend contracts. Shared application/column forms, native
+sender/image readiness, live status and ordered script callbacks are implemented. Keep the ordered
+phase journal separate from coalesced snapshots. Preserve project/launch fencing, preparation/active/outgoing/final-use
 boundaries and shared scopes while finishing lifecycle control/callback parity. Preserve independent admission and truthful
 retirement; never dispatch from authoring/Undo or infer actual sender readiness from a running process.
 Default headless bootstrap wiring and full parity remain gate 4 work. Actual bundled/native

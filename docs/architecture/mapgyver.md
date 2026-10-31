@@ -527,8 +527,31 @@ the subscribe/read race, then accepts only newer same-project observations. Sess
 disconnect and disposal fence reads/listeners; failed local event registration retries without
 periodic engine inspection. Saved-instance/revision mismatches show waiting for reconciliation;
 configuration policy remains backend-owned. Non-desktop UI uses explicit snapshot refresh, and
-explicit headless owners can subscribe to the same public source. Default headless host wiring,
-reliable script callbacks and full UI/native acceptance remain M08 work.
+explicit headless owners can subscribe to the same public source. Default headless host wiring
+and full UI/native acceptance remain M08 work.
+
+`ApplicationRuntime::callbacks()` supplies a separate ordered process-phase journal. It retains
+published phase/launch changes even when the UI snapshot has already advanced. One project admits
+1,024 queued/reserved events; each launch reserves eight credits before process creation, including
+its cleanup phases. Saturation pauses new admission, never an already-owned process's termination.
+Status snapshots and `InspectCallbacks` expose pending count, acknowledged sequence and faults.
+Configuration-only observations remain on the coalesced status stream.
+
+The desktop host's sole callback consumer uses a global two-worker pool. It prepares canonical
+script payloads off the actor, then submits at most 16 events through generated `DispatchCallbacks`
+tickets. The actor validates the project/batch and emits transient Media Manager events; an applied
+edit receipt releases journal capacity without authored history. Current enabled script listeners
+receive `onApplicationLifecycle({project, sequence, elapsed_ms, status})`; the app-owned template
+subscribes once in `init`. Delayed events keep their original launch identity. Removed/disabled
+listeners are not replay targets, and script-handler exceptions retain Golden's normal script
+failure semantics. Acknowledgement proves committed engine event delivery, not handler success.
+
+A failed edit receipt halts new admission with a visible fault: an applied prefix cannot safely be
+replayed. Faults last until project replacement. A host-side error before dispatch retries the same
+ticket with coarse backoff. Cancellation keeps the consumer claim until an in-flight sink returns,
+preventing replacement consumers from racing batch preparation. Retired projects cannot dispatch
+into the replacement engine. Explicit hosts must attach the same consumer and submit tickets through
+their public project transaction facade; default headless-bootstrap attachment follows separately.
 
 Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured

@@ -1,6 +1,8 @@
 //! App policy and independent background process owners. Explicitly start only for a live project.
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
+pub(crate) mod callbacks;
+pub use callbacks::{ApplicationCallbackSubscription, ApplicationCallbacks};
 mod observation;
 pub use observation::{ApplicationObservations, ApplicationSubscription};
 mod readiness;
@@ -55,6 +57,7 @@ type Statuses = HashMap<ApplicationId, (uuid::Uuid, ApplicationRuntimeStatus)>;
 
 #[derive(Clone, Default)]
 pub(crate) struct RuntimeView {
+    callbacks: Arc<callbacks::Journal>,
     claimed: Arc<std::sync::atomic::AtomicBool>,
     origin: Arc<OnceLock<Instant>>,
     statuses: Arc<Mutex<Statuses>>,
@@ -62,16 +65,31 @@ pub(crate) struct RuntimeView {
     observer: Arc<Mutex<Option<(uuid::Uuid, WorkerNotifier)>>>,
 }
 impl RuntimeView {
+    pub(crate) fn callback_state(&self) -> ApplicationCallbackState {
+        self.callbacks
+            .state
+            .lock()
+            .expect("application callback journal lock poisoned")
+            .snapshot()
+    }
     pub(crate) fn snapshot(&self, project: uuid::Uuid) -> ApplicationRuntimeSnapshot {
         let statuses = self.statuses.lock().expect("application observation lock poisoned");
+        let callbacks = self
+            .callbacks
+            .state
+            .lock()
+            .expect("application callback journal lock poisoned");
+        let callback_state = callbacks.snapshot();
         let revision = self.revision.load(std::sync::atomic::Ordering::Acquire);
         let mut applications = statuses.values().map(|(_, status)| status.clone()).collect::<Vec<_>>();
         drop(statuses);
+        drop(callbacks);
         applications.sort_by_key(|entry| entry.application.0.0);
         let elapsed_ms = self.origin.get().map_or(0, |origin| {
             u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX)
         });
         ApplicationRuntimeSnapshot {
+            callbacks: callback_state,
             project,
             revision,
             elapsed_ms,
@@ -89,13 +107,25 @@ impl RuntimeView {
         if let Some((_, notifier)) = &*self.observer.lock().expect("application observer lock poisoned") {
             notifier.notify();
         }
+        self.callbacks.notify();
     }
-    fn publish(&self, id: ApplicationId, owner: uuid::Uuid, status: &ApplicationRuntimeStatus) {
+    fn publish(
+        &self,
+        id: ApplicationId,
+        owner: uuid::Uuid,
+        status: &ApplicationRuntimeStatus,
+        lifecycle: Option<&mut callbacks::Reservation>,
+        project: uuid::Uuid,
+        elapsed_ms: u64,
+    ) {
         let mut statuses = self.statuses.lock().expect("application observation lock poisoned");
         if let Some((registered, observed)) = statuses.get_mut(&id)
             && *registered == owner
             && *observed != *status
         {
+            if observed.phase != status.phase || observed.launch != status.launch {
+                self.callbacks.append(lifecycle, project, elapsed_ms, status.clone());
+            }
             *observed = status.clone();
             self.changed();
         }
@@ -321,6 +351,9 @@ impl ApplicationRuntime {
     }
     pub fn observations(&self) -> ApplicationObservations {
         ApplicationObservations::new(self.shared.project, self.shared.guard.clone(), self.view.clone())
+    }
+    pub fn callbacks(&self) -> ApplicationCallbacks {
+        ApplicationCallbacks::new(self.shared.project, self.shared.guard.clone(), self.view.clone())
     }
     pub fn readiness(&self, evidence: ReadinessEvidence) -> Result<(), String> {
         if evidence.project != self.shared.project

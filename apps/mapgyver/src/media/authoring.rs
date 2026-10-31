@@ -91,6 +91,12 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported media operation".into());
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    if let MediaEdit::Applications {
+        edit: operation @ crate::applications::protocol::ApplicationEdit::DispatchCallbacks { .. },
+    } = edit
+    {
+        return serde_json::to_value(crate::applications::apply(engine, operation)?).map_err(|error| error.to_string());
+    }
     if let MediaEdit::Matrix {
         media,
         edit:

@@ -139,6 +139,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut application_error = None;
     let mut application_observer: Option<(uuid::Uuid, crate::applications::runtime::ApplicationSubscription)> = None;
     let mut observation_retry = Instant::now();
+    let mut application_callbacks: Option<(
+        uuid::Uuid,
+        crate::applications::runtime::ApplicationCallbackSubscription,
+    )> = None;
     while !input.stop.is_requested() {
         if applications.needs_service() && Instant::now() >= application_retry {
             let mut driver = std::mem::take(&mut applications);
@@ -161,6 +165,44 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     }
                     application_error = Some(error);
                     application_retry = Instant::now() + Duration::from_millis(500);
+                }
+            }
+        }
+        let callback_source = applications.callbacks().filter(|source| source.is_current());
+        if callback_source.as_ref().map(|source| source.project())
+            != application_callbacks.as_ref().map(|(project, _)| *project)
+        {
+            application_callbacks.take();
+        }
+        if let Some(source) = callback_source
+            && application_callbacks.is_none()
+            && Instant::now() >= observation_retry
+        {
+            let runtime = input.runtime.clone();
+            match source.start(move |ticket| {
+                use golden_core::application::ProjectTransactions;
+                runtime
+                    .apply_transaction(golden_core::ui_sync::UiEditIntent::InvokeAppOperation {
+                        namespace: crate::media::protocol::MEDIA_NAMESPACE.into(),
+                        operation: crate::media::protocol::MEDIA_OPERATION.into(),
+                        payload: serde_json::to_value(crate::media::protocol::MediaEdit::Applications {
+                            edit: crate::applications::protocol::ApplicationEdit::DispatchCallbacks { ticket },
+                        })
+                        .map_err(|error| error.to_string())?,
+                    })
+                    .map_err(|error| error.to_string())
+                    .and_then(|ack| {
+                        if ack.success {
+                            Ok(())
+                        } else {
+                            Err(format!("lifecycle callback delivery rejected: {ack:?}"))
+                        }
+                    })
+            }) {
+                Ok(subscription) => application_callbacks = Some((source.project(), subscription)),
+                Err(error) => {
+                    eprintln!("[mapgyver-applications] callbacks unavailable: {error}");
+                    observation_retry = Instant::now() + Duration::from_secs(1);
                 }
             }
         }

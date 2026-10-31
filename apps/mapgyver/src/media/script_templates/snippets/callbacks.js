@@ -10,3 +10,11 @@ function onAppOperationResult(reply) {
   // Persist/reference reply.value identities; never invent media, channel or asset ids.
   void reply;
 }
+
+// Ordered process-phase transitions, distinct from coalesced runtime snapshots.
+// Listen to the Media Manager in init with local.listen({level: 1}).
+// event = {project, sequence, elapsed_ms, status: ApplicationRuntimeStatus}.
+// Use project/sequence/launch to associate delayed delivery with its actual owned launch.
+function onApplicationLifecycle(event) {
+  void event;
+}

@@ -217,6 +217,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ApplicationCallbacks {
+        state: crate::applications::protocol::ApplicationCallbackState,
+    },
     ApplicationReferences {
         references: Vec<crate::applications::protocol::ApplicationReference>,
     },
@@ -290,6 +293,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     let config = Config::default().with_out_dir(directory).with_large_int("number");
     MediaEdit::export_all(&config)?;
     MediaEditResult::export_all(&config)?;
+    crate::applications::protocol::ApplicationLifecycleEvent::export_all(&config)?;
     MediaNativeRequest::export_all(&config)?;
     SenderDiscoverySnapshot::export_all(&config)?;
     super::resolution::ChannelResolution::export_all(&config)?;

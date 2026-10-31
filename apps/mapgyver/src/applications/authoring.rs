@@ -55,6 +55,16 @@ fn create(
 }
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
+        ApplicationEdit::DispatchCallbacks { ticket } => super::runtime::callbacks::dispatch(engine, ticket),
+        ApplicationEdit::InspectCallbacks {} => {
+            let manager = crate::media::authoring::manager(engine)?;
+            let Some(AppNode::MediaManager(node)) = engine.nodes.get(manager) else {
+                unreachable!()
+            };
+            Ok(MediaEditResult::ApplicationCallbacks {
+                state: node.applications.callback_state(),
+            })
+        }
         ApplicationEdit::InspectReferences { applications } => {
             if applications.len() > 64 || applications.iter().collect::<HashSet<_>>().len() != applications.len() {
                 return Err("application reference lookup requires at most 64 unique identities".into());

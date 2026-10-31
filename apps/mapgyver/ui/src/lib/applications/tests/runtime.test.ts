@@ -23,11 +23,13 @@ const connection = () => ({
 });
 function snapshot(project: string, revision: number): ApplicationRuntimeSnapshot {
 	return {
+		callbacks: { pending: 0, acknowledged: 0, fault: null },
 		project,
 		revision,
 		elapsed_ms: revision * 100,
 		applications: [
 			{
+				callback_backpressure: false,
 				application: 'app',
 				launch: 'launch',
 				phase: 'Ready',

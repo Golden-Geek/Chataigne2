@@ -190,6 +190,7 @@ pub enum ApplicationConfigurationState {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct ApplicationRuntimeStatus {
+    pub callback_backpressure: bool,
     pub application: ApplicationId,
     pub launch: Option<uuid::Uuid>,
     pub phase: ApplicationPhase,
@@ -206,6 +207,7 @@ pub struct ApplicationRuntimeStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ApplicationRuntimeSnapshot {
+    pub callbacks: ApplicationCallbackState,
     pub project: uuid::Uuid,
     pub revision: u64,
     /// Monotonic milliseconds since this runtime started; deadlines use the same origin.
@@ -213,9 +215,32 @@ pub struct ApplicationRuntimeSnapshot {
     pub applications: Vec<ApplicationRuntimeStatus>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationCallbackState {
+    pub pending: u32,
+    pub acknowledged: u64,
+    pub fault: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ApplicationLifecycleEvent {
+    pub project: uuid::Uuid,
+    pub sequence: u64,
+    pub elapsed_ms: u64,
+    pub status: ApplicationRuntimeStatus,
+}
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct ApplicationCallbackTicket {
+    pub project: uuid::Uuid,
+    pub batch: uuid::Uuid,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
+    DispatchCallbacks {
+        ticket: ApplicationCallbackTicket,
+    },
+    InspectCallbacks {},
     InspectReferences {
         applications: Vec<ApplicationId>,
     },

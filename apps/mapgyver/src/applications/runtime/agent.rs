@@ -94,6 +94,7 @@ impl<B: Backend> Agent<B> {
     pub fn new(application: ApplicationId, backend: B) -> Self {
         Self {
             status: ApplicationRuntimeStatus {
+                callback_backpressure: false,
                 application,
                 launch: None,
                 phase: ApplicationPhase::Idle,
@@ -116,6 +117,9 @@ impl<B: Backend> Agent<B> {
     }
     pub fn idle(&self) -> bool {
         self.process.is_none() && self.status.phase == ApplicationPhase::Idle
+    }
+    pub fn has_process(&self) -> bool {
+        self.process.is_some()
     }
     pub fn readiness_rule(&self) -> Option<&ApplicationReadiness> {
         self.definition.as_ref().map(|definition| &definition.readiness)

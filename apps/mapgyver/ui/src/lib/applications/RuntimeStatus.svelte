@@ -35,6 +35,12 @@
 	</p>
 	{#if error}<p role="alert">{error}</p>{/if}
 	{#if snapshot}
+		{#if snapshot.callbacks.fault}<p role="alert">
+				Lifecycle callback delivery halted: {snapshot.callbacks.fault}
+			</p>{/if}
+		<small
+			>{snapshot.callbacks.pending} lifecycle callbacks pending · acknowledged through {snapshot
+				.callbacks.acknowledged}</small>
 		<small>Observation {snapshot.revision} · {snapshot.elapsed_ms} ms since runtime start</small>
 		{#each snapshot.applications as application (application.application)}
 			<article aria-label={`Runtime ${application.application}`}>
@@ -44,6 +50,8 @@
 				<dl>
 					<dt>Phase</dt>
 					<dd>{application.phase}</dd>
+					{#if application.callback_backpressure}<dt>Callback delivery</dt>
+						<dd>Launch paused for callback capacity</dd>{/if}
 					<dt>Configuration</dt>
 					<dd>
 						{configurationLabel(

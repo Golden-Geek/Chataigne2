@@ -1,6 +1,7 @@
 use super::{agent::*, *};
 use golden_io::owned_process::{ProcessSnapshot, ProcessSpec, RootProcessState};
 use std::sync::atomic::{AtomicBool, Ordering};
+mod callbacks;
 mod observation;
 
 struct Fake {
