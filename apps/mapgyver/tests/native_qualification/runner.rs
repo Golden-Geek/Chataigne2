@@ -4,6 +4,8 @@ mod config;
 #[cfg(windows)]
 mod host;
 #[cfg(windows)]
+mod lifecycle;
+#[cfg(windows)]
 mod observations;
 #[cfg(windows)]
 mod roles;
@@ -16,6 +18,7 @@ fn main() -> std::process::ExitCode {
         let mut args = config::Arguments::read()?;
         match args.take("role", "renderer").as_str() {
             "renderer" => roles::renderer(args),
+            "lifecycle" => lifecycle::run(args),
             "source" => roles::source(args),
             "consumer" => roles::consumer(args),
             "catalog" => observations::catalog(args),

@@ -1,0 +1,107 @@
+{
+  "evidence_kind": "renderer_lifecycle_first_resize_rejection",
+  "date": "2026-11-01",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "status": "FAILED_NATIVE",
+  "qualified": false,
+  "raw_directory_local": "target/qualification-m03-lifecycle-2026-11-01-b65",
+  "summary": {
+    "error": "lifecycle request failed: Rejected(RuntimeFailure { code: Backend, message: \"render plan has an unsupported or unbound native resource\" })",
+    "qualified": false,
+    "scope": "renderer_lifecycle_growth",
+    "status": "FAILED_NATIVE"
+  },
+  "launcher": {
+    "exit_code": 1,
+    "timed_out": false,
+    "forced_cleanup": false,
+    "owned_job_active_before_close": 0,
+    "elapsed_seconds": 7.166845200001262,
+    "exit_observed_qpc": 4867769532051,
+    "qpc_frequency": 10000000,
+    "job_assignment_atomic": false,
+    "watchdog_scope": "one newly created renderer and its inherited job descendants",
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+      "--role",
+      "lifecycle",
+      "--directory",
+      "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-m03-lifecycle-2026-11-01-b65\\capture",
+      "--adapter",
+      "1",
+      "--cycles",
+      "100",
+      "--spacing-ms",
+      "2000",
+      "--diagnostic",
+      "false"
+    ],
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "3f4f820e37c98290ac951b8e8bc436a008e106e5f69f47fe0f9573d0c0295ce5"
+  },
+  "completed_cycles": 0,
+  "baseline_available": false,
+  "inputs_unchanged_during_capture": true,
+  "execution_input_count": 337,
+  "source_changes_after_capture": [
+    "apps/mapgyver/tests/native_qualification/roles.rs"
+  ],
+  "build": {
+    "manifest_local": "target/qualification-env-build-2026-11-01-b65/build.json",
+    "manifest_sha256": "dea9321b9fb6a7332705d8274e61e69a0561d71d99afe108ede4e6792516c3e0",
+    "executable_sha256": "13b6993b8db96aa503a26b95638f75d761fa83ef63205b01a228f773ba337070",
+    "msvc": "14.51.36231",
+    "windows_sdk": [
+      "10.0.26100.0"
+    ]
+  },
+  "environment": {
+    "before_sha256": "5d0dc70114f53a66379746c67afe2513e3b0c29a7f34f703fcff7f869badd00e",
+    "after_sha256": "d3daa4818ba1220867bf998bbeb46e1022de3cbe05aec6c26856e6d4c98fabfc",
+    "identities_equal": true,
+    "overlay_before_after": "Off; native Home Enable and open overlay UIA action"
+  },
+  "raw_sha256": {
+    "inputs-before.json": "27d224a94ab1278d57160de1b81a15bbe0ef39e8631113fbc8e7e52b2f03f5c1",
+    "inputs.json": "e0dbc5e2bb50fa7362bee6a8f2502120be6409c45c073001c324aca5f2fc131a",
+    "launcher.json": "dd967e231676979c6d7684be0087a0788c232f4f02320fb98255ff31fdb294d3",
+    "stderr.log": "3f4f820e37c98290ac951b8e8bc436a008e106e5f69f47fe0f9573d0c0295ce5",
+    "stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture/lifecycle-summary.json": "0a0892aa9e11dcf134b0edc8bd6ff4a0ef914c44224504bc14eeb7b6d154fd50",
+    "capture/lifecycle.jsonl": "5981a52e59a31f671ead111f790f3bb1dd4655c0311edf45c63939aab724b50b",
+    "capture/consumer-3-000/consumer.jsonl": "68892d974c4f4d1dcf872a98a4bffc04776eb05d4cd4881aa939a61fe6b3554f",
+    "capture/consumer-3-000/process-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture/consumer-3-000/process-stdout.jsonl": "4b6661245aa4cf1bd49a3ff18a341cd78bd12416c58b099dce98d5d624c29e7f",
+    "capture/source-1-000/process-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture/source-1-000/process-stdout.jsonl": "e9981297d5031149047871724ad6113fd16242ebaf43ab6b577816032a9df43b",
+    "capture/source-1-000/source-1.jsonl": "0dfd1800d4aa58c497a6ef47229be653cea12bae6189f3be8d7478f76d918d3c",
+    "capture/source-1-001/process-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture/source-1-001/process-stdout.jsonl": "a9dd3af57ef172eb4dc38b42a97f106d19a760e8252ceb2cc65cde97d3bf0927",
+    "capture/source-1-001/source-1.jsonl": "44a93c233c87ccad52373a6a694a7c374347de9680ff579e2cac6d657710f390",
+    "capture/source-2-000/process-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "capture/source-2-000/process-stdout.jsonl": "c01bc32d44470cc95cb99e0c4de4400347ee07b69d70faaef2d44a0c7f6dab04",
+    "capture/source-2-000/source-2.jsonl": "97b71329776258eb17a91b07c0a295736c72dee8ba5a1b4217eecb8232dcae64"
+  },
+  "cleanup": {
+    "outer_watchdog_forced_cleanup": false,
+    "owned_job_active_at_parent_close": 0,
+    "owned_pids_verified_absent": [
+      12584,
+      41656,
+      39380,
+      21212,
+      23992
+    ],
+    "individual_raii_child_exit_codes": "not recorded by this build; new exit sidecars have software checks only"
+  },
+  "cause": "InputPool::ensure looks up an existing binding by TextureId and returns UnsupportedPlan if its SpoutSource differs; source A resized in the same production runtime on cycle 1",
+  "next_action": "Support completion-retained source binding incarnations at the Golden input boundary while preserving plan-local texture and app channel identities. Keep the failing lifecycle workload.",
+  "gate_change": "none; M03 remains 7/9",
+  "limits": [
+    "No completed lifecycle baseline, 100-cycle acceptance, private/handle growth or exact live-texture proof",
+    "Current source additionally writes child exit sidecars; that post-capture correction has not run natively",
+    "Physical allocation identities, full GPU path, queue and other acceptance remain required",
+    "The window deadline proposal remains unapproved; original window budgets still apply"
+  ]
+}

@@ -2,7 +2,7 @@
 
 ## At a glance
 
-**Updated: 2026-10-31 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
+**Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
 **Current topic:** M03 renderer qualification **gate 9 is the only active gate**. M04 source
 acceptance is complete, **6/6 gates (100%)**; the one scheduled M05 batch is checkpointed. M03 retains
@@ -16,8 +16,11 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** complete gate 9's applicable renderer lifecycle growth/drain measurement at its native
-runtime boundary. The prescribed precise-timer Q02 series is complete and still fails window
+**Next:** fix Golden's source binding-incarnation ownership for a valid resized source under
+the same plan-local `TextureId`, retaining old readers through completion. Batch 65's new
+lifecycle fixture reaches this rejection on cycle 1, before any growth baseline; its full
+100-cycle measurement remains required. Gate 9 alone is active. The prescribed precise-timer
+Q02 series is complete and still fails window
 deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
 awaits explicit user decision. Finish missing GPU/queue/lifecycle observations before freezing
 one set of inputs for the next required Q01/Q02 series; avoid rerunning the series after each
@@ -40,6 +43,16 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest lifecycle prerequisite (batch 65):** the new production-runtime fixture implements
+100 source restart/resize, project-replacement and native-output recreate cycles plus 1,000
+100 Hz preview edits, with cycle-10 baseline and 10-second drain. Its one native attempt fails
+on cycle 1: Golden's `InputPool::ensure` permanently rejects a changed Spout binding under an
+existing texture ID. **Zero cycles complete; no baseline/growth acceptance is claimed.** The
+parent exits **1 in 7.17 s**, without watchdog timeout/force, with zero descendants at job close;
+all five recorded PIDs are absent. Captured inputs and paired overlay-Off inventories match.
+Four software tests and strict app/bin/test Clippy pass. Added child-exit sidecars preserve
+future failure-path cleanup; that post-capture correction has software checks only.
+M03 stays **7/9**. [Failure evidence](evidence/mapgyver-m03-lifecycle-resize-rejection-2026-11-01.json).
 **Latest sustained timing result (batch 64):** all three prescribed NVIDIA Q02 samples complete,
 with paired environment identity **PASSED_NATIVE**, **7,200/7,200** exact Spout captures and
 zero Spout deadline misses in every sample. All six 60-second interruption cohorts pass.
@@ -3162,6 +3175,78 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Renderer lifecycle measurement batch 65:** started 2026-10-31 **22:47 UTC**, stop by
+**23:32 UTC**. Previous turn is progress: `df3a8600` verifies the prescribed precise-timer Q02
+series, preserves its window failures and delivers an unapproved window-only gate proposal.
+Only gate 9 remains active. Add the missing applicable renderer lifecycle handle/private-memory
+and exact live-texture/drain measurement at the existing production runtime/native fixture
+boundary. Use its actual source/output/project replacement and superseding-edit operations;
+preserve the fixed Q05 counts, two-second lifecycle spacing, post-first-ten-cycle baseline,
+10-second drain and original +10 handles / +32 MiB growth budgets. Matrix/full-app Q05 stays
+with M09. First identify reusable fixture paths and make one reviewable implementation slice.
+Software tests/strict Clippy/build must finish successfully before at most one bounded native
+verification. Investigation stops by **23:07 UTC** or two experiments; no timing/Present
+investigation, threshold change, GPU reset, driver/overlay change or parked-stash restoration.
+No partial lifecycle result closes the full renderer gate. Checkpoint/push before further work;
+the window deadline decision and remaining GPU/queue observations stay explicit return items.
+
+**Batch 65 implementation decision, 22:59 UTC:** reuse the existing owned source/consumer roles,
+Golden `VideoRuntime`, public process counters and production `NativeOutputWindow` owner.
+Each composite cycle restarts/resizes source A while source B and output delivery advance,
+replaces the project through its actual retirement acknowledgement, publishes ten distinct
+geometry edits on an absolute 100 Hz schedule, then retires/recreates both native window
+endpoints and the Spout endpoint. All three lifecycle categories recur with at least two
+seconds between cycle starts. Capture 100 completed cycles / 1,000 burst edits; sample the
+warmed baseline after cycle 10 and final live state after a 10-second drain. Retain sampled
+working set/peak working set, private bytes, handles, resource reservations and child exits.
+Use the already implemented worker-owned precise waiter for burst/cycle pacing. Window owners
+survive actual GPU retirement on every success/failure path; only the external owned-process
+watchdog may terminate a stuck run. The fixed native check may finish after 23:07, within the
+23:32 batch stop; this is planned verification, not an extension of open-ended investigation.
+Logical reservations and physical GPU allocation identities remain explicitly separate;
+successful handle/private measurements alone cannot close the full renderer gate.
+
+**Batch 65 result:** four lifecycle regression tests and strict app/bin/test Clippy pass before
+the pinned release build. It selects MSVC **14.51.36231**, Windows SDK **10.0.26100.0**, executable
+SHA-256 `13b6993b8db96aa503a26b95638f75d761fa83ef63205b01a228f773ba337070`.
+The one planned NVIDIA native attempt finishes **23:06:14 UTC**, before the 23:07 investigation
+cutoff. It exits **1 in 7.1668 s** on the first changed-source plan, with no timeout or outer
+forced cleanup. Zero cycles complete and the warmed baseline never exists. Initial two-source
+streaming and source-B/output progress while source A is absent occur before the rejection;
+these narrow observations do not qualify the requested lifecycle series.
+
+The error is `Rejected(Backend: render plan has an unsupported or unbound native resource)`.
+The owning branch is `native/inputs/mod.rs`'s `InputPool::ensure`: its cache looks up only
+`TextureId`, then returns `UnsupportedPlan` when the requested `SpoutSource` differs. Golden's
+public `TextureId` is logical identity **within a render plan**. Retaining an older plan must
+not permanently forbid a valid new source descriptor in a later plan. The next correction
+belongs at this Golden binding/resource-generation boundary, preserving old reader/import
+leases until their actual GPU uses retire. Do not work around it by restarting the renderer
+before a source change or by forcing app/channel identity churn. Keep this failing fixture.
+
+All **337** selected inputs remain unchanged during the native attempt; paired fresh native
+Home UIA observations show overlay Off and the paired inventories match. The owned job has
+zero descendants at parent close, and PIDs **12584/41656/39380/21212/23992** are absent. The
+captured build did not persist individual child exit results on RAII-only failure cleanup;
+that limit is explicit. `OwnedRole` now writes an exit sidecar on both explicit and Drop
+cleanup, including a forced flag. Four tests/strict Clippy pass again for that correction;
+it has **not** run natively. The capture stays bound to its original source/SDK/executable
+fingerprints; the changed cleanup source is not passed off as natively verified.
+
+The [compact artifact](evidence/mapgyver-m03-lifecycle-resize-rejection-2026-11-01.json) retains
+the actual error, launcher, paired environment/build hashes and all 19 raw-file hashes. Raw
+source/consumer logs remain local. There is no second native attempt, GPU reset, timing or
+Present sweep. Logical live-set return, physical texture identities, lifecycle growth, complete
+GPU path and queue observations remain open. The window deadline proposal remains unapproved;
+all original budgets remain active. Both formatters and relevant software checks pass before
+checkpoint delivery. **No gate closes: M03 remains 7/9 and overall remains 4/10 (40%).**
+Next is the bounded source-binding correction and its resize/old-generation ownership coverage,
+then this unchanged fixed lifecycle series. Q01/Q02 final series wait for the remaining
+measurement instrumentation to stabilize, as recorded above. All unfinished phase returns remain.
+Final software/formatting/artifact checks and remote reconciliation finish by **23:12 UTC**,
+well before the **23:32 UTC** batch stop. Deliver the fixture/failure checkpoint now; do not
+use the remaining batch time to reopen timing research or repeat the failed native run.
 
 **Sustained timing acceptance batch 64:** started 2026-10-31 **22:22 UTC**, stop by
 **23:07 UTC**. Previous turn is progress: `9cdba745` delivers worker-owned precise deadlines,

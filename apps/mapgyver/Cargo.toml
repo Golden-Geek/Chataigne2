@@ -72,7 +72,7 @@ required-features = ["native-preview-smoke"]
 [[bin]]
 name = "native_qualification"
 path = "tests/native_qualification/runner.rs"
-test = false
+test = true
 bench = false
 required-features = ["native-qualification"]
 

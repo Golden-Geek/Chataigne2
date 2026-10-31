@@ -271,13 +271,18 @@ pub fn consumer(mut args: Arguments) -> io::Result<()> {
     Ok(())
 }
 
-struct OwnedRole {
+pub(super) struct OwnedRole {
     child: Child,
     reader: Option<thread::JoinHandle<()>>,
+    exit_log: PathBuf,
 }
 
 impl OwnedRole {
-    fn spawn(executable: &Path, values: &[String], directory: &Path, label: &str) -> io::Result<Self> {
+    pub(super) fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    pub(super) fn spawn(executable: &Path, values: &[String], directory: &Path, label: &str) -> io::Result<Self> {
         let stdout_log = writer(&directory.join(format!("{label}-stdout.jsonl")))?;
         let stderr = OpenOptions::new()
             .write(true)
@@ -311,6 +316,7 @@ impl OwnedRole {
         let mut owned = Self {
             child,
             reader: Some(reader),
+            exit_log: directory.join(format!("{label}-exit.json")),
         };
         if receipt.recv_timeout(Duration::from_secs(30)).is_err() {
             let _ = owned.finish();
@@ -318,7 +324,7 @@ impl OwnedRole {
         }
         Ok(owned)
     }
-    fn finish(&mut self) -> io::Result<Value> {
+    pub(super) fn finish(&mut self) -> io::Result<Value> {
         let id = self.child.id();
         if let Some(mut input) = self.child.stdin.take() {
             let _ = input.write_all(b"stop\n");
@@ -339,10 +345,14 @@ impl OwnedRole {
         if let Some(reader) = self.reader.take() {
             let _ = reader.join();
         }
-        Ok(
-            json!({"pid":id,"exit_code":status.code(),"forced":forced,"success":status.success()&&!forced,
-            "stop_ns":started.elapsed().as_nanos().to_string()}),
-        )
+        let result = json!({"pid":id,"exit_code":status.code(),"forced":forced,"success":status.success()&&!forced,
+            "stop_ns":started.elapsed().as_nanos().to_string()});
+        // Preserve cleanup evidence even when a failed capture unwinds through Drop instead
+        // of reaching its ordinary parent summary. A failed write fails explicit cleanup.
+        let mut output = writer(&self.exit_log)?;
+        serde_json::to_writer_pretty(&mut output, &result).map_err(Error::other)?;
+        output.flush()?;
+        Ok(result)
     }
 }
 
