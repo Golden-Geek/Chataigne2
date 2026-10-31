@@ -12,6 +12,8 @@
 		disabled,
 		viewport,
 		select,
+		selectRow,
+		selectColumn,
 		launch
 	}: {
 		snapshot: MatrixViewportSnapshot;
@@ -19,6 +21,8 @@
 		disabled: boolean;
 		viewport(value: MatrixViewport): void;
 		select(row: MatrixViewRow, column: ColumnSnapshot): void;
+		selectRow(row: MatrixViewRow): void;
+		selectColumn(column: ColumnSnapshot): void;
 		launch(column: string): void;
 	} = $props();
 	let element: HTMLDivElement;
@@ -97,8 +101,10 @@
 					class:requested={snapshot.playback.desired_column === column.id}
 					style:top={`${projection.top}rem`}
 					style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
-					<button {disabled} onclick={() => launch(column.id)} title={`Launch ${column.label}`}
+					<button {disabled} onclick={() => selectColumn(column)} title={`Select ${column.label}`}
 						>{column.label}</button>
+					<button {disabled} onclick={() => launch(column.id)} title={`Launch ${column.label}`}
+						>Launch</button>
 					{#if snapshot.playback.desired_column === column.id}<small>Requested</small>{/if}
 				</div>
 			{/each}
@@ -115,7 +121,9 @@
 					style:left={`${projection.left}rem`}
 					style:padding-left={`${0.5 + row.depth * 0.8}rem`}
 					title={row.item.label}>
-					{row.item.id.kind === 'Group' ? '▾ ' : ''}{row.item.label}
+					<button {disabled} onclick={() => selectRow(row)} title={`Select ${row.item.label}`}>
+						{row.item.id.kind === 'Group' ? '▾ ' : ''}{row.item.label}
+					</button>
 				</div>
 				{#each snapshot.columns as column, columnIndex (column.id)}
 					{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
@@ -123,9 +131,9 @@
 						class="cell"
 						role="gridcell"
 						{disabled}
-						aria-selected={selected?.item.id === row.item.id.id && selected?.column === column.id}
+						aria-selected={selected?.item?.id === row.item.id.id && selected?.column === column.id}
 						aria-colindex={snapshot.column_start + columnIndex + 2}
-						class:selected={selected?.item.id === row.item.id.id && selected?.column === column.id}
+						class:selected={selected?.item?.id === row.item.id.id && selected?.column === column.id}
 						style:left={`${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem`}
 						onclick={() => select(row, column)}
 						title={`${row.item.label} / ${column.label}`}>
@@ -158,7 +166,7 @@
 	.corner,
 	.heading {
 		position: absolute;
-		height: 3rem;
+		height: 4.5rem;
 		box-sizing: border-box;
 		background: #292d36;
 		z-index: 3;
@@ -174,6 +182,12 @@
 		flex-direction: column;
 	}
 	.heading button {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.row-label button {
+		max-width: 100%;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

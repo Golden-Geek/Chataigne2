@@ -53,21 +53,13 @@ impl ViewIndex {
         }
     }
 }
-pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewport) -> Result<MediaEditResult, String> {
-    if viewport.row_count == 0
-        || viewport.row_count > 128
-        || viewport.column_count == 0
-        || viewport.column_count > 64
-        || u32::from(viewport.row_count) * u32::from(viewport.column_count) > 4096
-    {
-        return Err("Matrix viewport admits 1..128 rows, 1..64 columns and at most 4096 addresses".into());
-    }
+fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
     let root = super::playback::root(engine, media)?;
     let Some(AppNode::MediaChannel(node)) = engine.nodes.get(root) else {
         unreachable!()
     };
     let control = node.matrix_playback().ok_or("Matrix playback owner is missing")?;
-    let index = if let Some(index) = control.view() {
+    Ok(if let Some(index) = control.view() {
         index
     } else {
         let document = Document::load(engine, media)?;
@@ -80,7 +72,88 @@ pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewpo
         let index = Arc::new(ViewIndex::build(document));
         control.cache_view(index.clone());
         index
+    })
+}
+
+pub(super) fn targets(engine: &AppEngine, media: MediaId, query: MatrixTargetQuery) -> Result<MediaEditResult, String> {
+    if query.count == 0 || query.count > 128 || query.search.len() > 256 {
+        return Err("Matrix targets require 1..128 results and at most 256 search bytes".into());
+    }
+    let index = index(engine, media)?;
+    if let MatrixTargetScope::Items { parent: Some(parent) } = query.scope
+        && !index
+            .rows
+            .iter()
+            .any(|row| row.id == MatrixItemId::Group { id: parent })
+    {
+        return Err("Matrix target parent is missing".into());
+    }
+    let search = query.search.to_lowercase();
+    let group_paths = matches!(query.scope, MatrixTargetScope::Groups);
+    let mut page = MatrixTargetPage {
+        choices: vec![],
+        total: 0,
+        start: query.start,
     };
+    let mut admit = |id, node| -> Result<(), String> {
+        let mut labels = Vec::new();
+        let mut next = Some(node);
+        while let Some(id) = next {
+            let current = engine.nodes.get(id).ok_or("Matrix target changed")?;
+            if !matches!(current, AppNode::MatrixElement(_)) {
+                break;
+            }
+            labels.push(current.node_data().meta.label.as_str());
+            next = if group_paths { current.node_data().parent } else { None };
+        }
+        labels.reverse();
+        let label = labels.join(" / ");
+        if label.to_lowercase().contains(&search) {
+            let position = page.total;
+            page.total += 1;
+            if position >= query.start && page.choices.len() < usize::from(query.count) {
+                page.choices.push(MatrixTargetChoice { id, label });
+            }
+        }
+        Ok(())
+    };
+    match query.scope {
+        MatrixTargetScope::Columns => {
+            for (column, node) in &index.columns {
+                admit(MatrixTargetId::Column { column: *column }, *node)?;
+            }
+        }
+        scope => {
+            for row in &index.rows {
+                let included = match scope {
+                    MatrixTargetScope::Groups => matches!(row.id, MatrixItemId::Group { .. }),
+                    MatrixTargetScope::Items { parent } => row.parent == parent,
+                    MatrixTargetScope::Columns => unreachable!(),
+                };
+                if included {
+                    admit(MatrixTargetId::Item { item: row.id }, row.node)?;
+                }
+            }
+        }
+    }
+    Ok(MediaEditResult::MatrixTargets { page })
+}
+
+pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewport) -> Result<MediaEditResult, String> {
+    if viewport.row_count == 0
+        || viewport.row_count > 128
+        || viewport.column_count == 0
+        || viewport.column_count > 64
+        || u32::from(viewport.row_count) * u32::from(viewport.column_count) > 4096
+    {
+        return Err("Matrix viewport admits 1..128 rows, 1..64 columns and at most 4096 addresses".into());
+    }
+    let index = index(engine, media)?;
+    let root = super::playback::root(engine, media)?;
+    let Some(AppNode::MediaChannel(node)) = engine.nodes.get(root) else {
+        unreachable!()
+    };
+    let control = node.matrix_playback().ok_or("Matrix playback owner is missing")?;
     let row_start = (viewport.row_start as usize).min(index.rows.len());
     let column_start = (viewport.column_start as usize).min(index.columns.len());
     let mut rows = Vec::new();

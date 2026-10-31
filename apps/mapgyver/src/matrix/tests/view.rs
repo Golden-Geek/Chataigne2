@@ -174,3 +174,162 @@ fn oversized_viewports_and_choice_queries_reject_without_changes() {
     }
     assert_eq!(engine.undo_len(), history);
 }
+
+fn targets(
+    engine: &mut AppEngine,
+    media: MediaId,
+    scope: MatrixTargetScope,
+    search: &str,
+    start: u32,
+    count: u16,
+) -> MatrixTargetPage {
+    let MediaEditResult::MatrixTargets { page } = edit(
+        engine,
+        media,
+        MatrixEdit::InspectTargets {
+            query: MatrixTargetQuery {
+                scope,
+                search: search.into(),
+                start,
+                count,
+            },
+        },
+    ) else {
+        panic!()
+    };
+    page
+}
+
+#[test]
+fn target_queries_page_all_destinations_and_follow_grouping_rename_history_and_roundtrip() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let items = layers(&mut engine, matrix.media, None, 200);
+    let columns = columns(&mut engine, matrix.media, 200);
+    let MediaEditResult::MatrixCreated { items: groups, .. } = edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddGroup {
+            parent: None,
+            label: Some("Target group".into()),
+        },
+    ) else {
+        panic!()
+    };
+    let MatrixItemId::Group { id: group } = groups[0] else {
+        panic!()
+    };
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddGroup {
+            parent: Some(group),
+            label: Some("Nested".into()),
+        },
+    );
+    let before = engine.undo_len();
+    let far = targets(
+        &mut engine,
+        matrix.media,
+        MatrixTargetScope::Items { parent: None },
+        "",
+        190,
+        8,
+    );
+    assert_eq!((far.total, far.choices.len()), (201, 8));
+    assert_eq!(far.choices[0].id, MatrixTargetId::Item { item: items[190] });
+    let all_groups = targets(&mut engine, matrix.media, MatrixTargetScope::Groups, "TARGET", 0, 64);
+    assert_eq!(all_groups.total, 2);
+    assert_eq!(all_groups.choices[1].label, "Target group / Nested");
+    assert_eq!(engine.undo_len(), before);
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::MoveItem {
+            item: items[199],
+            parent: Some(group),
+            after: None,
+        },
+    );
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::RenameItem {
+            item: items[199],
+            label: "Moved row".into(),
+        },
+    );
+    let moved = targets(
+        &mut engine,
+        matrix.media,
+        MatrixTargetScope::Items { parent: Some(group) },
+        "moved",
+        0,
+        64,
+    );
+    assert_eq!(moved.choices[0].id, MatrixTargetId::Item { item: items[199] });
+    assert_eq!(moved.choices[0].label, "Moved row");
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ReorderColumn {
+            column: columns[199],
+            after: None,
+        },
+    );
+    assert_eq!(
+        targets(&mut engine, matrix.media, MatrixTargetScope::Columns, "", 0, 1).choices[0].id,
+        MatrixTargetId::Column { column: columns[199] }
+    );
+    assert!(engine.undo().unwrap());
+    assert_eq!(
+        targets(&mut engine, matrix.media, MatrixTargetScope::Columns, "", 0, 1).choices[0].id,
+        MatrixTargetId::Column { column: columns[0] }
+    );
+    let mut restored = from_sparse_project_json::<AppNode>(&to_sparse_project_json_pretty(&engine).unwrap()).unwrap();
+    assert_eq!(
+        targets(
+            &mut restored,
+            matrix.media,
+            MatrixTargetScope::Items { parent: Some(group) },
+            "",
+            0,
+            64
+        )
+        .choices[0]
+            .id,
+        MatrixTargetId::Item { item: items[199] }
+    );
+    let before = engine.undo_len();
+    for (count, search, scope) in [
+        (0, "".into(), MatrixTargetScope::Columns),
+        (129, "".into(), MatrixTargetScope::Groups),
+        (1, "x".repeat(257), MatrixTargetScope::Groups),
+        (
+            1,
+            "".into(),
+            MatrixTargetScope::Items {
+                parent: Some(GroupId(golden_core::model::NodeUuid(uuid::Uuid::new_v4()))),
+            },
+        ),
+    ] {
+        assert!(
+            !invoke(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: matrix.media,
+                    edit: MatrixEdit::InspectTargets {
+                        query: MatrixTargetQuery {
+                            scope,
+                            search,
+                            start: 0,
+                            count
+                        }
+                    }
+                }
+            )
+            .success
+        );
+    }
+    assert_eq!(engine.undo_len(), before);
+}

@@ -469,7 +469,8 @@ channel allocation and Matrix/app semantics. A gesture becomes one coherent hist
 do not create a history entry per frame or implement a second rule engine in TypeScript.
 
 The app-owned `ui/src/lib/matrix/` panel separates cell selection, explicit source assignment and
-column launch/Cut. It exposes sparse layer/group/column creation, copy/removal and the existing
+column launch/Cut. Row and column headings select independently, including when the other axis is
+empty. The panel exposes sparse layer/group/column creation, copy/removal and the existing
 native Final preview. `MatrixEdit::InspectViewport` returns at most 128 rows, 64 columns and 4,096
 addresses; the UI requests at most 64 by 32 and mounts only that window. Compressed rem-based scroll
 ranges retain normal cell dimensions without giant browser canvases. Each controller keeps one
@@ -477,12 +478,20 @@ active read and one latest replacement, fenced by session, project generation an
 Matrices resets the grid's scroll context. `InspectChoices` supplies searched, paged channel IDs and
 labels without copying channel definitions; Matrix selection filters to Final outputs.
 
+Focused Matrix, row and column forms expose canvas/transition settings, opacity/blend/enabling,
+naming, nested group creation and arbitrary grouping/reorder through existing Rust intents.
+`InspectTargets` returns searched/paged group destinations, siblings in a specified parent or
+columns, at most 128 IDs/labels (UI pages of 64). Group labels include ancestry. These reads reuse
+the sparse index and never mutate order, allocate identity or launch playback. Target inspection
+defers through shared edit groups; source/settings drafts reset when their authored anchors change.
+Rust remains responsible for cycle/depth/sibling validation and coherent history.
+
 Rust owns the sparse address/order index, cached at the authored revision. Visible labels, settings
 and payloads read current nodes; scrolling neither materializes empty cells nor changes history or
 playback. Initial construction/rebuild still visits the document and needs large-grid qualification.
 The grid marks only the requested column; requested state does not certify installed/live output.
-Full settings/reorder controls, installed state presentation and actual editor interaction remain
-M07 gate 3 work; complete large-grid/native/recovery checks remain gate 4.
+Installed state presentation and actual editor interaction/parity acceptance remain M07 gate 3
+work; complete large-grid/native/recovery checks remain gate 4.
 
 The app-owned `ui/src/lib/composition/` panel/controller/forms expose Composition channel selection,
 searchable source assignment, ordered instance creation/copy/rename/reorder/removal, transform and

@@ -8,6 +8,10 @@
 	import { MEDIA_NAMESPACE, MATRIX_PLAYBACK_EVENT } from '../media/generated/constants';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import VirtualGrid from './VirtualGrid.svelte';
+	import RowForm from './RowForm.svelte';
+	import ColumnForm from './ColumnForm.svelte';
+	import MatrixForm from './MatrixForm.svelte';
+	import './forms.css';
 	let { panelId, panelType, title }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
 	export const setPanelState = (next: PanelState) => {
@@ -26,7 +30,7 @@
 	);
 	const busy = $derived(controller.busy || session?.hasActiveEditSession === true);
 	const selectedRow = $derived(
-		view.window?.rows.find((row) => row.item.id.id === view.selected?.item.id)
+		view.window?.rows.find((row) => row.item.id.id === view.selected?.item?.id)
 	);
 	const selectedColumn = $derived(
 		view.window?.columns.find((column) => column.id === view.selected?.column)
@@ -34,11 +38,28 @@
 	const selectedCell = $derived(
 		view.window?.cells.find(
 			(value) =>
-				value.cell.layer === view.selected?.item.id &&
+				value.cell.layer === view.selected?.item?.id &&
 				value.cell.definition.column === view.selected?.column
 		)
 	);
 	let draft = $state('');
+	let draftKey = '';
+	const definition = $derived.by(() => {
+		const source = view.window?.final_output.definition.source;
+		return source?.kind === 'Matrix' && source.output.kind === 'Final'
+			? source.output.definition
+			: null;
+	});
+	$effect(() => {
+		const source = selectedCell?.cell.definition.source;
+		const key = JSON.stringify([view.media, view.selected, source]);
+		untrack(() => {
+			if (key !== draftKey) {
+				draftKey = key;
+				draft = source ? channelKey(source) : '';
+			}
+		});
+	});
 	$effect(() => {
 		const current = session;
 		if (current) {
@@ -139,6 +160,8 @@
 					selected={view.selected}
 					disabled={busy}
 					viewport={(value) => controller.setViewport(value)}
+					selectRow={(row) => controller.select(row.item.id, view.selected?.column ?? null)}
+					selectColumn={(column) => controller.select(view.selected?.item ?? null, column.id)}
 					select={(row, column) => {
 						controller.select(row.item.id, column.id);
 						const source = view.window?.cells.find(
@@ -152,9 +175,9 @@
 			{/key}
 			<aside>
 				<h3>Selection and assignment</h3>
-				{#if selectedRow && selectedColumn}
-					<p>{selectedRow.item.label} / {selectedColumn.label}</p>
-					{#if selectedRow.item.id.kind === 'Layer'}
+				{#if selectedRow || selectedColumn}
+					<p>{selectedRow?.item.label ?? 'No row'} / {selectedColumn?.label ?? 'No column'}</p>
+					{#if selectedRow?.item.id.kind === 'Layer' && selectedColumn}
 						<p>
 							Assigned source: {selectedCell?.source_missing
 								? 'Missing source'
@@ -217,7 +240,7 @@
 					{/if}
 					<div class="actions">
 						<button
-							disabled={busy}
+							disabled={busy || !selectedColumn}
 							onclick={() => {
 								if (selectedColumn)
 									void controller.edit({
@@ -227,7 +250,7 @@
 									});
 							}}>Launch column</button
 						><button
-							disabled={busy}
+							disabled={busy || !selectedColumn}
 							onclick={() => {
 								if (selectedColumn)
 									void controller.edit({
@@ -239,13 +262,13 @@
 					</div>
 					<div class="actions">
 						<button
-							disabled={busy}
+							disabled={busy || !selectedRow}
 							onclick={() => {
 								if (selectedRow)
 									void controller.edit({ kind: 'DuplicateItem', item: selectedRow.item.id });
 							}}>Copy row</button
 						><button
-							disabled={busy}
+							disabled={busy || !selectedColumn}
 							onclick={() => {
 								if (selectedColumn)
 									void controller.edit({ kind: 'DuplicateColumn', column: selectedColumn.id });
@@ -253,19 +276,47 @@
 					</div>
 					<div class="actions">
 						<button
-							disabled={busy}
+							disabled={busy || !selectedRow}
 							onclick={() => {
 								if (selectedRow)
 									void controller.edit({ kind: 'RemoveItem', item: selectedRow.item.id });
 							}}>Remove row</button
 						><button
-							disabled={busy}
+							disabled={busy || !selectedColumn}
 							onclick={() => {
 								if (selectedColumn)
 									void controller.edit({ kind: 'RemoveColumn', column: selectedColumn.id });
 							}}>Remove column</button>
 					</div>
-				{:else}<p>Select a visible cell. Selection and source assignment do not launch it.</p>{/if}
+				{:else}<p>
+						Select a row, column or cell. Selection and source assignment do not launch it.
+					</p>{/if}
+				{#if selectedRow && view.media}
+					{#key JSON.stringify(selectedRow.item)}
+						<RowForm
+							row={selectedRow}
+							media={view.media}
+							{session}
+							disabled={busy}
+							edit={(value) => controller.edit(value)} />
+					{/key}
+				{/if}
+				{#if selectedColumn && view.media && definition}
+					{#key JSON.stringify([selectedColumn, definition.transition])}
+						<ColumnForm
+							column={selectedColumn}
+							transition={definition.transition}
+							media={view.media}
+							{session}
+							disabled={busy}
+							edit={(value) => controller.edit(value)} />
+					{/key}
+				{/if}
+				{#if definition}
+					{#key JSON.stringify(definition)}
+						<MatrixForm {definition} disabled={busy} edit={(value) => controller.edit(value)} />
+					{/key}
+				{/if}
 				<h3>Output preview</h3>
 				<p>
 					Requested column: {view.window.playback.desired_column

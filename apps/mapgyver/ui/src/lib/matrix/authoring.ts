@@ -11,7 +11,7 @@ export interface MatrixState {
 	media: string | null;
 	window: MatrixViewportSnapshot | null;
 	viewport: MatrixViewport;
-	selected: { item: MatrixItemId; column: string } | null;
+	selected: { item: MatrixItemId | null; column: string | null } | null;
 	pending: boolean;
 	refreshing: boolean;
 	error: string;
@@ -102,7 +102,7 @@ export class MatrixController<S extends Connection> {
 		this.state.viewport = { ...this.state.viewport, row_start: 0, column_start: 0 };
 		this.refresh();
 	}
-	select(item: MatrixItemId, column: string) {
+	select(item: MatrixItemId | null, column: string | null) {
 		this.state.selected = { item, column };
 	}
 	setViewport(viewport: MatrixViewport) {

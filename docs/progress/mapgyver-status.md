@@ -7,7 +7,8 @@
 **Current topic:** M07 document/module and timed runtime accepted, **2/4 gates (50%)**;
 sparse authoring, Linear/SmoothStep fades, interrupted clip mixes and shared layer/group/final
 production now preserve outgoing bindings across edits/removal/relaunch. An initial virtualized grid
-now exposes bounded source assignment, row/column authoring, copy/removal and explicit launch/Cut;
+now exposes bounded source assignment, row/column authoring, copy/removal and explicit launch/Cut.
+Naming, nested grouping/reorder, blending and canvas/transition forms are wired through backend intents;
 full native/interactive/large-grid qualification remains open. M06 remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
@@ -28,14 +29,13 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** complete Matrix editor settings/reorder controls and distinguish requested from installed
-runtime feedback, then bounded real interaction verification using the existing backend intents.
-**Last delivered capability:** dockable virtualized Matrix grid with bounded viewport/source reads,
-sparse assignment, create/copy/remove and separate selection/launch/Cut, plus native Final preview
-binding (batch 26). Backend/software checks pass; actual UI gestures remain unverified.
-**Product blocker:** none for the remaining editor controls. Independent app pixel consumption,
-full recovery/scale and actual editor
-interaction remain unverified under gate 4 and their owning phases.
+**Next:** distinguish requested from observed preparation/installation in Matrix runtime feedback,
+then bounded real interaction/parity verification using the existing backend intents.
+**Last delivered capability:** Matrix canvas/transition forms, row blend/enable controls, naming,
+nested grouping and arbitrary reorder via bounded destination search; independent row/column
+selection supports empty axes (batch 27). Backend/software checks pass; actual UI gestures remain
+unverified. **Product blocker:** none for observed runtime feedback. Actual editor interaction remains
+under gate 3; independent app pixels and full recovery/scale remain under gate 4 and their owning phases.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -79,6 +79,46 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Product batch 27:** started 2026-10-31 **05:53 UTC**, recorded stop **06:38 UTC**.
+Complete Matrix editor naming, grouping/reorder and authored settings using backend-owned intents
+and bounded target choices. MapGyver owns ordering, destination validation and defaults; Svelte
+owns explicit form drafts and selection. Verify typed operations, history/project roundtrip and
+stale UI drafts with relevant backend/frontend checks, Svelte/formatting and the ordinary app build.
+Retain installed/live feedback and actual interaction as open scope unless directly verified; no
+diagnostic-only, driver/clock/privilege or parked M03 work is scheduled.
+
+**Batch 27 result:** the Matrix editor now exposes row/column naming, enabled/opacity/blend settings,
+nested group/layer creation, arbitrary group/reorder destinations, canvas dimensions and Matrix/
+column transitions. Transparent remains the backend's only admitted empty-cell policy and is shown
+as such. Inheriting a transition stays explicit; overriding submits the displayed values. Independent
+row/column heading selection makes their forms available with an empty opposite axis and performs
+no backend mutation/launch. Source drafts follow the selected authored address; keyed settings forms
+reset on authoritative changes instead of preserving an obsolete configuration silently.
+
+`InspectTargets` searches all groups, siblings in a selected parent or columns, returning at most
+**128 IDs/labels** per page (UI 64). Group labels include their ancestry, and all reads reuse the
+authored-revision index. They do not copy the full document or alter history. One active/one latest
+read and session/project/history/scope fences discard stale replies/errors; inspection defers through
+shared edit groups. Enter in a destination search searches rather than submitting a move. Existing
+Rust intents retain cycle/depth/sibling validation, identity, history and script/command ownership;
+the Rust-generated query/result DTOs and script snippets are updated together.
+
+**Verification:** **144 app tests pass/1 pre-existing hardware-only ignore**, **134 headless tests
+pass**, strict all-target/all-feature app Clippy and the ordinary bundled app build pass. The new
+backend query test covers paging past the visible window, group ancestry, rename/reparent/reorder,
+Undo, project roundtrip, rejected query bounds and read-side history invariance. Existing settings/
+identity/roundtrip tests cover the reused mutations. All **36 frontend tests pass**, including bounded
+destination search coalescing, stale group/project/history/disconnect/disposal fences, independent
+selection without launches and shared edit-group deferral. Svelte reports **0 errors/0 warnings**
+and app Prettier passes; generated DTO drift and both workspace formatters are checked before delivery.
+Implementation/software checks finished by **06:04 UTC**, within the recorded 45-minute limit.
+No native/desktop experiment or automation recovery ran.
+
+**No gate closes: M07 remains 2/4 = 50%; overall remains 3/10 = 30%.** Gate 3 retains observed
+preparation/installed feedback and actual editor interaction/parity acceptance; gate 4 retains its
+complete native/large-grid/recovery qualification. The next product task is runtime feedback, with
+all existing qualification budgets and failures preserved.
 
 **Product batch 26:** started 2026-10-31 **05:28 UTC**, recorded stop **06:13 UTC**.
 Deliver bounded Matrix viewport queries and an app-registered virtualized grid with separate cell
@@ -309,7 +349,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — initial bounded grid/assignment/create/copy/remove/launch slice software-verified in batch 26; full controls, installed feedback and interaction remain |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — bounded grid and authored settings/grouping/reorder controls software-verified in batches 26–27; observed installed feedback and real interaction/parity acceptance remain |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -1627,18 +1667,17 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and initial grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded viewport/assignment/create/copy/remove/launch UI slice passes software checks. Full editor controls, installed feedback, interaction and qualification remain open. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/grouping/reorder UI passes software checks. Observed installed feedback, actual interaction/parity acceptance and full qualification remain open. |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Complete **M07 Matrix editor controls and runtime feedback** on the delivered bounded grid:
-row/column naming, grouping/reorder, layer/group blend/opacity, Matrix canvas/empty-cell/transition
-settings and column configuration through existing backend intents. Keep selection, source assignment,
-requested launch and observed preparation/installation distinct; do not infer live state from request
-acceptance. Follow with relevant software/build checks and at most two bounded real interaction
-checks. Preserve all budgets. Do not reopen
+Deliver **M07 observed runtime feedback** on the bounded Matrix grid. Keep selection, source
+assignment, requested launch and observed preparation/installation distinct; do not infer live state
+from request acceptance or move renderer behavior into Svelte. Reuse the shared renderer/host
+observations with proper session/generation fences, then relevant software/build checks and at most
+two bounded real interaction checks. Preserve all budgets. Do not reopen
 browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
@@ -1649,7 +1688,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-six product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
+Twenty-seven product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

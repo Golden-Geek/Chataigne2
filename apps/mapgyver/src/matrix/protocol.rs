@@ -189,7 +189,41 @@ pub struct MatrixViewportSnapshot {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
+pub enum MatrixTargetScope {
+    Groups,
+    Items { parent: Option<GroupId> },
+    Columns,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum MatrixTargetId {
+    Item { item: MatrixItemId },
+    Column { column: ColumnId },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixTargetChoice {
+    pub id: MatrixTargetId,
+    pub label: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixTargetQuery {
+    pub scope: MatrixTargetScope,
+    pub search: String,
+    pub start: u32,
+    pub count: u16,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixTargetPage {
+    pub choices: Vec<MatrixTargetChoice>,
+    pub total: u32,
+    pub start: u32,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
 pub enum MatrixEdit {
+    InspectTargets {
+        query: MatrixTargetQuery,
+    },
     InspectViewport {
         viewport: MatrixViewport,
     },

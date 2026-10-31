@@ -8,6 +8,7 @@ export interface Connection {
 	readonly snapshotGeneration: number;
 	readonly loading: { readonly visible: boolean };
 	readonly currentHistoryStateId?: unknown;
+	readonly hasActiveEditSession?: boolean;
 }
 export interface ChoiceState {
 	page: ChannelChoicePage | null;
