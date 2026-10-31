@@ -1,11 +1,12 @@
 //! Persistent media/channel authoring; native resources remain owned by Golden Video.
 
 mod assets;
-mod authoring;
+pub(crate) mod authoring;
 mod capture;
 mod catalog;
 mod commands;
 pub mod composition;
+pub(crate) mod dependencies;
 mod importing;
 mod nodes;
 pub mod picture;

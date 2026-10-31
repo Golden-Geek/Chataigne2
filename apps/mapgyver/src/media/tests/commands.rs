@@ -89,6 +89,7 @@ fn catalog_commands_execute_through_the_public_trigger_and_undo_route() {
         ("Create Picture", MediaKind::Picture),
         ("Create Shared Texture", MediaKind::SharedTexture),
         ("Create Composition", MediaKind::Composition),
+        ("Create Matrix", MediaKind::Matrix),
     ] {
         let mut engine = fixture();
         script(&mut engine, "function init() { local.listen({level:1}); } function onAppOperationResult(reply) { gc.emit('media-method-reply', reply); }".into());
@@ -225,6 +226,40 @@ fn composition_geometry_uses_hosted_method_and_returns_committed_instance() {
         [origin.position[0] + 30.0, origin.position[1] + 60.0]
     );
     assert_eq!(engine.undo_len(), before + 1);
+}
+
+#[test]
+fn matrix_authored_intents_use_hosted_methods_and_committed_callbacks() {
+    use crate::matrix::protocol::*;
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let request = serde_json::to_string(&MediaEdit::Matrix {
+        media: matrix.media,
+        edit: MatrixEdit::AddLayers { parent: None, count: 2 },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            r#"function init() {{ local.listen({{level:1}}); local.editMedia('layers', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}"#
+        ),
+    );
+    let before = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let result = replies(&engine);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0]["status"], "applied");
+    let MediaEditResult::MatrixCreated { items, .. } = serde_json::from_value(result[0]["value"].clone()).unwrap()
+    else {
+        panic!()
+    };
+    let snapshot = crate::matrix::inspect(&engine, matrix.media).unwrap();
+    assert_eq!(snapshot.items.iter().map(|item| item.id).collect::<Vec<_>>(), items);
+    assert_eq!(engine.undo_len(), before + 1);
+    assert!(engine.undo().unwrap());
+    assert!(crate::matrix::inspect(&engine, matrix.media).unwrap().items.is_empty());
+    assert!(engine.redo().unwrap());
+    assert_eq!(crate::matrix::inspect(&engine, matrix.media).unwrap(), snapshot);
 }
 
 #[test]

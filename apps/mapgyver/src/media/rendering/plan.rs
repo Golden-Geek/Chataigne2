@@ -212,6 +212,11 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
+                Some(ChannelSource::Matrix { .. }) => {
+                    entry.source = None;
+                    resolution =
+                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                }
                 Some(ChannelSource::Composition { canvas }) => {
                     entry.source = None;
                     let definition = channel.definition.as_ref().unwrap();

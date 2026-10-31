@@ -4,6 +4,12 @@ Golden owns transport admission, actor execution, atomic authored edits, history
 The app owns operation schemas, validation, labels, identity remapping and domain mutation policy.
 Generic graph and Golden packages must not import Chataigne types to implement these operations.
 
+The application facade calls `ProjectLifecycle::validate_ui_intent` before admitting any intent or
+entering history. Apps can require their typed operations for structures with coupled ownership,
+such as Matrix layers and their exported channels. Rejection returns `app_intent_rejected` without
+mutating the document; production UI/transport and `apply_project_intent` share the same hook.
+Its default accepts ordinary intents. Pure engine edits remain trusted internal mechanisms.
+
 `UiEditIntent::InvokeAppOperation` carries an app namespace, operation name and JSON request.
 `ProjectLifecycle::apply_app_operation` interprets the app DTO and queues ordinary engine edits.
 App request/result DTOs should generate their TypeScript declarations from Rust. Golden transports

@@ -10,6 +10,7 @@ golden_core::define_node_enum!(
         MediaAsset(crate::media::AssetNode),
         MediaCommand(crate::media::MediaCommandNode),
         CompositionInstance(crate::media::composition::InstanceNode),
+        MatrixElement(crate::matrix::ElementNode),
         ScreenManager(crate::screens::ScreenManagerNode),
         Screen(crate::screens::ScreenNode),
         Surface(crate::screens::SurfaceNode),
@@ -66,6 +67,10 @@ impl ProjectLifecycle for AppNode {
     fn prepare_project_candidate(engine: &mut AppEngine) -> Result<(), String> {
         crate::media::validate_project(engine)?;
         crate::screens::validate_project(engine)
+    }
+
+    fn validate_ui_intent(engine: &AppEngine, intent: &golden_core::ui_sync::UiEditIntent) -> Result<(), String> {
+        crate::matrix::validate_ui_intent(engine, intent)
     }
 }
 

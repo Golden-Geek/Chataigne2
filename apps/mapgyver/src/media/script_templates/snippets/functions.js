@@ -22,6 +22,13 @@
 // EditInstanceGeometry uses { mode: "Translate" | "Rotate" | "Scale", origin, start, point }.
 // Copy origin from the inspected instance transform; start/point are canvas-texel pointer samples.
 // The backend changes only that geometry field and returns InstanceChanged with committed state.
+// Matrix media uses media_kind: "Matrix". Its Final, Layer and Group channels are stable exports.
+// local.editMedia("layers", JSON.stringify({ kind: "Matrix", media: matrixMediaId,
+//   edit: { kind: "AddLayers", parent: null, count: 4 } }));
+// Matrix Inspect returns ordered items/columns and sparse cells. AddColumns does not create cells.
+// SetCells accepts assignments: [{ layer, column, source: channelReferenceOrNull }].
+// Configure/ConfigureItem/ConfigureColumn, copy, move/reorder, rename and removal use the same route.
+// Authored cells reference channels without owning them; feedback is rejected across all media.
 
 function init() {
   // Subscribe once. No update callback or periodic polling is needed.

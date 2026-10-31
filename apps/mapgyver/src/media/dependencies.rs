@@ -7,6 +7,16 @@ use std::collections::{HashMap, HashSet};
 
 fn graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelReference>>, String> {
     let mut result = HashMap::new();
+    for (_, node) in engine.nodes.iter() {
+        if let AppNode::Media(node) = node
+            && node.kind == super::protocol::MediaKind::Matrix
+        {
+            result.extend(crate::matrix::document::dependencies(&crate::matrix::inspect(
+                engine,
+                MediaId(node.node_data().meta.uuid),
+            )?));
+        }
+    }
     for (id, node) in engine.nodes.iter() {
         let AppNode::MediaChannel(node) = node else {
             continue;
@@ -22,7 +32,7 @@ fn graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelRefe
             channel: ChannelId(node.node_data().meta.uuid),
         };
         let mut sources = Vec::new();
-        for instance in super::authoring::instances(engine, id)? {
+        for instance in super::composition::authoring::instances(engine, id)? {
             let AppNode::CompositionInstance(node) = engine.nodes.get(instance).unwrap() else {
                 unreachable!()
             };
@@ -47,7 +57,7 @@ pub(super) fn reject_cycle(
     let mut seen = HashSet::new();
     while let Some(source) = pending.pop() {
         if source == owner {
-            return Err("Composition dependency cycle".into());
+            return Err("media channel dependency cycle".into());
         }
         if seen.insert(source)
             && let Some(children) = graph.get(&source)
@@ -61,6 +71,19 @@ pub(super) fn reject_cycle(
 /// Iterative topological validation also admits unresolved authored references as missing leaves.
 pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     let graph = graph(engine)?;
+    validate(graph)
+}
+
+pub(crate) fn replace_sources(
+    engine: &AppEngine,
+    replacements: HashMap<ChannelReference, Vec<ChannelReference>>,
+) -> Result<(), String> {
+    let mut graph = graph(engine)?;
+    graph.extend(replacements);
+    validate(graph)
+}
+
+fn validate(graph: HashMap<ChannelReference, Vec<ChannelReference>>) -> Result<(), String> {
     let mut incoming = graph.keys().map(|key| (*key, 0usize)).collect::<HashMap<_, _>>();
     for sources in graph.values() {
         for source in sources {
@@ -88,6 +111,6 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     if visited == graph.len() {
         Ok(())
     } else {
-        Err("Composition dependency cycle".into())
+        Err("media channel dependency cycle".into())
     }
 }

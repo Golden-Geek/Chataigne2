@@ -9,6 +9,7 @@
 	import { invokeMediaEdit } from './operations';
 	import SolidChannelEditor from './SolidChannelEditor.svelte';
 	import CompositionChannelEditor from './CompositionChannelEditor.svelte';
+	import MatrixChannelEditor from './MatrixChannelEditor.svelte';
 	import PictureChannelEditor from './PictureChannelEditor.svelte';
 	import SharedTextureChannelEditor from './SharedTextureChannelEditor.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
@@ -131,6 +132,10 @@
 			>Add Composition</button>
 		<button
 			disabled={busy}
+			onclick={() => edit({ kind: 'CreateMedia', media_kind: 'Matrix', label: null })}
+			>Add Matrix</button>
+		<button
+			disabled={busy}
 			aria-expanded={importing}
 			onclick={() => {
 				importing = !importing;
@@ -220,7 +225,7 @@
 						</ul>
 						<div class="actions">
 							<button
-								disabled={busy}
+								disabled={busy || media.media_kind === 'Matrix'}
 								onclick={() => edit({ kind: 'AddChannel', media: media.id, label: null })}
 								>Add channel</button>
 							<button
@@ -262,10 +267,14 @@
 						<SharedTextureChannelEditor channel={selectedChannel} disabled={busy} {configure} />
 					{:else if selectedChannel.definition.source.kind === 'Composition'}
 						<CompositionChannelEditor channel={selectedChannel} disabled={busy} {configure} />
+					{:else if selectedChannel.definition.source.kind === 'Matrix'}
+						<MatrixChannelEditor channel={selectedChannel} {catalog} disabled={busy} {edit} />
 					{/if}
 					<button
 						class="danger"
-						disabled={busy || selectedMedia.channels.length === 1}
+						disabled={busy ||
+							selectedMedia.channels.length === 1 ||
+							selectedMedia.media_kind === 'Matrix'}
 						onclick={() => edit({ kind: 'RemoveChannel', reference: selectedChannel!.reference })}
 						>Delete channel</button>
 					{#if selectedMedia.channels.length === 1}<small>Media retains at least one channel.</small

@@ -35,7 +35,7 @@ pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     found.ok_or_else(|| "Media Manager is missing".into())
 }
 
-fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, MediaKind), String> {
+pub(crate) fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, MediaKind), String> {
     let id = engine.node_id_by_uuid(media.0).ok_or("media reference is missing")?;
     let Some(AppNode::Media(node)) = engine.nodes.get(id) else {
         return Err("reference is not media".into());
@@ -86,6 +86,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let pending_before = engine.edits.pending.len();
     let result = match edit {
+        MediaEdit::Matrix { media, edit } => crate::matrix::apply(engine, media, edit)?,
         MediaEdit::Composition { reference, edit } => super::composition::apply(engine, reference, edit)?,
         MediaEdit::ImportPicture { locator, target, label } => {
             super::importing::picture(engine, locator, target, label)?
@@ -142,6 +143,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 MediaKind::SolidColor => "Solid Color",
                 MediaKind::SharedTexture => "Shared Texture",
                 MediaKind::Composition => "Composition",
+                MediaKind::Matrix => "Matrix",
             };
             let (tree, reference) = media_tree(
                 label(engine, parent, requested, fallback)?,
@@ -159,6 +161,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             label: requested,
         } => {
             let (parent, kind) = media(engine, owner)?;
+            if kind == MediaKind::Matrix {
+                return Err("Matrix exports are created with their owning layer/group".into());
+            }
             let channel = ChannelNode::new(
                 label(engine, parent, requested, "Channel")?,
                 ChannelDefinition::for_media(kind),
@@ -205,6 +210,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             MediaEditResult::Changed
         }
         MediaEdit::RemoveChannel { reference } => {
+            if media(engine, reference.media)?.1 == MediaKind::Matrix {
+                return Err("remove the Matrix item to remove its export".into());
+            }
             let node = channel_id(engine, reference)?;
             let (parent, _) = media(engine, reference.media)?;
             let data = engine.nodes.get(parent).expect("validated media").node_data();
@@ -245,7 +253,12 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
     let media = MediaNode::new(label, definition.media_kind());
-    let channel = ChannelNode::new("Channel 1".into(), definition);
+    let channel_label = if definition.media_kind() == MediaKind::Matrix {
+        "Final"
+    } else {
+        "Channel 1"
+    };
+    let channel = ChannelNode::new(channel_label.into(), definition);
     let reference = ChannelReference {
         media: MediaId(media.node_data().meta.uuid),
         channel: ChannelId(channel.node_data().meta.uuid),
@@ -263,6 +276,12 @@ pub(super) fn configure_channel(
     definition.validate()?;
     if definition.media_kind() != kind {
         return Err("channel source does not match its media kind".into());
+    }
+    if kind == MediaKind::Matrix {
+        let current = channel(engine, reference)?;
+        if current.definition.source != definition.source {
+            return Err("use Matrix operations to configure document/output ownership".into());
+        }
     }
     engine.edits.push(Edit::CallNodeMutation {
         node: id,
@@ -324,8 +343,13 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if parent.kind != node.definition().media_kind() {
                     return Err("channel source does not match its media kind".into());
                 }
-                if !matches!(node.definition().source, ChannelSource::Composition { .. })
-                    && node.node_data().first_child.is_some()
+                if !matches!(
+                    node.definition().source,
+                    ChannelSource::Composition { .. }
+                        | ChannelSource::Matrix {
+                            output: crate::matrix::protocol::MatrixOutput::Final { .. }
+                        }
+                ) && node.node_data().first_child.is_some()
                 {
                     return Err("only Composition channels may own instances".into());
                 }
@@ -339,5 +363,6 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
             _ => {}
         }
     }
-    super::composition::validate_project(engine)
+    crate::matrix::validate_project(engine)?;
+    super::dependencies::validate_project(engine)
 }

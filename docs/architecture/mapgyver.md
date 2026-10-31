@@ -6,8 +6,9 @@ is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are i
 M03 has introduced Golden Video's compiler, bounded worker runtime, shared Golden Time scheduling
 and a D3D11 compositor with bounded Spout inputs and window/Spout outputs. Media/channel
 authoring contracts use the shared engine/history/codec and publish guarded channel plans through
-an app-owned preparation boundary. Mapping, Matrix and the specialized editors below remain
-planned. Execution belongs to the
+an app-owned preparation boundary. Screen/Surface authoring and output, Composition production/editor
+mechanisms and the sparse Matrix document/module are implemented to the extent recorded in the ledger.
+Matrix playback/grid and full native/editor qualification remain open. Execution belongs to the
 [MapGyver plan](../plan/MapGyver_Implementation_Plan.md) and its
 [status ledger](../progress/mapgyver-status.md).
 
@@ -20,8 +21,8 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | --- | --- |
 | `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
-| `apps/mapgyver/src/screen/` (planned) | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
-| `apps/mapgyver/src/matrix/` (planned) | Cells, layers, groups, columns, transitions, exported channels, app associations and demand policy |
+| `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
+| `apps/mapgyver/src/matrix/` | Sparse Matrix document, layer/group/column/cell authoring, export identity and validation. Playback/transitions and later app demand/lifetimes remain M07/M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
@@ -316,6 +317,39 @@ membership and ordering. The backend resolves cells, empty-cell behavior, transi
 durations, blend modes and output export policy. Proposed initial empty-cell behavior is to
 transition the layer to transparent; expose the policy explicitly before adding alternatives.
 Editing/selection in the Matrix editor is distinct from an explicit column load/launch intent.
+
+The implemented authored model lives under `apps/mapgyver/src/matrix`. One Final channel owns the
+canvas, empty-cell and transition definition, ordered root groups/layers and ordered columns.
+Groups own nested groups/layers; layers own sparse Cell nodes keyed by ColumnId. Adding columns
+never materializes a layer×column grid. Every layer/group has a paired sibling channel under its
+Matrix media, carrying the stable owner UUID; the channel ID survives move/reorder/rename/reload.
+Missing source channels remain authored references and return after Undo instead of being replaced.
+
+`MatrixEdit` validates create/copy/move/reorder/rename/configure/remove and atomic cell batches.
+Known additions use one detached forest. Group copy remaps internal exported-channel references
+and allocates independent item/cell/export identities. Column copy preserves source assignments
+with new column/cell IDs. Removal cleans owned cells/exports in the same history transaction.
+The app admits at most 100,000 document elements, 4,096 additions/assignments per batch and 32
+item nesting levels. The 32-level limit is an explicit persistence admission bound: a proposed
+64-level fixture exceeded the shared JSON decoder's nesting guard; the admitted boundary passes
+roundtrip. This does not reduce any native workload/budget or establish full-scale performance.
+Proposed backend defaults are a 1920×1080 canvas, Transparent empty cells and a 250 ms Linear
+transition; column transitions may explicitly override the document transition.
+
+`media/dependencies.rs` owns one iterative all-media DAG, including Composition instances, all
+authored Matrix cells and layer/group/final exports. Inactive columns still participate in feedback
+validation. Cell batches replace affected outgoing edges together, so a valid atomic reassignment
+does not fail against edges that the same transaction removes. Project-candidate validation also
+checks export ownership, cell addresses, hierarchy bounds and cycles. Generic structural UI intents
+cannot bypass paired ownership: MapGyver implements Golden's public `validate_ui_intent` hook and
+requires Matrix operations for those targets. Golden contains no Matrix policy.
+
+Media Manager provides Matrix creation, document inspection, canvas/transition settings, root
+layer/group/column creation and source assignment with bounded selectors/readback. Generic media
+commands, hosted `editMedia`, callbacks and app snippets use the same generated contracts. The
+virtualized Matrix grid, launches/shared-time transitions and demanded producer remain M07 work;
+runtime output is explicitly unavailable while other channels continue. No native Matrix pixels,
+interactive grid behavior or app process control is inferred from authoring checks.
 
 During a transition, incoming and outgoing media remain demanded. Layer/group/final channels
 render from the same plan and are independently routable to Surfaces or other media. Exported

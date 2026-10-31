@@ -26,7 +26,7 @@ pub(super) fn channel(
     }
 }
 
-pub(super) fn instances(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>, String> {
+pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>, String> {
     let mut next = engine
         .nodes
         .get(parent)

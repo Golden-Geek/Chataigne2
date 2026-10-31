@@ -3,9 +3,12 @@ import type { AssetId } from "./AssetId";
 import type { AssetRecord } from "./AssetRecord";
 import type { ChannelReference } from "./ChannelReference";
 import type { ChannelSnapshot } from "./ChannelSnapshot";
+import type { ColumnId } from "./ColumnId";
 import type { CompositionSnapshot } from "./CompositionSnapshot";
 import type { InstanceReference } from "./InstanceReference";
 import type { InstanceSnapshot } from "./InstanceSnapshot";
+import type { MatrixItemId } from "./MatrixItemId";
+import type { MatrixSnapshot } from "./MatrixSnapshot";
 import type { MediaManagerSnapshot } from "./MediaManagerSnapshot";
 
-export type MediaEditResult = { "kind": "InstanceChanged", snapshot: InstanceSnapshot, } | { "kind": "Composition", snapshot: CompositionSnapshot, } | { "kind": "InstancesCreated", instances: Array<InstanceReference>, } | { "kind": "Manager", snapshot: MediaManagerSnapshot, } | { "kind": "PictureImported", reference: ChannelReference, asset: AssetId, } | { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };
+export type MediaEditResult = { "kind": "MatrixCreated", items: Array<MatrixItemId>, columns: Array<ColumnId>, } | { "kind": "Matrix", snapshot: MatrixSnapshot, } | { "kind": "InstanceChanged", snapshot: InstanceSnapshot, } | { "kind": "Composition", snapshot: CompositionSnapshot, } | { "kind": "InstancesCreated", instances: Array<InstanceReference>, } | { "kind": "Manager", snapshot: MediaManagerSnapshot, } | { "kind": "PictureImported", reference: ChannelReference, asset: AssetId, } | { "kind": "AssetCreated", asset: AssetId, } | { "kind": "Asset", record: AssetRecord, } | { "kind": "Created", reference: ChannelReference, } | { "kind": "Changed" } | { "kind": "Channel", snapshot: ChannelSnapshot, };

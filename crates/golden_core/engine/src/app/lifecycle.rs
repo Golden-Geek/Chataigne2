@@ -64,6 +64,16 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         Ok(())
     }
 
+    /// Validates a user/transport intent before any mutation or history boundary is entered.
+    /// App policy may require a domain intent instead of generic structural edits to owned nodes.
+    /// Pure engines remain independent of app policy; default application hosts use this hook.
+    fn validate_ui_intent(_engine: &Engine<Self>, _intent: &crate::ui_sync::UiEditIntent) -> Result<(), String>
+    where
+        Self: Sized,
+    {
+        Ok(())
+    }
+
     /// Applies one app-owned operation inside the host's atomic edit/history boundary.
     ///
     /// Validate domain policy here, queue authored changes through engine edits, and

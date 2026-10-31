@@ -4,7 +4,9 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M06 Composition authoring/module foundation accepted, **1/4 gates (25%)**;
+**Current topic:** M07 Matrix document/module foundation accepted, **1/4 gates (25%)**;
+sparse authoring, stable layer/group/final exports, history and command/script integration now work.
+Playback/launch transitions and the virtualized grid remain open. M06 authoring remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
 and graphical selection/drag/rotate/scale with backend geometry and grouped history. Software
@@ -24,13 +26,12 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M07 Matrix document/module foundation: stable layers/groups/columns/cells, source assignment
-and validated atomic authoring with persistence/history and command/script/callback/snippet parity.
-Define its fixed acceptance breakdown before source work; preserve M06's unverified gates.
-**Last delivered capability:** Composition graphical selection and move/rotate/scale with bounded
-input, typed backend geometry, authoritative instance patches and coalesced Undo (batch 21).
-Software checks pass. The ordinary app displays the panel, but the computer-use helper reports a
-Windows integrity limit and its test click produced no visible change; real gestures remain unverified.
+**Next:** M07 atomic column launch/transition state and demanded layer/group/final producer through
+shared Golden Time and the existing renderer, retaining outgoing sources and bounded publications.
+**Last delivered capability:** sparse Matrix authoring with stable exported channels, atomic cell
+assignment, group/column copy, all-media feedback rejection and complete module/script integration;
+Media Manager includes Matrix creation/settings/assignment controls (batch 22). Playback remains
+explicitly unavailable until the producer is implemented; interactive Matrix evidence is still open.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -54,13 +55,13 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
-| [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Document/module accepted; playback/grid/qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 1 / 4 = 25%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -72,6 +73,71 @@ work; the combined scope and native budgets are unchanged, and all nine started 
 These counts measure accepted scope, not effort or product readiness. Partial evidence earns
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
+
+### M07 acceptance items
+
+Before M07 source implementation, its provisional whole-phase item is split into four fixed gates.
+Together these retain the complete plan acceptance. All start open; M07 progress is closed gates / 4.
+Overall remains 3/10 (30%); no existing gate, budget or qualification ownership changes.
+
+| # | Acceptance scope | State |
+| --- | --- | --- |
+| 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
+| 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Open |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open |
+| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
+
+**Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
+Deliver Matrix media and the document/module foundation under `apps/mapgyver/src/matrix`: sparse
+node-owned groups/layers/columns/cells, stable derived channel identities, atomic batched authoring,
+source assignment, persistence/history, shared all-media dependency validation and existing media
+command/script/callback/snippet integration. Add creation/inspection/canvas entry points in the app
+UI. Avoid eager layer×column materialization and repeated whole-tree snapshots for a known batch.
+Prove identity/order/copy/ownership/feedback/Undo/roundtrip and finite large sparse construction;
+run DTO/frontend/Rust checks and bundled build. Matrix playback remains truthfully unavailable
+until its producer is implemented. No native experiment or desktop/driver recovery is scheduled.
+
+**Batch 22 result:** Matrix is now an app-owned media type with one Final document channel,
+node-owned ordered groups/layers/columns and sparse cell nodes. Layer/group exports have independent
+stable channel IDs; grouping, reorder, rename, source changes, history and roundtrip preserve them.
+Backend operations create forests, configure settings, move/reorder/rename/remove, duplicate groups
+or columns and assign 1–4,096 cells atomically. Group copy remaps internal exports while preserving
+external sources; column copy allocates independent column/cell IDs. Clearing a cell retains its
+identity; deleting a source preserves references and Undo restores it. Item/column removal cleans
+owned cells/exports in the same transaction. Adding columns never creates a layer×column grid.
+
+One iterative media DAG now covers Composition instances, all authored Matrix cells and derived
+exports. It rejects direct/indirect and Matrix↔Composition/Matrix feedback, including inactive
+columns. Batched assignments replace affected edges together instead of retaining removed edges.
+Detached project validation rejects malformed ownership, cell addresses, orphan exports and cycles.
+The roundtrip fixture caught a redundant enum tag being omitted by sparse persistence; element
+codecs now use the registered node kind and serialize only its payload. A proposed 64-level tree
+exceeded the shared JSON nesting guard. Matrix admits **32 item levels**, verified at that boundary,
+**100,000 document elements** and **4,096 additions/assignments per batch**. These are explicit
+authoring admission limits; no retained native budget/workload was reduced.
+
+Final review reproduced generic outliner removal leaving a paired export behind. Golden's new
+public, default-accepting `ProjectLifecycle::validate_ui_intent` hook checks app policy before any
+mutation/history boundary. MapGyver requires typed Matrix operations for generic structural edits
+to Matrix-owned nodes; mixed removals, moves, creation and copy requests reject atomically. Golden
+contains no Matrix policy, and the bare engine remains a trusted internal mechanism. The regression
+test failed before the guard and passes after it; no new diagnostic framework or native run was used.
+
+Create Matrix is exposed in Media Manager and command presets. Its focused settings/inspection UI
+supports canvas/transition configuration, root group/layer/column creation and source assignment;
+bounded selectors/readback show authoritative data. Generic commands, hosted `editMedia`, committed
+callbacks and app snippets use the same generated DTOs. The Final/Layer/Group producer remains
+explicitly unavailable and a renderer regression keeps a healthy Solid output active alongside it.
+
+Validation: **124 passing / 1 ignored** default tests, **114/114** headless tests, generated DTO
+drift, **26/26** frontend tests, Svelte **0 errors / 0 warnings**, strict app/engine Clippy,
+root/Golden Core formatting, shared engine regression tests (**659 passing / 3 ignored**), Chataigne compile regression and the
+bundled ordinary MapGyver build pass. The finite 1,000-layer/1,000-column fixture uses two forests/
+history steps, 1,001 exports and **zero cells**; one passing observation was **233.3517 ms**. This is
+construction evidence, not Q04 10k/50k/100k or interaction/frame/memory budget qualification.
+No native/UI experiment ran. **M07 gate 1 closes: 1/4 (25%)**. Gates 2–4, M06 gates 2–4 and all
+other retained qualification remain open; overall stays **3/10 (30%)**. The next product deliverable
+is atomic Matrix launches/transitions and demanded shared render passes, not more UI recovery.
 
 ### M06 acceptance items
 
@@ -1100,7 +1166,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 21. Diagnostic-only batch allowance: 5, unused.**
+**Product-delivery count since correction: 22. Diagnostic-only batch allowance: 5, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1133,7 +1199,9 @@ Dockable Composition source/instance/canvas controls and native preview binding 
 graphical transform gestures and real interactive/native preview evidence remain open.
 Graphical Composition selection/geometry and grouped history are the twenty-first; software/native
 submission foundations permit M07, with real input and complete native pixel qualification open.
-The allowance remains five at `floor(21 / 4)`, following the four-product-to-one-diagnostic ratio;
+Sparse Matrix authoring/module integration is the twenty-second and closes M07 gate 1; runtime
+launches/transitions, the virtualized grid and native qualification remain open.
+The allowance remains five at `floor(22 / 4)`, following the four-product-to-one-diagnostic ratio;
 none of the five allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1328,19 +1396,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
-| M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
+| M07 Matrix/editor | IN_PROGRESS | [Sparse document/module](#m07-acceptance-items) closes gate 1/4; stable exports, history, all-media validation and module/script parity pass. Launch/transition production, grid and native qualification remain open. |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver the **M07 Matrix document/module foundation** against the software-verified Composition,
-channel and shared editor contracts. Define fixed acceptance before source implementation. Own
-stable layer/group/column/cell identities, source assignment, validated atomic authoring, persistence
-and history under MapGyver; wire commands, script methods, callbacks and app snippets in the same
-slice. Keep reusable execution in Golden and product launch/transition policy in the app. Runtime
-launches/derived channels and the virtualized grid follow coherent product checkpoints. Do not
-reopen browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
+Deliver **M07 atomic column launch/transition state and demanded production** against the accepted
+sparse document and existing Composition/channel contracts. Use Golden Time for deterministic
+progress, preserve outgoing source demand through interrupted transitions, and publish shared
+layer/group/final targets once per demanded output. Keep product policy in MapGyver and reusable
+execution in Golden, with unchanged resource/admission budgets. Define fake-time/reference checks
+before implementation; the virtualized grid follows a coherent runtime checkpoint. Do not reopen
+browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
 native pixel correctness retain M06 gates 2–4; authoring gate 1 is accepted.
@@ -1350,7 +1418,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-one product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
+Twenty-two product slices are delivered; documentation checkpoints are excluded. Five diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

@@ -1,4 +1,52 @@
 use super::*;
+
+#[test]
+fn an_unimplemented_matrix_producer_is_unavailable_without_disrupting_a_healthy_output() {
+    let mut engine = engine();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let healthy = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, matrix, 4);
+    resize(&mut engine, healthy, 4);
+    let targets = [
+        ChannelRoute {
+            output: OutputId::new(1).unwrap(),
+            channel: matrix,
+        },
+        ChannelRoute {
+            output: OutputId::new(2).unwrap(),
+            channel: healthy,
+        },
+    ];
+    let mut owner = renderer();
+    let request = owner
+        .publish(
+            capture_channels(&engine, &[matrix, healthy], 16).unwrap(),
+            targets.to_vec(),
+        )
+        .unwrap();
+    installed(&owner, request);
+    assert_eq!(
+        owner
+            .channels()
+            .iter()
+            .find(|channel| channel.reference == matrix)
+            .unwrap()
+            .resolution
+            .availability,
+        ChannelAvailability::Unavailable
+    );
+    assert_eq!(
+        owner
+            .channels()
+            .iter()
+            .find(|channel| channel.reference == healthy)
+            .unwrap()
+            .resolution
+            .availability,
+        ChannelAvailability::Ready
+    );
+    close(owner);
+}
 use crate::media::resolution::ChannelAvailability;
 
 #[test]

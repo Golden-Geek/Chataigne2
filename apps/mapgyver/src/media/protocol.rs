@@ -45,6 +45,7 @@ pub enum MediaKind {
     SolidColor,
     SharedTexture,
     Composition,
+    Matrix,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -57,6 +58,9 @@ pub enum SizePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ChannelSource {
+    Matrix {
+        output: crate::matrix::protocol::MatrixOutput,
+    },
     Composition {
         canvas: Extent2D,
     },
@@ -86,6 +90,10 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    Matrix {
+        media: MediaId,
+        edit: crate::matrix::protocol::MatrixEdit,
+    },
     Composition {
         reference: ChannelReference,
         edit: super::composition::protocol::CompositionEdit,
@@ -177,6 +185,13 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MatrixCreated {
+        items: Vec<crate::matrix::protocol::MatrixItemId>,
+        columns: Vec<crate::matrix::protocol::ColumnId>,
+    },
+    Matrix {
+        snapshot: crate::matrix::protocol::MatrixSnapshot,
+    },
     InstanceChanged {
         snapshot: super::composition::protocol::InstanceSnapshot,
     },

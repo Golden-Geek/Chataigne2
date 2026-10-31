@@ -26,6 +26,11 @@ impl ChannelDefinition {
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
             },
+            MediaKind::Matrix => ChannelSource::Matrix {
+                output: crate::matrix::protocol::MatrixOutput::Final {
+                    definition: crate::matrix::protocol::MatrixDefinition::default(),
+                },
+            },
             MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [1.0; 4] },
             MediaKind::SharedTexture => ChannelSource::Spout {
                 sender: None,
@@ -48,6 +53,7 @@ impl ChannelDefinition {
         match self.source {
             ChannelSource::Picture { .. } => MediaKind::Picture,
             ChannelSource::Composition { .. } => MediaKind::Composition,
+            ChannelSource::Matrix { .. } => MediaKind::Matrix,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
             ChannelSource::Spout { .. } => MediaKind::SharedTexture,
         }
@@ -58,6 +64,11 @@ impl ChannelDefinition {
             validate_extent(extent)?;
         }
         match &self.source {
+            ChannelSource::Matrix { output } => {
+                if let crate::matrix::protocol::MatrixOutput::Final { definition } = output {
+                    definition.validate()?;
+                }
+            }
             ChannelSource::Picture { .. } => {}
             ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
@@ -111,6 +122,16 @@ pub struct ChannelResolution {
 pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> Result<ChannelResolution, String> {
     definition.validate()?;
     let (intrinsic, availability) = match &definition.source {
+        ChannelSource::Matrix { output } => match observed {
+            SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
+            SourceObservation::Unavailable => (
+                match output {
+                    crate::matrix::protocol::MatrixOutput::Final { definition } => Some(definition.canvas),
+                    _ => None,
+                },
+                ChannelAvailability::Unavailable,
+            ),
+        },
         ChannelSource::Composition { canvas } => (
             Some(*canvas),
             match observed {

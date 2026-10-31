@@ -151,6 +151,13 @@ impl MediaNode {
 }
 
 impl Node for MediaNode {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        (self.kind == MediaKind::Matrix).then(|| UserContainerRules::new(&["mapgyver.media.channel"]))
+    }
+    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        (self.kind == MediaKind::Matrix && node_type == "mapgyver.media.channel")
+            .then(|| Box::new(ChannelNode::new("Channel".into(), ChannelDefinition::default())) as Box<dyn Node>)
+    }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
     }
@@ -221,6 +228,18 @@ impl Node for ChannelNode {
         self.revision.advance();
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
+        if matches!(
+            self.definition.source,
+            super::protocol::ChannelSource::Matrix {
+                output: crate::matrix::protocol::MatrixOutput::Final { .. }
+            }
+        ) {
+            return Some(UserContainerRules::new(&[
+                crate::matrix::node::LAYER_TYPE,
+                crate::matrix::node::GROUP_TYPE,
+                crate::matrix::node::COLUMN_TYPE,
+            ]));
+        }
         matches!(
             self.definition.source,
             super::protocol::ChannelSource::Composition { .. }
@@ -242,6 +261,14 @@ impl Node for ChannelNode {
         }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if matches!(
+            self.definition.source,
+            super::protocol::ChannelSource::Matrix {
+                output: crate::matrix::protocol::MatrixOutput::Final { .. }
+            }
+        ) {
+            return crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>);
+        }
         let super::protocol::ChannelSource::Composition { .. } = self.definition.source else {
             return None;
         };

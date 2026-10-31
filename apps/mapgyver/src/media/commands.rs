@@ -29,6 +29,7 @@ pub(super) fn catalog() -> Vec<UserCreatableItem> {
         ("Create Picture", MediaKind::Picture),
         ("Create Shared Texture", MediaKind::SharedTexture),
         ("Create Composition", MediaKind::Composition),
+        ("Create Matrix", MediaKind::Matrix),
     ] {
         let request = serde_json::to_string(&MediaEdit::CreateMedia {
             media_kind,

@@ -701,6 +701,9 @@ pub(crate) fn apply_ui_intent_to_engine<T: ProjectLifecycle>(
     intent: UiEditIntent,
     ui_client_instance_id: Option<&str>,
 ) -> UiAck {
+    if let Err(error) = T::validate_ui_intent(engine, &intent) {
+        return rejected_ack(engine, "app_intent_rejected", error);
+    }
     let before_event_time = engine.ui_event_log().last().map(|event| event.time);
 
     match intent {
