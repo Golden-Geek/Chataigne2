@@ -12,9 +12,10 @@ M03 stays **7/9**; qualification no longer serializes product work. The
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** bounded M08 ordinary-app project-replacement/shutdown acceptance through public project
-operations. Define fixed outcomes and software prerequisites before native execution; at most two
-invocations/20 minutes. The target-outcome retirement question stays parked. M07 interaction
+**Next:** add an orderly headless stop through the reusable Golden host/transport lifecycle,
+reusing the existing automation shutdown-file option. Headless currently rejects that desktop-only
+option; host-exit cleanup is verified, orderly shutdown is not. The target-outcome retirement
+question stays parked. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
 **Last delivered capability:** the launch-definition form can browse for an executable through
 Golden's public desktop dialog (batch 44). Selection stays in the current draft until Save;
@@ -26,6 +27,10 @@ the unchanged headless backend has **177 passing tests** from batch 43.
 breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
 is unresolved; the full check failed on an overly specific invalid-image error expectation. That
 test assumption is corrected without a third native run. Elevated-target denial remains unexercised.
+**Project replacement (batch 45):** the ordinary headless HTTP check passes New/Save/Load,
+known old-process cleanup, external isolation, fresh supervision/callback state, stable saved IDs
+with fresh runtime instances, stale callback rejection and known-tree cleanup on forced host exit.
+The first/only invocation takes **2.87 s**; actual orderly host shutdown remains open.
 Batch 40's controller gate remains accepted. Actual form input and complete app recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
@@ -75,6 +80,57 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Qualification batch 45:** started 2026-10-31 **13:51 UTC**, recorded stop **14:36 UTC**.
+Use the fourth diagnostic allocation (41 product deliveries permit ten; three used). Through the
+ordinary headless app and public project operations, replace a project with a running owned target,
+verify old known processes terminate while an independent same-executable target survives, and
+verify the fresh project publishes only its own host/services/application/callback observations.
+Then admit a new owned target and verify shutdown releases that target without killing the external
+one. Preserve project identity/launch fencing and separate authored replacement from OS cleanup.
+
+Finish current app/fixture builds, relevant software tests/Clippy and syntax/format prerequisites
+before native execution. Record the native start/deadline and allow at most two invocations/20
+minutes, also bounded by 14:36 UTC. A reproduced blocker permits a focused correctness fix; the
+parked target-outcome retirement/invalid-image question, elevated targets, GPU/driver/display and
+desktop automation recovery are outside this batch. Partial evidence cannot close full M08 gate 4.
+
+Batch 45's native baseline starts **14:02 UTC**, investigation cutoff **14:22 UTC** (before the
+14:36 batch stop). Prerequisites are terminal: **187 app tests / one existing hardware ignore**,
+**177 headless tests**, strict all-target/all-feature Clippy, current MapGyver/application fixture/
+Golden IO tree fixture builds, generated drift, JS syntax/Prettier, both Cargo formatters and
+whitespace checks. Run `node apps/mapgyver/tests/headless/check.mjs --project-replacement` once;
+reserve the second invocation only for a concrete failure. The app receives a private temporary
+`APPDATA` directory, so project operations do not write the user's preferences/recent projects.
+Known tree members and the external same-executable process are observed independently. Host-exit
+checks terminate the headless host; they do not qualify orderly/graceful host shutdown, which the
+current headless entrypoint cannot request through the desktop-only shutdown-file option.
+
+**Batch 45 result (14:02 UTC, before either cutoff):** the first/only ordinary-app invocation
+passes in **2.87 s**, host **42288**, external same-executable PID **31752**. Public Save/New retires
+known PIDs **3760/12864/19656/33348**; new-project supervision is healthy, the application catalog
+is empty and callback acknowledgements restart at zero. Public Load retires interim PID **49860**,
+restores saved definitions/stable IDs with fresh definition instances, and does not resume saved
+Matrix playback or import old runtime callbacks. Three old-project callback requests fail with
+the specific stale-project reason. The loaded project then admits a new three-process tree;
+forced host exit terminates known PIDs **23152/41432/12884**, preserving the external target.
+Prior launch/unload/availability/over-capacity recovery checks also pass. The test's private
+preferences/project/report directory is removed only after its exact absolute target is checked.
+
+**Validation:** **187 app tests / one existing hardware ignore**, **177 headless tests**, strict
+all-target/all-feature Clippy, generated drift, current app/application/Golden IO fixture builds,
+JS syntax/Prettier, both Cargo formatters and whitespace checks pass. No second native invocation,
+GPU/display/desktop or parked target-outcome rerun occurred. No production/shared code changed.
+These observations prove cleanup of the explicitly known members, not complete unobserved-lifetime
+retirement or graceful host shutdown. The current headless host rejects the existing automation
+shutdown-file option and runs until process termination; implementing orderly stop is the next
+shared-host product task, with Chataigne regression checks for that boundary.
+
+**No gate closes:** M08 stays **3/4 = 75%**, overall **3/10 = 30%**; denominators are unchanged.
+Product deliveries remain **41**; ten diagnostic-only batches are allowed, now **four used**.
+No consecutive diagnostic batch: implement orderly headless stopping next. Actual form input,
+complete mode/control/unsupported-target parity, unverified retirement/elevated-target evidence
+and full recovery/scale retain M08 gate 4.
 
 **Product batch 44:** started 2026-10-31 **13:42 UTC**, recorded stop **14:27 UTC**.
 Add executable browsing to the app-owned launch-definition form through Golden's public desktop
@@ -2530,13 +2586,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Verify **M08 ordinary-app project replacement and shutdown** through public project operations
-in one bounded acceptance batch. Keep fixed expectations for old owned-tree cleanup, external
-isolation, new-project supervision and rejection of stale launch/callback observations. Finish
-software/build prerequisites before native execution; allow at most two invocations/20 minutes.
-The executable picker product workflow is delivered; actual dialog/form input remains unverified.
-The earlier unsupported-target batch is finished after two invocations; its failed aggregate run,
-unverified retirement and elevated-target evidence stay parked and open.
+Implement **orderly headless stopping** at the reusable Golden host/transport boundary, reusing
+the existing automation shutdown-file option rather than adding app-shell process control. Stop
+host services and return normally without requiring external process termination; verify MapGyver
+known-tree cleanup and Chataigne regressions for the shared boundary. The ordinary-app Save/New/
+Load and forced host-exit check is complete; no second diagnostic batch is scheduled next.
+The executable picker workflow is delivered, with actual dialog/form input still unverified.
+The earlier unsupported-target batch's failed aggregate run, unverified retirement and elevated-
+target evidence stay parked and open.
 Availability controls and supervision/admission failures use the common generated contracts.
 Gate 3's lifecycle acceptance is complete. Default headless supervision/
 callback delivery and the ordinary HTTP process-ownership path work. Keep the ordered
@@ -2557,7 +2614,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 Forty-one product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
-batches are allowed by the ratio, three are used after the bounded M08 target-outcome batch. Continue the product path;
+batches are allowed by the ratio, four are used after bounded M08 target/replacement acceptance. Continue the product path;
 retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and

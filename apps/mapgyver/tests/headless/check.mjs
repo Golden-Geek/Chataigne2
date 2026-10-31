@@ -1,12 +1,22 @@
 // Run after building MapGyver and application_process_fixture with application-process-fixture.
 // Exercises the ordinary --headless entrypoint through public HTTP intents, without a frontend/GPU.
 // Add --target-outcomes for the bounded singleton/launcher/breakaway/invalid-image acceptance cases.
+// Add --project-replacement for New/Save/Load and known-tree host-exit acceptance (build Golden IO's fixture too).
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { verifyTargetOutcomes } from './outcomes.mjs';
+import { verifyProjectReplacement } from './project-replacement.mjs';
+
+assert(
+	!(process.argv.includes('--target-outcomes') && process.argv.includes('--project-replacement')),
+	'Run target-outcome and project-replacement acceptance separately'
+);
+const runDirectory = await mkdtemp(path.join(tmpdir(), 'mapgyver-headless-'));
 
 const listener = createServer();
 await new Promise((resolve, reject) => {
@@ -22,7 +32,11 @@ const app = spawn(
 	path.resolve('target/debug/MapGyver.exe'),
 	['--headless', '--no-frontend', '--no-remote'],
 	{
-		env: { ...process.env, GC_UI_BIND: `127.0.0.1:${port}` },
+		env: {
+			...process.env,
+			APPDATA: path.join(runDirectory, 'data'),
+			GC_UI_BIND: `127.0.0.1:${port}`
+		},
 		windowsHide: true,
 		stdio: ['ignore', 'pipe', 'pipe']
 	}
@@ -241,10 +255,29 @@ try {
 	const targetOutcomes = process.argv.includes('--target-outcomes')
 		? await verifyTargetOutcomes({ applications, matrix, edit, fixture, alive })
 		: undefined;
+	const replacement = process.argv.includes('--project-replacement')
+		? await verifyProjectReplacement({
+				post,
+				applications,
+				matrix,
+				edit,
+				fixture,
+				alive,
+				directory: runDirectory,
+				application,
+				prior: second,
+				external
+			})
+		: undefined;
 	app.kill();
 	await appExit;
 	const cleanupDeadline = Date.now() + 3000;
-	while (alive(second.process_id) && Date.now() < cleanupDeadline) await delay(25);
+	const shutdownPids = replacement?.shutdown_pids ?? [second.process_id];
+	while (shutdownPids.some(alive) && Date.now() < cleanupDeadline) await delay(25);
+	assert(
+		shutdownPids.every((pid) => !alive(pid)),
+		'host exit must release every known owned tree member'
+	);
 	assert(!alive(second.process_id), 'host exit must release its owned process tree');
 	assert(alive(external.pid), 'host exit must not kill the external same-executable process');
 	assert(
@@ -262,6 +295,7 @@ try {
 			admission_recovered: true,
 			availability_verified: true,
 			target_outcomes: targetOutcomes,
+			project_replacement: replacement,
 			admission_message: admissionMessage
 		})
 	);
@@ -269,4 +303,9 @@ try {
 	if (app.exitCode === null) app.kill();
 	if (external.exitCode === null) external.kill();
 	await Promise.all([appExit, externalExit]);
+	// Verify the exact mkdtemp target before removing this test's private preferences/artifacts.
+	const cleanupTarget = path.resolve(runDirectory);
+	assert.equal(path.dirname(cleanupTarget), path.resolve(tmpdir()));
+	assert(path.basename(cleanupTarget).startsWith('mapgyver-headless-'));
+	await rm(cleanupTarget, { recursive: true, force: true });
 }
