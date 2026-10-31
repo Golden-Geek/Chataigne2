@@ -1,0 +1,983 @@
+{
+  "evidence_kind": "precise_worker_nvidia_q02_prescribed_series",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "scope": "prescribed_series",
+  "status": "FAILED_NATIVE",
+  "qualified": false,
+  "prescribed_three_sample_series": true,
+  "raw_directory_local": "target/qualification-m03-precise-q02-prescribed-2026-10-31-b64",
+  "analysis_sha256": "c5bb283b37dcc0da9516532659a434dd3e1cecdb92a18dd8330e18e4e556d900",
+  "environment_analysis_sha256": "36e4f8d0cd26d0e1779ca65759904401093e5c3ad018a7a781038b6df4043dc4",
+  "samples": [
+    {
+      "sample": 1,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "FAILED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "PASSED_NATIVE"
+      },
+      "environment": {
+        "observed_within_target": true,
+        "display_adapter": {
+          "high": 0,
+          "low": 93226
+        },
+        "renderer_adapter": {
+          "high": 0,
+          "low": 94419
+        },
+        "same_adapter_display": false,
+        "before_evidence_sha256": "fb2c71ff7d71172b147e071d2d06847d561f77654309a1820f9e491a9ec24c86",
+        "after_evidence_sha256": "8f616b577bf33d7c00dd9d0a343761c57740f1dec58e93a59025d162d5f82d68",
+        "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+      },
+      "cpu_inclusive_wall": {
+        "samples": 7200,
+        "median_ms": 0.4754,
+        "p95_ms": 0.6848,
+        "p99_ms": 0.8268,
+        "maximum_ms": 1.2355
+      },
+      "renderer_context_gpu": {
+        "samples": 7200,
+        "median_ms": 2.958976,
+        "p95_ms": 3.48768,
+        "p99_ms": 3.508512,
+        "maximum_ms": 8.103456
+      },
+      "frame_start_lateness": {
+        "median_ms": 0.3013,
+        "p95_ms": 0.5361,
+        "p99_ms": 0.5902,
+        "maximum_ms": 1.1645,
+        "samples": 7200
+      },
+      "outputs": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6824,
+            "p95_ms": 17.0398,
+            "p99_ms": 17.1477,
+            "maximum_ms": 17.4354
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0276,
+            "p95_ms": 0.0538,
+            "p99_ms": 0.0755,
+            "maximum_ms": 0.3918
+          },
+          "within_target": true
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6765,
+            "p95_ms": 17.0737,
+            "p99_ms": 17.1925,
+            "maximum_ms": 17.5168
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.1802,
+            "p95_ms": 0.2927,
+            "p99_ms": 0.3932,
+            "maximum_ms": 0.5979
+          },
+          "within_target": true
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.675,
+            "p95_ms": 17.078,
+            "p99_ms": 17.2041,
+            "maximum_ms": 17.6043
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0229,
+            "p95_ms": 0.0434,
+            "p99_ms": 0.1264,
+            "maximum_ms": 0.7149
+          },
+          "within_target": true
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 6986,
+            "late_display": 214,
+            "Miss": 214
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.029722222222222223,
+          "miss_fraction_upper_bound": 0.029722222222222223,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 3.7621,
+            "maximum_ms": 3.8755
+          },
+          "endpoint": "reported window software display"
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "endpoint": "Spout GPU-ready upper bound from exact independent capture"
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 6986,
+            "late_display": 214,
+            "Miss": 214
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.029722222222222223,
+          "miss_fraction_upper_bound": 0.029722222222222223,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 3.7621,
+            "maximum_ms": 3.8755
+          },
+          "endpoint": "reported window software display"
+        }
+      ],
+      "spout_capture": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true
+      },
+      "interruptions": [
+        {
+          "phase": "editor_minimized",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        }
+      ],
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 4844252090141,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1275815,
+        "end_qpc": 4844253330925,
+        "output_destroyed_after_retirement": true
+      },
+      "shutdown_ms": 441.9306,
+      "native_exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_cleanup": false,
+      "execution_inputs_unchanged": true,
+      "execution_input_count": 333,
+      "raw_sha256": {
+        "consumer.jsonl": "2c9c7083a2c766d585cacf8a44c526ae92eb8eaa3dd60f0781a1ed528117b16e",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "89764002bbc451eb121d5ed48146834c96a98dec5a3ddc4e47c5fd57cc5e5d12",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "2715e553f07c5f9d7ca90456d131ca1460894c7bf40e901c6c23916755b539f4",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "e652660a6ddb4e8c3b2d2b7a8d76b1b1eb280596ef4ca7e3e4ada936f6ffb398",
+        "inputs.json": "0866c2c77cb74d32f1104e739286d948fba6d9e5642ba57b18405c0e7af428fb",
+        "launcher.json": "1beb2b46d54b0e2476f0a5a82aab5e3502c0126abff43b67e0e79e5a4762a8b7",
+        "manifest.json": "d50723c95e0125d71ad3662849bc240cb2c579be97f777d89cad46ee1594f1ce",
+        "parent-summary.json": "18959019c35fa9b800d40b8ab3a90c7c497fcb691c4c530827cb904be91ee2b2",
+        "presentmon.json": "09bee2f5baaf73224f4163a864e8413f6d7457eb03c052ddef9918af2fa86b2f",
+        "renderer-summary.json": "8c15a5da5f5e86386e70f33ecafe69d60fa249384f7771e27b1ce426d312e60b",
+        "renderer.jsonl": "6a6e62088fba98cbddb28dd683ca7a812eb20dc719d492f8052964f49b61b2f7",
+        "source-1.jsonl": "4efae40d37c784fe8e37df91dc917746d4000e4dcc26cad787e63e55d00ef149",
+        "source-2.jsonl": "4749192bdbbf1636d02a76b5049571d2b36f71208c11616ad3cfb721c4c5ebfe"
+      },
+      "collector_healthy": true,
+      "trace_session": "MapGyver-M01-Present-487a0b43f8944b85bb4009148fbb81e0"
+    },
+    {
+      "sample": 2,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "FAILED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "PASSED_NATIVE"
+      },
+      "environment": {
+        "observed_within_target": true,
+        "display_adapter": {
+          "high": 0,
+          "low": 93226
+        },
+        "renderer_adapter": {
+          "high": 0,
+          "low": 94419
+        },
+        "same_adapter_display": false,
+        "before_evidence_sha256": "fb2c71ff7d71172b147e071d2d06847d561f77654309a1820f9e491a9ec24c86",
+        "after_evidence_sha256": "8f616b577bf33d7c00dd9d0a343761c57740f1dec58e93a59025d162d5f82d68",
+        "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+      },
+      "cpu_inclusive_wall": {
+        "samples": 7200,
+        "median_ms": 0.439,
+        "p95_ms": 0.6371,
+        "p99_ms": 0.7305,
+        "maximum_ms": 1.5192
+      },
+      "renderer_context_gpu": {
+        "samples": 7200,
+        "median_ms": 1.085312,
+        "p95_ms": 3.4472,
+        "p99_ms": 4.19888,
+        "maximum_ms": 6.057856
+      },
+      "frame_start_lateness": {
+        "median_ms": 0.2583,
+        "p95_ms": 0.5242,
+        "p99_ms": 0.5642,
+        "maximum_ms": 1.3904,
+        "samples": 7200
+      },
+      "outputs": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6889,
+            "p95_ms": 17.0151,
+            "p99_ms": 17.1317,
+            "maximum_ms": 17.948
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0276,
+            "p95_ms": 0.0532,
+            "p99_ms": 0.1065,
+            "maximum_ms": 0.74
+          },
+          "within_target": true
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6792,
+            "p95_ms": 17.0481,
+            "p99_ms": 17.1696,
+            "maximum_ms": 17.9394
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.1688,
+            "p95_ms": 0.2985,
+            "p99_ms": 0.3852,
+            "maximum_ms": 0.9372
+          },
+          "within_target": true
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6793,
+            "p95_ms": 17.0505,
+            "p99_ms": 17.1883,
+            "maximum_ms": 17.9587
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0221,
+            "p95_ms": 0.046,
+            "p99_ms": 0.121,
+            "maximum_ms": 0.86
+          },
+          "within_target": true
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7164,
+            "late_display": 36,
+            "Miss": 36
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.005,
+          "miss_fraction_upper_bound": 0.005,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 11.6461
+          },
+          "endpoint": "reported window software display"
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "endpoint": "Spout GPU-ready upper bound from exact independent capture"
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7163,
+            "late_display": 37,
+            "Miss": 37
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.005138888888888889,
+          "miss_fraction_upper_bound": 0.005138888888888889,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 11.6461
+          },
+          "endpoint": "reported window software display"
+        }
+      ],
+      "spout_capture": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true
+      },
+      "interruptions": [
+        {
+          "phase": "editor_minimized",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3599,
+              "Busy": 1
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3599,
+            "captured_images": 3599,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3601
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        }
+      ],
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 4847360793306,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1297856,
+        "end_qpc": 4847362053313,
+        "output_destroyed_after_retirement": true
+      },
+      "shutdown_ms": 457.6566,
+      "native_exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_cleanup": false,
+      "execution_inputs_unchanged": true,
+      "execution_input_count": 333,
+      "raw_sha256": {
+        "consumer.jsonl": "ea37e8e21c3eb6509bd27b43e4f7d363a6eb46488256632e9ec54ec75fe96c8a",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "c00696b4ca83056ad371d94c895531d782687a57e390663469b8dfac366d956e",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "b4e2177358a67650df8ecc0eae8fd88399739436d129567840038c92460f545d",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "d9bd6b881131997028a70bf6b80ae75ee326ccac4b6c0173c7e76293096d7589",
+        "inputs.json": "0866c2c77cb74d32f1104e739286d948fba6d9e5642ba57b18405c0e7af428fb",
+        "launcher.json": "04588602f0e159f2de762590d1bdb1c546d6a1a77f692540fee873b17a3ac7e2",
+        "manifest.json": "651e3cbc12c51c8c6c1276f7f344561b0eb244bc35f7f20aa52932da39e34c7b",
+        "parent-summary.json": "3d321af719e69cb00ad8318059805474f74d6162938629e1932d4673ac3794d9",
+        "presentmon.json": "32b819d066ce803cdb3a107b874a89e69acdb46b508b9460debfff1b14b8393a",
+        "renderer-summary.json": "9abd6a17f64dfd4a8aeb8f6570b960a25099ffd40bc7564609aeba6719fd4f12",
+        "renderer.jsonl": "aaa42393b8770cae2375a72c1a5cac09ad37531c394dbc9651ebdb3085fb11d1",
+        "source-1.jsonl": "20d0d994b808ad8c8d3506b799fd04697eb5b24f0a8d7bd5d2b97c7e92bfc1de",
+        "source-2.jsonl": "9af7c742509030ecc55844dc15ad435efb756fc22d57abf4b27a74441631e79b"
+      },
+      "collector_healthy": true,
+      "trace_session": "MapGyver-M01-Present-cbdb965fe77e42d0b497d7fd06e9d9bc"
+    },
+    {
+      "sample": 3,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "FAILED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "PASSED_NATIVE"
+      },
+      "environment": {
+        "observed_within_target": true,
+        "display_adapter": {
+          "high": 0,
+          "low": 93226
+        },
+        "renderer_adapter": {
+          "high": 0,
+          "low": 94419
+        },
+        "same_adapter_display": false,
+        "before_evidence_sha256": "fb2c71ff7d71172b147e071d2d06847d561f77654309a1820f9e491a9ec24c86",
+        "after_evidence_sha256": "8f616b577bf33d7c00dd9d0a343761c57740f1dec58e93a59025d162d5f82d68",
+        "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+      },
+      "cpu_inclusive_wall": {
+        "samples": 7200,
+        "median_ms": 0.4433,
+        "p95_ms": 0.6151,
+        "p99_ms": 0.7063,
+        "maximum_ms": 1.1346
+      },
+      "renderer_context_gpu": {
+        "samples": 7200,
+        "median_ms": 1.438112,
+        "p95_ms": 1.845632,
+        "p99_ms": 1.941184,
+        "maximum_ms": 2.155712
+      },
+      "frame_start_lateness": {
+        "median_ms": 0.276,
+        "p95_ms": 0.5374,
+        "p99_ms": 0.623,
+        "maximum_ms": 1.8962,
+        "samples": 7200
+      },
+      "outputs": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.69,
+            "p95_ms": 17.0282,
+            "p99_ms": 17.1578,
+            "maximum_ms": 18.3763
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0277,
+            "p95_ms": 0.0509,
+            "p99_ms": 0.0748,
+            "maximum_ms": 0.3192
+          },
+          "within_target": true
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6818,
+            "p95_ms": 17.044,
+            "p99_ms": 17.1803,
+            "maximum_ms": 18.4091
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.1638,
+            "p95_ms": 0.2706,
+            "p99_ms": 0.3344,
+            "maximum_ms": 0.7285
+          },
+          "within_target": true
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          },
+          "expected_at_60hz": 7200,
+          "accepted_shortfall": 0,
+          "accepted_shortfall_fraction": 0,
+          "accepted_call_intervals": {
+            "samples": 7199,
+            "median_ms": 16.6796,
+            "p95_ms": 17.0528,
+            "p99_ms": 17.1877,
+            "maximum_ms": 18.4198
+          },
+          "consumer_api_wall": {
+            "samples": 7200,
+            "median_ms": 0.0232,
+            "p95_ms": 0.0392,
+            "p99_ms": 0.1213,
+            "maximum_ms": 0.3048
+          },
+          "within_target": true
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7192,
+            "late_display": 8,
+            "Miss": 8
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.0011111111111111111,
+          "miss_fraction_upper_bound": 0.0011111111111111111,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 2.2758
+          },
+          "endpoint": "reported window software display"
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 0
+          },
+          "endpoint": "Spout GPU-ready upper bound from exact independent capture"
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7192,
+            "late_display": 8,
+            "Miss": 8
+          },
+          "coverage_complete": true,
+          "miss_fraction_lower_bound": 0.0011111111111111111,
+          "miss_fraction_upper_bound": 0.0011111111111111111,
+          "deadline_verdict": false,
+          "observation_lateness_upper_bound": {
+            "samples": 7200,
+            "median_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "maximum_ms": 2.2758
+          },
+          "endpoint": "reported window software display"
+        }
+      ],
+      "spout_capture": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true
+      },
+      "interruptions": [
+        {
+          "phase": "editor_minimized",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3598,
+              "Busy": 2
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3598,
+            "captured_images": 3598,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "seconds": 60,
+          "complete": true,
+          "output_counts": {
+            "1": {
+              "Accepted": 3601
+            },
+            "2": {
+              "Accepted": 3601
+            }
+          },
+          "spout_capture": {
+            "expected_accepted_images": 3601,
+            "captured_images": 3601,
+            "missing_images": 0,
+            "coverage_complete": true
+          }
+        }
+      ],
+      "retirement": {
+        "actual_retirement": true,
+        "begin_qpc": 4850471992634,
+        "both_hwnds_retained_until_retirement": true,
+        "elapsed_seconds": 0.1271188,
+        "end_qpc": 4850473231720,
+        "output_destroyed_after_retirement": true
+      },
+      "shutdown_ms": 435.4011,
+      "native_exit_codes": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "forced_cleanup": false,
+      "execution_inputs_unchanged": true,
+      "execution_input_count": 333,
+      "raw_sha256": {
+        "consumer.jsonl": "1366a29389d03daf65a0d3bd96ce6b20efee06e63724391e841076b6daa84156",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "b19007b38682b66a117596cea635894fa746b571bed917cf4cf107c9a680378e",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "e8dcea774b66fb6fad58f13ce517a68c58e076a3f64336a864ac4c8bf2f2d837",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "0c7d848f310141997a4077f54fe4cfec8f6a2d0f2d58f2eea9a130c657911a8d",
+        "inputs.json": "0866c2c77cb74d32f1104e739286d948fba6d9e5642ba57b18405c0e7af428fb",
+        "launcher.json": "45888792ee1293c8de5d3f068a26f711590fd665501b42e30a39c513349dfa71",
+        "manifest.json": "f485258f91b1d76c93d278f5e0fc1681aba44f584be0980d15287e18aa362b54",
+        "parent-summary.json": "68ab6504adacd2d23c24900d3cab9304d858e3df4e6bdcb7c85b82bfe8c99bbd",
+        "presentmon.json": "da84ca374bb34f85528c60e3f4d1f97487d54d0d3ac83e9d82d059a7dbe00b5d",
+        "renderer-summary.json": "ac8e882527d9853293995e96d816a877b53480b66d51e2ad4abec8c423e22d3a",
+        "renderer.jsonl": "7a56c636b77817b0f508e9bcbd9612a901b20eb1d8dc7ff1ab04bdc09375d846",
+        "source-1.jsonl": "d230a239858e6073dff441dc8bdc1832b888f19648ea237b5bd794b840682938",
+        "source-2.jsonl": "81e7ff804865a404dcb9af811f61f9fb50c0a6519e4e25e075ca8f18c876449d"
+      },
+      "collector_healthy": true,
+      "trace_session": "MapGyver-M01-Present-2e02b6b9c1d946cf9ffca19d78ffd86b"
+    }
+  ],
+  "build": {
+    "manifest_local": "target/qualification-env-build-2026-10-31-b63/build.json",
+    "manifest_sha256": "f6922a255f609f6475b320354a528833ba016ec42bd85b0067eab7b03a0ac4a9",
+    "executable_sha256": "e77757ad83d56054d9e5ef986d8dcb9362c5a9d57b551fefa5fa74151da4ad9d",
+    "msvc": "14.51.36231",
+    "windows_sdk": [
+      "10.0.26100.0"
+    ]
+  },
+  "owned_native_pids": [
+    12836,
+    23116,
+    25908,
+    33808,
+    36176,
+    38400,
+    40028,
+    41228,
+    44040,
+    44720,
+    46624,
+    50248
+  ],
+  "raw_hashes_verified": 48,
+  "snapshot_clocks": {
+    "before": {
+      "begin_qpc": 4841455772791,
+      "utc_begin": "2026-10-31T22:22:22.3577051Z",
+      "end_qpc": 4841477232363,
+      "frequency": 10000000
+    },
+    "after": {
+      "begin_qpc": 4851675086022,
+      "utc_begin": "2026-10-31T22:39:24.3011777Z",
+      "end_qpc": 4851697029914,
+      "frequency": 10000000
+    }
+  },
+  "remaining_scope": [
+    "window display deadlines at unchanged 0.1 percent budget",
+    "complete GPU critical path",
+    "renderer lifecycle handle/private growth and drain",
+    "published queue and age requirements",
+    "Q01 on this mechanism and selected route",
+    "M03 gate 4 genuine removal/stuck retirement; M05/M09 physical/full-app acceptance"
+  ],
+  "gate_change": "none; M03 remains 7/9",
+  "limits": [
+    "one renderer GPU context is not the full GPU critical path",
+    "historical before/after captures do not isolate causal performance improvement",
+    "4K client/backing on 1920x1080 physical output is not physical 4K qualification",
+    "the active deadline contract is unchanged"
+  ],
+  "method": {
+    "scenario": "Q02",
+    "renderer_adapter_index": 1,
+    "renderer_adapter_luid": "00000000:000170d3",
+    "display_adapter_luid": "00000000:00016c2a",
+    "release": true,
+    "samples": 3,
+    "warmup_seconds": 30,
+    "measurement_seconds": 120,
+    "editor_minimized_seconds": 60,
+    "editor_disconnected_seconds": 60,
+    "first_source_and_main_outputs": [
+      3840,
+      2160
+    ],
+    "second_source": [
+      1280,
+      720
+    ],
+    "deadline_miss_budget_fraction": 0.001
+  },
+  "post_run_cleanup": {
+    "owned_native_pids_verified_absent": 12,
+    "owned_trace_sessions_verified_absent": 3,
+    "trace_session_status": 4201,
+    "raw_hashes_verified": 48,
+    "all_native_exit_codes_zero": true,
+    "forced_cleanup": false
+  },
+  "next_decision": "Propose one additional frame-period allowance for compositor-managed window display only; current strict failures stay operative until explicit approval. Preserve Spout/CPU/GPU/age/queue/ownership requirements and complete missing gate-9 evidence.",
+  "proposal_is_approved": false
+}

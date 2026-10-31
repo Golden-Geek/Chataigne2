@@ -16,10 +16,12 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** run the prescribed NVIDIA Q02 series with the verified worker-owned precise timer,
-then Q01 on the same selected route. Batch 63's two fixed analyses verified the scheduler/Present
-join and ended the broader investigation. Its one finite control shows lower frame-start
-lateness, but cannot close sustained acceptance. No more timing probes or parameter sweeps.
+**Next:** complete gate 9's applicable renderer lifecycle growth/drain measurement at its native
+runtime boundary. The prescribed precise-timer Q02 series is complete and still fails window
+deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
+awaits explicit user decision. Finish missing GPU/queue/lifecycle observations before freezing
+one set of inputs for the next required Q01/Q02 series; avoid rerunning the series after each
+instrumentation edit. Q01 on this mechanism and selected route remains required.
 The full prescribed series now passes environment identity, Spout deadlines, exact image
 capture/age and editor independence; **window displayed deadlines remain its only observed
 failure**. No cause or gate reduction is inferred. Q01 on this same route remains queued after
@@ -38,6 +40,16 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest sustained timing result (batch 64):** all three prescribed NVIDIA Q02 samples complete,
+with paired environment identity **PASSED_NATIVE**, **7,200/7,200** exact Spout captures and
+zero Spout deadline misses in every sample. All six 60-second interruption cohorts pass.
+Frame-start lateness p95 is **0.536/0.524/0.537 ms**; CPU wall p95 **0.685/0.637/0.615 ms**.
+Window display deadlines still fail: main **214/36/8**, editor **214/37/8** out of 7,200 each,
+against unchanged **0.1%**. Maximum over-deadline window lateness is **3.876/11.646/2.276 ms**.
+The sole observed failure remains window deadlines; complete GPU-path, queue and lifecycle-growth
+evidence remains unavailable. All 48 raw hashes and 333 execution fingerprints match; 12 owned
+native PIDs and three trace sessions are absent. **No gate closes; M03 stays 7/9.**
+[Compact evidence](evidence/mapgyver-m03-precise-q02-prescribed-2026-10-31.json).
 **Latest bounded correction (batch 63):** Golden IO offers worker-owned Windows timer/event
 deadline waiting; only native Video opts in. The finite NVIDIA Q02 control observes frame-start
 lateness **0.534 ms p95**, versus **1.52–1.62 ms** in the historical sustained captures; different
@@ -3150,6 +3162,94 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Sustained timing acceptance batch 64:** started 2026-10-31 **22:22 UTC**, stop by
+**23:07 UTC**. Previous turn is progress: `9cdba745` delivers worker-owned precise deadlines,
+regression coverage and a finite native control, with no gate closure. Only gate 9 is active.
+Deliver one fixed prescribed NVIDIA Q02 series on that exact verified release build and route:
+three samples, each 30-second warmup, 120-second measurement and 60-second minimize/disconnect
+intervals, with PresentMon and paired fresh environment/overlay-Off observations. No runtime,
+Present, driver, cadence, join or threshold change. Verify current executable/source provenance
+before launch and all owned processes/trace sessions after terminal completion. Keep the same
+live execution handle through observation timeouts. The native acceptance observation is bounded
+by **22:42 UTC**; do not launch another experiment or reopen timing investigation. If the series
+passes observed budgets, retain that evidence and proceed to the explicitly missing GPU/queue/
+growth requirements; if it fails, preserve the exact failing criteria and decide the next
+bounded action rather than repeating a control or resetting cumulative investigation effort.
+Q01 on the same route remains queued. No missing measurement or short control closes a gate.
+Checkpoint and push the result before the next batch; all original acceptance remains required.
+
+**Batch 64 result:** the one planned prescribed series finishes **22:38:56 UTC**, before the
+22:42 native observation cutoff, exit **1** because window deadlines fail. The paired-environment
+analysis finishes **22:40:21 UTC**, also exit **1** for that same observed failure. All three
+samples use the unchanged batch-63 release executable, MSVC **14.51.36231**, Windows SDK
+**10.0.26100.0**, NVIDIA renderer LUID `00000000:000170d3` and Intel display LUID
+`00000000:00016c2a`. Fresh native Home UIA observations show `Enable and open overlay` before
+and after; overlay stays Off. Paired inventories match, and environment identity passes all
+three samples. Source/workload/Present/cadence/deadline/join/driver settings are unchanged.
+
+| Sample | Main/editor misses out of 7,200 each | Spout misses | Exact sample Spout captures | CPU wall p95/p99 ms | Renderer-context GPU p95/p99 ms | Frame-start lateness p95/p99 ms | Shutdown ms |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 214 / 214 | 0 | 7,200 / 7,200 | 0.6848 / 0.8268 | 3.487680 / 3.508512 | 0.5361 / 0.5902 | 441.9306 |
+| 2 | 36 / 37 | 0 | 7,200 / 7,200 | 0.6371 / 0.7305 | 3.447200 / 4.198880 | 0.5242 / 0.5642 | 457.6566 |
+| 3 | 8 / 8 | 0 | 7,200 / 7,200 | 0.6151 / 0.7063 | 1.845632 / 1.941184 | 0.5374 / 0.6230 | 435.4011 |
+
+Every observed criterion passes except `deadline_misses`. Every accepted sample Spout image
+has an exact completed independent capture; all six 60-second interruption cohorts and their
+age/independence checks pass. Context-local GPU measurements remain explicitly narrower than
+the required full GPU path. Complete GPU critical path, published queue/age and renderer
+lifecycle handle/private growth/drain remain unmeasured; physical/DPI and full-app Q05 retain
+M05/M09 ownership. Historical before/after captures support the practical timing improvement
+but are not a controlled isolation of its cause. Windows still exceed the unchanged budget.
+
+All **48 raw hashes** are recomputed, all **333 execution inputs** match current source, and
+the executable still matches its build provenance. All 12 renderer/fixture processes exit zero
+without forced cleanup and are subsequently absent; all three owned ETW sessions return **4201**.
+The complete raw captures/analyses stay local; the [compact evidence](evidence/mapgyver-m03-precise-q02-prescribed-2026-10-31.json)
+retains criteria, distributions, hashes and exact limitations. No second native experiment,
+new profiler or timing sweep occurs. Both Cargo formatters and evidence/source checks precede
+checkpoint delivery. **No acceptance item closes; M03 remains 7/9, overall 4/10 (40%).**
+The pacing issue has already consumed day-scale cumulative effort; do not reset that clock.
+Prepare the explicit decision below, then measure the still-required renderer lifecycle growth
+and remaining GPU/queue observations before another long series. Q01 remains required on the
+final mechanism/route. Gate 4 still awaits its separate genuine-removal/reset decision.
+Artifact/source/build verification, both Cargo formatters and remote reconciliation complete
+by **22:45 UTC**, before the recorded **23:07 UTC** stop. Deliver this evidence/proposal checkpoint
+without changing an operative gate, then request the one scope decision. Runtime sources remain
+unchanged; the prior software/strict-Clippy prerequisites and exact batch-63 build still apply.
+
+#### Window deadline proposal — awaiting user decision
+
+**Proposal only; not approved and not operative.** The current 16.667 ms / 0.1% gate and every
+recorded failure remain in force. No code or qualification contract is changed by this proposal.
+
+For compositor-managed native window/editor display in M03 and integrated M09 qualification,
+allow one additional cadence slot for the software-display witness: use the end of the next
+slot, approximately **33.333 ms from the current slot start at 60 Hz**, with the same **≤0.1%**
+miss budget. Calculate the boundary from the exact anchored rational cadence, not a rounded
+millisecond constant. Keep 60 fps publication/API cadence, complete image/display cohorts and
+all measured present/display interval distributions. Continue reporting the original one-slot
+window miss counts as a stricter diagnostic so the remaining pacing debt stays visible.
+
+Spout keeps the original one-slot **16.667 ms / ≤0.1%** requirement. GPU p95/p99, CPU, complete
+source-to-output p95 **50 ms**, queue depth, allocation, lifecycle growth, retirement, shutdown,
+recovery, physical/DPI/input and image-correctness requirements remain unchanged. This proposal
+does not close the unavailable full GPU/queue/lifecycle measurements or any other phase.
+
+Rationale: this bounded optimization has consumed roughly a day across repeated investigations.
+The complete current Q02 series delivers all 7,200 images per output per sample with exact
+window witnesses and independent Spout captures. Its remaining window over-deadline maximums
+are **3.8755/11.6461/2.2758 ms**, all below one extra frame period. This motivates a principled
+one-refresh allowance for composed display; it does not prove a particular compositor/driver
+cause or retroactively qualify a failed series. **Tradeoff:** up to one additional refresh period
+of window latency is tolerated; within-bound pacing jitter could remain. Pixel identity,
+complete cohorts, cadence/interval reporting and the separate source-age budget stay required.
+
+If approved, update the contract, plan and exact analyzer/regression coverage together, retain
+historical strict failures, finish missing measurement instrumentation and run fresh prescribed
+Q01/Q02 on one frozen input set. If declined, retain the strict gate and require new causal
+evidence or a demonstrably suitable display route before another timing correction; continue
+the independent missing gate-9 measurements rather than repeating a blind timing variant.
 
 **Window-deadline audit batch 63:** started 2026-10-31 **21:54 UTC**, stop by **22:39 UTC**.
 Previous turn is progress: `52bf1090` verifies full-series NVIDIA Q02 environment, exact capture/
