@@ -9,20 +9,21 @@ M03 renderer recovery gate 4, retaining **7/9** accepted gates and all original 
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** run the corrected M03 gate 4 source-fixture preflight in the next bounded native batch.
-Then obtain a specific GPU-reset decision only if that preflight passes; the prepared genuine
-removal test cannot run safely as an ordinary command because reset can interrupt other GPU apps.
+**Next:** obtain the specific GPU-reset decision for the prepared genuine M03 gate 4 removal test.
+The corrected source-fixture preflight passes; the genuine removal test cannot run safely as an
+ordinary command because reset can interrupt other GPU apps.
 Preserve real resource fences, healthy outputs and original budgets; do not restore the parked
 performance/collector stash or change driver settings. **Blocker:** genuine removal needs an
-approved reset window; source preflight and stuck-drain bounds remain unverified.
+approved reset window; genuine source/driver stuck-drain bounds remain unverified.
 
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
-**Latest recovery evidence (batch 53):** held-observation ownership/healthy-output qualification
-passes on both GPUs, **1/1 in 7.38 s**. Source-fixture preflight fails before source admission because
-its test configuration leaves inputs disabled; the configuration is corrected but the native retry
-is reserved for the next bounded batch. No GPU reset occurs and no recovery gate closes.
+**Latest recovery evidence (batches 53–54):** held-observation ownership/healthy-output qualification
+passes on both GPUs, **1/1 in 7.38 s**. Corrected source-fixture preflight passes **1/1 in 9.23 s**,
+with actual source streaming/copies, independent green output, **471 ms** runtime retirement and
+normal producer exits. The earlier disabled-input fixture failure remains recorded. No GPU reset
+occurs and no recovery gate closes.
 **Last completed phase evidence (batch 52):** the updated ordinary HTTP matrix plus actual Reload Picture UI
 passes in **2,375 ms**, including a single selected-asset request and preserved redo/undo. The
 updated native Picture matrix passes **1/1 in 46.09 s** on Intel/NVIDIA, including replacement
@@ -2989,6 +2990,43 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Recovery correction batch 54:** started 2026-10-31 **17:29 UTC**, recorded stop **18:14 UTC**.
+Previous turn made progress: `047af44a` preserves the passing held-observation case, the failed
+source preflight and its explicit fixture correction. Reopening is justified by that concrete
+configuration change: the runtime previously disabled source admission; it now receives the
+same bounded input limits as existing input integration tests. This changes whether the prepared
+real-removal harness can exercise source ownership. No new probe or repeated passing matrix.
+Only M03 gate 4 is active. Rebuild/inspect software prerequisites, then run exactly the corrected
+`hardware_source_recovery_fixture_preflight_without_device_removal` case once. Require streaming
+and renderer copies for two actual source processes per GPU, independent green output, actual
+runtime retirement and normal producer exits with no real removal. Failure permits a concrete
+ownership/fixture correction, not an expanding measurement chain. Keep the existing failed result.
+The native observation window is at most 20 minutes, also bounded by 18:14; record its actual start
+before execution. No GPU reset is authorized. If preflight passes, checkpoint it before requesting
+the specific external-reset decision. Gate 4 remains open until its full acceptance is verified.
+
+Batch 54's single native invocation starts **17:30 UTC**, cutoff **17:50 UTC**. Software
+prerequisites from the corrected checkpoint are terminal: **161 unit + four public integration
+tests / 23 hardware ignores**, strict all-target/all-feature Clippy, both Cargo formatters and
+the current exact test build. Test executable SHA-256:
+`02d1f2ef453f08ad30615240172af2b03019a7f5a8de7ee5d3cd98bf993d1ca5`;
+source fixture remains `8a237afda4e852a8806994533bdae45a056510c4f5815fef76e8bf25ebe48ee2`.
+There are no live source-fixture processes before this invocation.
+
+**Batch 54 result:** **1/1 passes in 9.23 s**, normal exit zero. The prepared test iterates
+hardware adapters, starts two independent real Spout source processes per adapter, observes both
+sources streaming with publications and renderer copies, holds/releases native completion
+observations and independently verifies green output pixels. It reports **zero actual removals**,
+completes all runtime shutdown/zero-resource assertions in **471 ms**, then receives normal exit
+from every owned producer. A post-run process inventory confirms no source fixture remains.
+This validates the corrected fixture and real source ownership path; it does not prove device
+removal or persistently blocked source/driver drain recovery. **M03 stays 7/9, overall 4/10 (40%)**.
+Next concrete decision is approval for one `C:/Windows/system32/DXCap.exe -forcetdr` check with the
+already prepared exact guarded removal test. Its GPU-wide reset can interrupt other apps, so
+ordinary command authorization is insufficient. If approved, observe the READY marker before
+reset, require a real removed-device HRESULT and retain failures/cleanup outcomes. If deferred,
+keep gate 4 open with that return trigger and take gate 9 next; no automatic scope reduction.
 
 **Recovery batch 53:** started 2026-10-31 **16:55 UTC**, recorded stop **17:40 UTC**.
 M03 gate 4 is the only active gate. Previous turn is progress: pushed `d7f8dd3d` closes all six
