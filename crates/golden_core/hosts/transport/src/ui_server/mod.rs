@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
+#[cfg(test)]
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -48,6 +49,7 @@ mod delivery;
 mod http;
 mod hub;
 mod session;
+mod shutdown;
 mod startup;
 mod websocket;
 
@@ -57,6 +59,8 @@ use delivery::*;
 use http::*;
 use hub::*;
 use session::{Capability, SessionGrant, SessionRegistry};
+use shutdown::ServerWorkers;
+pub use shutdown::UiServerShutdown;
 use websocket::*;
 
 mod outbound_queue;
@@ -121,6 +125,10 @@ pub struct UiPreferencesConfig {
 #[derive(Clone)]
 /// Runtime settings for the built-in HTTP and WebSocket UI server.
 pub struct UiServerConfig {
+    /// Optional shared signal for ending this host and its transport workers.
+    pub shutdown: Option<UiServerShutdown>,
+    /// Deadline for draining transport workers after cancellation (default five seconds).
+    pub shutdown_timeout: Duration,
     /// Socket address where the built-in UI server listens.
     pub bind_addr: String,
     /// Explicit browser origins allowed to call this host across origins (for example a dev frontend).
@@ -177,6 +185,8 @@ fn ui_discovery_document<T: ProjectLifecycle>() -> UiDiscoveryDto {
 impl Default for UiServerConfig {
     fn default() -> Self {
         Self {
+            shutdown: None,
+            shutdown_timeout: Duration::from_secs(5),
             bind_addr: "127.0.0.1:7010".to_string(),
             allowed_origins: Vec::new(),
             allowed_hosts: Vec::new(),
@@ -417,6 +427,7 @@ struct WsEventOrigin {
 }
 
 enum WsHubCommand {
+    Shutdown,
     RegisterClient {
         client_id: u64,
         outbound: Arc<WsOutboundQueue>,
@@ -500,6 +511,9 @@ pub fn run_with_ui_server_config_and_ready<T: ProjectLifecycle + 'static, S>(
     config: UiServerConfig,
     ready: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<S>,
 ) -> std::io::Result<()> {
+    if config.shutdown.as_ref().is_some_and(UiServerShutdown::is_requested) {
+        return Ok(());
+    }
     project_host::load_preferences_into_engine(&mut engine, config.preferences.as_ref()).map_err(Error::other)?;
     startup::prepare_engine_for_host_startup(&mut engine)?;
     apply_preferences_runtime_limits(&mut engine);
@@ -516,6 +530,11 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
     config: UiServerConfig,
     ready: impl FnOnce(ProductionRuntime<T>) -> std::io::Result<S>,
 ) -> std::io::Result<()> {
+    let shutdown = config.shutdown.clone().unwrap_or_default();
+    if shutdown.is_requested() {
+        return Ok(());
+    }
+    let mut workers = ServerWorkers::new(shutdown.clone());
     let frontend_security = Arc::new(FrontendSecurity::prepare(config.frontend_assets)?);
     let request_access = Arc::new(RequestAccessPolicy::new(
         &config.allowed_origins,
@@ -527,19 +546,30 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
         project_host::save_preferences(&runtime, preferences).map_err(Error::other)?;
     }
     let listener = TcpListener::bind(&config.bind_addr)?;
-    let _services = ready(runtime.clone())?;
+    listener.set_nonblocking(true)?;
+    let listener_runtime = Builder::new_current_thread().enable_all().build()?;
+    let listener = {
+        let _entered = listener_runtime.enter();
+        tokio::net::TcpListener::from_std(listener)?
+    };
+    let services = ready(runtime.clone())?;
     let read_model = runtime.read_model();
-    let snapshot_encoding = SnapshotEncodingService::spawn()?;
-    spawn_runtime_loop(runtime.clone(), read_model.clone());
+    let snapshot_encoding = SnapshotEncodingService::spawn_owned(&mut workers)?;
+    spawn_runtime_loop(runtime.clone(), read_model.clone(), &mut workers)?;
     let ws_hub = spawn_ws_hub(
-        runtime.clone(),
-        read_model.clone(),
+        WsHubContext {
+            runtime: runtime.clone(),
+            read_model: read_model.clone(),
+            preferences: config.preferences.clone(),
+            session_id: make_server_session_id(),
+            readiness: Arc::new(UiSessionReadiness::default()),
+            snapshot_encoding: snapshot_encoding.clone(),
+        },
         config.tick_interval.max(WS_RETRY_INTERVAL),
         config.value_flush_interval.max(Duration::from_millis(1)),
-        config.preferences.clone(),
-        make_server_session_id(),
-        snapshot_encoding.clone(),
-    );
+        &mut workers,
+    )?;
+    workers.hub = Some(ws_hub.cmd_tx.clone());
 
     println!(
         "UI host listening on http://{} (bundled_frontend={})",
@@ -560,33 +590,55 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
     };
 
     let connection_limiter = Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS));
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut stream) => {
-                let Some(connection_permit) = connection_limiter.try_acquire() else {
-                    reject_overloaded_connection(&mut stream);
-                    continue;
-                };
-                let state = state.clone();
-                let spawn_result = thread::Builder::new()
-                    .name("golden-ui-connection".to_string())
-                    .spawn(move || {
+    let result = (|| {
+        while !shutdown.is_requested() {
+            let event = listener_runtime.block_on(futures_util::future::select(
+                Box::pin(listener.accept()),
+                Box::pin(shutdown.cancelled()),
+            ));
+            let accepted = match event {
+                futures_util::future::Either::Left((accepted, _)) => accepted,
+                futures_util::future::Either::Right(_) => break,
+            };
+            match accepted {
+                Ok((stream, _)) => {
+                    if shutdown.is_requested() {
+                        break;
+                    }
+                    let mut stream = stream.into_std()?;
+                    stream.set_nonblocking(false)?;
+                    let Some(connection_permit) = connection_limiter.try_acquire() else {
+                        reject_overloaded_connection(&mut stream);
+                        continue;
+                    };
+                    let state = state.clone();
+                    let connections = workers.connections.clone();
+                    let stop = shutdown.clone();
+                    workers.spawn("golden-ui-connection", move || {
                         let _connection_permit = connection_permit;
-                        if let Err(err) = handle_connection(&mut stream, &state) {
+                        let Ok(_connection) = connections.track(&stream) else {
+                            return;
+                        };
+                        if let Err(err) = handle_connection(&mut stream, &state)
+                            && !stop.is_requested()
+                        {
                             eprintln!("ui server request failed: {err}");
                         }
-                    });
-                if let Err(err) = spawn_result {
-                    eprintln!("failed to spawn UI connection worker: {err}");
+                    })?;
+                }
+                Err(err) => {
+                    if err.kind() != ErrorKind::Interrupted {
+                        return Err(err);
+                    }
                 }
             }
-            Err(err) => {
-                eprintln!("ui server accept failed: {err}");
-            }
         }
-    }
-
-    Ok(())
+        Ok(())
+    })();
+    workers.shutdown.request();
+    drop(services);
+    let drained = workers.finish(config.shutdown_timeout);
+    result.and(drained)
 }
 
 fn reject_overloaded_connection(stream: &mut TcpStream) {
@@ -599,13 +651,18 @@ fn reject_overloaded_connection(stream: &mut TcpStream) {
     let _ = stream.shutdown(Shutdown::Both);
 }
 
-fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<T>, read_model: Arc<UiReadModel>) {
-    thread::spawn(move || {
+fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(
+    runtime: ProductionRuntime<T>,
+    read_model: Arc<UiReadModel>,
+    workers: &mut ServerWorkers,
+) -> std::io::Result<()> {
+    let shutdown = workers.shutdown.clone();
+    workers.spawn("golden-ui-runtime", move || {
         let mut pacer = RuntimeLoopPacer::new();
         let mut stats_window_start = Instant::now();
         let mut stats_window_ticks = 0u64;
 
-        loop {
+        while !shutdown.is_requested() {
             let tick = pacer.begin_tick();
 
             let tick_interval = match runtime.run_tick(tick.elapsed) {
@@ -645,9 +702,9 @@ fn spawn_runtime_loop<T: ProjectLifecycle + 'static>(runtime: ProductionRuntime<
                 stats_window_ticks = 0;
             }
 
-            pacer.wait_for_next_tick(tick.started_at, tick_interval);
+            pacer.wait_for_next_tick(tick.started_at, tick_interval, &shutdown);
         }
-    });
+    })
 }
 
 fn report_runtime_tick_failure(err: &impl std::fmt::Display) {

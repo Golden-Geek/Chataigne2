@@ -12,6 +12,19 @@ lifetime. Factories return promptly and startup failures propagate. Neither hook
 project candidate validation or Undo. The shared host owns startup and lifetime; app services own
 product policy and use the authoritative runtime's public transaction/capture contracts.
 
+The transport host owns cancellation through `golden_transport_server::UiServerShutdown` and
+`UiServerConfig::shutdown`. A request wakes idle listener waits, closes tracked connections and
+ends runtime, WebSocket hub and snapshot-encoder work. The host drains its bounded thread set
+within `shutdown_timeout` (five seconds by default); worker/deadline failures return errors.
+Host-service guards are disposed before the call returns. Absolute engine deadlines are retained;
+long pacing waits check cancellation at most every 100 ms. No engine node owns shutdown polling.
+
+The default headless host also accepts `--automation-shutdown-file PATH`, using a cancellable
+host-side watcher. The sentinel must not already exist at startup. Its appearance requests
+transport cancellation and a normal process return; observation failures stop with an error.
+Windows desktop mode retains its Tauri shutdown path. Normal host exit is separate from an
+app target's graceful-close protocol and proof of every native descendant's retirement.
+
 - `crates/golden_core/hosts/desktop/src/lib.rs` is the public desktop-host entry point used through the `golden_core::app` facade.
 - `crates/golden_core/hosts/desktop/src/desktop.rs` launches the built-in UI server and the Tauri window.
 - By default the desktop runtime points Tauri at the built-in Rust host and serves the shipped frontend bundle from `/`; no separate Vite server is required.

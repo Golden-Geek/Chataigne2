@@ -15,6 +15,7 @@ mod outbound_recovery;
 mod project_generation;
 mod request_access;
 mod session_admission;
+mod shutdown;
 mod snapshot_encoding;
 mod startup;
 

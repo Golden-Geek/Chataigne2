@@ -2,10 +2,11 @@
 // Exercises the ordinary --headless entrypoint through public HTTP intents, without a frontend/GPU.
 // Add --target-outcomes for the bounded singleton/launcher/breakaway/invalid-image acceptance cases.
 // Add --project-replacement for New/Save/Load and known-tree host-exit acceptance (build Golden IO's fixture too).
+// Add --orderly-shutdown to request normal exit through the shared host's shutdown-file option.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -17,6 +18,8 @@ assert(
 	'Run target-outcome and project-replacement acceptance separately'
 );
 const runDirectory = await mkdtemp(path.join(tmpdir(), 'mapgyver-headless-'));
+const orderly = process.argv.includes('--orderly-shutdown');
+const shutdownFile = path.join(runDirectory, 'host.stop');
 
 const listener = createServer();
 await new Promise((resolve, reject) => {
@@ -30,7 +33,12 @@ const fixture = path.resolve('target/debug/application_process_fixture.exe');
 const external = spawn(fixture, [], { windowsHide: true, stdio: 'ignore' });
 const app = spawn(
 	path.resolve('target/debug/MapGyver.exe'),
-	['--headless', '--no-frontend', '--no-remote'],
+	[
+		'--headless',
+		'--no-frontend',
+		'--no-remote',
+		...(orderly ? ['--automation-shutdown-file', shutdownFile] : [])
+	],
 	{
 		env: {
 			...process.env,
@@ -269,8 +277,19 @@ try {
 				external
 			})
 		: undefined;
-	app.kill();
-	await appExit;
+	if (orderly) {
+		await writeFile(shutdownFile, 'stop');
+		const code = await Promise.race([
+			appExit,
+			delay(7000, null, { ref: false }).then(() => {
+				throw new Error(`orderly headless shutdown timed out\n${log}`);
+			})
+		]);
+		assert.equal(code, 0, `headless shutdown must return normally\n${log}`);
+	} else {
+		app.kill();
+		await appExit;
+	}
 	const cleanupDeadline = Date.now() + 3000;
 	const shutdownPids = replacement?.shutdown_pids ?? [second.process_id];
 	while (shutdownPids.some(alive) && Date.now() < cleanupDeadline) await delay(25);
@@ -294,6 +313,7 @@ try {
 			acknowledged: restarted.callbacks.acknowledged,
 			admission_recovered: true,
 			availability_verified: true,
+			orderly_shutdown: orderly,
 			target_outcomes: targetOutcomes,
 			project_replacement: replacement,
 			admission_message: admissionMessage

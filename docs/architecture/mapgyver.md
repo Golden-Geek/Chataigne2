@@ -602,6 +602,16 @@ unchanged projects perform no actor inspection. Service/consumer admission failu
 second without dropping the current controller. Project replacement retires old subscriptions and
 captures a fresh instance. Dropping the guard cancels without joining native process retirement.
 
+Golden transport owns listener, runtime-loop, snapshot-encoder, hub and connection cancellation.
+Its public `UiServerShutdown` signal wakes idle accepts, interrupts tracked sockets and drains
+owned transport threads within `UiServerConfig::shutdown_timeout` (five seconds by default).
+Long engine cadence waits check cancellation at most every 100 ms without changing absolute tick
+deadlines. Startup/worker/deadline failures return errors instead of claiming clean shutdown.
+The reusable default headless host accepts `--automation-shutdown-file PATH`; a host-side watcher
+requests this signal and returns normally after transport teardown and service-guard disposal.
+This is orderly host exit, not proof of a target application's graceful protocol or complete
+unobserved-tree retirement. No app shell, actor tick or HTTP shutdown command owns this workflow.
+
 Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured
 first-frame condition. Native-video workers sample the public Golden `SpoutProbe` at most every

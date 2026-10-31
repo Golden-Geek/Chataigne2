@@ -5,10 +5,16 @@ use crate::parse_launch_args;
 
 #[test]
 fn automation_shutdown_file_is_parsed_with_standard_launch_flags() {
-    let parsed = parse_launch_args(["--no-remote", "--automation-shutdown-file", "target/product-gate/stop"])
-        .expect("automation shutdown path should parse");
+    let parsed = parse_launch_args([
+        "--headless",
+        "--no-remote",
+        "--automation-shutdown-file",
+        "target/product-gate/stop",
+    ])
+    .expect("automation shutdown path should parse");
 
     assert!(parsed.no_remote);
+    assert!(parsed.headless);
     assert_eq!(
         parsed.automation_shutdown_file,
         Some(PathBuf::from("target/product-gate/stop"))

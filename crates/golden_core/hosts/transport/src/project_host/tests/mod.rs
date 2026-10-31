@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -17,17 +18,22 @@ use golden_protocol::UiProjectFileSpec;
 mod project_identity;
 mod upload_identity;
 
-static PREVIOUS_ENGINE_DROPPED: AtomicBool = AtomicBool::new(false);
-static PREVIOUS_ENGINE_DESTROYED: AtomicBool = AtomicBool::new(false);
-static READY_CALLBACK_SAW_DROP: AtomicBool = AtomicBool::new(false);
-static READY_CALLBACK_SAW_DESTROY: AtomicBool = AtomicBool::new(false);
+#[derive(Default)]
+struct ReplacementSignals {
+    dropped: AtomicBool,
+    destroyed: AtomicBool,
+    ready_saw_drop: AtomicBool,
+    ready_saw_destroy: AtomicBool,
+}
 
 #[golden_engine::node("drop_probe_node")]
-struct DropProbeNode {}
+struct DropProbeNode {
+    signals: Arc<ReplacementSignals>,
+}
 
 impl Drop for DropProbeNode {
     fn drop(&mut self) {
-        PREVIOUS_ENGINE_DROPPED.store(true, Ordering::SeqCst);
+        self.signals.dropped.store(true, Ordering::SeqCst);
     }
 }
 
@@ -35,23 +41,31 @@ impl Drop for DropProbeNode {
 impl Node for DropProbeNode {}
 
 #[golden_engine::node("destroy_probe_node")]
-struct DestroyProbeNode {}
+struct DestroyProbeNode {
+    signals: Arc<ReplacementSignals>,
+}
 
 #[golden_engine::node("destroy_probe_node", from_struct)]
 impl Node for DestroyProbeNode {
     fn destroy(&mut self, _ctx: &mut ProcessCtx) {
-        PREVIOUS_ENGINE_DESTROYED.store(true, Ordering::SeqCst);
+        self.signals.destroyed.store(true, Ordering::SeqCst);
     }
 }
 
 #[golden_engine::node("ready_probe_node")]
-struct ReadyProbeNode {}
+struct ReadyProbeNode {
+    signals: Arc<ReplacementSignals>,
+}
 
 #[golden_engine::node("ready_probe_node", from_struct)]
 impl Node for ReadyProbeNode {
     fn on_node_ready(&mut self, _ctx: &mut ProcessCtx, _context: NodeCreationContext) {
-        READY_CALLBACK_SAW_DROP.store(PREVIOUS_ENGINE_DROPPED.load(Ordering::SeqCst), Ordering::SeqCst);
-        READY_CALLBACK_SAW_DESTROY.store(PREVIOUS_ENGINE_DESTROYED.load(Ordering::SeqCst), Ordering::SeqCst);
+        self.signals
+            .ready_saw_drop
+            .store(self.signals.dropped.load(Ordering::SeqCst), Ordering::SeqCst);
+        self.signals
+            .ready_saw_destroy
+            .store(self.signals.destroyed.load(Ordering::SeqCst), Ordering::SeqCst);
     }
 }
 
@@ -117,60 +131,58 @@ fn sanitize_browser_upload_file_name_uses_app_extension() {
 
 #[test]
 fn replace_live_engine_drops_previous_engine_after_node_ready_callbacks() {
-    PREVIOUS_ENGINE_DROPPED.store(false, Ordering::SeqCst);
-    PREVIOUS_ENGINE_DESTROYED.store(false, Ordering::SeqCst);
-    READY_CALLBACK_SAW_DROP.store(false, Ordering::SeqCst);
-    READY_CALLBACK_SAW_DESTROY.store(false, Ordering::SeqCst);
+    let signals = Arc::new(ReplacementSignals::default());
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut live_engine = Engine::new(root);
-    live_engine.add_node(DropProbeNode::new().into(), None);
+    let probe = DropProbeNode::new(signals.clone());
+    live_engine.add_node(probe.into(), None);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
 
     let runtime = production_runtime(live_engine);
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut next_engine = Engine::new(root);
-    next_engine.add_node(ReadyProbeNode::new().into(), None);
+    let probe = ReadyProbeNode::new(signals.clone());
+    next_engine.add_node(probe.into(), None);
 
     replace_live_engine(&runtime, next_engine, "test_replace", false, None).expect("engine replacement should succeed");
 
     assert!(
-        PREVIOUS_ENGINE_DROPPED.load(Ordering::SeqCst),
+        signals.dropped.load(Ordering::SeqCst),
         "previous engine should be dropped during replacement"
     );
     assert!(
-        !READY_CALLBACK_SAW_DROP.load(Ordering::SeqCst),
+        !signals.ready_saw_drop.load(Ordering::SeqCst),
         "previous engine disposal should happen outside candidate activation"
     );
 }
 
 #[test]
 fn replace_live_engine_runs_destroy_callbacks_before_node_ready_callbacks() {
-    PREVIOUS_ENGINE_DROPPED.store(false, Ordering::SeqCst);
-    PREVIOUS_ENGINE_DESTROYED.store(false, Ordering::SeqCst);
-    READY_CALLBACK_SAW_DROP.store(false, Ordering::SeqCst);
-    READY_CALLBACK_SAW_DESTROY.store(false, Ordering::SeqCst);
+    let signals = Arc::new(ReplacementSignals::default());
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut live_engine = Engine::new(root);
-    live_engine.add_node(DestroyProbeNode::new().into(), None);
+    let probe = DestroyProbeNode::new(signals.clone());
+    live_engine.add_node(probe.into(), None);
     prepare_engine_for_runtime(&mut live_engine).expect("live engine should prepare");
 
     let runtime = production_runtime(live_engine);
 
     let root: ReplaceOrderTestNode = Folder::new("Root").into();
     let mut next_engine = Engine::new(root);
-    next_engine.add_node(ReadyProbeNode::new().into(), None);
+    let probe = ReadyProbeNode::new(signals.clone());
+    next_engine.add_node(probe.into(), None);
 
     replace_live_engine(&runtime, next_engine, "test_replace", false, None).expect("engine replacement should succeed");
 
     assert!(
-        PREVIOUS_ENGINE_DESTROYED.load(Ordering::SeqCst),
+        signals.destroyed.load(Ordering::SeqCst),
         "previous engine should run destroy callbacks during replacement"
     );
     assert!(
-        READY_CALLBACK_SAW_DESTROY.load(Ordering::SeqCst),
+        signals.ready_saw_destroy.load(Ordering::SeqCst),
         "node-ready callbacks should only run after the previous engine is destroyed"
     );
 }

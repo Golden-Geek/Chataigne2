@@ -48,10 +48,12 @@ fn startup_rejects_an_invalid_app_candidate() {
 #[test]
 fn host_service_startup_observes_the_prepared_authoritative_engine_and_propagates_failure() {
     let engine = create_new_project_engine::<StartupNode>().unwrap();
+    let shutdown = crate::UiServerShutdown::default();
     let error = crate::run_with_ui_server_config_and_ready(
         engine,
         crate::UiServerConfig {
             bind_addr: "127.0.0.1:0".into(),
+            shutdown: Some(shutdown.clone()),
             ..Default::default()
         },
         |runtime| {
@@ -69,6 +71,7 @@ fn host_service_startup_observes_the_prepared_authoritative_engine_and_propagate
     )
     .unwrap_err();
     assert_eq!(error.to_string(), "app service rejected startup");
+    assert!(shutdown.is_requested());
 }
 
 #[test]

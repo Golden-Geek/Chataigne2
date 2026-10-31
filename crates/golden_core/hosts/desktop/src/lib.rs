@@ -6,6 +6,7 @@ mod desktop;
 mod desktop_commands;
 mod desktop_window;
 mod displays;
+mod headless_shutdown;
 mod host_config;
 mod host_services;
 mod native_presentation;

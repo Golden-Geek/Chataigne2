@@ -44,11 +44,16 @@ impl RuntimeLoopPacer {
         RuntimeTickStart { started_at, elapsed }
     }
 
-    pub(super) fn wait_for_next_tick(&mut self, tick_started_at: Instant, requested_interval: Duration) {
+    pub(super) fn wait_for_next_tick(
+        &mut self,
+        tick_started_at: Instant,
+        requested_interval: Duration,
+        shutdown: &super::UiServerShutdown,
+    ) {
         let deadline =
             self.schedule
                 .next_deadline(tick_started_at, Instant::now(), requested_interval.max(MIN_INTERVAL));
-        self.waiter.wait_until(deadline);
+        self.waiter.wait_until(deadline, shutdown);
     }
 }
 
@@ -102,15 +107,15 @@ impl DeadlineWaiter {
         }
     }
 
-    fn wait_until(&self, deadline: Instant) {
-        loop {
+    fn wait_until(&self, deadline: Instant, shutdown: &super::UiServerShutdown) {
+        while !shutdown.is_requested() {
             let now = Instant::now();
             let Some(remaining) = deadline.checked_duration_since(now) else {
                 return;
             };
 
             if remaining > FINAL_PRECISION_GUARD {
-                let coarse_wait = remaining - FINAL_PRECISION_GUARD;
+                let coarse_wait = (remaining - FINAL_PRECISION_GUARD).min(Duration::from_millis(100));
                 if !self.sleep_precisely(coarse_wait) {
                     thread::sleep(coarse_wait);
                 }

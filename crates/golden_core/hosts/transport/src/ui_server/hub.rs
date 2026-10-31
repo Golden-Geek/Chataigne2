@@ -1,29 +1,18 @@
 use super::*;
 
 pub(super) fn spawn_ws_hub<T: ProjectLifecycle + 'static>(
-    runtime: ProductionRuntime<T>,
-    read_model: Arc<UiReadModel>,
+    context: WsHubContext<T>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
-    preferences: Option<UiPreferencesConfig>,
-    session_id: String,
-    snapshot_encoding: SnapshotEncodingService,
-) -> WsHubHandle {
+    workers: &mut ServerWorkers,
+) -> std::io::Result<WsHubHandle> {
     let (cmd_tx, cmd_rx) = mpsc::sync_channel::<WsHubCommand>(WS_HUB_COMMAND_CAPACITY);
-    let readiness = Arc::new(UiSessionReadiness::default());
-    let readiness_for_hub = readiness.clone();
-    thread::spawn(move || {
-        let context = WsHubContext {
-            runtime,
-            read_model,
-            preferences,
-            session_id,
-            readiness: readiness_for_hub,
-            snapshot_encoding,
-        };
-        ws_hub_loop(context, cmd_rx, dispatch_interval, value_flush_interval)
-    });
-    WsHubHandle { cmd_tx, readiness }
+    let readiness = context.readiness.clone();
+    let shutdown = workers.shutdown.clone();
+    workers.spawn("golden-ui-hub", move || {
+        ws_hub_loop(context, cmd_rx, dispatch_interval, value_flush_interval, shutdown)
+    })?;
+    Ok(WsHubHandle { cmd_tx, readiness })
 }
 
 pub(super) fn ws_hub_loop<T: ProjectLifecycle>(
@@ -31,17 +20,22 @@ pub(super) fn ws_hub_loop<T: ProjectLifecycle>(
     cmd_rx: Receiver<WsHubCommand>,
     dispatch_interval: Duration,
     value_flush_interval: Duration,
+    shutdown: UiServerShutdown,
 ) {
     let mut clients = HashMap::<u64, WsClientState>::new();
     let mut origins = HashMap::<EngineTime, WsEventOrigin>::new();
     let mut last_value_flush_at = Instant::now();
     let mut pending_snapshots = PendingWsSnapshots::default();
 
-    loop {
+    while !shutdown.is_requested() {
         match cmd_rx.recv_timeout(dispatch_interval) {
+            Ok(WsHubCommand::Shutdown) => break,
             Ok(command) => {
                 handle_ws_hub_command(&context, &mut clients, &mut origins, &mut pending_snapshots, command);
                 for _ in 1..WS_HUB_SERVICE_BUDGET {
+                    if shutdown.is_requested() {
+                        break;
+                    }
                     let Ok(next) = cmd_rx.try_recv() else {
                         break;
                     };
@@ -59,6 +53,10 @@ pub(super) fn ws_hub_loop<T: ProjectLifecycle>(
             last_value_flush_at = Instant::now();
         }
     }
+    for client in clients.values() {
+        client.connection.close();
+        let _ = client.outbound.push(WsOutbound::Close);
+    }
 }
 
 pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
@@ -69,6 +67,7 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
     command: WsHubCommand,
 ) {
     match command {
+        WsHubCommand::Shutdown => {}
         WsHubCommand::RegisterClient {
             client_id,
             outbound,

@@ -32,7 +32,7 @@ impl<T: ProjectLifecycle, R: Runtime> HostServices<T, R> {
         self
     }
     /// Start an app service in headless mode, retaining its guard for the server's lifetime.
-    /// The factory must return promptly; the guard owns cancellation and background retirement.
+    /// The factory and guard's Drop must return promptly; the guard owns cancellation and background retirement.
     pub fn with_headless<S: Send + 'static>(
         mut self,
         factory: impl FnOnce(ProductionRuntime<T>) -> io::Result<S> + Send + 'static,

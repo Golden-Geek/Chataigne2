@@ -16,6 +16,7 @@ pub(super) const MAX_ENCODED_SNAPSHOT_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone)]
 pub(super) struct SnapshotEncodingService {
+    shutdown: Option<super::UiServerShutdown>,
     request_tx: SyncSender<SnapshotEncodingJob>,
     metrics: Arc<SnapshotEncodingMetrics>,
 }
@@ -160,26 +161,53 @@ struct CachedWholeGraph {
 type BeforeEncodeHook = Arc<dyn Fn() + Send + Sync>;
 
 impl SnapshotEncodingService {
+    #[cfg(test)]
     pub(super) fn spawn() -> std::io::Result<Self> {
-        Self::spawn_with(SNAPSHOT_ENCODING_CAPACITY, None)
+        Self::spawn_with(SNAPSHOT_ENCODING_CAPACITY, None, None)
     }
 
-    fn spawn_with(capacity: usize, before_encode: Option<BeforeEncodeHook>) -> std::io::Result<Self> {
+    pub(super) fn spawn_owned(workers: &mut super::ServerWorkers) -> std::io::Result<Self> {
+        Self::spawn_with(SNAPSHOT_ENCODING_CAPACITY, None, Some(workers))
+    }
+
+    fn spawn_with(
+        capacity: usize,
+        before_encode: Option<BeforeEncodeHook>,
+        workers: Option<&mut super::ServerWorkers>,
+    ) -> std::io::Result<Self> {
         assert!(capacity > 0, "snapshot encoding capacity must be non-zero");
         let (request_tx, request_rx) = mpsc::sync_channel(capacity);
         let metrics = Arc::new(SnapshotEncodingMetrics::default());
         let worker_metrics = metrics.clone();
-        thread::Builder::new()
-            .name("golden-ui-snapshot-encoder".to_string())
-            .spawn(move || snapshot_encoding_loop(request_rx, worker_metrics, before_encode))
-            .map_err(|error| Error::other(format!("failed to spawn UI snapshot encoder: {error}")))?;
-        Ok(Self { request_tx, metrics })
+        let shutdown = workers.as_ref().map(|workers| workers.shutdown.clone());
+        let worker_shutdown = shutdown.clone();
+        let task = move || snapshot_encoding_loop(request_rx, worker_metrics, before_encode, worker_shutdown);
+        if let Some(workers) = workers {
+            workers.spawn("golden-ui-snapshot-encoder", task)?;
+        } else {
+            thread::Builder::new()
+                .name("golden-ui-snapshot-encoder".to_string())
+                .spawn(task)
+                .map_err(|error| Error::other(format!("failed to spawn UI snapshot encoder: {error}")))?;
+        }
+        Ok(Self {
+            request_tx,
+            metrics,
+            shutdown,
+        })
     }
 
     pub(super) fn try_encode(
         &self,
         capture: UiSnapshotCapture,
     ) -> Result<Receiver<Result<SnapshotEncodingResult, String>>, SnapshotEncodingAdmissionError> {
+        if self
+            .shutdown
+            .as_ref()
+            .is_some_and(super::UiServerShutdown::is_requested)
+        {
+            return Err(SnapshotEncodingAdmissionError::Unavailable);
+        }
         let (reply_tx, reply_rx) = mpsc::sync_channel(1);
         let job = SnapshotEncodingJob { capture, reply_tx };
         self.metrics.queued.fetch_add(1, Ordering::Release);
@@ -207,7 +235,7 @@ impl SnapshotEncodingService {
 
     #[cfg(test)]
     pub(super) fn spawn_with_test_hook(capacity: usize, before_encode: BeforeEncodeHook) -> std::io::Result<Self> {
-        Self::spawn_with(capacity, Some(before_encode))
+        Self::spawn_with(capacity, Some(before_encode), None)
     }
 }
 
@@ -230,9 +258,23 @@ fn snapshot_encoding_loop(
     request_rx: Receiver<SnapshotEncodingJob>,
     metrics: Arc<SnapshotEncodingMetrics>,
     before_encode: Option<BeforeEncodeHook>,
+    shutdown: Option<super::UiServerShutdown>,
 ) {
     let mut cache = None::<CachedWholeGraph>;
-    while let Ok(job) = request_rx.recv() {
+    loop {
+        let job = if let Some(shutdown) = &shutdown {
+            if shutdown.is_requested() {
+                break;
+            }
+            match request_rx.recv_timeout(Duration::from_millis(100)) {
+                Ok(job) => job,
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        } else {
+            let Ok(job) = request_rx.recv() else { break };
+            job
+        };
         metrics.queued.fetch_sub(1, Ordering::AcqRel);
         let active = metrics.active.fetch_add(1, Ordering::AcqRel) + 1;
         metrics.peak_active.fetch_max(active, Ordering::AcqRel);
@@ -242,6 +284,10 @@ fn snapshot_encoding_loop(
         let result = encode_snapshot(job.capture, &mut cache, &metrics);
         let _ = job.reply_tx.send(result);
         metrics.active.fetch_sub(1, Ordering::AcqRel);
+    }
+    for job in request_rx.try_iter() {
+        metrics.queued.fetch_sub(1, Ordering::AcqRel);
+        let _ = job.reply_tx.send(Err("snapshot encoding service stopped".into()));
     }
 }
 

@@ -4,25 +4,25 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 executable browsing and shared-application availability controls,
-operator-visible service health and default headless supervision are implemented; **3/4 gates (75%)**.
+**Current topic:** M08 orderly headless stopping, executable browsing, availability controls and
+operator-visible supervision are implemented; **3/4 gates (75%)**.
 Controller lifecycle acceptance is verified; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** add an orderly headless stop through the reusable Golden host/transport lifecycle,
-reusing the existing automation shutdown-file option. Headless currently rejects that desktop-only
-option; host-exit cleanup is verified, orderly shutdown is not. The target-outcome retirement
-question stays parked. M07 interaction
+**Next:** bounded M04 Solid Color gate 2 acceptance: differently sized channels, automatic/fixed
+sizing, color/alpha and shared consumers through the real app/native path. Define the fixed cases
+and software prerequisites first; at most two native invocations/20 minutes. The M08 target-outcome
+retirement question stays parked. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** the launch-definition form can browse for an executable through
-Golden's public desktop dialog (batch 44). Selection stays in the current draft until Save;
-cancellation preserves it and disabled/disposed forms reject late responses. Browser/headless
-clients retain explicit host-path entry. Availability, retained in-use processes and service health
-keep their existing backend-owned behavior. **187 app / 58 frontend tests** and Svelte/UI builds pass;
-the unchanged headless backend has **177 passing tests** from batch 43.
+**Last delivered capability:** the default headless host now accepts the existing shutdown-file
+option and returns normally after cancelling app services, listener, sockets and transport workers
+(batch 46). The first/only ordinary-app run passes in **2.98 s**, with exit code zero, known-tree
+cleanup and external survival. **187 app / 177 headless / 95 transport / 32 desktop-host tests**,
+public API, strict Clippy and Chataigne compilation pass. Frontend remains **58 passing tests**
+from batch 44. Native app graceful-close acknowledgement/full retirement qualification stays open.
 **Latest acceptance evidence (batch 43):** singleton isolation, known launcher-descendant termination,
 breakaway denial and missing-file rejection are exercised in the ordinary app. Complete retirement
 is unresolved; the full check failed on an overly specific invalid-image error expectation. That
@@ -80,6 +80,62 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 46:** started 2026-10-31 **14:06 UTC**, recorded stop **14:51 UTC**.
+Implement cancellable server ownership in Golden transport and reuse the existing automation
+shutdown-file option for the default headless host. A stop must end listener/runtime/hub work,
+close owned connections and release host services before returning normally; keep timing behavior
+and actor/domain work at their existing boundaries. Verify idle and connected cancellation,
+startup/error cleanup, public APIs, MapGyver normal-exit/known-tree cleanup and Chataigne compile/
+shared-host regressions. Native verification follows terminal software prerequisites, at most
+two invocations/20 minutes and the 14:51 cutoff. No UI/GPU/driver or parked retirement investigation.
+
+Batch 46's native functional baseline starts **14:39 UTC**, cutoff **14:51 UTC** (the original
+batch stop, earlier than a new 20-minute window). Prerequisites are terminal: **187 app tests /
+one existing hardware ignore**, **177 headless tests**, **95 transport tests / one existing ignore**,
+**32 desktop-host tests / two existing ignores**, the public headless API test, strict combined
+all-target/all-feature Clippy, Chataigne binary compile, current ordinary MapGyver/finite fixtures,
+generated drift, JS syntax/Prettier and both Cargo formatters. Run the existing check with
+`--project-replacement --orderly-shutdown`: the sentinel must yield exit code zero, the known
+owned tree must terminate and the independent external target must survive. Keep normal host exit
+separate from target graceful-close acknowledgement or complete unobserved retirement. At most
+two invocations; no second run after a passing result and no parked target-outcome case.
+
+**Batch 46 result (14:39 UTC, before the 14:51 cutoff):** Golden transport exposes the one-way
+`UiServerShutdown` signal. Async listener cancellation uses the existing Tokio runtime; active
+HTTP/WebSocket sockets are tracked by owned handles. Listener, engine tick, hub, encoder and
+connection workers stop cooperatively, with a bounded thread drain and explicit timeout/panic/
+startup errors. Completed connection workers are reaped, keeping ownership bounded by admission.
+Long tick waits check cancellation at most every 100 ms while retaining absolute deadlines.
+App service guards are cancelled before transport drain. No HTTP shutdown endpoint or app-shell
+bootstrap was introduced; shared Golden packages retain reusable ownership.
+
+The default headless host reuses `--automation-shutdown-file PATH` with a cancellable coarse
+watcher. Pre-existing sentinels still reject startup; metadata failures request stop and return an
+error. Factory/guard disposal remain prompt; app-native retirement is not joined from a destructor.
+Shared replacement-order tests now use per-case Arc state after parallel runs exposed their
+shared global flags; no replacement semantics changed.
+
+**Validation:** **187 app tests / one existing hardware ignore**, **177 headless tests**, **95
+transport tests / one existing ignore**, **32 desktop-host tests / two existing ignores**, the
+public headless API test, strict combined all-target/all-feature Clippy, Chataigne binary compile,
+current MapGyver/finite fixtures, generated drift, JS syntax/Prettier, both required Cargo formatters
+and whitespace checks pass. New tests cover shared cancellation, idle listener wake, blocked HTTP
+closure/port release, already-stopped startup, long tick waits, blocked-worker timeout/recovery,
+watcher cancellation/error and startup error cancellation.
+
+The first/only ordinary-app invocation passes in **2.98 s**: host **45440**, external **24712**,
+normal sentinel-driven exit **0**, and known final tree **15832/33896/7300** terminated. Save/New/
+Load retires prior known PIDs **50192/50372/22144/49184**, then interim **35916**, preserves stable
+definitions with fresh instances, rejects three stale callbacks, and admits fresh-project work.
+Availability, overload recovery and independent external survival also pass. No second native
+invocation, GPU/display/input or parked target-outcome run occurred; private test data is removed.
+
+**No gate closes:** M08 stays **3/4 = 75%**, overall **3/10 = 30%**; denominators are unchanged.
+Normal host exit and known-member cleanup do not prove an app's graceful-close acknowledgement,
+complete unobserved retirement or full UI/mode/unsupported-target/recovery qualification. Product
+deliveries are **42**; ten diagnostic-only batches are allowed, **four used**. Next is bounded M04
+Solid Color gate 2 acceptance, keeping parked M03/M08 investigations and every original budget.
 
 **Qualification batch 45:** started 2026-10-31 **13:51 UTC**, recorded stop **14:36 UTC**.
 Use the fourth diagnostic allocation (41 product deliveries permit ten; three used). Through the
@@ -2586,11 +2642,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Implement **orderly headless stopping** at the reusable Golden host/transport boundary, reusing
-the existing automation shutdown-file option rather than adding app-shell process control. Stop
-host services and return normally without requiring external process termination; verify MapGyver
-known-tree cleanup and Chataigne regressions for the shared boundary. The ordinary-app Save/New/
-Load and forced host-exit check is complete; no second diagnostic batch is scheduled next.
+Verify **M04 Solid Color gate 2** through the app/native path with at least two differently sized
+channels, automatic/fixed sizing, color/alpha and shared consumers. Reuse the existing source/
+rendering fixtures and pixel oracles; define fixed cases before native execution, finish software
+prerequisites and stop after two invocations/20 minutes. Preserve all source/color requirements.
+Orderly headless stopping is delivered at the shared host/transport boundary, with MapGyver normal
+exit/known-tree cleanup and shared-host/Chataigne regressions verified. No stop/retirement detour
+is scheduled next; actual target graceful-close acknowledgement/full cleanup retain M08 gate 4.
 The executable picker workflow is delivered, with actual dialog/form input still unverified.
 The earlier unsupported-target batch's failed aggregate run, unverified retirement and elevated-
 target evidence stay parked and open.
@@ -2613,7 +2671,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Forty-one product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
+Forty-two product slices are delivered; documentation checkpoints are excluded. Ten diagnostic-only
 batches are allowed by the ratio, four are used after bounded M08 target/replacement acceptance. Continue the product path;
 retained M03 qualification is not the default work queue.
 

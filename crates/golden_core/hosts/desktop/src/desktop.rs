@@ -36,7 +36,7 @@ pub struct LaunchArgs {
     pub show_output: bool,
     /// Forces the built-in UI server to bind to loopback only.
     pub no_remote: bool,
-    /// Stops the Windows desktop runtime cleanly when this automation sentinel appears.
+    /// Stops the headless or Windows desktop host when this automation sentinel appears.
     pub automation_shutdown_file: Option<PathBuf>,
     /// Prints default launch usage instead of starting the app.
     pub show_help: bool,
@@ -375,7 +375,7 @@ where
 {
     let HostServices { presentation, headless } = services;
     validate_platform(presentation.is_some(), args.headless)?;
-    if !cfg!(target_os = "windows") && args.automation_shutdown_file.is_some() {
+    if !cfg!(target_os = "windows") && !args.headless && args.automation_shutdown_file.is_some() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
             "--automation-shutdown-file is supported only on Windows",
@@ -387,12 +387,6 @@ where
         return Err(Error::new(
             ErrorKind::AlreadyExists,
             format!("automation shutdown file already exists: {}", path.display()),
-        ));
-    }
-    if args.headless && args.automation_shutdown_file.is_some() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "--automation-shutdown-file is supported only by the desktop runtime",
         ));
     }
 
@@ -429,6 +423,9 @@ where
     configure_frontend_origin(&mut config, &args, &frontend_url, configured_frontend_url.is_some())?;
 
     if args.headless {
+        let shutdown = config.shutdown.clone().unwrap_or_default();
+        config.shutdown = Some(shutdown.clone());
+        let watcher = crate::headless_shutdown::ShutdownFileWatcher::start(args.automation_shutdown_file, shutdown)?;
         let dev_server_process = if args.dev && configured_frontend_url.is_none() {
             spawn_frontend_dev_server(dev_server, &frontend_url, &endpoint.connect_addr, args.show_output)?
         } else {
@@ -441,7 +438,8 @@ where
             headless.map(|factory| factory(runtime)).transpose()
         });
         drop(dev_server_process);
-        return run_result;
+        let watched = watcher.map_or(Ok(()), |watcher| watcher.finish());
+        return run_result.and(watched);
     }
 
     let (startup_tx, startup_rx) = mpsc::channel::<std::io::Result<()>>();
@@ -538,7 +536,7 @@ fn print_usage() {
     println!("  --no-frontend  Launch Tauri against an external frontend instead of the bundled UI.");
     println!("  --show-output  Attach or create a console window for stdout/stderr logs.");
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
-    println!("  --automation-shutdown-file PATH  Stop cleanly when PATH appears (Windows automation).");
+    println!("  --automation-shutdown-file PATH  Stop the host when PATH appears.");
 }
 
 #[cfg(target_os = "windows")]
