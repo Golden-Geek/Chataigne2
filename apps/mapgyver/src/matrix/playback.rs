@@ -3,7 +3,7 @@ use super::projection::RenderIndex;
 use super::protocol::*;
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::{ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId},
+    media::protocol::{ChannelReference, ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId},
 };
 use golden_core::{
     edit::{Edit, EditCompletion, EditCompletionStatus},
@@ -22,6 +22,8 @@ pub(crate) struct PlaybackControl(Arc<Control>);
 struct Control {
     state: Mutex<State>,
     revision: RevisionSource,
+    // Runtime launches must not change the authoring epoch used by clip binding admission.
+    authored: RevisionSource,
     dirty: AtomicBool,
 }
 #[derive(Default)]
@@ -35,8 +37,14 @@ struct State {
 #[derive(Clone)]
 pub(crate) struct RuntimeBinding(Weak<Control>);
 impl RuntimeBinding {
+    pub fn version(&self) -> u64 {
+        self.0
+            .upgrade()
+            .map_or(0, |control| control.authored.reader().current())
+    }
     pub fn invalidate(&self) {
         if let Some(control) = self.0.upgrade() {
+            control.authored.advance();
             control.dirty.store(true, Ordering::Release);
             control.revision.advance();
         }
@@ -52,14 +60,29 @@ impl PlaybackControl {
             .timeline
             .settle(time);
     }
-    pub fn frame(&self, time: Option<golden_time::TimeSnapshot>) -> Result<Option<super::timeline::Frame>, String> {
+    pub fn with_frame<T>(
+        &self,
+        time: Option<golden_time::TimeSnapshot>,
+        capture: impl FnOnce(&mut super::timeline::Timeline, &super::timeline::Frame) -> Result<T, String>,
+    ) -> Result<Option<T>, String> {
         let desired = self.snapshot();
+        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        let Some(frame) = state
+            .timeline
+            .frame(&desired, time, self.0.authored.reader().current())?
+        else {
+            return Ok(None);
+        };
+        capture(&mut state.timeline, &frame).map(Some)
+    }
+    pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
         self.0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
             .timeline
-            .frame(&desired, time)
+            .bindings
+            .edges()
     }
     fn admits(&self, column: ColumnId) -> bool {
         self.0
@@ -67,7 +90,7 @@ impl PlaybackControl {
             .lock()
             .expect("Matrix playback lock poisoned")
             .timeline
-            .accepts(column)
+            .accepts(column, self.0.authored.reader().current())
     }
     pub fn snapshot(&self) -> MatrixPlaybackSnapshot {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
@@ -164,7 +187,7 @@ pub(super) fn launch(
         .ok_or("Matrix playback owner is missing")?
         .clone();
     if mode == LaunchMode::Configured && transition.duration_ms != 0 && !control.admits(column) {
-        return Err("Matrix interrupted mix retains 32 columns; use Cut or relaunch a retained column".into());
+        return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
     }
     let desired = MatrixPlaybackSnapshot {
         desired_column: Some(column),

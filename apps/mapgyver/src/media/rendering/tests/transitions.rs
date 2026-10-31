@@ -282,7 +282,6 @@ fn configured_launch_bursts_preserve_fixed_publication_credits_and_recover_after
 }
 
 #[test]
-#[ignore = "M07 gate 2: retain outgoing resolved bindings across column removal/reassignment until final use"]
 fn outgoing_cell_bindings_survive_column_removal_until_transition_end() {
     let (mut engine, matrix, sources, _, columns) = fixture();
     let time = TimeAuthority::new(Clock::default(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL)
@@ -306,4 +305,233 @@ fn outgoing_cell_bindings_survive_column_removal_until_transition_end() {
     assert!(halfway.channels.iter().any(|channel| channel.reference == sources[1]));
     let completed = capture_channels_at(&engine, &[matrix], 16, at(time, 1000)).unwrap();
     assert!(!completed.channels.iter().any(|channel| channel.reference == sources[0]));
+}
+
+fn assign(
+    engine: &mut AppEngine,
+    matrix: ChannelReference,
+    layer: ChannelReference,
+    column: ColumnId,
+    source: Option<ChannelReference>,
+) {
+    let ChannelSource::Matrix {
+        output: MatrixOutput::Layer { layer: row },
+    } = channel(engine, layer).unwrap().definition.source
+    else {
+        panic!()
+    };
+    matrix_edit(
+        engine,
+        matrix.media,
+        MatrixEdit::SetCells {
+            assignments: vec![CellAssignment {
+                layer: row,
+                column,
+                source,
+            }],
+        },
+    );
+}
+fn time() -> TimeSnapshot {
+    TimeAuthority::new(Clock::default(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL)
+        .unwrap()
+        .sample()
+        .unwrap()
+}
+
+#[test]
+fn same_column_relaunch_uses_a_new_clip_binding_and_interruption_preserves_all_prior_weights() {
+    let (mut engine, matrix, sources, layer, columns) = fixture();
+    let time = time();
+    let owner = renderer();
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
+    capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    let root = engine.node_id_by_uuid(matrix.channel.0).unwrap();
+    let crate::app::AppNode::MediaChannel(node) = engine.nodes.get(root).unwrap() else {
+        panic!()
+    };
+    let old_index = Arc::downgrade(&node.matrix_playback().unwrap().cached().unwrap());
+    assign(&mut engine, matrix, layer, columns[0], Some(sources[1]));
+    let unchanged = capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    assert!(
+        old_index.upgrade().is_none(),
+        "clip retained an entire obsolete authored index"
+    );
+    assert!(unchanged.channels.iter().any(|channel| channel.reference == sources[0]));
+    assert!(!unchanged.channels.iter().any(|channel| channel.reference == sources[1]));
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Configured);
+    let first = prepared(
+        &capture_channels_at(&engine, &[matrix], 16, time).unwrap(),
+        matrix,
+        &owner,
+    );
+    assert_eq!(
+        layers(&first, layer)
+            .iter()
+            .map(|layer| layer.evaluated(at(time, 500)).opacity.get())
+            .collect::<Vec<_>>(),
+        [0.5, 0.5]
+    );
+    assign(&mut engine, matrix, layer, columns[0], Some(sources[2]));
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Configured);
+    let interrupted = prepared(
+        &capture_channels_at(&engine, &[matrix], 16, at(time, 500)).unwrap(),
+        matrix,
+        &owner,
+    );
+    assert_eq!(
+        layers(&interrupted, layer)
+            .iter()
+            .map(|layer| layer.evaluated(at(time, 1000)).opacity.get())
+            .collect::<Vec<_>>(),
+        [0.25, 0.25, 0.5]
+    );
+    let complete = capture_channels_at(&engine, &[matrix], 16, at(time, 1500)).unwrap();
+    assert!(complete.channels.iter().any(|channel| channel.reference == sources[2]));
+    assert!(
+        !complete
+            .channels
+            .iter()
+            .any(|channel| sources[..2].contains(&channel.reference))
+    );
+    close(owner);
+}
+
+#[test]
+fn authoring_an_empty_playing_cell_requires_a_launch_and_runtime_bindings_do_not_persist() {
+    use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
+    let (mut engine, matrix, sources, layer, columns) = fixture();
+    let time = time();
+    launch(&mut engine, matrix.media, columns[3], LaunchMode::Cut);
+    assert_eq!(
+        capture_channels_at(&engine, &[matrix], 16, time)
+            .unwrap()
+            .channels
+            .len(),
+        1
+    );
+    assign(&mut engine, matrix, layer, columns[3], Some(sources[2]));
+    assert_eq!(
+        capture_channels_at(&engine, &[matrix], 16, time)
+            .unwrap()
+            .channels
+            .len(),
+        1
+    );
+    launch(&mut engine, matrix.media, columns[3], LaunchMode::Configured);
+    let owner = renderer();
+    let first = prepared(
+        &capture_channels_at(&engine, &[matrix], 16, time).unwrap(),
+        matrix,
+        &owner,
+    );
+    assert_eq!(layers(&first, layer)[0].evaluated(at(time, 500)).opacity.get(), 0.5);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let restored = from_sparse_project_json::<crate::app::AppNode>(&saved).unwrap();
+    assert_eq!(
+        capture_channels_at(&restored, &[matrix], 16, time)
+            .unwrap()
+            .channels
+            .len(),
+        1
+    );
+    close(owner);
+}
+
+#[test]
+fn missing_source_and_authored_undo_preserve_the_original_fading_binding() {
+    let (mut engine, matrix, sources, layer, columns) = fixture();
+    let time = time();
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
+    capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    launch(&mut engine, matrix.media, columns[1], LaunchMode::Configured);
+    capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    assign(&mut engine, matrix, layer, columns[0], None);
+    let cleared = capture_channels_at(&engine, &[matrix], 16, at(time, 250)).unwrap();
+    assert!(cleared.channels.iter().any(|channel| channel.reference == sources[0]));
+    assert!(engine.undo().unwrap());
+    assert!(!cleared.is_current());
+    edit(
+        &mut engine,
+        MediaEdit::RemoveMedia {
+            media: sources[0].media,
+        },
+    );
+    let missing = capture_channels_at(&engine, &[matrix], 16, at(time, 500)).unwrap();
+    assert!(
+        missing
+            .channels
+            .iter()
+            .find(|channel| channel.reference == sources[0])
+            .unwrap()
+            .definition
+            .is_none()
+    );
+    assert!(engine.undo().unwrap());
+    assert!(!missing.is_current());
+    let restored = capture_channels_at(&engine, &[matrix], 16, at(time, 500)).unwrap();
+    assert!(
+        restored
+            .channels
+            .iter()
+            .find(|channel| channel.reference == sources[0])
+            .unwrap()
+            .definition
+            .is_some()
+    );
+    let complete = capture_channels_at(&engine, &[matrix], 16, at(time, 1000)).unwrap();
+    assert!(!complete.channels.iter().any(|channel| channel.reference == sources[0]));
+}
+
+#[test]
+fn atomic_cell_replacement_cannot_erase_a_retained_runtime_feedback_edge() {
+    let (mut engine, matrix, _, layer, columns) = fixture();
+    let second = create(&mut engine, MediaKind::Matrix);
+    matrix_edit(
+        &mut engine,
+        second.media,
+        MatrixEdit::AddLayers { parent: None, count: 1 },
+    );
+    let MediaEditResult::MatrixCreated {
+        columns: second_columns,
+        ..
+    } = matrix_edit(&mut engine, second.media, MatrixEdit::AddColumns { count: 1 })
+    else {
+        panic!()
+    };
+    let MediaEditResult::Matrix { snapshot } = matrix_edit(&mut engine, second.media, MatrixEdit::Inspect) else {
+        panic!()
+    };
+    let MatrixItemId::Layer { id: second_layer } = snapshot.items[0].id else {
+        panic!()
+    };
+    assign(&mut engine, matrix, layer, columns[0], Some(second));
+    let time = time();
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
+    capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    assign(&mut engine, matrix, layer, columns[0], None);
+    let operation = MediaEdit::Matrix {
+        media: second.media,
+        edit: MatrixEdit::SetCells {
+            assignments: vec![CellAssignment {
+                layer: second_layer,
+                column: second_columns[0],
+                source: Some(matrix),
+            }],
+        },
+    };
+    let history = engine.undo_len();
+    let rejected = apply_project_intent(
+        &mut engine,
+        UiEditIntent::InvokeAppOperation {
+            namespace: MEDIA_NAMESPACE.into(),
+            operation: MEDIA_OPERATION.into(),
+            payload: serde_json::to_value(&operation).unwrap(),
+        },
+    );
+    assert!(!rejected.success, "retained runtime feedback was accepted");
+    assert_eq!(engine.undo_len(), history);
+    launch(&mut engine, matrix.media, columns[3], LaunchMode::Cut);
+    capture_channels_at(&engine, &[matrix], 16, time).unwrap();
+    edit(&mut engine, operation);
 }

@@ -4,10 +4,10 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M07 Matrix document/module foundation accepted, **1/4 gates (25%)**;
-sparse authoring, configured Linear/SmoothStep fades, interrupted column mixes and shared
-layer/group/final production now work. Full transition acceptance remains open for retained outgoing
-bindings across authored edits; the virtualized grid is next after that repair. M06 remains **1/4**;
+**Current topic:** M07 document/module and timed runtime accepted, **2/4 gates (50%)**;
+sparse authoring, Linear/SmoothStep fades, interrupted clip mixes and shared layer/group/final
+production now preserve outgoing bindings across edits/removal/relaunch. The virtualized grid is next;
+full native/interactive/large-grid qualification remains open. M06 remains **1/4**;
 demanded nested rendering is implemented with software and native submission/lifetime smoke.
 The dockable Composition editor now includes source/instance/canvas controls, native preview binding
 and graphical selection/drag/rotate/scale with backend geometry and grouped history. Software
@@ -27,14 +27,14 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** retain resolved outgoing cell bindings across column/cell edits, removal and same-column
-relaunch until the fade and final GPU use finish; then deliver the virtualized Matrix grid.
-**Last delivered capability:** configured timed Matrix launches and interruption weights through
-shared render-worker time, with outgoing demand/completion cleanup and bounded publications for an
-unchanged document. Media Manager offers Launch and Cut (batch 24). Finite native envelope pixels
-and actual app runtime/retirement smoke pass. **Known gate 2 failure:** removing an outgoing column
-withdraws its source before fade completion; the retained regression fails explicitly. Independent
-app pixel consumption, full recovery/scale and actual editor interaction remain unverified.
+**Next:** deliver the app-registered virtualized Matrix grid with bounded viewport reads and editing,
+separate selection/preparation/live feedback and the same backend/module/script intents.
+**Last delivered capability:** bounded resolved clip bindings preserve outgoing sources through
+column removal, cell reassignment, Undo and same-column interruption (batch 25). The former failing
+regression passes normally; retained dependencies cannot be removed to admit runtime feedback.
+Native Final/layer output frames, installed cleanup and retirement pass. **Product blocker:** none
+for grid implementation. Independent app pixel consumption, full recovery/scale and actual editor
+interaction remain unverified under gate 4 and their owning phases.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -58,13 +58,13 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Document/module accepted; playback/grid/qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 1 / 4 = 25%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -78,6 +78,63 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Product batch 25:** started 2026-10-31 **04:56 UTC**, recorded stop **05:41 UTC**.
+Repair retained Matrix clip bindings across column removal, cell reassignment and same-column
+relaunch. MapGyver owns runtime clip identity and bounded resolved demand; Golden Video retains
+GPU/input leases through final use. Start from the preserved failing regression, pin only admitted
+binding metadata rather than whole document indices, preserve shared pass/time/burst bounds and
+verify removal/reassignment/Undo, interrupted relaunch, completion and project reset. Run relevant
+app/shared checks and ordinary build; at most two finite native checks/20 minutes after software
+prerequisites pass. No desktop/driver/clock recovery or parked M03 work is scheduled.
+
+Batch 25 software prerequisites: **140 passing / 1 ignored** default app tests, **130/130**
+headless tests, strict all-target/all-feature app Clippy and ordinary bundled build pass. The
+former ignored column-removal regression now passes normally. New checks cover reassignment and
+same-column interruption, source removal/Undo, empty binding epochs, project reset, a fixed 4,096
+binding ceiling/recovery, obsolete-index release and retained-edge feedback rejection.
+Native experiment 1 starts **05:17 UTC**, ends no later than **05:37 UTC** (two runs/20 minutes
+maximum for this chain). Hypothesis: removing the outgoing column and editing/relaunching the same
+incoming column preserve all three native sources, then one cleanup generation installs/submits
+and retires within the existing budgets. No additional pixel/timing/desktop experiment is scheduled.
+
+**Batch 25 result:** the outgoing-column regression is repaired and enabled normally. Clip bindings
+now retain only source references and empty decisions for admitted row/clip pairs, with a fixed
+**4,096-entry ceiling per Matrix**. Source identity edits have authoring epochs independent of
+runtime launches; a same-column relaunch after edits gets a distinct clip identity, while unchanged
+column/epoch contributions can coalesce under the existing **32-clip ceiling**. First-demand binding
+rejects cells changed/created after that clip epoch until relaunch, avoiding eager empty-row scans
+or historical document snapshots. A weak-index regression proves the obsolete authored index is
+released while the outgoing source reference remains alive. Removal/reassignment/Undo cannot rewrite
+an already playing binding. Media content stays live through channel references; missing sources
+remain unavailable and recover through the existing source path. Runtime binding state never persists.
+
+All-media validation merges retained runtime edges **after** prospective authored replacements.
+An atomic cell batch cannot erase a still-used edge to introduce feedback; the rejection leaves
+history unchanged and Cut/materialization releases it. Completion clears obsolete binding metadata
+and source demand; Golden's installed/retiring generations retain actual GPU/input leases until
+their final token completes. No extra native ownership or per-frame actor work was introduced.
+
+Native experiment 1 passed in **0.71 s** after terminal prerequisites: the fixture removes the
+outgoing column, reassigns incoming cells and relaunches that same column during a fade. Both prior
+sources and the new source remain in native demand, Final/layer targets stay stable, exactly one
+cleanup publication installs and submits a new generation, all byte/in-flight/retirement bounds
+hold and shutdown retirement completes. This strengthens batch 24's admitted-only cleanup check;
+it still does not certify independent Spout consumption, full Matrix pixels, hotplug or Q05 scale.
+No second native experiment or automation/driver/clock recovery ran.
+
+Acceptance: existing atomic receipts, shared-time/empty-cell and blend/opacity checks, independent
+shared-pass tests, 1,000 configured launches under fixed publication credits and the repaired binding/
+feedback/Undo/reset/native final-use checks close **M07 gate 2**. **M07 is 2/4 = 50%; overall stays
+3/10 = 30%** because no whole phase closes. The fixed denominator remains four; grid/input parity
+and full native/interactive/large-grid qualification retain gates 3/4.
+
+Final validation: **140 passing / 1 pre-existing hardware ignore** default app tests, **130/130**
+headless tests, generated DTO drift, strict all-target/all-feature app Clippy, both root/Golden Core
+formatting and the ordinary bundled build pass. The binding-retention regression is enabled and
+passes. Shared Golden/runtime code and frontend files are unchanged; their batch 24 checks remain
+the baseline. The single native check above passes at its stated scope; no full qualification is
+inferred. This milestone is delivered before the recorded 05:41 UTC stop.
 
 **Product batch 24:** started 2026-10-31 **04:29 UTC**, recorded stop **05:14 UTC**.
 Deliver configured timed Matrix launches with deterministic shared-time fade/interruption state and
@@ -210,7 +267,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | # | Acceptance scope | State |
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
-| 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Open |
+| 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
 | 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
 
@@ -1293,7 +1350,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 24. Diagnostic-only batch allowance: 6, unused.**
+**Product-delivery count since correction: 25. Diagnostic-only batch allowance: 6, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1332,7 +1389,9 @@ Atomic Matrix cuts, shared derived production and explicit launch controls are t
 full timed transitions, virtualized grid, native pixels and interaction qualification remain open.
 Timed Matrix fades/interruption and Launch controls are the twenty-fourth. Retained binding edits
 remain an explicit gate 2 repair, with grid and full qualification still open.
-The allowance is six at `floor(24 / 4)`, following the four-product-to-one-diagnostic ratio;
+Retained clip bindings across authored edits and installed native cleanup are the twenty-fifth,
+closing M07 gate 2; the virtualized grid and full qualification remain open.
+The allowance is six at `floor(25 / 4)`, following the four-product-to-one-diagnostic ratio;
 none of the six allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1527,19 +1586,18 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module and timed production](#m07-acceptance-items): gate 1/4 accepted; configured fades/interruption, shared exports and bounded completion publication work. Gate 2 retains the reproduced outgoing-binding edit/removal failure; grid and full native qualification remain open. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module and timed production](#m07-acceptance-items): gates 1–2/4 accepted; retained bindings repair edit/removal/relaunch lifetimes, shared exports and bounded cleanup pass. Virtualized grid/input parity and full qualification remain open. |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M07 retained outgoing bindings across authored edits** against the working timed producer.
-Repair the preserved column-removal regression; include cell reassignment and same-column relaunch
-with distinct runtime contribution identity. Keep snapshots bounded by admitted demand and preserve
-shared sources/final GPU-use ownership; do not retain whole document indices per contribution or
-move frame evaluation to the engine. Preserve all budgets and verify removal/reassignment/Undo,
-interruption, burst admission and final release with deterministic checks. The virtualized grid
-follows this coherent lifetime checkpoint. Do not reopen
+Deliver **M07 app-registered virtualized Matrix grid** against the accepted authored/runtime
+contracts. Keep cell/item/column behavior and defaults in backend intents; provide bounded viewport
+inspection rather than transferring or mounting an eager full grid. Expose selection, preparation
+and live/installed state distinctly and reuse the module/script route for create/copy/reorder/remove,
+assignment and launch. Start with a coherent usable grid slice and focused store/viewport tests,
+then ordinary app build and bounded interaction checks. Preserve all budgets. Do not reopen
 browser/privilege/driver/clock recovery to qualify the preceding editor before this work.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
@@ -1550,7 +1608,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Twenty-four product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
+Twenty-five product slices are delivered; documentation checkpoints are excluded. Six diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

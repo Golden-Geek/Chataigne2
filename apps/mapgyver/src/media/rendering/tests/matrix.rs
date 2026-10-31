@@ -272,7 +272,17 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
             column: authored.columns[0].id,
         },
     );
-    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 1);
+    // Authoring does not stop a committed clip; a new explicit launch changes playback.
+    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 5);
     assert!(engine.undo().unwrap());
     assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 5);
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::LaunchColumn {
+            column: authored.columns[1].id,
+            mode: LaunchMode::Cut,
+        },
+    );
+    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 1);
 }

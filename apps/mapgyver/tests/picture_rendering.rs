@@ -219,8 +219,27 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
     });
     matrix_edit(
         &mut engine,
+        MatrixEdit::RemoveColumn {
+            column: snapshot.columns[0].id,
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::SetCells {
+            assignments: rows
+                .iter()
+                .map(|(layer, _)| CellAssignment {
+                    layer: *layer,
+                    column: snapshot.columns[1].id,
+                    source: Some(sources[2]),
+                })
+                .collect(),
+        },
+    );
+    matrix_edit(
+        &mut engine,
         MatrixEdit::LaunchColumn {
-            column: snapshot.columns[2].id,
+            column: snapshot.columns[1].id,
             mode: LaunchMode::Configured,
         },
     );
@@ -232,6 +251,7 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             .all(|reference| live.channels().iter().any(|channel| channel.reference == *reference))
     );
     let transitioning = live.latest_request().unwrap();
+    let transitioning_identity = live.snapshot().resources.unwrap().active.unwrap().identity;
     wait("Matrix outgoing demand release", || {
         live.refresh().unwrap();
         let mut outcomes = Vec::new();
@@ -245,6 +265,26 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             .channels()
             .iter()
             .any(|channel| sources[..2].contains(&channel.reference))
+    });
+    wait("Matrix cleanup generation submitted", || {
+        live.refresh().unwrap();
+        let mut outcomes = Vec::new();
+        live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+        assert!(
+            !outcomes
+                .iter()
+                .any(|outcome| matches!(outcome.result, OutcomeKind::Rejected(_)))
+        );
+        let snapshot = live.snapshot();
+        snapshot
+            .resources
+            .and_then(|resources| resources.active)
+            .is_some_and(|active| {
+                active.identity != transitioning_identity
+                    && snapshot
+                        .last_frame
+                        .is_some_and(|frame| frame.identity == active.identity)
+            })
     });
     assert_eq!(live.latest_request().unwrap().get(), transitioning.get() + 1);
     assert!(live.channels().iter().any(|channel| channel.reference == sources[2]));

@@ -5,7 +5,7 @@ use crate::{
 use golden_core::node::Node;
 use std::collections::{HashMap, HashSet};
 
-fn graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelReference>>, String> {
+fn authored_graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelReference>>, String> {
     let mut result = HashMap::new();
     for (_, node) in engine.nodes.iter() {
         if let AppNode::Media(node) = node
@@ -46,13 +46,35 @@ fn graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelRefe
     Ok(result)
 }
 
+fn graph(
+    engine: &AppEngine,
+    replacements: HashMap<ChannelReference, Vec<ChannelReference>>,
+) -> Result<HashMap<ChannelReference, Vec<ChannelReference>>, String> {
+    let mut result = authored_graph(engine)?;
+    result.extend(replacements);
+    // A removed authored edge may still be used by an outgoing runtime clip. Merge after
+    // replacements so an atomic cell batch cannot erase those lifetime dependencies.
+    for (_, node) in engine.nodes.iter() {
+        if let AppNode::MediaChannel(node) = node
+            && let Some(control) = node.matrix_playback()
+        {
+            for (owner, source) in control.retained_edges() {
+                if let Some(edges) = result.get_mut(&owner) {
+                    edges.push(source);
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+
 /// Existing graphs are acyclic; introducing owner -> sources must not reach owner again.
 pub(super) fn reject_cycle(
     engine: &AppEngine,
     owner: ChannelReference,
     sources: &[ChannelReference],
 ) -> Result<(), String> {
-    let graph = graph(engine)?;
+    let graph = graph(engine, HashMap::new())?;
     let mut pending = sources.to_vec();
     let mut seen = HashSet::new();
     while let Some(source) = pending.pop() {
@@ -70,7 +92,7 @@ pub(super) fn reject_cycle(
 
 /// Iterative topological validation also admits unresolved authored references as missing leaves.
 pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
-    let graph = graph(engine)?;
+    let graph = graph(engine, HashMap::new())?;
     validate(graph)
 }
 
@@ -78,8 +100,7 @@ pub(crate) fn replace_sources(
     engine: &AppEngine,
     replacements: HashMap<ChannelReference, Vec<ChannelReference>>,
 ) -> Result<(), String> {
-    let mut graph = graph(engine)?;
-    graph.extend(replacements);
+    let graph = graph(engine, replacements)?;
     validate(graph)
 }
 

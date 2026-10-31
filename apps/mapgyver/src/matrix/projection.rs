@@ -17,7 +17,12 @@ pub(crate) struct RenderItem {
 pub(crate) struct RenderIndex {
     pub canvas: golden_video::Extent2D,
     pub items: HashMap<MatrixItemId, RenderItem>,
-    pub cells: HashMap<ColumnId, BTreeMap<usize, (LayerId, ChannelReference)>>,
+    pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
+}
+pub(crate) struct CellSource {
+    pub layer: LayerId,
+    pub source: ChannelReference,
+    pub version: u64,
 }
 impl RenderIndex {
     pub(super) fn build(engine: &AppEngine, document: &Document) -> Self {
@@ -52,16 +57,27 @@ impl RenderIndex {
         for id in groups {
             items.get_mut(&id).unwrap().end = document.snapshot.items.len();
         }
-        let mut cells = HashMap::<ColumnId, BTreeMap<usize, (LayerId, ChannelReference)>>::new();
+        let mut cells = HashMap::<ColumnId, BTreeMap<usize, CellSource>>::new();
         for cell in &document.snapshot.cells {
             if let Some(source) = cell.definition.source {
+                let AppNode::MatrixElement(node) = engine
+                    .nodes
+                    .get(document.cells[&(cell.layer, cell.definition.column)])
+                    .unwrap()
+                else {
+                    unreachable!()
+                };
                 let entry = &items[&MatrixItemId::Layer { id: cell.layer }];
                 if !entry.enabled || !entry.settings.enabled || entry.settings.opacity == 0.0 {
                     continue;
                 }
                 cells.entry(cell.definition.column).or_default().insert(
                     items[&MatrixItemId::Layer { id: cell.layer }].order,
-                    (cell.layer, source),
+                    CellSource {
+                        layer: cell.layer,
+                        source,
+                        version: node.source_version(),
+                    },
                 );
             }
         }

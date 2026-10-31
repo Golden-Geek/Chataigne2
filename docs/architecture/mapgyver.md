@@ -381,16 +381,26 @@ samples current weights, preserves positive outgoing contributions and fades tha
 column using Linear or SmoothStep interpolation. Golden's optional layer `OpacityEnvelope` evaluates
 on the render worker; it contains no Matrix types or product policy. Empty incoming cells fade the
 row to transparent. Missing media references remain transparent rather than inventing source data.
-**Remaining M07 gate 2 work:** bind outgoing contributions to their resolved launch-time sources
-through authored cell/column removal or reassignment, including a same-column relaunch. Current
-capture still resolves those contributions from the edited live index; it can withdraw an outgoing
-source early. The retained regression records that failure. This is a required follow-up, not a
-new live-edit policy or an accepted exception to outgoing-demand lifetime requirements.
+`matrix/bindings.rs` pins only admitted row/clip source references, including empty bindings.
+Those references survive cell/column removal, reassignment and authored Undo until the contribution
+ends. A playing clip remains independent of its authored column: editing or removing a cell/column
+does not itself stop or relaunch it. Explicit Cut/Launch chooses the next binding. Media/channel
+content remains live through those stable references; missing endpoints stay missing and can recover.
 
-The explicit initial runtime admission is **32 simultaneously retained column contributions** per
-Matrix, independent of authored grid size. A further distinct configured interruption rejects without
-changing requested state; Cut or a retained-column launch remains available. Completion drops zero
-weights and restores admission. Existing channel, dependency, byte, publication and generation limits
+Each source identity edit has an app-local authoring epoch. A newly demanded row can bind only a cell
+that existed unchanged at the clip's epoch; a later assignment remains empty until relaunch. This
+avoids retaining historical document indices or eagerly visiting every empty grid address. Same-column
+relaunch after an edit gets a distinct runtime clip identity; unchanged column/epoch contributions
+can coalesce. Bindings and epochs are ephemeral, absent from project codecs, and clear on replacement.
+The all-media dependency graph includes retained runtime edges after prospective authored replacements,
+so deleting an authored edge cannot make a feedback edit safe while its outgoing clip still uses it.
+
+The explicit runtime admission is **32 simultaneously retained clip contributions** and **4,096
+resolved row/clip bindings** per Matrix, independent of authored grid size. A further distinct
+configured interruption rejects without changing requested state; Cut or an unchanged column/epoch
+launch remains available. Binding-capacity failure withdraws that producer under the existing
+admission path. Completion drops zero weights/bindings and restores admission. Existing channel,
+dependency, byte, publication and generation limits
 still apply; no qualification budget is raised. One completion refresh on the preparation worker
 prunes outgoing source demand and removes envelopes, without another actor capture or per-frame plan
 publication. Replaced generations retain GPU/input leases through their actual final completion.

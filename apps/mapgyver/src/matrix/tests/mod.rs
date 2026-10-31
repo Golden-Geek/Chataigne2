@@ -9,6 +9,7 @@ use golden_core::{
     ui_sync::UiEditIntent,
 };
 
+mod bindings;
 mod copying;
 mod playback;
 mod timeline;

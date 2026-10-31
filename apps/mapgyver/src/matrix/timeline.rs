@@ -1,5 +1,8 @@
-//! App-owned column weights; evaluated only on launch/capture, never once per video frame.
-use super::protocol::{ColumnId, MatrixPlaybackSnapshot, TransitionCurve};
+//! App-owned clip weights; evaluated only on launch/capture, never once per video frame.
+use super::{
+    bindings::Bindings,
+    protocol::{ColumnId, MatrixPlaybackSnapshot, TransitionCurve},
+};
 use golden_time::TimeSnapshot;
 use golden_video::{
     Opacity,
@@ -27,15 +30,28 @@ impl Interval {
         .expect("validated Matrix interval")
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Clip {
+    pub id: uuid::Uuid,
+    pub column: ColumnId,
+    pub version: u64,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Contribution {
+    pub clip: Clip,
+    pub from: f32,
+    pub to: f32,
+}
 #[derive(Clone, Default)]
 pub(crate) struct Frame {
-    pub columns: Vec<(ColumnId, f32, f32)>,
+    pub clips: Vec<Contribution>,
     pub interval: Option<Interval>,
 }
 #[derive(Default)]
-pub(super) struct Timeline {
+pub(crate) struct Timeline {
     launch: Option<uuid::Uuid>,
     frame: Frame,
+    pub bindings: Bindings,
 }
 impl Timeline {
     pub fn settle(&mut self, time: TimeSnapshot) {
@@ -44,35 +60,45 @@ impl Timeline {
             .interval
             .is_some_and(|interval| interval.envelope(0.0, 1.0).finished(time))
         {
-            self.frame.columns.retain(|(_, _, to)| *to > 0.0);
-            for (_, from, to) in &mut self.frame.columns {
-                *from = *to;
+            self.frame.clips.retain(|entry| entry.to > 0.0);
+            for entry in &mut self.frame.clips {
+                entry.from = entry.to;
             }
             self.frame.interval = None;
+            self.bindings.retain(self.frame.clips.iter().map(|entry| entry.clip.id));
         }
     }
-    pub fn accepts(&self, column: ColumnId) -> bool {
-        self.frame.columns.len() < MAX_MIX_COLUMNS || self.frame.columns.iter().any(|(id, _, _)| *id == column)
+    pub fn accepts(&self, column: ColumnId, version: u64) -> bool {
+        self.frame.clips.len() < MAX_MIX_COLUMNS
+            || self
+                .frame
+                .clips
+                .iter()
+                .any(|entry| entry.clip.column == column && entry.clip.version == version)
     }
     pub fn frame(
         &mut self,
         desired: &MatrixPlaybackSnapshot,
         time: Option<TimeSnapshot>,
+        version: u64,
     ) -> Result<Option<Frame>, String> {
         if desired.transition.duration_ms != 0 && desired.launch_id.is_some() && time.is_none() {
-            return Ok(None); // A topology-only capture cannot invent a time authority.
+            return Ok(None);
         }
         if self.launch != desired.launch_id {
             let mut frame = Frame::default();
             if desired.transition.duration_ms != 0 {
                 let now = time.ok_or("timed Matrix capture requires shared time")?;
-                for (column, from, to) in &self.frame.columns {
-                    let weight = self
-                        .frame
-                        .interval
-                        .map_or(*to, |interval| interval.envelope(*from, *to).sample(now).get());
+                for entry in &self.frame.clips {
+                    let weight = self.frame.interval.map_or(entry.to, |interval| {
+                        interval.envelope(entry.from, entry.to).sample(now).get()
+                    });
                     if weight > 0.0 {
-                        frame.columns.push((*column, weight, 0.0));
+                        frame.clips.push(Contribution {
+                            clip: entry.clip,
+                            from: weight,
+                            to: 0.0,
+                        });
                     }
                 }
                 let duration = Duration::from_millis(u64::from(desired.transition.duration_ms));
@@ -86,20 +112,31 @@ impl Timeline {
                     },
                 });
             }
-            if let Some(column) = desired.desired_column {
-                if let Some((_, _, to)) = frame.columns.iter_mut().find(|(id, _, _)| *id == column) {
-                    *to = 1.0;
+            if let (Some(column), Some(launch)) = (desired.desired_column, desired.launch_id) {
+                if let Some(entry) = frame
+                    .clips
+                    .iter_mut()
+                    .find(|entry| entry.clip.column == column && entry.clip.version == version)
+                {
+                    entry.to = 1.0;
                 } else {
-                    frame
-                        .columns
-                        .push((column, if frame.interval.is_none() { 1.0 } else { 0.0 }, 1.0));
+                    frame.clips.push(Contribution {
+                        clip: Clip {
+                            id: launch,
+                            column,
+                            version,
+                        },
+                        from: if frame.interval.is_none() { 1.0 } else { 0.0 },
+                        to: 1.0,
+                    });
                 }
             }
-            if frame.columns.len() > MAX_MIX_COLUMNS {
-                return Err("Matrix interrupted mix exceeds 32 retained columns".into());
+            if frame.clips.len() > MAX_MIX_COLUMNS {
+                return Err("Matrix interrupted mix exceeds 32 retained clips".into());
             }
             self.frame = frame;
             self.launch = desired.launch_id;
+            self.bindings.retain(self.frame.clips.iter().map(|entry| entry.clip.id));
         }
         if let Some(time) = time {
             self.settle(time);

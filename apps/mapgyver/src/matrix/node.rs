@@ -6,7 +6,10 @@ use golden_core::{
 use golden_io::RevisionSource;
 use serde_json::Value;
 use std::any::Any;
-use std::sync::OnceLock;
+use std::sync::{
+    OnceLock,
+    atomic::{AtomicU64, Ordering},
+};
 pub const LAYER_TYPE: &str = "mapgyver.matrix.layer";
 pub const GROUP_TYPE: &str = "mapgyver.matrix.group";
 pub const COLUMN_TYPE: &str = "mapgyver.matrix.column";
@@ -16,6 +19,8 @@ pub struct ElementNode {
     definition: ElementDefinition,
     revision: RevisionSource,
     runtime: OnceLock<super::playback::RuntimeBinding>,
+    // Source identity changes have a different lifetime from enable/presentation changes.
+    source_version: AtomicU64,
 }
 impl ElementNode {
     pub(crate) fn new(label: String, definition: ElementDefinition) -> Self {
@@ -24,13 +29,20 @@ impl ElementNode {
             definition,
             revision: RevisionSource::default(),
             runtime: OnceLock::new(),
+            source_version: AtomicU64::new(0),
         }
     }
     pub(crate) fn definition(&self) -> &ElementDefinition {
         &self.definition
     }
     pub(super) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
-        let _ = self.runtime.set(binding);
+        let version = binding.version();
+        if self.runtime.set(binding).is_ok() {
+            self.source_version.store(version, Ordering::Release);
+        }
+    }
+    pub(super) fn source_version(&self) -> u64 {
+        self.source_version.load(Ordering::Acquire)
     }
     fn invalidate(&self) {
         self.revision.advance();
@@ -47,6 +59,12 @@ impl ElementNode {
         }
         if self.definition != definition {
             self.invalidate();
+            if matches!(definition, ElementDefinition::Cell { .. }) {
+                self.source_version.store(
+                    self.runtime.get().map_or(0, |binding| binding.version()),
+                    Ordering::Release,
+                );
+            }
             self.definition = definition;
         }
         Ok(())
