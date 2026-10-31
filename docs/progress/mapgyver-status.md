@@ -4,17 +4,17 @@
 
 **Updated: 2026-10-31 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current topic:** M04 source acceptance complete, **6/6 gates (100%)**. **Active gate:**
-M03 renderer qualification gate 9; gate 4 awaits the explicit GPU-reset decision. M03 retains
-**7/9** accepted gates and all original requirements.
+**Current topic:** M04 source acceptance complete, **6/6 gates (100%)**. **Next active gate:**
+M05 concurrent output acceptance gate 4 for one bounded closure batch. M03 retains **7/9**;
+its recovery test awaits the explicit GPU-reset decision and presentation deadlines remain open.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** address the measured Q01 software-window display deadline failure at Golden Video's
-native presentation/pacing boundary. The prescribed three-sample series is now captured with
-complete Spout cohorts, telemetry and software-display joins; keep this baseline instead of
-repeating it unchanged. Gate 4's return trigger remains explicit approval for its prepared reset
-test. Q02 sustained qualification and the remaining gate 9 measurement gaps also remain open.
+**Next:** verify M05's implemented physical fullscreen, desktop rectangle and Spout targets
+concurrently, including continued output when editors close/minimize. After this one batch,
+return to M03 presentation pacing or its approved reset check. Two bounded renderer batches
+did not close a gate, so apply the anti-drift rule instead of a presentation-mode sweep. Keep
+the complete Q01 baseline and failed interval-one control; Q02 and every measurement gap remain.
 Preserve real resource fences, healthy outputs and original budgets; do not restore the parked
 performance/collector stash or change driver settings. **Blocker:** genuine removal needs an
 approved reset window; genuine source/driver stuck-drain bounds remain unverified.
@@ -22,6 +22,10 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest correction result (batch 56):** interval-one presentation passes six pixel/flip-buffer
+frames, but its full-duration single Q01 control still misses **893/7,200** editor display
+deadlines. The candidate is reverted; no runtime/target/threshold change is retained.
+[Rejected control](evidence/mapgyver-m03-sync1-control-2026-10-31.json).
 **Latest sustained evidence (batch 55):** prescribed Q01 release series completes all three
 30+120-second samples plus 60-second minimize/disconnect intervals. Exact Spout cohorts are
 **7,199/7,199**, **7,200/7,200**, **7,200/7,200**; all native/collector processes exit normally.
@@ -81,11 +85,10 @@ These counts measure accepted scope, not effort or product readiness. Partial ev
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
-**Closure return queue:** M04 is complete. M03 gate 4 awaits the GPU-reset decision; gate 9 is
-the one active gate while that external prerequisite is pending. Resume gate 4 after approval
-and the current fixed run's retirement; do not reset during performance capture. Then finish
-both M03 gates, followed by
-M05, M06, M07 and M08 acceptance before M09's
+**Closure return queue:** M04 is complete. Next is one M05 gate 4 concurrent-output acceptance
+batch, then return to M03 gate 9 with the preserved window-deadline evidence; no repeated baseline
+or interval-mode sweep. M03 gate 4 returns on explicit GPU-reset approval, after any current run
+retires. Finish both M03 gates and remaining M05, then M06, M07 and M08 acceptance before M09's
 complete-app/artifact gate. Every original requirement remains required. A small optimization
 consuming roughly a full day warrants a specific user-reviewed deferral/lower-gate proposal, not
 automatic acceptance; correctness, ownership, data integrity and essential behavior stay required.
@@ -3004,6 +3007,78 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**Presentation correction batch 56:** started 2026-10-31 **18:01 UTC**, recorded stop **18:46 UTC**.
+Previous turn made progress: `0fa30df0` captures the complete prescribed Q01 series and narrows
+the failing criterion to window software display deadlines. Gate 9 alone is active; gate 4's
+GPU-reset decision remains pending. Investigate the existing deadline/Present records and the
+native output owner, then implement one justified presentation correction with original budgets
+and independent output behavior preserved. Software checks/build precede at most two fixed native
+invocations/20 minutes, also bounded by 18:46. Do not repeat the passing baseline unchanged,
+restore the parked stash, change monitor/driver/overlay settings or add a diagnostic framework.
+Read-only `EnumDisplayDevicesW` inventory maps both `DISPLAY1` and `DISPLAY2` to the same Intel
+device `PCI/VEN_8086/DEV_7D67`; a cross-adapter desktop path is therefore not the demonstrated
+cause. Existing accepted API/deadline and display records must justify the next implementation.
+
+**Fixed hypothesis:** all sampled APIs submit on time, while late window software display
+arrives after the deadline. The current flip-discard path uses `Present(0, DO_NOT_WAIT)`, whose
+documented interval-zero semantics permit cancelling queued frames. Test one explicit vblank
+per admitted frame (`Present(1, DO_NOT_WAIT)`) while retaining maximum frame latency one,
+zero-timeout readiness, existing color conversion and independent Spout output. This is a
+candidate, not an established root cause. Microsoft's
+[Present contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present)
+and [low-latency sample](https://learn.microsoft.com/en-us/windows/uwp/gaming/reduce-latency-with-dxgi-1-3-swap-chains)
+define these semantics. First run the existing direct-window pixel/flip-buffer test; then one
+Q01 candidate sample with 30-second warmup, 120-second measurement and both 60-second editor
+interruptions, with PresentMon. One sample is explicitly diagnostic and cannot close the
+three-sample gate. Keep the candidate only if display deadlines improve without output/age/
+retirement regressions; otherwise revert it and preserve the failed control. No parameter sweep.
+
+Batch 56 native checks start **18:13 UTC**, hard cutoff **18:21 UTC** to keep the original
+20-minute investigation bounded from 18:01, earlier than the 18:46 batch stop. Prerequisites
+are terminal: **161 unit + four public integration tests / 23 hardware ignores**, strict Golden
+Video all-target/all-feature Clippy, exact native test build, release runner rebuild (**2m 45s**),
+both formatters and whitespace checks. Pixel-test binary SHA-256:
+`1aac443a54a338adb5ad473e6e694d8efe8fb1116cc720204415e5956fa66a0c`;
+candidate release: `1df092290dbcef0a9c2aa990655ae20a324e44bae2596efa46b3152acba6dc8a`.
+Invocation one is the existing exact
+`native::outputs::window::tests::hardware_direct_window_encodes_once_and_tracks_flip_buffers_across_presents`.
+Only after its pass, invocation two is Q01 adapter 0 release, one sample, 30+120 seconds and
+60-second minimize/disconnect intervals, with `--presentmon --diagnostic`, new directory
+`target/qualification-m03-q01-sync1-2026-10-31-b56`. No new UI/asset/collector settings.
+
+**Batch 56 result:** the direct-window test passes **1/1 in 0.18 s**, all six successive frames
+and 16 pixels/frame within **2/255**. The candidate's single full-duration Q01 control completes
+all intervals normally, but analysis returns **FAILED_NATIVE** for `deadline_misses`: main has
+**5/7,200** late software displays, Spout **0/7,200**, and editor **893/7,200**. Editor lateness
+p95/p99/max is **0.8760 / 0.9068 / 5.0381 ms**. Every accepted Spout image is independently
+captured (**7,200/7,200**), age stays within target and complete shutdown is **1,444.1173 ms**.
+This does not justify retaining interval one: its editor deadline failure remains inside the
+variable baseline range. **The candidate is reverted to the exact published production source.**
+The release runner is rebuilt from that restored source before handoff; no further GPU test or
+parameter variant is run. Original scope, budgets and the **7/9 / 4/10** gate counts remain.
+Restoration rebuild passes in **2m 44s**; its executable SHA-256 is
+`948c68eb74318e42ffac22781304139730be646a57763e94a8b0c639c367a073`.
+No owned renderer/fixture process remains, and the owned ETW session reports **4201 (absent)**.
+The restored source passes **161 unit + four public integration tests / 23 hardware ignores**
+again; required root/Golden Core formatters and whitespace checks pass. The production source
+diff is empty. Next M05 work starts from the existing
+`apps/mapgyver/tests/native_output/check.mjs` flow, preserving its prior API-only limits and
+adding the specific concurrent pixels/editor-independence evidence needed by gate 4.
+
+The [compact rejected-control packet](evidence/mapgyver-m03-sync1-control-2026-10-31.json)
+records the candidate source/executable hashes, exact diff, failed criterion, distributions and
+all **16 raw-file hashes**, recomputed against the local raw directory. Full analysis SHA-256 is
+`a0d7f5f7c8082cd5012b47aa2a0eaddf13920a4568fede59db7d879c087519eb`.
+The original three-sample Q01 baseline is preserved. A one-sample candidate is diagnostic,
+not replacement qualification. Pixel correctness alone cannot make this timing change acceptable.
+
+**Anti-drift handoff:** batches 55/56 yielded required evidence and rejected a concrete candidate,
+but closed no acceptance gate. Apply AGENTS.md's two-batch rule: take one already implemented,
+dependency-ready **M05 gate 4** concurrent-output acceptance batch, then return to M03's actual
+presentation-pacing boundary. This is an explicit return trigger, not abandonment or a waiver.
+Gate 4's real device-removal test remains ready and separately awaits approval. No new feature,
+simultaneous gate expansion or further diagnostic variant is authorized by this handoff.
+
 **Qualification batch 55:** started 2026-10-31 **17:32 UTC**, recorded stop **18:17 UTC**.
 Previous turn made progress: `a277c2ca` verifies the corrected real-source preflight. The explicit
 GPU-reset question is pending; no response is not approval. Source-worker review confirms its
@@ -3309,13 +3384,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete. **M03 gate 9** is the only active gate while gate 4's explicit GPU-reset question
-is pending. The prescribed Q01 series now proves complete Spout capture, CPU/age/resource/cleanup
-criteria and reproduces software-window display deadline failures. Target that native presentation/
-pacing boundary with one bounded correction; do not repeat the baseline unchanged or optimize an
-unrelated shader/source path. Retain Q02 and the explicit measurement gaps. Gate 4 returns after approval and current-run cleanup;
-its genuine device removal/stuck-drain acceptance remains open. Preserve source pixel passes; do
-not restore the parked performance/collector stash or change driver/overlay settings.
+M04 is complete. Next is one bounded **M05 gate 4** concurrent-output acceptance batch after
+two M03 renderer qualification batches without gate closure. Verify the already implemented
+fullscreen/desktop/Spout targets and editor independence, then return to M03 presentation pacing
+with the complete Q01 baseline and rejected interval-one control. Do not sweep modes or repeat
+the baseline unchanged. Retain Q02 and every measurement gap. M03 gate 4 returns after explicit
+reset approval and current-run cleanup; genuine removal/stuck-drain acceptance stays open.
+Preserve source pixel passes; do not restore the parked stash or change driver/overlay settings.
 
 Finish both M03 gates, then M05/M06/M07/M08 and M09. A genuinely blocked
 gate must retain its exact missing prerequisite/evidence and next decision in the return queue.

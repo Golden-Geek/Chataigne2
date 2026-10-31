@@ -107,6 +107,12 @@ roughly a full day, present a specific proposed deferral/lower gate, evidence an
 for the user's decision before changing acceptance. This is not blanket authorization to lower
 gates, and correctness/ownership/data integrity/essential behavior are not small optimizations.
 
+After two bounded qualification batches without gate closure, the anti-drift rule can select
+one acceptance batch in an already implemented, dependency-ready phase, with a concrete return
+trigger in the ledger. On 2026-10-31 the prescribed Q01 series and rejected window-sync candidate
+leave M03 open; one M05 concurrent-output acceptance batch precedes the return to M03 presentation
+pacing. No milestone is waived or claimed complete, and only one gate is active at a time.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

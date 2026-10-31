@@ -1,0 +1,259 @@
+{
+  "evidence_kind": "rejected_window_sync_interval_control",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "candidate": {
+    "file": "crates/golden_video/src/native/outputs/window.rs",
+    "before": "Present(0, DXGI_PRESENT_DO_NOT_WAIT)",
+    "tested": "Present(1, DXGI_PRESENT_DO_NOT_WAIT)",
+    "retained": false,
+    "reason": "Window editor display deadlines still fail; one diagnostic sample does not establish improvement across variable baseline phases."
+  },
+  "scope": "diagnostic_incomplete_series",
+  "status": "FAILED_NATIVE",
+  "prescribed_three_sample_series": false,
+  "renderer_qualified": false,
+  "post_run_cleanup": {
+    "remaining_owned_renderer_or_fixture_processes": 0,
+    "owned_trace_session_status": 4201,
+    "owned_trace_session_status_meaning": "absent",
+    "production_source_restored_exactly": true,
+    "restored_release_executable_sha256": "948c68eb74318e42ffac22781304139730be646a57763e94a8b0c639c367a073"
+  },
+  "method": {
+    "scenario": "Q01",
+    "adapter": {
+      "high": 0,
+      "low": 93226
+    },
+    "release": true,
+    "warmup_seconds": 30,
+    "measurement_seconds": 120,
+    "minimized_seconds": 60,
+    "disconnected_seconds": 60,
+    "samples": 1,
+    "presentmon": true,
+    "deadline_miss_budget_fraction": 0.001
+  },
+  "candidate_executable_sha256": "1df092290dbcef0a9c2aa990655ae20a324e44bae2596efa46b3152acba6dc8a",
+  "native_window_source_sha256": "c4c8339bfcb36a25b6885f7405275dff32a269351496f289cf29298cf7bff16e",
+  "git_head_at_capture": "0fa30df0021b8a9e4541481c0154f9b87fbac775",
+  "input_fingerprints_unchanged": true,
+  "raw_directory_local": "target/qualification-m03-q01-sync1-2026-10-31-b56",
+  "analysis_sha256": "a0d7f5f7c8082cd5012b47aa2a0eaddf13920a4568fede59db7d879c087519eb",
+  "analysis_bytes": 66345034,
+  "raw_hashes_verified": 16,
+  "pixel_test": {
+    "name": "native::outputs::window::tests::hardware_direct_window_encodes_once_and_tracks_flip_buffers_across_presents",
+    "passed": true,
+    "seconds": 0.18,
+    "frames": 6,
+    "pixels_per_frame": 16,
+    "channel_tolerance": 0.00784313725490196
+  },
+  "failed_criteria": [
+    "deadline_misses"
+  ],
+  "delivery_deadlines": [
+    {
+      "output": 1,
+      "expected_slots": 7200,
+      "counts": {
+        "display_witnesses": 7200,
+        "OnTime": 7195,
+        "late_display": 5,
+        "Miss": 5
+      },
+      "deadline_verdict": true,
+      "observation_lateness_upper_bound": {
+        "samples": 7200,
+        "median_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "maximum_ms": 4.9908
+      }
+    },
+    {
+      "output": 2,
+      "expected_slots": 7200,
+      "counts": {
+        "capture_witnesses": 7200,
+        "OnTime": 7200
+      },
+      "deadline_verdict": true,
+      "observation_lateness_upper_bound": {
+        "samples": 7200,
+        "median_ms": 0,
+        "p95_ms": 0,
+        "p99_ms": 0,
+        "maximum_ms": 0
+      }
+    },
+    {
+      "output": 3,
+      "expected_slots": 7200,
+      "counts": {
+        "display_witnesses": 7200,
+        "OnTime": 6307,
+        "late_display": 893,
+        "Miss": 893
+      },
+      "deadline_verdict": false,
+      "observation_lateness_upper_bound": {
+        "samples": 7200,
+        "median_ms": 0,
+        "p95_ms": 0.876,
+        "p99_ms": 0.9068,
+        "maximum_ms": 5.0381
+      }
+    }
+  ],
+  "output_measurement_counts": {
+    "1": {
+      "accepted": 7199,
+      "busy": 0,
+      "device_lost": 0,
+      "failed": 0,
+      "unavailable": 0
+    },
+    "2": {
+      "accepted": 7200,
+      "busy": 0,
+      "device_lost": 0,
+      "failed": 0,
+      "unavailable": 0
+    },
+    "3": {
+      "accepted": 7200,
+      "busy": 0,
+      "device_lost": 0,
+      "failed": 0,
+      "unavailable": 0
+    }
+  },
+  "spout_cohort": {
+    "expected_accepted_images": 7200,
+    "captured_images": 7200,
+    "missing_images": 0,
+    "coverage_complete": true,
+    "observed_age_p95_within_budget": true
+  },
+  "window_source_age_ms": [
+    {
+      "output": 1,
+      "sources": [
+        {
+          "samples": 7199,
+          "median_ms": 20.9227,
+          "p95_ms": 25.2048,
+          "p99_ms": 25.574,
+          "maximum_ms": 37.8972
+        },
+        {
+          "samples": 7199,
+          "median_ms": 18.3138,
+          "p95_ms": 22.6607,
+          "p99_ms": 23.13,
+          "maximum_ms": 30.5905
+        }
+      ]
+    },
+    {
+      "output": 3,
+      "sources": [
+        {
+          "samples": 7200,
+          "median_ms": 21.0384,
+          "p95_ms": 29.2996,
+          "p99_ms": 29.7226,
+          "maximum_ms": 37.8972
+        },
+        {
+          "samples": 7200,
+          "median_ms": 18.4105,
+          "p95_ms": 26.8329,
+          "p99_ms": 27.2581,
+          "maximum_ms": 30.7904
+        }
+      ]
+    }
+  ],
+  "cpu_inclusive_wall_ms": {
+    "samples": 7199,
+    "median_ms": 0.5508,
+    "p95_ms": 0.6926,
+    "p99_ms": 0.7737,
+    "maximum_ms": 1.564
+  },
+  "gpu_context_local_ms": {
+    "samples": 7199,
+    "median_ms": 3.604375,
+    "p95_ms": 5.1903125,
+    "p99_ms": 6.135625,
+    "maximum_ms": 11.055104166666666
+  },
+  "editor_independence_complete": true,
+  "native_telemetry": {
+    "capacity": 65536,
+    "clock_failures": 0,
+    "drained": 194747,
+    "dropped_full": 0,
+    "enabled": true,
+    "qpc_frequency": 10000000,
+    "queued": 0,
+    "written": 194747
+  },
+  "actual_retirement": {
+    "actual_retirement": true,
+    "begin_qpc": 4694907554901,
+    "both_hwnds_retained_until_retirement": true,
+    "elapsed_seconds": 0.0974966,
+    "end_qpc": 4694908495379,
+    "output_destroyed_after_retirement": true
+  },
+  "complete_shutdown_ms": 1444.1173,
+  "launcher": {
+    "exit_code": 0,
+    "timed_out": false,
+    "forced_cleanup": false,
+    "owned_job_active_before_close": 0,
+    "elapsed_seconds": 274.25196129997494
+  },
+  "owned_renderer_pid": 3156,
+  "owned_fixture_pids": [
+    48260,
+    43044,
+    32816
+  ],
+  "owned_children_exited_normally": true,
+  "collector": {
+    "session": "MapGyver-M01-Present-0d2f2d8ccdbd43d2932d315f16d6de86",
+    "exit_code": 0,
+    "forced_cleanup": false,
+    "tools_unchanged": true
+  },
+  "raw_sha256": {
+    "consumer.jsonl": "10ff275b55381f2f6d06f4aa0e16c1b63b4efadaf366b66928af003ffbaf1a2c",
+    "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-0-stdout.jsonl": "0d535fcae49ee57b174259329ac9437fcf4484ab2e11f29342e975933b00f5ad",
+    "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-1-stdout.jsonl": "ac0569ea5799156cd46474611ab7ded5f1e6cb8456f8aae96cf1bfac20ce3617",
+    "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-2-stdout.jsonl": "bf41e50c6ed750f20cf063253395eeb3edf9dec1b3bcb9cc5a965ebbe26c6c43",
+    "inputs.json": "421d4acd03bc1fcf89457fc3dcf960c64348151d8f892a3b633bfd4d74dcf036",
+    "launcher.json": "64ac581e87e60873c9273339b3e956f4a39de3d58c38e73b9ac4a4d22e00846f",
+    "manifest.json": "0192b6471ae732271a36c8d11f79cfc8ad52e4a4afeae02f612435548cbbc46e",
+    "parent-summary.json": "79ea27670ad42c63aa413ef92a57cda963486e47f7ece00f12963a16bf58bf32",
+    "presentmon.json": "fb7b7a14ccfe818fdef617cfe59cae98bade1b31aa34cbe7a9d93bf165151147",
+    "renderer-summary.json": "9d3a733953272fd455eebd25f42ce927fa70199a3dce70c9a8904b835fa36fe3",
+    "renderer.jsonl": "8abf5b322031b042517175bcb4e0a65efe62a571952ce042e9a9a682b340cc0a",
+    "source-1.jsonl": "01ce7038b8ca49493b0551738aa9288a3652604ef8879df1f0d0228897eaa718",
+    "source-2.jsonl": "a9a3b0e31e66649bd460c7dac147901ab7c53bc138b4c11d707426c87bfaca2a"
+  },
+  "limitations": [
+    "The candidate was reverted, not promoted based on a single favorable metric.",
+    "Original Q01 baseline, deadlines and all gates remain unchanged.",
+    "One sample is diagnostic; all missing cross-context/queue/lifecycle/environment requirements remain open."
+  ]
+}
