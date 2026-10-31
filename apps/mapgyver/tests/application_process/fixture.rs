@@ -1,6 +1,10 @@
 use std::time::Duration;
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--lifecycle-exit") {
+        std::thread::sleep(Duration::from_millis(40));
+        std::process::exit(23);
+    }
     #[cfg(all(windows, feature = "native-qualification"))]
     if let Some(sender) = std::env::args().nth(1) {
         spout(sender);

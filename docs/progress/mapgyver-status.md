@@ -5,22 +5,23 @@
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Current topic:** M08 default headless supervision/callback delivery, ordered script callbacks,
-live status and saved/in-use configuration presentation are implemented; **2/4 gates (50%)**.
-Full control/parity and complete qualification remain open.
+live status and saved/in-use configuration presentation are implemented; **3/4 gates (75%)**.
+Controller lifecycle acceptance is verified; full control/parity and app qualification remain open.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** one bounded M08 lifecycle acceptance batch for remaining actual crash/restart, launch
-cancellation and forced process-tree/replacement cases, within the diagnostic allocation. M07 interaction
+**Next:** M08 operator-visible supervision/admission failures and UI/script/headless control parity.
+The bounded lifecycle acceptance batch is complete; no consecutive diagnostic batch. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
 **Last delivered capability:** ordinary `MapGyver --headless` now supervises column-owned apps
 and delivers ordered callbacks (batch 39). Its HTTP check preloads, retains, unloads and restarts an
 owned process; host exit cleans it up while a separate same-executable process survives. Six phase
 events are acknowledged. Hosted scripts and project replacement pass without a renderer. Actor
 captures retain only metadata; worker admission stays on the host. **182 app / 172 headless tests**
-and shared host/transport checks pass. Actual form input and complete native lifecycle/recovery/scale
+and shared host/transport checks pass. Batch 40 closes controller gate 3 with actual crash/backoff,
+suspended cancellation, timeout and pinned descendant cleanup. Actual form input and complete app recovery/scale
 qualification remain open. **Product blocker:** none
 for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual Matrix editor
@@ -50,12 +51,12 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand accepted; readiness/editing/status/callbacks/default headless implemented; full qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 2 / 4 = 50%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 1 / 6 = 17%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -69,6 +70,65 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Qualification batch 40:** started 2026-10-31 **11:58 UTC**, recorded stop **12:43 UTC**.
+Use the second diagnostic allocation (38 product deliveries permit nine; one used previously).
+Verify the remaining M08 gate 3 native crash/restart/backoff, pre-resume cancellation and owned
+descendant forced-stop/replacement behavior through the existing runtime/fixture boundary.
+Keep sender evidence, final-plan retention and stale outcome requirements intact. Hypothesis:
+the existing controller honors these contracts with real Windows processes; failures must identify
+a concrete ownership/admission/restart defect before changing production code. Compile/software
+checks must finish first. Native execution admits at most two invocations and a 20-minute window;
+record its start/cutoff before running. The investigation window is **11:58–12:18 UTC**, including
+preparation; a continuation does not reset it. Do not add GPU, display, clock or general profiling work.
+
+Native execution starts **12:13 UTC**, with the original **12:18 UTC** cutoff. Prerequisites are
+terminal: **182 default app tests / one hardware ignore**, **172 GPU-disabled software tests / one
+explicit native-fixture ignore**, strict all-target/all-feature Clippy, both finite fixture builds
+and both GPU-disabled native test executable builds. First invoke the explicit pre-resume
+cancellation case; second invoke the seven owned-process integration cases including the explicit
+tree fixture case. No third invocation is allowed. Cross-package fixture cases stay explicitly
+ignored in ordinary runs rather than depending silently on a prebuilt executable.
+
+**Batch 40 result (12:13 UTC): M08 gate 3 closes.** Both native invocations pass before the
+12:18 cutoff. The first proves actual suspended creation followed by pre-resume cancellation,
+retained suspended ownership, verified cleanup and no execution of the target's report code
+(**1/1**, 0.04 s). The second passes **7/7** owned-process integration cases (1.16 s).
+New cases observe exit code 23 through three distinct launches, configured 150/300/300 ms capped
+backoff deadlines with no early launch, cancellation of retry on intentional unload, externally
+supplied readiness timing out with owned-process retirement, and forced stop/project retirement
+of two three-process trees. Read-only SYNCHRONIZE handles pin each known root/branch/leaf lifetime
+before cleanup; all signal before completion is accepted. No process-name observation or kill is used.
+The fixtures are finite, hidden and owned by the test. GPU-disabled execution never loads a sender
+or creates a graphics device/window. Existing native Spout evidence is retained from batch 35.
+
+Gate 3's complete fixed scope maps to cumulative evidence, without a denominator or budget change:
+
+| Required behavior | Verified evidence |
+| --- | --- |
+| Independent launch, process readiness and owned cleanup | Batches 32–34/39; all four existing native regressions pass again in batch 40 |
+| Actual sender/first completed image and stale launch/sender fences | Batch 35 actual SDK/image test; tagged-evidence/project rejection regression passes again in batch 40 |
+| Readiness timeout, crash/restart/capped backoff and unload cancellation | Fake-time suites plus batch 40's real owned-process timeout and three-launch crash/retry cases |
+| Cancellation before resume and retained failed/suspended ownership | Fake resume-failure/cancellation suites plus batch 40's actual suspended-process cancellation |
+| Shared demand without transient restart and final render/unload release | Batches 33–34 final-plan and no-render/two-Matrix cases; actual owned-process regressions pass again in batch 40 |
+| Bounded graceful/forced stop, complete tree retirement and stale project outcomes | Gate 1's actual close/Job primitive, fake deadline/stuck-retirement suites, and batch 40's pinned root/branch/leaf stop and retired-project cases |
+
+Reproduce the fixture builds with `cargo build --locked -p MapGyver -p golden_io
+--no-default-features --features MapGyver/application-process-fixture,golden_io/process-fixture
+--bin application_process_fixture --bin golden_io_process_fixture`. Compile tests with
+`cargo test --locked -p MapGyver --no-default-features --features application-process-fixture
+--lib --test application_runtime --no-run`. Run the returned library executable with
+`--ignored native_pre_resume_cancellation --nocapture`, then the integration executable with
+`--include-ignored --nocapture`. The fresh default software suite passes **182 / one existing
+hardware ignore**; GPU-disabled software passes **172 / one explicit fixture ignore**. Strict
+all-target/all-feature Clippy, generated drift, both required formatters and whitespace checks pass.
+
+M08 is now **3/4 = 75%**. Overall remains **3/10 = 30%** because gate 4 is open. Full app/mode/
+UI/script/transport parity, unsupported/singleton/elevated/launcher/breakaway outcomes and complete
+recovery/cleanup acceptance remain gate 4; production GPU/display/cadence qualification retains its
+existing phase owners. Product-delivery count stays **38**; diagnostic-only usage is now **2/9**.
+Next is a product delivery for operator-visible supervision failures/control parity, not another
+diagnostic batch or parked M03 investigation.
 
 **Product batch 39:** started 2026-10-31 **11:35 UTC**, recorded stop **12:20 UTC**.
 Wire default headless application demand supervision and ordered script callbacks through a
@@ -495,7 +555,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | --- | --- | --- |
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
-| 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Open — controller/final-use checks pass in batches 32–34; batch 35 verifies actual owned Spout startup/image readiness and final cleanup. Complete native restart/cancellation/process-tree/recovery qualification remains |
+| 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
 | 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
@@ -2013,7 +2073,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 38. Diagnostic-only batch allowance: 9, one used.**
+**Product-delivery count since correction: 38. Diagnostic-only batch allowance: 9, two used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -2066,8 +2126,8 @@ controls are the thirty-fifth. Live process/configuration observations are the t
 Ordered, receipt-gated lifecycle callbacks are the thirty-seventh.
 Default headless application supervision/callback attachment is the thirty-eighth.
 The allowance is nine at
-`floor(38 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. One bounded
-M08 lifecycle acceptance batch is scheduled next; consecutive diagnostic-only batches remain prohibited by default.
+`floor(38 / 4)`, following the four-product-to-one-diagnostic ratio; two were used. The bounded
+M08 lifecycle acceptance batch is complete; consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
 
@@ -2261,16 +2321,15 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–2/4 accepted; logical/rendered demand drives workers through unload/retirement; readiness, editing, live status, ordered callbacks and default headless supervision are implemented. Full parity and UI/native lifecycle/recovery/scale qualification remain open. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/live status/callbacks/default headless work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Run **one bounded M08 lifecycle acceptance batch** for remaining actual crash/restart/backoff,
-launch cancellation, forced process-tree shutdown and project replacement. Use the existing owned
-fixture and controller/host boundaries; at most two native invocations/20 minutes within a
-45-minute batch. This consumes the diagnostic allocation only when executed. Default headless
-supervision/callback delivery and the ordinary HTTP process-ownership path now work. Keep the ordered
+Deliver **M08 operator-visible supervision/admission failures and control parity** through the
+generated backend status/UI/script/headless contracts. Gate 3's bounded lifecycle acceptance
+batch is complete; do not run another diagnostic-only batch next. Default headless supervision/
+callback delivery and the ordinary HTTP process-ownership path work. Keep the ordered
 phase journal separate from coalesced snapshots. Preserve project/launch fencing, preparation/active/outgoing/final-use
 boundaries and shared scopes while finishing lifecycle control/callback parity. Preserve independent admission and truthful
 retirement; never dispatch from authoring/Undo or infer actual sender readiness from a running process.
@@ -2287,8 +2346,8 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Thirty-six product slices are delivered; documentation checkpoints are excluded. Nine diagnostic-only
-batches are allowed by the ratio, one has been used, and none is scheduled next. Continue the product path;
+Thirty-eight product slices are delivered; documentation checkpoints are excluded. Nine diagnostic-only
+batches are allowed by the ratio, two are used after the completed M08 batch. Continue the product path;
 retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and

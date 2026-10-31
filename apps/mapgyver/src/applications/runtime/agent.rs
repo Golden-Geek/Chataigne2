@@ -2,6 +2,9 @@ use crate::applications::protocol::*;
 use golden_io::owned_process::{OwnedProcess, ProcessSnapshot, ProcessSpec, RootProcessState, SuspendedProcess};
 use std::sync::Arc;
 
+#[cfg(all(test, windows, feature = "application-process-fixture"))]
+mod tests;
+
 pub(super) struct ResumeFailure<P> {
     pub message: String,
     pub process: Box<P>,

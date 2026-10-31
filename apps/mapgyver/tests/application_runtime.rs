@@ -16,6 +16,8 @@ use mapgyver::{
 };
 use std::time::{Duration, Instant};
 
+mod lifecycle;
+
 fn edit(engine: &mut AppEngine, edit: ApplicationEdit) -> MediaEditResult {
     let ack = apply_project_intent(
         engine,
