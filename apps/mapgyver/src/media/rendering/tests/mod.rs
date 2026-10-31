@@ -1,3 +1,4 @@
+mod applications;
 mod capture;
 mod composition;
 mod matrix;

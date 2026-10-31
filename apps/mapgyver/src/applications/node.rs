@@ -14,6 +14,16 @@ pub struct ApplicationNode {
     revision: RevisionSource,
 }
 impl ApplicationNode {
+    pub(crate) fn availability(&self) -> super::demand::DefinitionAvailability {
+        use super::demand::DefinitionAvailability;
+        if !self.data.effective_enabled {
+            DefinitionAvailability::Disabled
+        } else if self.definition.executable.is_none() {
+            DefinitionAvailability::Unconfigured
+        } else {
+            DefinitionAvailability::Configured
+        }
+    }
     pub(super) fn new(label: String, definition: ApplicationDefinition) -> Self {
         Self {
             data: NodeData::new(label),

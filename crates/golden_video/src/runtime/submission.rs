@@ -15,6 +15,8 @@ pub struct PlanSubmission {
     pub source_demands: Vec<TextureId>,
     /// Immutable authoring fences. These never contain native resources.
     pub guards: Arc<[RevisionGuard]>,
+    /// Optional app-neutral final-use observation, retained until resources actually retire.
+    pub lifetime: Option<super::PlanLifetime>,
 }
 
 impl PlanSubmission {
@@ -24,6 +26,7 @@ impl PlanSubmission {
             plan,
             source_demands: Vec::new(),
             guards: Arc::from([]),
+            lifetime: None,
         }
     }
 
@@ -69,12 +72,18 @@ impl PlanSubmission {
             .checked_add(self.guards.iter().try_fold(0_usize, |bytes, guard| {
                 bytes.checked_add(size_of::<RevisionGuard>() + guard.retained_heap_bytes())
             })?)?
-            .checked_add(2 * size_of::<usize>())
+            .checked_add(2 * size_of::<usize>())?
+            .checked_add(
+                self.lifetime
+                    .as_ref()
+                    .map_or(0, super::PlanLifetime::retained_heap_bytes),
+            )
     }
 
     pub(crate) fn compile(self, limits: &PlanLimits) -> Result<CompiledPlan, PlanError> {
         let mut compiled = self.plan.compile_with_source_demands(limits, &self.source_demands)?;
         compiled.guards = self.guards;
+        compiled.lifetime = self.lifetime;
         Ok(compiled)
     }
 }

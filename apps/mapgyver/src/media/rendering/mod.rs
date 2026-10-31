@@ -43,6 +43,7 @@ struct Entry {
 }
 
 pub struct ChannelRenderer {
+    applications: Option<crate::applications::runtime::PlanRetainer>,
     feedback: std::sync::Mutex<feedback::Feedback>,
     runtime: VideoRuntime,
     limits: PlanLimits,
@@ -68,6 +69,7 @@ struct Desired {
 impl ChannelRenderer {
     pub fn new(runtime: VideoRuntime, limits: PlanLimits) -> Self {
         Self {
+            applications: None,
             feedback: Default::default(),
             runtime,
             limits,
@@ -82,6 +84,18 @@ impl ChannelRenderer {
             latest_request: None,
             pictures: None,
         }
+    }
+
+    /// Bind process final-use ownership to this renderer's actual queued/live/retiring plans.
+    pub fn bind_applications(&mut self, retainer: crate::applications::runtime::PlanRetainer) {
+        self.applications = Some(retainer);
+    }
+    /// Latest captured preparation/clip demand; installation and final-use proof remain separate.
+    pub fn application_demand(&self) -> Vec<crate::applications::demand::ApplicationDemand> {
+        self.desired
+            .as_ref()
+            .map(|desired| desired.capture.application_demand())
+            .unwrap_or_default()
     }
 
     /// Configure one bounded picture worker from a host/preparation owner. No file work occurs
@@ -231,7 +245,7 @@ impl ChannelRenderer {
             .0;
             pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
         }
-        let prepared = plan::build(
+        let mut prepared = plan::build(
             &capture,
             plan::Targets {
                 routes: &routes,
@@ -247,6 +261,19 @@ impl ChannelRenderer {
             &observations,
             self.pictures.as_ref(),
         )?;
+        let applications = capture.plan_applications();
+        if !applications.is_empty() {
+            let retainer = self
+                .applications
+                .as_ref()
+                .ok_or("Matrix applications require a bound lifecycle owner before rendering")?;
+            if retainer.project() != capture.project {
+                return Err("Matrix application owner belongs to another project".into());
+            }
+            let lifetime = golden_video::runtime::PlanLifetime::default();
+            retainer.retain(&applications, lifetime.observer())?;
+            prepared.submission.lifetime = Some(lifetime);
+        }
         let activation =
             PlanActivation::NextFrame(self.runtime.read_time().map_err(|error| error.to_string())?.epoch());
         let request = self
@@ -311,7 +338,7 @@ impl ChannelRenderer {
             return Ok(None);
         };
         if transitions_finished {
-            desired.capture.settle_transitions(time);
+            desired.capture.settle_transitions(time)?;
         }
         self.publish_observed_targets(
             desired.capture,

@@ -4,23 +4,23 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M08 shared definitions, clamped column demand and the explicit background
-application lifecycle controller are implemented and functionally verified; **1/4 gates (25%)**.
-Automatic Matrix/render-retirement demand capture and real Spout readiness observation remain next.
+**Current topic:** M08 rendered Matrix demand now drives application workers, with plan final-use
+retention verified through delayed software GPU completion and a real owned process; **1/4 gates
+(25%)**. No-render-consumer capture and real Spout readiness observation remain next.
 M03 stays **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** connect committed Matrix preparation/active/outgoing/final-use demand to the implemented
-background controller, then connect real Spout readiness observations. M07 interaction
+**Next:** capture committed Matrix demand even without a render consumer, then connect real Spout
+readiness observations and finish app/column editing and observation parity. M07 interaction
 is parked after the bounded surface check; no automation recovery detour.
-**Last delivered capability:** an explicit live-project application controller launches and retires
-owned executables on independent bounded workers, preserves shared/outgoing/final-use owners,
-backs off after crashes and reports lifecycle state through generated Media/script inspection.
-Two real-process tests verify identity/history, held configuration replacement, tagged readiness
-and project cleanup (batch 32). Matrix does not yet drive this controller automatically; injected
-readiness is not actual Spout evidence. Actual editor gestures remain
+**Last delivered capability:** the native host binds rendered Matrix preparation/active/outgoing
+demand to application workers. Column neighbors preload apps; frozen clip references survive
+edits/removal, and actual plan lifetime keeps processes alive through controller/project close until
+final resource use retires (batch 33). Three owned-process integration tests pass, including a real
+process held across a deliberately pending software GPU fence. This is not native D3D/Spout proof;
+explicit no-render-consumer loading and real sender observation remain open. Actual editor gestures remain
 unverified. **Product blocker:** none for M08. The bounded UI check renders the Matrix panel but the
 available helper reports higher target integrity and cannot verify input. Actual editor interaction remains
 under gate 3; independent app pixels and full recovery/scale remain under gate 4 and their owning phases.
@@ -48,7 +48,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Owned-process mechanism accepted; model/controller implemented; Matrix/Spout integration open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Rendered Matrix/worker/final-use path implemented; no-consumer/Spout/parity acceptance open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
@@ -67,6 +67,61 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M08 acceptance items
+
+**Product batch 33:** started 2026-10-31 **08:14 UTC**, recorded stop **08:59 UTC**.
+Connect committed Matrix column/transition demand to the application lifecycle controller and
+retain application owners through submitted plan/final renderer use. Keep capture bounded and
+event-driven; use existing Golden lifetime mechanisms or add a minimal app-neutral retention hook.
+Verify pre/post, direct jumps, shared scopes, outgoing/removal/configuration holds, rejected/stale
+plans and retirement with software/fake controls before a bounded owned-process integration run.
+Keep real Spout readiness and complete UI/special-target qualification explicit if not wired here.
+No GPU timing, driver, editor automation or parked M03 investigation.
+
+The owned-process/software-renderer integration baseline starts **08:43 UTC**, stops by the batch's
+**08:59 UTC** cutoff and admits at most two invocations. Software prerequisites are terminal:
+**164 app tests/one existing hardware ignore**, **113 Golden Video tests** and strict all-target/
+all-feature MapGyver/Golden Video Clippy pass. Verify a real owned fixture starts from captured
+Matrix neighbor demand, remains alive after project close while a software GPU fence is pending,
+then stops after actual plan retirement. This is not native D3D11/Spout pixel or sender evidence.
+
+**Batch 33 result:** Matrix capture freezes application references per admitted clip and caches
+neighbor/preparation/active/outgoing demand across layer/group/final captures. Edits/removal retain
+the old active/outgoing IDs; transition settlement releases logical outgoing references. Availability
+is resolved from backend definitions, and project/app/Matrix guards fence suspended process admission.
+The native host now owns an application bridge independently of native renderer/topology incarnations;
+it reconciles committed rendered demand, binds final-use retention before publication, updates demand
+after transition settlement and releases demand when the last render consumer disappears.
+
+Golden Video adds only a payload-free `PlanLifetime` and read-only completion observer. Submission,
+compiled/recovery plans and backend generations retain it; final release follows actual resource and
+immutable-input disposal, never just Installed. Conservative input accounting includes its allocations.
+MapGyver maps observers to at most 64 app identities/128 pending lifetimes per identity. Existing
+process owners remain alive through controller close/drop or project invalidation while a final-use
+hold exists; such holds can never start a process. Missing proof keeps both process ownership and
+the global worker slot charged. No GPU/process/app policy or handle enters the generic token.
+
+**Verification:** **164 app tests/one pre-existing hardware ignore**, **154 headless tests**, **113
+Golden Video tests**, strict all-target/all-feature MapGyver/Golden Video Clippy, **38 frontend
+tests**, Svelte **0 errors/0 warnings**, ordinary MapGyver build and Chataigne binary compile check
+pass. Generated-contract drift checks pass in the app suite. Matrix tests cover clamped neighbor
+capture, non-displayed preload, direct jumps, frozen active IDs through column/definition removal,
+stale capture and required matching lifecycle admission. Golden tests prove Installed is insufficient,
+delayed resource completion releases the old lifetime, and rejected input disposal releases its token.
+
+The first and only owned-process integration invocation passes all **three tests**. The new case
+starts the real finite fixture from column 2's demand for column 3, binds renderer use, moves outside
+the neighbor window, replaces the plan and closes the project. The same PID remains Ready while
+software GPU work is uncompleted, then reaches proven Idle only after completion/retirement; all
+workers retire and no fixture remains. This does not exercise the bundled host interactively, a real
+Spout producer or native D3D completion. No further native invocation is queued. Both formatters and
+final whitespace checks run before delivery; final checks finish by **08:51 UTC**, before **08:59 UTC**.
+
+**No gate closes:** M08 stays **1/4 = 25%**, overall **3/10 = 30%**. Explicit column demand without
+a render consumer still needs project-wide capture. Actual Spout readiness, pending/in-use config
+presentation, complete UI/script/headless observation/control parity, native full-lifecycle and
+special-target/recovery qualification remain under gates 2–4. Large-index/large-grid qualification
+remains open. Product deliveries become **32**, diagnostic-only allowance **8**, **one used**; no
+diagnostic-only batch is scheduled. Next is no-render-consumer demand and real readiness wiring.
 
 **Product batch 32:** started 2026-10-31 **07:41 UTC**, recorded stop **08:26 UTC**.
 Deliver the MapGyver-owned application lifecycle controller and bounded background process owner,
@@ -141,8 +196,8 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | Gate | Full acceptance scope | State |
 | --- | --- | --- |
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
-| 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Open — batch 31 verifies authoring and pure aggregate demand; committed runtime lease capture and fake lifecycle integration remain |
-| 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Open — batch 32 verifies the explicit controller with fake and owned-process tests; automatic Matrix/final-render capture and real sender evidence remain |
+| 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Open — batches 31–33 verify authoring and rendered Matrix/process/plan-retirement capture; explicit no-render-consumer demand and complete scope/qualification remain |
+| 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Open — controller and rendered final-use path pass fake/software/owned-process checks in batches 32–33; real sender evidence and full native lifecycle qualification remain |
 | 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
@@ -1660,7 +1715,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 31. Diagnostic-only batch allowance: 7, one used.**
+**Product-delivery count since correction: 32. Diagnostic-only batch allowance: 8, one used.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -1705,8 +1760,9 @@ The bounded Matrix grid, full settings/reorder forms and correlated renderer obs
 twenty-sixth through twenty-eighth capabilities. Batch 29 used one diagnostic allocation and left
 actual input acceptance open. Public Golden IO process ownership is the twenty-ninth; shared app
 definitions and the pure column-demand model are the thirtieth. The independent application lifecycle
-controller and generated runtime observation are the thirty-first. The allowance is seven at
-`floor(31 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
+controller and generated runtime observation are the thirty-first. Rendered Matrix application
+demand and final-plan process retention are the thirty-second. The allowance is eight at
+`floor(32 / 4)`, following the four-product-to-one-diagnostic ratio; one was used. No further
 diagnostic batch is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
 explicit user request; otherwise it resumes in its scheduled lane after product delivery.
@@ -1901,17 +1957,18 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
-| M08 App lifetimes | IN_PROGRESS | [Owned-process mechanism/model/controller](#m08-acceptance-items): gate 1/4 accepted; independent lifecycle workers pass fake and owned-process checks. Automatic Matrix/final-render demand capture, real Spout readiness and full parity remain open. |
+| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gate 1/4 accepted; rendered Matrix demand drives workers and retains processes through plan retirement. No-render-consumer capture, real Spout readiness and full parity/qualification remain open. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Deliver **M08 automatic Matrix demand capture and renderer lifetime wiring** against the implemented
-application controller. Capture committed preparation/active/outgoing/final-use holds, feed the
-clamped aggregate resolver and retain process ownership through actual renderer/unload completion.
-Connect real Spout readiness through project/launch-fenced evidence. Preserve independent worker
-admission and truthful retirement outcomes; never start OS effects from authoring or Undo. The
-explicit controller is verified, but bundled columns do not drive it yet. Preserve existing qualification
+Deliver **M08 no-render-consumer Matrix demand and real readiness observation** against the rendered
+Matrix/application/retirement path now implemented. Capture committed logical column demand without
+requiring a preview or Screen consumer, preserving preparation/active/outgoing/final-use boundaries.
+Connect actual Spout sender/first-frame observations through project/launch fencing; finish dedicated
+app/column forms and lifecycle observation/control parity. Preserve independent admission and truthful
+retirement; never dispatch from authoring/Undo or infer actual sender readiness from a running process.
+Rendered Matrix demand is wired; its actual bundled/native qualification stays open. Preserve existing qualification
 requirements. M07's bounded input check is finished with missing interaction evidence retained. Do not
 reopen browser/privilege/driver/clock recovery to qualify that editor before implementing M08.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
@@ -1923,7 +1980,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Thirty-one product slices are delivered; documentation checkpoints are excluded. Seven diagnostic-only
+Thirty-two product slices are delivered; documentation checkpoints are excluded. Eight diagnostic-only
 batches are allowed by the ratio, one has been used, and none is scheduled next. Continue the product path;
 retained M03 qualification is not the default work queue.
 

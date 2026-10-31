@@ -134,6 +134,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut accepted_outputs = std::collections::HashMap::new();
     let mut next_display_scan = Instant::now();
     let mut display_snapshot = crate::screens::protocol::DisplayCatalogSnapshot::default();
+    let mut applications = crate::applications::bridge::Bridge::default();
     while !input.stop.is_requested() {
         let refresh = input.displays.take_refresh();
         if refresh || Instant::now() >= next_display_scan {
@@ -231,6 +232,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 }
                 if owner.is_none() {
                     if layout.views.is_empty() && topology.is_empty() {
+                        let next = capture.as_ref().ok_or("presentation capture missing")?;
+                        sync_applications(
+                            &input,
+                            &mut applications,
+                            next.channels.project,
+                            next.channels.application_demand(),
+                            next.channels.guards.clone(),
+                        )?;
                         published = Some(layout.generation);
                         return Ok(());
                     }
@@ -270,6 +279,13 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 changed |= renderer.set_picture_root(&root)?;
                 if changed {
                     let next = capture.as_ref().ok_or("presentation capture missing")?;
+                    let project = next.channels.project;
+                    let demand = next.channels.application_demand();
+                    if let Some(retainer) =
+                        sync_applications(&input, &mut applications, project, demand, next.channels.guards.clone())?
+                    {
+                        renderer.bind_applications(retainer);
+                    }
                     renderer.publish_screen_targets(
                         next.channels.clone(),
                         Vec::new(),
@@ -282,6 +298,19 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     confirmed = None;
                 } else {
                     renderer.refresh()?;
+                }
+                let project = capture.as_ref().ok_or("presentation capture missing")?.channels.project;
+                let demand = renderer.application_demand();
+                if applications.needs_sync(project, &demand)
+                    && let Some(retainer) = sync_applications(
+                        &input,
+                        &mut applications,
+                        project,
+                        demand,
+                        capture.as_ref().unwrap().channels.guards.clone(),
+                    )?
+                {
+                    renderer.bind_applications(retainer);
                 }
                 let mut outcomes = Vec::new();
                 renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(8).unwrap());
@@ -434,4 +463,24 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     input.controller.close();
     drop(owner);
     Ok(())
+}
+
+fn sync_applications(
+    input: &Input,
+    applications: &mut crate::applications::bridge::Bridge,
+    project: uuid::Uuid,
+    demand: Vec<crate::applications::demand::ApplicationDemand>,
+    admission: std::sync::Arc<[golden_io::RevisionGuard]>,
+) -> Result<Option<crate::applications::runtime::PlanRetainer>, String> {
+    let mut bridge = std::mem::take(applications);
+    let notifier = input.notifier.clone();
+    let (returned, result) = input
+        .runtime
+        .capture_app(move |engine| {
+            let result = bridge.sync(engine, project, demand, admission, notifier);
+            (bridge, result)
+        })
+        .map_err(|e| e.to_string())?;
+    *applications = returned;
+    result
 }

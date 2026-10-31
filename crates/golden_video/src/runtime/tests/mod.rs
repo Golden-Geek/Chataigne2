@@ -22,6 +22,7 @@ use super::{
 
 mod admission;
 mod images;
+mod lifetime;
 mod ownership;
 mod recovery;
 mod recovery_project;

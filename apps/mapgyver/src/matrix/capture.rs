@@ -18,6 +18,7 @@ pub(crate) struct MatrixInput {
 }
 #[derive(Clone)]
 pub(crate) struct CapturedMatrix {
+    pub applications: super::applications::CapturedApplications,
     pub observation: MatrixPlanStamp,
     pub canvas: golden_video::Extent2D,
     pub opacity: f32,
@@ -75,6 +76,9 @@ pub(crate) fn capture(
                 }
             }
             let mut captured = CapturedMatrix {
+                applications: timeline
+                    .applications
+                    .capture(&index, frame, playback, control.authoring_revision())?,
                 observation: MatrixPlanStamp {
                     playback: playback.clone(),
                     revision: control.authoring_revision(),

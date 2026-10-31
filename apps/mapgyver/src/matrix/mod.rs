@@ -1,5 +1,6 @@
 //! MapGyver Matrix document ownership. Golden supplies graph edits, history and execution mechanisms.
 mod admission;
+mod applications;
 mod authoring;
 mod bindings;
 pub(crate) mod capture;

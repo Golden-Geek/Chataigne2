@@ -53,6 +53,20 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub(crate) fn capture_applications(
+        &self,
+        time: golden_time::TimeSnapshot,
+    ) -> Result<super::applications::CapturedApplications, String> {
+        let Some(index) = self.cached() else {
+            return Err("Matrix app index is stale".into());
+        };
+        self.with_frame(Some(time), |timeline, frame, playback| {
+            timeline
+                .applications
+                .capture(&index, frame, playback, self.authoring_revision())
+        })
+        .map(|captured| captured.unwrap_or_default())
+    }
     pub fn view(&self) -> Option<Arc<super::view::ViewIndex>> {
         self.0
             .state

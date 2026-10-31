@@ -128,6 +128,7 @@ pub(super) fn compile(
     plan.outputs.sort_unstable_by_key(|output| output.id);
     Ok(CompiledPlan {
         guards: std::sync::Arc::from([]),
+        lifetime: None,
         external_textures: plan.external_textures.into_boxed_slice(),
         passes: plan.passes.into_boxed_slice(),
         outputs: plan.outputs.into_boxed_slice(),

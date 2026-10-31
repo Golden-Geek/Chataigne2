@@ -310,6 +310,8 @@ pub struct CompiledPlan {
     passes: Box<[RenderPass]>,
     outputs: Box<[PlanOutput]>,
     footprint: TextureFootprint,
+    // Last field: signal final-use release after all immutable plan inputs are dropped too.
+    pub(crate) lifetime: Option<crate::runtime::PlanLifetime>,
 }
 
 impl CompiledPlan {

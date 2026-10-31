@@ -58,16 +58,59 @@ impl CapturedChannel {
 }
 
 impl CapturedChannels {
+    /// Whole captured Matrix preparation/active/outgoing demand, including clamped neighbors.
+    /// This reads immutable metadata only; reconcile it on a live application runtime explicitly.
+    pub fn application_demand(&self) -> Vec<crate::applications::demand::ApplicationDemand> {
+        let mut result = std::collections::HashMap::<_, crate::applications::demand::ApplicationDemand>::new();
+        for entry in self
+            .channels
+            .iter()
+            .filter_map(|channel| channel.matrix.as_ref())
+            .flat_map(|matrix| &matrix.applications.demand)
+        {
+            result
+                .entry(entry.application)
+                .and_modify(|value| value.reasons.extend(&entry.reasons))
+                .or_insert_with(|| entry.clone());
+        }
+        let mut result = result.into_values().collect::<Vec<_>>();
+        result.sort_by_key(|entry| entry.application.0.0);
+        result
+    }
+    pub(crate) fn plan_applications(&self) -> Vec<crate::applications::protocol::ApplicationId> {
+        let mut references = self
+            .channels
+            .iter()
+            .filter_map(|channel| channel.matrix.as_ref())
+            .flat_map(|matrix| &matrix.applications.references)
+            .copied()
+            .collect::<Vec<_>>();
+        references.sort_by_key(|id| id.0.0);
+        references.dedup();
+        references
+    }
     pub(crate) fn transitions_finished(&self, time: golden_time::TimeSnapshot) -> bool {
         self.channels
             .iter()
             .filter_map(|channel| channel.matrix.as_ref())
             .any(|matrix| matrix.until.is_some_and(|until| until.finished(time)))
     }
-    pub(crate) fn settle_transitions(&mut self, time: golden_time::TimeSnapshot) {
+    pub(crate) fn settle_transitions(&mut self, time: golden_time::TimeSnapshot) -> Result<(), String> {
         for matrix in self.channels.iter_mut().filter_map(|channel| channel.matrix.as_mut()) {
             if matrix.until.is_some_and(|until| until.finished(time)) {
                 matrix.control.settle(time);
+                let availability = matrix
+                    .applications
+                    .demand
+                    .iter()
+                    .map(|entry| (entry.application, entry.availability))
+                    .collect::<std::collections::HashMap<_, _>>();
+                matrix.applications = matrix.control.capture_applications(time)?;
+                for entry in &mut matrix.applications.demand {
+                    if let Some(available) = availability.get(&entry.application) {
+                        entry.availability = *available;
+                    }
+                }
                 matrix
                     .inputs
                     .retain(|input| input.weight.is_none_or(|weight| weight.target().get() > 0.0));
@@ -82,6 +125,7 @@ impl CapturedChannels {
                     .retain(|column| Some(*column) == matrix.observation.playback.desired_column);
             }
         }
+        Ok(())
     }
     pub fn is_current(&self) -> bool {
         self.guards.iter().all(RevisionGuard::is_current)
@@ -291,10 +335,37 @@ pub(crate) fn capture_channels_with_time(
             matrix,
         });
     }
-    Ok(CapturedChannels {
+    let mut captured = CapturedChannels {
         project: manager.instance,
         guards: Arc::from(guards),
         channels,
         assets,
-    })
+    };
+    let demand = captured.application_demand();
+    if !demand.is_empty() {
+        let mut guards = captured.guards.to_vec();
+        let mut availability = std::collections::HashMap::new();
+        guards.push(manager.membership_guard());
+        for entry in demand {
+            if let Some(AppNode::Application(node)) = engine
+                .node_id_by_uuid(entry.application.0)
+                .and_then(|id| engine.nodes.get(id))
+            {
+                guards.push(node.guard());
+                availability.insert(entry.application, node.availability());
+            }
+        }
+        captured.guards = guards.into();
+        for entry in captured
+            .channels
+            .iter_mut()
+            .filter_map(|channel| channel.matrix.as_mut())
+            .flat_map(|matrix| &mut matrix.applications.demand)
+        {
+            if let Some(available) = availability.get(&entry.application) {
+                entry.availability = *available;
+            }
+        }
+    }
+    Ok(captured)
 }

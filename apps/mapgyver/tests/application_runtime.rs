@@ -226,3 +226,207 @@ fn owned_process_accepts_only_current_tagged_readiness_evidence_and_project_repl
     drop(runtime);
     assert!(retirement.wait_for_idle(Duration::from_secs(4)));
 }
+
+#[test]
+fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completion_after_project_close() {
+    use golden_video::{
+        Extent2D, OutputId,
+        plan::PlanLimits,
+        runtime::{NullConfig, ResourceLimits, RuntimeConfig, VideoRuntime},
+    };
+    use mapgyver::{
+        matrix::protocol::*,
+        media::{
+            capture_channels,
+            rendering::{ChannelRenderer, ChannelRoute},
+        },
+    };
+    use std::num::NonZeroUsize;
+    fn media(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
+        let ack = apply_project_intent(
+            engine,
+            UiEditIntent::InvokeAppOperation {
+                namespace: MEDIA_NAMESPACE.into(),
+                operation: MEDIA_OPERATION.into(),
+                payload: serde_json::to_value(operation).unwrap(),
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        serde_json::from_value(ack.result.unwrap().value).unwrap()
+    }
+    fn installed(renderer: &ChannelRenderer, request: golden_video::runtime::RequestId) {
+        let until = Instant::now() + Duration::from_secs(4);
+        loop {
+            let mut outcomes = Vec::new();
+            renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+            if let Some(outcome) = outcomes.iter().find(|outcome| outcome.request == request) {
+                assert!(
+                    matches!(outcome.result, golden_video::runtime::OutcomeKind::Installed { .. }),
+                    "{outcome:?}"
+                );
+                return;
+            }
+            assert!(Instant::now() < until, "renderer installation deadline");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+    }
+    let (mut engine, application) = fixture(ApplicationReadiness::ProcessStarted);
+    let MediaEditResult::Created { reference } = media(
+        &mut engine,
+        MediaEdit::CreateMedia {
+            media_kind: mapgyver::media::protocol::MediaKind::Matrix,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let matrix = |engine: &mut AppEngine, edit| {
+        media(
+            engine,
+            MediaEdit::Matrix {
+                media: reference.media,
+                edit,
+            },
+        )
+    };
+    matrix(
+        &mut engine,
+        MatrixEdit::Configure {
+            definition: MatrixDefinition {
+                canvas: Extent2D::new(2, 2).unwrap(),
+                ..Default::default()
+            },
+        },
+    );
+    let MediaEditResult::MatrixCreated { columns, .. } = matrix(&mut engine, MatrixEdit::AddColumns { count: 3 })
+    else {
+        panic!()
+    };
+    matrix(
+        &mut engine,
+        MatrixEdit::ConfigureColumn {
+            column: columns[2],
+            definition: ColumnDefinition {
+                applications: vec![ColumnApplication {
+                    application,
+                    pre: 1,
+                    post: 1,
+                }],
+                ..Default::default()
+            },
+        },
+    );
+    let mut runtime = ApplicationRuntime::start(&engine, None).unwrap();
+    let process_retirement = runtime.retirement();
+    matrix(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: columns[1],
+            mode: LaunchMode::Cut,
+        },
+    );
+    let preload = capture_channels(&engine, &[reference], 8).unwrap();
+    assert_eq!(
+        preload.application_demand()[0].reasons,
+        [DemandReason::Neighbor].into_iter().collect()
+    );
+    runtime.reconcile(&engine, &preload.application_demand()).unwrap();
+    let process = wait(&runtime, ApplicationPhase::Ready);
+    let config = RuntimeConfig {
+        plan_limits: PlanLimits {
+            max_passes: 16,
+            max_external_textures: 16,
+            max_outputs: 4,
+            max_dependencies: 64,
+            max_texture_dimension: 4096,
+            max_texture_bytes: 64 * 1024 * 1024,
+        },
+        resource_limits: ResourceLimits {
+            max_bytes: 128 * 1024 * 1024,
+            max_in_flight: NonZeroUsize::new(2).unwrap(),
+            max_retiring: 2,
+        },
+        frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
+        max_outstanding: NonZeroUsize::new(16).unwrap(),
+        max_input_bytes: NonZeroUsize::new(65536).unwrap(),
+        max_retained_input_bytes: NonZeroUsize::new(262144).unwrap(),
+        recovery_delay: Duration::from_millis(10),
+        max_recovery_delay: Duration::from_millis(100),
+        notifier: None,
+    };
+    let video = VideoRuntime::spawn_null(
+        config.clone(),
+        NullConfig {
+            auto_complete: false,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let control = video.null_control().unwrap();
+    let retirement = video.retirement();
+    let mut renderer = ChannelRenderer::new(video, config.plan_limits);
+    renderer.bind_applications(runtime.plan_retainer());
+    let startup = Instant::now() + Duration::from_secs(4);
+    while renderer.snapshot().resources.is_none() {
+        assert!(Instant::now() < startup, "renderer startup deadline");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    matrix(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: columns[2],
+            mode: LaunchMode::Cut,
+        },
+    );
+    let capture = capture_channels(&engine, &[reference], 8).unwrap();
+    runtime.reconcile(&engine, &capture.application_demand()).unwrap();
+    let routes = || {
+        vec![ChannelRoute {
+            output: OutputId::new(1).unwrap(),
+            channel: reference,
+        }]
+    };
+    let first = renderer.publish(capture, routes()).unwrap();
+    installed(&renderer, first);
+    let until = Instant::now() + Duration::from_secs(4);
+    while renderer.snapshot().frames_submitted == 0 {
+        assert!(Instant::now() < until);
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    matrix(
+        &mut engine,
+        MatrixEdit::LaunchColumn {
+            column: columns[0],
+            mode: LaunchMode::Cut,
+        },
+    );
+    let next = capture_channels(&engine, &[reference], 8).unwrap();
+    assert!(next.application_demand().is_empty());
+    runtime.reconcile(&engine, &[]).unwrap();
+    let second = renderer.publish(next, routes()).unwrap();
+    installed(&renderer, second);
+    drop(engine);
+    runtime.close();
+    std::thread::sleep(Duration::from_millis(100));
+    assert_eq!(
+        wait(&runtime, ApplicationPhase::Ready).process_id,
+        process.process_id,
+        "project close cannot stop a process still used by an unfinished GPU plan"
+    );
+    assert!(control.complete_through(control.snapshot().last_submitted.unwrap()));
+    wait(&runtime, ApplicationPhase::Idle);
+    renderer.close();
+    drop(renderer);
+    let until = Instant::now() + Duration::from_secs(4);
+    loop {
+        if let Some(token) = control.snapshot().last_submitted {
+            control.complete_through(token);
+        }
+        if retirement.wait(Duration::from_millis(5)) {
+            break;
+        }
+        assert!(Instant::now() < until, "renderer retirement deadline");
+    }
+    drop(runtime);
+    assert!(process_retirement.wait_for_idle(Duration::from_secs(4)));
+}

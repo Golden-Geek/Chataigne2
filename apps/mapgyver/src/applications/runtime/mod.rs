@@ -1,7 +1,9 @@
 //! App policy and independent background process owners. Explicitly start only for a live project.
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
+mod retention;
 mod worker;
+pub use retention::PlanRetainer;
 
 use super::{demand::ApplicationDemand, protocol::*};
 use crate::app::{AppEngine, AppNode};
@@ -20,6 +22,7 @@ struct Target {
     retain_existing: bool,
     definition: Option<Arc<ApplicationDefinition>>,
     guard: Option<RevisionGuard>,
+    admission: Arc<[RevisionGuard]>,
 }
 struct Request {
     targets: HashMap<ApplicationId, Target>,
@@ -30,6 +33,7 @@ struct Shared {
     origin: Instant,
     desired: Mutex<Request>,
     readiness: Mutex<HashMap<ApplicationId, ReadinessEvidence>>,
+    final_use: Mutex<HashMap<ApplicationId, Vec<golden_video::runtime::PlanLifetimeObserver>>>,
 }
 
 /// Evidence must come from the actual sender/first-frame observer, never process-running inference.
@@ -112,6 +116,7 @@ impl ApplicationRuntime {
                     targets: HashMap::new(),
                 }),
                 readiness: Mutex::new(HashMap::new()),
+                final_use: Mutex::new(HashMap::new()),
             }),
             view: manager.applications.clone(),
             handles: HashMap::new(),
@@ -122,6 +127,17 @@ impl ApplicationRuntime {
     /// Atomically publish a whole aggregate set. All native work stays on independent workers.
     /// Retiring/blocked owners count toward the 64 global slots, including across project replacement.
     pub fn reconcile(&mut self, engine: &AppEngine, demand: &[ApplicationDemand]) -> Result<(), String> {
+        self.reconcile_guarded(engine, demand, Arc::from([]))
+    }
+    pub(crate) fn reconcile_guarded(
+        &mut self,
+        engine: &AppEngine,
+        demand: &[ApplicationDemand],
+        admission: Arc<[RevisionGuard]>,
+    ) -> Result<(), String> {
+        if !admission.iter().all(RevisionGuard::is_current) {
+            return Err("application demand capture is stale".into());
+        }
         if !self.shared.guard.is_current() {
             return Err("application runtime project is retired".into());
         }
@@ -166,6 +182,7 @@ impl ApplicationRuntime {
                         retain_existing: false,
                         definition,
                         guard: Some(node.guard()),
+                        admission: admission.clone(),
                     }
                 }
                 _ => Target {
@@ -173,6 +190,7 @@ impl ApplicationRuntime {
                     retain_existing: false,
                     definition: None,
                     guard: None,
+                    admission: admission.clone(),
                 },
             };
             target.retain_existing = entry.reasons.iter().any(|reason| {
@@ -305,6 +323,9 @@ impl ApplicationRuntime {
     pub fn retirement(&self) -> RetirementPool {
         self.pool.clone()
     }
+    pub fn plan_retainer(&self) -> PlanRetainer {
+        PlanRetainer(self.shared.clone())
+    }
     pub fn close(&mut self) {
         self.shared
             .desired
@@ -320,6 +341,12 @@ impl ApplicationRuntime {
         for handle in self.handles.values() {
             handle.worker.wake_notifier().notify();
         }
+    }
+}
+
+impl Drop for ApplicationRuntime {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 

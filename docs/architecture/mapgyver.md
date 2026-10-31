@@ -24,10 +24,10 @@ editors. Golden owns reusable execution and presentation mechanisms.
 | `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
 | `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
 | `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
-| `apps/mapgyver/src/applications/` | Shared executable definitions, typed authoring, clamped aggregate demand and independent bounded lifecycle workers; automatic Matrix/render-retirement capture and native readiness observation remain M08 |
+| `apps/mapgyver/src/applications/` | Shared definitions, aggregate demand, independent lifecycle workers and renderer final-use retention; the host binds rendered Matrix demand. No-render-consumer demand, real readiness and full parity remain M08 |
 | `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
 | `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
-| `crates/golden_video/` | Compiler, bounded worker/null runtime, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; app integration and qualification continue in M03 |
+| `crates/golden_video/` | Compiler, bounded worker/null runtime, payload-free plan lifetime observation, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; qualification continues in M03 |
 | `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
 | `crates/golden_assets/` | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners |
 | `packages/golden-video-ui/` | Reusable Svelte preview registration, DOM geometry/clipping, negotiated host transport and installation/retirement covers; no mapping policy |
@@ -430,10 +430,35 @@ executable. Dedicated application forms and full lifecycle control/observation r
 `applications::demand::resolve` computes one deterministic next set from committed column cursors
 and direct retained holds. Preparation, active and outgoing scopes contribute a union; final-use
 holds survive authored column/definition deletion. Missing, disabled and unconfigured definitions
-remain distinguishable. Automatic Matrix-to-worker capture and renderer lease binding remain open;
-the resolver alone never proves readiness. It admits 128 matrices, 100,000 aggregate columns, 128 cursors, 4,096 holds and
+remain distinguishable. Rendered Matrix capture now feeds this demand to the host's application
+bridge; the resolver alone never proves readiness. It admits 128 matrices, 100,000 aggregate columns,
+128 cursors, 4,096 holds and
 4,096 application identities, with at most 64 associations per column. It materializes no cells
 and does not run as a periodic engine-node task.
+
+`matrix::applications` freezes each admitted clip's application IDs, including an explicitly empty
+set, independently of authored column edits/removal. Its cached demand resolves column neighbors
+and preparation/active/outgoing cursors once per authored/frame-topology change, shared across
+layer/group/final captures. Transition settlement releases outgoing logical bindings; actual plan
+retirement separately releases their final-use holds. `CapturedChannels::application_demand` exposes
+the same typed backend capture to headless owners. Large-index construction/scale remains unqualified.
+
+The native host owns `applications::bridge` independently of renderer/topology incarnations. It
+reconciles committed captured demand and binds the resulting `PlanRetainer` before renderer
+publication; empty output demand releases the prior request. Project/authoring guards fence a
+suspended launch again before resume. An invalid/stale capture cannot dispatch old column demand.
+This path covers Matrices demanded by previews or enabled Screen outputs; explicit column loading
+with no render consumer still needs the separate project-wide capture path.
+
+Golden Video's payload-free `PlanLifetime` travels with queued submission, compiled/recovery plans
+and actual backend resource generations. It signals release with an acquire/release observation
+only after all token owners finish; it carries no app object or native process handle. Input
+accounting includes its conservative allocation charge. `PlanRetainer` maps observations to app
+identities, bounded to 64 identities and 128 pending lifetimes per identity. Observers cannot keep
+plans alive. Failed/rejected/superseded inputs release their hold when actually disposed, and an
+Installed outcome is never a retirement barrier. Workers preserve an existing process through live
+plan holds even after controller close/drop or project invalidation; no new process can start from
+such a hold. Actual GPU/resource retirement must occur before process shutdown is requested.
 
 `applications::runtime::ApplicationRuntime` is the explicit live-project controller. `reconcile`
 validates/captures a whole demand set, admits workers before publishing it atomically and leaves
@@ -454,9 +479,9 @@ creation has no hard OS latency guarantee; it cannot block the actor or another 
 the project instance, launch UUID, process/exit status, explicit phase and bounded error text. Deadline
 and elapsed milliseconds share a runtime-local monotonic origin. Process-start readiness is distinct
 from sender/first-frame evidence, which requires matching project, launch and sender and the configured
-first-frame condition. The real Spout observer and automatic Matrix final-use capture are not yet
-connected; injected tagged evidence tests the controller without claiming actual sender ownership.
-Dropping the controller cancels without joining; project guards stop old workers after replacement.
+first-frame condition. The real Spout observer is not connected; injected tagged evidence tests
+the controller without claiming actual sender ownership. Dropping the controller cancels without
+joining; old workers stop after project replacement and all actual final-use holds release.
 
 The public `golden_io::owned_process` mechanism is implemented. Its typed suspended owner enters
 a private kill-on-close job during creation and verifies membership before resume. Arguments,

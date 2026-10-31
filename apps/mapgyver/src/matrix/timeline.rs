@@ -52,6 +52,7 @@ pub(crate) struct Timeline {
     launch: Option<uuid::Uuid>,
     frame: Frame,
     pub bindings: Bindings,
+    pub applications: super::applications::Applications,
 }
 impl Timeline {
     pub fn settle(&mut self, time: TimeSnapshot) {
@@ -66,6 +67,7 @@ impl Timeline {
             }
             self.frame.interval = None;
             self.bindings.retain(self.frame.clips.iter().map(|entry| entry.clip.id));
+            self.applications.retain(&self.frame);
         }
     }
     pub fn accepts(&self, column: ColumnId, version: u64) -> bool {
@@ -137,6 +139,7 @@ impl Timeline {
             self.frame = frame;
             self.launch = desired.launch_id;
             self.bindings.retain(self.frame.clips.iter().map(|entry| entry.clip.id));
+            self.applications.retain(&self.frame);
         }
         if let Some(time) = time {
             self.settle(time);

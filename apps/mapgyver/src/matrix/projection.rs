@@ -15,6 +15,7 @@ pub(crate) struct RenderItem {
     pub end: usize,
 }
 pub(crate) struct RenderIndex {
+    pub columns: Vec<ColumnSnapshot>,
     pub canvas: golden_video::Extent2D,
     pub items: HashMap<MatrixItemId, RenderItem>,
     pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
@@ -82,6 +83,7 @@ impl RenderIndex {
             }
         }
         Self {
+            columns: document.snapshot.columns.clone(),
             canvas: document.snapshot.definition.canvas,
             items,
             cells,

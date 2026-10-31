@@ -44,8 +44,16 @@ pub(super) fn run(
             .targets
             .get(&id)
             .cloned();
-        let demanded = !cancelled && target.is_some();
-        let definition = target.as_ref().and_then(|target| target.definition.clone());
+        let final_use = shared
+            .final_use
+            .lock()
+            .expect("application final-use lock poisoned")
+            .get(&id)
+            .is_some_and(|lifetimes| lifetimes.iter().any(|lifetime| !lifetime.is_complete()));
+        let demanded = (!cancelled && target.is_some()) || final_use;
+        let definition = (!cancelled)
+            .then(|| target.as_ref().and_then(|target| target.definition.clone()))
+            .flatten();
         let ready = shared
             .readiness
             .lock()
@@ -66,6 +74,7 @@ pub(super) fn run(
                 && shared.guard.is_current()
                 && target.as_ref().is_some_and(|target| {
                     target.guard.as_ref().is_some_and(RevisionGuard::is_current)
+                        && target.admission.iter().all(RevisionGuard::is_current)
                         && shared
                             .desired
                             .lock()
@@ -81,7 +90,7 @@ pub(super) fn run(
             Desired {
                 demanded,
                 definition,
-                retain_existing: target.as_ref().is_some_and(|target| target.retain_existing),
+                retain_existing: final_use || target.as_ref().is_some_and(|target| target.retain_existing),
             },
             ready,
             admitted,
