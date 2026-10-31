@@ -12,6 +12,7 @@
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
 	import CompositionPanel from '../lib/composition/CompositionPanel.svelte';
 	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
+	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
 
 	const host = useApplicationHost();
@@ -23,7 +24,8 @@
 		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
 		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
 		composition: { title: 'Composition', component: CompositionPanel },
-		matrix: { title: 'Matrix', component: MatrixPanel }
+		matrix: { title: 'Matrix', component: MatrixPanel },
+		applications: { title: 'Applications', component: ApplicationPanel }
 	};
 
 	const initialPanels: PanelSpawnRequest[] = [
@@ -67,6 +69,12 @@
 			panelId: 'inspector',
 			panelType: 'inspector',
 			position: { referencePanelId: 'media-manager', direction: 'right' }
+		},
+		{
+			panelId: 'applications',
+			panelType: 'applications',
+			required: true,
+			position: { referencePanelId: 'media-manager', direction: 'within' }
 		}
 	];
 </script>

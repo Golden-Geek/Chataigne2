@@ -2,14 +2,8 @@ import type { ChannelChoicePage } from '../media/generated/ChannelChoicePage';
 import type { ChannelChoiceScope } from '../media/generated/ChannelChoiceScope';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
-import { ReadQueue } from './read-queue.ts';
-export interface Connection {
-	readonly status: string;
-	readonly snapshotGeneration: number;
-	readonly loading: { readonly visible: boolean };
-	readonly currentHistoryStateId?: unknown;
-	readonly hasActiveEditSession?: boolean;
-}
+import { ReadQueue } from '../requests/read-queue.ts';
+import type { Connection } from '../requests/connection';
 export interface ChoiceState {
 	page: ChannelChoicePage | null;
 	search: string;

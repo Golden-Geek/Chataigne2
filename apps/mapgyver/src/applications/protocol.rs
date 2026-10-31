@@ -152,6 +152,12 @@ pub struct ApplicationSummary {
     pub enabled: bool,
     pub configured: bool,
 }
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationReference {
+    pub application: ApplicationId,
+    /// None means the saved reference has no definition in this project's catalog.
+    pub summary: Option<ApplicationSummary>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ApplicationPage {
     pub applications: Vec<ApplicationSummary>,
@@ -195,6 +201,9 @@ pub struct ApplicationRuntimeSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
+    InspectReferences {
+        applications: Vec<ApplicationId>,
+    },
     InspectRuntime {},
     Create {
         label: Option<String>,

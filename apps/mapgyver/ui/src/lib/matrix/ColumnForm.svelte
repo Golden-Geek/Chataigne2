@@ -9,6 +9,7 @@
 	import NameForm from './NameForm.svelte';
 	import TransitionFields from './TransitionFields.svelte';
 	import TargetPicker from './TargetPicker.svelte';
+	import ColumnApplications from '../applications/ColumnApplications.svelte';
 	let {
 		column,
 		transition,
@@ -60,6 +61,7 @@
 		<button>Save column transition</button>
 	</fieldset>
 </form>
+<ColumnApplications {column} {session} {disabled} {edit} />
 <form
 	class="matrix-authoring"
 	onsubmit={(event) => {

@@ -4,8 +4,9 @@ import type { MatrixEdit } from '../media/generated/MatrixEdit';
 import type { MatrixItemId } from '../media/generated/MatrixItemId';
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
 import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
-import { ChoiceReader, choiceState, type Connection } from './choices.ts';
-import { ReadQueue } from './read-queue.ts';
+import { ChoiceReader, choiceState } from './choices.ts';
+import type { Connection } from '../requests/connection';
+import { ReadQueue } from '../requests/read-queue.ts';
 
 export interface MatrixState {
 	media: string | null;

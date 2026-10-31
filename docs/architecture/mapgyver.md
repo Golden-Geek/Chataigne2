@@ -421,11 +421,26 @@ Do not copy or path-import Chataigne's private App Control implementation.
 
 MapGyver's `applications` module implements shared persistent definitions under Media Manager and
 stable column associations. `MediaEdit::Applications` exposes create/configure/rename/duplicate/
-remove/inspect and a bounded catalog page through the existing generated UI, command, script and
+remove/inspect, a bounded catalog page and a batch lookup of at most 64 saved references through
+the existing generated UI, command, script and
 callback boundary. A copied column shares its application ID; deleting a definition retains an
 explicit missing reference for Undo/reload. Authored configuration never launches a process.
 Definition validation reuses Golden IO's pure launch validation, without probing or opening the
-executable. Dedicated application forms and full lifecycle control/observation remain M08 work.
+executable. Reference lookup returns explicit missing definitions in request order without fetching
+the whole catalog, materializing columns/cells or launching anything.
+
+The app-owned `ui/src/lib/applications/` supplies the dockable Applications panel, paged catalog,
+complete launch/environment/readiness/stop/restart definition form and shared-reference picker.
+Arguments remain a vector; inherited and empty replacement environments remain distinct. Forms
+use backend-created defaults and IDs; newly selected Spout readiness requires explicit evidence
+and timeout inputs rather than UI policy defaults. Matrix column forms author shared associations
+and pre/post column distances while preserving transition settings and saved missing references.
+Association names/missing state come from one bounded backend lookup, not page-presence inference.
+Catalog and selected-definition readers retain one active/latest request and fence session,
+project generation, history, selection and disposal. Generic request coalescing and the reader/
+session capability interface live in the app's `ui/src/lib/requests/`, shared with Matrix readers.
+Full lifecycle control/observation and
+actual interactive/native qualification remain M08 work.
 
 `applications::demand::resolve` computes one deterministic next set from committed column cursors
 and direct retained holds. Preparation, active and outgoing scopes contribute a union; final-use

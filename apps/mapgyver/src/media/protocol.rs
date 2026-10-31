@@ -216,6 +216,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ApplicationReferences {
+        references: Vec<crate::applications::protocol::ApplicationReference>,
+    },
     ApplicationRuntime {
         snapshot: crate::applications::protocol::ApplicationRuntimeSnapshot,
     },
