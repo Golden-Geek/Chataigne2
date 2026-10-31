@@ -180,7 +180,7 @@ Golden projective layers own sampling, opacity and blending. Missing inputs are 
 unavailable Spout inputs retain source-only demand for recovery. Instance/dependency/guard budget
 rejection leaves that Composition unavailable and prunes otherwise-undemanded IO/passes. Renderer
 budgets remain unchanged. Software mapping checks and a native submission/lifetime smoke pass;
-full native pixel/preview correctness and the Composition editor remain M06 acceptance work.
+full native pixel/preview correctness and complete Composition editor acceptance remain M06 work.
 
 Movie-file playback, audio, effects/plugin hosting, mesh warping and edge blending are not part
 of this initial feature list. Add them as explicit later scope rather than assuming that
@@ -376,6 +376,17 @@ reuse Golden transport/session abstractions. Svelte collects gestures and uses t
 feedback; backend intents own defaults, naming, validation, graph edits, crop/pin legality,
 channel allocation and Matrix/app semantics. A gesture becomes one coherent history operation;
 do not create a history entry per frame or implement a second rule engine in TypeScript.
+
+The app-owned `ui/src/lib/composition/` panel/controller/forms expose Composition channel selection,
+searchable source assignment, ordered instance creation/copy/rename/reorder/removal, transform and
+blend controls, canvas settings and the existing native channel preview. Backend `CompositionEdit`
+operations own all authored behavior. UI selection/read/mutation state is fenced by session and
+project generation, with exclusive submissions and event-driven inspection for history/script edits.
+Closing the panel disposes its controller and preview registration. Instance rows are paged at 50;
+source search displays at most 100 matches plus the retained selection. Picker values retain exact
+IDs through catalog changes, including explicitly missing authored sources. Graphical selection
+and drag/rotate/scale with grouped history remain the next M06 slice; software controls/build checks
+do not establish real interaction or native preview-pixel correctness.
 
 The Screen and Surface Source editors send `EditSurfaceGeometry` with the Surface identity and
 a generated quad-corner, crop-corner or crop-origin intent. MapGyver reads the current definition
