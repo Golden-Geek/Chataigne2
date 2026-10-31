@@ -1,8 +1,11 @@
 # Read-only M00 inventory. Emit JSON to stdout; never launch a window or change display settings.
 [CmdletBinding()]
-param()
+param([string]$HardwareExecutable)
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$clockBegin = [System.Diagnostics.Stopwatch]::GetTimestamp()
+$clockUtcBegin = [DateTime]::UtcNow.ToString('o')
 $workspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 
 function Read-Inventory {
@@ -70,7 +73,7 @@ try {
         }
         video_controllers = Read-Inventory {
             Get-CimInstance Win32_VideoController |
-                Select-Object Name, DriverVersion,
+                Select-Object Name, PNPDeviceID, DriverVersion,
                     @{Name = 'DriverDate'; Expression = { $_.DriverDate.ToString('yyyy-MM-dd') }},
                     CurrentHorizontalResolution, CurrentVerticalResolution, CurrentRefreshRate
         }
@@ -106,6 +109,9 @@ try {
                 $installations | Select-Object displayName, installationVersion
             }
         }
+        native_hardware = if ($HardwareExecutable) {
+            Read-Inventory { Read-ToolVersion $HardwareExecutable @('--role', 'hardware') | ConvertFrom-Json }
+        } else { [ordered]@{ status = 'unavailable'; reason = 'No native hardware executable supplied' } }
         locked_host_packages = $lockedHost
         spout_related_processes = Read-Inventory {
             # Process names are only a hint, not SDK enumeration or evidence of a usable sender.
@@ -118,8 +124,14 @@ try {
             'Spout SDK enumeration, GPU sharing, resize/restart and adapter compatibility'
             'Frame timing, readback/copy behavior, resource retirement and device recovery'
         )
+        clock = [ordered]@{
+            begin_qpc = $clockBegin
+            utc_begin = $clockUtcBegin
+            end_qpc = [System.Diagnostics.Stopwatch]::GetTimestamp()
+            frequency = [System.Diagnostics.Stopwatch]::Frequency
+        }
     }
-    $inventory | ConvertTo-Json -Depth 8
+    $inventory | ConvertTo-Json -Depth 16
 } finally {
     Pop-Location
 }

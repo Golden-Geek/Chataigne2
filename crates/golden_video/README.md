@@ -47,6 +47,11 @@ The implemented foundations are:
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.
   Public `SpoutProbe` observes an exact sender on an IO worker without a renderer/window.
+  Read-only `adapters()` reports PCI identity, memory capacities and adapter-owned GDI outputs.
+  Display enumeration errors are explicit and do not prevent device creation or masquerade as
+  an empty/headless output list. DXGI rectangles follow the caller's DPI awareness; the host's
+  DisplayConfig catalog and actual window bounds own physical-placement verification. Reported
+  adapter memory capacities do not substitute for current DXGI usage/budget observations.
   Sender-only checks allocate no graphics storage. Image checks reserve a caller-shared payload
   budget before one receiving texture, reuse the native receiver and require actual copy completion.
   Endpoint replacement withdraws evidence; cleanup retains storage until completion/device removal.

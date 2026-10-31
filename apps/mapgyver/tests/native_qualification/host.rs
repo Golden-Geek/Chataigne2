@@ -228,6 +228,7 @@ fn output_request(editor: &tauri::WebviewWindow, extent: Extent2D) -> io::Result
     let metadata = json!({
         "backing": [extent.width(), extent.height()],
         "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+        "webview_default_runtime_version": tauri::webview_version().map_err(Error::other)?,
         "selected_monitor": {
             "name": chosen.name(), "origin": [chosen.position().x, chosen.position().y],
             "size": [chosen.size().width, chosen.size().height], "scale": chosen.scale_factor(),

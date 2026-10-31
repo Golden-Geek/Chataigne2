@@ -23,7 +23,7 @@ mod texture;
 pub(crate) mod timing;
 
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
-pub use device::{AdapterInfo, adapters};
+pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{

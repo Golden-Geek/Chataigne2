@@ -30,6 +30,7 @@ PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.
 DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
 GPU_STAGES = runpy.run_path(str(Path(__file__).with_name("production_gpu_stages.py")))
 OUTPUT_ORDER = runpy.run_path(str(Path(__file__).with_name("production_output_order.py")))
+ENVIRONMENT = runpy.run_path(str(Path(__file__).with_name("production_environment.py")))
 
 
 class ArtifactError(ValueError):
@@ -424,7 +425,7 @@ def resource_metrics(manifest, summary, renderer, window, frequency):
             "unknown_adapter_memory_rows": sum(row["kind"] == "adapter_memory" and row.get("snapshot") is None for row in renderer)}
 
 
-def analyze_capture(directory):
+def analyze_capture(directory, environment=None):
     directory = Path(directory)
     manifest, summary, parent = [load_json(directory / name) for name in RAW_FILES[:3]]
     require(manifest.get("schema_version") == parent.get("schema_version") == CAPTURE_SCHEMA_VERSION, "unsupported production capture schema")
@@ -546,6 +547,12 @@ def analyze_capture(directory):
     resources = resource_metrics(manifest, summary, renderer, sample, frequency)
     inputs = load_json(directory / "inputs.json") if (directory / "inputs.json").exists() else None
     unchanged = inputs["before"] == inputs["after"] if inputs else None
+    environment_result = ENVIRONMENT["analyze"](
+        *(environment or (None, None)), manifest["adapter"],
+        summary.get("window", {}).get("selected_monitor", {}).get("name"),
+        inputs["before"].get("executable_sha256") if inputs else None,
+        min(window["begin_qpc"] for window in windows), parent["qpc"], frequency,
+        summary.get("window", {}).get("webview_default_runtime_version"))
     active = summary["active_runtime"]
     final = summary["final_runtime"]
     retired = summary["retirement"]
@@ -619,8 +626,9 @@ def analyze_capture(directory):
         "window_presentation": criterion(presentmon["coverage_complete"] if complete and presentmon["captured"] else None,
                                           eligible, scope="exact native Present/ETW software display cohort; not physical scanout"),
         "plan_age_and_published_queue": criterion(None, eligible, reason="CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"),
-        "environment_identity": criterion(None, eligible,
-                                          reason="selected MSVC/SDK, driver, WebView, power and overlay observations are not pinned"),
+        "environment_identity": criterion(environment_result["observed_within_target"], eligible,
+                                          **{key: value for key, value in environment_result.items()
+                                             if key != "observed_within_target"}),
     }
     return {"directory": str(directory), "manifest": manifest, "prescribed_sample": eligible,
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
@@ -636,17 +644,17 @@ def analyze_capture(directory):
             "frame_age": markers, "resources": resources,
             "independence": independence,
             "active_runtime_error_history": active.get("failure"), "raw_sha256": raw_hashes(directory),
-            "input_fingerprints": inputs,
+            "input_fingerprints": inputs, "environment": environment_result,
             "limitations": ["API acceptance is not displayed cadence or scanout", "GPU contexts are never summed into a critical path",
                             "WebView child-process memory is unavailable",
                             "warmed OS samples are sparse observations, not continuous physical-residency peaks"]}
 
 
-def analyze_series(directories, diagnostic=False):
+def analyze_series(directories, diagnostic=False, environment=None):
     captures = []
     for directory in directories:
         try:
-            captures.append(analyze_capture(directory))
+            captures.append(analyze_capture(directory, environment))
         except (ValueError, KeyError, TypeError, OSError) as error:
             captures.append({"directory": str(directory), "prescribed_sample": False, "artifact_error": str(error),
                              "criteria": {"artifact_integrity": criterion(False, True)},
@@ -691,6 +699,8 @@ def fingerprints(executable):
               Path(__file__).with_name("production_delivery_deadlines.py"),
               Path(__file__).with_name("production_gpu_stages.py"),
               Path(__file__).with_name("production_output_order.py"),
+              Path(__file__).with_name("production_environment.py"),
+              Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
@@ -723,6 +733,8 @@ def parse_args(argv=None):
     analyze.add_argument("directories", type=Path, nargs="+")
     analyze.add_argument("--diagnostic", action="store_true")
     analyze.add_argument("--output", type=Path)
+    analyze.add_argument("--environment-before", type=Path)
+    analyze.add_argument("--environment-after", type=Path)
     run = commands.add_parser("run", help="launch newly owned native renderer/fixture processes")
     run.add_argument("--directory", type=Path, required=True)
     run.add_argument("--scenario", choices=SCENARIOS, default="Q01")
@@ -812,7 +824,11 @@ def main(argv=None):
     args = parse_args(argv)
     if args.command == "run":
         return run(args)
-    result = analyze_series(args.directories, args.diagnostic)
+    environment = None
+    if args.environment_before or args.environment_after:
+        require(args.environment_before and args.environment_after, "both environment observations are required")
+        environment = tuple(load_json(path) for path in (args.environment_before, args.environment_after))
+    result = analyze_series(args.directories, args.diagnostic, environment)
     if args.output:
         write_new(args.output, result)
     print(json.dumps(result, allow_nan=False))

@@ -1,0 +1,471 @@
+{
+  "evidence_kind": "paired_environment_and_explicit_adapter_route_preflight",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "scope": "diagnostic_incomplete_series",
+  "qualified": false,
+  "environment": {
+    "observed_within_target": true,
+    "display_adapter": {
+      "high": 0,
+      "low": 93226
+    },
+    "renderer_adapter": {
+      "high": 0,
+      "low": 94419
+    },
+    "same_adapter_display": false,
+    "before_evidence_sha256": "6e30315785f3911f21ac070572903cc30537d0168412992b209ef4034d28ca97",
+    "after_evidence_sha256": "a92511946311879d05fe2e2da076b7ee9a5b687ca15a6f2f1e09b931429d8e11",
+    "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+  },
+  "environment_criterion": {
+    "status": "UNAVAILABLE",
+    "observed_within_target": true,
+    "owner_phase": "M03",
+    "owner_gate": 9,
+    "display_adapter": {
+      "high": 0,
+      "low": 93226
+    },
+    "renderer_adapter": {
+      "high": 0,
+      "low": 94419
+    },
+    "same_adapter_display": false,
+    "before_evidence_sha256": "6e30315785f3911f21ac070572903cc30537d0168412992b209ef4034d28ca97",
+    "after_evidence_sha256": "a92511946311879d05fe2e2da076b7ee9a5b687ca15a6f2f1e09b931429d8e11",
+    "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+  },
+  "method": {
+    "scenario": "Q02",
+    "adapter_index": 1,
+    "warmup_seconds": 1,
+    "measurement_seconds": 3,
+    "minimized_seconds": 1,
+    "disconnected_seconds": 1,
+    "presentmon": false
+  },
+  "build": {
+    "command": [
+      "cargo",
+      "rustc",
+      "--locked",
+      "--release",
+      "-p",
+      "MapGyver",
+      "--features",
+      "native-qualification",
+      "--bin",
+      "native_qualification",
+      "--",
+      "--print",
+      "link-args",
+      "-C",
+      "metadata=qualification-9431641b7e8781db",
+      "-C",
+      "link-arg=/LIBPATH:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\um\\x64",
+      "-C",
+      "link-arg=/LIBPATH:C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\ucrt\\x64"
+    ],
+    "executable_sha256": "1d24d813a817d7cfef8d4028b1e0521cb26eb857070a6e1bffca51d561da5cc8",
+    "source_set_sha256": "65f1975d1bd73696697e266ad47850986f2a8a1e936e76a253f4c25610c63abc",
+    "selected": {
+      "linker": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Tools\\MSVC\\14.51.36231\\bin\\HostX64\\x64\\link.exe",
+      "linker_sha256": "a8c42e25c91ca2453e1110540ac08f0fc12d7539454a11b9af8baeecb469837d",
+      "msvc_version": "14.51.36231",
+      "sdk_libraries": [
+        {
+          "version": "10.0.26100.0",
+          "kind": "ucrt",
+          "directory": "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\ucrt\\x64",
+          "anchor": "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\ucrt\\x64\\ucrt.lib",
+          "anchor_sha256": "7ef4eac926bf597d2f243f16cdfed7e0db22cb3ca34a1d7e088a84c994a03d66"
+        },
+        {
+          "version": "10.0.26100.0",
+          "kind": "um",
+          "directory": "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\um\\x64",
+          "anchor": "C:\\Program Files (x86)\\Windows Kits\\10\\Lib\\10.0.26100.0\\um\\x64\\kernel32.lib",
+          "anchor_sha256": "341c7d56125a03b458e4d5093e4c79b33123ccfdfd610fe236937b8e6f3134bb"
+        }
+      ],
+      "scope": "actual Rust final link invocation; not installed-tool inference"
+    },
+    "link_stdout_sha256": "58077229c53563687f3afd005604f350204f8f2b73b791d57a25918a06aea4c8",
+    "build_stderr_sha256": "4708d6d5480a07e196fd1820245e94539b9dab795cb71a8b65162700ff582ad8",
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-pc-windows-msvc\nrelease: 1.97.0\nLLVM version: 22.1.6",
+    "compiler_environment": {
+      "RUSTFLAGS": null,
+      "CARGO_ENCODED_RUSTFLAGS": null,
+      "CARGO_BUILD_TARGET": null,
+      "RUSTC_WRAPPER": null,
+      "RUSTC_WORKSPACE_WRAPPER": null,
+      "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER": null
+    }
+  },
+  "hardware": {
+    "ac_line_status": 1,
+    "adapters": [
+      {
+        "dedicated_video_memory": 134217728,
+        "description": "Intel(R) Graphics",
+        "device_id": 32103,
+        "id": {
+          "high": 0,
+          "low": 93226
+        },
+        "outputs": {
+          "Observed": [
+            {
+              "attached_to_desktop": true,
+              "desktop_coordinates": [
+                0,
+                0,
+                2048,
+                1280
+              ],
+              "name": "\\\\.\\DISPLAY1"
+            },
+            {
+              "attached_to_desktop": true,
+              "desktop_coordinates": [
+                2560,
+                0,
+                4480,
+                1080
+              ],
+              "name": "\\\\.\\DISPLAY2"
+            }
+          ]
+        },
+        "shared_system_memory": 19239208796,
+        "software": false,
+        "vendor_id": 32902
+      },
+      {
+        "dedicated_video_memory": 16780361728,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "device_id": 11353,
+        "id": {
+          "high": 0,
+          "low": 94419
+        },
+        "outputs": {
+          "Observed": []
+        },
+        "shared_system_memory": 19239208796,
+        "software": false,
+        "vendor_id": 4318
+      },
+      {
+        "dedicated_video_memory": 0,
+        "description": "Microsoft Basic Render Driver",
+        "device_id": 140,
+        "id": {
+          "high": 0,
+          "low": 94272
+        },
+        "outputs": {
+          "Observed": []
+        },
+        "shared_system_memory": 19239208796,
+        "software": true,
+        "vendor_id": 5140
+      }
+    ],
+    "displays": [
+      {
+        "bounds": {
+          "extent": {
+            "height": 1080,
+            "width": 1920
+          },
+          "left": 2560,
+          "top": 0
+        },
+        "id": "\\\\?\\display#rtk3b3a#4&1e95aa41&0&uid4165#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+        "name": "RTK FHD HDR"
+      },
+      {
+        "bounds": {
+          "extent": {
+            "height": 1600,
+            "width": 2560
+          },
+          "left": 0,
+          "top": 0
+        },
+        "id": "\\\\?\\display#sdc420b#4&1e95aa41&0&uid8388688#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+        "name": ""
+      }
+    ],
+    "webview_default_runtime_version": "156.0.4314.50"
+  },
+  "drivers": [
+    {
+      "Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "PNPDeviceID": "PCI\\VEN_10DE&DEV_2C59&SUBSYS_800F17AA&REV_A1\\813FD165DA2DB04800",
+      "DriverVersion": "32.0.15.9201",
+      "DriverDate": "2026-02-15"
+    },
+    {
+      "Name": "Intel(R) Graphics",
+      "PNPDeviceID": "PCI\\VEN_8086&DEV_7D67&SUBSYS_800F17AA&REV_06\\3&11583659&0&10",
+      "DriverVersion": "32.0.101.8331",
+      "DriverDate": "2026-01-29"
+    }
+  ],
+  "power_scheme": [
+    "Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"
+  ],
+  "webview_registry": [
+    {
+      "name": "Microsoft Edge WebView2 Runtime",
+      "pv": "156.0.4314.50"
+    }
+  ],
+  "overlay_before": {
+    "observed_at_utc": "2026-10-31T21:19:29.804Z",
+    "method": "Windows UI Automation via Sky, native Home action",
+    "app": "process:C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
+    "window_id": 3872418,
+    "control_text": "Enable and open overlay",
+    "state": "Off"
+  },
+  "overlay_after": {
+    "observed_at_utc": "2026-10-31T21:20:36.666Z",
+    "method": "Windows UI Automation via Sky, native Home action",
+    "app": "process:C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
+    "window_id": 3872418,
+    "control_text": "Enable and open overlay",
+    "state": "Off"
+  },
+  "snapshot_clocks": {
+    "before": {
+      "begin_qpc": 4803749033036,
+      "utc_begin": "2026-10-31T21:19:31.6388891Z",
+      "end_qpc": 4803770990303,
+      "frequency": 10000000
+    },
+    "after": {
+      "begin_qpc": 4804417062372,
+      "utc_begin": "2026-10-31T21:20:38.4423422Z",
+      "end_qpc": 4804438762179,
+      "frequency": 10000000
+    }
+  },
+  "snapshot_identities_equal": true,
+  "cpu": {
+    "samples": 180,
+    "median_ms": 0.3941,
+    "p95_ms": 0.5432,
+    "p99_ms": 0.6272,
+    "maximum_ms": 0.6461
+  },
+  "renderer_gpu_context_only": {
+    "samples": 180,
+    "median_ms": 0.946656,
+    "p95_ms": 4.117376,
+    "p99_ms": 5.864768,
+    "maximum_ms": 6.273568
+  },
+  "outputs": [
+    {
+      "output": 1,
+      "counts": {
+        "Accepted": 180
+      }
+    },
+    {
+      "output": 2,
+      "counts": {
+        "Accepted": 180
+      }
+    },
+    {
+      "output": 3,
+      "counts": {
+        "Accepted": 180
+      }
+    }
+  ],
+  "spout_cohort": {
+    "expected_accepted_images": 180,
+    "captured_images": 180,
+    "missing_images": 0,
+    "coverage_complete": true
+  },
+  "shutdown_ms": 450.4754,
+  "retirement": {
+    "actual_retirement": true,
+    "begin_qpc": 4804231763985,
+    "both_hwnds_retained_until_retirement": true,
+    "elapsed_seconds": 0.1320647,
+    "end_qpc": 4804233046367,
+    "output_destroyed_after_retirement": true
+  },
+  "window": {
+    "backing": [
+      3840,
+      2160
+    ],
+    "client": [
+      3840,
+      2160
+    ],
+    "client_bounds_verified": true,
+    "client_extent_verified": true,
+    "client_settle_attempts": 0,
+    "fixture_url": "http://127.0.0.1:64249/?mode=qualification",
+    "initial_editor_url": "about:blank",
+    "monitor_count": 2,
+    "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+    "physical_display_qualification": false,
+    "position": [
+      2560,
+      0
+    ],
+    "scale": 1,
+    "selected_monitor": {
+      "name": "\\\\.\\DISPLAY2",
+      "origin": [
+        2560,
+        0
+      ],
+      "scale": 1,
+      "size": [
+        1920,
+        1080
+      ]
+    },
+    "webview_default_runtime_version": "156.0.4314.50"
+  },
+  "launcher": {
+    "exit_code": 0,
+    "timed_out": false,
+    "forced_cleanup": false,
+    "owned_job_active_before_close": 0,
+    "elapsed_seconds": 9.304577099974267,
+    "exit_observed_qpc": 4804236268739,
+    "qpc_frequency": 10000000,
+    "job_assignment_atomic": false,
+    "watchdog_scope": "one newly created renderer and its inherited job descendants",
+    "command": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+      "--role",
+      "renderer",
+      "--directory",
+      "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-env-native-nvidia-2026-10-31-b61\\sample-001",
+      "--scenario",
+      "Q02",
+      "--adapter",
+      "1",
+      "--warmup",
+      "1",
+      "--seconds",
+      "3",
+      "--independence",
+      "1",
+      "--trace-capacity",
+      "65536"
+    ],
+    "stdout_sha256": "955a154d4b6a5c56094a66e751941ce3f7fe0cc85273cfe24a7b9af16b96a8d4",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "finished_utc": "2026-10-31T21:20:20.368602+00:00"
+  },
+  "parent_summary": {
+    "children": [
+      {
+        "exit_code": 0,
+        "forced": false,
+        "pid": 42216,
+        "stop_ns": "31223200",
+        "success": true
+      },
+      {
+        "exit_code": 0,
+        "forced": false,
+        "pid": 25388,
+        "stop_ns": "25719300",
+        "success": true
+      },
+      {
+        "exit_code": 0,
+        "forced": false,
+        "pid": 42984,
+        "stop_ns": "26893900",
+        "success": true
+      }
+    ],
+    "children_stop_ns": "84005100",
+    "qpc": 4804234444659,
+    "renderer_returned_ok": true,
+    "schema_version": 8
+  },
+  "raw_sha256": {
+    "consumer.jsonl": "aa34d6956766b9506c16facf9d1e0eec1f2e799a35b2d98dad011047f20aead7",
+    "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-0-stdout.jsonl": "b17fb0a502e5fad25148b418a7eeec779b6a042181d9e9474e6fb8fd4fc9da38",
+    "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-1-stdout.jsonl": "42b9683dbc47a96e3aad3b4533013cbac94ee21b896592a590f4ec7f860e127f",
+    "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "fixture-2-stdout.jsonl": "6d240f066cba335749bccf45967e51fffdf6dbe9763bd15cfc81b606c2be824c",
+    "inputs.json": "f1a5fb38b90810d70ef2ce7057ea9f9eaab5cc7473acfd4587e9c8440d5bca77",
+    "launcher.json": "8863485dcb3b14cb814c8773147e6ec7aa45e1b5fa2a615af3c767d229d6a025",
+    "manifest.json": "9fe0377fb13a03a87c42b3c3d9293ac624236613bce4c78f22cd7b078d310754",
+    "parent-summary.json": "29d62ac59e3e2c6ba801806a4ba20e097a2b6c2ae185979f1c974e3eb6f80413",
+    "renderer-summary.json": "2cf633f4c5d6117cd7e4d572a08cedcdf0021a15467d12f5959a59dc6de5ba1a",
+    "renderer.jsonl": "0be21194df4e7fd8a7bccdf874ecdbb3278ccf16653ec1cc5b06cb258fac9331",
+    "source-1.jsonl": "5645727bd4e05a4d18405e6e3c403516eabd31e3c8d97c5e9410fda48094ef34",
+    "source-2.jsonl": "a9ab8ebd845508631413a80a0a861ad4838c0c4172106bf3c57ef0f27f5ac7c0"
+  },
+  "raw_hashes_verified": 15,
+  "input_fingerprints_unchanged": true,
+  "execution_inputs": 303,
+  "evidence_files_sha256": {
+    "target/qualification-env-before-final-2026-10-31-b61.json": "ecb7d506627d059b13286fd1f8bf7b884a9b6157e140fc45343b7ee3f1250aca",
+    "target/qualification-env-after-final-2026-10-31-b61.json": "e2c7f4a09cd1c20aef4c7b44ab3b27d663aa693637b48120045d415a623b54b0",
+    "target/qualification-env-overlay-before-final-2026-10-31-b61.json": "d227e7921306105e9a944a8e44845cc703e72212c4c7a5f27337653d7ad3eebe",
+    "target/qualification-env-overlay-after-final-2026-10-31-b61.json": "2a1d19e2fa18b55413e3336d441b2a71408b9a0f5b52289a86981bcac4cac256",
+    "target/qualification-env-build-2026-10-31-b61-final/build.json": "22d883a28104eb0a689344cbfcd7dbb625d0c233b9e62a821f09b5200f1a679a",
+    "target/qualification-env-build-2026-10-31-b61-final/link-stdout.log": "58077229c53563687f3afd005604f350204f8f2b73b791d57a25918a06aea4c8",
+    "target/qualification-env-build-2026-10-31-b61-final/build-stderr.log": "4708d6d5480a07e196fd1820245e94539b9dab795cb71a8b65162700ff582ad8"
+  },
+  "analysis_file_sha256": "c7346b1ac0f466cd356f2219a4d973cf300bda74f19fd96d50789c9a7f6393ab",
+  "owned_pids": [
+    27012,
+    42216,
+    25388,
+    42984
+  ],
+  "post_run_cleanup": {
+    "remaining_owned_renderer_or_fixture_processes": 0,
+    "native_and_source_exit_normal": true,
+    "forced_cleanup": false,
+    "presentmon_not_started": true
+  },
+  "checks": {
+    "golden_video_software_passed": 163,
+    "explicit_hardware_ignored": 23,
+    "mapgyver_software_passed": 192,
+    "existing_hardware_ignored": 1,
+    "production_analysis_tests_passed": 107,
+    "strict_native_and_qualification_bin_clippy_passed": true
+  },
+  "remaining_scope": [
+    "Full prescribed Q01 and Q02 on this same explicitly recorded NVIDIA route with paired environment snapshots.",
+    "Complete GPU critical path, queue and applicable lifecycle-growth evidence.",
+    "Genuine device removal/stuck retirement remains under M03 gate 4.",
+    "Physical 4K/DPI/input remain with M05; full-app Q05 remains with M09."
+  ],
+  "limitations": [
+    "Environment observed_within_target is true, but criterion status remains UNAVAILABLE because this is a short diagnostic control.",
+    "Native NVIDIA Home UIA exposes Enable and open overlay before/after; Off is inferred from that explicit enable action and no toggle is changed.",
+    "Supported window activation fails after the one recovery retry; no further UI input is attempted.",
+    "DXGI output rectangles follow process DPI awareness; physical placement uses the separate host catalog and observed native window bounds.",
+    "Rust final-link provenance does not retroactively attest cached native C++ compilation tool selection.",
+    "Evidence hashes in the analyzer describe sorted JSON representations; evidence_files_sha256 contains actual snapshot file-byte hashes."
+  ]
+}

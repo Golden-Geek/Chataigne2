@@ -13,7 +13,29 @@ use super::roles::selected;
 
 pub fn catalog(args: Arguments) -> io::Result<()> {
     args.done()?;
-    let displays = golden_core::app::native_displays()?
+    println!("{}", serde_json::to_string(&displays()?).map_err(Error::other)?);
+    Ok(())
+}
+
+pub fn hardware(args: Arguments) -> io::Result<()> {
+    args.done()?;
+    let mut power = windows::Win32::System::Power::SYSTEM_POWER_STATUS::default();
+    // SAFETY: the API writes only this initialized local observation.
+    unsafe { windows::Win32::System::Power::GetSystemPowerStatus(&mut power) }.map_err(Error::other)?;
+    println!(
+        "{}",
+        serde_json::json!({
+            "adapters": golden_video::native::adapters().map_err(Error::other)?,
+            "displays": displays()?,
+            "webview_default_runtime_version": tauri::webview_version().map_err(Error::other)?,
+            "ac_line_status": power.ACLineStatus,
+        })
+    );
+    Ok(())
+}
+
+fn displays() -> io::Result<Vec<mapgyver::screens::protocol::DisplayInfo>> {
+    golden_core::app::native_displays()?
         .into_iter()
         .map(|display| {
             Ok(mapgyver::screens::protocol::DisplayInfo {
@@ -26,9 +48,7 @@ pub fn catalog(args: Arguments) -> io::Result<()> {
                 },
             })
         })
-        .collect::<io::Result<Vec<_>>>()?;
-    println!("{}", serde_json::to_string(&displays).map_err(Error::other)?);
-    Ok(())
+        .collect()
 }
 
 pub fn pixels(mut args: Arguments) -> io::Result<()> {

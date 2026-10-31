@@ -19,6 +19,7 @@ fn main() -> std::process::ExitCode {
             "source" => roles::source(args),
             "consumer" => roles::consumer(args),
             "catalog" => observations::catalog(args),
+            "hardware" => observations::hardware(args),
             "pixels" => observations::pixels(args),
             _ => Err(std::io::Error::other("unknown qualification role")),
         }

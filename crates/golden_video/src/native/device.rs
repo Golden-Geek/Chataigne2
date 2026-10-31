@@ -1,3 +1,4 @@
+use serde::Serialize;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -15,7 +16,7 @@ use windows::core::{Error, HRESULT, Result};
 use super::AdapterId;
 
 /// Observed adapter metadata. Enumeration creates no rendering device or output window.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AdapterInfo {
     /// Adapter identity for explicit device creation and recreation.
     pub id: AdapterId,
@@ -23,6 +24,39 @@ pub struct AdapterInfo {
     pub description: String,
     /// Software adapters are listed for observation but rejected by the native backend.
     pub software: bool,
+    /// PCI vendor identifier reported by DXGI.
+    pub vendor_id: u32,
+    /// PCI device identifier reported by DXGI.
+    pub device_id: u32,
+    /// Adapter-reported dedicated video memory in bytes, not current usage or budget.
+    pub dedicated_video_memory: u64,
+    /// Adapter-reported shared system memory in bytes, not current usage or budget.
+    pub shared_system_memory: u64,
+    /// Display enumeration failure does not make a headless rendering adapter unavailable.
+    pub outputs: AdapterOutputs,
+}
+
+#[derive(Clone, Debug, Serialize)]
+/// Read-only display enumeration, independent of rendering-device availability.
+pub enum AdapterOutputs {
+    /// Complete output list, which may be empty on a headless adapter.
+    Observed(Vec<AdapterOutput>),
+    /// Display enumeration failed; no empty-list fallback is inferred.
+    Unavailable {
+        /// Exact native enumeration error.
+        hresult: i32,
+    },
+}
+
+#[derive(Clone, Debug, Serialize)]
+/// Display ownership reported by one DXGI adapter, without native handles.
+pub struct AdapterOutput {
+    /// GDI display name, suitable for joining a host's selected monitor observation.
+    pub name: String,
+    /// Whether the output currently participates in the Windows desktop.
+    pub attached_to_desktop: bool,
+    /// DXGI desktop coordinates (left, top, right, bottom), following caller DPI awareness.
+    pub desktop_coordinates: [i32; 4],
 }
 
 /// Enumerates current DXGI adapters without changing display or driver settings.
@@ -57,7 +91,52 @@ fn describe(adapter: &IDXGIAdapter1) -> Result<AdapterInfo> {
                 .unwrap_or(desc.Description.len())],
         ),
         software: desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 != 0,
+        vendor_id: desc.VendorId,
+        device_id: desc.DeviceId,
+        dedicated_video_memory: desc.DedicatedVideoMemory as u64,
+        shared_system_memory: desc.SharedSystemMemory as u64,
+        outputs: match outputs(adapter) {
+            Ok(outputs) => AdapterOutputs::Observed(outputs),
+            Err(error) => AdapterOutputs::Unavailable {
+                hresult: error.code().0,
+            },
+        },
     })
+}
+
+fn outputs(adapter: &IDXGIAdapter1) -> Result<Vec<AdapterOutput>> {
+    let mut found = Vec::new();
+    for index in 0..=32 {
+        // SAFETY: read-only enumeration on the retained adapter, with owned COM outputs.
+        let output = match unsafe { adapter.EnumOutputs(index) } {
+            Ok(output) => output,
+            Err(error) if error.code() == DXGI_ERROR_NOT_FOUND => return Ok(found),
+            Err(error) => return Err(error),
+        };
+        if index == 32 {
+            return Err(Error::new(
+                HRESULT(0x8000_4005_u32 as i32),
+                "adapter exceeds 32 display outputs",
+            ));
+        }
+        let desc = unsafe { output.GetDesc()? };
+        let name = &desc.DeviceName[..desc
+            .DeviceName
+            .iter()
+            .position(|&v| v == 0)
+            .unwrap_or(desc.DeviceName.len())];
+        found.push(AdapterOutput {
+            name: String::from_utf16_lossy(name),
+            attached_to_desktop: desc.AttachedToDesktop.as_bool(),
+            desktop_coordinates: [
+                desc.DesktopCoordinates.left,
+                desc.DesktopCoordinates.top,
+                desc.DesktopCoordinates.right,
+                desc.DesktopCoordinates.bottom,
+            ],
+        });
+    }
+    unreachable!("bounded enumeration returns at index 32")
 }
 
 pub(super) struct Device {
@@ -78,9 +157,9 @@ impl Device {
                 Err(error) if error.code() == DXGI_ERROR_NOT_FOUND => break,
                 Err(error) => return Err(error),
             };
-            let info = describe(&adapter)?;
-            if info.id == id {
-                if info.software {
+            let desc = unsafe { adapter.GetDesc1()? };
+            if desc.AdapterLuid.LowPart == id.low && desc.AdapterLuid.HighPart == id.high {
+                if desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 != 0 {
                     return Err(Error::from_hresult(DXGI_ERROR_UNSUPPORTED));
                 }
                 selected = Some(adapter);

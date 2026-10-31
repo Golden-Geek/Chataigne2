@@ -1,5 +1,49 @@
 # Production renderer qualification runner
 
+## Environment and GPU/display route
+
+`tools/mapgyver/production_environment.py` owns optional paired environment evidence. Golden
+Video owns read-only typed DXGI adapter/output discovery; the qualifier's `hardware` role adds
+the existing host display catalog, AC power status and default WebView runtime version without
+creating a rendering device/window. `collect-baseline.ps1 -HardwareExecutable ...` wraps that
+metadata and the existing OS/driver/WebView/power inventory in a machine-QPC interval.
+
+Build once with `python tools/mapgyver/production_environment.py build --directory
+target/qualification-env-build-UNIQUE --windows-sdk <Windows-Kits/10/Lib/version>`. The SDK is
+an explicit build choice: its x64 UM/UCRT directories are passed as linker search paths, whose
+precedence over inherited library paths is [documented by Microsoft](https://learn.microsoft.com/en-us/cpp/build/reference/libpath-additional-libpath).
+This runs the locked release build with rustc's supported
+[`--print link-args`](https://doc.rust-lang.org/rustc/command-line-arguments/print-options.html),
+retains its actual final linker invocation, hashes the selected MSVC linker and selected UM/UCRT
+SDK anchor libraries, and binds those observations to the resulting executable/source set.
+It records actual Rust final-link tool selection; it does not infer selection from an installed
+Visual Studio list or retroactively attest an old binary's build.
+
+Use the computer-use skill to observe the NVIDIA overlay before and after native collection;
+store each observation as a new target-local JSON file with `observed_at_utc` (UTC offset),
+`method`, `state` and `control_text`. The native Home action `Enable and open overlay` is evidence
+of Off; do not turn it on to inspect it. Actual UI input and screenshots retain their own
+verification limits. The environment tool never drives UI or changes driver/power/overlay state.
+
+Before and after the existing native command, run `production_environment.py capture` with
+`--build target/qualification-env-build-UNIQUE/build.json`, `--overlay` pointing to the respective
+fresh observation, and `--output` naming a new snapshot. The after observation must actually
+follow native completion. Snapshots include full raw inventory and a focused stable identity;
+battery charge and instantaneous WMI display counters do not become identity pins.
+
+Analyze the original sample directories with `production_qualification.py analyze`, supplying
+`--environment-before`, `--environment-after` and a **new** `--output` file. Preserve the original
+raw capture and earlier analysis. Validation requires exact executable identity, complete
+compiler/SDK/driver/power/WebView evidence, unchanged paired identities and QPC/overlay observations
+bracketing the native work. Missing/stale/unproven observations stay unavailable; observed
+identity changes or a violated NVIDIA overlay prerequisite fail. Custom WebView selection needs
+explicit evidence and remains unavailable here. Display ownership is joined by exact GDI name
+and adapter LUID, with cross-adapter display routes reported explicitly. This does not provide a
+general cross-adapter guarantee or qualify physical pixels/scanout.
+
+Extra environment evidence never promotes short/debug controls, combines different adapters'
+Q01/Q02 samples into a pass, waives other criteria, or changes the prescribed-series rules.
+
 The app-owned runner in `apps/mapgyver/tests/native_qualification` wires the fixed Q01/Q02
 scene through Golden's desktop host and production `VideoRuntime`. It owns processes and
 scenario policy. Golden Video owns optional native timing, OS observations and the generic
