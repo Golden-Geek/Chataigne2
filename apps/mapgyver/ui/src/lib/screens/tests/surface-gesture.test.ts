@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CornerGesture, createCornerGestureState } from '../corner-gesture.ts';
+import {
+	SurfaceGesture,
+	createSurfaceGestureState,
+	type SurfaceHandle
+} from '../surface-gesture.ts';
+import type { SurfaceGeometryEdit } from '../generated/SurfaceGeometryEdit';
 import type { Point } from '../generated/Point';
 import type { SurfaceSnapshot } from '../generated/SurfaceSnapshot';
 
@@ -15,12 +20,13 @@ const deferred = <T>() => {
 	return { promise, resolve, reject };
 };
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
-function fixture() {
+function fixture(handle: SurfaceHandle = { kind: 'QuadCorner', corner: 0 }) {
 	const host = { status: 'connected', snapshotGeneration: 1, loading: { visible: false } };
 	let current = host;
-	const state = createCornerGestureState();
+	const state = createSurfaceGestureState();
 	const pending: ReturnType<typeof deferred<SurfaceSnapshot>>[] = [];
 	const points: Point[] = [];
+	const edits: SurfaceGeometryEdit[] = [];
 	const accepted: SurfaceSnapshot[] = [];
 	const active: boolean[] = [];
 	let begins = 0,
@@ -37,10 +43,11 @@ function fixture() {
 			this.active = false;
 		}
 	};
-	const gesture = new CornerGesture(() => current, state, {
+	const gesture = new SurfaceGesture(() => current, state, {
 		group: () => group,
-		move: async (_host, _reference, _corner, point) => {
-			points.push(point);
+		move: async (_host, _reference, edit) => {
+			points.push(edit.point);
+			edits.push(edit);
 			const request = deferred<SurfaceSnapshot>();
 			pending.push(request);
 			return request.promise;
@@ -55,6 +62,8 @@ function fixture() {
 		host,
 		state,
 		gesture,
+		start: () => gesture.start(reference, handle),
+		edits,
 		pending,
 		points,
 		accepted,
@@ -88,7 +97,7 @@ const snapshot = (x: number): SurfaceSnapshot => ({
 
 test('one in-flight request and one latest sample drain into exactly one group', async () => {
 	const f = fixture();
-	assert(f.gesture.start(reference, 0));
+	assert(f.start());
 	f.gesture.move({ x: 0.01, y: 0.1 });
 	await flush();
 	for (let i = 2; i <= 100; i++) f.gesture.move({ x: i / 1000, y: 0.1 });
@@ -108,7 +117,7 @@ test('one in-flight request and one latest sample drain into exactly one group',
 
 test('invalid sample can recover and stopping discards only unsent input', async () => {
 	const f = fixture();
-	f.gesture.start(reference, 0);
+	f.start();
 	f.gesture.move({ x: 2, y: 2 });
 	await flush();
 	f.pending[0].reject(new Error('invalid quad'));
@@ -129,7 +138,7 @@ test('invalid sample can recover and stopping discards only unsent input', async
 test('project replacement, disconnect, disposal and lost group fence late results', async () => {
 	for (const mode of ['generation', 'replacement', 'disconnect', 'dispose', 'group']) {
 		const f = fixture();
-		f.gesture.start(reference, 0);
+		f.start();
 		f.gesture.move({ x: 0.1, y: 0.1 });
 		await flush();
 		if (mode === 'generation') f.host.snapshotGeneration++;
@@ -153,7 +162,7 @@ test('disposal while BeginEdit is pending never sends a sample and closes its gr
 		await begin.promise;
 		f.group.active = true;
 	};
-	f.gesture.start(reference, 0);
+	f.start();
 	f.gesture.move({ x: 0.1, y: 0.1 });
 	f.gesture.dispose();
 	begin.resolve();
@@ -161,7 +170,7 @@ test('disposal while BeginEdit is pending never sends a sample and closes its gr
 	assert.equal(f.points.length, 0);
 	assert.equal(f.counts().ends, 1);
 	assert.equal(f.state.active, false);
-	assert.equal(f.gesture.start(reference, 0), false);
+	assert.equal(f.start(), false);
 });
 
 test('a rejected BeginEdit surfaces the error and releases local gesture state', async () => {
@@ -169,10 +178,28 @@ test('a rejected BeginEdit surfaces the error and releases local gesture state',
 	f.group.begin = async () => {
 		throw new Error('begin refused');
 	};
-	f.gesture.start(reference, 0);
+	f.start();
 	f.gesture.move({ x: 0.1, y: 0.1 });
 	await flush();
 	assert.equal(f.points.length, 0);
 	assert.equal(f.state.active, false);
 	assert.match(f.state.error, /begin refused/);
+});
+
+test('crop resize and origin handles use the same exclusive bounded gesture', async () => {
+	for (const handle of [
+		{ kind: 'CropCorner', corner: 2 },
+		{ kind: 'CropOrigin' }
+	] satisfies SurfaceHandle[]) {
+		const f = fixture(handle);
+		assert(f.start());
+		assert.equal(f.start(), false);
+		f.gesture.move({ x: 0.5, y: 0.6 });
+		f.gesture.finish();
+		await flush();
+		assert.deepEqual(f.edits[0], { ...handle, point: { x: 0.5, y: 0.6 } });
+		f.pending[0].resolve(snapshot(0));
+		await flush();
+		assert.deepEqual(f.counts(), { begins: 1, ends: 1, finished: 1 });
+	}
 });

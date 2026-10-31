@@ -1,5 +1,6 @@
 mod authoring;
 mod commands;
+mod crop_gestures;
 mod geometry;
 mod gestures;
 mod typescript;

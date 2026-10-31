@@ -9,7 +9,9 @@ preview and all three target modes now work through one renderer without an edit
 display selector preserves intended device-path identity; software checks cover catalog loss/error/
 reorder/recovery and native checks cover exact fullscreen geometry, missing/restored selection,
 three-consumer API acceptance and independent Spout delivery. Screen Surface selection/corner
-handles and bounded grouped history are implemented and software-verified. Interactive gestures,
+handles and bounded grouped history are implemented and software-verified. Independently dockable
+Screen/Surface Source views now share selection and authoring state; full-channel preview and
+graphical crop editing are implemented with backend/history/script coverage. Interactive gestures,
 selector/form input, minimize, actual hotplug, mixed-DPI and physical-pixel qualification remain open.
 M04's module, source controls, discovery and native 4K PNG/relink/recovery are delivered, with its
 full source/UI/parity gates still open. M03 remains **7/9**; qualification no longer serializes product work. The
@@ -17,10 +19,10 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 Surface Source editor: full-channel preview and graphical crop editing through
-backend-owned intents, with grouped history and preserved Screen mapping.
-**Last delivered capability:** Screen Surface selection/corner handles and backend corner editing
-with bounded history and one Undo per drag (batch 16; interactive verification remains open).
+**Next:** M06 Composition media/authoring foundations; define its fixed acceptance breakdown
+before implementation, then deliver the next coherent app-owned module slice.
+**Last delivered capability:** full-source preview/crop editor, unified backend geometry intents
+and independently dockable views with shared selection (batch 17; actual input remains unverified).
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
@@ -42,7 +44,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/Screen handles delivered; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -64,6 +66,41 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 17:** started 2026-10-31 **01:17 UTC**, recorded stop **02:02 UTC**.
+Deliver full-source native preview with graphical crop-corner/origin gestures, preserving the
+Screen quad, source and other Surface settings. MapGyver owns geometry intent semantics and
+validation; UI owns normalized pointer input and presentation. Unify the existing corner route
+under a generated Surface geometry intent and reuse one bounded gesture/session controller for
+both editors. Prove crop legality, preserved fields, grouped Undo/Redo and stale/cancel behavior;
+register independent dockable views over one window-owned selection/catalog/gesture context.
+run software checks and the bundled build. Interactive/native input remains open when unavailable;
+do not restart browser/integrity recovery or M03 diagnostics. Native experiments, if available,
+retain the two-experiment/20-minute limit and must follow passing software prerequisites.
+
+**Batch 17 result:** the Surface Source view registers the assigned channel directly for a full,
+uncropped preview and overlays crop corners plus an origin/move handle. The canonical generated
+`EditSurfaceGeometry` intent unifies quad-corner, crop-corner and crop-origin edits; the earlier
+corner-only command is removed. Backend math fixes the opposite crop corner during resize,
+preserves width/height during movement and rejects invalid candidates before mutation. Source,
+destination quad, calibration, opacity and enable state survive crop gestures. Missing sources
+retain their identities; no substitute channel is selected.
+
+Screen Manager and Surface Source are separate default dock tabs over one window-owned authoring
+context, catalog, selection and gesture controller. Shared selection follows either view; closing
+all views stops new inspections and finalizes accepted input. Numeric fields remain available for
+keyboard editing. The existing Golden edit session/history and native preview contracts are reused;
+no new Golden API, GPU pipeline or polling loop is added.
+
+Checks complete by **01:37 UTC**, ahead of the original **02:02 UTC** cutoff: **91 passing / 1 ignored**
+default tests, **81/81** headless tests and **12/12** frontend tests. Coverage includes all four crop
+corners, movement, 100-sample grouped Undo/Redo, preserved fields, no-op/invalid edits, missing
+sources, persistence roundtrip and the real QuickJS request/result route. Rust-generated DTO drift,
+Svelte (0 errors/warnings), UI formatting, strict app Clippy and the latest bundled executable build
+pass; both workspace formatters ran. Existing browser unavailability is retained without another
+automation-recovery investigation. Native full-source preview and actual pointer/dock behavior
+remain unverified. **M05 stays 3/8**, M03 7/9, M04 1/6 and overall 3/10 (30%); no denominator or gate
+changes. Product slice **17** is delivered; proceed to M06 against the verified public contracts.
 
 **Product batch 16:** started 2026-10-31 **00:40 UTC**, recorded stop **01:25 UTC**.
 Deliver graphical Screen Surface selection/corner dragging through backend-owned corner intents
@@ -498,7 +535,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain |
 | 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain |
 | 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Open — batch 16 implements handles/corner intents and verifies grouped history/cancellation in software; actual editor/source-selection input remains unverified |
-| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open |
+| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open — batch 17 implements full-channel preview/docked crop editor and verifies geometry, history, persistence and QuickJS; native preview and actual editor input remain unverified |
 | 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
 
 **Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
@@ -886,7 +923,7 @@ The 2026-10-31 reinforcement requires checking the recorded cutoff before expand
 continuations do not reset investigation limits. The dashboard names a delivered capability
 alongside phase gates. Batch 16 retains its original 01:25 UTC cutoff.
 
-**Product-delivery count since correction: 16. Diagnostic-only batch allowance: 4, unused.**
+**Product-delivery count since correction: 17. Diagnostic-only batch allowance: 4, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -910,6 +947,8 @@ The generated display catalog/selector and intended-identity fullscreen activati
 the fifteenth; actual hotplug/minimize and the full presentation matrix remain open.
 Screen Surface selection/handles and backend corner gestures with bounded, grouped history are
 the sixteenth; actual editor input remains unverified.
+Full-source crop editing and independent docked editors with shared selection are the seventeenth;
+native source preview and actual pointer/dock behavior remain unverified.
 The allowance follows the four-product-to-one-diagnostic ratio; none of the four allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1102,7 +1141,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
-| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and grouped Screen corner editing are implemented. Source crop editor, actual input/hotplug/minimize and full physical qualification remain open. |
+| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
 | M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
@@ -1110,18 +1149,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver the **M05 Surface Source editor**: preview the full source channel and edit its crop rectangle
-graphically through backend intents, with one undoable gesture and preserved Screen quad/other
-Surface fields. The UI owns viewport/input presentation; backend code owns mutation, validity and
-history. Reuse the established bounded gesture/history behavior without copying a second session
-implementation. Retain missing-source/recovery behavior and calibration routing. All target modes
-and intended-display resolution work without an editor. M05 gates 1–3 are accepted; actual editor
+Deliver the **M06 Composition foundations** against the working media/channel/Surface contracts.
+First define its fixed acceptance breakdown from the complete plan scope, then select a bounded
+app-owned authoring/module slice. Composition semantics, instance references/transforms, source
+selection and specialized editor policy belong in MapGyver; extend Golden only for an exercised
+generic rendering/runtime need. Ship commands, script methods, callbacks and snippets at the same
+module boundary. Nested rendering, complete transform/blend/pivot behavior, cycles and editor
+gestures retain the full M06 acceptance. M05 gates 1–3 are accepted; source-preview/actual editor
 input, hotplug/minimize and physical presentation remain open under gates 4–8. M04 gates 2–6 retain
 their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
-Sixteen product slices are delivered; documentation checkpoints are excluded. Four diagnostic-only
+Seventeen product slices are delivered; documentation checkpoints are excluded. Four diagnostic-only
 batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

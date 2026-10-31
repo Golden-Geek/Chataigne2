@@ -1,6 +1,10 @@
 import type { Point } from './generated/Point';
 import type { SurfaceReference } from './generated/SurfaceReference';
 import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
+import type { SurfaceGeometryEdit } from './generated/SurfaceGeometryEdit';
+
+type Handle<T> = T extends { point: Point } ? Omit<T, 'point'> : never;
+export type SurfaceHandle = Handle<SurfaceGeometryEdit>;
 
 interface Host {
 	readonly status: string;
@@ -12,36 +16,31 @@ export interface EditGroup {
 	begin(): Promise<void>;
 	end(): Promise<void>;
 }
-export interface CornerGestureState {
+export interface SurfaceGestureState {
 	active: boolean;
 	closing: boolean;
 	error: string;
 }
 interface Client<S> {
-	group(host: S): EditGroup;
-	move(
-		host: S,
-		reference: SurfaceReference,
-		corner: number,
-		point: Point
-	): Promise<SurfaceSnapshot>;
+	group(host: S, handle: SurfaceHandle): EditGroup;
+	move(host: S, reference: SurfaceReference, edit: SurfaceGeometryEdit): Promise<SurfaceSnapshot>;
 	accepted(snapshot: SurfaceSnapshot): void;
 	active(value: boolean): void;
 	finished(): void;
 }
-export const createCornerGestureState = (): CornerGestureState => ({
+export const createSurfaceGestureState = (): SurfaceGestureState => ({
 	active: false,
 	closing: false,
 	error: ''
 });
 
 /** One in-flight sample and one latest point. Domain validity and history belong to the backend. */
-export class CornerGesture<S extends Host> {
+export class SurfaceGesture<S extends Host> {
 	private owner: {
 		host: S;
 		generation: number;
 		reference: SurfaceReference;
-		corner: number;
+		handle: SurfaceHandle;
 		group: EditGroup;
 		started: boolean;
 	} | null = null;
@@ -49,23 +48,23 @@ export class CornerGesture<S extends Host> {
 	private task: Promise<void> | null = null;
 	private stopped = false;
 	private currentHost: () => S | null;
-	private state: CornerGestureState;
+	private state: SurfaceGestureState;
 	private client: Client<S>;
-	constructor(currentHost: () => S | null, state: CornerGestureState, client: Client<S>) {
+	constructor(currentHost: () => S | null, state: SurfaceGestureState, client: Client<S>) {
 		this.currentHost = currentHost;
 		this.state = state;
 		this.client = client;
 	}
-	start(reference: SurfaceReference, corner: number): boolean {
+	start(reference: SurfaceReference, handle: SurfaceHandle): boolean {
 		const host = this.currentHost();
 		if (this.stopped || this.owner || !host || host.status !== 'connected' || host.loading.visible)
 			return false;
 		this.owner = {
 			host,
 			generation: host.snapshotGeneration,
-			reference,
-			corner,
-			group: this.client.group(host),
+			reference: { ...reference },
+			handle: { ...handle },
+			group: this.client.group(host, handle),
 			started: false
 		};
 		this.state.active = true;
@@ -99,7 +98,7 @@ export class CornerGesture<S extends Host> {
 		if (this.owner && (!this.valid(this.owner) || (this.owner.started && !this.owner.group.active)))
 			this.stop();
 	}
-	private valid(owner: NonNullable<CornerGesture<S>['owner']>) {
+	private valid(owner: NonNullable<SurfaceGesture<S>['owner']>) {
 		return (
 			!this.stopped &&
 			(!owner.started || owner.group.active) &&
@@ -130,7 +129,10 @@ export class CornerGesture<S extends Host> {
 				const point = this.latest;
 				this.latest = null;
 				try {
-					const snapshot = await this.client.move(owner.host, owner.reference, owner.corner, point);
+					const snapshot = await this.client.move(owner.host, owner.reference, {
+						...owner.handle,
+						point
+					});
 					if (this.valid(owner)) {
 						this.client.accepted(snapshot);
 						this.state.error = '';

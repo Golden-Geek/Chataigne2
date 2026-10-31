@@ -188,23 +188,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             labels::rename(engine, node, label)?;
             ScreenEditResult::Changed
         }
-        ScreenEdit::MoveSurfaceCorner {
-            reference,
-            corner,
-            point,
-        } => {
+        ScreenEdit::EditSurfaceGeometry { reference, edit } => {
             let node = surface_id(engine, reference)?;
             let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
                 unreachable!()
             };
             let mut definition = current.definition().clone();
-            let destination = definition
-                .quad
-                .corners
-                .get_mut(usize::from(corner))
-                .ok_or("corner index must be 0..3")?;
-            *destination = point;
-            definition.validate()?;
+            edit.apply(&mut definition)?;
             let snapshot = SurfaceSnapshot {
                 reference,
                 label: current.node_data().meta.label.clone(),

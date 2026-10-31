@@ -9,13 +9,17 @@
 	} from 'golden_ui';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
+	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
+	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
 
 	const host = useApplicationHost();
 	const preview = providePreview();
+	provideScreenAuthoring();
 	onMount(() => preview.mount());
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
-		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel }
+		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
+		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel }
 	};
 
 	const initialPanels: PanelSpawnRequest[] = [
@@ -31,6 +35,12 @@
 			panelType: 'screenManager',
 			required: true,
 			position: { referencePanelId: 'media-manager', direction: 'within' }
+		},
+		{
+			panelId: 'surface-source',
+			panelType: 'surfaceSource',
+			required: true,
+			position: { referencePanelId: 'screen-manager', direction: 'within' }
 		},
 		{
 			panelId: 'logger',

@@ -3,6 +3,7 @@
 mod authoring;
 mod calibration;
 mod commands;
+mod geometry;
 mod nodes;
 pub mod protocol;
 pub mod rendering;

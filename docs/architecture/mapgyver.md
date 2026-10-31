@@ -352,9 +352,17 @@ feedback; backend intents own defaults, naming, validation, graph edits, crop/pi
 channel allocation and Matrix/app semantics. A gesture becomes one coherent history operation;
 do not create a history entry per frame or implement a second rule engine in TypeScript.
 
-The Screen editor sends `MoveSurfaceCorner` with only the Surface identity, corner and normalized
-point. MapGyver reads the current definition and validates the resulting quad; it preserves the
-source, crop, opacity and other fields. The UI keeps one request in flight and one latest point,
+The Screen and Surface Source editors send `EditSurfaceGeometry` with the Surface identity and
+a generated quad-corner, crop-corner or crop-origin intent. MapGyver reads the current definition
+and validates the result, preserving every field outside that intent. Crop corners keep the
+opposite corner fixed; crop-origin changes preserve width/height. Crossed, empty, non-finite and
+out-of-source crops fail atomically. The full-source preview registers the assigned channel
+directly, independent of the cropped/warped Screen output and calibration. Missing references
+remain authored and unavailable; no other channel is substituted.
+The independently dockable Screen Manager and Surface Source panels share a window-scoped
+authoring context: one catalog, selection, inspection stream and gesture controller. Closing all
+editor views stops inspection and finalizes accepted input; output demand remains independent.
+The UI keeps one request in flight and one latest point,
 patches the authoritative Surface reply, and suspends catalog refresh until the gesture ends.
 Golden's explicit coalesced callback edit retains original/final authored state for adjacent,
 contiguous changes to the same node inside one edit session. Other edits remain history barriers;

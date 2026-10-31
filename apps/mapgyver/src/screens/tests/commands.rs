@@ -151,6 +151,55 @@ fn hosted_manager_methods_support_create_inspect_and_domain_rejection() {
 }
 
 #[test]
+fn hosted_geometry_intent_uses_the_same_crop_validation_result_and_history() {
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    let original = definition(&engine, reference);
+    let request = serde_json::to_string(&ScreenEdit::EditSurfaceGeometry {
+        reference,
+        edit: SurfaceGeometryEdit::CropCorner {
+            corner: 0,
+            point: Point { x: 0.25, y: 0.125 },
+        },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            r#"
+            function init() {{
+                local.listen({{level:1}});
+                local.editScreens('crop', {request:?});
+            }}
+            function onAppOperationResult(reply) {{
+                gc.emit('screen-test-reply', reply);
+            }}
+            "#
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let results = replies(&engine);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["status"], "applied");
+    assert_eq!(results[0]["value"]["kind"], "SurfaceChanged");
+    let changed = definition(&engine, reference);
+    assert_eq!(
+        changed.crop,
+        UnitRect {
+            x: 0.25,
+            y: 0.125,
+            width: 0.75,
+            height: 0.875
+        }
+    );
+    assert_eq!(changed.quad, original.quad);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(definition(&engine, reference), original);
+}
+
+#[test]
 fn disabled_removed_or_failed_origin_commands_cannot_execute_queued_work() {
     for mode in ["disable", "remove", "rollback"] {
         let mut engine = fixture();

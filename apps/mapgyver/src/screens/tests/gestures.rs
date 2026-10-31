@@ -1,6 +1,6 @@
 use super::*;
 
-fn session(engine: &mut AppEngine, begin: bool) {
+pub(super) fn session(engine: &mut AppEngine, begin: bool) {
     let intent = if begin {
         UiEditIntent::BeginEdit {
             client_edit_id: "corner-drag".into(),
@@ -44,10 +44,9 @@ fn corner_samples_preserve_other_fields_and_undo_redo_as_one_gesture() {
         };
         let ScreenEditResult::SurfaceChanged { snapshot } = apply(
             &mut engine,
-            ScreenEdit::MoveSurfaceCorner {
+            ScreenEdit::EditSurfaceGeometry {
                 reference,
-                corner: 0,
-                point,
+                edit: SurfaceGeometryEdit::QuadCorner { corner: 0, point },
             },
         ) else {
             panic!()
@@ -61,10 +60,9 @@ fn corner_samples_preserve_other_fields_and_undo_redo_as_one_gesture() {
     for (corner, point) in [(4, Point { x: 0.2, y: 0.2 }), (0, final_state.quad.corners[2])] {
         let ack = invoke(
             &mut engine,
-            ScreenEdit::MoveSurfaceCorner {
+            ScreenEdit::EditSurfaceGeometry {
                 reference,
-                corner,
-                point,
+                edit: SurfaceGeometryEdit::QuadCorner { corner, point },
             },
         );
         assert!(!ack.success);
@@ -87,10 +85,12 @@ fn unchanged_corner_has_no_history_and_ungrouped_edits_remain_independent() {
     session(&mut engine, true);
     apply(
         &mut engine,
-        ScreenEdit::MoveSurfaceCorner {
+        ScreenEdit::EditSurfaceGeometry {
             reference,
-            corner: 0,
-            point: original.quad.corners[0],
+            edit: SurfaceGeometryEdit::QuadCorner {
+                corner: 0,
+                point: original.quad.corners[0],
+            },
         },
     );
     session(&mut engine, false);
@@ -98,10 +98,12 @@ fn unchanged_corner_has_no_history_and_ungrouped_edits_remain_independent() {
     for x in [0.1, 0.2] {
         apply(
             &mut engine,
-            ScreenEdit::MoveSurfaceCorner {
+            ScreenEdit::EditSurfaceGeometry {
                 reference,
-                corner: 0,
-                point: Point { x, y: 0.1 },
+                edit: SurfaceGeometryEdit::QuadCorner {
+                    corner: 0,
+                    point: Point { x, y: 0.1 },
+                },
             },
         );
     }

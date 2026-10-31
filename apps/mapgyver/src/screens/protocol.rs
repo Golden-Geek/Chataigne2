@@ -142,11 +142,10 @@ pub enum ScreenEdit {
         reference: SurfaceReference,
         definition: SurfaceDefinition,
     },
-    /// Updates only one destination corner from explicit normalized pointer input.
-    MoveSurfaceCorner {
+    /// Applies explicit normalized geometry input to the current backend definition.
+    EditSurfaceGeometry {
         reference: SurfaceReference,
-        corner: u8,
-        point: Point,
+        edit: SurfaceGeometryEdit,
     },
     RenameSurface {
         reference: SurfaceReference,
@@ -158,6 +157,23 @@ pub enum ScreenEdit {
     },
     RemoveSurface {
         reference: SurfaceReference,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum SurfaceGeometryEdit {
+    /// Corner indices are top-left, top-right, bottom-right, bottom-left.
+    QuadCorner {
+        corner: u8,
+        point: Point,
+    },
+    CropCorner {
+        corner: u8,
+        point: Point,
+    },
+    CropOrigin {
+        point: Point,
     },
 }
 
