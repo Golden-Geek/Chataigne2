@@ -3,15 +3,11 @@
 use std::{
     io::{self, Error},
     num::NonZeroUsize,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-        mpsc,
-    },
+    sync::{Arc, atomic::Ordering, mpsc},
     time::{Duration, Instant},
 };
 
-use golden_core::app::NativePresentationStop;
+use golden_core::app::{NativeOutputBounds, NativeOutputWindow, NativePresentationStop};
 use golden_io::WorkerNotifier;
 use golden_video::Extent2D;
 use golden_video::native::{
@@ -22,7 +18,10 @@ use golden_video::preview::{PreviewController, PreviewReceiver};
 use golden_video::qualification::protocol::{QualificationAction, QualificationPhase};
 use golden_video::runtime::{CompletionToken, RuntimeState, VideoRuntime};
 use serde_json::{Value, json};
-use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::IsWindow};
+use windows::Win32::{
+    Foundation::HWND,
+    UI::{HiDpi::GetDpiForWindow, WindowsAndMessaging::IsWindow},
+};
 
 use super::super::scene;
 use super::{
@@ -34,13 +33,11 @@ use super::{
 pub struct Input {
     pub config: HostConfig,
     pub editor: tauri::WebviewWindow,
-    pub output: tauri::Window,
+    pub output_bounds: NativeOutputBounds,
     pub editor_hwnd: isize,
-    pub output_hwnd: isize,
     pub output_extent: Extent2D,
     pub editor_backing: Extent2D,
     pub window_metadata: Value,
-    pub retired: Arc<AtomicBool>,
     pub controller: PreviewController,
     pub receiver: PreviewReceiver,
     pub observations: Arc<Observations>,
@@ -51,6 +48,7 @@ pub struct Input {
 struct Lease {
     runtime: VideoRuntime,
     controller: PreviewController,
+    output: Option<NativeOutputWindow>,
     retired: bool,
 }
 impl Drop for Lease {
@@ -74,6 +72,7 @@ struct Capture {
     next_drain: Instant,
     next_resources: Instant,
     admission: Value,
+    output_hwnd: isize,
 }
 
 pub fn run(input: Input, stop: NativePresentationStop) -> io::Result<()> {
@@ -95,7 +94,11 @@ pub fn run(input: Input, stop: NativePresentationStop) -> io::Result<()> {
 
 fn run_capture(mut input: Input, stop: NativePresentationStop) -> io::Result<()> {
     let mut recorder = Recorder::new(&input.config)?;
-    settle_output_client(&mut input, &stop)?;
+    if stop.is_requested() {
+        return Err(Error::other("qualification output creation cancelled"));
+    }
+    let output = create_output(&mut input)?;
+    let output_hwnd = output.raw_handle();
     recorder.write(
         json!({"kind":"windows", "qpc":recorder.clock.now()?, "output":input.window_metadata,
         "editor_backing":[input.editor_backing.width(),input.editor_backing.height()]}),
@@ -123,7 +126,7 @@ fn run_capture(mut input: Input, stop: NativePresentationStop) -> io::Result<()>
                 OutputBinding::Window {
                     id: scene::output(scene::MAIN_OUTPUT),
                     // SAFETY: the task retains this owned output and prevents close until actual retirement.
-                    window: unsafe { WindowTarget::from_raw(input.output_hwnd) }.map_err(Error::other)?,
+                    window: unsafe { WindowTarget::from_raw(output_hwnd) }.map_err(Error::other)?,
                     extent: input.output_extent,
                 },
                 OutputBinding::Spout {
@@ -144,6 +147,7 @@ fn run_capture(mut input: Input, stop: NativePresentationStop) -> io::Result<()>
     let lease = Lease {
         runtime,
         controller: input.controller.clone(),
+        output: Some(output),
         retired: false,
     };
     let native = lease
@@ -168,6 +172,7 @@ fn run_capture(mut input: Input, stop: NativePresentationStop) -> io::Result<()>
         next_drain: Instant::now(),
         next_resources: Instant::now(),
         admission,
+        output_hwnd,
     };
     let result = capture.capture(&stop);
     capture.finish(result)
@@ -315,9 +320,8 @@ impl Capture {
             }
         }
         self.lease.retired = true;
-        self.input.retired.store(true, Ordering::Release);
         let retirement_end = self.recorder.clock.now().ok();
-        let retained_windows = window_live(self.input.editor_hwnd) && window_live(self.input.output_hwnd);
+        let retained_windows = window_live(self.input.editor_hwnd) && window_live(self.output_hwnd);
         for _ in 0..=self.input.config.trace_capacity / 4096 {
             self.recorder.drain(&self.native)?;
             if self.native.diagnostics_snapshot().queued == 0 {
@@ -327,14 +331,16 @@ impl Capture {
         self.recorder
             .snapshot(&self.lease.runtime, &self.native, &self.input.observations)?;
         self.recorder.resources(&self.input.config)?;
-        let output = self.input.output.clone();
-        let destroyed = on_ui(&self.input.editor, move || {
-            output.destroy().map_err(|error| error.to_string())
-        });
-        // Tauri queues native destruction after this UI callback returns. Observe the actual
-        // HWND disappearing; successful request dispatch alone is not destruction evidence.
+        let destroyed = self
+            .lease
+            .output
+            .take()
+            .ok_or_else(|| Error::other("output owner already closed"))?
+            .close();
+        // The public owner joins actual destruction. Independently observe the borrowed HWND
+        // disappearing as well; a close request alone cannot certify its retirement.
         let output_destroyed =
-            destroyed.is_ok() && wait_for_window_destruction(self.input.output_hwnd, Duration::from_secs(5));
+            destroyed.is_ok() && wait_for_window_destruction(self.output_hwnd, Duration::from_secs(5));
         let diagnostics = self.native.diagnostics_snapshot();
         let complete = result.is_ok() && cleanup_error.is_none() && retained_windows && output_destroyed;
         self.recorder.finish(&self.input.config, json!({"functional_completed":complete,"process_id":std::process::id(),
@@ -369,49 +375,26 @@ fn main_tokens(native: &D3d11Control) -> [Option<CompletionToken>; 2] {
     })
 }
 
-fn settle_output_client(input: &mut Input, stop: &NativePresentationStop) -> io::Result<()> {
-    let deadline = Instant::now() + Duration::from_secs(3);
-    let target = tauri::PhysicalSize::new(input.output_extent.width(), input.output_extent.height());
-    let expected_scale = input.window_metadata["selected_monitor"]["scale"].as_f64();
-    input.window_metadata["client_before_settle"] = input.window_metadata["client"].clone();
-    let mut attempts = 0;
-    loop {
-        if stop.is_requested() {
-            return Err(Error::other("output sizing interrupted by host exit"));
-        }
-        attempts += 1;
-        let output = input.output.clone();
-        on_ui(&input.editor, move || {
-            output.set_size(target).map_err(|error| error.to_string())
-        })?;
-        // The monitor move can queue WM_DPICHANGED after preparation. Let the UI process it,
-        // then observe the real client in a separate dispatch instead of trusting set_size.
-        if stop.wait_timeout(Duration::from_millis(100)) {
-            return Err(Error::other("output sizing interrupted by host exit"));
-        }
-        let output = input.output.clone();
-        let (client, scale, position) = on_ui(&input.editor, move || {
-            Ok((
-                output.inner_size().map_err(|error| error.to_string())?,
-                output.scale_factor().map_err(|error| error.to_string())?,
-                output.outer_position().map_err(|error| error.to_string())?,
-            ))
-        })?;
-        input.window_metadata["client"] = json!([client.width, client.height]);
-        input.window_metadata["scale"] = json!(scale);
-        input.window_metadata["position"] = json!([position.x, position.y]);
-        input.window_metadata["client_settle_attempts"] = json!(attempts);
-        if client == target && expected_scale.is_none_or(|expected| (scale - expected).abs() < 0.0001) {
-            input.window_metadata["client_extent_verified"] = json!(true);
-            return Ok(());
-        }
-        if Instant::now() >= deadline {
-            return Err(Error::other(format!(
-                "output client did not settle at {}x{}: observed {}x{} scale={scale}",
-                target.width, target.height, client.width, client.height
-            )));
-        }
+fn create_output(input: &mut Input) -> io::Result<NativeOutputWindow> {
+    let output = NativeOutputWindow::new("Golden qualification native output", input.output_bounds)?;
+    let actual = output.physical_bounds()?;
+    if actual != input.output_bounds {
+        return Err(Error::other(
+            "production output owner returned unexpected physical client bounds",
+        ));
     }
+    // SAFETY: metadata query on this retained, per-monitor-v2 host-owned HWND.
+    let dpi = unsafe { GetDpiForWindow(HWND(output.raw_handle() as *mut _)) };
+    if dpi == 0 {
+        return Err(Error::other("production output window DPI is unavailable"));
+    }
+    input.window_metadata["client"] = json!([actual.width(), actual.height()]);
+    input.window_metadata["position"] = json!([actual.left(), actual.top()]);
+    input.window_metadata["scale"] = json!(f64::from(dpi) / 96.0);
+    input.window_metadata["client_settle_attempts"] = json!(0);
+    input.window_metadata["client_extent_verified"] = json!(true);
+    input.window_metadata["client_bounds_verified"] = json!(true);
+    Ok(output)
 }
 
 fn on_ui<T: Send + 'static>(

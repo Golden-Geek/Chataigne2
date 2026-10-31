@@ -11,15 +11,15 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicU64, Ordering},
         mpsc,
     },
     time::Duration,
 };
 
 use golden_core::app::{
-    DesktopHostConfig, NativePresentation, NativePresentationTask, ProjectLifecycle, UiServerConfig,
-    create_new_project_engine, launch_engine_with_native_presentation,
+    DesktopHostConfig, NativeOutputBounds, NativePresentation, NativePresentationTask, ProjectLifecycle,
+    UiServerConfig, create_new_project_engine, launch_engine_with_native_presentation,
 };
 use golden_io::WorkerNotifier;
 use golden_video::Extent2D;
@@ -130,10 +130,8 @@ pub fn run(config: HostConfig) -> io::Result<()> {
         let backing = Extent2D::new(editor_size.width.min(1536), editor_size.height.min(900)).map_err(Error::other)?;
         let (width, height) = config.scenario.extent();
         let output_extent = Extent2D::new(width, height).map_err(Error::other)?;
-        let retired = Arc::new(AtomicBool::new(false));
-        let (output, mut window_metadata) = output_window(editor, output_extent, retired.clone())?;
+        let (output_bounds, mut window_metadata) = output_request(editor, output_extent)?;
         let editor_hwnd = editor.hwnd().map_err(Error::other)?.0 as isize;
-        let output_hwnd = output.hwnd().map_err(Error::other)?.0 as isize;
         let event_observations = worker_observations.clone();
         editor.app_handle().listen(QUALIFICATION_REPORT_EVENT, move |event| {
             event_observations.receive(event.payload());
@@ -152,13 +150,11 @@ pub fn run(config: HostConfig) -> io::Result<()> {
                 worker::Input {
                     config,
                     editor,
-                    output,
+                    output_bounds,
                     editor_hwnd,
-                    output_hwnd,
                     output_extent,
                     editor_backing: backing,
                     window_metadata,
-                    retired,
                     controller: worker_controller,
                     receiver,
                     observations: worker_observations,
@@ -211,11 +207,7 @@ pub fn run(config: HostConfig) -> io::Result<()> {
     )
 }
 
-fn output_window(
-    editor: &tauri::WebviewWindow,
-    extent: Extent2D,
-    retired: Arc<AtomicBool>,
-) -> io::Result<(tauri::Window, Value)> {
+fn output_request(editor: &tauri::WebviewWindow, extent: Extent2D) -> io::Result<(NativeOutputBounds, Value)> {
     let current = editor.current_monitor().map_err(Error::other)?;
     let monitors = editor.available_monitors().map_err(Error::other)?;
     let chosen = monitors
@@ -225,39 +217,22 @@ fn output_window(
                 .as_ref()
                 .is_some_and(|current| current.position() != monitor.position())
         })
-        .or(monitors.first());
-    let output = tauri::WindowBuilder::new(editor.app_handle(), "qualification-output")
-        .title("Golden qualification native output")
-        .decorations(false)
-        .focused(false)
-        .build()
-        .map_err(Error::other)?;
-    let app = editor.app_handle().clone();
-    output.on_window_event(move |event| {
-        if let tauri::WindowEvent::CloseRequested { api, .. } = event
-            && !retired.load(Ordering::Acquire)
-        {
-            api.prevent_close();
-            app.exit(1);
-        }
-    });
-    output
-        .set_size(tauri::PhysicalSize::new(extent.width(), extent.height()))
-        .map_err(Error::other)?;
-    if let Some(monitor) = chosen {
-        output.set_position(*monitor.position()).map_err(Error::other)?;
-    }
-    let actual = output.inner_size().map_err(Error::other)?;
+        .or(monitors.first())
+        .ok_or_else(|| Error::other("qualification requires an active desktop monitor"))?;
+    let bounds = NativeOutputBounds::new(
+        chosen.position().x,
+        chosen.position().y,
+        extent.width(),
+        extent.height(),
+    )?;
     let metadata = json!({
         "backing": [extent.width(), extent.height()],
-        "client": [actual.width, actual.height],
-        "position": output.outer_position().map(|p| [p.x, p.y]).ok(),
-        "scale": output.scale_factor().ok(),
-        "selected_monitor": chosen.map(|monitor| json!({
-            "name": monitor.name(), "origin": [monitor.position().x, monitor.position().y],
-            "size": [monitor.size().width, monitor.size().height], "scale": monitor.scale_factor(),
-        })),
+        "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+        "selected_monitor": {
+            "name": chosen.name(), "origin": [chosen.position().x, chosen.position().y],
+            "size": [chosen.size().width, chosen.size().height], "scale": chosen.scale_factor(),
+        },
         "monitor_count": monitors.len(), "physical_display_qualification": false,
     });
-    Ok((output, metadata))
+    Ok((bounds, metadata))
 }

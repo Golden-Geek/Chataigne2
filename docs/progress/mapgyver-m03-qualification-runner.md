@@ -16,6 +16,13 @@ Its editor has held 640×360 and 480×270 physical registrations. The host conve
 to CSS units using authenticated native metrics and verifies the resolved geometry. This is
 a registration check, not physical display, scanout or DPI/input qualification.
 
+The output uses Golden desktop's public `NativeOutputWindow`, the same owner used by actual
+MapGyver Screens. The reporting worker creates and queries its dedicated per-monitor-v2 window,
+verifies the complete physical client rectangle, and retains it in the runtime lease through
+actual GPU retirement. Close joins its native window thread; a separate HWND observation verifies
+destruction. The editor remains owned by the shared Tauri presentation host. No duplicate Tauri
+output-window builder or asynchronous DPI-size retry loop remains in the qualifier.
+
 The host retains each HWND through actual runtime retirement. Sources and the consumer keep
 native resources through actual completion or confirmed removal. A parent watchdog may fail
 and terminate its own stuck process tree; forced termination never counts as orderly retirement.
@@ -108,9 +115,10 @@ Build the locked release x64 runner from the repository root:
 cargo build --locked --release -p MapGyver --features native-qualification --bin native_qualification
 ```
 
-The qualification-only feature enables the pinned Tauri `unstable` public native-window
-builder to create a separate window without another WebView. Ordinary MapGyver builds do not
-enable that feature. The host/bootstrap is shared with production and is not copied into the app.
+The qualification feature uses Golden's production native output-window API and no longer
+enables Tauri `unstable` solely for a fixture window. The host/bootstrap is shared with production
+and is not copied into the app. Window-owner changes start a fresh captured series; historical
+Tauri-window results and their failures remain evidence for their actual route.
 
 A short diagnostic control, with a new empty capture directory:
 

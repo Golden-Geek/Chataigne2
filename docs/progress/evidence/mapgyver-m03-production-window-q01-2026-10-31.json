@@ -1,0 +1,1275 @@
+{
+  "evidence_kind": "production_window_q01_prescribed_series",
+  "date": "2026-10-31",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "route": "golden_host_desktop::NativeOutputWindow",
+  "scope": "prescribed_series",
+  "status": "FAILED_NATIVE",
+  "prescribed_three_sample_series": true,
+  "qualified": false,
+  "raw_directory_local": "target/qualification-m03-production-window-q01-2026-10-31-b58",
+  "analysis_sha256": "2353fb59aafa1adb8400f350704116a606b980ae838a2444ff58169fb6aeb807",
+  "samples": [
+    {
+      "sample": 1,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "FAILED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "UNAVAILABLE",
+        "deadline_misses": "FAILED_NATIVE",
+        "editor_independence": "FAILED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.4096,
+        "p95_ms": 0.5357,
+        "p99_ms": 0.6093,
+        "maximum_ms": 1.1249
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 2.8957291666666665,
+        "p95_ms": 3.436354166666667,
+        "p99_ms": 3.9221875,
+        "maximum_ms": 7.932604166666667
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Busy": 670,
+            "Accepted": 6530
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 6530,
+            "late_display": 670,
+            "Miss": 1340,
+            "not_accepted": 670,
+            "OnTime": 5860
+          },
+          "miss_fraction_lower_bound": 0.18611111111111112,
+          "miss_fraction_upper_bound": 0.18611111111111112,
+          "deadline_verdict": false
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7199,
+            "late_display": 1,
+            "Miss": 1
+          },
+          "miss_fraction_lower_bound": 0.0001388888888888889,
+          "miss_fraction_upper_bound": 0.0001388888888888889,
+          "deadline_verdict": true
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3447,
+              "Busy": 153
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3443,
+              "Busy": 157
+            },
+            "2": {
+              "Accepted": 3599,
+              "Busy": 1
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3599,
+            "captured_images": 3599,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "raw_sha256": {
+        "consumer.jsonl": "d5b84c12374ebeb771566e9d70f52c522a4aebea34182143414863616e93e102",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "3d789190b2e9726457df3b1f9f64eaeba5f4592989545c4cf78efbf79b71eaef",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "23216fa447d04b16de83bde503dfd9ecf6b5d171f07c6c00a819630166922a14",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "9a64001480f82f5132d7962d4f2639884e2c28b2e88eaa1936f83d38359d77c9",
+        "inputs.json": "927c782051a35e6a9c149cb015c685e9ecc85ee46684233120bd9892791006f0",
+        "launcher.json": "5669f33b709c0f5f5831e8c59adccf19aef741d71e9a531dbe4ba91dcc0fab3e",
+        "manifest.json": "b2792d7b2c23f1dabe0e25dd74ab2cad10701d5b9a7565eb5b2efe9b49cee6fd",
+        "parent-summary.json": "0b6acdcfed0980d68726718874690cec55e627e1a6a9e18a87f97b7f4ab468fb",
+        "presentmon.json": "166eafaa0a51fc49b6f87ed2c9f19136302b2e33fd6e0ba7ada447948c6d2f52",
+        "renderer-summary.json": "a7c92225314b7de6930a223194154f6aa37001b7df334e7339712ee0c5c992aa",
+        "renderer.jsonl": "6e1ae5cec5a8396d57a49db3d589cc94233dc2b4d09609b366138b48ae49f9e6",
+        "source-1.jsonl": "72a8c6c1a6f65a1afe18fdb90282f6e2f5edcdae544fabb5624bbd62d4f61b36",
+        "source-2.jsonl": "30981dd5fb6ca9ca6896f5e10564681c6936992161a20734fe606e851ae649ab"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "5ef26b1570982e41203201a6b00ed59e66ae5bbd825e2b7b412af41232539a63",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 38492,
+            "stop_ns": "26398300",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 50676,
+            "stop_ns": "20432000",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 33148,
+            "stop_ns": "57326000",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "104346700",
+        "qpc": 4739071467045,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:54238/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4739068997909,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.098879,
+          "end_qpc": 4739069945474,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null,
+        "final_native": {
+          "accepted_outputs": 43852,
+          "adapter": null,
+          "busy_outputs": 1217,
+          "cached_texture_entries": 5,
+          "created_textures": 5,
+          "device": null,
+          "failed_outputs": 0,
+          "failure": null,
+          "hresult": null,
+          "initialization_attempts": 1,
+          "initialized": false,
+          "outputs": [],
+          "reused_textures": 30,
+          "sources": [
+            {
+              "binding": "c5ba4485-03ee-4054-bfb3-f73b63b0bebf",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "62985cd6-c519-4942-a80f-5d9888f5a0de"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 3,
+              "last_copied_frame": 16323,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16218,
+              "receive_busy": 0,
+              "receive_copies": 16218,
+              "renderer_copies": 16213,
+              "sdk_calls": 16219,
+              "sequence": 16218,
+              "state": "Stopped",
+              "texture": 1,
+              "unchanged": 139900
+            },
+            {
+              "binding": "0db919c2-9b02-423e-a64d-06acde4fc867",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "62985cd6-c519-4942-a80f-5d9888f5a0de"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 2,
+              "last_copied_frame": 16315,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16218,
+              "receive_busy": 0,
+              "receive_copies": 16218,
+              "renderer_copies": 14643,
+              "sdk_calls": 16219,
+              "sequence": 16218,
+              "state": "Stopped",
+              "texture": 2,
+              "unchanged": 140442
+            }
+          ],
+          "submitted": 16223,
+          "unavailable_outputs": 3600
+        },
+        "final_runtime": {
+          "failure": null,
+          "frames_submitted": 16223,
+          "last_frame": {
+            "completion": {
+              "device": {
+                "generation": 1,
+                "runtime": "62985cd6-c519-4942-a80f-5d9888f5a0de"
+              },
+              "serial": 16223
+            },
+            "frame_index": 16222,
+            "generation": 7,
+            "project": 0,
+            "revision": 10,
+            "scheduled_nanos": 270495203467
+          },
+          "latest_desired": false,
+          "missed_frames": 0,
+          "outstanding": 0,
+          "prepared": false,
+          "preparing": false,
+          "project": 0,
+          "resources": {
+            "active": null,
+            "byte_limit": 536870912,
+            "bytes_used": 0,
+            "device_lost": false,
+            "in_flight": 0,
+            "initialized": true,
+            "last_completed": {
+              "device": {
+                "generation": 1,
+                "runtime": "62985cd6-c519-4942-a80f-5d9888f5a0de"
+              },
+              "serial": 16223
+            },
+            "last_submitted": {
+              "device": {
+                "generation": 1,
+                "runtime": "62985cd6-c519-4942-a80f-5d9888f5a0de"
+              },
+              "serial": 16223
+            },
+            "peak_bytes": 144691472,
+            "prepared": 0,
+            "retiring": 0
+          },
+          "state": "Stopped"
+        }
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        45396,
+        38492,
+        50676,
+        33148
+      ]
+    },
+    {
+      "sample": 2,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "PASSED_NATIVE",
+        "editor_independence": "FAILED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.4622,
+        "p95_ms": 0.5912,
+        "p99_ms": 0.6638,
+        "maximum_ms": 1.0688
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 3.07640625,
+        "p95_ms": 3.97421875,
+        "p99_ms": 4.250052083333333,
+        "maximum_ms": 4.816875
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7199,
+            "late_display": 1,
+            "Miss": 1
+          },
+          "miss_fraction_lower_bound": 0.0001388888888888889,
+          "miss_fraction_upper_bound": 0.0001388888888888889,
+          "deadline_verdict": true
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3597,
+              "Busy": 3
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3599,
+            "missing_images": 1,
+            "coverage_complete": false,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3600
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "raw_sha256": {
+        "consumer.jsonl": "eb7b3673ffe4f6571abd7efc4476b65c7e09127c6accaecbc4cb21658accc4f4",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "cce409592732a1cfcb662026a5e05a9d7b62b49111abb2a589893b301a6fc0cf",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "207ddcaceed67fbf9c8dfca77a49704e464ccf5af55b5139c002e30b2d09641e",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "9e954f8af78cb3c2686eeab8e282ab091ec84aaf2fc0bd5e30f1407382000a72",
+        "inputs.json": "927c782051a35e6a9c149cb015c685e9ecc85ee46684233120bd9892791006f0",
+        "launcher.json": "1c77e9cfe2791d5c592b1556306130d8f6d84dd05231c8a502a973c9a5b24bc1",
+        "manifest.json": "d61782e05dc7b5be919153c4cbaea17f0b317a0cb69ee4f13adff3beaa1438fe",
+        "parent-summary.json": "b64284667c7f16ed949a022199a78b790925359d2075934cd1c452edfc2ac7f9",
+        "presentmon.json": "e8727904ab8bdafe56fc4df0d0ea4a1581c6f5e418e66f246c6eee6a387fdf58",
+        "renderer-summary.json": "fc77522fb9237b473a3edcad3b57bb61f25d72a1b8c5a35f7e471c2673d61558",
+        "renderer.jsonl": "71bd77a1f7215641e2b76f6a5af462653233d38ffe6eb838af3d37296aa43bf2",
+        "source-1.jsonl": "8eec2be0cf668d493a3d101d84119a361d0c62629168e69673b7990591b86f2a",
+        "source-2.jsonl": "f778ac31b6ecc296c4bf00cc09fc73dcc17b10365e012ab0593224d4f0d54146"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "5ef26b1570982e41203201a6b00ed59e66ae5bbd825e2b7b412af41232539a63",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 41504,
+            "stop_ns": "25669900",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 19856,
+            "stop_ns": "25722900",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 46156,
+            "stop_ns": "58490700",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "110065300",
+        "qpc": 4742186880898,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:62733/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4742184396950,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.0947535,
+          "end_qpc": 4742185312324,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null,
+        "final_native": {
+          "accepted_outputs": 45067,
+          "adapter": null,
+          "busy_outputs": 4,
+          "cached_texture_entries": 5,
+          "created_textures": 5,
+          "device": null,
+          "failed_outputs": 0,
+          "failure": null,
+          "hresult": null,
+          "initialization_attempts": 1,
+          "initialized": false,
+          "outputs": [],
+          "reused_textures": 30,
+          "sources": [
+            {
+              "binding": "e82abdb5-d5b9-45e4-a528-06363062222d",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "1e36809c-fb6a-4390-8226-2c0de1a4abff"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 3,
+              "last_copied_frame": 16359,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16222,
+              "receive_busy": 0,
+              "receive_copies": 16222,
+              "renderer_copies": 13336,
+              "sdk_calls": 16223,
+              "sequence": 16222,
+              "state": "Stopped",
+              "texture": 1,
+              "unchanged": 134005
+            },
+            {
+              "binding": "f50d0a3d-946b-49f7-8034-4e0fb2d9621f",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "1e36809c-fb6a-4390-8226-2c0de1a4abff"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 3,
+              "last_copied_frame": 16356,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16221,
+              "receive_busy": 0,
+              "receive_copies": 16221,
+              "renderer_copies": 16218,
+              "sdk_calls": 16222,
+              "sequence": 16221,
+              "state": "Stopped",
+              "texture": 2,
+              "unchanged": 140494
+            }
+          ],
+          "submitted": 16224,
+          "unavailable_outputs": 3601
+        },
+        "final_runtime": {
+          "failure": null,
+          "frames_submitted": 16224,
+          "last_frame": {
+            "completion": {
+              "device": {
+                "generation": 1,
+                "runtime": "1e36809c-fb6a-4390-8226-2c0de1a4abff"
+              },
+              "serial": 16224
+            },
+            "frame_index": 16223,
+            "generation": 7,
+            "project": 0,
+            "revision": 10,
+            "scheduled_nanos": 270519252834
+          },
+          "latest_desired": false,
+          "missed_frames": 0,
+          "outstanding": 0,
+          "prepared": false,
+          "preparing": false,
+          "project": 0,
+          "resources": {
+            "active": null,
+            "byte_limit": 536870912,
+            "bytes_used": 0,
+            "device_lost": false,
+            "in_flight": 0,
+            "initialized": true,
+            "last_completed": {
+              "device": {
+                "generation": 1,
+                "runtime": "1e36809c-fb6a-4390-8226-2c0de1a4abff"
+              },
+              "serial": 16224
+            },
+            "last_submitted": {
+              "device": {
+                "generation": 1,
+                "runtime": "1e36809c-fb6a-4390-8226-2c0de1a4abff"
+              },
+              "serial": 16224
+            },
+            "peak_bytes": 144691472,
+            "prepared": 0,
+            "retiring": 0
+          },
+          "state": "Stopped"
+        }
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        21932,
+        41504,
+        19856,
+        46156
+      ]
+    },
+    {
+      "sample": 3,
+      "criteria": {
+        "functional_completion": "PASSED_NATIVE",
+        "fixed_scene": "PASSED_NATIVE",
+        "telemetry_coverage": "PASSED_NATIVE",
+        "input_identity": "PASSED_NATIVE",
+        "gpu_context_coverage": "PASSED_NATIVE",
+        "cpu_submission": "PASSED_NATIVE",
+        "output_api_cadence": "PASSED_NATIVE",
+        "producer_api_cadence": "PASSED_NATIVE",
+        "submission_deadlines": "PASSED_NATIVE",
+        "deadline_misses": "FAILED_NATIVE",
+        "editor_independence": "PASSED_NATIVE",
+        "source_to_consumer_age": "PASSED_NATIVE",
+        "spout_capture_identity": "PASSED_NATIVE",
+        "spout_capture_age": "PASSED_NATIVE",
+        "source_publication_age": "PASSED_NATIVE",
+        "gpu_critical_path": "UNAVAILABLE",
+        "logical_texture_charge": "PASSED_NATIVE",
+        "dxgi_admission": "PASSED_NATIVE",
+        "renderer_private_memory": "PASSED_NATIVE",
+        "completion_retirement": "PASSED_NATIVE",
+        "shutdown": "PASSED_NATIVE",
+        "renderer_handle_growth": "UNAVAILABLE",
+        "physical_display_dpi_input": "UNAVAILABLE",
+        "Q05_handles_growth": "UNAVAILABLE",
+        "native_preparation": "PASSED_NATIVE",
+        "plan_publication_age": "PASSED_NATIVE",
+        "window_presentation": "PASSED_NATIVE",
+        "plan_age_and_published_queue": "UNAVAILABLE",
+        "environment_identity": "UNAVAILABLE"
+      },
+      "cpu": {
+        "samples": 7200,
+        "median_ms": 0.5,
+        "p95_ms": 0.626,
+        "p99_ms": 0.7064,
+        "maximum_ms": 1.2389
+      },
+      "renderer_gpu_context_only": {
+        "samples": 7200,
+        "median_ms": 3.3424479166666665,
+        "p95_ms": 4.46046875,
+        "p99_ms": 4.719479166666667,
+        "maximum_ms": 8.36828125
+      },
+      "output_counts": [
+        {
+          "output": 1,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 2,
+          "counts": {
+            "Accepted": 7200
+          }
+        },
+        {
+          "output": 3,
+          "counts": {
+            "Accepted": 7200
+          }
+        }
+      ],
+      "delivery_deadlines": [
+        {
+          "output": 1,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 2,
+          "expected_slots": 7200,
+          "counts": {
+            "capture_witnesses": 7200,
+            "OnTime": 7200
+          },
+          "miss_fraction_lower_bound": 0,
+          "miss_fraction_upper_bound": 0,
+          "deadline_verdict": true
+        },
+        {
+          "output": 3,
+          "expected_slots": 7200,
+          "counts": {
+            "display_witnesses": 7200,
+            "OnTime": 7191,
+            "late_display": 9,
+            "Miss": 9
+          },
+          "miss_fraction_lower_bound": 0.00125,
+          "miss_fraction_upper_bound": 0.00125,
+          "deadline_verdict": false
+        }
+      ],
+      "spout_cohort": {
+        "expected_accepted_images": 7200,
+        "captured_images": 7200,
+        "missing_images": 0,
+        "coverage_complete": true,
+        "observed_age_p95_within_budget": true
+      },
+      "independence": [
+        {
+          "phase": "editor_minimized",
+          "output_counts": {
+            "1": {
+              "Accepted": 3599,
+              "Busy": 1
+            },
+            "2": {
+              "Accepted": 3600
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3600,
+            "captured_images": 3600,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        },
+        {
+          "phase": "editor_disconnected",
+          "output_counts": {
+            "1": {
+              "Accepted": 3601
+            },
+            "2": {
+              "Accepted": 3601
+            }
+          },
+          "spout_cohort": {
+            "expected_accepted_images": 3601,
+            "captured_images": 3601,
+            "missing_images": 0,
+            "coverage_complete": true,
+            "observed_age_p95_within_budget": true
+          }
+        }
+      ],
+      "raw_sha256": {
+        "consumer.jsonl": "0a35f5ae9100324460e7b2ee906470fe8b443017254cf744d63e80d79a011c4e",
+        "fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-0-stdout.jsonl": "1ec697cd4fee4c504af0da6f679dc2cc5d1173ee5ebf16b31a8aeba412000d79",
+        "fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-1-stdout.jsonl": "27e196e2c29a52cb68e935ca13967375e8e6febb3a914b32ca3fa213dafaaf4b",
+        "fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "fixture-2-stdout.jsonl": "a07fdec66634b06ea293b9ae46740a4ee272798091106cbcb780b1ca3cdd860e",
+        "inputs.json": "927c782051a35e6a9c149cb015c685e9ecc85ee46684233120bd9892791006f0",
+        "launcher.json": "44951c0602c2db457d1e6c0bf2cb67ce456263eba667873cdd602cfdf2c15b8a",
+        "manifest.json": "d8a1634640f6e3b6b78da778fe276916a0fc4d363360ea01ca3f2b1131ef7847",
+        "parent-summary.json": "c6e6fef6480e6de19745555d7ed9e0025d2d694b4de8cd025dd487ec0bcfaa1b",
+        "presentmon.json": "e5d1af61e7eca9ebb6b4bbe5e863e50d868052bf3717fd1065d8ed73ae9c8f06",
+        "renderer-summary.json": "23fffe67cad45958cca4ccce80c6371bf234a816e5c3596234eba5da9ab2e97b",
+        "renderer.jsonl": "6a140f55bab18908042f42e1d44d795a9541f1f0db2ca6e852fd80f3fc912e6d",
+        "source-1.jsonl": "cfab231b64335531ebf0b7491246a155c3c31a0318ac9c7ff018c0ad3134b34e",
+        "source-2.jsonl": "7ba96739ba193e8a8d734ca0fc07e5f498dbaf2fcc03b198bced56306e88bb69"
+      },
+      "raw_hashes_verified": 16,
+      "input_fingerprints_unchanged": true,
+      "executable_sha256": "5ef26b1570982e41203201a6b00ed59e66ae5bbd825e2b7b412af41232539a63",
+      "parent_summary": {
+        "children": [
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 22380,
+            "stop_ns": "25654100",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 31520,
+            "stop_ns": "21035100",
+            "success": true
+          },
+          {
+            "exit_code": 0,
+            "forced": false,
+            "pid": 44172,
+            "stop_ns": "64114500",
+            "success": true
+          }
+        ],
+        "children_stop_ns": "110971600",
+        "qpc": 4745288884463,
+        "renderer_returned_ok": true,
+        "schema_version": 8
+      },
+      "renderer_summary": {
+        "window": {
+          "backing": [
+            1920,
+            1080
+          ],
+          "client": [
+            1920,
+            1080
+          ],
+          "client_bounds_verified": true,
+          "client_extent_verified": true,
+          "client_settle_attempts": 0,
+          "fixture_url": "http://127.0.0.1:49228/?mode=qualification",
+          "initial_editor_url": "about:blank",
+          "monitor_count": 2,
+          "native_window_owner": "golden_host_desktop::NativeOutputWindow",
+          "physical_display_qualification": false,
+          "position": [
+            2560,
+            0
+          ],
+          "scale": 1,
+          "selected_monitor": {
+            "name": "\\\\.\\DISPLAY2",
+            "origin": [
+              2560,
+              0
+            ],
+            "scale": 1,
+            "size": [
+              1920,
+              1080
+            ]
+          }
+        },
+        "retirement": {
+          "actual_retirement": true,
+          "begin_qpc": 4745286292103,
+          "both_hwnds_retained_until_retirement": true,
+          "elapsed_seconds": 0.0995261,
+          "end_qpc": 4745287258983,
+          "output_destroyed_after_retirement": true
+        },
+        "functional_completed": true,
+        "cleanup_error": null,
+        "output_destroy_error": null,
+        "error": null,
+        "final_native": {
+          "accepted_outputs": 45070,
+          "adapter": null,
+          "busy_outputs": 1,
+          "cached_texture_entries": 5,
+          "created_textures": 5,
+          "device": null,
+          "failed_outputs": 0,
+          "failure": null,
+          "hresult": null,
+          "initialization_attempts": 1,
+          "initialized": false,
+          "outputs": [],
+          "reused_textures": 30,
+          "sources": [
+            {
+              "binding": "6346e688-d16d-4765-9a12-0d1b7640facd",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "26a062ff-453d-43cc-b670-8a4679dab59e"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 3,
+              "last_copied_frame": 16322,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 1080,
+                  "width": 1920
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16221,
+              "receive_busy": 0,
+              "receive_copies": 16221,
+              "renderer_copies": 16215,
+              "sdk_calls": 16222,
+              "sequence": 16221,
+              "state": "Stopped",
+              "texture": 1,
+              "unchanged": 138676
+            },
+            {
+              "binding": "926a7f13-dbb8-4dd1-ae29-ae631a558388",
+              "bridge_busy": 0,
+              "bridge_slots": 0,
+              "descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "device": {
+                "generation": 1,
+                "runtime": "26a062ff-453d-43cc-b670-8a4679dab59e"
+              },
+              "generation": 1,
+              "hresult": null,
+              "imports": 3,
+              "last_copied_frame": 16314,
+              "observed_descriptor": {
+                "alpha_mode": "Straight",
+                "color_encoding": "Srgb",
+                "extent": {
+                  "height": 720,
+                  "width": 1280
+                },
+                "format": "Bgra8Unorm"
+              },
+              "pool_generation": 1,
+              "publications": 16221,
+              "receive_busy": 0,
+              "receive_copies": 16221,
+              "renderer_copies": 16220,
+              "sdk_calls": 16222,
+              "sequence": 16221,
+              "state": "Stopped",
+              "texture": 2,
+              "unchanged": 141291
+            }
+          ],
+          "submitted": 16224,
+          "unavailable_outputs": 3601
+        },
+        "final_runtime": {
+          "failure": null,
+          "frames_submitted": 16224,
+          "last_frame": {
+            "completion": {
+              "device": {
+                "generation": 1,
+                "runtime": "26a062ff-453d-43cc-b670-8a4679dab59e"
+              },
+              "serial": 16224
+            },
+            "frame_index": 16223,
+            "generation": 7,
+            "project": 0,
+            "revision": 10,
+            "scheduled_nanos": 270513476634
+          },
+          "latest_desired": false,
+          "missed_frames": 0,
+          "outstanding": 0,
+          "prepared": false,
+          "preparing": false,
+          "project": 0,
+          "resources": {
+            "active": null,
+            "byte_limit": 536870912,
+            "bytes_used": 0,
+            "device_lost": false,
+            "in_flight": 0,
+            "initialized": true,
+            "last_completed": {
+              "device": {
+                "generation": 1,
+                "runtime": "26a062ff-453d-43cc-b670-8a4679dab59e"
+              },
+              "serial": 16224
+            },
+            "last_submitted": {
+              "device": {
+                "generation": 1,
+                "runtime": "26a062ff-453d-43cc-b670-8a4679dab59e"
+              },
+              "serial": 16224
+            },
+            "peak_bytes": 144691472,
+            "prepared": 0,
+            "retiring": 0
+          },
+          "state": "Stopped"
+        }
+      },
+      "owned_trace_status_after_run": 4201,
+      "presentmon_exit_code": 0,
+      "presentmon_forced_cleanup": false,
+      "owned_pids": [
+        10620,
+        22380,
+        31520,
+        44172
+      ]
+    }
+  ],
+  "sample_001_all_phases_main_busy_origin": {
+    "before_api": 1216
+  },
+  "post_run_cleanup": {
+    "owned_trace_sessions_absent": true,
+    "raw_hashes_verified": 48
+  },
+  "method": {
+    "scenario": "Q01",
+    "adapter": 0,
+    "release": true,
+    "samples": 3,
+    "warmup_seconds": 30,
+    "measurement_seconds": 120,
+    "editor_minimized_seconds": 60,
+    "editor_disconnected_seconds": 60,
+    "deadline_miss_budget_fraction": 0.001
+  },
+  "limitations": [
+    "Failed criteria and unavailable measurements retain their original requirements; no acceptance gate closes.",
+    "GPU distributions cover the renderer context only, not the complete GPU critical path.",
+    "Software display witnesses do not qualify physical scanout, mixed DPI or native editor input.",
+    "Using the production window owner corrects route fidelity; differences across runs do not establish a pacing improvement."
+  ]
+}

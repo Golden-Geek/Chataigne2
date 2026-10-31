@@ -15,7 +15,7 @@ native-video = ["golden_video/d3d11", "dep:windows"]
 native-presentation-smoke = ["dep:windows"]
 native-video-smoke = ["native-video", "dep:windows"]
 native-preview-smoke = ["native-video-smoke"]
-native-qualification = ["native-preview-smoke", "golden_video/qualification", "tauri/unstable"]
+native-qualification = ["native-preview-smoke", "golden_video/qualification"]
 
 [dependencies]
 golden_assets.workspace = true

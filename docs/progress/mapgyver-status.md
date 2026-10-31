@@ -4,15 +4,16 @@
 
 **Updated: 2026-10-31 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current topic:** M04 source acceptance complete, **6/6 gates (100%)**. **Next active gate:**
-return to M03 renderer qualification gate 9 after the one scheduled M05 batch. M03 retains
+**Current topic:** M03 renderer qualification **gate 9 is the only active gate**. M04 source
+acceptance is complete, **6/6 gates (100%)**; the one scheduled M05 batch is checkpointed. M03 retains
 **7/9**; recovery awaits the explicit GPU-reset decision. M05 remains **3/8** with UI activation
 and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** return to M03's native window presentation/pacing boundary or its approved reset check.
-Keep the complete Q01 baseline and rejected interval-one control; do not repeat parameter sweeps.
+**Next:** narrow M03's native window admission/pacing correction using batch 58's existing trace.
+Its production-window route is now exercised, but admission/deadline and independence failures
+remain. Keep the complete Q01 baseline and rejected interval-one control; no parameter sweeps.
 M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
 flow proves Spout pixels and rectangle bars, but actual fullscreen/editor-state checks stay open.
 Q02 sustained qualification and every other measurement requirement remain unchanged.
@@ -23,6 +24,12 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest M03 evidence (batch 58):** qualification uses the same public `NativeOutputWindow` owner
+as production Screens, with exact client bounds and actual GPU-before-HWND retirement. The
+prescribed Q01 series finishes normally; sample 1 has **670/7,200** main-output Busy outcomes,
+sample 2 misses one independent Spout capture while minimized, and sample 3 misses **9/7,200**
+editor display deadlines. All sample Spout cohorts are **7,200/7,200**. No pacing improvement or
+gate closure is claimed. [Compact evidence](evidence/mapgyver-m03-production-window-q01-2026-10-31.json).
 **Latest M05 evidence (batch 57):** two finite flows activate all three targets; independent Spout
 receives **179 / 104** copies and all **6,144 RGBA texels** match eight bars exactly in each.
 Rectangle screenshot bar centers are within **1/255** in both captures. The normal-integrity
@@ -58,6 +65,10 @@ composition/Matrix native pixels, interactions and scale; M08 complete mode/cont
 target and retirement acceptance; M09 complete app/artifact. Native picker/preview input is not
 proved by browser authoring and is not added as a new M04 prerequisite. Detailed evidence and
 retained failures remain under their owning phase sections below.
+**Execution states:** **active:** M03 gate 9; **waiting for a return trigger:** M03 gate 4
+(reset decision) and M05 gate 4 (supported window activation); **queued:** remaining M05,
+M06, M07 and M08 acceptance, then M09. An implemented phase with open acceptance is unfinished,
+not another simultaneous workstream. Time limits end a work batch; they never waive a gate.
 **Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
 retains full GPU/queue, cadence, capture/age, growth and deadline requirements. Latest Q02
 sample calls remain 300/300/295; minimize/disconnect still miss four/nine Spout images and
@@ -3076,6 +3087,59 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Production-window qualification batch 58:** started 2026-10-31 **19:13 UTC**, recorded stop
+**19:58 UTC**. Previous turn made progress: `8f9139f3` adds finite app output/pixel acceptance
+and retains its supported-activation blocker without closing M05 gate 4. The scheduled M05
+batch is complete; only M03 gate 9 is active again. The qualifier still creates a separate Tauri
+output window and retries its DPI sizing, while actual MapGyver Screens use Golden's dedicated
+`NativeOutputWindow`. Replace the duplicated fixture owner with that public production host
+owner on the reporting worker. Retain exact physical client/bounds observations, GPU-before-HWND
+retirement, independent editor handling and every original workload/criterion. This corrects
+qualification route fidelity; it is not a proven display-deadline root cause. No pacing-constant
+sweep, parked stash, UI-helper workaround or driver/monitor/overlay change. Build/software checks
+precede one prescribed Q01 series (three 30+120-second samples, each with both 60-second editor
+intervals and PresentMon), within a fixed 20-minute native window and the 19:58 stop. Preserve
+all failures and missing metrics; physical/DPI/full-app gates and pending genuine reset remain.
+
+Batch 58 native verification starts **19:26 UTC**, cutoff **19:46 UTC**, before the 19:58 batch
+stop. Prerequisites are terminal: **192 app tests / one existing hardware ignore**, **100
+production-analysis Python tests**, strict app/qualification-bin Clippy, both formatters,
+whitespace checks and the release build (**3m 06s**). A remaining metadata `Ordering` import was
+restored after compiler feedback; no native experiment ran against the failing build. Candidate
+executable SHA-256: `5ef26b1570982e41203201a6b00ed59e66ae5bbd825e2b7b412af41232539a63`.
+
+**Terminal result:** all three prescribed native runs and PresentMon collectors exit normally;
+each owned trace session is independently absent (`4201`) afterward and no recorded renderer/
+source child remains live. All **48 raw hashes** verify and execution inputs stay unchanged.
+Each output has the actual production owner, physical client/backing **1920×1080**, origin
+**(2560, 0)** and DPI scale **1**; client/bounds checks pass without sizing retries. Actual
+retirement precedes HWND destruction in every run. Complete shutdown is **388/409/400 ms**;
+runtime retirement is **99/95/100 ms**. This corrects the qualifier's route, not production pacing.
+
+The series **fails**. Main output accepts **6,530/7,200** in sample 1, then **7,200/7,200** in
+samples 2/3. Sample 1 has **670 Busy**, **670 late display** and **1,340 deadline misses**;
+editor misses are **1/1/9**. Spout sample cohorts are complete **7,200/7,200** in all three.
+Independence fails in samples 1/2: sample 1 retains main Busy outcomes and one disconnected
+Spout Busy; sample 2 lacks one accepted Spout image during minimize. CPU p95 is
+**0.536/0.591/0.626 ms**; renderer-context GPU p95 is **3.436/3.974/4.460 ms**, explicitly not
+the complete GPU path. Full GPU-path, lifecycle growth, queue and environment requirements remain
+unavailable. M03 stays **7/9**, overall **40%**; no acceptance budget changes.
+
+The existing first-run raw trace records **1,216 main-output Busy outcomes before any consumer
+API call**, across all phases. The next bounded source slice should inspect that admission
+boundary and preserve delivery to ready outputs, real completion fences and exact API witnesses.
+No new native experiment is added to this batch. Genuine removal still awaits the explicit
+reset decision; M05 activation and all later acceptance retain their return queue.
+[Hashed compact evidence](evidence/mapgyver-m03-production-window-q01-2026-10-31.json).
+
+Final root/Golden Core formatters and whitespace checks pass; checkpoint preparation completes
+at **19:54 UTC**, before the recorded batch stop. No production pacing change is retained.
+Run exactly the prescribed Q01 release series on adapter 0 with three 30+120-second samples,
+both 60-second editor intervals and `--presentmon`, directory
+`target/qualification-m03-production-window-q01-2026-10-31-b58` (absent before start). Preserve
+the same process handle and frozen source/assets through all samples/tails. CLI stdout is
+discarded because full analysis is already saved locally; only compact results are inspected.
 
 **Presentation correction batch 56:** started 2026-10-31 **18:01 UTC**, recorded stop **18:46 UTC**.
 Previous turn made progress: `0fa30df0` captures the complete prescribed Q01 series and narrows
