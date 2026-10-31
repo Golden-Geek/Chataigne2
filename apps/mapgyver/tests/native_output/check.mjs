@@ -10,6 +10,21 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+const fullscreen = process.argv.includes('--fullscreen');
+const catalogArg = process.argv.indexOf('--catalog');
+assert(
+	!fullscreen || (catalogArg >= 0 && process.argv[catalogArg + 1]),
+	'fullscreen requires --catalog <fixture.json>'
+);
+const displayCatalog = fullscreen
+	? JSON.parse(await readFile(process.argv[catalogArg + 1], 'utf8'))
+	: [];
+assert(
+	!fullscreen || (catalogArg >= 0 && displayCatalog.length > 0),
+	'fullscreen requires --catalog with native fixture metadata'
+);
+const selectedDisplay = displayCatalog[0];
+
 // Never attach this authoring fixture to an existing user session.
 const portCheck = createServer();
 await new Promise((resolve, reject) => {
@@ -24,6 +39,7 @@ const base = 'http://127.0.0.1:7023';
 const sender = `MapGyver-M05-${randomUUID()}`;
 const rectangle = process.argv.includes('--rectangle');
 let rectangleScreen;
+let fullscreenScreen;
 const executable = path.resolve('target/debug/MapGyver.exe');
 const receiver = path.resolve('target/debug/native_qualification.exe');
 const appLog = createWriteStream(path.join(directory, 'app.log'));
@@ -177,6 +193,12 @@ try {
 				target: { kind: 'Spout', sender, extent: { width, height: 64 } }
 			}
 		});
+	const fullscreenTarget = (enabled, display = selectedDisplay.id) =>
+		screens({
+			kind: 'ConfigureScreen',
+			screen: fullscreenScreen,
+			definition: { enabled, target: { kind: 'Fullscreen', display } }
+		});
 	await screens({ kind: 'ConfigureSurface', reference: surface, definition });
 	await target(true);
 	await waitForAppLog('state=Ready');
@@ -211,7 +233,34 @@ try {
 		);
 		await waitForAppLog('screens=2 outputs=2');
 	}
+	if (fullscreen) {
+		assert(rectangle, 'fullscreen flow includes rectangle concurrency');
+		const created = await screens({ kind: 'CreateScreen', label: 'Fullscreen output check' });
+		fullscreenScreen = created.screen;
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: created.surface,
+			definition: { ...definition, source: null, calibration: 'ColorBars' }
+		});
+		await fullscreenTarget(true);
+		const { left, top, extent } = selectedDisplay.bounds;
+		await waitForAppLog(
+			`window id=4 physical=NativeOutputBounds { left: ${left}, top: ${top}, width: ${extent.width}, height: ${extent.height} }`
+		);
+		await waitForAppLog('screens=3 outputs=3');
+		await waitForAppLog('id=4 first API acceptance');
+		await waitForAppLog('id=3 first API acceptance');
+		console.log(
+			JSON.stringify({ fullscreen_active: selectedDisplay.name, bounds: selectedDisplay.bounds })
+		);
+	}
 	await receive(96, 'bars-without-editor', true);
+	if (fullscreen) {
+		const beforeMissing = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
+		await fullscreenTarget(true, 'missing-display-fixture');
+		await waitForAppLog('screens=2 outputs=2', beforeMissing);
+		console.log(JSON.stringify({ missing_display_withdrawn: true }));
+	}
 	await screens({
 		kind: 'ConfigureSurface',
 		reference: surface,
@@ -229,7 +278,18 @@ try {
 	await waitForAppLog('[mapgyver-output] native session retired', beforeDisable);
 	await receive(96, 'disabled', false);
 	await target(true, 128);
+	if (fullscreen) {
+		const beforeRestore = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
+		await fullscreenTarget(true);
+		await waitForAppLog('id=4 first API acceptance', beforeRestore);
+		const { snapshot } = await screens({ kind: 'InspectManager' });
+		assert.equal(
+			snapshot.screens.find((entry) => entry.id === fullscreenScreen).definition.target.display,
+			selectedDisplay.id
+		);
+	}
 	await receive(128, 'reenabled-and-resized', true);
+	if (fullscreen) await fullscreenTarget(false);
 	await target(false, 128);
 	if (rectangle) {
 		await screens({
@@ -251,7 +311,7 @@ try {
 			'physical=NativeOutputBounds { left: 120, top: 180, width: 480, height: 270 }'
 		);
 		console.log(JSON.stringify({ inspection_ready: true, directory }));
-		await delay(60000); // Finite allowance for supported native-window screenshot inspection.
+		await delay(fullscreen ? 1000 : 60000); // Fullscreen flow closes promptly; rectangle mode allows finite inspection.
 	}
 	console.log(JSON.stringify({ result: 'pass', directory }));
 } finally {

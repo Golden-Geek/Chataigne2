@@ -29,7 +29,15 @@ public binding API. It must complete actual GPU retirement before closing/droppi
 `close` joins native destruction and is never an engine/UI-thread operation. Main-editor visibility
 does not own these windows. MapGyver's session owner implements this ordering and routes its Screen
 textures to rectangle windows and Spout through the same shared renderer. Fullscreen display
-selection, catalog identity and reconnect/hotplug policy remain app-owned M05 work.
+selection and reconnect/hotplug policy remain app-owned. `native_displays` in the host's `displays`
+module enumerates at most 32 active device paths/128 modes, with at most three topology-race retries.
+It returns human-readable labels and checked physical bounds, sorted by opaque monitor device
+path rather than primary-display/index identity. The SDK query does not participate in DPI
+virtualization ([QueryDisplayConfig](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-querydisplayconfig)).
+MapGyver's preparation worker owns one-second rescans, a generated catalog/selector contract and
+revision fences. Missing displays withdraw fullscreen output while retaining the authored identity;
+no label/position/primary fallback is allowed. OS device reinstallation can change a path and needs
+explicit reselection. Actual hotplug/mixed-DPI and full presentation qualification remain M05 work.
 
 The `golden_core` facade is the ready-to-launch full-host surface. It intentionally includes the
 engine, persistence, HTTP/WebSocket transport, Tauri host, native dialogs, protocol, and scripting

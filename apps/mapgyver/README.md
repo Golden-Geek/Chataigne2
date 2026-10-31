@@ -94,8 +94,9 @@ primitives before mutation. Source crop precedes perspective mapping, with mirro
 quads supported. Finite native reference patterns cover crop/warp and alpha/backdrop preservation.
 The Screen Manager now previews these composed textures through the same native session as
 Channel previews, including while its authored output is disabled. Screen rectangle/Spout extents
-define preview resolution; unconfigured/fullscreen targets use the backend's default canvas until
-the display catalog can resolve an extent. Optional Screen-route bindings allow a preview-only
+define preview resolution; fullscreen targets use their intended display's current extent even
+while output is disabled. Unconfigured/unavailable targets use the backend's default preview canvas.
+Optional Screen-route bindings allow a preview-only
 texture to feed the existing window compositor without opening a physical or Spout output.
 Calibration Grid and Color Bars are now source-independent procedural layers. Grid uses the
 app's 16×9 white-on-black policy; bars use white/yellow/cyan/green/magenta/red/blue/black. Patterns
@@ -107,7 +108,7 @@ verify these semantics. An ordinary-app, independent Spout receiver flow also ve
 with no editor loaded for Grid/Bars, restored media routing and enable/disable/resize recovery.
 Calibration visual/form-input acceptance remains open.
 
-Enabled rectangle and virtual Spout Screen targets now publish through this same renderer. Output capture is
+Enabled fullscreen, rectangle and virtual Spout Screen targets now publish through this same renderer. Output capture is
 independent of preview registrations; hiding or closing views cannot remove its source demand.
 The host worker captures at most 128 Screen definitions and admits seven Screen targets plus
 the host preview consumer within the existing eight-output budget. Runtime output IDs remain
@@ -127,15 +128,27 @@ placement/extent changes use that same boundary. The session retains Golden's `N
 owners until rendering and picture preparation finish retiring, then closes/joins their native
 threads. Windows are borderless, topmost, nonactivating and independent of the editor window.
 Checked signed physical bounds are compared with actual client geometry before binding a renderer.
-Fullscreen display selection, display recovery and full graphical Screen/Surface Source editor
-gestures remain M05 work. Native geometry/destruction and concurrent rectangle/Spout activation
-pass; no physical output pixel, minimize, mixed-DPI, latency, color or full target-concurrency pass
-is inferred.
+Fullscreen uses an exact Windows monitor device-path identity from Golden's bounded native display
+catalog, with current physical position/extent. The desktop selector shows active displays and
+retains unavailable selections. The preparation worker rescans once per second and coalesces
+explicit refreshes; no OS enumeration or display polling runs on the engine/UI thread. Catalog
+changes fence captured plans and resolve the same intended identity again. Unavailable or oversized
+fullscreen displays withdraw that output/source demand without substituting another monitor or
+blocking healthy target capture. Enumeration failures clear fullscreen availability until recovery.
+Device paths may change after OS device reinstallation; an unmatched identity remains missing.
+Native geometry/destruction and concurrent fullscreen/rectangle/Spout API acceptance pass. Actual
+cable hotplug, selector input, physical pixels, minimize, mixed-DPI, latency, color and the complete
+presentation matrix retain their M05 qualification scope.
 The finite delivery check is `node apps/mapgyver/tests/native_output/check.mjs` from the workspace
 root, after building `MapGyver` and `native_qualification` with `--features native-qualification`.
 It uses an isolated port, ephemeral unsaved authoring and clean shutdown; artifacts stay in `target`.
 Add `--rectangle` for concurrent rectangle/Spout, rectangle move/resize, and a finite 60-second
 output-window inspection interval. This flow does not automate input or certify output pixels.
+The fullscreen extension uses `--rectangle --fullscreen --catalog <fixture.json>`. The ignored
+`hardware_native_catalog_has_distinct_device_paths_and_physical_bounds` test can write the exact
+Rust catalog DTO fixture via an absolute `MAPGYVER_DISPLAY_FIXTURE` path. The finite app flow checks
+all target modes, missing/restored selection and one API-accepted submission per native consumer;
+it does not alter Windows display settings or claim physical hotplug/scanout.
 
 Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
 and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`

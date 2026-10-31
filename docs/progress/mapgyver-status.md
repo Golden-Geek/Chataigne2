@@ -4,35 +4,25 @@
 
 **Updated: 2026-10-31 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Current topic:** M05 Screen Manager/backend authoring is verified: persistent Screens, ordered
-Surfaces, typed output targets, source/crop/quad/opacity/calibration data, atomic history and
-commands/script methods/callbacks/snippets. The registered Screen Manager UI now exposes that
-authoring route, target settings and Surface Source fields with event-driven refresh and bounded
-lists. Checked crop/perspective rendering and Screen plan publication now pass reference-pattern
-and integration checks. Native Screen preview now works in the ordinary app, including live
-Surface withdraw/restore while output is disabled. Source-independent calibration, routing
-restoration and ordered alpha composition now pass backend/runtime and finite GPU checks.
-Enabled virtual Spout targets now run through the same renderer with no editor registered;
-disable/re-enable, size changes and calibration-to-media routing pass independent receiver checks.
-Physical rectangle targets now create independent host-owned windows through the same renderer;
-signed client geometry, move/resize, native destruction and concurrent rectangle/Spout activation
-pass finite checks. M05 gates 1–3 are accepted, **3/8 (38%)**. Fullscreen targets, physical output
-pixels, ordinary-app calibration
-visual/input acceptance, minimized/concurrent-target coverage, display recovery, drag gestures and full editor/native
-acceptance remain open.
-M04's module integration is accepted; source controls, sender discovery and native 4K PNG
-display/relink/missing/recovery are delivered, with full source/UI/parity acceptance still open.
-M03 remains **7/9**; its open qualification no longer serializes all feature development. The
+**Current topic:** M05 authoring, crop/warp and calibration close **3/8 gates (38%)**. Native Screen
+preview and all three target modes now work through one renderer without an editor. The generated
+display selector preserves intended device-path identity; software checks cover catalog loss/error/
+reorder/recovery and native checks cover exact fullscreen geometry, missing/restored selection,
+three-consumer API acceptance and independent Spout delivery. Screen/Surface graphical gestures,
+selector/form input, minimize, actual hotplug, mixed-DPI and physical-pixel qualification remain open.
+M04's module, source controls, discovery and native 4K PNG/relink/recovery are delivered, with its
+full source/UI/parity gates still open. M03 remains **7/9**; qualification no longer serializes product work. The
 [execution correction](../plan/MapGyver_Implementation_Plan.md#execution-correction--2026-10-30)
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** M05 display catalog and fullscreen target activation with stable intended display identity.
+**Next:** M05 graphical Screen editor: Surface selection and corner dragging through backend intents,
+with one complete drag represented by one undoable gesture.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
 **Implementation limits:** native checks cover PNG relink, finite crop/warp/color oracles, live
 Screen composition/Surface revisions, independent virtual Spout delivery without an editor and
-physical rectangle geometry/lifetime with concurrent Spout.
+physical rectangle geometry/lifetime and fullscreen geometry/API acceptance with concurrent Spout.
 Full source/color/physical-output qualification remains open.
 Native authoring used backend operations; form input and graphical drag cases were not exercised.
 Keep these limits explicit without opening another automation or GPU-clock investigation.
@@ -49,7 +39,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Module integration accepted; source acceptance open | `███░░░░░░░░░░░░░░░░░` 17% | 1/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Authoring/mapping/calibration accepted; outputs/editors open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | All target modes delivered; editor/qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M07 Matrix/editor](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 | [M08 App lifetimes](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -71,6 +61,72 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M05 acceptance items
+
+**Product batch 15:** started 2026-10-31 **00:01 UTC**, recorded stop **00:46 UTC**.
+Deliver native display enumeration with stable device-path identities, a generated catalog/UI
+selector, and fullscreen Screen resolution/recovery without substituting another display.
+Golden owns OS enumeration and physical metadata; MapGyver owns intended-target selection,
+missing-display state and output reconciliation. Prove identity/reorder/disconnect recovery in
+software and available fullscreen native geometry/delivery within two finite native experiments
+or 20 minutes. Keep unavailable hotplug/mixed-DPI/physical pixel/input qualification open.
+Software suites, strict Clippy, Svelte checking and the real native executable build pass.
+Native checks start **00:21 UTC** and stop by **00:41 UTC** or two experiments: native catalog
+enumeration/fixture, then the ordinary fullscreen/rectangle/Spout flow.
+
+**Batch 15 result:** Golden's public `native_displays` returns bounded active monitor device paths,
+labels and checked physical desktop bounds. It uses the locked Windows SDK API, admits at most
+32 paths/128 modes and retries topology-buffer races at most three times. Returned identities are
+canonical device paths, never ordinal/index, friendly label, current position or primary-display
+selection. OS device reinstallation can change a path; such selections remain explicitly missing.
+MapGyver owns the generated Rust/TypeScript catalog/request/event DTOs, desktop selector and
+target resolution policy. Discovery does not create GPU resources or run on engine/UI threads.
+
+The preparation worker coalesces explicit refreshes and rescans once per second for topology/error
+recovery. Only changed catalog data/errors advance revision guards and emit metadata. Captured
+plans retain that guard, so a display change triggers recapture without an authored edit. Fullscreen
+routes resolve the exact intended identity to current physical position/extent; missing or oversized
+targets withdraw only their output/source demand, preserving healthy target capture. Query failures
+clear fullscreen availability until recovery. Saved choices are never replaced with another display.
+Disabled fullscreen previews also use the intended display's available extent/aspect. Resolved
+targets have one typed endpoint/extent contract instead of duplicated authored/runtime dimensions.
+Window retirement, limits and brief shared-session interruption on topology changes are unchanged.
+
+**Native evidence:** both finite experiments passed by **00:25 UTC**:
+
+- Production catalog scan found **two** distinct device-path identities: a 2560×1600 display at
+  (0,0) and RTK FHD HDR 1920×1080 at (2560,0). The exact generated DTO fixture stays local at
+  `target/m05-display-catalog-batch15.json`; raw identities are not needed in this handoff.
+- The ordinary app runs fullscreen, rectangle and virtual Spout simultaneously, with no frontend
+  or editor loaded. The selected fullscreen is exactly **(2560,0,1920×1080)**, and all three native
+  consumers record an API-accepted submission. Changing that Screen to an unavailable identity
+  withdraws its window, leaving two output routes; restoring the original identity resumes the same
+  logical output and exact bounds. This is a target-selection scenario, **not physical hotplug**.
+  Independent Spout image-copy counts are **180 Bars, 179 Grid, 178 restored media, 0 disabled
+  (1,978 absent polls), 180 re-enabled/resized**, with zero receive failures/active-layout mismatches.
+  The app and all five receivers exit **0**; no native-window teardown error or OS setting change
+  occurs. Artifacts stay local at `target/m05-spout-1793406255600`.
+
+Native output logs now record first API acceptance once per consumer/device; they are not scanout,
+pixel/color, unique-frame or cadence proof. Both experiments are consumed. No further native test,
+automation recovery, driver/clock work or physical-monitor reconfiguration is scheduled this batch.
+Real cable hotplug, mixed-DPI/negative-origin monitor arrangements, selector/form input, minimize,
+graphical gestures and the complete physical-presentation matrix retain their original gates.
+
+Software checks cover exact-identity/reorder stability, no fallback when another display has the
+same name/geometry, loss/error/recovery, revised bounds, disabled-preview extent, guard invalidation
+and oversized-target isolation. The headless/Null path also publishes, withdraws and restores a
+fullscreen route from injected metadata without native OS/GPU work. Rust-generated protocol drift,
+Svelte checks, real bundled build, strict app/host all-feature Clippy and syntax checks pass; final
+suite totals and format/delivery evidence follow below. No budgets or acceptance denominators change.
+Final validation: **85 passing / 1 ignored** default-feature library tests and **75/75** engine-only
+tests pass. The ignored native catalog test was run explicitly as the first experiment above.
+The added Null-runtime test verifies metadata-driven fullscreen publication/withdrawal/restoration;
+the catalog guard test proves presentation invalidation without a document edit. Strict Clippy,
+both workspace formatters, finite-flow syntax and final whitespace checks pass. Implementation and
+checks finished by **00:37 UTC**, including final selector labels and the embedded UI rebuild,
+before the recorded **00:46 UTC** stop.
+**M05 remains 3/8 (38%)**, M03 7/9, M04 1/6, overall 3/10 (30%). Product delivery count is **15**;
+the next product deliverable is graphical Surface selection/corner dragging with grouped history.
 
 **Product batch 14:** started 2026-10-30 **23:42 UTC**, recorded stop **00:27 UTC** (Oct 31).
 Deliver physical rectangle output windows from Screen target/enabled state, sharing the native
@@ -407,8 +463,8 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 1 | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets. | Accepted — batch 8 evidence below |
 | 2 | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically. | Accepted — batch 10 reference and publication evidence above |
 | 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Accepted — batch 12 backend/runtime and finite GPU evidence |
-| 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–14 verify Spout and rectangle activation/geometry without an editor; fullscreen, pixels and full concurrent/minimize scope remain |
-| 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open |
+| 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain |
+| 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain |
 | 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Open |
 | 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open |
 | 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
@@ -795,7 +851,7 @@ batches per diagnostic-only batch; no consecutive diagnostic-only turns by defau
 two batches without a usable capability or acceptance closure, reduce the feature slice or
 choose another functionally ready product task. Do not add another measurement prerequisite.
 
-**Product-delivery count since correction: 14. Diagnostic-only batch allowance: 3, unused.**
+**Product-delivery count since correction: 15. Diagnostic-only batch allowance: 3, unused.**
 The first authoring slice and the new atomic Picture import capability (verified through backend/
 QuickJS) count as product delivery; the earlier workflow/docs checkpoint does not. Picture UI
 interaction is not counted as verified acceptance. The observed ordinary-app Solid Color preview
@@ -815,6 +871,8 @@ Editor-independent virtual Spout target activation with independent SDK delivery
 the full physical/virtual target and editor/minimize gate stays open.
 Host-owned physical rectangle targets with signed geometry, move/resize and concurrent Spout
 delivery are the fourteenth; full physical pixels/fullscreen/minimize qualification remains open.
+The generated display catalog/selector and intended-identity fullscreen activation/recovery are
+the fifteenth; actual hotplug/minimize and the full presentation matrix remain open.
 The allowance follows the four-product-to-one-diagnostic ratio; none of the three allowed diagnostic
 batches is scheduled, and consecutive diagnostic-only batches remain prohibited by default.
 Qualification may interrupt only for a reproduced blocker on the selected product path or an
@@ -1007,7 +1065,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | IN_PROGRESS | [Solid Color authoring](#first-authoring-slice--2026-10-30) and [atomic Picture import/editor](#picture-authoring--2026-10-30) delivered; Picture UI interaction and the six full source/native/module gates remain open |
-| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, editor-independent Spout delivery and rectangle geometry/lifetime work. Fullscreen/display/recovery, physical pixels and editor/gesture/full native gates remain open. |
+| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all target modes, catalog/selector and exact-identity recovery are implemented. Actual hotplug/minimize, physical pixels and editor/gesture/full native gates remain open. |
 | M06 Composition/editor | NOT_STARTED | Instance/canvas/dependency contracts defined |
 | M07 Matrix/editor | NOT_STARTED | Layers/groups/exports/transition contracts defined |
 | M08 App lifetimes | NOT_STARTED | Neighbor demand and owned-process lifecycle specified |
@@ -1015,12 +1073,12 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Deliver **M05 display catalog and fullscreen target activation** with stable intended display
-identity, physical extent/placement and explicit missing-display behavior. Rectangle and virtual
-Spout activation now work with no editor registered, including signed rectangle geometry/lifetime,
-move/resize and calibration/media restoration. Ordinary-app physical pixels/visual/input and minimized/
-concurrent-target evidence remain open. M05 gates 1–3 are accepted. Define window ownership,
-retirement, display-identity/recovery and placement proof before coding. Retain all target
+Deliver the **M05 graphical Screen editor**: select a Surface and move its mapped corners through
+backend intents, grouping a complete drag into one undoable gesture. The UI owns viewport/input
+presentation; backend code owns Surface mutation, validity and history semantics. All target modes
+and intended-display resolution now work without an editor; actual hotplug/minimize, physical
+pixels and complete visual/input evidence remain open. M05 gates 1–3 are accepted. Define gesture
+admission, cancellation, history and validation before coding. Retain all target
 modes, display recovery, graphical editor/gesture and physical qualification scope in M05 gates
 4–8. M04 gates 2–6 retain
 their full source, UI, lifecycle and parity scope. Preserve Chataigne's root default and unfinished P11 work.
@@ -1029,7 +1087,7 @@ Record the slice's owner, observable result, validation and 45-minute stopping t
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 The delivered authoring/import/native Solid Color/Shared Texture editing/module integration/sender
 discovery/native Picture/Screen authoring/Screen Manager UI/crop-warp/native Screen preview/calibration/
-virtual Spout/physical rectangle activation capabilities advance the product counter to **14**; documentation alone earns no credit. Three
+virtual Spout/physical rectangle/fullscreen catalog capabilities advance the product counter to **15**; documentation alone earns no credit. Three
 diagnostic-only batches are allowed by the ratio but none is scheduled. Continue the product path;
 retained M03 qualification is not the default work queue.
 

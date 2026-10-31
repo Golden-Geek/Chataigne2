@@ -5,7 +5,7 @@ use crate::{
     app::AppEngine,
     media::{CapturedChannels, capture_channels},
     screens::{
-        protocol::ScreenId,
+        protocol::{DisplayInfo, ScreenId},
         rendering::{CapturedOutput, ScreenRoute, capture_outputs, capture_screen, membership_guard},
     },
 };
@@ -23,6 +23,12 @@ pub struct CapturedPreview {
 }
 
 impl CapturedPreview {
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) fn add_revision_guard(&mut self, guard: RevisionGuard) {
+        let mut guards = self.channels.guards.to_vec();
+        guards.push(guard);
+        self.channels.guards = guards.into();
+    }
     pub fn statuses(&self, channels: &[crate::media::rendering::PreparedChannel]) -> Vec<PreviewStatus> {
         use crate::media::resolution::ChannelAvailability;
         let mut statuses = self.statuses.clone();
@@ -137,11 +143,25 @@ pub fn capture_presentation(
     sources: &[PreviewSource],
     maximum_sources: usize,
     maximum_surfaces: usize,
+    displays: &[DisplayInfo],
 ) -> Result<CapturedPreview, String> {
     let mut result = capture_preview(engine, sources, maximum_sources, maximum_surfaces)?;
-    let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_SCREEN_OUTPUTS)?;
+    let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_SCREEN_OUTPUTS, displays)?;
     result.catalog = captured.catalog;
     result.guards.extend(captured.guards);
+    for route in &mut result.screens {
+        if let Some(&extent) = captured.preview_extents.get(&route.screen.id()) {
+            route.extent = extent;
+            if let Some(status) = result.statuses.iter_mut().find(|status| {
+                status.source
+                    == PreviewSource::Screen {
+                        screen: route.screen.id(),
+                    }
+            }) {
+                status.extent = Some(extent);
+            }
+        }
+    }
     let mut references = sources
         .iter()
         .filter_map(|source| match source {
@@ -153,20 +173,32 @@ pub fn capture_presentation(
         references.extend(route.screen.references());
     }
     for output in &captured.outputs {
-        if result.screens.iter().any(|route| route.screen.id() == output.screen) {
+        if let Some(route) = result
+            .screens
+            .iter_mut()
+            .find(|route| route.screen.id() == output.screen)
+        {
+            route.extent = output.extent();
+            if let Some(status) = result
+                .statuses
+                .iter_mut()
+                .find(|status| status.source == PreviewSource::Screen { screen: output.screen })
+            {
+                status.extent = Some(output.extent());
+            }
             continue;
         }
         let screen = capture_screen(engine, output.screen, maximum_surfaces)?;
         result.statuses.push(PreviewStatus {
             source: PreviewSource::Screen { screen: output.screen },
-            extent: Some(output.extent),
+            extent: Some(output.extent()),
             error: None,
             message: (!screen.has_content()).then(|| "No enabled sources assigned".into()),
         });
         references.extend(screen.references());
         result.screens.push(ScreenRoute {
             output: None,
-            extent: output.extent,
+            extent: output.extent(),
             screen,
         });
     }
@@ -174,5 +206,19 @@ pub fn capture_presentation(
     references.retain(|reference| seen.insert(*reference));
     result.channels = capture_channels(engine, &references, maximum_sources)?;
     result.outputs = captured.outputs;
+    for (screen, reason) in captured.unavailable {
+        let source = PreviewSource::Screen { screen };
+        let message = Some(reason);
+        if let Some(status) = result.statuses.iter_mut().find(|status| status.source == source) {
+            status.message = message;
+        } else {
+            result.statuses.push(PreviewStatus {
+                source,
+                extent: None,
+                error: None,
+                message,
+            });
+        }
+    }
     Ok(result)
 }

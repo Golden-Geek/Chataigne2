@@ -1,4 +1,5 @@
 <script lang="ts">
+	import DisplayPicker from './DisplayPicker.svelte';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { ScreenDefinition } from './generated/ScreenDefinition';
 	import type { ScreenTarget } from './generated/ScreenTarget';
@@ -67,11 +68,7 @@
 				<option value="Spout">Virtual Spout output</option>
 			</select></label>
 		{#if mode === 'Fullscreen'}
-			<label
-				>Display identity<input
-					bind:value={display}
-					required
-					placeholder="Stable display identifier" /></label>
+			<DisplayPicker bind:display {disabled} />
 		{:else if mode === 'Spout'}
 			<label>Sender name<input bind:value={sender} required /></label>
 		{/if}

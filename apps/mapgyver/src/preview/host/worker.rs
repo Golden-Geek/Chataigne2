@@ -112,6 +112,7 @@ pub(super) struct Input {
     pub signal: mpsc::Receiver<()>,
     pub stop: NativePresentationStop,
     pub discovery: super::discovery::Discovery,
+    pub displays: super::displays::Catalog,
 }
 
 pub(super) fn run(input: Input) -> io::Result<()> {
@@ -129,7 +130,26 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut topology = Vec::new();
     let mut last_error = None;
     let mut output_states = Vec::new();
+    let mut accepted_outputs = std::collections::HashMap::new();
+    let mut next_display_scan = Instant::now();
+    let mut display_snapshot = crate::screens::protocol::DisplayCatalogSnapshot::default();
     while !input.stop.is_requested() {
+        let refresh = input.displays.take_refresh();
+        if refresh || Instant::now() >= next_display_scan {
+            next_display_scan = Instant::now() + Duration::from_secs(1);
+            if let Some(snapshot) = input.displays.update(super::displays::scan()) {
+                eprintln!(
+                    "[mapgyver-displays] revision={} active={} error={:?}",
+                    snapshot.revision,
+                    snapshot.displays.len(),
+                    snapshot.error
+                );
+                let _ = input
+                    .window
+                    .emit(crate::screens::protocol::DISPLAY_CATALOG_EVENT, &snapshot);
+                display_snapshot = snapshot;
+            }
+        }
         if let Some(revision) = input.discovery.take() {
             let result = (|| {
                 if discovery.is_none() {
@@ -178,10 +198,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     || capture.as_ref().is_none_or(|capture| !capture.is_current());
                 if changed {
                     let sources = preview.sources()?;
+                    let displays = display_snapshot.displays.clone();
                     let mut next = input
                         .runtime
-                        .capture_app(move |engine| capture_presentation(engine, &sources, 8, 128))
+                        .capture_app(move |engine| capture_presentation(engine, &sources, 8, 128, &displays))
                         .map_err(|e| e.to_string())??;
+                    next.add_revision_guard(input.displays.guard());
                     let desired = targets.assign(&mut next)?;
                     if desired != topology {
                         // The public native contract has immutable bindings. Complete actual GPU
@@ -192,6 +214,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         }
                         native = None;
                         output_states.clear();
+                        accepted_outputs.clear();
                         topology = desired;
                         installed = None;
                         confirmed = None;
@@ -282,6 +305,21 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .map(|capture| capture.statuses(renderer.channels()))
                     .unwrap_or_default();
                 let observations = native.as_ref().unwrap().output_snapshots();
+                for output in observations
+                    .iter()
+                    .filter(|output| output.id != OutputId::new(1).unwrap())
+                {
+                    if let Some(token) = output.last_accepted
+                        && accepted_outputs.get(&output.id) != Some(&token.device)
+                    {
+                        eprintln!(
+                            "[mapgyver-output] id={} first API acceptance serial={}",
+                            output.id.get(),
+                            token.serial
+                        );
+                        accepted_outputs.insert(output.id, token.device);
+                    }
+                }
                 let states = observations
                     .iter()
                     .filter(|output| output.id != OutputId::new(1).unwrap())

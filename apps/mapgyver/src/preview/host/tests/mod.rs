@@ -37,4 +37,10 @@ fn discovery_and_all_existing_preview_requests_keep_their_canonical_contracts() 
         Request::Media(MediaNativeRequest::Senders { refresh: true })
     ));
     assert!(serde_json::from_str::<Request>(r#"{"kind":"mapgyverSenders","refresh":"invalid"}"#).is_err());
+    let request = crate::screens::protocol::ScreenNativeRequest::Displays { refresh: true };
+    let json = serde_json::to_string(&request).unwrap();
+    assert!(matches!(
+        serde_json::from_str::<Request>(&json).unwrap(),
+        Request::Screen(_)
+    ));
 }

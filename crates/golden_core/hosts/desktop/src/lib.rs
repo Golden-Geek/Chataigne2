@@ -5,6 +5,7 @@
 mod desktop;
 mod desktop_commands;
 mod desktop_window;
+mod displays;
 mod host_config;
 mod native_presentation;
 mod output_window;
@@ -21,6 +22,7 @@ pub use desktop::{
     run_default, run_default_with_config, run_default_with_native_presentation, run_default_with_ui_assets,
     run_default_with_ui_assets_and_dev_server,
 };
+pub use displays::{NativeDisplay, native_displays};
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
 pub use native_presentation::{
     NativePresentation, NativePresentationStop, NativePresentationTask, NativePresentationViewport,

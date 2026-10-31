@@ -2,7 +2,7 @@
 
 use crate::{
     preview::capture::CapturedPreview,
-    screens::protocol::{PhysicalRectangle, ScreenId, ScreenTarget},
+    screens::{protocol::ScreenId, rendering::ResolvedTarget},
 };
 use golden_core::app::{NativeOutputBounds, NativeOutputWindow};
 use golden_video::native::OutputBinding;
@@ -12,25 +12,19 @@ use std::collections::HashMap;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Target {
     pub id: OutputId,
-    pub kind: TargetKind,
+    pub kind: ResolvedTarget,
     pub descriptor: TextureDescriptor,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) enum TargetKind {
-    Spout(String),
-    Rectangle(PhysicalRectangle),
 }
 
 impl Target {
     pub fn binding(&self, windows: &mut Vec<NativeOutputWindow>) -> Result<OutputBinding, String> {
         match &self.kind {
-            TargetKind::Spout(name) => Ok(OutputBinding::Spout {
+            ResolvedTarget::Spout { sender: name, .. } => Ok(OutputBinding::Spout {
                 id: self.id,
                 name: name.clone(),
                 descriptor: self.descriptor,
             }),
-            TargetKind::Rectangle(bounds) => {
+            ResolvedTarget::Rectangle(bounds) | ResolvedTarget::Fullscreen { bounds, .. } => {
                 let physical =
                     NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
                         .map_err(|error| error.to_string())?;
@@ -89,16 +83,12 @@ impl Targets {
             route.output = Some(id);
             targets.push(Target {
                 id,
-                kind: match &output.target {
-                    ScreenTarget::Spout { sender, .. } => TargetKind::Spout(sender.clone()),
-                    ScreenTarget::Rectangle { bounds } => TargetKind::Rectangle(*bounds),
-                    ScreenTarget::Fullscreen { .. } => return Err("fullscreen display is unresolved".into()),
-                },
+                kind: output.target.clone(),
                 descriptor: TextureDescriptor {
-                    extent: output.extent,
+                    extent: output.extent(),
                     format: PixelFormat::Bgra8Unorm,
                     color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: if matches!(output.target, ScreenTarget::Spout { .. }) {
+                    alpha_mode: if matches!(output.target, ResolvedTarget::Spout { .. }) {
                         AlphaMode::Straight
                     } else {
                         AlphaMode::Opaque

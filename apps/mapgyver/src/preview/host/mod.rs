@@ -1,6 +1,7 @@
 //! Shared app preview: the host owns HWND lifetime; this task owns rendering/preparation.
 pub(crate) mod config;
 mod discovery;
+mod displays;
 mod targets;
 mod worker;
 
@@ -18,6 +19,7 @@ use std::{
 #[serde(untagged)]
 enum Request {
     Media(crate::media::protocol::MediaNativeRequest),
+    Screen(crate::screens::protocol::ScreenNativeRequest),
     Preview(golden_video::preview::protocol::PreviewRequest),
 }
 
@@ -37,6 +39,8 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
     let viewport = Arc::new(Mutex::new(None));
     let discovery = discovery::Discovery::new(notifier.clone());
     let discovery_control = discovery.clone();
+    let displays = displays::Catalog::new(notifier.clone());
+    let display_control = displays.clone();
     let control_viewport = viewport.clone();
     let control = controller.clone();
     Ok(NativePresentation::new(move |window: &tauri::WebviewWindow| {
@@ -58,6 +62,7 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
                 signal,
                 stop,
                 discovery,
+                displays,
             })
         }))
     })
@@ -68,6 +73,9 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
                 return serde_json::to_string(&discovery_control.request(refresh)?).map_err(|error| error.to_string());
             }
             Request::Preview(request) => request,
+            Request::Screen(crate::screens::protocol::ScreenNativeRequest::Displays { refresh }) => {
+                return serde_json::to_string(&display_control.request(refresh)?).map_err(|error| error.to_string());
+            }
         };
         let host = HostViewport {
             client_width: metrics.physical_width,
