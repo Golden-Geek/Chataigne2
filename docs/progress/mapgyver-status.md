@@ -30,12 +30,14 @@ full source/UI/parity gates still open. M03 remains **7/9**; qualification no lo
 changes work order, not acceptance. M04 is **1/6 complete gates (17%)**; its full source,
 native preview, recovery and UI parity acceptance remains open.
 
-**Next:** bounded Matrix editor interaction/parity verification, then M08 column-controlled app
-lifetimes against the accepted functional column/transition contracts. No automation recovery detour.
+**Next:** implement M08 column-controlled app lifetimes against the accepted functional column/
+transition contracts, starting with the public Golden IO owned-process primitive. M07 interaction
+is parked after the bounded surface check; no automation recovery detour.
 **Last delivered capability:** Matrix runtime feedback correlates actual renderer installation and
 frame submission with captured launches and project instances, preserving previous observed output
 while a new request prepares/rejects (batch 28). Software checks pass; actual UI gestures remain
-unverified. **Product blocker:** none for the bounded interaction check or M08. Actual editor interaction remains
+unverified. **Product blocker:** none for M08. The bounded UI check renders the Matrix panel but the
+available helper reports higher target integrity and cannot verify input. Actual editor interaction remains
 under gate 3; independent app pixels and full recovery/scale remain under gate 4 and their owning phases.
 M04's full source/UI/recovery gates remain open and owned by M04. No timing/driver
 qualification or M03 stash work is scheduled.
@@ -80,6 +82,41 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 ### M07 acceptance items
+
+**Qualification batch 29 (first diagnostic-only allocation):** started 2026-10-31 **06:31 UTC**;
+interaction stop **06:51 UTC**, absolute handoff **07:16 UTC**. Exercise the delivered Matrix UI and
+existing module/script/headless authoring boundary: selection versus launch, assignment, settings,
+group/reorder, history and observed state. MapGyver owns behavior; the computer-use skill supplies
+ordinary owned-window input. At most two finite surface attempts, with no browser/integrity/driver
+recovery, no M03 stash, and no restart of batch 28's native correlation investigation. Preserve missing
+or failed observations; fix concrete UI defects within this slice. Checkpoint/push before M08.
+Twenty-eight product deliveries permit seven diagnostic-only batches; this uses the first allocation.
+
+**Batch 29 result (06:37 UTC):** the ordinary checkout build launches its bundled UI and displays
+the Matrix panel, empty-state controls and live backend connection. The available Windows helper
+reports **“Accessibility is limited because the target window has higher Windows integrity than the
+Computer Use helper.”** One screenshot-grounded Add Matrix click returned without any visible
+change or new backend intent. This establishes neither successful input nor a product defect. Actual
+creation/selection/assignment/settings/grouping/reorder/history and live-feedback gestures remain
+unverified; **M07 gate 3 stays open**. No privilege, browser, security, driver or clock settings changed.
+
+The initial skill launch resolved the installed older MapGyver instead of the supplied checkout
+executable; that untouched owned test process was closed. The second/final surface attempt launched
+`target/debug/MapGyver.exe` directly as an ordinary process and selected its exact returned window.
+Both owned test processes are confirmed stopped; no project was edited or saved. The surface check
+ended within seven minutes, below the 20-minute/two-attempt limit, with no recovery investigation.
+
+**Focused verification:** **27 Matrix tests pass** with desktop features and **27 pass headless**;
+**12 command/hosted-script tests pass**, including Matrix creation, committed AddLayers callbacks
+and Undo/Redo. The common typed backend route, authored operations, bounded reads and transition
+tests remain green. This is focused boundary evidence, not complete real-UI/parity acceptance. Both
+workspace formatters and whitespace checks run before handoff. Batch 28's failed native assertion/
+unverified correction and all physical/native qualification debt remain unchanged.
+
+**No gate closes; M07 remains 2/4 (50%), overall 3/10 (30%).** Product-delivery count stays **28**;
+diagnostic-only allocation used becomes **1 of 7**. No consecutive diagnostic batch is scheduled.
+The next implementation is M08's public owned-process mechanism and app-owned column demand;
+this known input limitation is not the default work queue.
 
 **Product batch 28:** started 2026-10-31 **06:05 UTC**, recorded stop **06:50 UTC**.
 Expose observed Matrix preparation/installation/output activity separately from selection and
@@ -402,7 +439,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — bounded grid/settings/reorder and correlated preparation/installed/submitted feedback software-verified in batches 26–28; actual interaction/parity acceptance remains |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — grid/settings/reorder/renderer feedback software-verified in batches 26–28; batch 29 displays the panel but higher-integrity target/no changed click leaves real interaction/parity acceptance open |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -1726,11 +1763,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Run **one bounded Matrix editor interaction/parity batch**, then deliver **M08 column-controlled
-app lifetimes** against the working, accepted column/transition contracts. Verify actual input and
-module/script/headless intent equivalence where the available surfaces permit it. Keep missing real
-interaction evidence open, checkpoint concrete defects/limits, and advance the ready M08 product
-path instead of reopening browser/privilege/driver/clock recovery. Preserve every acceptance budget.
+Deliver **M08 column-controlled app lifetimes** against the working, accepted column/transition
+contracts. Start with the public Golden IO owned-process primitive: suspended launch, Job Object
+assignment before resume, process-tree ownership, cancellation and bounded stop. Keep app definitions,
+column associations, non-wrapping pre/post windows, readiness, demand aggregation and restart policy
+in MapGyver. Use fake process/time checks and an owned finite executable; preserve existing qualification
+requirements. M07's bounded input check is finished with missing interaction evidence retained. Do not
+reopen browser/privilege/driver/clock recovery to qualify that editor before implementing M08.
 Native checks must follow passing software prerequisites and stop after two runs/20 minutes;
 unavailable interactive evidence stays open. The 2D editor, Matrix-inclusive cycles and complete
 native pixel correctness retain M06 gates 2–4; authoring gate 1 is accepted.
@@ -1741,7 +1780,7 @@ their full source, UI, lifecycle and parity scope. Preserve Chataigne's root def
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.
 Twenty-eight product slices are delivered; documentation checkpoints are excluded. Seven diagnostic-only
-batches are allowed by the ratio but none is scheduled. Continue the product path;
+batches are allowed by the ratio, one has been used, and none is scheduled next. Continue the product path;
 retained M03 qualification is not the default work queue.
 
 M03 gates 4 and 9 remain open and owned by M03. Preserve every original budget, failure and
