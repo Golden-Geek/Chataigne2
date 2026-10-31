@@ -4,6 +4,8 @@ mod config;
 #[cfg(windows)]
 mod host;
 #[cfg(windows)]
+mod observations;
+#[cfg(windows)]
 mod roles;
 #[cfg(windows)]
 mod scene;
@@ -16,6 +18,8 @@ fn main() -> std::process::ExitCode {
             "renderer" => roles::renderer(args),
             "source" => roles::source(args),
             "consumer" => roles::consumer(args),
+            "catalog" => observations::catalog(args),
+            "pixels" => observations::pixels(args),
             _ => Err(std::io::Error::other("unknown qualification role")),
         }
     })();

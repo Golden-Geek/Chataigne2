@@ -5,16 +5,17 @@
 **Updated: 2026-10-31 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
 **Current topic:** M04 source acceptance complete, **6/6 gates (100%)**. **Next active gate:**
-M05 concurrent output acceptance gate 4 for one bounded closure batch. M03 retains **7/9**;
-its recovery test awaits the explicit GPU-reset decision and presentation deadlines remain open.
+return to M03 renderer qualification gate 9 after the one scheduled M05 batch. M03 retains
+**7/9**; recovery awaits the explicit GPU-reset decision. M05 remains **3/8** with UI activation
+and fullscreen/editor-state observations still unverified.
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** verify M05's implemented physical fullscreen, desktop rectangle and Spout targets
-concurrently, including continued output when editors close/minimize. After this one batch,
-return to M03 presentation pacing or its approved reset check. Two bounded renderer batches
-did not close a gate, so apply the anti-drift rule instead of a presentation-mode sweep. Keep
-the complete Q01 baseline and failed interval-one control; Q02 and every measurement gap remain.
+**Next:** return to M03's native window presentation/pacing boundary or its approved reset check.
+Keep the complete Q01 baseline and rejected interval-one control; do not repeat parameter sweeps.
+M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
+flow proves Spout pixels and rectangle bars, but actual fullscreen/editor-state checks stay open.
+Q02 sustained qualification and every other measurement requirement remain unchanged.
 Preserve real resource fences, healthy outputs and original budgets; do not restore the parked
 performance/collector stash or change driver settings. **Blocker:** genuine removal needs an
 approved reset window; genuine source/driver stuck-drain bounds remain unverified.
@@ -22,6 +23,12 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest M05 evidence (batch 57):** two finite flows activate all three targets; independent Spout
+receives **179 / 104** copies and all **6,144 RGBA texels** match eight bars exactly in each.
+Rectangle screenshot bar centers are within **1/255** in both captures. The normal-integrity
+launcher restores accessibility, but activation fails after the supported retry. Both UI
+checkpoints time out and apps exit zero; no editor state/fullscreen pixels are inferred.
+[Partial evidence](evidence/mapgyver-m05-concurrent-partial-2026-10-31.json).
 **Latest correction result (batch 56):** interval-one presentation passes six pixel/flip-buffer
 frames, but its full-duration single Q01 control still misses **893/7,200** editor display
 deadlines. The candidate is reverted; no runtime/target/threshold change is retained.
@@ -85,10 +92,11 @@ These counts measure accepted scope, not effort or product readiness. Partial ev
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
-**Closure return queue:** M04 is complete. Next is one M05 gate 4 concurrent-output acceptance
-batch, then return to M03 gate 9 with the preserved window-deadline evidence; no repeated baseline
-or interval-mode sweep. M03 gate 4 returns on explicit GPU-reset approval, after any current run
-retires. Finish both M03 gates and remaining M05, then M06, M07 and M08 acceptance before M09's
+**Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
+activation blocker and exact remaining evidence. Return to M03 gate 9 with the preserved deadline
+failure; no repeated baseline or interval sweep. M03 gate 4 returns on explicit reset approval
+after current-run cleanup. Resume M05 gate 4 after successful supported window activation, then
+remaining M05, M06, M07 and M08 acceptance before M09's
 complete-app/artifact gate. Every original requirement remains required. A small optimization
 consuming roughly a full day warrants a specific user-reviewed deferral/lower-gate proposal, not
 automatic acceptance; correctness, ownership, data integrity and essential behavior stay required.
@@ -1547,6 +1555,68 @@ No native experiment or M03 investigation ran. M06 gate **1** closes: **1/4 (25%
 counts and overall **3/10 (30%)** are unchanged. Product slice **18**; next is nested render integration.
 
 ### M05 acceptance items
+
+**Concurrent-output acceptance batch 57:** started 2026-10-31 **18:27 UTC**, recorded stop
+**19:12 UTC**. Previous turn made progress: `21ef6a99` rejects/reverts the failed M03 interval
+candidate and explicitly schedules this one existing M05 gate 4 acceptance batch. Only gate 4
+is active. Reuse the ordinary app/public Screen operations and independent receiver flow;
+verify fullscreen, rectangle and Spout concurrently with finite pixel observations, then real
+editor open/minimize/close and output changes while those editor states hold. Use private app
+data and only owned app/windows/processes. Generic host/window/GPU ownership remains reusable;
+app calibration/editor policy stays in MapGyver. Add only finite fixture observations/handshakes
+needed for this gate, not new production controls or a diagnostic framework. Software/build
+checks precede at most two native flows/20 minutes and the 19:12 stop. Native computer use is
+authorized and uses the supported skill; no desktop/driver/overlay setting changes. Full DPI,
+input/latency, hotplug and physical matrix acceptance retain gates 5–8. Return to M03 after
+this one batch, preserving every requirement and its pending GPU-reset question.
+
+Batch 57's first native flow starts **18:42 UTC**, cutoff **19:02 UTC** (and at most two flows),
+before the 19:12 batch stop. Software prerequisites are terminal: **192 app tests / one existing
+hardware ignore**, strict app/native-qualification-bin Clippy, debug app/receiver builds, JS syntax
+and Prettier, both Cargo formatters and whitespace checks. The catalog/pixel observation roles use
+public Golden APIs and Rust-owned app display DTOs; no production protocol changes. The first
+compile identified private bounds fields; the fixture now uses their existing public accessors.
+Run `node apps/mapgyver/tests/native_output/check.mjs --acceptance` once, retaining its process
+handle through UI checkpoints, finite receivers, pixel captures and normal shutdown. Only a
+concrete failure permits the second flow. Pixel PNGs/UI observations stay local with a compact
+handoff record; do not infer DPI/latency or a gate pass from mere API acceptance.
+
+First flow reaches all three active targets and **179** independent Spout copies; its 96x64 PNG
+matches all eight expected RGBA bars exactly, and computer use captures the rectangle bars.
+It stops at the initial UI checkpoint because the terminal-launched app is high integrity while
+the desktop helper reports lower integrity/limited accessibility. The app exits normally through
+its sentinel; the checkpoint timeout is retained, not a native-output acceptance failure/pass.
+The corrected fixture uses a dedicated finite launcher started by the desktop helper, passing
+private app data/bind/shutdown settings to its child without a shell or security-setting change.
+The app and launcher use only ordinary process creation; all control stays in the supported
+computer-use APIs. Launcher build and strict bin Clippy pass. The second/final flow starts
+**18:52 UTC**, still bounded by the original **19:02** native cutoff and 19:12 batch stop.
+
+**Batch 57 result:** both planned flows activate fullscreen **(2560, 0, 1920x1080)**, rectangle
+**(80, 120, 640x360)** and a **96x64** Spout target concurrently through the ordinary app.
+Independent receivers observe **179 / 104** copies. Fresh probe PNGs compare **6,144 RGBA texels**
+per flow against all eight authored bars with **zero byte error**. The supported computer-use
+capture includes the rectangle; its eight decoded bar centers have maximum RGB error **1/255**
+in both flows. Those captures are **512x288 JPEG logical screenshots**, not raw physical-pixel
+alignment evidence. Fullscreen visible pixels are not captured and remain unverified.
+
+The first app inherits high terminal integrity and exposes limited accessibility. The finite
+desktop-helper launcher fixes that: the second app has a full accessible workbench tree. However,
+click activation reports **`failed to activate captured window`**, and one fresh-selection/explicit
+activation retry reports the same error. Input is stopped under the supported recovery rules;
+no editor opening, minimization or closure is inferred. Both **initial** checkpoints time out,
+so both native flows exit **1**. Their apps exit **zero** via the existing shutdown sentinel;
+no owned MapGyver window or either retained app PID remains, and the launch-control file is removed.
+
+The [partial packet](evidence/mapgyver-m05-concurrent-partial-2026-10-31.json) records exact
+artifacts, pixel comparisons, display identities, app exits and unverified scope. Source helpers
+and the [finite workflow](../../apps/mapgyver/tests/native_output/README.md) are checkpointed.
+After the two flows, launcher status publication becomes atomic, an owned-child/watchdog guard
+and local-data isolation are added, and control cleanup becomes unconditional. These hardening
+changes pass compilation/strict Clippy but are **not** claimed as a third native verification.
+No further native attempt or helper workaround is run. **M05 stays 3/8; M03 stays 7/9; overall
+stays 4/10 (40%)**. Return to M03 after this scheduled batch; M05 resumes when supported activation
+works and its actual fullscreen/editor observations can be collected. All original gates remain.
 
 **Product batch 17:** started 2026-10-31 **01:17 UTC**, recorded stop **02:02 UTC**.
 Deliver full-source native preview with graphical crop-corner/origin gestures, preserving the
@@ -3384,13 +3454,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete. Next is one bounded **M05 gate 4** concurrent-output acceptance batch after
-two M03 renderer qualification batches without gate closure. Verify the already implemented
-fullscreen/desktop/Spout targets and editor independence, then return to M03 presentation pacing
-with the complete Q01 baseline and rejected interval-one control. Do not sweep modes or repeat
-the baseline unchanged. Retain Q02 and every measurement gap. M03 gate 4 returns after explicit
-reset approval and current-run cleanup; genuine removal/stuck-drain acceptance stays open.
-Preserve source pixel passes; do not restore the parked stash or change driver/overlay settings.
+M04 is complete. The scheduled M05 gate 4 batch proves independent Spout/rectangle colors and
+retains the native UI-activation blocker; fullscreen pixels/editor state are still unverified.
+Return to **M03 gate 9** presentation pacing with the complete Q01 baseline and rejected interval-one
+control. Do not sweep modes or repeat the baseline unchanged. Retain Q02 and every measurement
+gap. Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
+drain acceptance stays open. M05 returns after supported activation is available. Preserve source
+pixel passes; do not restore the parked stash or change driver/overlay settings.
 
 Finish both M03 gates, then M05/M06/M07/M08 and M09. A genuinely blocked
 gate must retain its exact missing prerequisite/evidence and next decision in the return queue.

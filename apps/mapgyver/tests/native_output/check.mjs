@@ -1,6 +1,6 @@
 // Run from the workspace root after building MapGyver and native_qualification with
 // --features native-qualification. Uses the ordinary app, public authoring HTTP API and an
-// existing independent Spout receiver. No editor is loaded or registered in this flow.
+// existing independent Spout receiver. --acceptance adds finite real-editor checkpoints.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -9,21 +9,27 @@ import { createWriteStream } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { prepareUiApp, runAcceptance, runFixture } from './acceptance.mjs';
 
-const fullscreen = process.argv.includes('--fullscreen');
+const acceptance = process.argv.includes('--acceptance');
+const fullscreen = process.argv.includes('--fullscreen') || acceptance;
 const catalogArg = process.argv.indexOf('--catalog');
 assert(
-	!fullscreen || (catalogArg >= 0 && process.argv[catalogArg + 1]),
+	!fullscreen || acceptance || (catalogArg >= 0 && process.argv[catalogArg + 1]),
 	'fullscreen requires --catalog <fixture.json>'
 );
 const displayCatalog = fullscreen
-	? JSON.parse(await readFile(process.argv[catalogArg + 1], 'utf8'))
+	? acceptance
+		? await runFixture(['--role', 'catalog'])
+		: JSON.parse(await readFile(process.argv[catalogArg + 1], 'utf8'))
 	: [];
 assert(
-	!fullscreen || (catalogArg >= 0 && displayCatalog.length > 0),
+	!fullscreen || displayCatalog.length > 0,
 	'fullscreen requires --catalog with native fixture metadata'
 );
-const selectedDisplay = displayCatalog[0];
+const selectedDisplay =
+	(acceptance && displayCatalog.find((display) => display.bounds.left >= 1280)) ||
+	displayCatalog[0];
 
 // Never attach this authoring fixture to an existing user session.
 const portCheck = createServer();
@@ -37,23 +43,41 @@ await mkdir(directory, { recursive: true });
 const stop = path.join(directory, 'app.stop');
 const base = 'http://127.0.0.1:7023';
 const sender = `MapGyver-M05-${randomUUID()}`;
-const rectangle = process.argv.includes('--rectangle');
+const rectangle = process.argv.includes('--rectangle') || acceptance;
+const physicalSurfaces = [];
 let rectangleScreen;
 let fullscreenScreen;
 const executable = path.resolve('target/debug/MapGyver.exe');
 const receiver = path.resolve('target/debug/native_qualification.exe');
-const appLog = createWriteStream(path.join(directory, 'app.log'));
-const app = spawn(executable, ['--no-frontend', '--automation-shutdown-file', stop], {
-	env: { ...process.env, GC_UI_BIND: '127.0.0.1:7023', GC_UI_FRONTEND_URL: base },
-	windowsHide: true,
-	stdio: ['ignore', 'pipe', 'pipe']
-});
-app.stdout.pipe(appLog, { end: false });
-app.stderr.pipe(appLog, { end: false });
-const exited = new Promise((resolve, reject) => {
-	app.once('error', reject);
-	app.once('close', (code, signal) => resolve({ code, signal }));
-});
+const uiApp = acceptance ? await prepareUiApp(directory) : null;
+const appLog = acceptance ? null : createWriteStream(path.join(directory, 'app.log'));
+const app =
+	uiApp?.app ??
+	spawn(
+		executable,
+		[...(acceptance ? [] : ['--no-frontend']), '--no-remote', '--automation-shutdown-file', stop],
+		{
+			env: {
+				...process.env,
+				APPDATA: path.join(directory, 'app-data'),
+				LOCALAPPDATA: path.join(directory, 'local-data'),
+				GC_UI_BIND: '127.0.0.1:7023',
+				GC_UI_FRONTEND_URL: base
+			},
+			windowsHide: true,
+			stdio: ['ignore', 'pipe', 'pipe']
+		}
+	);
+if (appLog) {
+	app.stdout.pipe(appLog, { end: false });
+	app.stderr.pipe(appLog, { end: false });
+}
+const exited =
+	uiApp?.exited ??
+	new Promise((resolve, reject) => {
+		app.once('error', reject);
+		app.once('close', (code, signal) => resolve({ code, signal }));
+	});
 let token;
 async function post(route, payload) {
 	const response = await fetch(`${base}${route}`, {
@@ -81,7 +105,7 @@ async function edit(namespace, payload) {
 }
 const screens = (payload) => edit('mapgyver.screens', payload);
 async function waitForAppLog(text, after = 0) {
-	const deadline = Date.now() + 15000;
+	const deadline = Date.now() + (acceptance ? 60000 : 15000);
 	while (true) {
 		const log = await readFile(path.join(directory, 'app.log'), 'utf8');
 		if (log.slice(after).includes(text)) return;
@@ -208,6 +232,7 @@ try {
 			label: 'Rectangle output check'
 		});
 		rectangleScreen = createdRectangle;
+		physicalSurfaces.push(rectangleSurface);
 		await screens({
 			kind: 'ConfigureSurface',
 			reference: rectangleSurface,
@@ -231,12 +256,13 @@ try {
 		await waitForAppLog(
 			'physical=NativeOutputBounds { left: 80, top: 120, width: 640, height: 360 }'
 		);
-		await waitForAppLog('screens=2 outputs=2');
+		await waitForAppLog(acceptance ? 'screens=2' : 'screens=2 outputs=2');
 	}
 	if (fullscreen) {
 		assert(rectangle, 'fullscreen flow includes rectangle concurrency');
 		const created = await screens({ kind: 'CreateScreen', label: 'Fullscreen output check' });
 		fullscreenScreen = created.screen;
+		physicalSurfaces.push(created.surface);
 		await screens({
 			kind: 'ConfigureSurface',
 			reference: created.surface,
@@ -245,50 +271,65 @@ try {
 		await fullscreenTarget(true);
 		const { left, top, extent } = selectedDisplay.bounds;
 		await waitForAppLog(
-			`window id=4 physical=NativeOutputBounds { left: ${left}, top: ${top}, width: ${extent.width}, height: ${extent.height} }`
+			`${acceptance ? '' : 'window id=4 '}physical=NativeOutputBounds { left: ${left}, top: ${top}, width: ${extent.width}, height: ${extent.height} }`
 		);
-		await waitForAppLog('screens=3 outputs=3');
-		await waitForAppLog('id=4 first API acceptance');
-		await waitForAppLog('id=3 first API acceptance');
+		await waitForAppLog(acceptance ? 'screens=3' : 'screens=3 outputs=3');
+		if (!acceptance) {
+			await waitForAppLog('id=4 first API acceptance');
+			await waitForAppLog('id=3 first API acceptance');
+		}
 		console.log(
 			JSON.stringify({ fullscreen_active: selectedDisplay.name, bounds: selectedDisplay.bounds })
 		);
 	}
-	await receive(96, 'bars-without-editor', true);
-	if (fullscreen) {
-		const beforeMissing = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
-		await fullscreenTarget(true, 'missing-display-fixture');
-		await waitForAppLog('screens=2 outputs=2', beforeMissing);
-		console.log(JSON.stringify({ missing_display_withdrawn: true }));
+	if (acceptance) {
+		await runAcceptance({
+			directory,
+			sender,
+			appPid: app.pid,
+			screens,
+			receive,
+			definition,
+			surfaces: [surface, ...physicalSurfaces],
+			displays: displayCatalog
+		});
+	} else {
+		await receive(96, 'bars-without-editor', true);
+		if (fullscreen) {
+			const beforeMissing = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
+			await fullscreenTarget(true, 'missing-display-fixture');
+			await waitForAppLog('screens=2 outputs=2', beforeMissing);
+			console.log(JSON.stringify({ missing_display_withdrawn: true }));
+		}
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: surface,
+			definition: { ...definition, calibration: 'Grid' }
+		});
+		await receive(96, 'grid-without-editor', true);
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: surface,
+			definition: { ...definition, calibration: 'Off' }
+		});
+		await receive(96, 'restored-source-without-editor', true);
+		const beforeDisable = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
+		await target(false);
+		await waitForAppLog('[mapgyver-output] native session retired', beforeDisable);
+		await receive(96, 'disabled', false);
+		await target(true, 128);
+		if (fullscreen) {
+			const beforeRestore = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
+			await fullscreenTarget(true);
+			await waitForAppLog('id=4 first API acceptance', beforeRestore);
+			const { snapshot } = await screens({ kind: 'InspectManager' });
+			assert.equal(
+				snapshot.screens.find((entry) => entry.id === fullscreenScreen).definition.target.display,
+				selectedDisplay.id
+			);
+		}
+		await receive(128, 'reenabled-and-resized', true);
 	}
-	await screens({
-		kind: 'ConfigureSurface',
-		reference: surface,
-		definition: { ...definition, calibration: 'Grid' }
-	});
-	await receive(96, 'grid-without-editor', true);
-	await screens({
-		kind: 'ConfigureSurface',
-		reference: surface,
-		definition: { ...definition, calibration: 'Off' }
-	});
-	await receive(96, 'restored-source-without-editor', true);
-	const beforeDisable = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
-	await target(false);
-	await waitForAppLog('[mapgyver-output] native session retired', beforeDisable);
-	await receive(96, 'disabled', false);
-	await target(true, 128);
-	if (fullscreen) {
-		const beforeRestore = (await readFile(path.join(directory, 'app.log'), 'utf8')).length;
-		await fullscreenTarget(true);
-		await waitForAppLog('id=4 first API acceptance', beforeRestore);
-		const { snapshot } = await screens({ kind: 'InspectManager' });
-		assert.equal(
-			snapshot.screens.find((entry) => entry.id === fullscreenScreen).definition.target.display,
-			selectedDisplay.id
-		);
-	}
-	await receive(128, 'reenabled-and-resized', true);
 	if (fullscreen) await fullscreenTarget(false);
 	await target(false, 128);
 	if (rectangle) {
@@ -316,24 +357,32 @@ try {
 	console.log(JSON.stringify({ result: 'pass', directory }));
 } finally {
 	await writeFile(stop, 'stop\n');
-	const result = await Promise.race([
-		exited,
-		delay(15000, undefined, { ref: false }).then(() => {
-			throw new Error(`app retirement did not finish; PID ${app.pid}`);
-		})
-	]);
-	await new Promise((resolve) => appLog.end(resolve));
-	assert.equal(result.code, 0, JSON.stringify(result));
+	try {
+		const result = await Promise.race([
+			exited,
+			delay(15000, undefined, { ref: false }).then(() => {
+				throw new Error(`app retirement did not finish; PID ${app.pid}`);
+			})
+		]);
+		assert.equal(result.code, 0, JSON.stringify(result));
+		assert.equal(result.forced ?? false, false, JSON.stringify(result));
+	} finally {
+		if (appLog) await new Promise((resolve) => appLog.end(resolve));
+		await uiApp?.cleanup();
+	}
 }
 const log = await readFile(path.join(directory, 'app.log'), 'utf8');
-assert(
-	log.includes('channels=0 screens=1 outputs=1') || log.includes('channels=0 screens=2 outputs=2'),
-	'calibration demanded a media channel'
-);
-assert(
-	log.includes(rectangle ? 'channels=1 screens=2 outputs=2' : 'channels=1 screens=1 outputs=1'),
-	'Off did not restore source demand'
-);
+if (!acceptance)
+	assert(
+		log.includes('channels=0 screens=1 outputs=1') ||
+			log.includes('channels=0 screens=2 outputs=2'),
+		'calibration demanded a media channel'
+	);
+if (!acceptance)
+	assert(
+		log.includes(rectangle ? 'channels=1 screens=2 outputs=2' : 'channels=1 screens=1 outputs=1'),
+		'Off did not restore source demand'
+	);
 assert(
 	!log.includes('window teardown failed') && !log.includes('close failed'),
 	'output window teardown failed'

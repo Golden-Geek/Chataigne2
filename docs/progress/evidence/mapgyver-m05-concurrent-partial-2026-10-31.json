@@ -1,0 +1,230 @@
+{
+  "evidence_kind": "partial_m05_concurrent_output_acceptance",
+  "date": "2026-10-31",
+  "phase": "M05",
+  "gate": 4,
+  "gate_accepted": false,
+  "remaining": [
+    "fullscreen visible pixel observation",
+    "real editor open/minimize/close with continued concurrent output"
+  ],
+  "ui_blocker": "Supported helper failed window activation, including one refreshed retry; no input outcome or editor state is inferred.",
+  "flows": [
+    {
+      "flow": 1,
+      "directory_local": "target/m05-spout-1793472122480",
+      "app_pid": 2844,
+      "native_flow_exit": 1,
+      "app_exit": 0,
+      "checkpoint": "initial",
+      "checkpoint_timeout": true,
+      "normal_integrity_helper_launch": false,
+      "spout_receive_copies": 179,
+      "spout_pixels": {
+        "size": [
+          96,
+          64
+        ],
+        "texels_compared": 6144,
+        "maximum_rgba_error": 0
+      },
+      "rectangle_capture": {
+        "decoded_format": "JPEG",
+        "size": [
+          512,
+          288
+        ],
+        "sampled_bar_centers_rgb": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            255,
+            255,
+            0
+          ],
+          [
+            0,
+            255,
+            255
+          ],
+          [
+            0,
+            255,
+            1
+          ],
+          [
+            255,
+            0,
+            254
+          ],
+          [
+            254,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            254
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "maximum_rgb_error": 1,
+        "scope": "bounded logical screenshot, not physical-pixel alignment or full color qualification"
+      },
+      "display_catalog": [
+        {
+          "id": "\\\\?\\display#rtk3b3a#4&1e95aa41&0&uid4165#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+          "name": "RTK FHD HDR",
+          "bounds": {
+            "left": 2560,
+            "top": 0,
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            }
+          }
+        },
+        {
+          "id": "\\\\?\\display#sdc420b#4&1e95aa41&0&uid8388688#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+          "name": "",
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "extent": {
+              "width": 2560,
+              "height": 1600
+            }
+          }
+        }
+      ],
+      "raw_sha256": {
+        "initial-bars-pixels/pixels.png": "213afddb2602abc6e5f62730f43f32b50212a8f7cbef6975cc9231627123362e",
+        "observations/rectangle-initial.png": "8e997946c2e558ff4deb337f1063ac7d4f4deb8e0df124522f2ac20a0154f5a9",
+        "app.log": "9686951025e7294ab6a2fd77aa50ec02597364c8afc79821337a6215dd943014",
+        "acceptance-state.json": "b92b43ca578a879ca7cb4c82aa5af6ec235f441dbda23a8b14614bf49c265835"
+      }
+    },
+    {
+      "flow": 2,
+      "directory_local": "target/m05-spout-1793472732482",
+      "app_pid": 38300,
+      "native_flow_exit": 1,
+      "app_exit": 0,
+      "checkpoint": "initial",
+      "checkpoint_timeout": true,
+      "normal_integrity_helper_launch": true,
+      "spout_receive_copies": 104,
+      "spout_pixels": {
+        "size": [
+          96,
+          64
+        ],
+        "texels_compared": 6144,
+        "maximum_rgba_error": 0
+      },
+      "rectangle_capture": {
+        "decoded_format": "JPEG",
+        "size": [
+          512,
+          288
+        ],
+        "sampled_bar_centers_rgb": [
+          [
+            255,
+            255,
+            255
+          ],
+          [
+            255,
+            255,
+            0
+          ],
+          [
+            0,
+            255,
+            255
+          ],
+          [
+            0,
+            255,
+            1
+          ],
+          [
+            255,
+            0,
+            254
+          ],
+          [
+            254,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            254
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "maximum_rgb_error": 1,
+        "scope": "bounded logical screenshot, not physical-pixel alignment or full color qualification"
+      },
+      "display_catalog": [
+        {
+          "id": "\\\\?\\display#rtk3b3a#4&1e95aa41&0&uid4165#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+          "name": "RTK FHD HDR",
+          "bounds": {
+            "left": 2560,
+            "top": 0,
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            }
+          }
+        },
+        {
+          "id": "\\\\?\\display#sdc420b#4&1e95aa41&0&uid8388688#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+          "name": "",
+          "bounds": {
+            "left": 0,
+            "top": 0,
+            "extent": {
+              "width": 2560,
+              "height": 1600
+            }
+          }
+        }
+      ],
+      "raw_sha256": {
+        "initial-bars-pixels/pixels.png": "213afddb2602abc6e5f62730f43f32b50212a8f7cbef6975cc9231627123362e",
+        "observations/rectangle-initial.png": "8e997946c2e558ff4deb337f1063ac7d4f4deb8e0df124522f2ac20a0154f5a9",
+        "app.log": "2e9aeb423a5307ed6cdfa0f396b4ed345878b081e3844cca8ae3a6691735d3c6",
+        "acceptance-state.json": "4457239d44f2770f50bafa225f98306f8e07ca98ee8e3b914a128ce43f18078b",
+        "launcher-result.json": "0b5e5f1067f481ddd3c9e6992ba14c8ffe1fc930a1258db8d18de3777d5092ce"
+      }
+    }
+  ],
+  "cleanup": {
+    "both_app_processes_exited_normally": true,
+    "owned_windows_absent_from_helper_inventory": true,
+    "launch_control_file_removed": true
+  },
+  "limits": [
+    "No fullscreen visible capture or real editor input succeeded; M05 stays 3/8.",
+    "The normal launcher restores accessibility but does not establish successful activation.",
+    "Later atomic status publication, watchdog and local-data isolation changes compile but have not been exercised by a third native flow.",
+    "M03 and every physical/DPI/hotplug/latency requirement remain unchanged."
+  ]
+}

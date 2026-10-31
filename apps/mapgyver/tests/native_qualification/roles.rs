@@ -23,7 +23,7 @@ use windows::Win32::System::Threading::CREATE_NO_WINDOW;
 use super::config::{Arguments, RunConfig};
 use super::host::{self, HostConfig};
 
-fn selected(index: usize) -> io::Result<AdapterId> {
+pub(super) fn selected(index: usize) -> io::Result<AdapterId> {
     adapters()
         .map_err(Error::other)?
         .get(index)

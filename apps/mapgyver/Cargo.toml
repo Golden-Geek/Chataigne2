@@ -77,6 +77,13 @@ bench = false
 required-features = ["native-qualification"]
 
 [[bin]]
+name = "native_output_launcher"
+path = "tests/native_output/launcher.rs"
+test = false
+bench = false
+required-features = ["native-qualification"]
+
+[[bin]]
 name = "native_source_fixture"
 path = "tests/native_video/source_fixture.rs"
 test = false
