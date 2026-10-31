@@ -56,6 +56,14 @@ pub(crate) struct AuthoredNodeEffect {
     pub(crate) node: NodeId,
     pub(crate) old: AuthoredNodeState,
     pub(crate) new: AuthoredNodeState,
+    pub(crate) coalesce: bool,
+    pub(crate) graph_dirty: bool,
+}
+
+impl AuthoredNodeEffect {
+    pub(super) fn metadata_unchanged(&self) -> bool {
+        self.old.meta == self.new.meta && self.old.user_role == self.new.user_role
+    }
 }
 
 impl AuthoredNodeState {
@@ -129,7 +137,14 @@ impl<T: Node> Engine<T> {
             if old != new {
                 self.capture_journal_step(
                     order.expect("capture order reserved"),
-                    AuthoredNodeEffect { node, old, new }.into(),
+                    AuthoredNodeEffect {
+                        node,
+                        old,
+                        new,
+                        coalesce: false,
+                        graph_dirty: true,
+                    }
+                    .into(),
                 );
                 self.project_dirty_nodes.insert(node);
                 self.publish_authored_node_change(node, old_param, None)?;
@@ -307,7 +322,13 @@ impl<T: Node> Engine<T> {
                     };
                 }
             };
-            (old != new).then_some(AuthoredNodeEffect { node, old, new })
+            (old != new).then_some(AuthoredNodeEffect {
+                node,
+                old,
+                new,
+                coalesce: false,
+                graph_dirty: true,
+            })
         } else {
             None
         };

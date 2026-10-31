@@ -94,7 +94,7 @@ impl<T: Node> Engine<T> {
                     self.describe_node(*node)
                 )
             }
-            Edit::CallNodeMutation { node, .. } => {
+            Edit::CallNodeMutation { node, .. } | Edit::CallNodeMutationCoalesced { node, .. } => {
                 format!("CallNodeMutation target={}", self.describe_node(*node))
             }
             Edit::AddNode {

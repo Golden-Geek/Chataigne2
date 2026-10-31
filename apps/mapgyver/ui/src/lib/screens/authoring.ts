@@ -4,6 +4,7 @@ import type { ScreenId } from './generated/ScreenId';
 import type { SurfaceId } from './generated/SurfaceId';
 import type { ScreenManagerSnapshot } from './generated/ScreenManagerSnapshot';
 import type { MediaManagerSnapshot } from '../media/generated/MediaManagerSnapshot';
+import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 
 interface Connection {
 	readonly status: string;
@@ -24,6 +25,7 @@ export interface ScreenAuthoringState {
 	pending: boolean;
 	refreshing: boolean;
 	error: string;
+	interacting: boolean;
 }
 
 export const createScreenAuthoringState = (): ScreenAuthoringState => ({
@@ -33,7 +35,8 @@ export const createScreenAuthoringState = (): ScreenAuthoringState => ({
 	selectedSurface: null,
 	pending: false,
 	refreshing: false,
-	error: ''
+	error: '',
+	interacting: false
 });
 
 /** Presentation state only. Session/project fences discard stale reads and edit replies. */
@@ -84,6 +87,7 @@ export class ScreenAuthoringController<S extends Connection> {
 
 	async refresh() {
 		if (this.disposed) return;
+		if (this.state.interacting) return;
 		++this.read;
 		const session = this.getSession();
 		if (!session || session.status !== 'connected' || session.loading.visible) {
@@ -147,6 +151,21 @@ export class ScreenAuthoringController<S extends Connection> {
 	selectScreen(screen: ScreenId) {
 		this.state.selectedScreen = screen;
 		this.state.selectedSurface = this.screen?.surfaces[0]?.reference.surface ?? null;
+	}
+
+	acceptSurface(snapshot: SurfaceSnapshot) {
+		const screen = this.state.catalog?.screens.find(
+			(screen) => screen.id === snapshot.reference.screen
+		);
+		const index =
+			screen?.surfaces.findIndex(
+				(surface) => surface.reference.surface === snapshot.reference.surface
+			) ?? -1;
+		if (screen && index >= 0) screen.surfaces[index] = snapshot;
+	}
+
+	setInteracting(active: boolean) {
+		this.state.interacting = active;
 	}
 
 	private reset() {

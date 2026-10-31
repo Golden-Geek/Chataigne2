@@ -1,6 +1,7 @@
 mod authoring;
 mod commands;
 mod geometry;
+mod gestures;
 mod typescript;
 
 use super::protocol::*;

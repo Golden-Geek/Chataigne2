@@ -142,6 +142,12 @@ pub enum ScreenEdit {
         reference: SurfaceReference,
         definition: SurfaceDefinition,
     },
+    /// Updates only one destination corner from explicit normalized pointer input.
+    MoveSurfaceCorner {
+        reference: SurfaceReference,
+        corner: u8,
+        point: Point,
+    },
     RenameSurface {
         reference: SurfaceReference,
         label: String,
@@ -187,6 +193,9 @@ pub enum ScreenEditResult {
     },
     SurfaceCreated {
         reference: SurfaceReference,
+    },
+    SurfaceChanged {
+        snapshot: SurfaceSnapshot,
     },
     Changed,
 }

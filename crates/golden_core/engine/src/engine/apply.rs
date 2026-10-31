@@ -134,6 +134,14 @@ impl<T: Node> Engine<T> {
         for (edit_index, request) in requests.into_iter().enumerate() {
             let journal_order = self.edit_order();
             let project_dirty_node = opaque_project_dirty_node(&request.edit);
+            let coalesce_authored = matches!(&request.edit, Edit::CallNodeMutationCoalesced { .. });
+            let self_data_only = matches!(
+                &request.edit,
+                Edit::CallNodeMutationCoalesced {
+                    scope: crate::edit::NodeMutationScope::SelfData,
+                    ..
+                }
+            );
             let mut completion = Ok(());
             // Keep recoverable exits inside the request boundary so the accepted
             // prefix always reaches history, reference, context, and UI finalization.
@@ -331,9 +339,15 @@ impl<T: Node> Engine<T> {
                             node,
                             callback,
                             needs_tree_snapshot,
+                        }
+                        | Edit::CallNodeMutationCoalesced {
+                            node,
+                            callback,
+                            needs_tree_snapshot,
+                            scope: _,
                         } => {
                             let capture = self.capture_opaque_history(capture_history, node);
-                            let effect = self
+                            let mut effect = self
                                 .apply_call_node_mutation(
                                     edit_index,
                                     node,
@@ -343,8 +357,12 @@ impl<T: Node> Engine<T> {
                                     request.param_source,
                                 )?
                                 .capture_completion(&mut completion);
-                            missing_reference_warning_dirty |= effect.is_some();
-                            user_context_graph_dirty |= effect.is_some();
+                            if let Some(effect) = &mut effect {
+                                effect.coalesce = coalesce_authored;
+                                effect.graph_dirty = !self_data_only || !effect.metadata_unchanged();
+                            }
+                            missing_reference_warning_dirty |= effect.as_ref().is_some_and(|effect| effect.graph_dirty);
+                            user_context_graph_dirty |= effect.as_ref().is_some_and(|effect| effect.graph_dirty);
                             let changed = effect.is_some() || !capture;
                             (Ok(effect.map(Into::into)), changed)
                         }
@@ -685,6 +703,7 @@ fn opaque_project_dirty_node(edit: &Edit) -> Option<crate::node::NodeId> {
         Edit::SetNodeScriptProperty { node, .. }
         | Edit::CallNodeScriptMethod { node, .. }
         | Edit::CallNodeMutation { node, .. }
+        | Edit::CallNodeMutationCoalesced { node, .. }
         | Edit::SetScriptConfig { node, .. } => Some(*node),
         _ => None,
     }
@@ -714,6 +733,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::SetNodeScriptProperty { .. } => "SetNodeScriptProperty",
         Edit::CallNodeScriptMethod { .. } => "CallNodeScriptMethod",
         Edit::CallNodeMutation { .. } => "CallNodeMutation",
+        Edit::CallNodeMutationCoalesced { .. } => "CallNodeMutationCoalesced",
         Edit::AddNode { .. } => "AddNode",
         Edit::AddNodeTree { .. } => "AddNodeTree",
         Edit::AddUserItemTree { .. } => "AddUserItemTree",

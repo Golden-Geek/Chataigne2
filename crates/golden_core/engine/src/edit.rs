@@ -96,6 +96,15 @@ pub enum EditOrigin {
     Ui,
 }
 
+/// Declared invalidation scope for a typed self-state mutation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NodeMutationScope {
+    /// Only self data; no reference/context definitions, ownership or identity changes.
+    SelfData,
+    /// Conservative reference/context invalidation.
+    Full,
+}
+
 /// Mutable operations queued and then applied by the engine.
 pub enum Edit {
     /// Rejects stale prepared work before subsequent edits in this drain.
@@ -186,6 +195,21 @@ pub enum Edit {
         /// Whether the callback reads `ctx.tree_snapshot()`. Leaf mutations (param
         /// configuration sync) opt out so bulk paths skip the whole-tree snapshot build.
         needs_tree_snapshot: bool,
+    },
+    /// Runs every callback live, but coalesces adjacent same-node authored history within one
+    /// explicit edit session. Opt in only when undo/redo needs the original/final self-state;
+    /// other history steps and noncontiguous state remain barriers. Outside a session it records
+    /// ordinary independent history. This does not coalesce execution, events or callbacks.
+    CallNodeMutationCoalesced {
+        /// Target node id.
+        node: NodeId,
+        /// Deferred typed callback.
+        callback: NodeMutation,
+        /// Whether this callback needs a tree snapshot.
+        needs_tree_snapshot: bool,
+        /// Whether this callback can change reference/context policy. SelfData callers must
+        /// preserve those relationships; metadata changes still invalidate conservatively.
+        scope: NodeMutationScope,
     },
     /// Insert a node under `parent`, optionally after a sibling.
     AddNode {

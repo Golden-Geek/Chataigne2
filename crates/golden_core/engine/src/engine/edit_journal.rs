@@ -74,7 +74,7 @@ impl<T: Node> Engine<T> {
                 step.dispose_detached(self);
                 return;
             }
-            journal.authored_dirty |= matches!(&step, HistoryStep::AuthoredNode(_));
+            journal.authored_dirty |= matches!(&step, HistoryStep::AuthoredNode(effect) if effect.graph_dirty);
             journal.entries.push((order, step));
         } else {
             // Detached payloads from candidate-only removals must release their

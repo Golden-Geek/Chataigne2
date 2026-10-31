@@ -352,6 +352,18 @@ feedback; backend intents own defaults, naming, validation, graph edits, crop/pi
 channel allocation and Matrix/app semantics. A gesture becomes one coherent history operation;
 do not create a history entry per frame or implement a second rule engine in TypeScript.
 
+The Screen editor sends `MoveSurfaceCorner` with only the Surface identity, corner and normalized
+point. MapGyver reads the current definition and validates the resulting quad; it preserves the
+source, crop, opacity and other fields. The UI keeps one request in flight and one latest point,
+patches the authoritative Surface reply, and suspends catalog refresh until the gesture ends.
+Golden's explicit coalesced callback edit retains original/final authored state for adjacent,
+contiguous changes to the same node inside one edit session. Other edits remain history barriers;
+callbacks and live publications still run for each accepted sample. Self-data-only callbacks opt
+out of reference/context rescans, with metadata changes still invalidating conservatively.
+Pointer cancellation or editor closure discards unsent input and finalizes accepted changes as
+one undoable gesture. It does not roll back accepted edits automatically. Project/session changes
+fence stale replies; the existing session owner handles transport loss and closes accepted work.
+
 The native preview uses transparent regions in the WebView over one native GPU underlay per
 editor window, with DOM/SVG interaction handles above it. Golden Video's `preview/` owns the
 Rust-generated negotiation/layout/status contract and bounded coalesced session leases.

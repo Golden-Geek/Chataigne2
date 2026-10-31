@@ -13,6 +13,9 @@ mod atomic;
 mod batch;
 mod replay;
 
+#[cfg(test)]
+mod tests;
+
 /// Collection of reversible history steps representing one applied edit transaction.
 pub(crate) struct HistoryTransaction<T: Node> {
     /// Ordered steps captured while applying a single queue drain transaction.
@@ -36,6 +39,24 @@ impl<T: Node> HistoryTransaction<T> {
     /// Appends a history step to the transaction.
     pub(crate) fn push(&mut self, step: HistoryStep<T>) {
         self.steps.push(step);
+    }
+
+    fn push_session_step(&mut self, step: HistoryStep<T>) {
+        if let HistoryStep::AuthoredNode(incoming) = step {
+            if incoming.coalesce
+                && let Some(HistoryStep::AuthoredNode(previous)) = self.steps.last_mut()
+                && previous.coalesce
+                && previous.node == incoming.node
+                && previous.new == incoming.old
+            {
+                previous.new = incoming.new;
+                previous.graph_dirty |= incoming.graph_dirty;
+                return;
+            }
+            self.steps.push(HistoryStep::AuthoredNode(incoming));
+        } else {
+            self.steps.push(step);
+        }
     }
 
     /// Returns `true` when no reversible steps were captured.
@@ -615,7 +636,7 @@ impl<T: Node> Engine<T> {
         if active.transaction.before_state_id.is_none() {
             active.transaction.before_state_id = Some(before_state_id);
         }
-        active.transaction.push(step);
+        active.transaction.push_session_step(step);
         active.transaction.after_state_id = Some(after_state_id);
         self.current_history_state_id = after_state_id;
     }

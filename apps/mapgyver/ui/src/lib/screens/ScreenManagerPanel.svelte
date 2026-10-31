@@ -11,6 +11,8 @@
 	import ScreenTargetForm from './ScreenTargetForm.svelte';
 	import SurfaceSourceForm from './SurfaceSourceForm.svelte';
 	import ScreenPreview from './ScreenPreview.svelte';
+	import { createUiEditSession } from 'golden_ui/store/ui-intents';
+	import { CornerGesture, createCornerGestureState } from './corner-gesture';
 
 	let { panelId, panelType, title }: PanelProps = $props();
 	let panel = $state<PanelState | null>(null);
@@ -30,7 +32,27 @@
 	});
 	const screen = $derived(controller.screen);
 	const surface = $derived(controller.surface);
-	const busy = $derived(controller.busy);
+	const gestureState = $state(createCornerGestureState());
+	const gesture = new CornerGesture<WorkbenchSession>(() => session, gestureState, {
+		group: (current) => createUiEditSession('Warp Surface', 'surface-corner', current),
+		move: async (current, reference, corner, point) => {
+			const result = await invokeScreenEdit(current, {
+				kind: 'MoveSurfaceCorner',
+				reference,
+				corner,
+				point
+			});
+			if (result.kind !== 'SurfaceChanged')
+				throw new Error('Corner edit returned an unexpected result');
+			return result.snapshot;
+		},
+		accepted: (snapshot) => controller.acceptSurface(snapshot),
+		active: (active) => controller.setInteracting(active),
+		finished: () => {
+			void controller.refresh();
+		}
+	});
+	const busy = $derived(controller.busy || gestureState.active);
 	$effect(() => {
 		const current = session;
 		if (current) {
@@ -38,14 +60,20 @@
 			void current.loading.visible;
 			void current.snapshotGeneration;
 			void current.currentHistoryStateId;
+			void current.hasActiveEditSession;
+			void current.editSessionEpoch;
 			void current.getCustomEventSequence(SCREEN_NAMESPACE);
 			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}
 		untrack(() => {
+			gesture.observe();
 			void controller.refresh();
 		});
 	});
-	onDestroy(() => controller.dispose());
+	onDestroy(() => {
+		gesture.dispose();
+		controller.dispose();
+	});
 </script>
 
 <section
@@ -72,6 +100,7 @@
 		Unavailable fullscreen displays keep their saved selection and resume when available.
 	</p>
 	{#if view.error}<p class="error" role="alert">{view.error}</p>{/if}
+	{#if gestureState.error}<p class="error" role="status">{gestureState.error}</p>{/if}
 	{#if session?.status !== 'connected'}
 		<p>Connect to MapGyver to edit screens.</p>
 	{:else if view.catalog === null}
@@ -92,7 +121,17 @@
 			<div class="editor">
 				{#if screen}
 					{#key screen.id}
-						<ScreenPreview {screen} />
+						<ScreenPreview
+							{screen}
+							selected={view.selectedSurface}
+							disabled={controller.busy}
+							select={(id) => {
+								if (!gestureState.active) view.selectedSurface = id;
+							}}
+							start={(reference, corner) => gesture.start(reference, corner)}
+							move={(point) => gesture.move(point)}
+							finish={() => gesture.finish()}
+							stop={() => gesture.stop()} />
 						<ScreenTargetForm
 							{screen}
 							disabled={busy}

@@ -26,6 +26,26 @@ const catalog = (...screens: ScreenSnapshot[]): ScreenEditResult => ({
 });
 const media = async () => ({ media: [], assets: [] });
 
+test('a live gesture defers catalog inspection until it finishes', async () => {
+	const current = session();
+	const state = createScreenAuthoringState();
+	let inspections = 0;
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async () => {
+			inspections++;
+			return catalog(screen('current'));
+		},
+		media
+	});
+	await controller.refresh();
+	controller.setInteracting(true);
+	for (let i = 0; i < 100; i++) await controller.refresh();
+	assert.equal(inspections, 1);
+	controller.setInteracting(false);
+	await controller.refresh();
+	assert.equal(inspections, 2);
+});
+
 test('a late catalog cannot replace a newer inspection or selection', async () => {
 	const current = session();
 	const state = createScreenAuthoringState();

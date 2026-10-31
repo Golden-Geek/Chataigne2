@@ -188,6 +188,42 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             labels::rename(engine, node, label)?;
             ScreenEditResult::Changed
         }
+        ScreenEdit::MoveSurfaceCorner {
+            reference,
+            corner,
+            point,
+        } => {
+            let node = surface_id(engine, reference)?;
+            let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
+                unreachable!()
+            };
+            let mut definition = current.definition().clone();
+            let destination = definition
+                .quad
+                .corners
+                .get_mut(usize::from(corner))
+                .ok_or("corner index must be 0..3")?;
+            *destination = point;
+            definition.validate()?;
+            let snapshot = SurfaceSnapshot {
+                reference,
+                label: current.node_data().meta.label.clone(),
+                definition: definition.clone(),
+            };
+            engine.edits.push(Edit::CallNodeMutationCoalesced {
+                scope: golden_core::edit::NodeMutationScope::SelfData,
+                node,
+                needs_tree_snapshot: false,
+                callback: Box::new(move |node, _| {
+                    node.as_any_mut()
+                        .downcast_mut::<SurfaceNode>()
+                        .ok_or("Surface type changed")?
+                        .set_definition(definition);
+                    Ok(())
+                }),
+            });
+            ScreenEditResult::SurfaceChanged { snapshot }
+        }
         ScreenEdit::ReorderSurface { reference, after } => {
             let node = surface_id(engine, reference)?;
             let parent = screen_id(engine, reference.screen)?;

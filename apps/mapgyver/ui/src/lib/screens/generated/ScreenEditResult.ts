@@ -2,5 +2,6 @@
 import type { ScreenId } from "./ScreenId";
 import type { ScreenManagerSnapshot } from "./ScreenManagerSnapshot";
 import type { SurfaceReference } from "./SurfaceReference";
+import type { SurfaceSnapshot } from "./SurfaceSnapshot";
 
-export type ScreenEditResult = { "kind": "Manager", snapshot: ScreenManagerSnapshot, } | { "kind": "ScreenCreated", screen: ScreenId, surface: SurfaceReference, } | { "kind": "SurfaceCreated", reference: SurfaceReference, } | { "kind": "Changed" };
+export type ScreenEditResult = { "kind": "Manager", snapshot: ScreenManagerSnapshot, } | { "kind": "ScreenCreated", screen: ScreenId, surface: SurfaceReference, } | { "kind": "SurfaceCreated", reference: SurfaceReference, } | { "kind": "SurfaceChanged", snapshot: SurfaceSnapshot, } | { "kind": "Changed" };
