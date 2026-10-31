@@ -9,16 +9,21 @@ M03 renderer recovery gate 4, retaining **7/9** accepted gates and all original 
 **Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
 acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
 
-**Next:** reconcile M03's genuine device-removal/stuck-retirement evidence and define one bounded
-owned-device check or demonstrated ownership fix. Preserve actual GPU-use/resource fences and
-healthy outputs; do not restore the parked performance/collector stash or change driver settings.
-Record prerequisites, observable success and a stop before the next batch. **Blocker:** none
-external for this reconciliation; M03 gates 4 and 9 remain unverified.
+**Next:** run the corrected M03 gate 4 source-fixture preflight in the next bounded native batch.
+Then obtain a specific GPU-reset decision only if that preflight passes; the prepared genuine
+removal test cannot run safely as an ordinary command because reset can interrupt other GPU apps.
+Preserve real resource fences, healthy outputs and original budgets; do not restore the parked
+performance/collector stash or change driver settings. **Blocker:** genuine removal needs an
+approved reset window; source preflight and stuck-drain bounds remain unverified.
 
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
-**Latest evidence (batch 52):** the updated ordinary HTTP matrix plus actual Reload Picture UI
+**Latest recovery evidence (batch 53):** held-observation ownership/healthy-output qualification
+passes on both GPUs, **1/1 in 7.38 s**. Source-fixture preflight fails before source admission because
+its test configuration leaves inputs disabled; the configuration is corrected but the native retry
+is reserved for the next bounded batch. No GPU reset occurs and no recovery gate closes.
+**Last completed phase evidence (batch 52):** the updated ordinary HTTP matrix plus actual Reload Picture UI
 passes in **2,375 ms**, including a single selected-asset request and preserved redo/undo. The
 updated native Picture matrix passes **1/1 in 46.09 s** on Intel/NVIDIA, including replacement
 through `ReloadAsset`, full color/alpha pixels, 4K reload/recreation and actual retirement. Both
@@ -2984,6 +2989,88 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Recovery batch 53:** started 2026-10-31 **16:55 UTC**, recorded stop **17:40 UTC**.
+M03 gate 4 is the only active gate. Previous turn is progress: pushed `d7f8dd3d` closes all six
+M04 gates. Reconcile actual removal/recreation, healthy-path independence, cancellation and
+stuck-retirement ownership against current production-runtime tests. Prefer a documented
+process-owned D3D11 device-removal mechanism if supported; never reset an adapter/driver, alter
+display settings or disturb other apps. Add only the smallest native qualification seam needed
+to exercise the actual runtime and inspect real removal/completion evidence. Keep all original
+resource, retry and retirement requirements; mocked timeouts cannot substitute for completion.
+Software/build/Clippy prerequisites precede native runs; at most two fixed native invocations/
+20 minutes, also bounded by 17:40. No Q01/Q02 profiling, parked stash or other phase expansion.
+
+**Batch 53 scope reconciliation:** installed D3D11 bindings do not provide the D3D12
+[`ID3D12Device5::RemoveDevice`](https://learn.microsoft.com/en-us/windows/win32/api/d3d12/nf-d3d12-id3d12device5-removedevice)
+API. Microsoft's [documented D3D11 test](https://learn.microsoft.com/en-us/windows/uwp/gaming/handling-device-lost-scenarios)
+uses `dxcap -forcetdr`, which triggers a GPU-wide timeout/reset. `C:/Windows/system32/DXCap.exe`
+is installed. No adapter/reset command is executed without an explicit user decision because it
+can interrupt other GPU apps. This is an unavailable native event until approved, not a passed
+mock or an automatically waived requirement.
+
+**Fixed safe native matrix:** real production VideoRuntime/D3D11/Spout resources on each hardware
+adapter, with a separate healthy runtime. A test-only, per-control seam delays delivery of actual
+query completions; it never invents a completion or device-loss HRESULT and is absent from normal
+builds (including qualification executables without `cfg(test)`). With two in-flight uses, change
+project and close; assert old native resources/bytes remain owned, reliable project acknowledgement
+and retirement remain pending, close returns within 50 ms, and healthy output submissions and
+independent green pixel observation continue. Release the observation gate, then require actual
+query-based retirement, the single deferred project acknowledgement, zero owned resource bytes
+and complete shutdown within five seconds. This is completion-observation starvation, not a
+physical GPU hang/removal, and cannot by itself close gate 4.
+
+The separately ignored external-removal test is prepared behind
+`GOLDEN_VIDEO_EXTERNAL_DEVICE_REMOVAL=1`. It starts owned plans on hardware adapters, withholds
+observations, prints a readiness marker and waits for an actual `GetDeviceRemovedReason` error.
+It records that real old-device HRESULT before production reset drops the device, requires the
+same authored plan on a fresh device/resource generation, checks bounds/output pixels and final
+retirement. No reset is triggered by the test itself; absent a genuine event, it fails rather than
+claiming removal. Approval for a disruptive reset is a separate final decision after safe checks.
+
+Batch 53 native window starts **17:18 UTC**, cutoff **17:38 UTC**, before the 17:40 batch stop.
+Prerequisites are terminal: Golden Video **161 unit + four public integration tests pass / 22
+hardware tests ignored**, strict all-target/all-feature Golden Video Clippy, both Cargo formatters,
+whitespace and the exact native test build. Candidate
+`golden_video-b9cf17ec8c4ecf03.exe` SHA-256:
+`ca63b40f47baa3d003ab9587918b093689b512c7ebcd07e412bff1b635f7e220`.
+Invocation one is only the held-observation/healthy-output case, with no reset. It passes **1/1
+in 7.38 s**, exit zero, on Intel and NVIDIA. Each held owner retains **1,040 bytes** with actual
+query serial 2 observed and serial 0 delivered. Close returns in **2 microseconds** on both;
+healthy runtimes submit **13/94 frames** while old work remains retained. Releasing observations
+retires in **23/10 ms**, total close **310/1,667 ms**, with exactly one deferred project-change
+acknowledgement, independent green pixels, stopped workers and zero owned resource bytes.
+
+The external-removal harness now also owns two real independent Spout source processes per
+adapter, so eventual removal exercises source workers/bridges/drains, not only output devices.
+The second and final native invocation is its **non-disruptive source fixture preflight**, before
+requesting a GPU-reset decision. It requires real input streaming/copies, held completion release,
+independent green output, complete runtime retirement and normal producer exit; zero actual
+removals must be observed. Current software prerequisites pass **161 unit + four public integration
+tests / 23 hardware ignores**, strict Clippy and exact test build. Candidate SHA-256:
+`1d9fa0199ac37945500393c90f9518a7065bc973a4ec1448098be51700da20a1`;
+`native_source_fixture.exe`: `8a237afda4e852a8806994533bdae45a056510c4f5815fef76e8bf25ebe48ee2`.
+Run only `native::backend::tests::retirement::removal::hardware_source_recovery_fixture_preflight_without_device_removal`
+with `--ignored --exact --nocapture`, within the original 17:38 cutoff. No reset tool is started;
+genuine removal remains a future explicitly approved invocation and gate 4 stays open.
+
+**Second/final invocation result:** **0/1, exit 1 in 0.56 s**, rejected at initial install with
+`ResourcePressure: native source capacity is retained by existing or retiring subscriptions`.
+The new test owner incorrectly used `InputLimits::default()` (inputs disabled), unlike the existing
+input integration fixture. The owner now accepts explicit limits and both source suites reuse the
+existing bounded four-source/maximum-4x4 storage contract. This is a test fixture correction; no
+production admission limit changes. Native retry is intentionally not run in this batch: both
+fixed invocations are consumed. The failure stays recorded and the corrected harness remains
+unqualified until its next bounded preflight. No GPU-reset approval is requested before that pass.
+
+**Checkpoint validation:** after the fixture correction, **161 unit + four public integration
+tests pass / 23 hardware tests ignored**, strict all-target/all-feature Golden Video Clippy and
+both required Cargo formatters pass. No owned source fixture process remains after the failed
+preflight. The observation seam is test-only; normal production resource/admission behavior is
+unchanged. **M03 remains 7/9; overall remains 4/10 (40%)**. Return trigger: the next fixed source
+preflight must pass before the genuine-reset decision; actual device removal and stuck-drain
+recovery retain their original acceptance. The next turn must not restart the passing
+held-observation experiment or expand a diagnostic framework.
 
 | Item | State | Accepted scope / remaining work |
 | --- | --- | --- |

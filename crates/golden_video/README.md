@@ -384,6 +384,15 @@ not a hard driver-residency guarantee.
 
 The M03 recovery gate remains open for genuine device-removal qualification and bounded recovery
 from stuck source/driver drains.
+Qualification-only unit tests add a per-runtime observation gate after actual D3D11 query
+completion. The held-observation test verifies retained ownership, deferred project acknowledgement,
+prompt close and independent healthy output; it does not simulate or qualify a physical GPU hang.
+The source recovery fixture has a separate non-removal preflight. Genuine removal uses an exact,
+ignored test guarded by `GOLDEN_VIDEO_EXTERNAL_DEVICE_REMOVAL=1`, records an actual
+`GetDeviceRemovedReason` error and waits for an externally triggered event. It never resets a GPU
+itself. Such a reset can affect other applications and requires an explicitly approved test window;
+software compilation and a passing preflight alone cannot close the recovery gate. See the owning
+ledger for exact test names, results and outstanding qualification.
 Physical backing-buffer resize, production output/editor integration and sustained native
 qualification retain their [M03 acceptance gates](../../docs/progress/mapgyver-status.md#m03-acceptance-items).
 The [input/native evidence](../../docs/progress/mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29)

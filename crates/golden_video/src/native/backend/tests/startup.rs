@@ -44,7 +44,7 @@ fn wait(label: &str, mut ready: impl FnMut() -> bool) {
     }
 }
 
-fn descriptor() -> TextureDescriptor {
+pub(super) fn descriptor() -> TextureDescriptor {
     TextureDescriptor {
         extent: Extent2D::new(8, 8).unwrap(),
         format: PixelFormat::Rgba8Unorm,
@@ -53,7 +53,7 @@ fn descriptor() -> TextureDescriptor {
     }
 }
 
-fn config() -> RuntimeConfig {
+pub(super) fn config() -> RuntimeConfig {
     RuntimeConfig {
         plan_limits: PlanLimits {
             max_passes: 2,
@@ -78,7 +78,7 @@ fn config() -> RuntimeConfig {
     }
 }
 
-fn scene() -> RenderPlan {
+pub(super) fn scene() -> RenderPlan {
     RenderPlan {
         external_textures: vec![],
         passes: vec![RenderPass {

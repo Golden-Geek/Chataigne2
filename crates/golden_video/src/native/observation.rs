@@ -126,6 +126,8 @@ struct OutputRegistry {
 #[derive(Clone, Default)]
 pub struct D3d11Control {
     #[cfg(all(test, feature = "qualification"))]
+    pub(super) completion_gate: super::tests::completion_gate::CompletionGate,
+    #[cfg(all(test, feature = "qualification"))]
     pub(super) copy_tap: super::backend::tests::copy_tap::Control,
     pub(super) diagnostics: Arc<Mutex<Option<super::timing::Recorder>>>,
     #[cfg(test)]

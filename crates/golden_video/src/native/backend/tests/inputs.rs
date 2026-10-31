@@ -19,14 +19,14 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, Opacity, PixelFormat};
 
 const WAIT: Duration = Duration::from_secs(5);
 
-struct Producer {
+pub(super) struct Producer {
     child: Arc<Mutex<Child>>,
     input: ChildStdin,
     replies: mpsc::Receiver<String>,
 }
 
 impl Producer {
-    fn new(adapter: usize, name: &str, registry: &Mutex<Vec<Weak<Mutex<Child>>>>) -> Self {
+    pub(super) fn new(adapter: usize, name: &str, registry: &Mutex<Vec<Weak<Mutex<Child>>>>) -> Self {
         let executable =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/native_source_fixture.exe");
         assert!(
@@ -71,10 +71,14 @@ impl Producer {
         }
     }
 
-    fn command(&mut self, command: &str) {
+    pub(super) fn command(&mut self, command: &str) {
         writeln!(self.input, "{command}").unwrap();
         self.input.flush().unwrap();
         self.reply();
+    }
+    pub(super) fn finish(&mut self) {
+        self.command("exit");
+        assert!(self.child.lock().unwrap().wait().unwrap().success());
     }
 }
 
@@ -105,14 +109,18 @@ fn internal() -> TextureDescriptor {
     }
 }
 
+pub(super) fn input_limits() -> InputLimits {
+    InputLimits {
+        max_sources: 4,
+        max_storage_bytes: 5 * InputLimits::source_storage_bytes(external(4, 4)).unwrap(),
+    }
+}
+
 fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
     D3d11Config {
         diagnostics: None,
         adapter,
-        inputs: InputLimits {
-            max_sources: 4,
-            max_storage_bytes: 5 * InputLimits::source_storage_bytes(external(4, 4)).unwrap(),
-        },
+        inputs: input_limits(),
         outputs: vec![OutputBinding::Spout {
             id: OutputId::new(1).unwrap(),
             name: output_name,
@@ -121,7 +129,7 @@ fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
     }
 }
 
-fn runtime_config() -> RuntimeConfig {
+pub(super) fn runtime_config() -> RuntimeConfig {
     RuntimeConfig {
         plan_limits: PlanLimits {
             max_passes: 8,
@@ -146,7 +154,7 @@ fn runtime_config() -> RuntimeConfig {
     }
 }
 
-fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
+pub(super) fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan {
     RenderPlan {
         external_textures: vec![
             ExternalTexture {

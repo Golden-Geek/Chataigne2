@@ -635,6 +635,8 @@ impl Backend for D3d11Backend {
                     BackendError::SubmissionFailed
                 }
             })?;
+        #[cfg(all(test, feature = "qualification"))]
+        let completed = self.control.completion_gate.observe(completed);
         native.inputs.retire(completed.serial);
         native.outputs.retire(completed.serial);
         if let Some(timing) = &mut native.timing {
@@ -650,6 +652,13 @@ impl Backend for D3d11Backend {
     }
 
     fn reset(&mut self, device: DeviceGeneration) -> Result<(), BackendError> {
+        // SAFETY: metadata query on this worker's retained old device, before its destruction.
+        #[cfg(all(test, feature = "qualification"))]
+        if let Some(native) = &self.native
+            && let Err(error) = unsafe { native.device.device.GetDeviceRemovedReason() }
+        {
+            self.control.completion_gate.removed(self.generation, error.code().0);
+        }
         // Core calls only after confirmed removal and old generation disposal. The baseline
         // reservation survives this destruction/recreation, including unsuccessful attempts.
         self.close_diagnostics();

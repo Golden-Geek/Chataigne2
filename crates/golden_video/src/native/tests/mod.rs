@@ -2,6 +2,8 @@ use windows::Win32::Graphics::Direct3D::Fxc::D3DCompile;
 use windows::Win32::Graphics::Direct3D::ID3DBlob;
 use windows::core::s;
 
+#[cfg(feature = "qualification")]
+pub(in crate::native) mod completion_gate;
 mod contracts;
 pub(in crate::native) mod initialization_gate;
 pub(in crate::native) mod pixels;

@@ -4,6 +4,8 @@ mod envelope;
 mod images;
 mod inputs;
 mod regions;
+#[cfg(feature = "qualification")]
+mod retirement;
 mod startup;
 
 fn generation(
