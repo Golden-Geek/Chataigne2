@@ -4,14 +4,15 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected gate:** **M05 gate 4, concurrent native targets/editor independence**. Start the next
-bounded batch after publishing the completed M03 allocation checkpoint. No simultaneous gate work.
+**Selected next gate:** **M06 gate 2, dependency correctness across all media types**. Begin its
+bounded acceptance batch after publishing batch 72. No simultaneous gate work. M05 gate 4's fresh
+ordinary-window activation failed with the single supported retry; the input investigation stops.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** launch a fresh owned ordinary MapGyver window through the supported normal-integrity
-path, verify supported activation, then complete the existing concurrent rectangle/fullscreen/Spout
-flow and editor-state observations. If activation still fails, preserve the exact failure and stop
-that automation investigation within its time box; do not repeat the old helper retry chain.
-**Blockers:** M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
+**Next action:** verify Composition/Matrix cycle rejection, source deletion/Undo and large/deep graph
+behavior through the existing backend contracts. Reuse existing tests; add only missing acceptance
+coverage or a concrete correctness fix. Do not start another desktop-helper or renderer investigation.
+**Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
+remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
 unapproved reset window. M05 physical 4K/other unavailable configurations remain unverified.
 
@@ -22,8 +23,8 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active next: concurrent targets; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M06 Composition/editor](#m06-acceptance-items) | Active next: dependency correctness; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -61,25 +62,24 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   remain unknown and all original budgets/failures stay recorded.
 - **M03 gate 4:** genuine removal/stuck-drain recovery; return on the explicit reset decision and
   the required owned-window/process preparation. No reset is authorized by ordinary continuation.
-- **M05 gate 4:** the selected batch first verifies supported activation of a fresh ordinary app
-  window, then the existing concurrent-output/editor flow. Its earlier activation failure and
-  partial pixel observations are retained until the exact missing UI/fullscreen state is verified.
+- **M05 gate 4:** batch 72's fresh ordinary app and single supported fresh-selection retry both
+  report `failed to activate captured window`. Return when supported activation is available or
+  actual manual observations cover the missing editor/fullscreen states. Do not repeat helper
+  workarounds. Independent Spout pixels pass; no actual editor/minimize/fullscreen behavior is inferred.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 71:** actual native owner metadata distinguishes shared plan textures,
-committed bridges, uncharged import/view owners and endpoint storage. All **96** short-sample
-inventories are known, at **100,454,400 bytes /95.801 MiB** of validated owned texel payload.
-Five plan objects, six bridge slots and output storage release after actual retirement; aliases
-and readers end at zero. This is not driver residency or a repair of process-private growth.
-Main accepts **340/600** with **260 Busy**; Spout/editor accept **600/600**. All **345** inputs and
-paired overlay-Off identities match; all four PIDs are absent, shutdown **446.332 ms**.
-**No gate closes; M03 stays 7/9.**
-[Owner evidence](evidence/mapgyver-m03-native-allocations-2026-11-01.json),
-[GPU enclosure](evidence/mapgyver-m03-gpu-path-enclosure-2026-11-01.json),
-[queue control](evidence/mapgyver-m03-output-queue-2026-11-01.json),
-[retained full growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json).
+**Latest checkpoint, batch 72:** a fresh ordinary MapGyver window and its single fresh-selection
+retry both fail supported activation. Input stops; the initial fixture checkpoint fails rather
+than being advanced. Independent Spout receives **90** copies; all **6,144** captured RGBA texels
+match the eight reference bars exactly. Actual fullscreen/editor states remain unverified.
+The app exits **0**, unforced; launcher/app/receiver processes are absent and launch control is
+removed. **No gate closes; M05 stays 3/8 and overall stays 40%.**
+[Activation evidence](evidence/mapgyver-m05-activation-2026-11-01.json).
+The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-2026-11-01.json)
+and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
+remain unchanged; neither certifies driver residency or repairs the failed growth budget.
 
 **Last accepted product capability:** multi-channel Solid Color, Picture and Shared Texture
 authoring/rendering; Media Manager UI/commands/scripts/callbacks, shared assets, project/history
@@ -1540,6 +1540,31 @@ No native experiment or M03 investigation ran. M06 gate **1** closes: **1/4 (25%
 counts and overall **3/10 (30%)** are unchanged. Product slice **18**; next is nested render integration.
 
 ### M05 acceptance items
+
+**Concurrent-output closure batch 72:** started 2026-11-01 **02:25 UTC**, stop **03:10 UTC**.
+Only M05 gate 4 is active. Reuse the existing ordinary-app concurrent rectangle/fullscreen/Spout
+fixture and its finite editor-state checkpoints. MapGyver owns editor behavior; Golden owns native
+targets and the supported desktop launcher. Build/check the existing helpers first, then verify
+activation of one fresh normal-integrity app window and actual editor open/minimize/restore/close
+with concurrent output observations. The native investigation ends after 20 minutes/two experiments
+or at the batch stop, whichever comes first. A fresh-selection activation retry is the only allowed
+recovery; another failure stops input and leaves the gate open. No alternate automation framework,
+M03 experiment, system setting change or acceptance revision is authorized by this batch.
+
+**Batch 72 result:** the current app, receiver and launcher build successfully; both fixture JS
+syntax checks pass. The supported launcher creates a fresh ordinary app (**PID 31768**, window
+**69736366**). Explicit activation fails with `failed to activate captured window`; one fresh
+selection/activation retry fails identically. Input stops immediately, without another launcher,
+framework or experiment. All three targets are active through the public app operations; the
+independent Spout receiver records **90** copies and its **96×64** RGBA bar capture has all eight
+expected colors. Actual fullscreen pixels and editor open/minimize/restore/close are unverified.
+The fixture exits **1** at its unadvanced initial checkpoint. The app exits **0**, unforced,
+through its existing sentinel; launcher/app/receiver processes are absent and launch control is
+removed. The [compact evidence](evidence/mapgyver-m05-activation-2026-11-01.json) retains raw hashes,
+exact failures and the zero-error pixel comparison. Both workspace formatters and whitespace checks
+pass. No gate closes: M05 **3/8**, overall
+**4/10 (40%)**. Return requires supported activation or real manual observations of the missing
+states. After this checkpoint, select dependency-ready **M06 gate 2**, retaining every M05/M03 gate.
 
 **Concurrent-output acceptance batch 57:** started 2026-10-31 **18:27 UTC**, recorded stop
 **19:12 UTC**. Previous turn made progress: `21ef6a99` rejects/reverts the failed M03 interval
@@ -4476,14 +4501,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete. Batch 71 completes the bounded native-owner observation and its short release
-check; it does not close M03 gate 9 or repair private growth. After publishing that checkpoint,
-take one **M05 gate 4** concurrent-output acceptance batch under the plan's anti-drift rule.
-Start with a fresh ordinary owned MapGyver window through the supported normal-integrity path
-and verify supported activation before the existing rectangle/fullscreen/Spout/editor-state flow.
-The prior activation failure is retained; if the fresh supported attempt fails, stop within the
-investigation limit and record the exact remaining prerequisite. No helper retry chain or
-alternative automation framework is authorized by a timeout.
+M04 is complete. Batch 72's fresh ordinary MapGyver window fails supported activation and its single
+fresh-selection retry. Stop that desktop investigation. M05 gate 4 returns on working supported
+activation or actual manual verification of the missing fullscreen/editor states; its Spout control
+does not close the gate. After publishing this checkpoint, take **M06 gate 2**, dependency correctness
+across Composition/Matrix/all media, atomic cycle rejection, source deletion/Undo and large/deep
+graphs. Reconcile existing backend tests first; add only missing acceptance coverage or an evidenced
+correctness fix. No helper retry chain, alternate automation framework or renderer experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

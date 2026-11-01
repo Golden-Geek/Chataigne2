@@ -122,6 +122,13 @@ the retained concurrent rectangle/fullscreen/Spout and editor-state flow. Keep a
 budgets and return triggers in the ledger. No further renderer measurement sweep, gate revision
 or automatic restoration of parked investigations follows from this ordering change.
 
+The fresh ordinary-window check in batch 72 again fails supported activation, including its single
+fresh-selection retry. Stop that investigation and retain M05 gate 4 until supported activation or
+actual manual fullscreen/editor observations are available. The next dependency-ready acceptance
+batch is **M06 gate 2**: all-media dependency correctness, atomic Composition/Matrix cycle rejection,
+source deletion/Undo and large/deep graphs. This selects one backend gate without expanding scope
+or waiving M03/M05 acceptance; subsequent UI/native gates still require their missing observations.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

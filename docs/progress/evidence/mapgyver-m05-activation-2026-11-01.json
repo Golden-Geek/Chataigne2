@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "batch": 72,
+  "date": "2026-11-01",
+  "gate": "M05/4",
+  "status": "OPEN_SUPPORTED_ACTIVATION_FAILED",
+  "raw_directory": "target/m05-spout-1793499994643",
+  "command": "node apps/mapgyver/tests/native_output/check.mjs --acceptance",
+  "fixture_exit_code": 1,
+  "fixture_failure": "native observation checkpoint timed out: initial",
+  "app_pid": 31768,
+  "workbench_window_id": 69736366,
+  "activation": {
+    "method": "computer-use @oai/sky activate_window",
+    "attempts": 2,
+    "fresh_selection_before_retry": true,
+    "errors": [
+      "failed to activate captured window",
+      "failed to activate captured window"
+    ],
+    "input_stopped": true
+  },
+  "targets": [
+    {
+      "id": "\\\\?\\display#rtk3b3a#4&1e95aa41&0&uid4165#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+      "name": "RTK FHD HDR",
+      "bounds": {
+        "left": 2560,
+        "top": 0,
+        "extent": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    },
+    {
+      "id": "\\\\?\\display#sdc420b#4&1e95aa41&0&uid8388688#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+      "name": "",
+      "bounds": {
+        "left": 0,
+        "top": 0,
+        "extent": {
+          "width": 2560,
+          "height": 1600
+        }
+      }
+    }
+  ],
+  "independent_spout": {
+    "receive_copies": 90,
+    "failed_receives": 0,
+    "rgba_texels": 6144,
+    "maximum_byte_error": 0
+  },
+  "verified_ui_checkpoints": [],
+  "unverified": [
+    "fullscreen physical pixels",
+    "rectangle physical pixels in this run",
+    "actual editor opening",
+    "actual minimization/restoration",
+    "actual editor closure",
+    "output continuity during those actual editor states"
+  ],
+  "app_exit": {
+    "code": 0,
+    "forced": false,
+    "signal": null,
+    "success": true
+  },
+  "launch_control_removed": true,
+  "raw_sha256": {
+    "target/m05-spout-1793499994643/1-initial-bars-delivery/consumer.jsonl": "d7a8a175789ab31baf5a6857c21b05a3543c6697c48275e4f053b08079c0a5bd",
+    "target/m05-spout-1793499994643/acceptance-state.json": "812f4b5959a37a7ab3b219c7eab0ae5991d2242e1c806cd7cc6016ca7b9b9f2e",
+    "target/m05-spout-1793499994643/app.log": "109ca91347ee3de234fd3171cea22a5837dfdf84867ae2144308514047ba79e2",
+    "target/m05-spout-1793499994643/app.stop": "a11c3d917a2149a4b548217038bc8f2dd2130a1966e0c7af5c4225d81f25a8c3",
+    "target/m05-spout-1793499994643/initial-bars-pixels/pixels.png": "213afddb2602abc6e5f62730f43f32b50212a8f7cbef6975cc9231627123362e",
+    "target/m05-spout-1793499994643/launcher-result.json": "a88521dd87a4a6aafce2baaa64c4b497d911323a4a5896213025c2ef038f9932",
+    "target/m05-spout-1793499994643/launcher-start.json": "ff9baf2173d9fc78e1789470c92169793360ef6edd9bbff7c4b5f90da640c553"
+  },
+  "next_gate": "M06/2; retain every M05/M03 requirement"
+}
