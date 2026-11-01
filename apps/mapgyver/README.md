@@ -21,7 +21,8 @@ Browser previews correctly report unavailable; this check does not qualify nativ
 
 `node apps/mapgyver/tests/headless/media.mjs --source-ui` covers the complete M04 source-authoring
 matrix in the tree/Inspector. `--ui-reload` retains the separate Picture reload/history check.
-Their redesign migration is in progress; current failure evidence and acceptance live in the ledger.
+Both source checks pass against the redesigned tree/Inspector; acceptance and retained earlier
+failures live in the ledger. Screen/editor fixture migration remains a separate acceptance task.
 
 `media::composition::inspect` reads committed Composition instance state without settling queued
 commands or authoring history. UI intents, scripts, command nodes and the headless host share the

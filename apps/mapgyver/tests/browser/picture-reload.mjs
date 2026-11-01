@@ -56,7 +56,20 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 			'UI must send the selected asset identity'
 		);
 		assert.deepEqual(await inspect(), before);
-		assert.deepEqual(await page.getByRole('alert').allTextContents(), [], 'Unexpected UI alerts');
+		// Dockview keeps its assertive announcer mounted even when it has nothing to announce.
+		// Preserve failures for every populated announcer and every application alert.
+		const alerts = await page.getByRole('alert').evaluateAll((elements) =>
+			elements.map((element) => ({
+				text: element.textContent,
+				emptyDockviewAnnouncer:
+					element.classList.contains('dv-live-region-assertive') && element.textContent === ''
+			}))
+		);
+		assert.deepEqual(
+			alerts.filter((alert) => !alert.emptyDockviewAnnouncer),
+			[],
+			'Unexpected UI alerts'
+		);
 		// The previous authored step is RemoveMedia/undo. Reload must not consume its redo entry.
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await manager

@@ -1,0 +1,108 @@
+{
+	"date": "2026-11-01",
+	"gate": "M04.5 complete source UI in Golden tree and shared Inspector",
+	"status": "ACCEPTED",
+	"phase": "M04 6/6; overall4/10=40%; fixed denominators",
+	"scope": "Original batch50 source UI matrix preserved, with the redesign's manager/Inspector placement, plus current Picture reload/redo/undo",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --ui-reload --source-ui",
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "650530a7b5630f4e2ea2a836f308cacf2e38b7cff465230ce61ba337ac32f6a1",
+		"unchanged_since": "3538db85 source migration checkpoint; no production source changed in this acceptance batch"
+	},
+	"method": "Actual browser pointer/keyboard input against ordinary bundled headless host, isolated temporary APPDATA. Browser-flow backend requests only inspect committed state; no direct backend authoring or mocked UI transport.",
+	"browser": "Chromium149.0.7827.55",
+	"viewport": { "width": 1440, "height": 1000 },
+	"result": {
+		"host_exit": 0,
+		"hosted_flow_ms": 9687,
+		"page_errors": 0,
+		"rejected_requests": 0,
+		"owned_browsers_closed": 2
+	},
+	"requirements": [
+		{
+			"case": "Actual File New yields default empty manager; source media creation uses Golden plus menu and shared Inspector selection",
+			"result": "pass"
+		},
+		{
+			"case": "Media/channel rename, add/select/reorder/delete; last-channel delete guard; exact Undo restores original references/order",
+			"result": "pass"
+		},
+		{
+			"case": "Independent Solid Primary default channel retained while Secondary becomes Fixed320x180/Nearest/straight linear RGBA[.25,.5,.75,.5]",
+			"result": "pass"
+		},
+		{
+			"case": "Picture import/assign relative host locator, relink while preserving asset/channel IDs, clear and reselect same catalog asset",
+			"result": "pass"
+		},
+		{
+			"case": "Shared Texture exact sender, maximum4x4/RGBA8/Linear/Premultiplied, Fixed64x32/Nearest; changing and clearing A preserves complete B definition/reference",
+			"result": "pass"
+		},
+		{
+			"case": "Delete Picture media, retain shared asset and unrelated Shared Texture, Undo restores exact complete catalog",
+			"result": "pass"
+		},
+		{
+			"case": "Restored top-level Import Picture menu opens manager Inspector; absolute-path import creates asset/media/channel atomically; one Undo restores exact preceding catalog",
+			"result": "pass"
+		},
+		{
+			"case": "Browser reload retains exact catalog; manager contains search/tree and no embedded property forms",
+			"result": "pass"
+		},
+		{
+			"case": "Reload Picture Inspector sends exactly one selected-asset request, retains exact catalog and preserves previous RemoveMedia redo/undo entry",
+			"result": "pass"
+		},
+		{
+			"case": "Same ordinary host passes source intent rejection/peer preservation and engine project Save/New/Load/history baseline",
+			"result": "pass"
+		},
+		{
+			"case": "Rendered source Inspector and tree reviewed at1440x1000; preview explicitly unavailable in browser",
+			"result": "pass within stated UI scope"
+		}
+	],
+	"alert_correction": {
+		"cause": "Fixture counted Dockview's persistent empty assertive accessibility live region as a product error.",
+		"source": "Installed node_modules/dockview-core/dist/cjs/dockview/liveRegionService.js creates div.dv-live-region-assertive with role=alert and aria-live=assertive.",
+		"guard": "Only an exact empty Dockview announcer is allowed. Any populated Dockview announcement or any other application alert still fails. Rejected intents/page errors are independently checked.",
+		"production_change": "none"
+	},
+	"failed_runs_retained": [
+		{
+			"log": "target/mapgyver-m04-source-ui-first.log",
+			"reason": "Fixture exact Sampling label omitted wrapped select option text; fixed with observed combobox name prefix."
+		},
+		{
+			"log": "target/mapgyver-m04-source-ui-corrected.log",
+			"reason": "One uncaptured global empty alert stopped migrated Reload Picture before history/source matrix."
+		},
+		{
+			"log": "target/mapgyver-m04-reload-alert-captured.log",
+			"sha256": "bf26a9c3573b2ed33b34b9b26f64938ef93c58fd38cbd90be6f82868c667b14f",
+			"reason": "Captured alerts:[empty string], no page/rejected-intent errors. Source inspection identifies idle Dockview announcer; exact guarded correction follows."
+		}
+	],
+	"artifacts": [
+		{
+			"path": "target/mapgyver-m04-source-ui-final.log",
+			"sha256": "7c3a64a2efdda52520efb2d559da54c34af9e2cfdc4c2b38f59a8297798c4ced"
+		},
+		{
+			"path": "target/mapgyver-media-source-inspector.png",
+			"sha256": "442bc20652546f2a72bea65cf4bc63e895e288e4c7131140c1b3201e5e01cceb",
+			"visual_review": "Golden source tree left, parameters confined to scrollable shared Inspector; exact sender/layout/size values visible. No embedded manager forms."
+		}
+	],
+	"prerequisites": "Current candidate's ordinary build, Svelte0errors/0warnings and61frontend tests pass in preceding checkpoint. Current JS syntax/Prettier and both Cargo formatters pass. Rust209pass/1existing-ignore evidence retained: no Rust or protocol changes in this batch.",
+	"limits": [
+		"Browser source locators deliberately reference missing files. Pixels/decode/recovery/native recreation retain already accepted M04 gates2-4/6 evidence.",
+		"No native preview, file dialog, discovered-sender widget, physical display, hardware, timing or full-app qualification is inferred.",
+		"Earlier combined workbench/folder/history evidence is retained; it did not by itself close this complete source gate.",
+		"M05 gate6 remains reopened for the complete Screen gesture/history fixture migration; other native/resource gates remain open."
+	]
+}
