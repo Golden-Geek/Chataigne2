@@ -16,13 +16,15 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** run the full lifecycle fixture with its corrected post-work pause and an explicit
-1,800-second fixture/outer watchdog lifetime. Batch 66 proves bounded resizing through **95**
-completed cycles, but the old 900-second watchdog stops the run before cycle 100/final drain.
-Its sampled private-memory peak is **43.75 MiB** above baseline, beyond the unchanged 32 MiB
-limit; this is not claimed fixed or accepted. Corrected pacing/lifetime has software checks
-only. Keep 100 cycles, 1,000 edits and all resource budgets. Golden's documented resize path
-works with an unchanged admitted maximum; the initial Golden-defect diagnosis is withdrawn.
+**Next:** attribute the private-memory checkpoint peaks at the native preparation/device
+lifecycle boundary using batch 67's existing full dataset and bounded source inspection.
+The complete corrected 100-cycle run now finishes without a watchdog/cleanup failure, but
+peak post-baseline checkpoint growth is **40.445 MiB**, above the unchanged **32 MiB** limit.
+Final drained growth is **6.852 MiB**; it does not override that peak failure or prove its cause.
+Do not repeat the unchanged workload, silently change peak-to-final semantics, or reduce the
+budget. Select a bounded correction only after evidence identifies its owning path. Preserve
+all 100 cycles, 1,000 edits, pacing and drains. Golden's documented bounded resize path works;
+the initial Golden-defect diagnosis remains withdrawn.
 Gate 9 alone is active. The prescribed precise-timer
 Q02 series is complete and still fails window
 deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
@@ -47,6 +49,17 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest full lifecycle result (batch 67):** all **100** source resize/restart, project replacement
+and native-output recreation cycles complete, with **1,000** accepted edits in **100 × 10**
+bursts scheduled at 100 Hz and **386** superseded outcomes. Native summary is eligible but
+**FAILED_NATIVE**: private checkpoint growth **40.445 MiB >32 MiB**. Final drained growth is
+**6.852 MiB**, handles **−4**, logical reservations return exactly, and no prepared/retiring
+generation remains. Pauses are at least **2.000 s**, baseline/final drains **10.001 s**. All
+**103** fixture exits are zero/unforced; whole-parent shutdown is bounded by **2,825.153 ms**.
+All **337** inputs and paired overlay-Off inventories match, the job is empty and **101**
+recorded PIDs are absent. Full GPU/queue/physical allocation and complete-app qualification
+remain open. **No gate closes; M03 remains 7/9.**
+[Full lifecycle evidence](evidence/mapgyver-m03-lifecycle-full-2026-11-01.json).
 **Latest lifecycle result (batch 66):** the fixture adopts actual source extents while preserving
 the admitted Spout maximum. It completes **95/100** cycles, **950** burst edits and **370**
 superseded outcomes, then the outer watchdog forces cleanup at **900.101 s**. No final drain
@@ -3189,6 +3202,83 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Full settled lifecycle acceptance batch 67:** started 2026-10-31 **23:48 UTC**, stop by
+2026-11-01 **00:33 UTC**. Previous turn is progress: `fe8cb154` corrects the admitted-versus-
+actual source descriptor, post-work pause and owned-fixture lifetime; six tests and strict
+Clippy pass. Only gate 9 is active. Verify one fixed full 100-cycle renderer lifecycle run
+with 1,000 burst edits, two-second post-work pauses, cycle-10 baseline, 10-second baseline/
+final drains and unchanged +10 handles / +32 MiB growth limits. Use one pinned NVIDIA release
+build, fresh paired overlay-Off/environment observations, 1,800-second source/consumer lifetimes
+and an explicitly recorded 1,800-second outer watchdog. Do not edit source during capture.
+Validate actual QPC pause/burst receipts, all counts, final native summary, exact logical return,
+peak private growth, every child exit and final owned-job cleanup before accepting this scope.
+No full renderer/physical-allocation/queue/GPU-path claim follows from this narrower result.
+No new timing/driver/ownership investigation is scheduled. Broader investigation remains closed;
+the existing fixed acceptance check may finish on its original live handle past the 20-minute
+observation boundary, within this batch's stop. Do not restart for an observation timeout or
+add a second native run. Preserve batch 66's prefix/private excess and batch 65's invalid-binding
+failure. Checkpoint/push the actual result before the next batch; the unapproved window gate
+proposal and genuine-removal decision remain pending without blocking independent measurements.
+
+**Batch 67 result:** the exact pinned release build succeeds at **23:51:06 UTC**, executable
+SHA-256 `f26905f0ecd9d9c960475cec9504378056df2c0e7e0439bf17c50d6c94ef9279`, MSVC
+**14.51.36231**, Windows SDK **10.0.26100.0**. Six tests and strict app/bin/test Clippy from the
+unchanged `fe8cb154` source remain applicable. The single fixed NVIDIA run finishes **00:10:33
+UTC** in **1,149.027 seconds**, exit **1** for its measured growth-budget failure, with timeout
+**false** and forced cleanup **false**. The recorded fixture and external watchdog lifetimes
+are both **1,800 seconds**. No source, route, driver, Present or threshold change occurs.
+
+All **100** cycles complete, each with actual source resize/restart, healthy-source/output
+advance while the peer is absent, retirement-acknowledged project replacement and production
+native endpoint retirement/recreation. There are **1,000** accepted geometry-edit receipts in
+**100 bursts of 10**, each scheduled at 100 Hz; **386** requests are superseded. This reports
+the actual burst shape and is not a full-app/Matrix Q05 claim. Raw QPC brackets verify every
+post-work pause: minimum **2.0000695 s**, warmed baseline pause **10.001492 s**, final pause
+**10.0014405 s**. These checks resolve the prior fixture pause/lifetime gaps without reducing
+the requested workload or resource limits.
+
+| Resource measurement | Cycle-10 baseline | Final drained state / observed maximum |
+| --- | --- | --- |
+| Handles | 939 | 935, delta **−4** |
+| Private bytes | 229,220,352 | Final **236,404,736**, delta **7,184,384 bytes / 6.8515625 MiB** |
+| Peak post-baseline checkpoint private bytes | Same baseline | **271,630,336**, growth **42,409,984 bytes / 40.4453125 MiB** |
+| Logical texture reservation | 160,358,672 | **160,358,672**, exact return |
+| Active plan bytes | 32,256,000 | **32,256,000**, exact return |
+| Prepared / retiring / input bindings | 0 / 0 / 2 | **0 / 0 / 2** |
+
+The unchanged verifier is eligible and fails the **32 MiB maximum checkpoint growth** budget;
+handles and logical return pass their scoped checks. The lower final drained growth does not
+override the peak criterion. This is neither proof of an unbounded leak nor proof of a bounded
+driver cache. No cause is inferred from process counters alone. Physical GPU allocation identity
+also remains unknown. Do not substitute final-only semantics or a higher allowance silently.
+
+All **103** owned source/consumer exit sidecars report zero/unforced exits. The renderer/native
+window retirement interval is **2,658.4435 ms**; from the final checkpoint through parent exit,
+including fixture and timing-worker cleanup, the QPC upper bound is **2,825.153 ms**, under five
+seconds. The owned job has zero descendants at close, and all **101 distinct recorded PIDs**
+are subsequently absent; some PIDs were reused between already-reaped child incarnations.
+All **337** selected source/asset/tool inputs remain unchanged and match the pinned build.
+Fresh native Home UIA observations show overlay Off before/after; paired inventories match
+and bracket the native run. The [compact artifact](evidence/mapgyver-m03-lifecycle-full-2026-11-01.json)
+retains the exact full summary, method, distributions, hashes and limitations, plus a reproducible
+hash of all **419** local raw files. No raw capture archive is added to Git.
+
+This full acceptance check was allowed to finish on its verified original handle beyond the
+20-minute observation boundary; broader investigation remained closed, and no second native
+experiment ran. Next is a bounded attribution of the already captured native private-memory
+peaks and an owning implementation correction if justified. No unchanged baseline rerun, new
+profiler prerequisite chain or budget reduction is authorized by this result. Window deadline
+revision and genuine removal still await their explicit decisions. Complete GPU path, queue,
+physical allocation identities, Q01/final Q02 and all later phase acceptance remain required.
+**No whole acceptance item closes: M03 remains 7/9; overall remains 4/10 (40%).** Deliver this
+measured result before the next implementation batch.
+Final verification at **00:23 UTC** checks all 419 raw hashes, 337 unchanged inputs, exact native
+summary/counters, pause/drain receipts and the whole-parent shutdown bound. The native 64-bit
+creation FILETIME is preserved exactly; a JavaScript-number rounding in its copied artifact
+was caught and corrected before delivery. Both Cargo formatters and remote reconciliation
+pass. This batch ends with the evidence checkpoint before **00:33 UTC**; no new investigation
+or unchanged native rerun is started.
 
 **Lifecycle fixture correction batch 66:** started 2026-10-31 **23:13 UTC**, stop by **23:58 UTC**.
 Previous turn is progress: `2f1c575e` adds the fixed lifecycle workload and preserves its first
