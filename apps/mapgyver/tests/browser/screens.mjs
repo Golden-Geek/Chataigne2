@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
+import { observeRejectedRequests } from './intent-observer.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 const near = (actual, expected) =>
@@ -14,6 +15,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
+	const rejected = observeRejectedRequests(page, () => stage);
 	try {
 		async function screens() {
 			const ack = await post('/api/ui/intent', {
@@ -37,39 +39,44 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Screen Manager$/ });
 		await tab.click();
-		const panel = page.getByRole('region', { name: 'Screen Manager', exact: true });
-		await panel.getByRole('button', { name: 'Add screen', exact: true }).click();
+		const manager = page.locator('section[aria-label="Screen Manager"]');
+		const editor = page.locator('section[aria-label="Screen Warping"]');
+		const properties = page.locator('.properties');
+		const warpTab = page.getByRole('tab').filter({ hasText: /^Screen Warping$/ });
+		await manager.getByRole('button', { name: 'Add child item', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const id = snapshot.screens[0].id;
 		const first = snapshot.screens[0].surfaces[0].reference;
-		await panel
-			.getByRole('navigation', { name: 'Screens', exact: true })
-			.getByRole('textbox')
-			.fill('UI Screen');
-		await panel
-			.getByRole('navigation', { name: 'Screens', exact: true })
-			.getByRole('button', { name: 'Rename', exact: true })
-			.click();
+		const screenName = properties.getByRole('textbox', { name: 'Screen name', exact: true });
+		await screenName.fill('UI Screen');
+		await screenName.press('Enter');
 		await wait(screens, (value) => value.screens[0].label === 'UI Screen');
-		await panel.getByLabel('Surface name', { exact: true }).fill('UI Surface');
-		await panel.getByRole('button', { name: 'Rename surface', exact: true }).click();
+		await manager
+			.getByRole('button', { name: snapshot.screens[0].surfaces[0].label, exact: true })
+			.click();
+		const surfaceName = properties.getByRole('textbox', { name: 'Surface name', exact: true });
+		await surfaceName.fill('UI Surface');
+		await surfaceName.press('Enter');
 		await wait(screens, (value) => value.screens[0].surfaces[0].label === 'UI Surface');
-		await panel.getByRole('button', { name: 'Add surface', exact: true }).click();
+		await manager.getByRole('button', { name: 'Add Surface', exact: true }).click();
 		snapshot = await wait(screens, (value) => value.screens[0].surfaces.length === 2);
 		const peer = snapshot.screens[0].surfaces[1];
-		const ordered = panel.getByRole('region', { name: 'Ordered surfaces', exact: true });
-		await ordered.getByRole('button', { name: 'UI Surface', exact: true }).click();
+		await manager.getByRole('button', { name: 'UI Surface', exact: true }).click();
+		await wait(
+			() => surfaceName.inputValue(),
+			(value) => value === 'UI Surface'
+		);
 		assert.deepEqual(await screens(), snapshot, 'selection cannot author state');
 		stage = 'source selection';
 		const sourceMedia = media.media.find((entry) => entry.media_kind === 'SolidColor');
 		assert(sourceMedia);
 		const source = sourceMedia.channels[0];
-		await panel.getByLabel('Find source', { exact: true }).fill(sourceMedia.label);
-		await panel
-			.getByLabel('Source channel')
+		await properties.getByLabel('Find source', { exact: true }).fill(sourceMedia.label);
+		await properties
+			.getByRole('combobox', { name: /^Source channel/ })
 			.selectOption({ label: `${sourceMedia.label} / ${source.label}` });
 		assert.deepEqual(await screens(), snapshot, 'source picker edits a draft until Apply');
-		await panel.getByRole('button', { name: 'Apply surface settings', exact: true }).click();
+		await properties.getByRole('button', { name: 'Apply surface settings', exact: true }).click();
 		await wait(
 			screens,
 			(value) =>
@@ -78,10 +85,27 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		const before = await screens();
 		assert.deepEqual(before.screens[0].surfaces[0].definition.source, source.reference);
 		assert.deepEqual(before.screens[0].surfaces[1], peer);
-		const svg = panel.getByRole('group', { name: 'Surface mapping controls', exact: true });
+		await warpTab.click();
+		const outer = await editor.boundingBox(),
+			canvas = await editor.locator('.editor-canvas').boundingBox();
+		assert(
+			canvas.width >= outer.width * 0.95 && canvas.height >= outer.height * 0.8,
+			'Warping canvas fills its own panel'
+		);
+		assert.equal(
+			await editor.locator('input,select,fieldset').count(),
+			0,
+			'Parameters belong in Inspector'
+		);
+		assert.equal(
+			await manager.locator('input:not([type=search]),select,fieldset').count(),
+			0,
+			'Manager remains a filtered outliner'
+		);
+		const svg = editor.getByRole('group', { name: 'Surface mapping controls', exact: true });
 		const ready = () =>
 			wait(
-				() => panel.getByRole('button', { name: 'Add surface', exact: true }).isEnabled(),
+				() => editor.getByRole('button', { name: 'Refresh preview', exact: true }).isEnabled(),
 				Boolean
 			);
 		const corner = async (index = 0) =>
@@ -96,10 +120,16 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			);
 			const current = await corner(index);
 			await page.mouse.move(
-				rect.x + current.x * rect.width + 0.5,
-				rect.y + current.y * rect.height + 0.5
+				rect.x + current.x * rect.width + (current.x >= 1 ? -0.5 : 0.5),
+				rect.y + current.y * rect.height + (current.y >= 1 ? -0.5 : 0.5)
 			);
 			await page.mouse.down();
+			const started = await svg.boundingBox();
+			assert(
+				started &&
+					['x', 'y', 'width', 'height'].every((key) => Math.abs(started[key] - rect[key]) < 0.01),
+				'Clearing an error on pointer-down cannot shift mapping geometry'
+			);
 			return rect;
 		}
 		async function move(rect, point, steps = 1) {
@@ -132,7 +162,12 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		rect = await begin();
 		await move(rect, { x: 1.1, y: 1.1 });
 		await page.mouse.up();
-		await panel.locator('p.error[role="status"]').waitFor();
+		await editor.getByRole('alert').waitFor();
+		const errorBounds = await svg.boundingBox();
+		assert(
+			['x', 'y', 'width', 'height'].every((key) => Math.abs(errorBounds[key] - rect[key]) < 0.01),
+			'Showing a rejection cannot shift mapping geometry'
+		);
 		await ready();
 		assert.deepEqual(
 			await screens(),
@@ -207,7 +242,12 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			.getByRole('tab')
 			.filter({ hasText: /^Media Manager$/ })
 			.click();
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Composition$/ })
+			.click();
 		await tab.click();
+		await warpTab.click();
 		await ready();
 		assert.deepEqual(await screens(), completed);
 		assert.deepEqual(
@@ -216,6 +256,17 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			'Screen editing cannot mutate its shared source media'
 		);
 		assert.deepEqual(errors, []);
+		assert(rejected.length > 0, 'Invalid geometry reaches backend rejection');
+		assert(
+			rejected.every(
+				(item) =>
+					item.request?.stage === 'invalid mapping' &&
+					item.request.intent?.kind === 'invokeAppOperation' &&
+					item.request.intent.namespace === 'mapgyver.screens' &&
+					item.request.intent.payload?.kind === 'EditSurfaceGeometry'
+			),
+			'Only the explicit invalid geometry case may reject'
+		);
 		await svg.scrollIntoViewIfNeeded();
 		await page.screenshot({ path: 'target/m05-screen-ui.png' });
 		console.log(
@@ -230,6 +281,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 				source: source.reference,
 				final_quad: completed.screens[0].surfaces[0].definition.quad,
 				page_errors: errors.length,
+				expected_geometry_rejections: rejected.length,
 				screenshot: 'target/m05-screen-ui.png'
 			})
 		);
@@ -237,6 +289,8 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		console.error(
 			JSON.stringify({
 				failed_stage: stage,
+				page_errors: errors,
+				rejected_requests: rejected,
 				body: (
 					await page
 						.locator('body')

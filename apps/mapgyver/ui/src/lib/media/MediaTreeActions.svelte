@@ -18,7 +18,7 @@
 			appState.session.hasActiveEditSession}
 		onCreateItem={async (item) => {
 			try {
-				await createMediaTreeItem(node, item, selection.select);
+				await createMediaTreeItem(node, item, selection.capture());
 				error = '';
 			} catch (cause) {
 				error = String(cause);

@@ -1,5 +1,6 @@
 import { getContext, setContext, untrack } from 'svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
+import { captureSelectionGuard } from './selection-guard';
 
 const key = Symbol('mapgyver-document-selection');
 
@@ -7,21 +8,14 @@ const key = Symbol('mapgyver-document-selection');
 export function provideDocumentSelection() {
 	let request = $state.raw<{
 		session: WorkbenchSession;
-		generation: number;
 		uuid: string;
-		previous: number | null;
+		current(session: WorkbenchSession | null): boolean;
 	} | null>(null);
 	$effect(() => {
 		const pending = request,
 			session = appState.session;
 		if (!pending) return;
-		if (
-			session !== pending.session ||
-			session.snapshotGeneration !== pending.generation ||
-			session.status !== 'connected' ||
-			session.loading.visible ||
-			session.selectedNodeId !== pending.previous
-		) {
+		if (session !== pending.session || !pending.current(session)) {
 			request = null;
 			return;
 		}
@@ -34,18 +28,14 @@ export function provideDocumentSelection() {
 				request = null;
 			});
 	});
-	const owner = {
-		select(uuid: string) {
-			const session = appState.session;
-			if (session)
-				request = {
-					session,
-					generation: session.snapshotGeneration,
-					uuid,
-					previous: session.selectedNodeId
-				};
-		}
-	};
+	function capture() {
+		const session = appState.session;
+		const current = captureSelectionGuard(session);
+		return (uuid: string) => {
+			if (session && current(appState.session)) request = { session, uuid, current };
+		};
+	}
+	const owner = { capture, select: (uuid: string) => capture()(uuid) };
 	setContext(key, owner);
 	return owner;
 }

@@ -38,10 +38,10 @@
 			disabled={controller.busy || gestureState.active}
 			onclick={() => controller.refresh()} />
 	</div>
-	{#if view.error || gestureState.error}<p class="editor-error" role="alert">
-			{view.error || gestureState.error}
-		</p>{/if}
 	<div class="editor-canvas">
+		{#if view.error || gestureState.error}<p class="editor-error" role="alert">
+				{view.error || gestureState.error}
+			</p>{/if}
 		{#if editor === 'screen' && screen}
 			{#key screen.id}<ScreenPreview
 					{screen}
@@ -70,3 +70,14 @@
 			</p>{/if}
 	</div>
 </section>
+
+<style>
+	/* Error visibility must not move the mapping coordinate space during a gesture. */
+	.editor-error {
+		position: absolute;
+		inset: 0 0 auto;
+		z-index: 5;
+		background: var(--gc-dock-panel-background, #202329);
+		pointer-events: none;
+	}
+</style>

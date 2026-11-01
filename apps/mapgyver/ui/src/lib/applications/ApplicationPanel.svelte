@@ -27,18 +27,19 @@
 	async function create() {
 		const session = appState.session;
 		if (!session) return;
+		const selectCreated = selection.capture();
 		try {
 			const result = await invokeMediaEdit(session, {
 				kind: 'Applications',
 				edit: { kind: 'Create', label: null }
 			});
-			if (result.kind === 'ApplicationCreated') selectDocumentNode(result.application);
+			if (result.kind === 'ApplicationCreated') selectCreated(result.application);
 			error = '';
 		} catch (cause) {
 			error = String(cause);
 		}
 	}
-	const { select: selectDocumentNode } = useDocumentSelection();
+	const selection = useDocumentSelection();
 </script>
 
 <section class="manager" aria-label={props.title ?? 'Applications'} data-panel-id={props.panelId}>

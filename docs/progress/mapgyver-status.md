@@ -4,11 +4,49 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Execution: M04 gate5 accepted after the Golden UI redesign; M04 is complete at 6/6.**
-The original full source matrix and Picture reload/redo/undo pass through the new Golden tree
-and shared Inspector. Only M05 gate6 is next active, after publishing this closure checkpoint:
-migrate its full Screen gesture/history acceptance to the separate editor and Inspector.
-M05 gate6 remains reopened; native qualification retains its exact missing prerequisites.
+**Execution: active — M05 gate6 Screen gesture/history acceptance after the Golden UI redesign.**
+M04 is complete6/6. The first new-layout Screen comparison exposes delayed creation selection
+overriding a user click; the corrected second run proves the source stays on the chosen Surface.
+It then stops on mapping geometry shifting when an error banner clears. An overlay fix and
+explicit bounds assertions compile but still need their live comparison. M05 remains3/8;
+native qualification retains its exact missing prerequisites.
+
+**M05 Screen input batch — 2026-11-01 20:07 CET, stop 20:52 CET:** previous turn is progress,
+published as `6daa88ba` with a clean checkout. Only M05 gate6 is active. Owner: app Screen tree,
+shared Screen/Surface Inspector and full-panel Screen Warping editor; existing browser fixture
+owns real-input acceptance. Migrate original batch86 scope without weakening it: name/selection,
+source draft/apply, all four corner gestures, peer/source preservation, invalid mapping/history,
+Escape, one-gesture Undo/Redo and panel lifetime. Actual controls must be naturally enabled;
+no native preview/physical/DPI inference. Reuse software-verified current ordinary app unless a
+proven product fix changes it. At most two finite invocations/20 minutes investigation, within
+20:52. Publish results before any Source/Composition/Matrix/native batch.
+
+Invocation1 reaches Screen/Surface name/selection and source input with zero page/rejected-intent
+errors, but Apply changes the newly created peer instead of the explicitly reselected Surface.
+The app's delayed creation selection captures the selected identity only after awaiting creation;
+reselecting the same old node does not change that identity. Golden already exposes authoritative
+`selectionRevision`, including same-node clicks. Capture it before each asynchronous creation and
+guard both reply and graph-delta selection against revision/project/session changes. The same
+app-owned selection boundary is used by Screen, Media/folder and Application creation; no domain
+mutation semantics or Golden API is duplicated. Add focused revision/lifetime regression checks,
+then rebuild before the second/final full Screen comparison. Keep the first failed run.
+
+**Invocation2 result — partial:** the rebuilt app keeps Apply on the explicitly selected Surface.
+Source/peer preservation, grouped first-corner drag with exact Undo/Redo and invalid mapping with
+no state/history change pass. Only the explicit invalid-geometry stage produces two expected
+backend rejections; no page errors occur. The next accepted-drag case stops before Escape because
+the actual y coordinate is0.245858 rather than0.2. The previous invalid-mapping banner occupies
+normal flex layout above the canvas; clearing it on gesture start moves the centered mapping
+coordinate space after pointer-down. Move that existing error into a positioned canvas overlay,
+preserving visible rejection without reflow. This fix is software-checked but not a third live pass.
+Both comparisons are consumed; keep M05 gate6 at3/8 and retain the same gate for the next turn.
+Next comparison must finish Escape/all remaining corners/panel lifetime and assert error show/
+clear leaves the actual SVG bounds unchanged. The source-selection regression is demonstrated
+fixed; final geometry/gesture acceptance remains open. No native/physical threshold is changed.
+Software is terminal: **63 frontend tests pass**, Svelte0errors/0warnings, ordinary bundled build,
+JS syntax/Prettier and both Cargo formatters pass. The first check's test-only type-predicate
+narrowing errors are fixed before the second invocation. Final overlay candidate is built but
+not run, SHA256 `2b16382d…93df43f`. [Partial evidence](evidence/mapgyver-m05-workbench-input-partial-2026-11-01.json).
 
 **M04 alert/source closure batch — 2026-11-01 20:02 CET, stop 20:47 CET:** previous turn is
 progress (`3538db85`, clean checkout). Only M04 gate5 is active. App media Inspector owns any
@@ -182,7 +220,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
 | Accepted | M04/5 | Complete source tree/Inspector matrix and Picture reload/history pass; M04 returns6/6. Earlier failures are preserved. |
-| Active after this checkpoint is pushed | M05/6 | Migrate the original complete Screen gesture/history fixture to the new manager, Inspector and full-panel editor; preserve existing scope. |
+| Active | M05/6 | Creation selection race is fixed; overlay candidate and explicit mapping-bounds checks need live verification, then complete Escape/all four corners/history/panel lifetime. Preserve the complete original scope. |
 | Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
@@ -5722,12 +5760,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish the M04 closure checkpoint before another batch. M04 is6/6 after the complete source
-tree/Inspector matrix and Picture reload/history pass; no repeated source or renderer checks are
-needed. Continue only M05 gate6: migrate its original full Screen gesture/history fixture to the
-Screen tree, shared Inspector and separate full-panel warping editor, then verify its complete
-prior scope. Preserve existing native/physical limits and failed evidence; no native/hardware
-qualification starts without its missing prerequisite.
+Publish the M05 selection/geometry checkpoint before another batch. Continue only M05 gate6:
+run the rebuilt error-overlay candidate through the complete Screen fixture, including unchanged
+SVG bounds when error visibility changes, Escape, remaining corners, history and panel lifetime.
+The new selection guard also touches Media creation; the same finite host may run `--source-ui`
+before `--screen-ui` as a justified regression check of that changed boundary. Retain both failed
+Screen runs and the original0.005 normalized tolerance; close only the complete original gate.
+M04 remains6/6; no renderer/native/hardware requalification starts without its missing prerequisite.
 
 **Retained qualification queue:**
 

@@ -39,8 +39,9 @@
 		addItems={items}
 		createDisabled={owner.controller.busy || owner.session?.hasActiveEditSession === true}
 		onCreateItem={async () => {
+			const selectCreated = selection.capture();
 			const result = await owner.controller.edit({ kind: 'CreateScreen', label: null });
-			if (result?.kind === 'ScreenCreated') selection.select(result.screen);
+			if (result?.kind === 'ScreenCreated') selectCreated(result.screen);
 		}}
 		{isTreeNode}
 		canRenderNodeChildren={(node) => node.node_type === 'mapgyver.screen'}

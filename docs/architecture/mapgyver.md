@@ -7,6 +7,9 @@ and theme. MapGyver registers its filtered media/screen/application trees and do
 Warping, source, Composition and Matrix views use their whole panel for canvas/grid content;
 authored settings live in the shared Inspector. Window-scoped controllers keep selection,
 gestures, history and project fencing coherent across these views.
+Creation selection captures Golden's selection revision before the operation and fences both
+its reply and delayed graph projection, so later user clicks retain ownership of the Inspector.
+Mapping errors overlay the canvas; showing or clearing one must not move its pointer coordinate space.
 
 Media folders are persisted app-owned nodes. Backend folder-aware catalogs, channel capture and
 logical Matrix application demand traverse the same hierarchy; folder revisions fence retained

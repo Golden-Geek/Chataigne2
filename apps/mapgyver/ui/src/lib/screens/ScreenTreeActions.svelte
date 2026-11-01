@@ -14,10 +14,11 @@
 		disabled={owner.controller.busy}
 		onclick={async (event) => {
 			event.stopPropagation();
+			const selectCreated = selection.capture();
 			const result = await owner.controller.edit({
 				kind: 'AddSurface',
 				screen: node.uuid,
 				label: null
 			});
-			if (result?.kind === 'SurfaceCreated') selection.select(result.reference.surface);
+			if (result?.kind === 'SurfaceCreated') selectCreated(result.reference.surface);
 		}} />{/if}

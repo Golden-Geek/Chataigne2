@@ -1,0 +1,63 @@
+{
+	"date": "2026-11-01",
+	"gate": "M05.6 complete Screen gesture/history input after Golden workbench redesign",
+	"status": "PARTIAL_NOT_ACCEPTED",
+	"batch": {
+		"start_cet": "20:07",
+		"stop_cet": "20:52",
+		"interaction_invocations": 2,
+		"allowed": 2
+	},
+	"scope": "Original batch86 source selection, all four corners, invalid mapping, Escape, peer preservation, grouped Undo/Redo and panel lifetime; naturally rendered separate manager/Inspector/editor",
+	"changes": [
+		"Browser fixture now uses Golden name controls and shared Inspector, with actual full-panel geometry and outbound rejection correlation.",
+		"Capture Golden selectionRevision before asynchronous Screen, Surface, Media/folder and Application creation; guard reply and delayed graph resolution against later clicks, including reselecting the same node, project/session changes, loading and disconnect.",
+		"Mapping error is positioned inside the Screen/Source canvas so visibility cannot change its coordinate space. Explicit show/clear bounds assertions are added to the fixture; this final overlay candidate has not run."
+	],
+	"runs": [
+		{
+			"command": "node apps/mapgyver/tests/headless/media.mjs --screen-ui",
+			"log": "target/mapgyver-m05-workbench-screen-first.log",
+			"sha256": "45ad71a3b375b64353d5157049c073fb8d13d364adc5a3f865ac38ab463b36a5",
+			"result": "fail at source selection",
+			"candidate_sha256": "650530a7b5630f4e2ea2a836f308cacf2e38b7cff465230ce61ba337ac32f6a1",
+			"observation": "A late Add Surface selection supersedes a same-node user reselect; source Apply changes the new peer. No page errors/rejected intents.",
+			"host_exit": 0
+		},
+		{
+			"command": "node apps/mapgyver/tests/headless/media.mjs --screen-ui",
+			"log": "target/mapgyver-m05-workbench-screen-final.log",
+			"sha256": "b10dbe45c803b854ffb399248f5f51d7caa72ba8a882788096da2ec1ac88433d",
+			"result": "fail before Escape",
+			"candidate_sha256": "Not captured before the subsequent overlay rebuild; no final-candidate identity inferred.",
+			"passed_scope": "Correct selected Surface/source Apply, source and peer preservation, grouped first-corner drag, exact Undo/Redo, invalid geometry rejection without state/history change.",
+			"observation": "Next accepted-drag target [.26,.2] produces actual [.2600000202655792,.24585798382759094] after the prior error clears. The normal-flow error banner changes centered canvas position at pointer-down. Overlay correction follows from this layout path but is not claimed verified.",
+			"page_errors": 0,
+			"expected_invalid_geometry_rejections": 2,
+			"host_exit": 0
+		}
+	],
+	"final_candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "2b16382d6826992107fa4f318a8024fb28e4abd8343be0b561086481d93df43f",
+		"status": "built, Svelte/software checked; overlay not live verified"
+	},
+	"failure_screenshot": {
+		"path": "target/m05-screen-ui-failure.png",
+		"sha256": "0a77f190d8dbc8709c095ac4cb601e8f363b31aad68d7ee2bf661aec7b00d7be"
+	},
+	"software": {
+		"frontend_tests": "63 pass, including2 selection revision/project/lifetime regressions",
+		"svelte": "0 errors, 0 warnings after fixing a test-only type-predicate narrowing issue",
+		"ordinary_build": "pass for final overlay candidate",
+		"syntax_prettier_root_core_fmt": "pass",
+		"rust": "unchanged; retain previous209pass/1existing-ignore evidence"
+	},
+	"remaining": "Verify actual bounds stay unchanged when rejection appears/clears, then finish Escape/all remaining corners/grouped history/panel lifetime. Run source UI once alongside Screen UI as regression coverage for the changed Media selection boundary. No third interaction invocation in this batch.",
+	"limits": [
+		"M05 gate6 remains open;3/8 gates accepted, overall4/10=40%, fixed denominators.",
+		"Both owned browsers close; both ordinary hosts exit0 via sentinel. No live process handle remains.",
+		"No native preview, physical output, DPI, underlay alignment, OS pointer-capture or input-to-visible latency result is claimed.",
+		"Original0.005 normalized functional tolerance and all original gate/native/resource requirements remain unchanged."
+	]
+}

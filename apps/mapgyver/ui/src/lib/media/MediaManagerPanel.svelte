@@ -39,7 +39,7 @@
 				return;
 			}
 			try {
-				await createMediaTreeItem(parent, item, selection.select);
+				await createMediaTreeItem(parent, item, selection.capture());
 				error = '';
 			} catch (cause) {
 				error = String(cause);
