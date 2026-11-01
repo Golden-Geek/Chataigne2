@@ -32,7 +32,7 @@ pub(crate) fn validate(change: &ParameterValidationContext<'_>, owner: NodeId, s
                     if let Some(instance) = change
                         .node(child)
                         .and_then(|node| node.as_any().downcast_ref::<InstanceNode>())
-                        && let Some(source) = instance.definition().source
+                        && let Some(source) = instance.source_for_validation(change)
                     {
                         pending.push(source.channel.0);
                     }

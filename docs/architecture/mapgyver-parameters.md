@@ -26,8 +26,8 @@ required scope; a converted owner does not complete the refactor.
 | Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip |
 | Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Verified: generic UI, caller parity, history/roundtrip and stable conditional-field identities |
 | Asset | Typed locator kind and project-relative/absolute File paths | Verified: generic File editing, history/roundtrip and invalid-path rejection |
-| Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Pending |
-| Surface | Enabled, source references, crop, four corner positions, opacity and calibration | Pending |
+| Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Software verified: eight typed Parameters, metadata/history/project lifetime; generic UI acceptance pending |
+| Surface | Enabled, source references, crop, four corner positions, opacity and calibration | Software verified: eleven typed Parameters, atomic geometry, full copy/history/project lifetime; generic UI acceptance pending |
 | Matrix row/group | Opacity, blend and enabled; existing node hierarchy/order | Pending |
 | Matrix column/cell | Transition override/curve/duration; application-association child nodes with reference/pre/post; column/source references on cells | Pending |
 | Application | Executable/directory, argument children, environment mode/entry children, window mode, readiness/sender/evidence/timeout, stop deadlines, restart/backoff | Pending |
@@ -40,6 +40,23 @@ Parameter leaf constraints validate types/ranges/enums/references. Golden's
 history or events. Its borrowed graph view avoids building a process-tree snapshot. Domain
 owners enforce geometry and reachable-source cycle rules here so raw parameter edits receive the
 same guarantees as operation adapters. Structural operations remain explicit backend intents.
+
+`Edit::SetParamsAtomic` writes an ordered set of distinct built-in Parameters. Golden prepares
+every leaf first, validates all ancestors against the complete normalized proposal, then commits
+without intervening callbacks. `ParameterValidationContext::parameter_value` reads that proposal
+or the live committed value. Use it for cross-field and reachable-graph invariants. This avoids
+invalid intermediate crop, quad or rectangle states without copying a whole graph. History replays
+the complete proposal and treats each batch as a scalar-coalescing boundary. Arbitrary node-defined
+parameter-like setters are excluded because their commit may fail after preparation.
+
+Screens retain target-specific inactive values and field identities. Empty display/sender text
+leaves the selected endpoint visibly unconfigured. Surface source references, crop origin/size,
+corners, opacity, calibration and enabled state use the same typed leaves for canvas gestures and
+generic Inspector editing. Screen and Surface definitions are owned read projections; their opaque
+authored codecs and ordinary custom property forms are removed. Display discovery and structural
+actions remain focused app UI. Parameter folders do not contribute to Surface counts or rendering.
+Both domain declarations grant name-edit permission to the shared Inspector, including factories
+and loaded records. Public metadata edits use ordinary Golden history and persistence.
 
 Composition instances currently expose nine parameters beneath their declared Parameters folder.
 Their definition projects Golden's synchronized typed handles. The ordinary property form and

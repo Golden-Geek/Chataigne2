@@ -2,11 +2,16 @@
 
 ## At a glance
 
-**Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
+**Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** M05/6 Screen/Surface Parameter conversion. **Next:** typed settings and generic
-Inspector with atomic geometry edits. **Blocker:** none for code work; retained native/display/
-reset/timing/memory prerequisites remain unavailable or unresolved in their named gates.
+**Current:** M05/6 Screen/Surface Parameter conversion. **Next:** complete generic Inspector/
+canvas acceptance on the corrected rename-permission candidate. **Blocker:** browser acceptance
+remains open after two startup failures; native/display/reset/timing/memory gates are retained.
+**Batch:** 23:40 CET, stop00:25 CET. Baseline `f4c727ab` pushed/verified. Deliver Screen/Surface
+Parameter schemas and generic Inspector with valid whole-quad/crop updates; preserve rejection,
+all callers, history/copy/project lifetime and full-panel gestures. Add one app-neutral atomic
+parameter-write boundary for cross-field invariants. Run focused/current software before at most
+two bundled Screen/Source browser acceptance flows; no native qualification or unrelated tuning.
 The dashboard and Next action are current; dated delivery entries preserve historical evidence.
 
 | Phase | State | Progress | Done / total items |
@@ -27,12 +32,42 @@ The dashboard and Next action are current; dated delivery entries preserve histo
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
 | Accepted | M04/5 | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6. |
-| Active | M05/6 | Convert Screen/Surface settings to real Parameters, preserve atomic geometry validation, then verify generic Inspector and canvases. |
+| Active | M05/6 | Parameter model/atomic edits and declared rename permissions verified in software; generic Inspector/canvas acceptance remains open. Two browser attempts are retained, not accepted. |
 | Pending | M07/3 | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained. |
 | Pending | M08/4 | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained. |
 | Blocked | M03/4,9 | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure. |
 | Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes. |
 | Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification. |
+
+### Screen/Surface Parameter checkpoint — 2 November, 00:25 CET
+
+Screens own eight typed Parameters and Surfaces eleven. Their definitions are read projections;
+opaque authored codecs and ordinary custom property forms are removed. Canvas and command
+operations write the same leaves through Golden's new atomic parameter edit boundary. It validates
+normalized final proposals before mutation and replays them atomically in history. Scalar queue
+and history coalescing cannot cross the batch. Composition source-cycle traversal also reads
+proposed edges. Rendering skips the Parameters folder without counting it as a Surface.
+
+Verified software including the rename correction: MapGyver224pass/1existing ignore; Golden
+engine660pass/3existing ignores plus4public atomic integration tests; Chataigne209pass/1existing
+ignore; Svelte0errors/0warnings; clippy, ordinary build, fixture formatting and both formatters pass.
+Screen/Surface tests cover raw generic edits, geometry/crop and sender swaps, rejection, exact
+history, malformed candidates, sparse roundtrip and full independent Parameter/control subtree
+copy. The sparse fixture now respects Golden's existing regenerated-default-leaf contract while
+checking all19snapshots and exact UUID retention for authored overrides.
+
+Both finite Screen browser attempts stop before property/gesture coverage, with0page errors and
+0rejected intents; owned hosts exit0. Attempt1 used the nested-node header selector instead of the
+shared Inspector header. The corrected selector in attempt2 exposes missing app-owned rename
+permission, previously bypassed by custom forms. Both node declarations now permit name edits;
+the new test proves constructor defaults, public PatchMeta history and label/permission reload.
+No third browser run in this batch; Surface Source has not been run.
+Logs: `target/mapgyver-screen-parameter-browser.log` and
+`target/mapgyver-screen-parameter-browser-final.log`; inspected failure capture shows the real
+Golden tree and generic widgets. This is a useful implementation checkpoint, not UI acceptance.
+M05 stays3/8, overall4/10(40%); no denominator or native/resource requirement changes.
+Matrix, Application collections and command coverage remain required; do not advance to those
+owners before this generic UI scope is accepted.
 
 ### Media Parameter result — 23:36 CET
 
@@ -6090,10 +6125,11 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish the verified Media/channel/asset Parameter milestone, then continue M05/6 only:
-Screen/Surface typed Parameter children and generic Inspector, with atomic quad/crop validation,
-all public callers, history/project lifetime and actual canvas input preserved. Remove their
-ordinary property forms and opaque authored codecs. Follow the complete conversion inventory
+Media checkpoint `f4c727ab` is pushed and verified. Continue M05/6 only: the declared Screen/
+Surface rename permission correction is software-verified. Complete generic Inspector and canvas
+acceptance on that materially corrected candidate. Retain both failed browser attempts and the two-run
+investigation limit; do not repeat the unchanged startup candidate or infer functional coverage.
+Parameter schemas, atomic geometry, history/copy/project lifetime are implemented. Follow the complete conversion inventory
 in [parameter ownership](../architecture/mapgyver-parameters.md); no partial owner closes the full request.
 After this owner, return to Matrix elements/association children, Application definitions and
 argument/environment children, then command/field coverage. M06 retains native image/extent/

@@ -2,6 +2,7 @@ use golden_core::{
     edit::{Edit, NodeTree},
     events::CustomEvent,
     node::{Node, NodeId},
+    parameter::ParameterEventBehaviour,
 };
 use serde_json::Value;
 
@@ -76,11 +77,11 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         },
         ScreenEdit::CreateScreen { label } => {
             let parent = manager(engine)?;
-            let screen = ScreenNode::new(
+            let screen = ScreenNode::from_definition(
                 labels::unique(engine, parent, label, "Screen", &[])?,
                 ScreenDefinition::default(),
             );
-            let surface = SurfaceNode::new("Surface 1".into(), SurfaceDefinition::default());
+            let surface = SurfaceNode::from_definition("Surface 1".into(), SurfaceDefinition::default());
             let id = ScreenId(screen.node_data().meta.uuid);
             let reference = SurfaceReference {
                 screen: id,
@@ -114,17 +115,12 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                     }
                 }
             }
-            engine.edits.push(Edit::CallNodeMutation {
-                node,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    let node = node
-                        .as_any_mut()
-                        .downcast_mut::<ScreenNode>()
-                        .ok_or("Screen type changed")?;
-                    node.set_definition(definition);
-                    Ok(())
-                }),
+            let Some(AppNode::Screen(current)) = engine.nodes.get(node) else {
+                unreachable!()
+            };
+            engine.edits.push(Edit::SetParamsAtomic {
+                values: current.parameter_values(definition),
+                behaviour: ParameterEventBehaviour::Append,
             });
             ScreenEditResult::Changed
         }
@@ -147,7 +143,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         ScreenEdit::AddSurface { screen, label } => {
             let parent = screen_id(engine, screen)?;
-            let surface = SurfaceNode::new(
+            let surface = SurfaceNode::from_definition(
                 labels::unique(engine, parent, label, "Surface", &[])?,
                 SurfaceDefinition::default(),
             );
@@ -169,17 +165,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             {
                 crate::media::channel(engine, source)?;
             }
-            engine.edits.push(Edit::CallNodeMutation {
-                node,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    let node = node
-                        .as_any_mut()
-                        .downcast_mut::<SurfaceNode>()
-                        .ok_or("Surface type changed")?;
-                    node.set_definition(definition);
-                    Ok(())
-                }),
+            engine.edits.push(Edit::SetParamsAtomic {
+                values: current.parameter_values(definition),
+                behaviour: ParameterEventBehaviour::Append,
             });
             ScreenEditResult::Changed
         }
@@ -193,24 +181,16 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
                 unreachable!()
             };
-            let mut definition = current.definition().clone();
+            let mut definition = current.definition();
             edit.apply(&mut definition)?;
             let snapshot = SurfaceSnapshot {
                 reference,
                 label: current.node_data().meta.label.clone(),
                 definition: definition.clone(),
             };
-            engine.edits.push(Edit::CallNodeMutationCoalesced {
-                scope: golden_core::edit::NodeMutationScope::SelfData,
-                node,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    node.as_any_mut()
-                        .downcast_mut::<SurfaceNode>()
-                        .ok_or("Surface type changed")?
-                        .set_definition(definition);
-                    Ok(())
-                }),
+            engine.edits.push(Edit::SetParamsAtomic {
+                values: current.parameter_values(definition),
+                behaviour: ParameterEventBehaviour::Append,
             });
             ScreenEditResult::SurfaceChanged { snapshot }
         }
@@ -259,7 +239,12 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
             let mut surface = screen.node_data().first_child;
             let mut surfaces = Vec::new();
             while let Some(id) = surface {
-                let Some(AppNode::Surface(node)) = engine.nodes.get(id) else {
+                let child = engine.nodes.get(id).ok_or("missing Screen child")?;
+                surface = child.node_data().next_sibling;
+                if crate::parameters::is_parameter_folder(child) {
+                    continue;
+                }
+                let AppNode::Surface(node) = child else {
                     return Err("Screen children must be Surfaces".into());
                 };
                 surfaces.push(SurfaceSnapshot {
@@ -268,14 +253,13 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
                         surface: SurfaceId(node.node_data().meta.uuid),
                     },
                     label: node.node_data().meta.label.clone(),
-                    definition: node.definition().clone(),
+                    definition: node.definition(),
                 });
-                surface = node.node_data().next_sibling;
             }
             screens.push(ScreenSnapshot {
                 id: owner,
                 label: screen.node_data().meta.label.clone(),
-                definition: screen.definition().clone(),
+                definition: screen.definition(),
                 surfaces,
             });
         }
@@ -303,19 +287,24 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if node.node_data().parent != Some(manager) {
                     return Err("Screen is outside its manager".into());
                 }
-                node.definition().validate()?;
-                if node.definition().enabled
-                    && let Some(ScreenTarget::Spout { sender, .. }) = &node.definition().target
+                let definition = node.definition();
+                definition.validate()?;
+                if definition.enabled
+                    && let Some(ScreenTarget::Spout { sender, .. }) = definition.target
                     && !senders.insert(sender)
                 {
                     return Err("enabled Screens must have distinct Spout sender names".into());
                 }
                 let mut child = node.node_data().first_child;
                 while let Some(id) = child {
-                    let Some(AppNode::Surface(surface)) = engine.nodes.get(id) else {
+                    let node = engine.nodes.get(id).ok_or("missing Screen child")?;
+                    child = node.node_data().next_sibling;
+                    if crate::parameters::is_parameter_folder(node) {
+                        continue;
+                    }
+                    let AppNode::Surface(_) = node else {
                         return Err("Screen children must be Surfaces".into());
                     };
-                    child = surface.node_data().next_sibling;
                 }
             }
             AppNode::Surface(node) => {

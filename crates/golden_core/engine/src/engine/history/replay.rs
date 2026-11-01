@@ -8,6 +8,14 @@ impl<T: Node> HistoryStep<T> {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.old_value.clone(), None)?;
             }
+            Self::SetParamsAtomic(steps) => {
+                engine.apply_set_params_atomic(
+                    0,
+                    steps.iter().map(|step| (step.node, step.old_value.clone())).collect(),
+                    ParameterEventBehaviour::Append,
+                    None,
+                )?;
+            }
             Self::SetParamControlState(step) => {
                 engine.apply_set_param_control_state_for_history(
                     "UndoSetParamControlState",
@@ -103,6 +111,14 @@ impl<T: Node> HistoryStep<T> {
             Self::SetParam(step) => {
                 let _ = engine.apply_set_param(0, step.node, step.new_value.clone(), None)?;
             }
+            Self::SetParamsAtomic(steps) => {
+                engine.apply_set_params_atomic(
+                    0,
+                    steps.iter().map(|step| (step.node, step.new_value.clone())).collect(),
+                    ParameterEventBehaviour::Append,
+                    None,
+                )?;
+            }
             Self::SetParamControlState(step) => {
                 engine.apply_set_param_control_state_for_history(
                     "RedoSetParamControlState",
@@ -190,6 +206,7 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(_)
             | Self::SetParam(_)
+            | Self::SetParamsAtomic(_)
             | Self::SetParamControlState(_)
             | Self::SetParamConstraints(_)
             | Self::PatchMeta(_)

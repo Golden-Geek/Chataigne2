@@ -88,6 +88,9 @@ impl<T: Node> HistoryTransaction<T> {
     /// Updates the newest matching coalesced SetParam step in this transaction, if present.
     fn try_update_coalesced_set_param(&mut self, node: NodeId, tick: u64, new_value: ParamValue) -> bool {
         for step in self.steps.iter_mut().rev() {
+            if matches!(step, HistoryStep::SetParamsAtomic(_)) {
+                break;
+            }
             let HistoryStep::SetParam(existing) = step else {
                 continue;
             };
@@ -105,11 +108,13 @@ impl<T: Node> HistoryTransaction<T> {
     /// Moves coalescable SetParam steps into `previous` when they target the same node/tick.
     fn absorb_coalesced_set_params(&mut self, previous: &mut HistoryTransaction<T>) {
         let mut remaining_steps = Vec::with_capacity(self.steps.len());
+        let mut past_atomic_boundary = false;
 
         for step in self.steps.drain(..) {
             match step {
                 HistoryStep::SetParam(incoming) => {
-                    let merged = incoming.behaviour == ParameterEventBehaviour::Coalesce
+                    let merged = !past_atomic_boundary
+                        && incoming.behaviour == ParameterEventBehaviour::Coalesce
                         && previous.try_update_coalesced_set_param(
                             incoming.node,
                             incoming.tick,
@@ -120,7 +125,10 @@ impl<T: Node> HistoryTransaction<T> {
                         remaining_steps.push(HistoryStep::SetParam(incoming));
                     }
                 }
-                other => remaining_steps.push(other),
+                other => {
+                    past_atomic_boundary |= matches!(other, HistoryStep::SetParamsAtomic(_));
+                    remaining_steps.push(other);
+                }
             }
         }
 
@@ -201,6 +209,8 @@ pub(crate) enum HistoryStep<T: Node> {
     AuthoredNode(AuthoredNodeEffect),
     /// Parameter value update history.
     SetParam(SetParamHistory),
+    /// A complete normalized parameter proposal, replayed as one invariant boundary.
+    SetParamsAtomic(Vec<SetParamHistory>),
     /// Parameter control-state update history.
     SetParamControlState(SetParamControlStateHistory),
     /// Parameter constraints update history.
@@ -243,6 +253,7 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(step) => original.contains(&step.node),
             Self::SetParam(step) => original.contains(&step.node),
+            Self::SetParamsAtomic(steps) => steps.iter().any(|step| original.contains(&step.node)),
             Self::SetParamControlState(step) => original.contains(&step.node),
             Self::SetParamConstraints(step) => original.contains(&step.node),
             Self::PatchMeta(step) => original.contains(&step.node),
@@ -514,6 +525,23 @@ impl<T: Node> From<SetParamEffect> for HistoryStep<T> {
             behaviour: effect.behaviour,
             tick: effect.tick,
         })
+    }
+}
+
+impl<T: Node> From<Vec<SetParamEffect>> for HistoryStep<T> {
+    fn from(effects: Vec<SetParamEffect>) -> Self {
+        Self::SetParamsAtomic(
+            effects
+                .into_iter()
+                .map(|effect| SetParamHistory {
+                    node: effect.node,
+                    old_value: effect.old_value,
+                    new_value: effect.new_value,
+                    behaviour: effect.behaviour,
+                    tick: effect.tick,
+                })
+                .collect(),
+        )
     }
 }
 

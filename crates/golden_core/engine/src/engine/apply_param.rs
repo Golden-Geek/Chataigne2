@@ -46,6 +46,17 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         value: ParamValue,
     ) -> Result<ParamValue, EngineEditError> {
+        let value = self.prepare_set_param_leaf(edit_index, node, value)?;
+        self.validate_param_owners(edit_index, node, &value, None)?;
+        Ok(value)
+    }
+
+    fn prepare_set_param_leaf(
+        &self,
+        edit_index: usize,
+        node: NodeId,
+        value: ParamValue,
+    ) -> Result<ParamValue, EngineEditError> {
         let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
             edit_index,
             operation: "SetParam",
@@ -80,9 +91,25 @@ impl<T: Node> Engine<T> {
                     node_type: node_type.clone(),
                     message,
                 })?;
+        Ok(value)
+    }
+
+    fn validate_param_owners(
+        &self,
+        edit_index: usize,
+        node: NodeId,
+        value: &ParamValue,
+        proposed: Option<&std::collections::HashMap<NodeId, ParamValue>>,
+    ) -> Result<(), EngineEditError> {
+        let target = self.nodes.get(node).expect("prepared parameter exists");
+        let node_type = target.get_type().to_owned();
         let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
         let resolve = |uuid| self.node_id_by_uuid(uuid);
-        let change = crate::node::ParameterValidationContext::new(node, &value, &lookup, &resolve);
+        let change = crate::node::ParameterValidationContext::new(node, value, &lookup, &resolve);
+        let change = match proposed {
+            Some(values) => change.with_proposed(values),
+            None => change,
+        };
         let mut parent = target.node_data().parent;
         while let Some(id) = parent {
             let Some(owner) = self.nodes.get(id) else { break };
@@ -96,7 +123,7 @@ impl<T: Node> Engine<T> {
                 })?;
             parent = owner.node_data().parent;
         }
-        Ok(value)
+        Ok(())
     }
 
     /// Applies a parameter value update and returns the captured before/after effect for history.
@@ -107,8 +134,18 @@ impl<T: Node> Engine<T> {
         value: ParamValue,
         source: Option<NodeId>,
     ) -> Result<Option<SetParamEffect>, EngineEditError> {
-        const OP: &str = "SetParam";
         let prepared_value = self.prepare_set_param_value(edit_index, node, value)?;
+        self.commit_prepared_param_value(edit_index, node, prepared_value, source)
+    }
+
+    fn commit_prepared_param_value(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        prepared_value: ParamValue,
+        source: Option<NodeId>,
+    ) -> Result<Option<SetParamEffect>, EngineEditError> {
+        const OP: &str = "SetParam";
 
         let (old_value, new_value, change_check) = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
@@ -195,6 +232,55 @@ impl<T: Node> Engine<T> {
             behaviour: ParameterEventBehaviour::Append,
             tick: self.time.tick,
         }))
+    }
+
+    pub(crate) fn apply_set_params_atomic(
+        &mut self,
+        edit_index: usize,
+        values: Vec<(NodeId, ParamValue)>,
+        behaviour: ParameterEventBehaviour,
+        source: Option<NodeId>,
+    ) -> Result<Vec<SetParamEffect>, EngineEditError> {
+        let mut proposed = std::collections::HashMap::with_capacity(values.len());
+        let mut prepared = Vec::with_capacity(values.len());
+        for (node, value) in values {
+            let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+                edit_index,
+                operation: "SetParamsAtomic",
+                node,
+            })?;
+            // Concrete Parameter setters accept their prepared value without callbacks.
+            // Arbitrary parameter-like nodes may have fallible setters and cannot provide
+            // this commit guarantee through the generic Node interface.
+            if !target.as_any().is::<crate::parameter::Parameter>() {
+                return Err(EngineEditError::ParamEditTargetMismatch {
+                    edit_index,
+                    node,
+                    node_type: target.get_type().into(),
+                });
+            }
+            let value = self.prepare_set_param_leaf(edit_index, node, value)?;
+            if proposed.insert(node, value.clone()).is_some() {
+                return Err(EngineEditError::ParamConstraintViolation {
+                    edit_index,
+                    node,
+                    node_type: target.get_type().into(),
+                    message: "atomic parameter IDs must be distinct".into(),
+                });
+            }
+            prepared.push((node, value));
+        }
+        for (node, value) in &prepared {
+            self.validate_param_owners(edit_index, *node, value, Some(&proposed))?;
+        }
+        let mut effects = Vec::with_capacity(prepared.len());
+        for (node, value) in prepared {
+            if let Some(mut effect) = self.commit_prepared_param_value(edit_index, node, value, source)? {
+                effect.behaviour = behaviour;
+                effects.push(effect);
+            }
+        }
+        Ok(effects)
     }
 
     /// Applies a live parameter-constraints update and emits value/constraint events as needed.

@@ -3,10 +3,16 @@
 	import type { DisplayCatalogSnapshot } from './generated/DisplayCatalogSnapshot';
 	import { createDisplayCatalogTransport, type DisplayCatalogTransport } from './display-discovery';
 	let {
-		display = $bindable(),
+		display,
+		onSelect,
 		disabled,
 		transport = createDisplayCatalogTransport()
-	}: { display: string; disabled: boolean; transport?: DisplayCatalogTransport } = $props();
+	}: {
+		display: string;
+		onSelect: (display: string) => void | Promise<void>;
+		disabled: boolean;
+		transport?: DisplayCatalogTransport;
+	} = $props();
 	let catalog = $state<DisplayCatalogSnapshot | null>(null);
 	let connected = $state(false);
 	let error = $state('');
@@ -51,7 +57,10 @@
 <div class="picker">
 	{#if available}
 		<label
-			>Fullscreen display<select bind:value={display} disabled={disabled || !catalog}>
+			>Discovered displays<select
+				value={display}
+				onchange={(event) => onSelect(event.currentTarget.value)}
+				disabled={disabled || !catalog}>
 				<option value="">Choose a display</option>
 				{#if display && !catalog?.displays.some((entry) => entry.id === display)}
 					<option value={display}>Selected display unavailable (selection retained)</option>
@@ -72,7 +81,6 @@
 					: 'Connecting to display discovery…')}
 		</p>
 	{:else}
-		<label>Intended display identity<input bind:value={display} {disabled} required /></label>
 		<p>Display discovery is available in the desktop app. Unavailable selections are retained.</p>
 	{/if}
 	<p>Fullscreen output stays inactive while its selected display is unavailable.</p>
@@ -87,8 +95,7 @@
 		display: grid;
 		gap: 0.3rem;
 	}
-	select,
-	input {
+	select {
 		min-width: 0;
 		max-width: 100%;
 	}

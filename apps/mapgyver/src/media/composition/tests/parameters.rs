@@ -115,6 +115,71 @@ fn direct_parameter_edits_reject_invalid_geometry_and_reference_cycles_without_s
 }
 
 #[test]
+fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_without_intermediate_cycles() {
+    use golden_core::{
+        edit::Edit,
+        node::{NodeId, NodeReference},
+    };
+    let mut engine = fixture();
+    let solid = create(&mut engine, MediaKind::SolidColor);
+    let a = create(&mut engine, MediaKind::Composition);
+    let b = create(&mut engine, MediaKind::Composition);
+    let a_instance = add(&mut engine, a, vec![solid])[0];
+    let b_instance = add(&mut engine, b, vec![solid])[0];
+    let binding = |engine: &AppEngine, instance: InstanceReference, source: ChannelReference| {
+        let root = engine.node_id_by_uuid(instance.instance.0).unwrap();
+        vec![
+            (
+                instance_parameter(engine, root, "source_media"),
+                ParamValue::Reference(NodeReference::new(source.media.0)),
+            ),
+            (
+                instance_parameter(engine, root, "source_channel"),
+                ParamValue::Reference(NodeReference::new(source.channel.0)),
+            ),
+        ]
+    };
+    let atomic = |values: Vec<(NodeId, ParamValue)>| Edit::SetParamsAtomic {
+        values,
+        behaviour: ParameterEventBehaviour::Append,
+    };
+    let mut reciprocal = binding(&engine, a_instance, b);
+    reciprocal.extend(binding(&engine, b_instance, a));
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    engine.edits.push(atomic(reciprocal));
+    assert!(
+        engine.apply_edits().is_err(),
+        "Neither committed graph contained the proposed reciprocal cycle"
+    );
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+
+    let values = binding(&engine, a_instance, b);
+    engine.edits.push(atomic(values));
+    engine.apply_edits().unwrap();
+    let old_a = inspect(&mut engine, a);
+    let old_b = inspect(&mut engine, b);
+    assert_eq!(old_a.instances[0].definition.source, Some(b));
+    // Moving A -> B to B -> A is valid when A's old edge is removed in this batch.
+    let mut reversed = binding(&engine, a_instance, solid);
+    reversed.extend(binding(&engine, b_instance, a));
+    engine.edits.push(atomic(reversed));
+    engine.apply_edits().unwrap();
+    let new_a = inspect(&mut engine, a);
+    let new_b = inspect(&mut engine, b);
+    assert_eq!(new_a.instances[0].definition.source, Some(solid));
+    assert_eq!(new_b.instances[0].definition.source, Some(a));
+    assert_eq!(engine.undo_len(), history + 2);
+    assert!(engine.undo().unwrap());
+    assert_eq!(inspect(&mut engine, a), old_a);
+    assert_eq!(inspect(&mut engine, b), old_b);
+    assert!(engine.redo().unwrap());
+    assert_eq!(inspect(&mut engine, a), new_a);
+    assert_eq!(inspect(&mut engine, b), new_b);
+}
+
+#[test]
 fn copying_preserves_parameter_configuration_and_control_subtrees_with_independent_identities() {
     use golden_core::{
         edit::Edit,
@@ -125,7 +190,7 @@ fn copying_preserves_parameter_configuration_and_control_subtrees_with_independe
     let composition = create(&mut engine, MediaKind::Composition);
     let original = add(&mut engine, composition, vec![source])[0];
     let root = engine.node_id_by_uuid(original.instance.0).unwrap();
-    let opacity = opacity_parameter(&engine, root);
+    let opacity = instance_parameter(&engine, root, "opacity");
     // Only user-editable constraints are authored; producer-owned catalogs/ranges
     // are deliberately rebuilt from their declaration on sparse project load.
     engine
@@ -174,7 +239,7 @@ fn copying_preserves_parameter_configuration_and_control_subtrees_with_independe
     };
     assert_eq!(engine.undo_len(), history + 1);
     let copy = engine.node_id_by_uuid(instances[0].instance.0).unwrap();
-    let copied_opacity = opacity_parameter(&engine, copy);
+    let copied_opacity = instance_parameter(&engine, copy, "opacity");
     let copied_parameter = engine
         .nodes
         .get(copied_opacity)
@@ -212,13 +277,13 @@ fn copying_preserves_parameter_configuration_and_control_subtrees_with_independe
     assert_eq!(loaded_parameter, parameter);
 }
 
-fn opacity_parameter(engine: &AppEngine, root: golden_core::node::NodeId) -> golden_core::node::NodeId {
+fn instance_parameter(engine: &AppEngine, root: golden_core::node::NodeId, name: &str) -> golden_core::node::NodeId {
     let folder = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
     let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
     loop {
         let id = child.unwrap();
         let node = engine.nodes.get(id).unwrap();
-        if node.node_data().meta.decl_id.0 == "parameters/opacity" {
+        if node.node_data().meta.decl_id.0 == format!("parameters/{name}") {
             return id;
         }
         child = node.node_data().next_sibling;

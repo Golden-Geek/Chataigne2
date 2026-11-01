@@ -21,7 +21,9 @@
 
 {#if node.node_type === 'mapgyver.screen' || node.node_type === 'mapgyver.surface'}<ScreenInspector
 		{node}
-		{defaultHeader} />
+		{defaultHeader}
+		{defaultContent}
+		{defaultChildren} />
 {:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}<MatrixProperties />
 {:else if node.node_type === 'mapgyver.application'}<ApplicationInspector {node} {defaultHeader} />
 {:else}<MediaInspector {node} {defaultHeader} {defaultContent} {defaultChildren} />{/if}

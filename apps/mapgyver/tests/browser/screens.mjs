@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { screenParameterControls, surfaceParameterLabels } from './screen-parameters.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 const near = (actual, expected) =>
@@ -41,29 +42,63 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		await tab.click();
 		const manager = page.locator('section[aria-label="Screen Manager"]');
 		const editor = page.locator('section[aria-label="Screen Warping"]');
-		const properties = page.locator('.properties');
+		const controls = screenParameterControls(page);
 		const warpTab = page.getByRole('tab').filter({ hasText: /^Screen Warping$/ });
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const id = snapshot.screens[0].id;
 		const first = snapshot.screens[0].surfaces[0].reference;
-		const screenName = properties.getByRole('textbox', { name: 'Screen name', exact: true });
-		await screenName.fill('UI Screen');
-		await screenName.press('Enter');
+		await controls.fields(['Target', 'Enabled'], wait);
+		await controls.rename(snapshot.screens[0].label, 'UI Screen');
 		await wait(screens, (value) => value.screens[0].label === 'UI Screen');
+		stage = 'generic Screen target Parameters';
+		await controls.choice('Target').selectOption('Fullscreen');
+		await controls.fields(['Target', 'Display identity', 'Enabled'], wait);
+		await controls.setText('Display identity', 'Parameter UI unavailable display');
+		await wait(
+			screens,
+			(value) => value.screens[0].definition.target?.display === 'Parameter UI unavailable display'
+		);
+		await controls.choice('Target').selectOption('Rectangle');
+		await controls.fields(['Target', 'Left', 'Top', 'Width', 'Height', 'Enabled'], wait);
+		const widthParameter = await controls.parameter('Width').getAttribute('data-node-id');
+		for (const [label, value, read] of [
+			['Left', -100, (target) => target.bounds.left],
+			['Top', 50, (target) => target.bounds.top],
+			['Width', 800, (target) => target.bounds.extent.width],
+			['Height', 600, (target) => target.bounds.extent.height]
+		]) {
+			await controls.setNumber(label, value);
+			await wait(screens, (snapshot) => read(snapshot.screens[0].definition.target) === value);
+		}
+		await controls.choice('Target').selectOption('Spout');
+		await controls.fields(['Target', 'Width', 'Height', 'Sender name', 'Enabled'], wait);
+		await controls.setText('Sender name', 'Parameter UI output');
+		await wait(
+			screens,
+			(value) => value.screens[0].definition.target?.sender === 'Parameter UI output'
+		);
+		assert.equal(await controls.parameter('Width').getAttribute('data-node-id'), widthParameter);
+		assert.deepEqual((await screens()).screens[0].definition.target.extent, {
+			width: 800,
+			height: 600
+		});
+		await controls.parameter('Enabled').locator('input.editor-checkbox').check();
+		await wait(screens, (value) => value.screens[0].definition.enabled);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(screens, (value) => !value.screens[0].definition.enabled);
 		await manager
 			.getByRole('button', { name: snapshot.screens[0].surfaces[0].label, exact: true })
 			.click();
-		const surfaceName = properties.getByRole('textbox', { name: 'Surface name', exact: true });
-		await surfaceName.fill('UI Surface');
-		await surfaceName.press('Enter');
+		await controls.fields(surfaceParameterLabels, wait);
+		await controls.rename(snapshot.screens[0].surfaces[0].label, 'UI Surface');
 		await wait(screens, (value) => value.screens[0].surfaces[0].label === 'UI Surface');
 		await manager.getByRole('button', { name: 'Add Surface', exact: true }).click();
 		snapshot = await wait(screens, (value) => value.screens[0].surfaces.length === 2);
 		const peer = snapshot.screens[0].surfaces[1];
 		await manager.getByRole('button', { name: 'UI Surface', exact: true }).click();
 		await wait(
-			() => surfaceName.inputValue(),
+			() => page.locator('.inspector-header .title-text').first().innerText(),
 			(value) => value === 'UI Surface'
 		);
 		assert.deepEqual(await screens(), snapshot, 'selection cannot author state');
@@ -71,12 +106,8 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		const sourceMedia = media.media.find((entry) => entry.media_kind === 'SolidColor');
 		assert(sourceMedia);
 		const source = sourceMedia.channels[0];
-		await properties.getByLabel('Find source', { exact: true }).fill(sourceMedia.label);
-		await properties
-			.getByRole('combobox', { name: /^Source channel/ })
-			.selectOption({ label: `${sourceMedia.label} / ${source.label}` });
-		assert.deepEqual(await screens(), snapshot, 'source picker edits a draft until Apply');
-		await properties.getByRole('button', { name: 'Apply surface settings', exact: true }).click();
+		await controls.reference('Source media', sourceMedia.label, sourceMedia.label);
+		await controls.reference('Source channel', sourceMedia.label, source.label);
 		await wait(
 			screens,
 			(value) =>

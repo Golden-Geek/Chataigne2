@@ -3,6 +3,7 @@ mod commands;
 mod crop_gestures;
 mod geometry;
 mod gestures;
+mod parameters;
 mod typescript;
 
 use super::protocol::*;

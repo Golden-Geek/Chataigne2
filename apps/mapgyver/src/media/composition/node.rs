@@ -79,6 +79,19 @@ impl InstanceNode {
             enabled: self.render_enabled.get(),
         }
     }
+    /// Reads the complete proposed binding while validating a parameter batch.
+    pub(crate) fn source_for_validation(&self, change: &ParameterValidationContext<'_>) -> Option<ChannelReference> {
+        let ParamValue::Reference(media) = change.parameter_value(self.source_media.id())? else {
+            return None;
+        };
+        let ParamValue::Reference(channel) = change.parameter_value(self.source_channel.id())? else {
+            return None;
+        };
+        (!media.uuid.0.is_nil() && !channel.uuid.0.is_nil()).then_some(ChannelReference {
+            media: MediaId(media.uuid),
+            channel: ChannelId(channel.uuid),
+        })
+    }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
@@ -168,25 +181,11 @@ impl Node for InstanceNode {
         {
             return Err("Composition rotation must be finite".into());
         }
-        let source = if change.parameter == self.source_channel.id() {
-            match change.value {
-                ParamValue::Reference(reference) => Some(reference.uuid),
-                _ => None,
-            }
-        } else if change.parameter == self.source_media.id() {
-            match change.value {
-                ParamValue::Reference(reference) if !reference.uuid.0.is_nil() => {
-                    Some(self.source_channel.get_ref().uuid)
-                }
-                _ => None,
-            }
-        } else {
-            None
-        };
-        if let Some(source) = source.filter(|source| !source.0.is_nil())
+        if [self.source_media.id(), self.source_channel.id()].contains(&change.parameter)
+            && let Some(source) = self.source_for_validation(change)
             && let Some(owner) = self.node_data().parent
         {
-            crate::parameters::reference_cycle::validate(change, owner, source)?;
+            crate::parameters::reference_cycle::validate(change, owner, source.channel.0)?;
         }
         Ok(())
     }

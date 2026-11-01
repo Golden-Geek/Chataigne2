@@ -289,6 +289,28 @@ impl<T: Node> Engine<T> {
                             let changed = effect.is_some();
                             (Ok(effect.map(Into::into)), changed)
                         }
+                        Edit::SetParamsAtomic { values, behaviour } => {
+                            let effects =
+                                self.apply_set_params_atomic(edit_index, values, behaviour, request.param_source)?;
+                            let changed = !effects.is_empty();
+                            for effect in &effects {
+                                if matches!(effect.old_value, ParamValue::Reference(_))
+                                    || matches!(effect.new_value, ParamValue::Reference(_))
+                                {
+                                    missing_reference_warning_dirty = true;
+                                }
+                                if UserContextValueType::from_param_value(&effect.old_value)
+                                    != UserContextValueType::from_param_value(&effect.new_value)
+                                    && self.node_within_user_context_scope(effect.node)
+                                {
+                                    user_context_graph_dirty = true;
+                                }
+                                if self.queue_user_context_multiplex_resize_for_count(effect.node) {
+                                    user_context_graph_dirty = true;
+                                }
+                            }
+                            (Ok(changed.then(|| effects.into())), changed)
+                        }
                         Edit::SetParamConstraints { node, constraints } => {
                             missing_reference_warning_dirty = true;
                             let effect =
@@ -727,6 +749,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::BeginEditSession { .. } => "BeginEditSession",
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
+        Edit::SetParamsAtomic { .. } => "SetParamsAtomic",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",
         Edit::SetParamEnumOptions { .. } => "SetParamEnumOptions",
         Edit::SetParamControlState { .. } => "SetParamControlState",

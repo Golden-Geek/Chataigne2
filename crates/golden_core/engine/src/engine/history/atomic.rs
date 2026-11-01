@@ -23,6 +23,7 @@ enum ReplayBackup {
         node: NodeId,
         state: Box<AuthoredNodeState>,
     },
+    Parameters(Vec<(NodeId, Box<AuthoredNodeState>)>),
     Subtree {
         detached: bool,
         position: Position,
@@ -41,6 +42,27 @@ impl ReplayBackup {
         let node = match step {
             HistoryStep::AuthoredNode(step) => step.node,
             HistoryStep::SetParam(step) => step.node,
+            HistoryStep::SetParamsAtomic(steps) => {
+                let mut states = Vec::with_capacity(steps.len());
+                for step in steps {
+                    let target = engine.nodes.get(step.node).ok_or(EngineEditError::NodeNotFound {
+                        edit_index: 0,
+                        operation: "HistoryReplayCheckpoint",
+                        node: step.node,
+                    })?;
+                    let state = AuthoredNodeState::capture(target).map_err(|message| {
+                        EngineEditError::NodeMutationRejected {
+                            edit_index: 0,
+                            operation: "HistoryReplayCheckpoint",
+                            node: step.node,
+                            node_type: target.get_type().into(),
+                            message,
+                        }
+                    })?;
+                    states.push((step.node, Box::new(state)));
+                }
+                return Ok(Self::Parameters(states));
+            }
             HistoryStep::SetParamControlState(step) => step.node,
             HistoryStep::SetParamConstraints(step) => step.node,
             HistoryStep::PatchMeta(step) => step.node,
@@ -98,6 +120,12 @@ impl ReplayBackup {
         match self {
             Self::Unchanged => Ok(()),
             Self::Authored { node, state } => engine.restore_authored_node_state(node, &state),
+            Self::Parameters(states) => {
+                for (node, state) in states {
+                    engine.restore_authored_node_state(node, &state)?;
+                }
+                Ok(())
+            }
             Self::Subtree { detached, position } => {
                 let currently_detached = match step {
                     HistoryStep::AddNode(step) => &step.detached_nodes,

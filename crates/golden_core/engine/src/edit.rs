@@ -140,6 +140,14 @@ pub enum Edit {
         /// Coalescing strategy requested by the parameter/node API.
         behaviour: ParameterEventBehaviour,
     },
+    /// Updates built-in Parameter nodes after validating the complete normalized proposal.
+    /// Cross-field owner validation and history replay observe one final state. IDs must be distinct.
+    SetParamsAtomic {
+        /// Parameter identities and proposed values.
+        values: Vec<(NodeId, ParamValue)>,
+        /// Per-field history/event policy; batches are never partially queue-coalesced.
+        behaviour: ParameterEventBehaviour,
+    },
     /// Changes parameter control state and its owned control-node structure.
     SetParamControlState {
         /// Target parameter.
@@ -411,7 +419,10 @@ impl EditQueue {
                 // A rejected fence preserves its applied prefix. Later writes
                 // cannot supersede that prefix before the fence is checked.
                 for index in (0..self.pending.len()).rev() {
-                    if matches!(self.pending[index].edit, Edit::CheckPreconditions { .. }) {
+                    if matches!(
+                        self.pending[index].edit,
+                        Edit::CheckPreconditions { .. } | Edit::SetParamsAtomic { .. }
+                    ) {
                         break;
                     }
                     if matches!(

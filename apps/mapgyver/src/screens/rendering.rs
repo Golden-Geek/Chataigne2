@@ -227,17 +227,21 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
     let mut surfaces = Vec::new();
     let mut child = node.node_data().first_child;
     while let Some(id) = child {
+        let child_node = engine.nodes.get(id).ok_or("Screen child is missing")?;
+        child = child_node.node_data().next_sibling;
+        if crate::parameters::is_parameter_folder(child_node) {
+            continue;
+        }
         if surfaces.len() == maximum_surfaces {
             return Err("Screen exceeds admitted Surface count".into());
         }
-        let Some(AppNode::Surface(surface)) = engine.nodes.get(id) else {
+        let AppNode::Surface(surface) = child_node else {
             return Err("Screen children must be Surfaces".into());
         };
-        let mut definition = surface.definition().clone();
+        let mut definition = surface.definition();
         definition.enabled &= surface.node_data().effective_enabled;
         surfaces.push(definition);
         guards.push(surface.guard());
-        child = surface.node_data().next_sibling;
     }
     Ok(CapturedScreen {
         project: project.project,
