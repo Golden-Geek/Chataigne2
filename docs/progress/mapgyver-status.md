@@ -5,8 +5,8 @@
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
 **Execution: blocked pending external verification prerequisites.** Native access remains blocked
-through batches98–99 and the current source/queue audit. Guided native-check availability is
-unanswered; no manual result is inferred. No live app/test remains to wait on. All original
+through batches98–99 and the source/queue audit. On 2026-11-01 the user confirms native interaction
+is unavailable for now; manual observations remain unverified. No live app/test remains to wait on. All original
 requirements and accepted counts are retained; the goal is unfinished.
 
 **Retained active gate:** **M08 gate4, remaining native/OS/full-app acceptance**. Batch97 passes actual column
@@ -24,8 +24,8 @@ The newly launched installed PID is cleaned up and absent. No current-build UI r
 Do not repeat helper retries, alternate launch routes, parity fixtures or review preparation.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
 **Next action:** retain M08 gate4 and obtain native executable-picker and actual desktop lifecycle
-observations against **this checkout's** executable. A guided-check availability question is
-pending. The supported launcher resolved to the wrong installed app, and activation remains
+observations against **this checkout's** executable when native interaction becomes available.
+The user confirms it is unavailable for now. The supported launcher resolved to the wrong installed app, and activation remains
 unavailable; the elevated-context hypothesis is not proved. The singleton retirement limit and complete
 app/mode/recovery/cleanup remain required. Non-elevated denial was not exercised in this elevated
 session. Do not repeat passing browser/caller/column/elevated-process preparation or helper retries.
@@ -75,7 +75,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Active; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or guided manual input (availability question pending). Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
+| Active; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
 | Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
@@ -343,6 +343,11 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**User availability update — 2026-11-01:** native interaction is unavailable for now. The prior
+guided-check question is answered; this supplies no native observation or acceptance evidence.
+Keep native picker/desktop and all other unverified gates open. Return when actual native access
+changes; do not repeat the same manual-check request or substitute passing browser tests.
 
 **Blocked audit — 2026-11-01 07:14 UTC:** previous turn supplied new supported-launch failure
 evidence; this source-only review establishes no production correction or acceptance progress.
@@ -5613,7 +5618,7 @@ Continue from batch98's actual elevated-owned-target/token/Ready/Idle/cleanup re
 complete column/shared-process/availability-recovery/New UI check. Keep **M08 gate4** active.
 The next requirement needs actual native executable-picker and desktop lifecycle observations.
 The last supported activation failed; return on a concrete supported capability change or guided
-manual input, whose availability question is pending. Do not repeat preparation or try new helpers
+manual input when available; the user confirms native interaction is unavailable for now. Do not repeat preparation or try new helpers
 to extend the blocked automation chain. Singleton retirement and complete app/mode/recovery/cleanup
 remain open. Non-elevated denial was not exercised; a running elevated target does not verify the
 opposite caller context. No privilege/security/settings change is authorized by this checkpoint.
