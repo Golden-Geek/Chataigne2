@@ -72,6 +72,26 @@ export function provideScreenAuthoring() {
 		gesture.dispose();
 		controller.dispose();
 	});
+	$effect(() => {
+		const current = session;
+		const node =
+			current?.selectedNodeId == null ? null : current.getNodeData(current.selectedNodeId);
+		const catalog = view.catalog;
+		if (!node || !catalog) return;
+		const screen = catalog.screens.find(
+			(screen) =>
+				screen.id === node.uuid ||
+				screen.surfaces.some((surface) => surface.reference.surface === node.uuid)
+		);
+		if (!screen) return;
+		untrack(() => {
+			if (node.node_type === 'mapgyver.screen') controller.selectScreen(screen.id);
+			else if (node.node_type === 'mapgyver.surface') {
+				view.selectedScreen = screen.id;
+				view.selectedSurface = node.uuid;
+			}
+		});
+	});
 	const owner = {
 		attach() {
 			views++;

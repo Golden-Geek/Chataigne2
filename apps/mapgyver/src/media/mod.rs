@@ -7,6 +7,7 @@ mod catalog;
 mod commands;
 pub mod composition;
 pub(crate) mod dependencies;
+pub(crate) mod folders;
 mod importing;
 mod nodes;
 pub mod picture;
@@ -20,6 +21,7 @@ pub use authoring::{apply_operation, channel, initialize, validate_project};
 pub(crate) use capture::capture_channels_with_time;
 pub use capture::{CapturedChannels, capture_channels, capture_channels_at};
 pub use commands::MediaCommandNode;
+pub use folders::MediaFolderNode;
 pub use nodes::{ChannelNode, MediaManagerNode, MediaNode};
 
 #[cfg(test)]

@@ -1,40 +1,62 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { providePreview } from '../lib/preview/context.svelte';
 	import {
 		MainWindow,
 		useApplicationHost,
+		registerNodeInspector,
 		type PanelSpawnRequest,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
+	import { providePreview } from '../lib/preview/context.svelte';
+	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
+	import { provideCompositionAuthoring } from '../lib/composition/context.svelte';
+	import { provideMatrixAuthoring } from '../lib/matrix/context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
+	import ScreenWarpPanel from '../lib/screens/ScreenWarpPanel.svelte';
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
 	import CompositionPanel from '../lib/composition/CompositionPanel.svelte';
 	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
 	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
-	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
-
-	const host = useApplicationHost();
-	const preview = providePreview();
+	import DomainInspector from '../lib/DomainInspector.svelte';
+	import '../lib/workbench.css';
+	import { provideDocumentSelection } from '../lib/selection.svelte';
+	const host = useApplicationHost(),
+		preview = providePreview();
+	provideDocumentSelection();
 	provideScreenAuthoring();
+	provideCompositionAuthoring();
+	provideMatrixAuthoring();
 	onMount(() => preview.mount());
+	for (const type of [
+		'mapgyver.media',
+		'mapgyver.media.channel',
+		'mapgyver.media.asset',
+		'mapgyver.media.folder',
+		'mapgyver.screen',
+		'mapgyver.surface',
+		'mapgyver.composition.instance',
+		'mapgyver.matrix.layer',
+		'mapgyver.matrix.group',
+		'mapgyver.matrix.column',
+		'mapgyver.application'
+	])
+		registerNodeInspector(type, { component: DomainInspector });
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
 		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
+		screenWarp: { title: 'Screen Warping', component: ScreenWarpPanel },
 		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
 		composition: { title: 'Composition', component: CompositionPanel },
 		matrix: { title: 'Matrix', component: MatrixPanel },
 		applications: { title: 'Applications', component: ApplicationPanel }
 	};
-
 	const initialPanels: PanelSpawnRequest[] = [
-		{ panelId: 'outliner', panelType: 'outliner' },
 		{
 			panelId: 'media-manager',
 			panelType: 'mediaManager',
 			required: true,
-			position: { referencePanelId: 'outliner', direction: 'right' }
+			initialWidth: typeof window === 'undefined' ? undefined : window.innerWidth * 0.2
 		},
 		{
 			panelId: 'screen-manager',
@@ -43,38 +65,40 @@
 			position: { referencePanelId: 'media-manager', direction: 'within' }
 		},
 		{
+			panelId: 'applications',
+			panelType: 'applications',
+			required: true,
+			position: { referencePanelId: 'media-manager', direction: 'within' }
+		},
+		{
+			panelId: 'screen-warp',
+			panelType: 'screenWarp',
+			required: true,
+			position: { referencePanelId: 'media-manager', direction: 'right' }
+		},
+		{
 			panelId: 'surface-source',
 			panelType: 'surfaceSource',
 			required: true,
-			position: { referencePanelId: 'screen-manager', direction: 'within' }
+			position: { referencePanelId: 'screen-warp', direction: 'within' }
 		},
 		{
 			panelId: 'composition',
 			panelType: 'composition',
 			required: true,
-			position: { referencePanelId: 'media-manager', direction: 'within' }
-		},
-		{
-			panelId: 'logger',
-			panelType: 'logger',
-			position: { referencePanelId: 'media-manager', direction: 'below' }
+			position: { referencePanelId: 'screen-warp', direction: 'within' }
 		},
 		{
 			panelId: 'matrix',
 			panelType: 'matrix',
 			required: true,
-			position: { referencePanelId: 'media-manager', direction: 'within' }
+			position: { referencePanelId: 'screen-warp', direction: 'within' }
 		},
 		{
 			panelId: 'inspector',
 			panelType: 'inspector',
-			position: { referencePanelId: 'media-manager', direction: 'right' }
-		},
-		{
-			panelId: 'applications',
-			panelType: 'applications',
-			required: true,
-			position: { referencePanelId: 'media-manager', direction: 'within' }
+			initialWidth: typeof window === 'undefined' ? undefined : window.innerWidth * 0.2,
+			position: { referencePanelId: 'screen-warp', direction: 'right' }
 		}
 	];
 </script>

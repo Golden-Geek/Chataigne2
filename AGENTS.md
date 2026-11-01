@@ -176,6 +176,18 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ## UI Architecture Rules
 
+- Product panels must look and behave like Golden workbench panels. Reuse the public manager
+  tree, selection, context menus, Inspector, icons and theme tokens; do not build a separate
+  application-style form layout inside a docked panel.
+- Managers are filtered outliners over the actual document hierarchy, including folders and
+  domain children. Selection is shared with the workbench and drives the Inspector. Folder
+  organization must persist and work through backend, script and transport callers.
+- Canvas, warping, composition and grid editors use the available panel area. Put authored
+  parameters and detailed settings in the Inspector, not permanent forms beside/below a canvas.
+- Use compact icon actions with accessible names and tooltips in editor toolbars and grid
+  headers. Keep labels for document objects and useful runtime state; avoid repeated panel
+  headings, explanatory banners and walls of text buttons. Use contextual menus for secondary
+  actions and consistent empty/loading/error states.
 - Use Svelte 5 and runes only.
 - Do not use legacy `on:` event syntax; use `onclick`, `onfocus`, `onblur`, and similar direct event props.
 - Use relative units for layout and spacing: `em`, `rem`, `%`, `vh`, `vw`.

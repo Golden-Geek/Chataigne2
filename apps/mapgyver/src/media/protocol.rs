@@ -159,6 +159,17 @@ pub enum MediaEdit {
         media_kind: MediaKind,
         label: Option<String>,
     },
+    CreateFolder {
+        #[ts(type = "string | null")]
+        parent: Option<NodeUuid>,
+        label: Option<String>,
+    },
+    CreateMediaInFolder {
+        #[ts(type = "string")]
+        folder: NodeUuid,
+        media_kind: MediaKind,
+        label: Option<String>,
+    },
     AddChannel {
         media: MediaId,
         label: Option<String>,
@@ -221,6 +232,10 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    FolderCreated {
+        #[ts(type = "string")]
+        folder: NodeUuid,
+    },
     ApplicationCallbacks {
         state: crate::applications::protocol::ApplicationCallbackState,
     },

@@ -1,5 +1,19 @@
 # MapGyver architecture
 
+## Workbench UI ownership
+
+Golden owns the reusable manager outliner, selection, Inspector registry, icon controls, docking
+and theme. MapGyver registers its filtered media/screen/application trees and domain inspectors.
+Warping, source, Composition and Matrix views use their whole panel for canvas/grid content;
+authored settings live in the shared Inspector. Window-scoped controllers keep selection,
+gestures, history and project fencing coherent across these views.
+
+Media folders are persisted app-owned nodes. Backend folder-aware catalogs, channel capture and
+logical Matrix application demand traverse the same hierarchy; folder revisions fence retained
+captures. UI tree actions submit typed backend intents and never allocate document defaults.
+See the [design correction](../plan/MapGyver_Implementation_Plan.md#golden-workbench-design-correction--2026-11-01)
+for the required interactions and acceptance scope.
+
 MapGyver is a video mapping application alongside Chataigne, using the same Golden Core,
 workbench, parameter system, scripting, transport, and persistence foundations. Its first target
 is Windows x64 (`x86_64-pc-windows-msvc`). The M02 shell/shared-host seams are implemented, and

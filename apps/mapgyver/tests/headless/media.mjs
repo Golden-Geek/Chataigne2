@@ -34,7 +34,8 @@ const withUi = [
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
-	'--column-applications-ui'
+	'--column-applications-ui',
+	'--workbench-ui'
 ].some((flag) => process.argv.includes(flag));
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -277,6 +278,10 @@ try {
 	if (process.argv.includes('--column-applications-ui')) {
 		const { verifyColumnApplicationsUi } = await import('../browser/column-applications.mjs');
 		await verifyColumnApplicationsUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--workbench-ui')) {
+		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');
+		await verifyWorkbenchUi({ base, edit, inspectMedia: inspect });
 	}
 	console.log(
 		JSON.stringify({

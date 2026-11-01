@@ -5,6 +5,7 @@ pub(crate) mod labels;
 golden_core::define_node_enum!(
     pub enum AppNode {
         MediaManager(crate::media::MediaManagerNode),
+        MediaFolder(crate::media::MediaFolderNode),
         Media(crate::media::MediaNode),
         MediaChannel(crate::media::ChannelNode),
         MediaAsset(crate::media::AssetNode),

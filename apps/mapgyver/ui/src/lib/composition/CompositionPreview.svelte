@@ -32,8 +32,8 @@
 	} = $props();
 </script>
 
-<div class="preview">
-	<ChannelPreview {channel} />
+<div class="preview" style:--preview-aspect={composition.canvas.width / composition.canvas.height}>
+	<ChannelPreview {channel} fill />
 	<InstanceHandles
 		{composition}
 		{selected}
@@ -45,17 +45,13 @@
 		{finish}
 		{stop} />
 </div>
-<p>
-	Drag an instance or its pivot to move. Use the round handle to rotate and the square handle to
-	scale. Forms provide exact values.
-</p>
 
 <style>
 	.preview {
 		position: relative;
-	}
-	p {
-		opacity: 0.8;
-		font-size: 0.85em;
+		width: min(100%, calc(100cqh * var(--preview-aspect)));
+		aspect-ratio: var(--preview-aspect);
+		max-height: 100%;
+		margin: auto;
 	}
 </style>

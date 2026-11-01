@@ -47,7 +47,7 @@ pub(crate) fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, Media
     let Some(AppNode::Media(node)) = engine.nodes.get(id) else {
         return Err("reference is not media".into());
     };
-    if node.node_data().parent != Some(manager(engine)?) {
+    if !super::folders::contains_parent(engine, node.node_data().parent, manager(engine)?) {
         return Err("media is outside its manager".into());
     }
     Ok((id, node.kind))
@@ -174,23 +174,29 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             label: requested,
         } => {
             let parent = manager(engine)?;
-            let fallback = match media_kind {
-                MediaKind::Picture => "Picture",
-                MediaKind::SolidColor => "Solid Color",
-                MediaKind::SharedTexture => "Shared Texture",
-                MediaKind::Composition => "Composition",
-                MediaKind::Matrix => "Matrix",
-            };
-            let (tree, reference) = media_tree(
-                label(engine, parent, requested, fallback)?,
-                ChannelDefinition::for_media(media_kind),
-            );
+            create_media(engine, parent, media_kind, requested)?
+        }
+        MediaEdit::CreateMediaInFolder {
+            folder,
+            media_kind,
+            label,
+        } => {
+            let parent = super::folders::parent(engine, Some(folder))?;
+            create_media(engine, parent, media_kind, label)?
+        }
+        MediaEdit::CreateFolder {
+            parent,
+            label: requested,
+        } => {
+            let parent = super::folders::parent(engine, parent)?;
+            let folder = super::MediaFolderNode::new(label(engine, parent, requested, "Folder")?);
+            let uuid = folder.node_data().meta.uuid;
             engine.edits.push(Edit::AddNodeTree {
-                tree,
                 parent,
-                prev_sibling: engine.nodes.get(parent).and_then(|n| n.node_data().last_child),
+                prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+                tree: NodeTree::new(folder),
             });
-            MediaEditResult::Created { reference }
+            MediaEditResult::FolderCreated { folder: uuid }
         }
         MediaEdit::AddChannel {
             media: owner,
@@ -337,8 +343,14 @@ pub(super) fn configure_channel(
 pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
     // Whole-project validation belongs to detached load/preparation, never the frame loop.
     let manager = manager(engine)?;
-    for (_, node) in engine.nodes.iter() {
+    let managed = super::folders::entries(engine)?
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>();
+    for (id, node) in engine.nodes.iter() {
         match node {
+            AppNode::MediaFolder(_) if !managed.contains(&id) => {
+                return Err("media folder is outside its manager".into());
+            }
             AppNode::MediaCommand(node) => {
                 if node.node_data().parent != Some(manager) {
                     return Err("media command is outside its manager".into());
@@ -350,7 +362,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
             }
             AppNode::Media(node) => {
-                if node.node_data().parent != Some(manager) {
+                if !managed.contains(&id) {
                     return Err("media is outside its manager".into());
                 }
                 let mut child = node.node_data().first_child;
@@ -402,4 +414,29 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
     crate::matrix::validate_project(engine)?;
     crate::applications::validate_project(engine)?;
     super::dependencies::validate_project(engine)
+}
+
+fn create_media(
+    engine: &mut AppEngine,
+    parent: NodeId,
+    media_kind: MediaKind,
+    requested: Option<String>,
+) -> Result<MediaEditResult, String> {
+    let fallback = match media_kind {
+        MediaKind::Picture => "Picture",
+        MediaKind::SolidColor => "Solid Color",
+        MediaKind::SharedTexture => "Shared Texture",
+        MediaKind::Composition => "Composition",
+        MediaKind::Matrix => "Matrix",
+    };
+    let (tree, reference) = media_tree(
+        label(engine, parent, requested, fallback)?,
+        ChannelDefinition::for_media(media_kind),
+    );
+    engine.edits.push(Edit::AddNodeTree {
+        tree,
+        parent,
+        prev_sibling: engine.nodes.get(parent).and_then(|n| n.node_data().last_child),
+    });
+    Ok(MediaEditResult::Created { reference })
 }

@@ -36,10 +36,7 @@
 {/snippet}
 
 <section aria-label="Surface Source preview">
-	<h3>Surface Source · {surface.label}</h3>
-	<div
-		class="surface"
-		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
+	<div class="surface" style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}>
 		{#if identity}
 			{#key source}
 				<NativePreview session={owner.session} {source} label={`Full source for ${surface.label}`}>
@@ -54,20 +51,20 @@
 			{@render controls()}
 		{/if}
 	</div>
-	<p>
-		The full source stays visible. Drag crop corners to resize, or drag inside to move the crop.
-		Invalid positions keep the last valid crop. One Undo restores the whole drag.
-	</p>
-	{#if surface.definition.calibration !== 'Off'}
-		<p>Calibration keeps this crop for when you switch it off.</p>
-	{/if}
 </section>
 
 <style>
+	section {
+		height: 100%;
+		display: grid;
+		place-items: center;
+		min-height: 0;
+	}
 	.surface {
 		position: relative;
-		width: 100%;
-		min-height: 7rem;
+		width: min(100%, calc(100cqh * var(--preview-aspect)));
+		aspect-ratio: var(--preview-aspect);
+		max-height: 100%;
 		background: transparent;
 	}
 	.message {
@@ -79,9 +76,5 @@
 		background: #202329;
 		overflow-wrap: anywhere;
 		pointer-events: none;
-	}
-	p {
-		font-size: 0.85em;
-		opacity: 0.85;
 	}
 </style>

@@ -1,0 +1,25 @@
+{
+	"schema": 1,
+	"date": "2026-11-01",
+	"status": "IMPLEMENTED_SOFTWARE_VERIFIED_INTERACTION_CHECK_PARTIAL",
+	"scope": "Golden manager trees, persisted media folders, shared Inspector selection, separate full-panel warp/Source/Composition/Matrix, icon actions and Applications Inspector",
+	"ownership": "Golden public tree/Inspector/IconButton; app-owned window controllers and inspectors; backend folder nodes and hierarchy-aware catalog/capture/logical demand",
+	"checks": {
+		"rust_library": "208 passed, 1 existing ignore",
+		"frontend": "61 passed",
+		"mapgyver_svelte": "0 errors, 0 warnings",
+		"chataigne_svelte": "0 errors, 0 warnings",
+		"strict_clippy": "pass after collapsing the folder traversal nested if",
+		"formatting": "UI Prettier and both Rust workspaces"
+	},
+	"interactive": {
+		"runs": 2,
+		"first": "Fixture misses whitespace-prefixed Folder row; no page errors/rejected requests. target/mapgyver-workbench-ui-first.log",
+		"second": "Actual nested-folder/media creation and Inspector fields pass; stops after blank Screen-row click leaves old Inspector selection. No page errors/rejected requests. target/mapgyver-workbench-ui-second.log",
+		"visual": "target/mapgyver-workbench-media.png inspected: Golden tree with real folder/media/channel hierarchy, selected channel and shared Inspector; no manager-embedded form layout.",
+		"corrections": "Graph-delta-aware selection requests with project/user-selection fences, including new Screen/Surface creation. Corrected comparison must click actual Golden name controls.",
+		"unreached": "Full Screen/Source/Composition/Matrix geometry and Inspector editing, Applications and final New in this new combined fixture. No pass inferred."
+	},
+	"folders": "Actual persisted hierarchy; nested catalogs, channel capture, atomic invalid-parent rejection, generic move, Undo/Redo and stable sparse project roundtrip verified by two backend tests.",
+	"acceptance": "M04 gate5 and M05 gate6 reopened by user design change; phase denominators unchanged. Overall3/10. Other native/physical/resource qualification remains open. No native automation/settings changes."
+}

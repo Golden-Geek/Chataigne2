@@ -59,6 +59,31 @@ architecture and remain backend policies that can change during implementation r
 
 ## Milestones and dependencies
 
+### Golden workbench design correction — 2026-11-01
+
+The user rejects the form-heavy bespoke panel layouts. This is required product scope and
+supersedes their previous layout acceptance; existing domain behavior and native budgets remain.
+
+1. Media Manager uses Golden's filtered manager outliner: persisted folders, media and channels,
+   shared selection, normal tree keyboard/context actions and Inspector-owned properties.
+2. Screen Manager uses the same tree pattern as Chataigne's Module Manager: Screens contain
+   Surfaces, with room for future domain children such as masks. Screen/Surface parameters live
+   in the Inspector. Warping is a separate full-panel editor, not a subregion inside the manager.
+3. Screen warping, Surface Source and Composition use full-panel canvases with compact icon
+   toolbars. Source, transforms, canvas size and other authored parameters belong in Inspector.
+4. Matrix is primarily a virtualized grid with compact icon actions, useful row/column names and
+   distinct selection/runtime markers. Cell/row/column/transition/application parameters live
+   in Inspector; creating/launching/editing remain explicit backend operations.
+5. Apply the same workbench conventions to remaining app UIs, including Applications. Preserve
+   authoring, selection, history, lifecycle fencing, missing references and all public callers.
+
+Reuse Golden's public components/hooks. Add only app-neutral shared primitives there and keep
+MapGyver policy/inspectors in the app. Do not imitate a tree with local-only folders or make UI
+state the source of document behavior. Verify the bundled UI with real pointer/keyboard input,
+shared selection/Inspector, full-panel geometry, folder/history roundtrip and project replacement.
+Native qualification remains open while native interaction is unavailable. Track this redesign
+in the existing phase owners; changing the layout does not waive their other acceptance.
+
 | ID | Outcome | Dependencies |
 | --- | --- | --- |
 | M00 | Reconciled baseline and fixed qualification workloads | Explicit implementation request |

@@ -96,6 +96,8 @@ impl Node for MediaManagerNode {
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
+            "mapgyver.media",
+            "mapgyver.media.folder",
             super::commands::MEDIA_COMMAND_TYPE,
             "script",
         ]))

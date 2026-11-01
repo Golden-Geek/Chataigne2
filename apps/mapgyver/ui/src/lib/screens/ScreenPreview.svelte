@@ -35,25 +35,26 @@
 </script>
 
 <section aria-label="Screen preview">
-	<div
-		class="surface"
-		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
+	<div class="surface" style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}>
 		<NativePreview session={owner.session} {source} label={`Preview of ${screen.label}`}>
 			{#if status?.error}<div class="error">{status.error}</div>
 			{:else if status?.message}<div class="message">{status.message}</div>{/if}
 			<SurfaceHandles {screen} {selected} {disabled} {select} {start} {move} {finish} {stop} />
 		</NativePreview>
 	</div>
-	<p>
-		Select a Surface and drag its corners. Invalid positions keep the last valid mapping. One Undo
-		restores the whole drag. A stopped drag keeps its accepted position.
-	</p>
 </section>
 
 <style>
+	section {
+		height: 100%;
+		display: grid;
+		place-items: center;
+		min-height: 0;
+	}
 	.surface {
-		width: 100%;
-		min-height: 7rem;
+		width: min(100%, calc(100cqh * var(--preview-aspect)));
+		aspect-ratio: var(--preview-aspect);
+		max-height: 100%;
 		background: transparent;
 	}
 	.error {
@@ -71,10 +72,5 @@
 		padding: 0.5em;
 		background: #202329d9;
 		overflow-wrap: anywhere;
-	}
-	p {
-		font-size: 0.85em;
-		opacity: 0.65;
-		margin: 0.4em 0 0;
 	}
 </style>

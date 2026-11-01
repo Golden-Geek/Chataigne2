@@ -34,10 +34,11 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
     ];
     let mut matrices = Vec::new();
     let mut columns_left = DemandLimits::default().columns;
-    let mut next = manager.node_data().first_child;
-    while let Some(id) = next {
+    for id in crate::media::folders::entries(engine)? {
         let node = engine.nodes.get(id).ok_or("media catalog changed")?;
-        next = node.node_data().next_sibling;
+        if let AppNode::MediaFolder(folder) = node {
+            guards.push(folder.guard());
+        }
         let AppNode::Media(media) = node else {
             continue;
         };

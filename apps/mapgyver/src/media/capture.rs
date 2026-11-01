@@ -188,7 +188,14 @@ pub(crate) fn capture_channels_with_time(
             .node_id_by_uuid(reference.media.0)
             .and_then(|id| engine.nodes.get(id));
         let definition = match media {
-            Some(AppNode::Media(media)) if media.node_data().parent == Some(manager_id) => {
+            Some(AppNode::Media(media))
+                if super::folders::contains_parent(engine, media.node_data().parent, manager_id) =>
+            {
+                let mut parent = media.node_data().parent;
+                while let Some(AppNode::MediaFolder(folder)) = parent.and_then(|id| engine.nodes.get(id)) {
+                    guards.push(folder.guard());
+                    parent = folder.node_data().parent;
+                }
                 if guarded_media.insert(reference.media) {
                     guards.push(media.guard());
                 }

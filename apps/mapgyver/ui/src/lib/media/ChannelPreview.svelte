@@ -4,7 +4,7 @@
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
-	let { channel }: { channel: ChannelSnapshot } = $props();
+	let { channel, fill = false }: { channel: ChannelSnapshot; fill?: boolean } = $props();
 	const owner = usePreview();
 	const identity = $derived<PreviewSource>({ kind: 'Channel', reference: channel.reference });
 	const source = $derived(JSON.stringify(identity));
@@ -12,9 +12,10 @@
 	const extent = $derived(status?.extent);
 </script>
 
-<section aria-label="Channel preview">
+<section aria-label="Channel preview" class:fill>
 	<div
 		class="surface"
+		style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
 		<NativePreview session={owner.session} {source} label={`Preview of ${channel.label}`}>
 			{#if status && (status.error || status.message)}
@@ -27,9 +28,14 @@
 </section>
 
 <style>
+	.fill,
+	.fill .surface {
+		height: 100%;
+		min-height: 0;
+	}
 	.surface {
-		width: 100%;
-		min-height: 7rem;
+		width: min(100%, calc(10rem * var(--preview-aspect)));
+		margin: auto;
 		background: transparent;
 	}
 	.message {

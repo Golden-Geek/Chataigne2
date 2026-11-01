@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { IconButton } from 'golden_ui';
+	import playIcon from 'golden_ui/style/icons/play.svg';
 	import { onMount, untrack } from 'svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 	import type { MatrixViewport } from '../media/generated/MatrixViewport';
@@ -112,8 +114,11 @@
 						aria-pressed={selected?.column === column.id}
 						onclick={() => selectColumn(column)}
 						title={`Select ${column.label}`}>{column.label}</button>
-					<button {disabled} onclick={() => launch(column.id)} title={`Launch ${column.label}`}
-						>Launch</button>
+					<IconButton
+						{disabled}
+						icon={playIcon}
+						label={`Launch ${column.label}`}
+						onclick={() => launch(column.id)} />
 					{#if snapshot.playback.desired_column === column.id}<small>Requested</small>{/if}
 					{#if observation?.submitted?.columns.includes(column.id)}<small>Submitted mix</small>{/if}
 				</div>
