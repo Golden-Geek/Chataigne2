@@ -117,6 +117,39 @@ test('row and column selection work independently without creating commands or l
 	controller.dispose();
 });
 
+test('queued target inspection never dispatches after its project or context expires', async () => {
+	for (const reason of ['project', 'history', 'disconnect', 'context']) {
+		const session = connection(),
+			state = targetState(),
+			first = deferred<MediaEditResult>();
+		let media = 'old-matrix',
+			calls = 0;
+		const reader = new TargetReader(
+			() => session,
+			() => ({ media, scope: { kind: 'Columns' } }),
+			state,
+			async () => {
+				calls++;
+				return first.promise;
+			}
+		);
+		reader.refresh();
+		reader.refresh();
+		assert.equal(calls, 1, 'second inspection waits behind the active request');
+		if (reason === 'project') session.snapshotGeneration++;
+		if (reason === 'history') session.currentHistoryStateId++;
+		if (reason === 'disconnect') session.status = 'disconnected';
+		if (reason === 'context') media = 'new-matrix';
+		first.resolve(page('old result'));
+		await flush();
+		assert.equal(calls, 1, `${reason}: stale queued request must not reach the backend`);
+		assert.equal(state.page, null);
+		assert.equal(state.error, '');
+		assert.equal(state.loading, false);
+		reader.dispose();
+	}
+});
+
 test('destination reads defer through shared edit groups and inspect only after the group finishes', async () => {
 	const session = connection(),
 		state = targetState();

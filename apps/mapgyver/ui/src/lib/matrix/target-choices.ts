@@ -71,6 +71,7 @@ export class TargetReader<S extends Connection> {
 		};
 		this.state.loading = true;
 		this.queue.request(
+			valid,
 			() =>
 				this.invoke(session, {
 					kind: 'Matrix',

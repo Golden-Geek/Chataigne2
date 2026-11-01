@@ -47,6 +47,7 @@ export class ApplicationReferences<S extends Connection> {
 			JSON.stringify(this.identities()) === JSON.stringify(applications);
 		this.state.loading = true;
 		this.reads.request(
+			current,
 			() =>
 				this.invoke(session, {
 					kind: 'Applications',

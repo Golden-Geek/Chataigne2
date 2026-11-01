@@ -112,6 +112,7 @@ export class ApplicationRuntimeReader<S extends Connection> {
 		const generation = session.snapshotGeneration;
 		this.state.loading = true;
 		this.reads.request(
+			() => this.current(session, generation),
 			() => this.invoke(session, { kind: 'Applications', edit: { kind: 'InspectRuntime' } }),
 			(result) => {
 				if (!this.current(session, generation)) return;

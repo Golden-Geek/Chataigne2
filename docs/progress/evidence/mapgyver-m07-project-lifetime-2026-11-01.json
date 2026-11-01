@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "batch": 92,
+  "date": "2026-11-01",
+  "gate": "M07/3",
+  "status": "STRICT_LIFECYCLE_FAILED_STALE_INSPECTIONS_PERSIST_QUEUE_REGRESSION_FIXED",
+  "base_revision": "eb96822035a9838310e4caeb0e120a1c6684b6fc",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-project-ui",
+  "first_invocation": {
+    "exit_code": 0,
+    "audit": "Narrow state/history assertions pass, but inspected capture reveals stale missing-media inspection rejections. This is not clean lifecycle acceptance.",
+    "hosted_flow_ms": 7460,
+    "browser": "149.0.7827.55",
+    "page_errors": 0,
+    "replaced_media": "1ff9ed9e-d661-403a-94fc-3795cf2b3037",
+    "fresh_media": "ea46fd23-be72-43e7-bf9e-de5c8f370330",
+    "loaded_media": "c648e931-ff61-4ac0-9b6a-abafd4bfad5b",
+    "project_epochs": ["72e8219a-0c3f-49b5-811f-5dba638f7e72", "17ab3b3a-fcf5-4721-8a8d-91f510549a8f", "ebbad86e-554e-4f99-be9e-1b17f52cafb1"],
+    "review_sha256": "756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9",
+    "log": "target/m07-matrix-project-ui-b92.log",
+    "log_sha256": "ae107c17b420d28e5f712176fa0ed12f39469735aad7090d0b4021289b9ce3e8",
+    "tested_exe_sha256": "ea17940074862143e074d3d3ffa18c19a4d4ef4ba60d3a24e455451a9055172d"
+  },
+  "correction": {
+    "owner": "apps/mapgyver/ui/src/lib/requests/read-queue.ts and seven app reader callers",
+    "regression": "Queued TargetReader inspection dispatches after its project expires: red2calls versus expected1. Existing response guards suppress results but do not stop dispatch.",
+    "change": "Require a current-context predicate before queued dispatch; all seven Matrix/Application readers supply existing guards. Preserve response fences and backend validation.",
+    "software_result": "All33 Matrix/Application frontend tests pass, including project/history/disconnect/target changes; Svelte0errors0warnings, ordinary rebuild, formatting pass.",
+    "runtime_limit": "Unit-proven correction does not resolve the observed live missing-media symptom. Its precise remaining cause is unestablished."
+  },
+  "final_invocation": {
+    "exit_code": 1,
+    "failed_stage": "loaded project replaced again",
+    "assertion": "project transitions must not dispatch expired media inspections",
+    "visible_message_occurrences": 2,
+    "logger_deduplicated_rejections": 4,
+    "count_limit": "Two visible text occurrences include Logger/toast, not two independent backend failures.",
+    "log": "target/m07-matrix-project-ui-b92-final.log",
+    "log_sha256": "ea9a887a0bc97dd4d1162c25919683332bf7e46227713d1aa989cbce9d6ac3b8",
+    "screenshot": "target/m07-matrix-project-ui-failure.png",
+    "screenshot_sha256": "1739aaea357ea880492a5fa0d034a0456412e7e0f1e8c2f25f3f9117500a879b",
+    "tested_exe_sha256": "7e55252e7e370769ca2b7e709c92d0342dfc1689ae569bebb2a84010b85fa8d7"
+  },
+  "checks": {
+    "invocations": 2,
+    "cleanup": "Both shutdown-file hosts exit0 normally; no remaining MapGyver.",
+    "runtime_acceptance": "Failed; no third app invocation or relaxed assertion.",
+    "browser_upload": "Actual File menu and file chooser upload; reference hash preserved. Not a native file-dialog qualification."
+  },
+  "post_run_fixture_hardening": {
+    "change": "Future uploads use a UUID-suffixed filename with the same verified file contents, avoiding collision with existing review uploads. Syntax/Prettier pass; not run again.",
+    "artifact_limit": "The recorded runs upload a copy through the app's normal Documents/MapGyver project directory, not the isolated APPDATA tree. The copy is retained; original reference file is unchanged."
+  },
+  "hashes": {
+    "executed_matrix-project.mjs": "1a693ac6432a105aa9134ec9113bcb0c395301619c32995f22586e60d4f79620",
+    "final_matrix-project.mjs_not_rerun": "6bb3c6fc7450eb74735091838eecf887b641be400b885105861af4dce5954383",
+    "apps/mapgyver/tests/headless/media.mjs": "eed9b2e8c38f0c05b283e2593ae69a03888869d52289ed79746d3f21902da822",
+    "apps/mapgyver/ui/src/lib/requests/read-queue.ts": "6a02c74552cd2b9b9c560c9b107adb860a46c473975a93b482831591859df61a",
+    "apps/mapgyver/ui/src/lib/matrix/tests/targets.test.ts": "d280005eac6418bf4556dd978b9dd999308c47d502dde78ea0d104b8cb8b6420"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "3/4",
+    "overall": "4/10",
+    "next": "Keep stale-inspection correctness defect active. Establish reference-owner/project-transition cause and supported correction before another strict run; no unchanged rerun or new automation route.",
+    "retained": "Native preparation/installation/submission feedback and every original complete-editor/global requirement."
+  }
+}

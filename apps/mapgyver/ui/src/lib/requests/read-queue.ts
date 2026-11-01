@@ -1,4 +1,4 @@
-/** One active read and one latest replacement; stale work never reaches its sink. */
+/** One active read and one latest replacement; expired contexts never dispatch queued work. */
 export class ReadQueue {
 	private revision = 0;
 	private active = false;
@@ -8,6 +8,7 @@ export class ReadQueue {
 		this.next = null;
 	}
 	request<T>(
+		current: () => boolean,
 		read: () => Promise<T>,
 		accept: (value: T) => void,
 		reject: (error: unknown) => void,
@@ -18,6 +19,7 @@ export class ReadQueue {
 			id,
 			run: async () => {
 				try {
+					if (!current()) return;
 					const value = await read();
 					if (id === this.revision) accept(value);
 				} catch (error) {

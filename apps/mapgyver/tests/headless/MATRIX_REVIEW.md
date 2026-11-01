@@ -11,6 +11,16 @@ render synchronization expectations. Actual project replacement, native preparat
 submission feedback and unobserved complete-checklist cases remain required. Do not repeat this
 passing candidate as proof of those different gaps or infer rendering from a launch request.
 
+Use `node apps/mapgyver/tests/headless/media.mjs --matrix-project-ui` for the separate actual
+File→New/browser Open→Load From lifecycle check with the existing saved review scene. Batch92's
+initial state/history assertions pass, but capture audit exposes stale missing-media inspections.
+The strengthened final check fails even after the unit-proven queued-read dispatch correction.
+Keep that failure open; it is not a clean lifecycle pass. The fixture verifies the reference hash
+and never modifies the original review file. Browser upload does not qualify a native file dialog.
+Uploads use the app's normal browser project directory, not the private APPDATA tree. The fixture
+now supplies a UUID-suffixed upload name to avoid review-file collisions; this post-run hardening
+has syntax/format checks only. The original saved reference remains unchanged.
+
 Generate the validated review scene from the repository root:
 
 ```text

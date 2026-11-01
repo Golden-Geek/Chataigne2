@@ -119,8 +119,11 @@ export class MatrixController<S extends Connection> {
 		const generation = session.snapshotGeneration,
 			history = session.currentHistoryStateId,
 			viewport = { ...this.state.viewport };
+		const current = () =>
+			this.current(session, generation, media) && history === session.currentHistoryStateId;
 		this.state.refreshing = true;
 		this.reads.request(
+			current,
 			() =>
 				this.invoke(session, {
 					kind: 'Matrix',
@@ -128,8 +131,7 @@ export class MatrixController<S extends Connection> {
 					edit: { kind: 'InspectViewport', viewport }
 				}),
 			(result) => {
-				if (!this.current(session, generation, media) || history !== session.currentHistoryStateId)
-					return;
+				if (!current()) return;
 				if (result.kind !== 'MatrixViewport' || result.snapshot.media !== media) {
 					this.state.readError = 'Unexpected Matrix viewport';
 					return;
@@ -138,7 +140,7 @@ export class MatrixController<S extends Connection> {
 				this.state.readError = '';
 			},
 			(error) => {
-				if (this.current(session, generation, media) && history === session.currentHistoryStateId) {
+				if (current()) {
 					this.state.window = null;
 					this.state.readError = String(error);
 				}

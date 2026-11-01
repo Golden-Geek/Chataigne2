@@ -66,6 +66,7 @@ export class ChoiceReader<S extends Connection> {
 			count: 64
 		};
 		this.queue.request(
+			valid,
 			() => this.invoke(session, { kind: 'InspectChoices', query }),
 			(result) => {
 				if (!valid()) return;

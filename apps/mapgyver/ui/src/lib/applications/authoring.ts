@@ -107,6 +107,7 @@ export class ApplicationController<S extends Connection> {
 			session.currentHistoryStateId === history;
 		this.state.loading = true;
 		this.reads.request(
+			current,
 			() => this.invoke(session, { kind: 'Applications', edit: { kind: 'Inspect', application } }),
 			(result) => {
 				if (!current()) return;

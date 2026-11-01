@@ -4,19 +4,20 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M07 gate3, remaining Matrix project/native-feedback integration**.
-Batch91 verifies the complete browser candidate: source/settings/structure/history/selection/
-requested playback/source loss/virtual scrolling/resize/panel lifetime, with the narrow dock fix.
-Actual project replacement and native preparation/installation/submission feedback remain open.
+**Selected next gate:** **M07 gate3, stale inspections during project replacement**. Batch92's
+real menu/upload checks preserve IDs, clear selection/history and restore usable controls, but a
+stricter final run still exposes stale missing-media errors. A proven queued-read dispatch defect
+is fixed with33 passing frontend tests; it is insufficient for the live transition failure.
+Batch91's input/history/virtualization proof remains scoped. Native feedback also stays open.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch91, then target M07's remaining actual File→New/project replacement
-and stale-selection/lifetime check through the same bundled browser. Do not repeat the passing
-large candidate or inject native feedback. Native observation requires a concrete supported route
-or actual user observations; parked desktop/CDP work remains parked.
+**Next action:** publish batch92's verified read-queue correction and retained strict lifecycle
+failure. Establish a concrete correction at the reference-owner/project-transition boundary before
+another run of the existing strict check. No unchanged rerun, new probe or automation route.
+Keep M07 active; do not move to Composition while this reproduced correctness defect is unresolved.
 M06 stays open for native image/extent outlines and remaining original checklist scope, including
 project replacement. Do not repeat passing Composition controls or retry parked desktop/CDP.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
@@ -33,7 +34,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/history and dock layout verified; native/complete-editor gaps open | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Browser grid/input/history/virtualization verified; project/native-feedback gaps open | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Browser controls verified; queued-read guard fixed, strict project lifecycle still fails | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
@@ -93,9 +94,10 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
   Batch91 verifies actual browser source/settings/structure/history/selection/requested playback,
-  source loss, keyboard virtualization, resize and panel lifetime. Return for project replacement
-  and actual native preparation/installation/submission feedback; no passing candidate repeat or
-  injected native state. Cumulative three failures remain; fourth invocation passes.
+  source loss, keyboard virtualization, resize and panel lifetime. Batch92's actual New/upload
+  state/history assertions pass, but strict transition audit fails on missing-media inspection
+  errors. Queued-dispatch guard/regression pass without resolving the live symptom. Return for
+  a supported correction and native feedback, not another unchanged run or injected native state.
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
   Batch 83 also passes the corrected aggregate target-outcome check, with singleton retirement
   explicitly unverified. Return for actual form/dialog observations, supported evidence resolving
@@ -108,7 +110,15 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch91:** full actual Matrix browser candidate passes **exit0**, hosted flow
+**Latest checkpoint, batch92:** actual File→New/browser upload verifies state/history/identity
+replacement, but capture audit finds missing-media errors. A regression reproduces expired queued
+target dispatch (red), now fixed for all seven app read-queue users; **33 frontend tests**, Svelte,
+build and formatting pass. The second/final app run **exits1** on the strengthened stale-inspection
+assertion; the symptom persists. Both owned hosts exit0 normally. No clean lifecycle/native pass,
+third app run or gate closure: **M07 3/4, overall4/10 (40%)**.
+[Lifecycle failure and bounded correction](evidence/mapgyver-m07-project-lifetime-2026-11-01.json).
+
+**Retained checkpoint, batch91:** full actual Matrix browser candidate passes **exit0**, hosted flow
 **21,401 ms**, Chromium **149.0.7827.55**, zero page errors. Layer/group settings for all four
 blends, source/cycle rejection, structure/history, distinct selection/launch, truthful unavailable
 renderer, missing source/Undo, tab lifetime and keyboard virtualization/resize pass. **24×16**
@@ -1210,6 +1220,45 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Batch92 result, 06:06 UTC:** the first invocation exits0 on state/history assertions after
+actual File→New replaces a requested column, a fresh Matrix is created/edited, and browser Open→
+Load From uploads the unchanged saved review. Old selection/history clear, new IDs and three
+distinct project epochs are observed, saved IDs survive upload, post-load mutation/history work,
+and another New clears the scene. The reference SHA256 is unchanged. However the inspected final
+capture shows missing-media errors (Logger deduplicates four rejections). This evidence rejects a
+clean lifecycle pass despite the original test exit0; waiting for loading-overlay removal and a
+zero-missing-media assertion strengthen the check.
+
+Source review finds the app ReadQueue only fences responses, allowing a queued read to dispatch
+after its context expires. A new TargetReader regression fails before the correction, then passes
+for project/history/disconnect/target changes. ReadQueue now requires a context predicate before
+dispatch; all seven Matrix/Application readers supply their existing context guard. In-flight
+response guards and backend missing-reference validation remain intact. This is app-owned request
+lifetime behavior, not a change to Golden's already-present project/intent barrier.
+
+All **33 Matrix/Application frontend tests** pass, Svelte reports zero errors/warnings, ordinary
+app rebuild and formatting pass. The second/final actual app invocation **exits1**: the stronger
+assertion finds two visible occurrences of the same missing-media message, with Logger again
+deduplicating four rejections. That is not two independent backend failures; the live symptom
+persists after the unit-proven queue correction. Both hosts shut down normally; no MapGyver
+remains. No third invocation, hidden validation relaxation, native claim or gate closure.
+The browser upload uses the app's normal Documents/MapGyver directory; its copied review is
+retained and the original reference hash is unchanged. Future fixture uploads now use UUID-suffixed
+names with the same verified contents to avoid collisions; syntax/Prettier pass, not rerun.
+**M07 stays3/4; overall4/10 (40%)**. Keep this correctness defect active. Next establish the
+reference-owner/transition cause (e.g. old presented context adopting a new session generation is
+only a hypothesis) and a supported correction before another strict check; do not rerun unchanged.
+
+**Actual project replacement batch92:** 2026-11-01 **05:56 UTC**, stop **06:41 UTC**;
+investigation cutoff **06:16 UTC**, at most two finite invocations. Only M07 gate3 is active.
+Previous turn is progress: `eb968220` verifies the full browser input candidate; do not repeat it.
+MapGyver owns Matrix selection/playback/editor state; Golden owns File menu/project transitions,
+history and transport. Use actual File→New and browser Open→Load From with the existing unchanged
+review project. Check active-request retirement, cleared selection/history, fresh usable controls,
+persisted IDs on reload and fresh project epoch. All mutations use UI, backend requests only read.
+No new automation route, native observation injection or acceptance revision. Actual native
+preparation/installation/submission feedback and every retained original requirement stay open.
+
 **Batch91 result, 05:53 UTC:** the displayed-label synchronization correction passes creation,
 selection and source assignment/history. First run then stops because the fixture expects a media
 name in the cell; `MatrixViewCell.source_label` is the selected channel's label. Correct that exact
@@ -1827,7 +1876,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch78 caller parity and batch91 full browser input/history/virtualization pass; actual project replacement and native preparation/installation/submission feedback remain |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch78 caller parity and batch91 full browser input pass; batch92 strict project replacement fails on stale missing-media inspections despite a unit-proven queued-read fix; native feedback also remains |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -5277,17 +5326,18 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source actual input is verified; native Source preview, hotplug/minimize and full physical matrix remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser input](#m06-acceptance-items): gates1–3/4 accepted. Browser forms/gestures/history and dock layout pass; native image/extent outlines, project replacement and other complete-editor gaps retain gate4. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and actual grid input](#m07-acceptance-items): gates1–2 and4/4 accepted. Full browser input/history/virtualization and narrow dock pass; project replacement/native feedback retain gate3. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, native content and actual grid input](#m07-acceptance-items): gates1–2 and4/4 accepted. Browser input passes; strict project replacement still reports stale inspections after queued-read guard correction, retaining gate3 with native feedback. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Publish batch91's verified Matrix browser input/history/virtualization and narrow dock. **M07 gate3**
-stays active: target the remaining original actual File→New/project replacement, stale selection
-and usable post-replacement controls through the same bundled browser. Do not repeat the passing
-large candidate. Native preparation/installation/submission feedback still requires real observations
-or a concrete supported capability change; no injected states, new automation route or guard bypass.
+Publish batch92's unit-proven queued-read lifetime correction and strict app failure. **M07 gate3**
+stays active: establish a supported reference-owner/project-transition correction before another
+existing strict File→New/upload check. Its state/history assertions pass but missing-media errors
+remain; no clean lifecycle acceptance. Two app invocations are retained, with no unchanged third.
+Do not repeat the passing large input candidate or switch gates to avoid this correctness defect.
+Native feedback still needs real observation/capability change; no injection, new route or bypass.
 M06 returns for native image/extent outlines, project replacement and other original checklist gaps;
 do not repeat its passing candidate. M05 gate7 still needs native preview. All global budgets remain.
 

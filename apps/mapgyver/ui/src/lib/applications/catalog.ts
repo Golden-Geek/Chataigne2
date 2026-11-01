@@ -56,6 +56,7 @@ export class ApplicationCatalog<S extends Connection> {
 			this.state.start === query.start;
 		this.state.loading = true;
 		this.reads.request(
+			current,
 			() => this.invoke(session, { kind: 'Applications', edit: query }),
 			(result) => {
 				if (!current()) return;

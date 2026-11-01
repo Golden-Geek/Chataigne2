@@ -219,6 +219,12 @@ Gate3 stays open for actual project replacement and native preparation/installat
 feedback. Next target only the remaining project/lifetime check through actual UI; do not repeat
 the passing large candidate, inject native observations or retry the parked automation route.
 
+Batch92's actual New/upload state/history checks pass, but visual audit exposes stale missing-
+media inspections. A regression proves expired queued dispatch and the app read queue now checks
+context before dispatch;33 frontend tests pass. The strengthened second app run still fails on
+the live symptom. Keep M07 gate3 active, retain both outcomes and establish a supported correction
+before another strict run. No clean lifecycle/native pass or acceptance reduction is inferred.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
