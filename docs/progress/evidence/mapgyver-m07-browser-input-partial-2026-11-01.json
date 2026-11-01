@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "batch": 90,
+  "date": "2026-11-01",
+  "gate": "M07/3",
+  "status": "PARTIAL_NARROW_DOCK_CORRECTED_BROWSER_CANDIDATE_UNVERIFIED",
+  "base_revision": "c9d25a8b2c8ae11f27b1faafd557b4ad61b62208",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-ui",
+  "invocations": [
+    {
+      "exit_code": 1,
+      "failure": "Root/group child share legitimate Layer1 label; cell locator is ambiguous after three rows/two columns and selection.",
+      "log": "target/m07-matrix-ui-b90.log",
+      "log_sha256": "8e065d174bf0a5fd1a2571fa3fc48c9ed16c3e22bdb7bcf281de476313500ca6"
+    },
+    {
+      "exit_code": 1,
+      "failure": "Child is selected and renamed UIChild through actual UI; read confirms commit but next root click runs while both displayed labels are old.",
+      "log": "target/m07-matrix-ui-b90-final.log",
+      "log_sha256": "047ad2929c4716cb5ab522c9c2d648351b654124717b50f24a11e2da884286fb"
+    }
+  ],
+  "correction": "Wait for unique displayed row/column titles, visible refresh completion and child's actual new title. Not rerun; no domain naming or renderer change.",
+  "layout": {
+    "change": "Container query stacks grid/inspector below45rem panel width. Previous minimum12rem aside could leave less than sticky14rem row-label width for grid.",
+    "observation": "Inspected first real failure capture shows stacked grid/inspector; full grid usability remains unverified.",
+    "final_failure_screenshot": "target/m07-matrix-ui-failure.png",
+    "final_failure_screenshot_sha256": "ccc9dc88a746806429dd6491d9f5eef0e1c017e1520080241cc79a08dc7e1799"
+  },
+  "hashes": {
+    "second_run_matrix.mjs": "de199740c6390bf363716f7d1866ea37d64e8d99a5266818e7b018861cb0dd42",
+    "corrected_matrix.mjs_not_run": "8c816846d6460576f085007b9289d8ff79ce1451082ae2a4057cbf20bcb17b9d",
+    "apps/mapgyver/tests/headless/media.mjs": "8a37dece0e8737a0290e540213259a8cccb4780da11f4e2c04e7dc16d3869962",
+    "apps/mapgyver/ui/src/lib/matrix/MatrixPanel.svelte": "fe77c37b760f42514ee1e473a1376cead463f24bec796baba32858b328830610",
+    "target/debug/MapGyver.exe": "ea17940074862143e074d3d3ffa18c19a4d4ef4ba60d3a24e455451a9055172d"
+  },
+  "checks": {
+    "svelte": "pass, zero errors and warnings",
+    "ordinary_app_build": "pass, frontend rebuilt before both runs",
+    "syntax_prettier_both_workspace_formatters": "pass after correction",
+    "cleanup": "Both shutdown-file hosts exit0 normally; no MapGyver remains.",
+    "full_browser_flow": "not passed; exactly two failures, no third invocation"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "3/4",
+    "overall": "4/10",
+    "remaining": "Full actual grid/source/settings/structure/history/selection/playback/virtualization/lifetime flow, native live feedback and original complete checklist.",
+    "next": "Targeted verification against displayed-label synchronization correction, retaining two cumulative failures; no new route or scope revision."
+  }
+}

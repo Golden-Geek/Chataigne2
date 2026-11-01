@@ -350,6 +350,7 @@
 
 <style>
 	.matrix {
+		container-type: inline-size;
 		display: flex;
 		flex-direction: column;
 		height: 100%;
@@ -400,5 +401,18 @@
 	}
 	p {
 		font-size: 0.85rem;
+	}
+	@container (max-width: 45rem) {
+		.workspace {
+			flex-direction: column;
+			overflow: auto;
+		}
+		aside {
+			width: 100%;
+			min-width: 0;
+			max-width: none;
+			flex-shrink: 0;
+			overflow: visible;
+		}
 	}
 </style>

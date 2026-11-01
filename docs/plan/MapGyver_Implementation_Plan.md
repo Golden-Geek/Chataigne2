@@ -208,6 +208,11 @@ project replacement and remaining complete-editor scope retain gate4. Next selec
 gate3 actual grid/control/history/selection/live-state input via the same browser route. Retain
 any unavailable complete-editor scope; no repeated passing fixture or parked automation retry.
 
+Batch90 corrects Matrix narrow-dock layout and adds the real browser candidate. Two runs stop
+on duplicate labels and backend-read/display lag before later controls run. Displayed-label
+synchronization is corrected but unverified. Continue against that concrete change, retaining
+two cumulative failures and every original grid/live/complete-editor requirement. No new route.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

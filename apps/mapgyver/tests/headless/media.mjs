@@ -8,6 +8,7 @@
 // Add --screen-ui for M05 real bundled Screen source/gesture/history verification.
 // Add --surface-source-ui for M05 real Source crop/form/calibration/history verification.
 // Add --composition-ui for M06 real Composition form/gesture/history verification.
+// Add --matrix-ui for M07 real Matrix grid/authoring/playback-feedback verification.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -26,7 +27,8 @@ const withUi = [
 	'--application-ui',
 	'--screen-ui',
 	'--surface-source-ui',
-	'--composition-ui'
+	'--composition-ui',
+	'--matrix-ui'
 ].some((flag) => process.argv.includes(flag));
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -253,6 +255,10 @@ try {
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');
 		await verifyMatrix({ post, intent, edit });
+	}
+	if (process.argv.includes('--matrix-ui')) {
+		const { verifyMatrixUi } = await import('../browser/matrix.mjs');
+		await verifyMatrixUi({ base, edit, inspectMedia: inspect });
 	}
 	console.log(
 		JSON.stringify({
