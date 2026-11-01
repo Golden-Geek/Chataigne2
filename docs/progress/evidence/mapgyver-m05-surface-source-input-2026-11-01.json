@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "batch": 87,
+  "date": "2026-11-01",
+  "gate": "M05/7",
+  "status": "PARTIAL_ACTUAL_SURFACE_SOURCE_INPUT_PASSED_NATIVE_PREVIEW_OPEN",
+  "final_format": {
+    "change": "Prettier-only normalization after the recorded run; syntax and final formatting checks pass, no behavior change or additional invocation.",
+    "surface_source_sha256": "7c044565b00bf9a3ed73576c64cd4a2fb979597367b3c7a481aa8460bb9c204e"
+  },
+  "execution": {
+    "command": "node apps/mapgyver/tests/headless/media.mjs --surface-source-ui",
+    "exit_code": 0,
+    "invocations": 1,
+    "hosted_flow_ms": 7069,
+    "raw_log": "target/m05-surface-source-ui-b87.log",
+    "base_revision": "783617263dcc8da511bf4dd1b36325c6667c2595",
+    "log_sha256": "3d7c1a0d91fa66c1e35c3d114a75757fc2ccfc22c5d70c48f284ae2447a98f48",
+    "reports": [
+      {
+        "result": "pass",
+        "scope": "actual Surface Source form/calibration/crop/origin/rejection/Escape/source-loss/history input; native preview remains unverified",
+        "browser": "149.0.7827.55",
+        "surface": {
+          "screen": "ecdde853-2126-4836-9cc3-ef53a69d24b3",
+          "surface": "1fa2da69-b1c5-4d1f-96f0-d0a47d19f83b"
+        },
+        "source": {
+          "channel": "6672c1f6-4126-4b99-9ad4-baa025e0eaef",
+          "media": "d62ec98f-41ff-47c6-b2e6-0a08725776a3"
+        },
+        "final_definition": {
+          "calibration": "Off",
+          "crop": {
+            "height": 0.3199999928474426,
+            "width": 0.3999999463558197,
+            "x": 0.3200002908706665,
+            "y": 0.2600000500679016
+          },
+          "enabled": false,
+          "opacity": 0.6499999761581421,
+          "quad": {
+            "corners": [
+              {
+                "x": 0.05000000074505806,
+                "y": 0.03999999910593033
+              },
+              {
+                "x": 0.949999988079071,
+                "y": 0.019999999552965164
+              },
+              {
+                "x": 0.8999999761581421,
+                "y": 0.9599999785423279
+              },
+              {
+                "x": 0.019999999552965164,
+                "y": 0.8999999761581421
+              }
+            ]
+          },
+          "source": {
+            "channel": "6672c1f6-4126-4b99-9ad4-baa025e0eaef",
+            "media": "d62ec98f-41ff-47c6-b2e6-0a08725776a3"
+          }
+        },
+        "page_errors": 0,
+        "screenshot": "target/m05-surface-source-ui.png"
+      },
+      {
+        "result": "pass",
+        "scope": "M04 ordinary headless source intents, atomic rejection, shared assets, history and Save/New/Load",
+        "sources": 3,
+        "channels": 6,
+        "stable_asset": "129259a3-ec9e-4377-94c1-d9b7be2b98ef",
+        "native_preview": "Not instantiated; native recreation retains source-gate evidence.",
+        "elapsed_ms": 7069
+      }
+    ],
+    "sha256": {
+      "apps/mapgyver/tests/browser/surface-source.mjs": "ab1074f8531aac0f26c86c1d93c1cca75e10cb82890d35dc3dc47421a44e98a3",
+      "apps/mapgyver/tests/headless/media.mjs": "6a8d3f0897658deb66797d8a3f41feb549c2a2ddcbd623fbeb537fe036463579",
+      "target/debug/MapGyver.exe": "64c74f8fea641564598e6b8482558f661ee708af281a8d8d7b1ed5fd3e7b41d7",
+      "target/m05-surface-source-ui.png": "2dba49776b02a1383b3186a33773cc0e9c57757c3b2d2dcf1237ad0d478a1978"
+    }
+  },
+  "coverage": {
+    "forms": "Naturally enabled real DOM controls select shared source, enablement/opacity, explicit crop and destination corners. All fields remain a draft until Apply; one Undo/Redo restores the whole definition.",
+    "calibration": "Grid/ColorBars/Off form choices preserve exact source/crop/mapping and other saved fields. This proves authored/UI semantics, not procedural native pixels.",
+    "handles": "All four crop handles, inside-rectangle origin drag, and Escape after accepted origin motion preserve peers and non-crop fields. Each sampled gesture is one complete Undo/Redo; origin keeps width/height.",
+    "rejection": "Invalid pointer and contained-crop form edits reject visibly, preserve the last valid definition and consume no authored history.",
+    "source_loss": "Actual Media Manager Delete and Undo produce the explicit Missing source picker option without changing the saved Surface binding; Undo restores original media IDs/catalog.",
+    "lifetime": "Peer selection and Screen/Surface Source tab switching preserve committed state and usable controls."
+  },
+  "checks": {
+    "node_syntax": "pass",
+    "prettier": "pass",
+    "page_errors": 0,
+    "host": "normal exit0; no remaining MapGyver",
+    "visual": "Inspected actual browser capture: all four crop handles visible, native Preview unavailable explicit."
+  },
+  "limits": [
+    "Functional input target tolerance0.005 normalized units; actual final f32 definition is preserved. No physical1-pixel alignment pass.",
+    "Native full-source preview is unverified. Gate7 does not close on DOM behavior.",
+    "No native frame, OS pointer capture, DPI/latency, display/hotplug, global resource/performance or complete app qualification inferred.",
+    "Historical module/script/backend/GPU proofs remain scoped, not replaced by browser input."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M05": "4/8",
+    "overall": "4/10",
+    "return_trigger": "Native full-source preview observation with actual selected channel/extent and crop overlay; supported native tool capability or user observation. Do not repeat completed Source form/gesture preparation.",
+    "next": "M06 gate4 actual Composition source/instance/form/geometry/history input via existing naturally enabled bundled-browser controls. Preserve native integration/physical requirements and any unverified complete-editor scope."
+  }
+}

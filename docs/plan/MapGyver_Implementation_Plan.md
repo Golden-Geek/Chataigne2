@@ -190,6 +190,12 @@ actual Surface Source crop/mapping/calibration/form/history in naturally enabled
 controls; its native Source preview remains required. No guard bypass, repeated passing native
 test, parked CDP/desktop retry or acceptance change.
 
+Batch87 verifies actual Surface Source form/calibration/all crop handles/origin/rejection/Escape/
+source loss/history, leaving gate7 open for native full-source preview. Next select M06 gate4
+actual Composition source/instance/form/geometry/history in naturally enabled bundled browser
+controls. Keep native integration/physical requirements and unverified complete-editor scope;
+no guard bypass, repeated passing Source input, parked automation retry or acceptance change.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

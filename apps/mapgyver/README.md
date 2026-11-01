@@ -142,6 +142,11 @@ bundled Screen selection/source controls, all four corner handles, invalid geome
 panel/history behavior. It correlates UI input with read-only backend state and writes
 `target/m05-screen-ui.png`. Browser preview remains explicitly unavailable; native physical
 presentation, OS capture, DPI/alignment and latency retain their own qualification.
+
+`node apps/mapgyver/tests/headless/media.mjs --surface-source-ui` verifies actual Source forms,
+all crop handles/origin, calibration choices, rejection, Escape, source loss and grouped history.
+Run it separately from `--screen-ui`. It writes `target/m05-surface-source-ui.png`; native full-
+source preview and physical presentation remain separate acceptance requirements.
 Calibration Grid and Color Bars are now source-independent procedural layers. Grid uses the
 app's 16×9 white-on-black policy; bars use white/yellow/cyan/green/magenta/red/blue/black. Patterns
 fill the mapped quad while retaining the authored source/crop for Off. Quad, order, enablement and

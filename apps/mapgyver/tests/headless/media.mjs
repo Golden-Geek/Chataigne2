@@ -6,6 +6,7 @@
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
 // Add --application-ui for M08 real bundled browser form/history verification.
 // Add --screen-ui for M05 real bundled Screen source/gesture/history verification.
+// Add --surface-source-ui for M05 real Source crop/form/calibration/history verification.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -15,8 +16,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const withUi = ['--ui-reload', '--application-ui', '--screen-ui'].some((flag) =>
-	process.argv.includes(flag)
+assert(
+	!(process.argv.includes('--screen-ui') && process.argv.includes('--surface-source-ui')),
+	'Run the Screen and Surface Source UI checks separately'
+);
+const withUi = ['--ui-reload', '--application-ui', '--screen-ui', '--surface-source-ui'].some(
+	(flag) => process.argv.includes(flag)
 );
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -227,6 +232,10 @@ try {
 	if (process.argv.includes('--screen-ui')) {
 		const { verifyScreenUi } = await import('../browser/screens.mjs');
 		await verifyScreenUi({ base, post, media: await inspect(), inspectMedia: inspect });
+	}
+	if (process.argv.includes('--surface-source-ui')) {
+		const { verifySurfaceSourceUi } = await import('../browser/surface-source.mjs');
+		await verifySurfaceSourceUi({ base, post, media: await inspect(), inspectMedia: inspect });
 	}
 	if (process.argv.includes('--composition-review')) {
 		const { verifyComposition } = await import('./composition.mjs');
