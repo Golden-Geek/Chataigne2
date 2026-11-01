@@ -281,7 +281,7 @@ try {
 	}
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');
-		await verifyWorkbenchUi({ base, edit, inspectMedia: inspect });
+		await verifyWorkbenchUi({ base, post, edit, inspectMedia: inspect });
 	}
 	console.log(
 		JSON.stringify({

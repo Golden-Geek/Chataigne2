@@ -33,6 +33,9 @@
 		height: 100%;
 		min-height: 0;
 	}
+	.fill .surface {
+		width: 100%;
+	}
 	.surface {
 		width: min(100%, calc(10rem * var(--preview-aspect)));
 		margin: auto;

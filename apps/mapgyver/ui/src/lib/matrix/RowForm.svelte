@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { IconButton } from 'golden_ui';
+	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import { untrack } from 'svelte';
 	import type { WorkbenchSession } from 'golden_ui';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
@@ -108,17 +110,21 @@
 </form>
 {#if row.item.id.kind === 'Group'}
 	<div class="matrix-authoring actions">
-		<button
+		<IconButton
+			icon={addIcon}
+			label="Add child layer"
 			{disabled}
 			onclick={() => {
 				if (row.item.id.kind === 'Group')
 					edit({ kind: 'AddLayers', parent: row.item.id.id, count: 1 });
-			}}>Add child layer</button>
-		<button
+			}} />
+		<IconButton
+			icon={addIcon}
+			label="Add child group"
 			{disabled}
 			onclick={() => {
 				if (row.item.id.kind === 'Group')
 					edit({ kind: 'AddGroup', parent: row.item.id.id, label: null });
-			}}>Add child group</button>
+			}} />
 	</div>
 {/if}

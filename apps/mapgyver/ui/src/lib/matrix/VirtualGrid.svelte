@@ -171,7 +171,8 @@
 <style>
 	.viewport {
 		flex: 1;
-		min-height: 12rem;
+		height: 100%;
+		min-height: 0;
 		min-width: 0;
 		overflow: auto;
 		position: relative;

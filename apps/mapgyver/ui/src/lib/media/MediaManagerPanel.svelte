@@ -30,6 +30,9 @@
 		emptyMessage="No media"
 		addButtonTitle="Create media or folder"
 		addItems={mediaTreeItems}
+		createDisabled={appState.session?.status !== 'connected' ||
+			appState.session.loading.visible ||
+			appState.session.hasActiveEditSession}
 		onCreateItem={async (parent, item) => {
 			try {
 				await createMediaTreeItem(parent, item, selection.select);

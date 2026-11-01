@@ -1,25 +1,124 @@
 {
 	"schema": 1,
 	"date": "2026-11-01",
-	"status": "IMPLEMENTED_SOFTWARE_VERIFIED_INTERACTION_CHECK_PARTIAL",
+	"status": "IMPLEMENTED_BUNDLED_WORKBENCH_VERIFIED_RETAINED_GATES_OPEN",
 	"scope": "Golden manager trees, persisted media folders, shared Inspector selection, separate full-panel warp/Source/Composition/Matrix, icon actions and Applications Inspector",
 	"ownership": "Golden public tree/Inspector/IconButton; app-owned window controllers and inspectors; backend folder nodes and hierarchy-aware catalog/capture/logical demand",
 	"checks": {
-		"rust_library": "208 passed, 1 existing ignore",
+		"rust_library": "209 passed, 1 existing ignore",
 		"frontend": "61 passed",
 		"mapgyver_svelte": "0 errors, 0 warnings",
 		"chataigne_svelte": "0 errors, 0 warnings",
 		"strict_clippy": "pass after collapsing the folder traversal nested if",
-		"formatting": "UI Prettier and both Rust workspaces"
+		"formatting": "UI Prettier and both Rust workspaces",
+		"ordinary_bundled_build": "pass"
 	},
 	"interactive": {
-		"runs": 2,
-		"first": "Fixture misses whitespace-prefixed Folder row; no page errors/rejected requests. target/mapgyver-workbench-ui-first.log",
-		"second": "Actual nested-folder/media creation and Inspector fields pass; stops after blank Screen-row click leaves old Inspector selection. No page errors/rejected requests. target/mapgyver-workbench-ui-second.log",
-		"visual": "target/mapgyver-workbench-media.png inspected: Golden tree with real folder/media/channel hierarchy, selected channel and shared Inspector; no manager-embedded form layout.",
-		"corrections": "Graph-delta-aware selection requests with project/user-selection fences, including new Screen/Surface creation. Corrected comparison must click actual Golden name controls.",
-		"unreached": "Full Screen/Source/Composition/Matrix geometry and Inspector editing, Applications and final New in this new combined fixture. No pass inferred."
+		"runs": 10,
+		"passes": 5,
+		"failures": 5,
+		"history": [
+			{
+				"run": 1,
+				"result": "fail",
+				"log": "target/mapgyver-workbench-ui-first.log",
+				"reason": "Fixture misses whitespace-prefixed Folder label."
+			},
+			{
+				"run": 2,
+				"result": "fail",
+				"log": "target/mapgyver-workbench-ui-second.log",
+				"reason": "Blank row center does not activate Golden label selection."
+			},
+			{
+				"run": 3,
+				"result": "fail",
+				"log": "target/mapgyver-workbench-ui-corrected.log",
+				"reason": "Region selector matches both Dockview group and editor section."
+			},
+			{
+				"run": 4,
+				"result": "fail",
+				"log": "target/mapgyver-workbench-ui-final.log",
+				"reason": "Fixture reads SourcePicker options before control mounts."
+			},
+			{
+				"run": 5,
+				"result": "pass",
+				"log": "target/mapgyver-workbench-ui-ready.log"
+			},
+			{
+				"run": 6,
+				"result": "pass",
+				"log": "target/mapgyver-workbench-ui-polished.log",
+				"scope": "Layout proportions and actual Composition preview width."
+			},
+			{
+				"run": 7,
+				"result": "fail",
+				"log": "target/mapgyver-workbench-ui-authoring.log",
+				"reason": "Enabled Create Screen button silently ignores clicks during refresh. Fixed public explicit disabled-state support."
+			},
+			{
+				"run": 8,
+				"result": "pass",
+				"log": "target/mapgyver-workbench-ui-authoring-ready.log",
+				"scope": "Folder/name/reorder/Surface parity."
+			},
+			{
+				"run": 9,
+				"result": "pass",
+				"log": "target/mapgyver-workbench-ui-complete.log",
+				"scope": "Actual Composition instance selection/handles, Matrix viewport and assignment."
+			},
+			{
+				"run": 10,
+				"result": "pass",
+				"log": "target/mapgyver-workbench-ui-delivery.log",
+				"scope": "Final app-owned tree icons and eventual rendered Matrix assignment."
+			}
+		],
+		"final": {
+			"browser": "149.0.7827.55",
+			"viewport": {
+				"width": 1600,
+				"height": 1000
+			},
+			"elapsed_hosted_ms": 6850,
+			"page_errors": 0,
+			"rejected_requests": 0,
+			"host_exit": 0,
+			"scope": "DOM nested tree creation/name/moves, media/channel rename/reorder, Screen/Surface rename/reorder/removal, shared Inspector selection, full-panel canvas/grid, Composition selection/handles, Matrix assignment without launch, Applications and File New; source HTTP/history/Save/New/Load.",
+			"authoring": "DOM input only during browser flow; backend requests only inspect committed state.",
+			"visual": "Media, Screen, Composition and Matrix screenshots inspected. Golden hierarchy/Inspector and large central canvas/grid. Browser preview unavailable is explicit; no native image/physical-output pass."
+		}
 	},
-	"folders": "Actual persisted hierarchy; nested catalogs, channel capture, atomic invalid-parent rejection, generic move, Undo/Redo and stable sparse project roundtrip verified by two backend tests.",
-	"acceptance": "M04 gate5 and M05 gate6 reopened by user design change; phase denominators unchanged. Overall3/10. Other native/physical/resource qualification remains open. No native automation/settings changes."
+	"folders": "Persisted hierarchy; nested catalogs/capture, invalid-parent/cycle/invalid-entry rejection, rename/move/remove, Undo/Redo and stable sparse project roundtrip verified in three backend tests.",
+	"acceptance": "Five requested redesign areas implemented; combined workbench interaction verified. M04 gate5/M05 gate6 remain reopened pending original full source CRUD/history and Screen gesture fixture migration; 3/10 phases. Native/physical/resource gates remain open, unchanged budgets.",
+	"artifacts": [
+		{
+			"path": "target/debug/MapGyver.exe",
+			"sha256": "d9756f3ba70ff3cc2e73375121c65850a371a857b3c35547d8f6d79e69be9c5c"
+		},
+		{
+			"path": "target/mapgyver-workbench-ui-delivery.log",
+			"sha256": "2cdcdcdf01bc271de4cee1282b50ecd206110f1921c3a4898bf98fb69f41366a"
+		},
+		{
+			"path": "target/mapgyver-workbench-media.png",
+			"sha256": "d3df91e8c9fc2ebe7064f6ac6a99d8e1f30c9388417ff525a8bbd5c14bee14d8"
+		},
+		{
+			"path": "target/mapgyver-workbench-screen.png",
+			"sha256": "327cd43c22fe66d32579d529eb54c4c5de3a28915ecf0652d365082169018585"
+		},
+		{
+			"path": "target/mapgyver-workbench-composition.png",
+			"sha256": "7e9df29794feb88751548ca3c2f7882006e92e1461256579dd049d0e709872e8"
+		},
+		{
+			"path": "target/mapgyver-workbench-matrix.png",
+			"sha256": "b61aa481e500cb84dcd89ee1377ef59f0a18a779d31b181d270b467e90ed6a51"
+		}
+	]
 }

@@ -22,7 +22,7 @@ pre/post holds, runtime snapshot input, availability recovery and New with a liv
 Batch96's last failure was a fixture expectation: unavailable neighbor-only demand is omitted;
 direct associated-column demand correctly reports `Unavailable`. No production policy changed.
 M06 gate4 returns for native imagery/extent outlines; M07 gate3 for native renderer feedback.
-M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
+M05 gate7 stays open for native full-source preview. M05 remains **3/8** after reopening gate6. Native/physical/OS/DPI,
 M08 native dialog/retirement/full-app and remaining actual-editor scope stay open. Batch98 verifies
 a real elevated owned target under the already elevated caller, with no elevation request.
 Native access remains blocked: batch99's supported explicit-path launch resolves to installed
@@ -30,23 +30,38 @@ MapGyver1.0.0b7 instead of this checkout; both supported close attempts also fai
 The newly launched installed PID is cleaned up and absent. No current-build UI result is inferred.
 Do not repeat helper retries, alternate launch routes, parity fixtures or review preparation.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Current redesign checkpoint:** manager trees, persisted nested media folders, shared Inspector
-selection, separate full-panel warping/Source/Composition/Matrix views, icon actions and Applications
-Inspector are implemented. Golden owns the shared tree/Inspector/icon primitive; app controllers
-and inspectors own domain presentation, and the backend owns folder identity/containment/defaults.
-Checks: **208 Rust tests pass /1 existing ignore; 61 frontend tests pass; MapGyver and Chataigne
-Svelte checks have zero errors/warnings**. Two real UI runs reach nested-folder/media/Inspector
-input without page errors; the second stops on Screen selection before later canvas/grid checks.
-Creation now queues shared selection until the graph delta arrives, including new Screens/Surfaces.
-The next comparison must click actual Golden name controls rather than blank tree-row centers.
-Do not claim the unexecuted editor/Matrix/Application/New portions passed. Keep both failed runs.
-Batch starts **18:34 CET**, stops **19:19 CET**; checkpoint before another UI implementation batch.
+**Golden workbench redesign delivered — 2026-11-01:** all five requested design areas are
+implemented: Golden manager trees, persisted Media folders, shared Inspector properties,
+full-panel Screen/Source/Composition canvases, Matrix grid/icon actions and Applications tree.
+The default layout prioritizes editors. Type icons distinguish folders/media/screens/surfaces.
+Name/reorder/delete/source controls retain typed backend operations. Folder rename/move/removal
+reject invalid ownership/cycles and preserve Undo identities.
 
-**Next redesign action:** verify actual Screen/Surface selection, full-panel geometry, Composition
-and Matrix Inspector edits, Applications and project replacement against the current rebuilt app.
-The concrete correction is shared creation selection plus targeting Golden's label buttons; no
-native automation retry or unrelated qualification work. The five design requirements in the plan
-are implemented but their complete interactive acceptance stays open until checked.
+**Verification:** **209 Rust tests pass /1 existing ignore; 61 frontend tests pass; both apps'
+Svelte checks report zero errors/warnings; strict library Clippy, ordinary bundled build,
+UI Prettier and both Rust formatters pass.** The final bundled-browser flow passes in **6,850 ms**,
+Chromium149.0.7827.55, **zero page errors/rejected requests**. Actual controls verify nested
+folder creation/name/moves, Media/channel rename/reorder, Screen rename/Surface rename/reorder/
+removal, shared Inspector, full-panel canvas/grid bounds, Composition instance selection/handles,
+Matrix assignment without launch, Applications and File New. Source HTTP/history/Save/New/Load
+also passes in the same host. Browser preview remains explicitly unavailable.
+
+[Evidence and all failed runs](evidence/mapgyver-ui-workbench-redesign-2026-11-01.json).
+Ten cumulative finite comparisons: five failures, five passes. The first four failures are
+fixture targeting/readiness defects. Invocation7 finds a real enabled Create Screen control whose
+click is ignored during controller refresh; explicit disabled-state support in Golden's public
+manager/add control fixes it. Later passes verify each concrete correction; failures stay retained.
+
+The first batch ran **18:34–19:19 CET**, pushed as `c6f38586` before integration.
+Integration started **19:21 CET**, original stop **20:06 CET**; the final app comparison completed
+**19:50 CET**, within that limit. Additional comparisons verified concrete layout/preview fixes,
+preserved-action/folder parity and readiness failures. No native retry/settings/budget change.
+
+**Remaining acceptance:** the requested combined workbench scope passes. The original M04/5 full
+source CRUD/history and M05/6 full gesture/history fixtures still need their old panel selectors
+migrated to the new tree/Inspector/canvas locations before reopened gates close. Original backend/
+native evidence is retained. Overall remains **3/10 (30%)**, fixed denominators; no native or
+complete feature-gate pass is inferred from this combined smoke.
 
 **Retained native next action:** retain M08 gate4 and obtain native executable-picker and actual desktop lifecycle
 observations against **this checkout's** executable when native interaction becomes available.
@@ -67,8 +82,8 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Media tree/folders/Inspector redesign implemented; full new-layout verification open | `█████████████████░░░` 83% | 5/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Separate manager/Inspector/full-panel editor implemented; new-layout input and native/physical checks open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M04 Source media](#m04-acceptance-items) | New tree/folder/Inspector flow passes; full source UI acceptance retained | `█████████████████░░░` 83% | 5/6 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Tree/Inspector/canvas controls pass; full gesture/native/physical acceptance retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Active: column/recovery/New UI and actual elevated owned target pass; native dialog/retirement/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
@@ -103,7 +118,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Active | UI redesign / M04/5 | Complete real tree-label selection and Inspector/editor integration checks; Media folders/backend roundtrip pass and the new Media tree/Inspector input is demonstrated. Keep changed layouts unaccepted until their full interaction scope passes. |
+| Active | UI redesign / M04/5 | Combined workbench scope passes. Migrate original full source CRUD/history and Screen gesture/history fixture selectors; close only their original verified gates. |
 | Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
@@ -5643,13 +5658,12 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Continue the user-requested Golden UI redesign. All panel replacements and backend media folders
-are implemented; finish real Golden label-button selection, full-panel geometry, Inspector edits,
-Matrix grid/icon actions, Applications and project replacement on the current rebuilt app.
-Two initial browser runs are retained: the first misses a whitespace-prefixed tree label, the
-second demonstrates nested Media/Inspector input but selects blank Screen-row space. Shared
-creation selection is now fixed; target actual Golden label controls for the corrected comparison.
-This remains the same redesign work, not a new renderer/native investigation or gate waiver.
+The requested workbench redesign and its combined bundled-browser flow pass. Publish this
+checkpoint before another batch. Continue M04 gate5 by migrating its remaining source CRUD/history/
+Picture-reload fixture selectors to the Media tree/shared Inspector, then migrate M05 gate6's
+original Screen gesture/history scope to the separate full-panel editor. Reuse accepted backend/
+native evidence. Do not rerun the passing combined workbench flow unchanged as qualification.
+Native hardware/input/resource work remains parked behind its concrete prerequisites.
 
 **Retained qualification queue:**
 

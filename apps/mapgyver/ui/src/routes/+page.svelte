@@ -20,6 +20,7 @@
 	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import '../lib/workbench.css';
+	import { treeIcons } from '../lib/icons/tree';
 	import { provideDocumentSelection } from '../lib/selection.svelte';
 	const host = useApplicationHost(),
 		preview = providePreview();
@@ -74,6 +75,7 @@
 			panelId: 'screen-warp',
 			panelType: 'screenWarp',
 			required: true,
+			initialWidth: typeof window === 'undefined' ? undefined : window.innerWidth * 0.8,
 			position: { referencePanelId: 'media-manager', direction: 'right' }
 		},
 		{
@@ -112,6 +114,7 @@
 		application={host.application}
 		{initialPanels}
 		{userPanels}
+		nodeIcons={treeIcons}
 		httpBaseUrl={host.endpoints.httpBaseUrl}
 		wsUrl={host.endpoints.wsUrl} />
 </div>

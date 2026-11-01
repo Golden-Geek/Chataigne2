@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { IconButton } from 'golden_ui';
+	import addIcon from 'golden_ui/style/icons/node/add.svg';
+	import deleteIcon from 'golden_ui/style/icons/delete.svg';
+	import duplicateIcon from 'golden_ui/style/icons/duplicate.svg';
+	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import type { Snippet } from 'svelte';
 	import type { UiNodeDto } from 'golden_ui';
 	import { useCompositionAuthoring } from './context.svelte';
@@ -46,7 +51,7 @@
 			<fieldset disabled={busy || !view.composition}>
 				<legend>Add source instance</legend>
 				<SourcePicker catalog={view.catalog} required emptyLabel="Choose a channel" />
-				<button>Add instance</button>
+				<IconButton icon={addIcon} label="Add instance" type="submit" />
 			</fieldset>
 		</form>
 		{#if view.composition}
@@ -54,17 +59,22 @@
 				<p>Draw order: the last instance appears on top.</p>
 				{#if pages > 1}
 					<div class="actions">
-						<button
+						<IconButton
+							icon={arrowIcon}
+							label="Previous instances"
+							class="previous"
 							disabled={busy || currentPage === 0}
 							onclick={() => {
 								page = currentPage - 1;
-							}}>Previous instances</button>
+							}} />
 						<span>Page {currentPage + 1} / {pages}</span>
-						<button
+						<IconButton
+							icon={arrowIcon}
+							label="Next instances"
 							disabled={busy || currentPage === pages - 1}
 							onclick={() => {
 								page = currentPage + 1;
-							}}>Next instances</button>
+							}} />
 					</div>
 				{/if}
 				{#each instances.slice(start, start + pageSize) as item, offset (item.reference.instance)}
@@ -104,20 +114,24 @@
 		{/if}
 		{#if instance}
 			<div class="actions">
-				<button
+				<IconButton
+					icon={duplicateIcon}
+					label="Duplicate"
 					disabled={busy}
 					onclick={() =>
 						controller.edit({
 							kind: 'DuplicateInstances',
 							instances: [instance.reference.instance]
-						})}>Duplicate</button>
-				<button
+						})} />
+				<IconButton
+					icon={deleteIcon}
+					label="Remove"
 					disabled={busy}
 					onclick={() =>
 						controller.edit({
 							kind: 'RemoveInstance',
 							instance: instance.reference.instance
-						})}>Remove</button>
+						})} />
 			</div>
 			{#key instance.reference.instance}
 				<InstanceForm
@@ -142,6 +156,9 @@
 </div>
 
 <style>
+	:global(.previous img) {
+		transform: rotate(180deg);
+	}
 	.properties {
 		display: grid;
 		gap: 0.5rem;

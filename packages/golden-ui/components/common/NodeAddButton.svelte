@@ -10,10 +10,12 @@
 	let {
 		node,
 		items,
+		disabled = false,
 		onCreateItem
 	}: {
 		node: UiNodeDto;
 		items?: readonly UiCreatableUserItem[];
+		disabled?: boolean;
 		onCreateItem?: (item: UiCreatableUserItem) => void | Promise<void>;
 	} = $props();
 
@@ -36,7 +38,7 @@
 	});
 
 	const toggleAddMenu = async (): Promise<void> => {
-		if (!canCreateItems || creatingSingleItem) {
+		if (disabled || !canCreateItems || creatingSingleItem) {
 			return;
 		}
 		if (!showsContextMenu) {
@@ -56,7 +58,7 @@
 	};
 
 	const createItem = async (item: UiCreatableUserItem): Promise<void> => {
-		if (!node) {
+		if (!node || disabled) {
 			return;
 		}
 		addMenuOpen = false;
@@ -96,7 +98,7 @@
 			aria-label="Add child item"
 			title="Add item"
 			aria-expanded={showsContextMenu ? addMenuOpen : undefined}
-			disabled={creatingSingleItem}
+			disabled={disabled || creatingSingleItem}
 			onclick={toggleAddMenu}>
 			<img src={addIcon} alt="" />
 		</button>

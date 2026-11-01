@@ -2,12 +2,14 @@
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { appState, IconButton, type UiNodeDto } from 'golden_ui';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
+	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import type { MediaManagerSnapshot } from './generated/MediaManagerSnapshot';
 	import type { MediaEdit } from './generated/MediaEdit';
 	import type { ChannelDefinition } from './generated/ChannelDefinition';
 	import { invokeMediaEdit } from './operations';
 	import { MEDIA_NAMESPACE } from './generated/constants';
+	import NameField from '../properties/NameField.svelte';
 	import ChannelPreview from './ChannelPreview.svelte';
 	import SolidChannelEditor from './SolidChannelEditor.svelte';
 	import PictureChannelEditor from './PictureChannelEditor.svelte';
@@ -41,6 +43,18 @@
 	);
 	const channel = $derived(
 		media?.channels.find((channel) => channel.reference.channel === node.uuid)
+	);
+	const folders = $derived(
+		[...(session?.graph.state.nodesById.values() ?? [])].filter(
+			(item) => item.node_type === 'mapgyver.media.folder'
+		)
+	);
+	const selectedParent = $derived(session?.graph.state.parentById.get(node.node_id));
+	const parentFolder = $derived(
+		folders.find((item) => item.node_id === selectedParent)?.uuid ?? ''
+	);
+	const channelIndex = $derived(
+		media?.channels.findIndex((item) => item.reference.channel === node.uuid) ?? -1
 	);
 	const busy = $derived(
 		pending ||
@@ -140,8 +154,40 @@
 {@render defaultHeader?.()}
 <div class="properties">
 	{#if error}<p role="alert">{error}</p>{/if}
+	{#if node.node_type === 'mapgyver.media.folder'}
+		<NameField
+			label="Folder name"
+			value={node.meta.label}
+			disabled={busy}
+			rename={(label) => edit({ kind: 'RenameFolder', folder: node.uuid, label })} />
+		<IconButton
+			icon={deleteIcon}
+			label="Delete folder and contents"
+			disabled={busy}
+			onclick={() => edit({ kind: 'RemoveFolder', folder: node.uuid })} />
+	{/if}
+	{#if node.node_type === 'mapgyver.media.folder' || node.node_type === 'mapgyver.media'}
+		<label
+			>Folder<select
+				aria-label="Parent folder"
+				value={parentFolder}
+				disabled={busy}
+				onchange={(event) =>
+					edit({ kind: 'MoveEntry', entry: node.uuid, parent: event.currentTarget.value || null })}>
+				<option value="">Media Manager</option>
+				{#each folders as folder (folder.uuid)}
+					<option value={folder.uuid} disabled={folder.uuid === node.uuid}
+						>{folder.meta.label}</option>
+				{/each}
+			</select></label>
+	{/if}
 	{#if media}
 		{#if node.node_type === 'mapgyver.media'}
+			<NameField
+				label="Media name"
+				value={media.label}
+				disabled={busy}
+				rename={(label) => edit({ kind: 'RenameMedia', media: media.id, label })} />
 			<div class="summary">
 				<span>{media.media_kind}</span><span>{media.channels.length} channels</span>
 				<IconButton
@@ -158,6 +204,12 @@
 		{/if}
 		{#if channel}
 			{#key channel.reference.channel}
+				<NameField
+					label="Channel name"
+					value={channel.label}
+					disabled={busy}
+					rename={(label) =>
+						edit({ kind: 'RenameChannel', reference: channel.reference, label })} />
 				<ChannelPreview {channel} />
 				{#if channel.definition.source.kind === 'SolidColor'}<SolidChannelEditor
 						{channel}
@@ -183,11 +235,35 @@
 						{configure}>{#snippet children()}{/snippet}</ChannelSettingsForm>
 					<MatrixProperties />
 				{/if}
-				<IconButton
-					icon={deleteIcon}
-					label="Delete channel"
-					disabled={busy || media.channels.length === 1 || media.media_kind === 'Matrix'}
-					onclick={() => edit({ kind: 'RemoveChannel', reference: channel.reference })} />
+				<div class="summary">
+					<IconButton
+						icon={arrowIcon}
+						class="earlier"
+						label="Move channel earlier"
+						disabled={busy || channelIndex <= 0}
+						onclick={() =>
+							edit({
+								kind: 'ReorderChannel',
+								reference: channel.reference,
+								after: media.channels[channelIndex - 2]?.reference.channel ?? null
+							})} />
+					<IconButton
+						icon={arrowIcon}
+						class="later"
+						label="Move channel later"
+						disabled={busy || channelIndex < 0 || channelIndex === media.channels.length - 1}
+						onclick={() =>
+							edit({
+								kind: 'ReorderChannel',
+								reference: channel.reference,
+								after: media.channels[channelIndex + 1].reference.channel
+							})} />
+					<IconButton
+						icon={deleteIcon}
+						label="Delete channel"
+						disabled={busy || media.channels.length === 1 || media.media_kind === 'Matrix'}
+						onclick={() => edit({ kind: 'RemoveChannel', reference: channel.reference })} />
+				</div>
 			{/key}
 		{/if}
 	{:else if node.node_type === 'mapgyver.media.asset'}
@@ -206,6 +282,12 @@
 		display: grid;
 		gap: 0.5rem;
 		min-width: 0;
+	}
+	:global(.earlier img) {
+		transform: rotate(-90deg);
+	}
+	:global(.later img) {
+		transform: rotate(90deg);
 	}
 	.summary {
 		display: flex;

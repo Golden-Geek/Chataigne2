@@ -6,6 +6,19 @@ desktop host, and generic UI. App-owned media contracts and rendering policy
 live under `src/media`; mapping authoring lives under `src/screens`. Composition builds on
 those public app-owned contracts. `src/app/labels.rs` shares backend label allocation.
 
+The workbench uses Golden's filtered manager trees for Media, Screens and Applications.
+Media folders are persisted document nodes: select a folder before using the plus menu to create
+inside it. Folder/name/source controls live in the shared Inspector; its Folder selector moves
+existing media or folders through validated backend intents. Screen Manager shows Screens and
+their Surfaces. Warping, Surface Source and Composition use separate full-panel canvases; Matrix
+uses a full-panel grid with compact icon actions. Selecting an item never launches it.
+
+The default layout reserves most space for the editor. Existing saved docking layouts are
+retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
+Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser
+tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
+Browser previews correctly report unavailable; this check does not qualify native display output.
+
 `media::composition::inspect` reads committed Composition instance state without settling queued
 commands or authoring history. UI intents, scripts, command nodes and the headless host share the
 same Composition mutation contracts. The [editor acceptance flow](tests/headless/COMPOSITION_REVIEW.md)

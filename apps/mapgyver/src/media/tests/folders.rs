@@ -80,3 +80,50 @@ fn invalid_folder_creation_is_atomic_and_generic_move_preserves_channel_referenc
     assert!(engine.undo().unwrap());
     assert!(super::super::channel(&engine, reference).is_ok());
 }
+
+#[test]
+fn folder_organization_rejects_cycles_and_restores_nested_contents_on_undo() {
+    let mut engine = fixture();
+    let outer = folder(&mut engine, None);
+    let inner = folder(&mut engine, Some(outer));
+    let reference = create(&mut engine, MediaKind::Composition);
+    apply(
+        &mut engine,
+        MediaEdit::MoveEntry {
+            entry: reference.media.0,
+            parent: Some(inner),
+        },
+    );
+    apply(
+        &mut engine,
+        MediaEdit::RenameFolder {
+            folder: inner,
+            label: "Clips".into(),
+        },
+    );
+    let before = engine.undo_len();
+    for edit in [
+        MediaEdit::MoveEntry {
+            entry: outer,
+            parent: Some(inner),
+        },
+        MediaEdit::MoveEntry {
+            entry: reference.channel.0,
+            parent: Some(inner),
+        },
+        MediaEdit::RenameFolder {
+            folder: inner,
+            label: " ".into(),
+        },
+    ] {
+        assert!(!invoke(&mut engine, edit).success);
+        assert_eq!(engine.undo_len(), before);
+    }
+    let id = engine.node_id_by_uuid(inner).unwrap();
+    assert_eq!(engine.nodes.get(id).unwrap().node_data().meta.label, "Clips");
+    apply(&mut engine, MediaEdit::RemoveFolder { folder: outer });
+    assert!(super::super::channel(&engine, reference).is_err());
+    assert!(engine.undo().unwrap());
+    assert!(super::super::channel(&engine, reference).is_ok());
+    super::super::validate_project(&engine).unwrap();
+}

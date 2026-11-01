@@ -48,10 +48,11 @@
 
 <style>
 	.preview {
-		position: relative;
 		width: min(100%, calc(100cqh * var(--preview-aspect)));
 		aspect-ratio: var(--preview-aspect);
 		max-height: 100%;
+		position: absolute;
+		inset: 0;
 		margin: auto;
 	}
 </style>

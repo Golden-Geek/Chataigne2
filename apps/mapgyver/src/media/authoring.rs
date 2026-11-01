@@ -198,6 +198,39 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             MediaEditResult::FolderCreated { folder: uuid }
         }
+        MediaEdit::RenameFolder { folder, label } => {
+            let node = super::folders::parent(engine, Some(folder))?;
+            rename(engine, node, label)?;
+            MediaEditResult::Changed
+        }
+        MediaEdit::RemoveFolder { folder } => {
+            let node = super::folders::parent(engine, Some(folder))?;
+            engine.edits.push(Edit::RemoveNode { node });
+            MediaEditResult::Changed
+        }
+        MediaEdit::MoveEntry { entry, parent } => {
+            let node = engine.node_id_by_uuid(entry).ok_or("media entry is missing")?;
+            let entry_node = engine.nodes.get(node).ok_or("media entry is missing")?;
+            if !matches!(entry_node, AppNode::Media(_) | AppNode::MediaFolder(_)) {
+                return Err("only media and folders can be organized".into());
+            }
+            let manager = super::folders::parent(engine, None)?;
+            if !super::folders::contains_parent(engine, entry_node.node_data().parent, manager) {
+                return Err("media entry is outside Media Manager".into());
+            }
+            let new_parent = super::folders::parent(engine, parent)?;
+            if entry_node.node_data().parent != Some(new_parent) {
+                engine.edits.push(Edit::MoveNode {
+                    node,
+                    new_parent,
+                    new_prev_sibling: engine
+                        .nodes
+                        .get(new_parent)
+                        .and_then(|node| node.node_data().last_child),
+                });
+            }
+            MediaEditResult::Changed
+        }
         MediaEdit::AddChannel {
             media: owner,
             label: requested,

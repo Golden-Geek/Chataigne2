@@ -29,6 +29,7 @@
 		managerNode: explicitManagerNode = null,
 		addTargetNode: explicitAddTargetNode = null,
 		addItems = undefined,
+		createDisabled = false,
 		searchPlaceholder = 'Search...',
 		missingMessage = 'Manager not found in the current graph.',
 		emptyMessage = 'No items available.',
@@ -52,6 +53,7 @@
 		managerNode?: UiNodeDto | null;
 		addTargetNode?: UiNodeDto | null;
 		addItems?: readonly UiCreatableUserItem[] | undefined;
+		createDisabled?: boolean;
 		searchPlaceholder?: string;
 		missingMessage?: string;
 		emptyMessage?: string;
@@ -412,6 +414,7 @@
 				<NodeAddButton
 					node={addTargetNode}
 					items={addItems}
+					disabled={createDisabled}
 					onCreateItem={onCreateItem ? createItem : undefined} />
 			</div>
 		{/if}

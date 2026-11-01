@@ -170,6 +170,22 @@ pub enum MediaEdit {
         media_kind: MediaKind,
         label: Option<String>,
     },
+    RenameFolder {
+        #[ts(type = "string")]
+        folder: NodeUuid,
+        label: String,
+    },
+    RemoveFolder {
+        #[ts(type = "string")]
+        folder: NodeUuid,
+    },
+    /// Move a folder or media entry. The backend validates containment and cycles.
+    MoveEntry {
+        #[ts(type = "string")]
+        entry: NodeUuid,
+        #[ts(type = "string | null")]
+        parent: Option<NodeUuid>,
+    },
     AddChannel {
         media: MediaId,
         label: Option<String>,

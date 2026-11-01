@@ -49,6 +49,9 @@
 		emptyMessage="No applications"
 		addButtonTitle="Create application"
 		addItems={items}
+		createDisabled={appState.session?.status !== 'connected' ||
+			appState.session.loading.visible ||
+			appState.session.hasActiveEditSession}
 		onCreateItem={create}
 		{isTreeNode}
 		allowDragDrop={false} />

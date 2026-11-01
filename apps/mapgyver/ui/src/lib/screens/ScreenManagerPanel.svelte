@@ -37,6 +37,7 @@
 		emptyMessage="No screens"
 		addButtonTitle="Create Screen"
 		addItems={items}
+		createDisabled={owner.controller.busy || owner.session?.hasActiveEditSession === true}
 		onCreateItem={async () => {
 			const result = await owner.controller.edit({ kind: 'CreateScreen', label: null });
 			if (result?.kind === 'ScreenCreated') selection.select(result.screen);

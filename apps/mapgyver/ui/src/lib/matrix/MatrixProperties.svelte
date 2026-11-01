@@ -1,4 +1,11 @@
 <script lang="ts">
+	import { IconButton } from 'golden_ui';
+	import deleteIcon from 'golden_ui/style/icons/delete.svg';
+	import duplicateIcon from 'golden_ui/style/icons/duplicate.svg';
+	import playIcon from 'golden_ui/style/icons/play.svg';
+	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
+	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
+	import searchIcon from 'golden_ui/style/icons/watch.svg';
 	import { useMatrixAuthoring } from './context.svelte';
 	import { channelKey, channelReferenceFromKey } from '../media/identity';
 	import RowForm from './RowForm.svelte';
@@ -40,7 +47,11 @@
 						type="search"
 						aria-label="Find Matrix source"
 						bind:value={sources.search}
-						placeholder="Find a source…" /><button disabled={busy}>Search sources</button>
+						placeholder="Find a source…" /><IconButton
+						icon={searchIcon}
+						label="Search sources"
+						type="submit"
+						disabled={busy} />
 				</form>
 				{#if sources.error}<p role="alert">{sources.error}</p>{/if}
 				<label
@@ -54,20 +65,26 @@
 							>{/each}
 					</select></label>
 				<div class="actions">
-					<button
+					<IconButton
+						icon={arrowIcon}
+						label="Previous sources"
+						class="previous"
 						disabled={sources.start === 0 || sources.loading}
 						onclick={() => {
 							sources.start = Math.max(0, sources.start - 64);
 							controller.sources.refresh();
-						}}>Previous sources</button
-					><button
+						}} /><IconButton
+						icon={arrowIcon}
+						label="Next sources"
 						disabled={!sources.page || sources.start + 64 >= sources.page.total || sources.loading}
 						onclick={() => {
 							sources.start += 64;
 							controller.sources.refresh();
-						}}>Next sources</button>
+						}} />
 				</div>
-				<button
+				<IconButton
+					icon={referenceIcon}
+					label="Assign source"
 					disabled={busy}
 					onclick={() => {
 						if (selectedRow?.item.id.kind === 'Layer' && selectedColumn)
@@ -81,10 +98,12 @@
 									}
 								]
 							});
-					}}>Assign source</button>
+					}} />
 			{/if}
 			<div class="actions">
-				<button
+				<IconButton
+					icon={playIcon}
+					label="Launch column"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
@@ -93,8 +112,9 @@
 								column: selectedColumn.id,
 								mode: 'Configured'
 							});
-					}}>Launch column</button
-				><button
+					}} /><IconButton
+					icon={playIcon}
+					label="Cut"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
@@ -103,35 +123,41 @@
 								column: selectedColumn.id,
 								mode: 'Cut'
 							});
-					}}>Cut</button>
+					}} />
 			</div>
 			<div class="actions">
-				<button
+				<IconButton
+					icon={duplicateIcon}
+					label="Copy row"
 					disabled={busy || !selectedRow}
 					onclick={() => {
 						if (selectedRow)
 							void controller.edit({ kind: 'DuplicateItem', item: selectedRow.item.id });
-					}}>Copy row</button
-				><button
+					}} /><IconButton
+					icon={duplicateIcon}
+					label="Copy column"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
 							void controller.edit({ kind: 'DuplicateColumn', column: selectedColumn.id });
-					}}>Copy column</button>
+					}} />
 			</div>
 			<div class="actions">
-				<button
+				<IconButton
+					icon={deleteIcon}
+					label="Remove row"
 					disabled={busy || !selectedRow}
 					onclick={() => {
 						if (selectedRow)
 							void controller.edit({ kind: 'RemoveItem', item: selectedRow.item.id });
-					}}>Remove row</button
-				><button
+					}} /><IconButton
+					icon={deleteIcon}
+					label="Remove column"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
 							void controller.edit({ kind: 'RemoveColumn', column: selectedColumn.id });
-					}}>Remove column</button>
+					}} />
 			</div>
 		{:else}<p>
 				Select a row, column or cell. Selection and source assignment do not launch it.
@@ -169,6 +195,9 @@
 </div>
 
 <style>
+	:global(.previous img) {
+		transform: rotate(180deg);
+	}
 	.properties {
 		display: grid;
 		gap: 0.5rem;

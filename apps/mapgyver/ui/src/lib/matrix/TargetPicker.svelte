@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { IconButton } from 'golden_ui';
+	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
+	import searchIcon from 'golden_ui/style/icons/watch.svg';
 	import { onDestroy, untrack } from 'svelte';
 	import type { WorkbenchSession } from 'golden_ui';
 	import type { MatrixTargetId } from '../media/generated/MatrixTargetId';
@@ -89,27 +92,37 @@
 				}
 			}}
 			{disabled} />
-		<button
-			type="button"
+		<IconButton
+			icon={searchIcon}
+			label="Search"
 			disabled={disabled || state.loading}
 			onclick={() => {
 				state.start = 0;
 				reader.refresh();
-			}}>Search</button>
-		<button
-			type="button"
+			}} />
+		<IconButton
+			icon={arrowIcon}
+			label="Previous"
+			class="previous"
 			disabled={disabled || state.loading || state.start === 0}
 			onclick={() => {
 				state.start = Math.max(0, state.start - 64);
 				reader.refresh();
-			}}>Previous</button>
-		<button
-			type="button"
+			}} />
+		<IconButton
+			icon={arrowIcon}
+			label="Next"
 			disabled={disabled || state.loading || !state.page || state.start + 64 >= state.page.total}
 			onclick={() => {
 				state.start += 64;
 				reader.refresh();
-			}}>Next</button>
+			}} />
 	</div>
 	{#if state.error}<p role="alert">{state.error}</p>{/if}
 </div>
+
+<style>
+	:global(.previous img) {
+		transform: rotate(180deg);
+	}
+</style>
