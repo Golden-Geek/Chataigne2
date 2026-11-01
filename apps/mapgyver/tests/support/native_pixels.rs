@@ -1,5 +1,6 @@
-use super::*;
+use super::raster as oracle;
 use golden_io::PayloadPool;
+use golden_video::Extent2D;
 use golden_video::native::{AdapterId, D3d11Config, InputLimits, OutputBinding, SpoutProbe};
 use golden_video::plan::PlanLimits;
 use golden_video::preview::protocol::*;
@@ -7,16 +8,18 @@ use golden_video::preview::{HostViewport, PreviewController, PreviewLimits, Prev
 use golden_video::runtime::{OutcomeKind, ResourceLimits, RuntimeConfig, VideoRuntime};
 use golden_video::{AlphaMode, ColorEncoding, OutputId, PixelFormat, TextureDescriptor};
 use mapgyver::media::{
-    capture_channels,
+    capture_channels_at,
     rendering::{ChannelRenderer, ChannelRoute, PreviewLayout},
 };
+use mapgyver::{app::AppEngine, media::protocol::ChannelReference};
 use std::num::NonZeroUsize;
+use std::time::{Duration, Instant};
 
 const WAIT: Duration = Duration::from_secs(8);
 
 pub struct Fixture {
     renderer: Option<ChannelRenderer>,
-    names: [String; 3],
+    names: Vec<String>,
     preview: PreviewController,
     receiver: PreviewReceiver,
     session: uuid::Uuid,
@@ -26,12 +29,17 @@ pub struct Fixture {
 
 impl Fixture {
     pub fn new(adapter: AdapterId) -> Self {
+        Self::with_outputs(adapter, 2)
+    }
+    pub fn with_outputs(adapter: AdapterId, routes: usize) -> Self {
         let extent = Extent2D::new(32, 24).unwrap();
-        let names = std::array::from_fn(|i| format!("MapGyverComposition-{}-{i}", uuid::Uuid::new_v4()));
+        let names = (0..=routes)
+            .map(|i| format!("MapGyverRaster-{}-{i}", uuid::Uuid::new_v4()))
+            .collect::<Vec<_>>();
         let limits = PlanLimits {
             max_passes: 16,
             max_external_textures: 0,
-            max_outputs: 3,
+            max_outputs: routes + 1,
             max_dependencies: 128,
             max_texture_dimension: 4096,
             max_texture_bytes: 64 * 1024 * 1024,
@@ -77,6 +85,9 @@ impl Fixture {
             assert!(Instant::now() < deadline, "Composition renderer startup timeout");
             std::thread::sleep(Duration::from_millis(5));
         }
+        let actual = renderer.native_control().unwrap().snapshot();
+        assert_eq!(actual.adapter, Some(adapter));
+        eprintln!("Raster native adapter={:?} device={:?}", actual.adapter, actual.device);
         let (preview, receiver) = PreviewController::new(
             PreviewLimits {
                 lease: Duration::from_secs(60),
@@ -125,6 +136,22 @@ impl Fixture {
         }
     }
     pub fn publish(&mut self, engine: &AppEngine, root: ChannelReference) {
+        self.publish_channels(engine, &[root, root], root, Some(5));
+    }
+    pub fn renderer(&mut self) -> &mut ChannelRenderer {
+        self.renderer.as_mut().unwrap()
+    }
+    pub fn sender(&self, index: usize) -> &str {
+        &self.names[index]
+    }
+    pub fn publish_channels(
+        &mut self,
+        engine: &AppEngine,
+        routes: &[ChannelReference],
+        root: ChannelReference,
+        expected_channels: Option<usize>,
+    ) {
+        assert_eq!(routes.len() + 1, self.names.len());
         self.revision += 1;
         let rect = CssRect {
             x: 0.0,
@@ -153,7 +180,7 @@ impl Fixture {
             PreviewResponse::Applied { visible_views: 1, .. }
         ));
         let preview = PreviewLayout {
-            output: OutputId::new(3).unwrap(),
+            output: OutputId::new(self.names.len() as u64).unwrap(),
             descriptor: TextureDescriptor {
                 format: PixelFormat::Rgba8Unorm,
                 color_encoding: ColorEncoding::Linear,
@@ -163,15 +190,20 @@ impl Fixture {
             layout: self.receiver.snapshot(),
         };
         let live = self.renderer.as_mut().unwrap();
-        let request = live
+        let mut roots = routes.to_vec();
+        roots.push(root);
+        let capture = capture_channels_at(engine, &roots, 64, live.read_time().unwrap()).unwrap();
+        let mut request = live
             .publish_targets(
-                capture_channels(engine, &[root], 16).unwrap(),
-                [1, 2]
-                    .map(|id| ChannelRoute {
-                        output: OutputId::new(id).unwrap(),
-                        channel: root,
+                capture,
+                routes
+                    .iter()
+                    .enumerate()
+                    .map(|(i, channel)| ChannelRoute {
+                        output: OutputId::new(i as u64 + 1).unwrap(),
+                        channel: *channel,
                     })
-                    .to_vec(),
+                    .collect(),
                 Some(preview),
             )
             .unwrap();
@@ -180,13 +212,26 @@ impl Fixture {
         let mut first_frame = None;
         loop {
             live.refresh().unwrap();
+            let latest = live.latest_request().unwrap();
+            if request != latest {
+                request = latest;
+                installed = None;
+                first_frame = None;
+            }
             let mut outcomes = Vec::new();
             live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
             for outcome in outcomes {
                 if outcome.request == request {
                     match outcome.result {
-                        OutcomeKind::Installed { generation, .. } => installed = Some(generation.identity),
-                        OutcomeKind::Rejected(error) => panic!("Composition rejected: {error:?}"),
+                        OutcomeKind::Installed { generation, .. } => {
+                            installed = Some(generation.identity);
+                            first_frame = None;
+                        }
+                        OutcomeKind::Rejected(error) => assert_eq!(
+                            error.code(),
+                            golden_video::runtime::FailureCode::StaleSource,
+                            "native raster rejected: {error:?}"
+                        ),
                         _ => {}
                     }
                 }
@@ -196,7 +241,7 @@ impl Fixture {
             {
                 let token = *first_frame.get_or_insert(frame.completion);
                 let outputs = live.native_control().unwrap().output_snapshots();
-                if outputs.len() == 3
+                if outputs.len() == self.names.len()
                     && outputs.iter().all(|output| {
                         output
                             .last_accepted
@@ -213,25 +258,48 @@ impl Fixture {
             );
             std::thread::sleep(Duration::from_millis(5));
         }
-        assert_eq!(
-            live.channels().len(),
-            5,
-            "shared inputs and three consumers retain five channel productions"
-        );
+        if let Some(expected) = expected_channels {
+            assert_eq!(live.channels().len(), expected, "shared channel production count");
+        }
         let targets = live
             .channels()
             .iter()
             .map(|channel| channel.target)
             .collect::<std::collections::HashSet<_>>();
-        assert_eq!(targets.len(), 5);
+        assert_eq!(targets.len(), live.channels().len());
     }
 
     pub fn pixels(&self, adapter: AdapterId, expected: &oracle::Image, label: &str) {
+        self.pixels_channels(adapter, &[expected, expected], expected, label);
+    }
+    pub fn pixels_channels(
+        &self,
+        adapter: AdapterId,
+        channels: &[&oracle::Image],
+        expected: &oracle::Image,
+        label: &str,
+    ) {
+        assert_eq!(channels.len() + 1, self.names.len());
         let expected = expected.resized(self.extent.width() as usize, self.extent.height() as usize);
-        let output = expected.output();
+        let outputs = channels
+            .iter()
+            .map(|image| {
+                image
+                    .resized(self.extent.width() as usize, self.extent.height() as usize)
+                    .output()
+            })
+            .collect::<Vec<_>>();
         let preview = expected.preview();
         let preview_bounds = expected.preview_bounds();
-        let budget = PayloadPool::new("composition-finite-readback", 3, 1024 * 1024).unwrap();
+        let output_bounds = channels
+            .iter()
+            .map(|image| {
+                image
+                    .resized(self.extent.width() as usize, self.extent.height() as usize)
+                    .output_bounds()
+            })
+            .collect::<Vec<_>>();
+        let budget = PayloadPool::new("raster-finite-readback", self.names.len(), 1024 * 1024).unwrap();
         for (i, name) in self.names.iter().enumerate() {
             let mut probe = SpoutProbe::new(name, adapter, budget.clone()).unwrap();
             let deadline = Instant::now() + WAIT;
@@ -243,17 +311,18 @@ impl Fixture {
                 std::thread::sleep(Duration::from_millis(5));
             };
             assert_eq!(image.extent(), self.extent);
-            let wanted = if i == 2 { &preview } else { &output };
+            let is_preview = i == channels.len();
+            let wanted = if is_preview { &preview } else { &outputs[i] };
             assert_eq!(image.pixels().len(), wanted.len());
             let mut maximum = 0;
             let mut maximum_nominal = 0;
             for (offset, (actual, expected)) in image.pixels().iter().zip(wanted).enumerate() {
                 let nominal = actual.iter().zip(expected).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
                 maximum_nominal = maximum_nominal.max(nominal);
-                let (low, high) = if i == 2 {
+                let (low, high) = if is_preview {
                     preview_bounds[offset]
                 } else {
-                    (*expected, *expected)
+                    output_bounds[i][offset]
                 };
                 let error = actual
                     .iter()
@@ -264,11 +333,11 @@ impl Fixture {
                 maximum = maximum.max(error);
                 assert!(
                     error <= 2,
-                    "Composition {label}/{i} texel {offset}: {actual:?}, nominal {expected:?}, legal [{low:?},{high:?}], outside error {error}>2/255"
+                    "Raster {label}/{i} texel {offset}: {actual:?}, nominal {expected:?}, legal [{low:?},{high:?}], outside error {error}>2/255"
                 );
             }
             eprintln!(
-                "Composition {label} output={i} extent={:?} texels={} max_error={maximum}/255 nominal_error={maximum_nominal}/255",
+                "Raster {label} output={i} extent={:?} texels={} max_error={maximum}/255 nominal_error={maximum_nominal}/255",
                 self.extent,
                 wanted.len()
             );

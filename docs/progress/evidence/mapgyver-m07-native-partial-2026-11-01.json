@@ -1,0 +1,377 @@
+{
+  "schema": 1,
+  "batch": 76,
+  "date": "2026-11-01",
+  "gate": "M07/4",
+  "status": "OPEN_CORRECTED_TRANSITION_FIXTURE_NEEDS_NATIVE_VERIFICATION",
+  "base_revision": "4f0ffb811a85f377388276e73d96c99781547995",
+  "native_attempts": 2,
+  "remaining_native_invocations_in_batch": 0,
+  "first_attempt": {
+    "exit_code": 101,
+    "cause": "oracle assumed unique intermediate UNORM rounding",
+    "location": "normal Group output1 texel0",
+    "actual": [
+      151,
+      215,
+      0,
+      84
+    ],
+    "nominal": [
+      154,
+      217,
+      0,
+      84
+    ]
+  },
+  "second_attempt": {
+    "exit_code": 101,
+    "seconds": 18.09,
+    "cause": "persistent probes exhausted shared receiving/staging/CPU credits before fade sampling",
+    "error": "Spout readiness endpoint, format or bounded image capacity is unavailable",
+    "fade_observations_completed": 0,
+    "adapter_id_logged_at_run": null,
+    "adapter_note": "First enumerated hardware adapter; prior inventory suggests Intel, but per-run LUID was not printed before failure.",
+    "all_hardware_completed": false,
+    "successful_captures": 52,
+    "rgba_texels": 39936,
+    "max_residual_outside_spec_interval": 0,
+    "max_nominal_error": 3,
+    "phases": {
+      "normal": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 3
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 3
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 2
+        }
+      ],
+      "add": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 1
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "multiply": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 3
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 3
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 2
+        }
+      ],
+      "screen": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "reordered": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 1
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 1
+        }
+      ],
+      "undo-order": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "missing-source": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 1
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "undo-source": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "empty-column": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "large-sparse-grid": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "burst-recovered": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "reload-recreate": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 2
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ],
+      "transition-initial-cut": [
+        {
+          "output": 0,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 1,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 2,
+          "residual_error": 0,
+          "nominal_error": 0
+        },
+        {
+          "output": 3,
+          "residual_error": 0,
+          "nominal_error": 0
+        }
+      ]
+    },
+    "sparse_grid": {
+      "layers": 1000,
+      "columns": 1000,
+      "populated_cells": 6,
+      "configured_launches": 1000,
+      "scheduled_period_ms": 10,
+      "admitted_publications": 8,
+      "span_including_drain_and_recovery_ms": 10559,
+      "actual_launch_span_separately_recorded": false,
+      "bytes_and_generation_limits_checked": true
+    },
+    "renderers_retired_with_empty_owner_inventory": 3
+  },
+  "correction": {
+    "fresh_single_image_probe_per_observation": true,
+    "same_three_credit_pool_released_between_observations": true,
+    "fade_duration_ms": 6000,
+    "launch_span_separated_from_recovery": true,
+    "actual_adapter_snapshot_assertion_and_logging": true,
+    "native_verified": false,
+    "software_oracle_tests_per_executable": 4,
+    "both_executables_compile": true,
+    "strict_app_all_target_clippy": true
+  },
+  "native_execution_binary_sha256": null,
+  "candidate_binary_sha256": "8e0c78def0e5c8e43a7961b0c2dcfaa1fb097f4dc5e96a46b4a724d199a5fc82",
+  "candidate_sources_sha256": {
+    "apps/mapgyver/tests/composition_pixels/mod.rs": "d4983696297ee8e2f74317762ac33dab14f24b522cf2ea1ad29aab66095c2f31",
+    "apps/mapgyver/tests/composition_rendering.rs": "33dacd11a46744fa1fe12abb8cd4bf87063ad4fa9aea72d451bdb30c1a06ba62",
+    "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+    "apps/mapgyver/tests/matrix_pixels/transitions.rs": "23e5a1727e2cf3100000ed1917560902c9bb258011352f7cb9779d4f557523d0",
+    "apps/mapgyver/tests/matrix_rendering.rs": "65808c0634dd4d1c93c916b44251699367bfe576b2d9727040b6e435c2ad3621",
+    "apps/mapgyver/tests/support/mod.rs": "534e6b8fd217625507e092868a2324d46b9b7941e20c6afd2f9c0160aaa0056b",
+    "apps/mapgyver/tests/support/native_pixels.rs": "7bde13a2297212f24aa57141b8719bdaa181e7703ee7c4a88b1e5022c0098ee6",
+    "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca"
+  },
+  "raw_sha256": {
+    "target/m07-native-b76.log": "0a5f6d87dbad4d26359f68667345764816526518ac939a08b1b4fcb6690f1e85",
+    "target/m07-native-b76-retry.log": "a23a8ec61e3e5c4ea17fd38a1169caad92800c07f762a6086098dcf34ed7396c"
+  },
+  "unverified": [
+    "corrected complete native test",
+    "native changing fade/interruption pixels and outgoing demand retirement",
+    "second hardware adapter in this fixture",
+    "complete M07 gate4",
+    "M06 shared-fixture native regression after extraction",
+    "all original global GPU/CPU/cadence/resource budgets"
+  ],
+  "next_action": "One bounded corrected native-completion batch; current batch performs no third native invocation."
+}

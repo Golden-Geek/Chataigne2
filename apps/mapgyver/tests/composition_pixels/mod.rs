@@ -4,10 +4,9 @@ use mapgyver::{
     app::{AppEngine, AppNode},
     media::{channel, composition::protocol::*, protocol::*},
 };
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-mod fixture;
-mod oracle;
+use crate::support::{native_pixels as fixture, raster as oracle};
 
 fn edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
     let ack = apply_project_intent(

@@ -22,9 +22,10 @@ readbacks per state: two outputs share the same root, and the third receives the
 preview compositor. The preview pass uses the ordinary host's linear premultiplied RGBA8 format.
 The CPU oracle independently inverse-maps the authored transforms and evaluates coverage/blends.
 
-The final preview UNORM conversion uses the legal integer range from
+The shared oracle and owned native fixture live in `../support`. Each intermediate UNORM pass
+propagates the legal integer range from
 [D3D11 §3.2.3.6](https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.3.6%20FLOAT%20-%3E%20UNORM)
-before sRGB encoding. Report both nominal error and residual error outside that range; the latter
+through compositing, opacity and resampling before sRGB encoding. Report both nominal error and residual error outside that range; the latter
 must stay within two output bytes. Near-black nominal differences can exceed that residual bound.
 The focused oracle test preserves the discovered NVIDIA example and the exact allowed interval.
 

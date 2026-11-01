@@ -129,6 +129,13 @@ batch is **M06 gate 2**: all-media dependency correctness, atomic Composition/Ma
 source deletion/Undo and large/deep graphs. This selects one backend gate without expanding scope
 or waiving M03/M05 acceptance; subsequent UI/native gates still require their missing observations.
 
+Batch 75 verifies M06 caller/headless parity and prepares its ordinary-app review project. Its
+last gate now awaits requested real editor observations; no response is inferred. Keep that exact
+return trigger and leave desktop activation parked. Select one dependency-ready **M07 gate 4**
+native Matrix raster/runtime acceptance batch while those observations are pending. Preserve the
+complete layer/group/final, transition, recovery and large-grid scope; a partial pixel fixture is
+not full gate acceptance. Do not reopen helper or M03 investigations to fill the waiting interval.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

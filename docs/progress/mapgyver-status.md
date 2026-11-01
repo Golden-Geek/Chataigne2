@@ -4,15 +4,15 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected gate:** **M06 gate 4, actual Composition editor observations**. Batch 75 completes caller
-parity and a validated review scene; real input observations are requested and pending. M06 remains
-**3/4 (75%)**. No simultaneous gate work. Unsupported desktop activation stays parked; do not repeat
-helper retries, parity fixtures or review preparation without a specific new failure.
+**Selected gate:** **M07 gate 4, native Matrix rasters/runtime acceptance**. M06's requested real
+editor observations remain pending in the return queue; its parity/review preparation is complete.
+Only this Matrix gate is active. Unsupported desktop activation stays parked; do not repeat helper
+retries, parity fixtures or review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** collect the six real editor checklist observations using
-`target/m06-editor-review/CompositionReview.mapgyver` and the
-[review steps](../../apps/mapgyver/tests/headless/COMPOSITION_REVIEW.md). Software parity is verified;
-actual input evidence is required. The pending request is not a failed test or an acceptance waiver.
+**Next action:** after publishing batch 76, verify the corrected fresh single-image transition
+sampler in one bounded native-completion batch. Preserve all layer/group/final, fade/interruption,
+recovery, identity and scale requirements. Current batch's two native invocations are spent;
+no third run or new measurement mechanism belongs to this checkpoint.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -27,7 +27,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Partial native raster/scale evidence; corrected transition fixture needs native verification | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
@@ -72,19 +72,25 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
+- **M07 gate 4:** selected. Batch 76's two native attempts stop with partial static/scale evidence;
+  the corrected fresh-probe transition fixture compiles but remains native unverified. Return on
+  that exact correction's bounded verification, not a new probe/clock/framework. Original scope
+  and global M03/M09 requirements remain required; native failure is not acceptance.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 75:** all four caller paths match committed Composition state/history
-across **60** cases. The ordinary headless host verifies **30** geometry samples as three grouped
-Undo/Redo gestures, source assignment/order/copy/removal/rejection and Save/New/Load, then exits
-normally. A normal **320×240** review project is ready; real editor observations are pending.
-**198 app tests /one existing hardware ignore**, **10 frontend tests**, strict app all-target
-Clippy, JS syntax/formatting and both workspace formatters pass. **No gate closes:** M06 **3/4 =75%**,
-overall **4/10 =40%**, denominators unchanged.
-[Parity/review evidence](evidence/mapgyver-m06-editor-parity-2026-11-01.json),
-[accepted native rasters](evidence/mapgyver-m06-composition-pixels-2026-11-01.json).
+**Latest checkpoint, batch 76:** **52 Matrix raster captures /39,936 texels** pass on the first
+enumerated hardware adapter; its per-run LUID was not logged, so this is not a certified named-
+adapter result. A **1,000×1,000** sparse grid retains six cells; **1,000** configured launches on a
+10 ms schedule admit **eight** publications and recover, with original logical limits checked.
+The test then fails its transition readback setup before fade samples. Two native invocations
+are spent. Fresh-probe sampling, correct three-credit ownership and adapter logging compile;
+four shared-oracle tests per executable, strict Clippy and both formatters pass. **No gate closes:**
+M07 **2/4 =50%**, overall **4/10 =40%**. [Partial native evidence](evidence/mapgyver-m07-native-partial-2026-11-01.json).
+M06's [real editor observations](evidence/mapgyver-m06-editor-parity-2026-11-01.json) remain pending;
+its [accepted raster evidence](evidence/mapgyver-m06-composition-pixels-2026-11-01.json) is historical,
+not a new hardware verification of the extracted shared test fixture.
 M05's [supported activation failure](evidence/mapgyver-m05-activation-2026-11-01.json) remains open.
 The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-2026-11-01.json)
 and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
@@ -968,6 +974,72 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Native Matrix acceptance batch 76:** started 2026-11-01 **03:09 UTC**, stop **03:54 UTC**.
+Only M07 gate 4 is active. MapGyver owns Matrix document/playback/production; Golden owns GPU
+execution and native consumer/readback lifetimes. Reuse the finite raster oracle/owned renderer
+fixture for independent Layer/Group/Final and production-preview images. Cover ordering, group
+opacity, all blends, source deletion/Undo/reload, transition interruption and bounded large-grid
+runtime/lifetime behavior. Compile/software tests and strict Clippy precede at most two native
+invocations/20 minutes. Do not invent another clock/telemetry framework for transitions: if exact
+evidence cannot be obtained through existing public contracts, preserve that missing scope and
+stop the investigation. No desktop activation retry, driver setting change or M03 qualification.
+
+Software prerequisites pass: both native fixtures compile, all three shared-oracle tests pass in
+each integration executable, and strict app all-target/native-qualification Clippy passes.
+First native invocation starts **03:21 UTC**, investigation cutoff **03:41 UTC**, at most two
+invocations within the original batch stop. Reuse the verified test executable; retain its live
+process handle and exact terminal result. No native clock/telemetry extension.
+
+First invocation fails the Intel Group reference after its Layer pixels pass: actual
+`[151,215,0,84]`, nominal `[154,217,0,84]`. The reference assumed unique rounding at repeated
+half-step UNORM group-opacity conversions. The corrected shared oracle propagates the documented
+0.6-ULP integer bounds through every pass, blend, resample and straight-alpha encoding. Its focused
+regression includes this value and still rejects a lost contributor; no renderer/budget change.
+Four oracle tests in each fixture and strict all-target Clippy pass. The launch stress now uses
+**1,000 configured launches on a 10 ms schedule**, including interruptions, matching the Q05 burst
+shape. Second/final native invocation starts **03:28 UTC**, still before the original **03:41**
+investigation cutoff. No third native invocation or new measurement mechanism is scheduled.
+
+**Batch 76 result — partial, native stops at two invocations:** the second attempt passes **13**
+static states across Layer/Group/Final/production preview, **52 ×768 =39,936 texels**, including
+four blends, group opacity, reorder/Undo, missing-source/Undo, empty columns, large sparse grid,
+burst recovery, reload/device recreation and the initial opaque cut. All residual comparisons
+are **0/255** outside the documented per-pass conversion intervals; maximum nominal difference
+is **3/255**, retained separately. This run reaches only the first enumerated hardware adapter;
+the prior inventory suggests Intel but no per-run LUID was printed, so that identity is unqualified.
+The current candidate asserts/logs the actual D3d11Control adapter before capture. The raw execution
+binary was not hashed before recompilation; the packet clearly distinguishes its unknown hash
+from the current software-checked candidate's hash. No named full hardware qualification is claimed.
+
+The authored grid has **1,000 layers ×1,000 columns /six populated cells**. **1,000 configured
+launches** target a 10 ms schedule, including interruptions; **eight** publications consume the
+fixed outcome credits, drain, then recover through a Cut and verified pixels. Logical byte,
+in-flight/retiring/prepared and outstanding limits remain enforced. The recorded **10,559 ms** span
+includes outcome draining/recovery; it is not an exact measured launch cadence. The candidate now
+records launch span separately. Three renderer lifetimes retire with empty actual plan/source/
+output owner inventories; the failed test exits normally with code **101**, without watchdog/kill.
+
+The transition setup fails with `Spout readiness endpoint, format or bounded image capacity is
+unavailable`. Source inspection establishes two fixture errors: the three persistent probes retain
+receiving/staging credits, and `SpoutProbe::capture_pixels` explicitly returns a single observed
+image. Fresh observations require fresh probes. The correction creates one fresh probe per read,
+releasing receiving/staging/CPU credits before the next read; it preserves the **three-credit** cap.
+A six-second fade permits finite fresh observations, and final-demand observation has a bounded
+deadline. This is not a native-verified correction or a renderer fix. No fade/interruption samples
+or second-adapter completion are accepted, and no third native run occurs in batch 76.
+
+The CPU raster oracle and owned GPU fixture are shared under `tests/support`; no duplicated
+production renderer or private package imports. Existing M06 hardware evidence is unchanged;
+its extracted fixture has software checks but no fresh hardware regression in this batch.
+Four oracle tests pass in each integration executable, including the discovered group-opacity
+conversion and rejection of a missing contributor. Both final executables compile, strict app
+all-target/native-qualification Clippy and both workspace formatters/whitespace checks pass.
+[Exact partial/candidate evidence](evidence/mapgyver-m07-native-partial-2026-11-01.json),
+[scope and reproduction](../../apps/mapgyver/tests/matrix_pixels/README.md).
+**M07 gate 4 stays open: 2/4 (50%); overall 4/10 (40%)**. Publish this bounded checkpoint, then
+verify only the concrete fresh-probe correction in a named native-completion batch. Preserve the
+full gate, both failed invocations and every M03/M05/M06/M08/M09 return trigger.
+
 **Qualification batch 29 (first diagnostic-only allocation):** started 2026-10-31 **06:31 UTC**;
 interaction stop **06:51 UTC**, absolute handoff **07:16 UTC**. Exercise the delivered Matrix UI and
 existing module/script/headless authoring boundary: selection versus launch, assignment, settings,
@@ -1325,7 +1397,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
 | 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — grid/settings/reorder/renderer feedback software-verified in batches 26–28; batch 29 displays the panel but higher-integrity target/no changed click leaves real interaction/parity acceptance open |
-| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open |
+| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open — batch 76 records static/scale partial evidence; corrected fresh-probe fade sampling and complete native verification remain |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
 Deliver Matrix media and the document/module foundation under `apps/mapgyver/src/matrix`: sparse
@@ -4636,13 +4708,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete; M06 gates 1–3 are accepted. Batch 75 completes caller/headless parity and saves the
-normal review scene at `target/m06-editor-review/CompositionReview.mapgyver`. The six actual-editor
-checklist groups have been requested. Collect the observations and repair any reported concrete
-failure before accepting **M06 gate 4**. Do not repeat parity/review preparation, infer input from
-raster/software tests or treat a pending response as pass/fail/unavailable. Supported activation
-failed in batch 72; it returns only on a changed prerequisite, as does M05 gate 4. No helper retry
-chain, alternate automation framework or renderer timing/resource experiment.
+M04 is complete; M06 gates 1–3 are accepted. M06's six real-editor observation groups remain
+requested/pending against `target/m06-editor-review/CompositionReview.mapgyver`; do not repeat
+that completed preparation or infer input from software. M05/M06 activation returns only on a
+changed prerequisite or real observations. After publishing batch 76, keep **M07 gate 4** as the
+single selected gate and verify the concrete fresh single-image probe correction. Four oracle
+tests per executable, candidate compilation and strict Clippy pass; the two native failures and
+missing transition/second-adapter scope remain. Freeze and hash the corrected candidate before
+its bounded completion run. No helper retry chain, new clock/telemetry framework or M03 experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,
