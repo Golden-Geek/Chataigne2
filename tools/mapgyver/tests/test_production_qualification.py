@@ -231,6 +231,25 @@ class ProductionQualificationTests(unittest.TestCase):
         write_rows(self.directory/'renderer.jsonl', self.renderer)
         self.assertIsNone(self.analyze()['criteria']['plan_age_and_published_queue']['observed_within_target'])
 
+    def test_full_gpu_path_upper_bound_remains_subject_to_prescribed_duration(self):
+        cpu = {}
+        for row in self.renderer:
+            for kind in ('FrameCpu', 'SourceCpu'):
+                if kind in row.get('event', {}):
+                    value = row['event'][kind]
+                    cpu[json.dumps(value['token'], sort_keys=True)] = value
+        for row in self.renderer:
+            gpu = row.get('event', {}).get('Gpu')
+            if gpu:
+                wall = cpu[json.dumps(gpu['token'], sort_keys=True)]['wall']
+                gpu.update(submitted_qpc=wall['begin'], completed_qpc=wall['end'] + 30)
+        write_rows(self.directory/'renderer.jsonl', self.renderer)
+        result = self.analyze()
+        self.assertTrue(result['gpu_path']['coverage_complete'])
+        self.assertIs(result['criteria']['gpu_critical_path']['observed_within_target'], True)
+        self.assertEqual(result['criteria']['gpu_critical_path']['status'], 'UNAVAILABLE')
+        self.assertFalse(result['prescribed_sample'])
+
     def test_complete_short_capture_stays_diagnostic_and_contexts_never_become_critical_path(self):
         result = self.analyze()
         self.assertFalse(result["prescribed_sample"])

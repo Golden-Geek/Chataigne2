@@ -82,6 +82,11 @@ silently omitted from a claimed creation timing.
   and Spout shared-image identities; stale versions must coalesce. Report exact occupancy as
   unknown when it is not measured. PresentMon pending events or GPU completion alone are not
   publication-capacity evidence; this does not replace GPU critical-path/time measurements.
+- A complete machine-QPC enclosure from both exact retained app source-worker submissions
+  through source/renderer query collection can prove a GPU-path upper bound without comparing
+  independent GPU clock origins. Include endpoint quantization and every frame/dependency.
+  A loose upper bound remains inconclusive; correlated context-span sums do not replace the
+  original critical-path requirement. Any narrower GPU-work acceptance needs user approval.
 - Record logical texture allocation bytes plus DXGI current usage/budget, process private bytes,
   working set and handle counts after warmup, at peaks and after retirement. Include SDK/driver
   allocations where observable; unknown counters remain unknown. Do not equate shared GPU

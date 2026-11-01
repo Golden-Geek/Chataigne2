@@ -139,6 +139,8 @@ fn gpu_validity_and_offline_rows_preserve_missing_disjoint_and_exact_context_ide
         begin: None,
         end: None,
         frequency: None,
+        submitted_qpc: None,
+        completed_qpc: None,
         renderer_inputs_end: None,
         renderer_render_end: None,
     });

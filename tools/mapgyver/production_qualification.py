@@ -29,6 +29,7 @@ COHORT = runpy.run_path(str(Path(__file__).with_name("production_cohort.py")))
 PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.py")))
 DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
 GPU_STAGES = runpy.run_path(str(Path(__file__).with_name("production_gpu_stages.py")))
+GPU_PATH = runpy.run_path(str(Path(__file__).with_name("production_gpu_path.py")))
 OUTPUT_ORDER = runpy.run_path(str(Path(__file__).with_name("production_output_order.py")))
 OUTPUT_QUEUE = runpy.run_path(str(Path(__file__).with_name("production_output_queue.py")))
 ENVIRONMENT = runpy.run_path(str(Path(__file__).with_name("production_environment.py")))
@@ -473,6 +474,7 @@ def analyze_capture(directory, environment=None):
         deadline_verdict = None
     frame_rows, cpu = cpu_metrics(native["FrameCpu"], sample, frequency)
     output_queue = OUTPUT_QUEUE["analyze_output_queue"](frame_rows, native["Output"], healthy=healths[0]["complete"])
+    gpu_path = GPU_PATH["analyze_gpu_path"](frame_rows, native, frequency, distribution, healthy=healths[0]["complete"])
     preparation = PREPARATION["analyze_preparation"](native["Preparation"], native["FrameCpu"], frequency, distribution)
     plan_age = PLAN_AGE["analyze_plan_age"](native["Plan"], native["Preparation"], native["FrameCpu"],
                                           native["Output"], sample, frequency, distribution)
@@ -607,7 +609,8 @@ def analyze_capture(directory, environment=None):
             reason="one first completed independent capture per accepted Spout image; missing images cannot be omitted"),
         "source_publication_age": criterion(cohort["source_publication_age"]["coverage_complete"] if complete else None, eligible,
             scope="CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"),
-        "gpu_critical_path": criterion(None, eligible, reason=dependencies["reason"]),
+        "gpu_critical_path": criterion(gpu_path["observed_within_target"], eligible, scope=gpu_path["scope"],
+            reason="complete CPU enclosure can prove an upper bound; a loose bound remains unknown"),
         "logical_texture_charge": criterion(resources["logical_within_target"], eligible),
         "dxgi_admission": criterion(resources["admission_within_target"], eligible),
         "renderer_private_memory": criterion(resources["renderer_private_within_target"], eligible),
@@ -636,6 +639,7 @@ def analyze_capture(directory, environment=None):
     return {"directory": str(directory), "manifest": manifest, "prescribed_sample": eligible,
             "criteria": criteria, "cpu": cpu, "renderer_gpu": renderer_gpu, "other_contexts": local_contexts,
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
+            "gpu_path": gpu_path,
             "output_submission_order": OUTPUT_ORDER["analyze_output_order"](
                 frame_rows, native["Output"], healthy=healths[0]["complete"]),
             "output_publication_queue": output_queue,
@@ -704,6 +708,7 @@ def fingerprints(executable):
               Path(__file__).with_name("production_gpu_stages.py"),
               Path(__file__).with_name("production_output_order.py"),
               Path(__file__).with_name("production_output_queue.py"),
+              Path(__file__).with_name("production_gpu_path.py"),
               Path(__file__).with_name("production_environment.py"),
               Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",

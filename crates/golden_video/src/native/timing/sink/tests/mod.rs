@@ -15,6 +15,8 @@ fn row(serial: u64) -> DiagnosticEvent {
         begin: None,
         end: None,
         frequency: None,
+        submitted_qpc: None,
+        completed_qpc: None,
         renderer_inputs_end: None,
         renderer_render_end: None,
     })

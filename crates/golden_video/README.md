@@ -155,6 +155,19 @@ plan age naturally grows between edits and is not edit latency. Missing clocks/j
 unavailable. GPU queue and physical presentation age remain separate measurements. Artifact
 schema version is Rust-owned and generated with the fixture contracts as `capture-schema.json`.
 
+Each collected GPU query also retains machine-QPC bounds: immediately before submitting its
+first marker and after all nonblocking query reads succeed. Offline analysis joins the exact
+retained app source-worker batches to each renderer/output batch and encloses all three scopes
+from the earliest submission to latest collection, with one CPU-counter tick for quantization.
+This can prove the unchanged full-path GPU budget when the complete conservative upper bound
+fits; it never compares independent GPU timestamp origins. The enclosure includes queueing,
+CPU command-feed gaps, retained-frame age and collection delay. A bound above budget is
+inconclusive, not a GPU failure. Correlated context span sums remain descriptive and cannot
+replace that bound or a calibrated critical-path measurement. Missing collection or clocks
+stay unknown; diagnostic query failures do not change rendering, admission or retirement.
+Disabled diagnostics create no timing object and add no QPC calls. No additional GPU query,
+flush, native-resource open, wait or global clock/power-state change is introduced.
+
 Optional window diagnostics retain the actual endpoint incarnation and the three DXGI
 swapchain interface aliases with each Present API bracket. Aliases are captured during cold
 endpoint creation; disabled diagnostics perform no additional interface queries. These are

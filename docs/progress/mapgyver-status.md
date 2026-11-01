@@ -16,12 +16,16 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** complete the missing full GPU-path observation within M03 gate 9, using the existing
-dependency records and the owning source/renderer/output boundaries. Batch 69 delivers verified
-native publication-capacity metadata and its analyzer; one finite Q01 control covers every accepted
-publication with capacities **2/1/2 frames**. The prescribed Q01/Q02 series remains required after
-instrumentation stabilizes. Do not rerun it after each edit or substitute exact occupancy/GPU-time
-claims for the new conservative publication bounds. Batch 68's full lifecycle run still fails:
+**Next:** complete the missing allocation/ownership observation within M03 gate 9, preserving
+the failed memory-growth criterion. The bounded GPU timing investigation ends with batch 70:
+its complete **600/600-frame** enclosure is **18.754 ms p95 /19.658 ms p99**, too wide to prove
+the unchanged **12 /16.667 ms** GPU budget, and not proof of an actual GPU failure. A narrower
+[GPU-work acceptance proposal](#gpu-acceptance-proposal--awaiting-user-decision) is prepared for
+explicit user review; it is not operative. The original GPU criterion stays **UNAVAILABLE**.
+Return to timing only on a validated supported cross-context clock mapping with bounded error,
+or the user's explicit scope decision; no more clock/profiler/parameter sweeps are scheduled.
+Batch 69's publication-capacity observation is verified in one finite control, not the required
+prescribed series. Freeze instrumentation before Q01/Q02 series. Batch 68 still fails:
 **36.102 MiB >32 MiB**. Final drained growth **4.977 MiB** does not override that maximum.
 All 100 cycles, 1,000 edits, pauses, drains, logical return, handle and shutdown checks complete;
 all 339 execution inputs and paired overlay-Off inventories match. The shader change removes
@@ -55,6 +59,14 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest bounded observation (batch 70):** query timing records QPC before submission and after
+successful nonblocking collection. The full exact app source/renderer/output enclosure covers
+**600/600** frames; p95/p99 are **18.754/19.658 ms**, so the unchanged critical-path criterion
+remains **UNAVAILABLE**. Correlated per-frame GPU span charge **3.194/3.230 ms** is descriptive,
+not a replacement pass. All outputs accept **600/600**, all **342** inputs and paired overlay-Off
+identities match, all four PIDs are absent and shutdown is **420.408 ms**. Timing investigation
+stops; a precise GPU-work proposal needs user approval. **No gate closes; M03 remains 7/9.**
+[GPU-path enclosure evidence](evidence/mapgyver-m03-gpu-path-enclosure-2026-11-01.json).
 **Latest bounded observation (batch 69):** the public native trace carries actual window
 descriptor/latency readbacks, the pre-Present readiness permit and accepted Spout image/version.
 One schema-9 NVIDIA Q01 control (**2 s warmup /10 s sample /1 s each interruption**) covers all
@@ -245,8 +257,10 @@ denominator changes. See [milestones](#milestones) and [next action](#next-actio
 
 **Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
 activation blocker and exact remaining evidence. M03 gate 9 remains active: next complete missing
-full GPU-path observation, then remaining allocation evidence. Publication-capacity metadata has
-one verified finite native control; its prescribed-series acceptance remains queued. The failed
+allocation/ownership evidence. GPU-path timing returns on a validated supported clock mapping
+with bounded error or explicit GPU-work gate revision; the original criterion stays required
+while the proposal is pending. Publication-capacity metadata has one verified finite control;
+its prescribed-series acceptance remains queued. The failed
 private-growth criterion returns when that ownership/allocation evidence supports a concrete new
 correction; its limit stays 32 MiB. Q01 on the selected route and final Q02 remain required once
 instrumentation is stable and the window-deadline decision is resolved. No repeated baseline,
@@ -3232,6 +3246,110 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Full GPU-path observation batch 70:** started 2026-11-01 **01:19 UTC**, stop by **02:04 UTC**.
+Previous turn is progress: `4510ebbd` delivers native publication-capacity metadata and the
+finite schema-9 control, retaining sustained eligibility and every existing failure. Only
+M03 gate 9 is active. Deliver the missing cross-context GPU-path observation, or establish
+the exact supported-API/evidence prerequisite that prevents it before further native series.
+Owner: Golden Video's opt-in worker-local timing and app-owned qualification analysis. The
+current source/renderer dependency records are exact but their separate GPU counters are not
+calibrated. Hypothesis: a supported clock correlation or a complete conservative time enclosure
+can provide a truthful full-path bound against unchanged p95 12 ms /p99 16.667 ms. Do not replace
+the path with summed marginal percentiles, active GPU duty, one PID's Present interval or the
+renderer context alone. Source/API investigation ends by **01:39 UTC**, at most two fixed
+analyses/experiments, including existing-data analysis. A negative result ends that investigation
+and records a concrete return trigger; it cannot seed another probe framework or budget waiver.
+Do not restore or continue the parked SDK-clock/collector stash. No global power/driver changes,
+GPU reset, memory rerun or Q01/Q02 series. Any native mechanism check requires terminal software/
+Clippy/build prerequisites and must fit this batch. Checkpoint/push before the next batch.
+
+**Batch 70 result (investigation complete before 01:39 UTC):** existing schema-9 data has complete
+source/renderer dependencies but no direct query-collection CPU stamp. Sparse snapshots can
+enclose all **600** selected frames using the following snapshot's QPC after a matching real
+completion certificate; this avoids treating a pre-read stamp as a completion instant. That
+bound is **218.407 ms p95 /223.023 ms p99** and cannot prove the GPU target. Per-frame context
+span charge is **3.211 /3.965 ms**, which excludes gaps and is not the critical path. The parked
+October-30 SDK clock/collector work remains untouched; reading its retained manifest does not
+validate or resume its unverified production-clock mapping. PresentMon GPU duty/one-PID frame
+grouping and node-clock queries without an exact D3D11-context mapping are not substitutes.
+
+Golden's opt-in `GpuTiming` now retains QPC immediately before its first query marker submission
+and after the existing complete nonblocking query reads. The latter is an upper bound including
+collection delay. No new GPU marker/query, flush, wait, allocation, resource open, global clock,
+power policy or scheduling change is made. Clock/query failure remains explicit and cannot
+affect rendering or retirement. Source/renderer CPU bounds and exact retained identities permit
+a complete conservative enclosure of both app source-worker scopes and renderer/output scope;
+one QPC tick covers endpoint quantization. Independent GPU counter origins are never compared.
+Disjoint GPU clocks cannot invalidate an independently certified CPU enclosure, but a missing
+query collection cannot provide its end. Per-frame context sums remain descriptive only.
+Rust owns capture schema **10** and its generated metadata; earlier captures gain no timing pass.
+
+**Verification:** **164 Video tests /23 existing hardware ignores**, strict Video all-target/
+all-feature and MapGyver native-bin/test Clippy, **299 qualification-tool tests**, generated
+fixture drift and both workspace formatters pass. Seven focused enclosure tests cover exact
+dependencies, retained age, collection tails, missing/foreign identity, disjoint clocks, invalid
+timing, quantization/large counters and duplicate/untrusted coverage. An analyzer integration
+test proves short-run ineligibility even when a synthetic complete bound meets the budget.
+
+The one native Q01 mechanism check uses release **MSVC 14.51.36231 /SDK 10.0.26100.0**, executable
+SHA-256 `f30f82e4aa798e1f69995c974fbeab7b179acd04d70d7a13c08d96b33a2ce836`, NVIDIA adapter 1
+on the retained Intel-owned display route. **2 s warmup /10 s sample /1 s each interruption**
+complete normally in **16.976 s**, exit **0**, timeout/force **false**, owned-job count **0**.
+All **600** sample frames have both exact source and renderer query enclosures; all outputs
+accept **600/600**, with complete publication-capacity metadata **2/1/2**. The new full bound is
+**16.891 ms median /18.754 ms p95 /19.658 ms p99 /20.116 ms max**. It is too loose to prove
+**12 /16.667 ms**, not an actual GPU-budget failure. The independent correlated context-span
+serial charge is **1.905 /3.194 /3.230 /4.114 ms**; neither that value nor a short sample closes
+the original GPU criterion. No performance repair is inferred from comparison with batch 69.
+
+All **342** execution inputs are frozen. Paired environment/overlay-Off identity and QPC brackets
+verify. All three fixture children exit zero/unforced; all four PIDs are absent. Actual native
+retirement is **120.862 ms**, both HWNDs are retained until it completes, and whole-parent shutdown
+is **420.408 ms**. Final runtime is stopped with zero reserved/in-flight/prepared/retiring work.
+All **22** local raw-file hashes and paired-analysis/build/environment hashes verify; the compact
+[evidence](evidence/mapgyver-m03-gpu-path-enclosure-2026-11-01.json) preserves exact native input
+identity and distributions. No new trace session was requested.
+
+**Decision:** end this timing investigation after one existing-data analysis and one finite native
+check. Full GPU critical-path acceptance stays **UNAVAILABLE**, with original budgets. Returning
+requires a validated supported clock-to-context mapping with bounded error, or explicit approval
+of the precise GPU-work proposal below. While that decision is pending, take the missing
+allocation/ownership observation next within gate 9. The private-growth failure, window/reset
+decisions, prescribed series and M05–M09 acceptance remain required. **No gate closes; M03 7/9.**
+
+#### GPU acceptance proposal — awaiting user decision
+
+**Not operative.** Original acceptance remains a full elapsed GPU critical path at **p95 ≤12 ms /
+p99 ≤16.667 ms**. This measurement gap has persisted since the October-28 native qualification;
+the parked October-30 clock probe never established a validated production mapping. This batch
+adds a complete nonblocking CPU enclosure but still cannot prove the original budget. Elapsed
+age of the blocker is not claimed as 24 hours of measured coding effort; no new batch resets
+the cumulative investigation history.
+
+**Recommended precise revision:** replace that one acceptance metric with **per-frame correlated
+GPU context-span serial charge, p95 ≤12 ms /p99 ≤16.667 ms**. For every selected renderer frame,
+join both exact retained app source-worker GPU batches and its renderer/output GPU batch, sum
+their individual elapsed spans after conversion by each span's own valid frequency, then compute
+percentiles over those complete per-frame sums. Require exact device/source identities and no
+missing, failed, disjoint or invalid query spans. Do not add marginal percentiles or treat missing
+work as zero. Parallel source scopes are conservatively both charged. Keep the prescribed three
+independent release **30+120-second Q01 and Q02** samples and all existing telemetry coverage.
+
+**Tradeoff:** this proves a GPU-work budget, including waits inside each context span, but removes
+the mandatory calibrated elapsed-time guarantee across contexts; gaps between scopes are not
+charged. Keep the full CPU enclosure reported as a separate diagnostic and preserve the original
+unqualified critical-path evidence. All end-to-end output deadlines, source-age/response,
+publication-capacity, CPU, memory-growth, allocation, lifecycle/recovery and physical-output gates
+stay unchanged. It is not an approval to release, a current native-series pass, or a memory waiver.
+The finite example is **3.194/3.230 ms** correlated charge versus **18.754/19.658 ms** CPU bound;
+its short duration qualifies neither the original nor proposed sustained criterion.
+
+Approval must explicitly select this revision before the plan/contract/analyzer acceptance is
+changed. Keeping the original requires a separately planned validated clock-correlation route;
+it does not authorize restoring the parked probe/collector or silently continuing a profiler chain.
+
+#### Earlier M03 verification batches
 
 **Published-output queue batch 69:** started 2026-11-01 **01:04 UTC**, stop by **01:49 UTC**.
 Previous turn is progress: `d8e382f5` publishes the complete embedded-shader lifecycle result,

@@ -13,6 +13,7 @@ struct Slot {
     begin: ID3D11Query,
     end: ID3D11Query,
     pending: Option<CompletionToken>,
+    submitted_qpc: Option<u64>,
     renderer: Option<RendererQueries>,
 }
 
@@ -159,6 +160,7 @@ impl GpuTiming {
                 begin: query(device, D3D11_QUERY_TIMESTAMP)?,
                 end: query(device, D3D11_QUERY_TIMESTAMP)?,
                 pending: None,
+                submitted_qpc: None,
                 renderer: if context == DiagnosticContext::Renderer {
                     Some(RendererQueries {
                         inputs_end: query(device, D3D11_QUERY_TIMESTAMP)?,
@@ -195,6 +197,8 @@ impl GpuTiming {
             begin: None,
             end: None,
             frequency: None,
+            submitted_qpc: None,
+            completed_qpc: None,
             renderer_inputs_end: None,
             renderer_render_end: None,
         }));
@@ -208,6 +212,7 @@ impl GpuTiming {
         if let Some(index) = active {
             let slot = &mut self.slots.as_mut().unwrap()[index];
             slot.pending = Some(token);
+            slot.submitted_qpc = self.recorder.stamp();
             if let Some(markers) = &mut slot.renderer {
                 markers.state = MarkerState::Empty;
             }
@@ -279,6 +284,8 @@ impl GpuTiming {
                     begin: Some(begin),
                     end: Some(end),
                     frequency: Some(clock.Frequency),
+                    submitted_qpc: slot.submitted_qpc,
+                    completed_qpc: self.recorder.stamp(),
                     renderer_inputs_end: inputs_end,
                     renderer_render_end: render_end,
                 },
@@ -291,6 +298,8 @@ impl GpuTiming {
                     begin: None,
                     end: None,
                     frequency: None,
+                    submitted_qpc: slot.submitted_qpc,
+                    completed_qpc: None,
                     renderer_inputs_end: None,
                     renderer_render_end: None,
                 },
@@ -318,6 +327,8 @@ impl GpuTiming {
                         begin: None,
                         end: None,
                         frequency: None,
+                        submitted_qpc: slot.submitted_qpc,
+                        completed_qpc: None,
                         renderer_inputs_end: None,
                         renderer_render_end: None,
                     }));
@@ -339,6 +350,8 @@ impl GpuTiming {
                         begin: None,
                         end: None,
                         frequency: None,
+                        submitted_qpc: slot.submitted_qpc,
+                        completed_qpc: None,
                         renderer_inputs_end: None,
                         renderer_render_end: None,
                     }));

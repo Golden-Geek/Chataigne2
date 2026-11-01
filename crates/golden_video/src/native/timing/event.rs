@@ -239,6 +239,12 @@ pub struct GpuTrace {
     pub end: Option<u64>,
     /// GPU counter ticks per second for this disjoint scope.
     pub frequency: Option<u64>,
+    /// Machine QPC immediately before submitting this scope's first GPU marker.
+    /// Together with `completed_qpc`, encloses the work without aligning GPU clocks.
+    pub submitted_qpc: Option<u64>,
+    /// Machine QPC after nonblocking reads returned this scope's complete query payloads.
+    /// Includes collection delay; it is an upper bound, not the instant GPU execution ended.
+    pub completed_qpc: Option<u64>,
     /// Renderer-only input-copy boundary on this same GPU counter; absent if not marked/read.
     pub renderer_inputs_end: Option<u64>,
     /// Renderer-only render-pass boundary; outputs occupy the remainder through `end`.
