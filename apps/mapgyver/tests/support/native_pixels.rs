@@ -19,6 +19,8 @@ const WAIT: Duration = Duration::from_secs(8);
 
 pub struct Fixture {
     renderer: Option<ChannelRenderer>,
+    adapter: AdapterId,
+    identity_logged: bool,
     names: Vec<String>,
     preview: PreviewController,
     receiver: PreviewReceiver,
@@ -85,9 +87,6 @@ impl Fixture {
             assert!(Instant::now() < deadline, "Composition renderer startup timeout");
             std::thread::sleep(Duration::from_millis(5));
         }
-        let actual = renderer.native_control().unwrap().snapshot();
-        assert_eq!(actual.adapter, Some(adapter));
-        eprintln!("Raster native adapter={:?} device={:?}", actual.adapter, actual.device);
         let (preview, receiver) = PreviewController::new(
             PreviewLimits {
                 lease: Duration::from_secs(60),
@@ -107,6 +106,8 @@ impl Fixture {
         };
         Self {
             renderer: Some(renderer),
+            adapter,
+            identity_logged: false,
             names,
             preview,
             receiver,
@@ -260,6 +261,13 @@ impl Fixture {
         }
         if let Some(expected) = expected_channels {
             assert_eq!(live.channels().len(), expected, "shared channel production count");
+        }
+        let actual = live.native_control().unwrap().snapshot();
+        assert!(actual.initialized && actual.device.is_some());
+        assert_eq!(actual.adapter, Some(self.adapter));
+        if !self.identity_logged {
+            eprintln!("Raster native adapter={:?} device={:?}", actual.adapter, actual.device);
+            self.identity_logged = true;
         }
         let targets = live
             .channels()

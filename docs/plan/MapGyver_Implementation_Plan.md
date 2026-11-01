@@ -136,6 +136,12 @@ native Matrix raster/runtime acceptance batch while those observations are pendi
 complete layer/group/final, transition, recovery and large-grid scope; a partial pixel fixture is
 not full gate acceptance. Do not reopen helper or M03 investigations to fill the waiting interval.
 
+Batch 77 stops the corrected native chain at a fixture identity check that ran before asynchronous
+native initialization. Validate identity only after a matching real output frame; that correction
+is software checked, not native accepted. Preserve the three cumulative native failures. Before
+further native work, complete **M07 gate 3** caller-parity and ordinary-app editor review preparation.
+Its actual interaction requirement stays open, as do M06's requested observations and M07 gate 4.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

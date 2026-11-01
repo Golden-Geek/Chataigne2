@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "batch": 77,
+  "date": "2026-11-01",
+  "gate": "M07/4",
+  "status": "OPEN_STARTUP_OBSERVER_RACE_NO_NATIVE_RASTERS",
+  "before_execution": {
+    "captured_at_utc": "2026-11-01T03:43:32.483369+00:00",
+    "git_revision": "b73870244260c386b6fcca433d503e114870b2b7",
+    "profile": "Cargo test; dev optimized with debuginfo; not release/performance qualification",
+    "os": "Windows-11-10.0.26300-SP0",
+    "sha256": {
+      "apps/mapgyver/tests/composition_pixels/mod.rs": "d4983696297ee8e2f74317762ac33dab14f24b522cf2ea1ad29aab66095c2f31",
+      "apps/mapgyver/tests/composition_rendering.rs": "33dacd11a46744fa1fe12abb8cd4bf87063ad4fa9aea72d451bdb30c1a06ba62",
+      "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+      "apps/mapgyver/tests/matrix_pixels/transitions.rs": "23e5a1727e2cf3100000ed1917560902c9bb258011352f7cb9779d4f557523d0",
+      "apps/mapgyver/tests/matrix_rendering.rs": "65808c0634dd4d1c93c916b44251699367bfe576b2d9727040b6e435c2ad3621",
+      "apps/mapgyver/tests/support/mod.rs": "534e6b8fd217625507e092868a2324d46b9b7941e20c6afd2f9c0160aaa0056b",
+      "apps/mapgyver/tests/support/native_pixels.rs": "7bde13a2297212f24aa57141b8719bdaa181e7703ee7c4a88b1e5022c0098ee6",
+      "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca",
+      "Cargo.lock": "91362f5b06ec9104788aa2c2bf0c2b6e5a8fa77619af928a5a491d2909339627",
+      "Cargo.toml": "0b46414662cc3291a81385cc1f2abba3e242aa0d05f5a3f5faddea1a417ea4e2",
+      "package-lock.json": "85a62b85ab751659a4efd486b12f982385d5f8bc62dee2cee9dadc1460c9f0af",
+      "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "8e0c78def0e5c8e43a7961b0c2dcfaa1fb097f4dc5e96a46b4a724d199a5fc82",
+      "target/debug/deps/composition_rendering-ec7019d9cb2adb4d.exe": "9bbf85c88f5f3788935940a6048d72f1f244280775e50a3005780891e386737e"
+    },
+    "overlay_observation": {
+      "observed_at_utc": "2026-11-01T03:42:17.346Z",
+      "method": "Sky Windows UI Automation native Home action; no activation or input",
+      "window_id": 3872418,
+      "control_text": "Enable and open overlay",
+      "state": "Off"
+    }
+  },
+  "native_attempts_this_batch": 1,
+  "cumulative_matrix_native_attempts": 3,
+  "native_exit_code": 101,
+  "native_test_seconds": 0.02,
+  "native_raster_captures": 0,
+  "failure": {
+    "location": "shared fixture constructor adapter assertion",
+    "observed_adapter": null,
+    "requested_adapter": {
+      "low": 93226,
+      "high": 0
+    },
+    "cause": "logical resources admitted before asynchronous native initialization completed"
+  },
+  "correction": {
+    "adapter_assertion_after_matching_native_output_frame": true,
+    "initialized_device_required": true,
+    "fixture_constructed_before_identity_check": true,
+    "native_verified": false,
+    "oracle_tests_passed_per_executable": 4,
+    "strict_app_all_target_clippy": true
+  },
+  "overlay_after": {
+    "observed_at_utc": "2026-11-01T03:47:37.270Z",
+    "method": "Sky Windows UI Automation native Home action; no activation or input",
+    "window_id": 3872418,
+    "control_text": "Enable and open overlay",
+    "state": "Off"
+  },
+  "raw_log_sha256": "b250bcad561d890761066ce81027da52c952916ddf206f642f2607e4949899de",
+  "raw_log": "target/m07-native-b77.log",
+  "corrected_sources_sha256": {
+    "apps/mapgyver/tests/composition_pixels/mod.rs": "d4983696297ee8e2f74317762ac33dab14f24b522cf2ea1ad29aab66095c2f31",
+    "apps/mapgyver/tests/composition_rendering.rs": "33dacd11a46744fa1fe12abb8cd4bf87063ad4fa9aea72d451bdb30c1a06ba62",
+    "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+    "apps/mapgyver/tests/matrix_pixels/transitions.rs": "23e5a1727e2cf3100000ed1917560902c9bb258011352f7cb9779d4f557523d0",
+    "apps/mapgyver/tests/matrix_rendering.rs": "65808c0634dd4d1c93c916b44251699367bfe576b2d9727040b6e435c2ad3621",
+    "apps/mapgyver/tests/support/mod.rs": "534e6b8fd217625507e092868a2324d46b9b7941e20c6afd2f9c0160aaa0056b",
+    "apps/mapgyver/tests/support/native_pixels.rs": "c486e909c38db59555596bb477c4ac544424520a958aaba47574b39af90df50b",
+    "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca"
+  },
+  "corrected_binary_sha256": {
+    "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "82f9093c51f527397f0be2d02096c0520c36fd29b0258f426979132685146a48",
+    "target/debug/deps/composition_rendering-ec7019d9cb2adb4d.exe": "0664c4e1062bd268a58891938ea43b94792b5028fd8729ef6cc123d8ac269d7b"
+  },
+  "remaining": [
+    "native fade/interruption/second-adapter verification",
+    "M06 shared-fixture native regression",
+    "complete M07 gate4 and original rendering budgets"
+  ],
+  "next_action": "Stop native chain; complete M07 gate3 caller parity and ordinary-app editor review preparation before further native work."
+}
