@@ -184,6 +184,12 @@ M05 gate6 actual Screen controls/source/gesture/history if naturally enabled in 
 browser route. Native preview/physical presentation/OS capture/DPI/latency keep their original
 gates; do not bypass guards or infer those properties from DOM input. No acceptance changes.
 
+Batch86 verifies real Screen selection/source/all-four-corner/rejection/Escape/panel/history input
+and closes M05 gate6. Physical/native preview/OS capture/DPI/latency stay open. Next select gate7
+actual Surface Source crop/mapping/calibration/form/history in naturally enabled bundled browser
+controls; its native Source preview remains required. No guard bypass, repeated passing native
+test, parked CDP/desktop retry or acceptance change.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

@@ -4,17 +4,16 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M05 gate 6, actual Screen editor/source controls and grouped history**.
-Batch85 verifies real Applications form/catalog/history input in the ordinary bundled browser.
-M08 native file-dialog, retirement/elevation/full-app gaps stay open. Native CDP/desktop activation
-remains unavailable; Composition/Matrix requested observations are pending.
+**Selected next gate:** **M05 gate7, Surface Source editor input/history**. Batch86 closes Screen
+editor gate6 with actual selection/source/four-corner/rejection/Escape/history input. M05 is **4/8**.
+Native Source preview and physical/OS/DPI properties stay open. M08 native file-dialog, retirement/
+elevation/full-app gaps and Composition/Matrix requested observations remain pending.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch85, inspect naturally enabled Screen controls, then one bounded
-actual bundled-browser source-selection/gesture/history test with read-only backend correlation.
-Native preview/physical geometry/OS pointer capture/DPI/latency retain their original gates. No
-control guard bypass, CDP/desktop retry, helper, alternate flags or settings/acceptance change.
+**Next action:** publish batch86, then verify naturally enabled Surface Source crop/mapping/
+calibration/form/history controls in the same bundled browser with read-only backend correlation.
+Do not infer native preview/physical/OS/DPI evidence, bypass guards or retry CDP/desktop activation.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -27,7 +26,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input and native/physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Native content/runtime accepted; caller/review ready, actual editor input pending | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
@@ -35,7 +34,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 3 / 4 = 75%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 4 / 8 = 50%`, `M06: 3 / 4 = 75%`, `M07: 3 / 4 = 75%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -92,7 +91,15 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch85:** actual bundled Applications UI passes **exit0 /5.31 s**, Chromium
+**Latest checkpoint, batch86:** actual Screen UI passes **exit0**, hosted flow **5,505 ms**,
+Chromium **149.0.7827.55**, zero page errors. Selection/source drafts do not author; Apply binds
+the exact shared channel. All four pointer handles preserve other corners/source/peer, one Undo/
+Redo restores each complete gesture; invalid mapping, Escape and panel switching remain coherent.
+**M05 gate6 closes: 4/8 (50%)**, overall **4/10 (40%)**. Inspected screenshot explicitly shows
+native preview unavailable; physical/OS/DPI/latency requirements remain open. No production code
+or budget changed. [Screen editor evidence](evidence/mapgyver-m05-screen-editor-input-2026-11-01.json).
+
+**Retained checkpoint, batch85:** actual bundled Applications UI passes **exit0 /5.31 s**, Chromium
 **149.0.7827.55**, zero page errors. Creation/rename, all definition fields, environment modes,
 Save/Undo/Redo, copy, availability, removal and visible atomic rejection are backend-correlated;
 no process launches. First attempt exposes an exact wrapped-select locator mismatch; test-only
@@ -2083,6 +2090,37 @@ counts and overall **3/10 (30%)** are unchanged. Product slice **18**; next is n
 
 ### M05 acceptance items
 
+**Actual Screen editor batch86:** started 2026-11-01 **04:56 UTC**, stop **05:41 UTC**. Only M05
+gate6 is active. Previous turn is progress: `95c646b2` verifies actual Applications UI/history.
+MapGyver owns Screen/Surface geometry and intents; Golden owns transport/history/native preview.
+Use naturally enabled bundled Screen controls, source selection and real browser pointer input;
+correlate committed geometry and one-step Undo/Redo through read-only public queries. Verify
+selection, invalid mapping/cancellation and panel lifetime as needed for the complete editor gate.
+Native scanout/underlay alignment, OS capture/DPI/latency stay in the original physical gates.
+No guard/renderer bypass or invented preview. Max two finite browser/host attempts and20 minutes
+of investigation, including baseline; publish a coherent verified result before further scope.
+No CDP/desktop activation, GPU/reset/settings or parked qualification detour.
+
+**Batch86 result — gate6 accepted, 05:03 UTC:** two browser/host invocations pass. The first
+verifies source/selection and corner0/history/rejection/Escape; the final run adds remaining three
+handles after the gate audit. Chromium **149.0.7827.55**, hosted flow **5,505 ms**, zero page errors,
+normal host exit0 and no remaining MapGyver. All mutations/history commands come from naturally
+enabled DOM controls; public backend requests only inspect. Screen/Surface creation/rename,
+selection, source search/picker/Apply preserve stable references; selection and source draft alone
+do not author. Every corner changes only its own coordinate, preserves source/peer and undoes/
+redoes the entire sampled gesture in one step. Invalid mapping rejects visibly without mutation
+or a history step. Escape keeps accepted position and blocks subsequent held-pointer motion;
+panel switching keeps the catalog and controls coherent. Shared media remain unchanged.
+
+The inspected screenshot shows all four edited handles and **Preview unavailable**. Input targets
+use a **0.005 normalized-unit functional tolerance**, with actual final coordinates retained in
+evidence; no physical1-pixel/OS capture/DPI/latency inference. Batch16's backend/gesture history,
+coalescing/cancellation/stale/disposal proof remains cumulative evidence. Syntax/Prettier and both
+formatters pass. **Only gate6 closes: M05 4/8 (50%)**, overall **4/10 (40%)**, original scope and
+budgets retained. Publish, then select gate7's actual Surface Source crop/mapping/calibration/form/
+history input; its native preview and complete physical matrix remain open.
+[Evidence](evidence/mapgyver-m05-screen-editor-input-2026-11-01.json).
+
 **Concurrent-output closure batch 72:** started 2026-11-01 **02:25 UTC**, stop **03:10 UTC**.
 Only M05 gate 4 is active. Reuse the existing ordinary-app concurrent rectangle/fullscreen/Spout
 fixture and its finite editor-state checkpoints. MapGyver owns editor behavior; Golden owns native
@@ -2637,7 +2675,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Accepted — batch 12 backend/runtime and finite GPU evidence |
 | 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain |
 | 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain |
-| 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Open — batch 16 implements handles/corner intents and verifies grouped history/cancellation in software; actual editor/source-selection input remains unverified |
+| 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Accepted — batch86 actual bundled selection/source/all-four-corner/rejection/Escape/panel/history input, with read-only backend correlation; native/physical capture/DPI/latency remain separate gates |
 | 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open — batch 17 implements full-channel preview/docked crop editor and verifies geometry, history, persistence and QuickJS; native preview and actual editor input remain unverified |
 | 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
 
@@ -5035,7 +5073,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
-| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
+| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source actual input/native preview, hotplug/minimize and the full physical matrix remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native rasters](#m06-acceptance-items): gates 1–3/4 accepted. Caller/headless parity is verified and the ordinary-app review scene is ready; actual editor/source-picker observations retain gate 4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2 and 4/4 accepted; batch 82 verifies native raster/interruption/scale/lifetime. Caller/headless parity is verified; actual editor observations retain gate 3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
@@ -5043,30 +5081,16 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete; M06 gates 1–3 are accepted. M06's six real-editor observation groups remain
-requested/pending against `target/m06-editor-review/CompositionReview.mapgyver`; do not repeat
-that completed preparation or infer input from software. M05/M06 activation returns only on a
-changed prerequisite or real observations. Batch 78 completes **M07 gate 3** caller parity and
-ordinary-app Matrix review preparation. Actual grid interaction remains required; its six-group
-checklist and saved reference are ready, not accepted. Publish this checkpoint before selecting
-one bounded **M07 gate 4** verification of the corrected existing fixture. Batch 79 supplies that
-verification: Intel completes, NVIDIA's fade observations time out. Publish its precise concurrent
-sampling correction, then one final bounded verification of this chain. Batch 80 performs that
-verification: all three NVIDIA mixtures pass before an unconditional completed-set timeout fails.
-Its pending-only correction is software checked, native unverified; final NVIDIA endpoint/demand
-checks remain open after batch 80. Batch 81 delivers M08's 144 caller paths and normal-headless
-lifecycle, then batch 82 completes the exact Matrix fixture on both adapters and closes **M07 gate
-4**. M07 gate 3 now returns only for its requested actual editor observations or changed supported
-activation availability. Publish native acceptance, then select **M08 gate 4**'s existing aggregate
-target-outcome check with the corrected193/216 expectation. Batch 83 passes that check, retaining
-the singleton retirement gap and missing actual elevated/form/full-app proof. Publish, then select
-**M06 gate 4**'s supported isolated WebView2 CDP smoke. Batch84 finds no endpoint within20 seconds,
-despite native app/frontend startup; no input occurs. Stop this unavailable route. After publication
-select **M08 gate4** actual application form editing/history via the existing ordinary bundled
-browser fixture. Batch85 now verifies that real form/catalog/history flow. Publish and select
-**M05 gate6** actual Screen controls/source/gesture/history if naturally enabled in that same
-browser route. Native dialog/preview/physical/OS capture/DPI/latency observations stay open in
-their original gates. No control bypass, CDP/desktop retry, new helper or settings/acceptance change.
+Publish batch86's accepted Screen input/history gate, then select **M05 gate7** actual Surface
+Source crop/mapping/calibration/form/history through naturally enabled bundled-browser controls.
+All mutations must be real UI input; backend queries only observe. Native Source preview and
+physical/OS capture/DPI/latency remain required in their original gates. Do not infer them from
+the unavailable browser preview, bypass guards or retry parked CDP/desktop activation.
+
+M06 and M07 actual-editor observations remain requested/pending against their saved review
+projects; no response is inferred and preparation is not repeated. M08 caller/headless/aggregate
+target/browser-form proof is complete within its recorded scope; native dialog, singleton
+retirement, actual elevation and full-app gaps remain. Passing Matrix native coverage is not rerun.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

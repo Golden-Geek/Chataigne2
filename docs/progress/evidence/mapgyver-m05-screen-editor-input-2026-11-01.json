@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "batch": 86,
+  "date": "2026-11-01",
+  "gate": "M05/6",
+  "status": "PASSED_ACTUAL_BUNDLED_SCREEN_EDITOR_INPUT",
+  "execution": {
+    "command": "node apps/mapgyver/tests/headless/media.mjs --screen-ui",
+    "exit_code": 0,
+    "invocations": 2,
+    "first": "Pass for source selection, corner0 drag/rejection/Escape/history and panel switching. Gate audit then adds remaining three corner handles.",
+    "final_hosted_flow_ms": 5505,
+    "raw_log": "target/m05-screen-ui-b86-all-corners.log",
+    "base_revision": "95c646b226dfdc44ba1d0a2ba42734e417149063",
+    "log_sha256": "a344bed0dc4285b99244f5083fbbf58bcba519a78aab3dee2f765ee88028aa44",
+    "reports": [
+      {
+        "result": "pass",
+        "scope": "actual bundled Screen selection/source/drag/rejection/Escape/history input; physical preview/capture/DPI remain unverified",
+        "browser": "149.0.7827.55",
+        "screen": "a65f0be7-5f11-422a-8a39-daa95e18157d",
+        "surface": {
+          "screen": "a65f0be7-5f11-422a-8a39-daa95e18157d",
+          "surface": "ac83ca4e-105b-4526-afa5-5de47e343d5c"
+        },
+        "peer": {
+          "screen": "a65f0be7-5f11-422a-8a39-daa95e18157d",
+          "surface": "de666883-cb57-41e1-86ca-97e2c4284ac0"
+        },
+        "source": {
+          "channel": "06d25fe7-589d-4148-b782-6f4a511857f8",
+          "media": "5f600d31-bc18-4fd9-a55d-fdc7049f7c7a"
+        },
+        "final_quad": {
+          "corners": [
+            {
+              "x": 0.25999999046325684,
+              "y": 0.19632823765277863
+            },
+            {
+              "x": 0.8600000143051147,
+              "y": 0.1000000387430191
+            },
+            {
+              "x": 0.8600000143051147,
+              "y": 0.8699999451637268
+            },
+            {
+              "x": 0.1000000387430191,
+              "y": 0.8800000548362732
+            }
+          ]
+        },
+        "page_errors": 0,
+        "screenshot": "target/m05-screen-ui.png"
+      },
+      {
+        "result": "pass",
+        "scope": "M04 ordinary headless source intents, atomic rejection, shared assets, history and Save/New/Load",
+        "sources": 3,
+        "channels": 6,
+        "stable_asset": "414453dd-721a-4735-b834-c7720b612c4a",
+        "native_preview": "Not instantiated; native recreation retains source-gate evidence.",
+        "elapsed_ms": 5505
+      }
+    ],
+    "sha256": {
+      "apps/mapgyver/tests/browser/screens.mjs": "b78f1ed4135db3b3eeaa3209848c23005ed4d12e7326b299123b1fddb54c830b",
+      "apps/mapgyver/tests/headless/media.mjs": "2627992c8ca139aa2cd93296fa6663967b0d4539a2ac3119b9f1b147187bf212",
+      "target/debug/MapGyver.exe": "64c74f8fea641564598e6b8482558f661ee708af281a8d8d7b1ed5fd3e7b41d7",
+      "target/m05-screen-ui.png": "8148bdfbb0e20e2342f71b2d01b085eba5d9b655d21f543d11636dd44c12bfef",
+      "target/m05-screen-ui-b86.log": "51a08fa6c8191e79903ce31b857aa9e038da90ef868f11df336652089046e2ba"
+    }
+  },
+  "scope_mapping": {
+    "source_and_selection": "Actual Screen/Surface creation/rename, selection and source search/select/Apply use naturally enabled DOM controls. Selection/source draft alone does not mutate the document. Committed source retains the exact shared channel reference.",
+    "geometry": "All four real browser pointer handles change only their intended corner, preserve other corners/source/peer Surface and roundtrip the full authored Screen catalog with one Undo/Redo per gesture.",
+    "invalid": "A concave/self-crossing corner sample is rejected visibly; mapping remains the last valid state and rejection consumes no history step.",
+    "cancellation": "Escape after an accepted sample ends the gesture, preserves accepted position and prevents later held-pointer motion/release from authoring; one Undo/Redo restores that entire accepted gesture.",
+    "lifetime": "Switching away and back preserves committed selection/catalog state and usable controls; shared media catalog is unchanged.",
+    "cumulative": "Batch16 backend/generic gesture tests already verify bounded/coalesced input,10000 samples in one history step and stale/cancel/disposal fences. This run supplies actual bundled UI input missing from that acceptance."
+  },
+  "checks": {
+    "javascript_syntax": "pass",
+    "prettier": "pass",
+    "page_errors": 0,
+    "ordinary_host": "normal exit0; no MapGyver remains",
+    "visual": "Inspected screenshot shows the edited quad and all four handles; Preview unavailable remains explicit."
+  },
+  "limits": [
+    "Only DOM/control/authoring/history acceptance closes. No native texture, physical presentation, underlay alignment, OS pointer capture, DPI or input-to-visible latency pass.",
+    "Functional pointer target tolerance is0.005 normalized units; exact backend final coordinates are retained. This is not the physical1-pixel alignment gate.",
+    "Native previews, concurrent/minimized physical targets, hotplug/DPI/negative origins and full presentation remain original M05 gates4/5/7/8; M03/M09 global workloads/budgets remain unchanged."
+  ],
+  "acceptance": {
+    "closed_gates": [
+      "M05/6"
+    ],
+    "M05": "4/8 =50%",
+    "overall": "4/10 =40%",
+    "next": "M05 gate7 actual Surface Source crop/mapping/calibration/form/history input using the same naturally enabled browser route. Native Source preview and physical properties remain unverified; no guard bypass or acceptance reduction."
+  }
+}

@@ -136,6 +136,12 @@ define preview resolution; fullscreen targets use their intended display's curre
 while output is disabled. Unconfigured/unavailable targets use the backend's default preview canvas.
 Optional Screen-route bindings allow a preview-only
 texture to feed the existing window compositor without opening a physical or Spout output.
+
+From the repository root, `node apps/mapgyver/tests/headless/media.mjs --screen-ui` exercises real
+bundled Screen selection/source controls, all four corner handles, invalid geometry, Escape and
+panel/history behavior. It correlates UI input with read-only backend state and writes
+`target/m05-screen-ui.png`. Browser preview remains explicitly unavailable; native physical
+presentation, OS capture, DPI/alignment and latency retain their own qualification.
 Calibration Grid and Color Bars are now source-independent procedural layers. Grid uses the
 app's 16×9 white-on-black policy; bars use white/yellow/cyan/green/magenta/red/blue/black. Patterns
 fill the mapped quad while retaining the authored source/crop for Off. Quad, order, enablement and
