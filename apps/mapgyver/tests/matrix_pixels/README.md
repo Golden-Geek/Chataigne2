@@ -42,3 +42,9 @@ Batch 80 observes all three required NVIDIA mixtures, but its unconditional pend
 rejects the already-completed set. Expiration now applies only while observations remain pending;
 the final NVIDIA endpoint/demand checks are still unverified. The native chain stops for separate
 M08 acceptance work before the exact corrected fixture returns. No further native retry in batch 80.
+
+Batch 82 passes the complete fixture on Intel and NVIDIA: 112 full-image raster captures, three
+interrupted mixtures per Layer/Group/Final on each adapter, final blue endpoints/demand retirement,
+sparse-grid burst recovery, reload and six balanced renderer retirements. M07 native gate 4 is
+accepted. Actual editor input remains gate 3; global process/handle/private-growth, sustained
+CPU/GPU/cadence and integrated Q01–Q05 qualification keep their original M03/M05/M09 owners.

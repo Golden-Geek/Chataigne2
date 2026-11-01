@@ -4,17 +4,16 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected gate:** **M08 gate 4, application caller/edit/control/observation acceptance**, batch 81
-delivered with full gate still open. **144 caller paths**, 20 frontend tests and normal-headless
-lifecycle pass; actual form/dialog and retained target/recovery outcomes remain unverified.
-The next named gate returns to M07's exact pending-only timeout correction after this publication.
-Actual Matrix/Composition input remains pending.
+**Selected next gate:** **M08 gate 4, existing aggregate application target outcomes**. Batch 82
+closes M07's native feature gate on both GPUs: Matrix is **3/4**. Its actual editor observations,
+and Composition's, remain pending. M08 caller/normal-headless parity is published as `d50bd145`;
+its actual form/target/full-app gate remains open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 81, then one named bounded M07 gate-4 verification of the existing
-pending-only observation timeout correction. Preserve all five native failures, the missing NVIDIA
-endpoint/demand check and every original budget. No extra probe, settings or acceptance change.
+**Next action:** publish batch 82, then one bounded verification of the existing M08 aggregate
+target-outcome check with its corrected Windows193/216 expectation. Preserve conservative
+retirement outcomes and actual elevated/form/full-app gaps. No more Matrix native run is needed.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -29,13 +28,13 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Caller parity/review scene ready; actual input and corrected native verification open | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Native content/runtime accepted; caller/review ready, actual editor input pending | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller and normal-headless parity verified; actual form/target/full-app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 3 / 4 = 75%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -77,11 +76,6 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 - **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
-- **M07 gate 4:** five cumulative native invocations, prior failures preserved. Batch 80 obtains
-  three valid NVIDIA interrupted mixtures, then incorrectly applies a pending deadline to the
-  completed set; its exact pending-only correction compiles. NVIDIA endpoint/outgoing-demand
-  acceptance remains unverified. Native chain stops. Return after a separate reviewable M08
-  acceptance delivery to the corrected existing fixture; no new probe, clock, settings or scope.
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
   Return for actual form/dialog observations; the existing corrected aggregate target-outcome
   check (including its recorded conservative retirement gaps); actual elevated-target and complete
@@ -91,7 +85,16 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 81:** **144 application caller paths**, **20 frontend tests**, **206 Rust
+**Latest checkpoint, batch 82:** the single native invocation passes **exit 0 /135.05 s** on Intel
+and NVIDIA. **112 full-image raster captures /86,016 texels**, three interrupted Layer/Group/Final
+mixtures per adapter, final blue outputs/preview and outgoing-demand retirement pass. Both sparse
+1,000×1,000 grids admit eight of 1,000 scheduled requests with bounded runtime and balanced native
+owners. **M07 gate 4 closes: 3/4 (75%)**; actual editor gate 3 remains pending, overall **4/10 (40%)**.
+Global handle/private-growth, GPU/cadence and complete Q01–Q05 qualification remain with their
+original M03/M05/M09 gates; no such budget pass is inferred. All five earlier failures remain.
+[Native Matrix acceptance](evidence/mapgyver-m07-native-matrix-2026-11-01.json).
+
+**Retained checkpoint, batch 81:** **144 application caller paths**, **20 frontend tests**, **206 Rust
 tests /one existing hardware ignore**, strict Clippy, current ordinary app/fixture build and normal
 headless lifecycle **exit 0 /2.33 s** pass. Persistent application state now participates in the
 committed history observer. One first-run burst-recovery assertion failed; it now reports the
@@ -140,10 +143,10 @@ The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-202
 and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
 remain unchanged; neither certifies driver residency or repairs the failed growth budget.
 
-**Last accepted product capability:** nested/shared Composition raster content, independent
-rotation/mirror/scale/pivots, opacity/blends/alpha, live canvas resize, missing-source Undo and
-reload/device recreation work in channel outputs and the production preview compositor on both
-hardware adapters. Actual editor gestures and physical presentation remain unverified.
+**Last accepted product capability:** Matrix Layer/Group/Final and production preview rasters,
+ordering/blends/alpha, source loss/Undo, interrupted fades with outgoing retirement, sparse-grid
+burst recovery and reload/fresh-device execution work on both adapters. Actual editor gestures,
+physical presentation and global production budgets remain unverified.
 
 ## Detailed acceptance evidence
 
@@ -1054,6 +1057,41 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Pending-only timeout verification batch 82:** started 2026-11-01 **04:26 UTC**, stop **05:11 UTC**;
+native experiment cutoff **04:46 UTC**, exactly one invocation. Published M08 batch 81 (`d50bd145`)
+fulfills the recorded independent acceptance-delivery return trigger. Only M07 gate 4 is active.
+MapGyver owns Matrix production; Golden owns GPU/shared preview execution. Hypothesis: the completed
+three-mixture observation set no longer triggers a pending-only deadline, allowing final native
+blue endpoint and outgoing channel retirement on NVIDIA. Original six-second fade, three samples,
+tolerances and renderer budgets remain. Freeze current candidate identity after terminal software
+success and observed overlay Off. No new source experiment or second invocation after failure;
+preserve the exact remaining prerequisite rather than extending this chain. Actual input stays open.
+
+**Batch 82 result — M07 gate 4 accepted, 04:29 UTC:** the one invocation passes **exit 0 /135.05 s**,
+Intel LUID **00000000:00016c2a** and NVIDIA **00000000:000170d3**. Each adapter verifies **14 states ×
+four independent outputs =56 captures**, **112 /86,016 texels** combined. Layer, Group, Final and
+the production preview compositor match interval-aware linear-premultiplied/sRGB reference output:
+zero residual outside legal UNORM intervals; nominal max **3/255** is retained. Four blends, post-
+composite group opacity, layer alpha, order/Undo, source loss/Undo, empty column, sparse-grid burst
+recovery and reload/fresh renderer all pass.
+
+Each adapter produces three interrupted Layer/Group/Final mixtures with conserved RGB weight,
+stable outgoing red/green ratio and monotonic progress; final blue raster/preview and outgoing
+channel pruning to four pass. Each 1,000×1,000 grid has six cells and 1,000 configured launches at
+a measured **9,994 ms** request span, eight admissions, bounded byte/in-flight/retiring/prepared/
+outstanding work and no authored history. All six renderer lifetimes release plan/output/source
+owners, with balanced plan creation/release; fresh readback storage returns idle. Actual adapter
+identity and unchanged before/after executable hash are verified. Overlay remains observed Off.
+
+Four oracle tests per executable pass first; batch 81's strict native/process-feature Clippy and
+206-library/20-frontend checks remain valid with no intervening production code change. No second
+native run follows success. This accepts native Matrix feature content/bounded runtime/lifetime,
+not actual editor input, driver residency, physical scanout or global handle/private-growth/
+CPU/GPU/cadence budgets. Original M03/M05 and integrated M09 Q01–Q05 scope stays open, including
+all previously failed measurements. **Only gate 4 closes: M07 3/4 (75%)**, overall **4/10 (40%)**;
+denominators and budgets unchanged. Publish, then select existing M08 aggregate target outcomes.
+[Evidence](evidence/mapgyver-m07-native-matrix-2026-11-01.json).
+
 **Concurrent native completion batch 80:** started 2026-11-01 **04:12 UTC**, stop **04:57 UTC**;
 native experiment cutoff **04:32 UTC**, one invocation only. Previous turn is progress: published
 `b7de2f95` preserves the fourth native failure and compiles concurrent owning-worker readbacks.
@@ -1581,7 +1619,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
 | 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch 78 verifies caller/headless parity and saves the review scene; six actual editor observation groups requested/pending |
-| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open — batch 80 completes Intel; NVIDIA static/scale/reload and three interrupted mixtures pass, then completed-set timeout fails. Pending-only timeout correction is software checked; final NVIDIA endpoint/demand remains unverified |
+| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
 Deliver Matrix media and the document/module foundation under `apps/mapgyver/src/matrix`: sparse
@@ -4886,7 +4924,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native rasters](#m06-acceptance-items): gates 1–3/4 accepted. Caller/headless parity is verified and the ordinary-app review scene is ready; actual editor/source-picker observations retain gate 4. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2 and 4/4 accepted; batch 82 verifies native raster/interruption/scale/lifetime. Caller/headless parity is verified; actual editor observations retain gate 3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
@@ -4903,10 +4941,12 @@ verification: Intel completes, NVIDIA's fade observations time out. Publish its 
 sampling correction, then one final bounded verification of this chain. Batch 80 performs that
 verification: all three NVIDIA mixtures pass before an unconditional completed-set timeout fails.
 Its pending-only correction is software checked, native unverified; final NVIDIA endpoint/demand
-checks remain open. The five-invocation native chain stops for **M08 gate 4**; batch 81 now delivers
-its 144 caller paths and normal-headless lifecycle proof. Publish that separate reviewable
-acceptance delivery, then return to one named bounded verification of the exact pending-only
-Matrix timeout correction. No helper retry, new framework, M03 experiment, budget change or waiver.
+checks remain open after batch 80. Batch 81 delivers M08's 144 caller paths and normal-headless
+lifecycle, then batch 82 completes the exact Matrix fixture on both adapters and closes **M07 gate
+4**. M07 gate 3 now returns only for its requested actual editor observations or changed supported
+activation availability. Publish native acceptance, then select **M08 gate 4**'s existing aggregate
+target-outcome check with the corrected193/216 expectation, preserving conservative retirement
+and elevated/form/full-app gaps. No helper retry, new framework, M03 experiment or budget waiver.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

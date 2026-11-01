@@ -159,6 +159,12 @@ Batch 81 supplies that separate acceptance delivery: application persistent-stat
 remains open. After publication return to one named bounded verification of the exact M07
 pending-only timeout correction; no new diagnostic framework, native settings or acceptance change.
 
+Batch 82 completes that native Matrix fixture on both adapters and closes M07 gate 4. Actual
+editor interaction retains gate 3; global renderer/presentation/integrated qualification remains
+with its original M03/M05/M09 owners. Next select existing M08 gate 4's aggregate target-outcome
+check with the corrected Windows193/216 expectation, preserving conservative retirement gaps and
+unverified actual elevated/form/full-app outcomes. No repeat of the passing Matrix native test.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

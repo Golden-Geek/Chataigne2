@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "batch": 82,
+  "date": "2026-11-01",
+  "gate": "M07/4",
+  "status": "PASSED_NATIVE_MATRIX_FEATURE_GATE",
+  "before": {
+    "utc": "2026-11-01T04:26:25.293877+00:00",
+    "commit": "d50bd1451f64a9147c503889df7918cb6cb3a515",
+    "sha256": {
+      "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "e1f931d6e286a1c683fff6c42cc34a6b6780bad381a76de290496c6f69f8a5d8",
+      "apps/mapgyver/tests/support/native_pixels.rs": "c486e909c38db59555596bb477c4ac544424520a958aaba47574b39af90df50b",
+      "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca",
+      "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+      "apps/mapgyver/tests/matrix_pixels/transitions.rs": "2da92f2f4e278aaa6d47e41dd90669496d051adae1362c1dddce5a4940fda805",
+      "Cargo.lock": "91362f5b06ec9104788aa2c2bf0c2b6e5a8fa77619af928a5a491d2909339627"
+    }
+  },
+  "overlay": {
+    "before": {
+      "utc": "2026-11-01T04:26:16.100Z",
+      "action": "Enable and open overlay"
+    },
+    "after": {
+      "utc": "2026-11-01T04:29:06.443Z",
+      "action": "Enable and open overlay"
+    },
+    "interpretation": "Off throughout read-only observations; no settings/input changes"
+  },
+  "execution": {
+    "command": "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe native_matrix_pixels --ignored --nocapture",
+    "exit_code": 0,
+    "duration_seconds": 135.05,
+    "invocations_this_batch": 1,
+    "cumulative_invocations": 6,
+    "prior_failed_invocations": 5,
+    "raw_log": "target/m07-native-b82.log",
+    "log_sha256": "2e6fa5d3a7c5b7742cbaf95c9fd1abeae98f9df5c8414da0a41b815e3568c6e8",
+    "adapters": {
+      "93226": {
+        "captures": 56,
+        "texels": 43008,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut",
+          "transition-interrupt-final"
+        ],
+        "renderer_lifetimes": 3,
+        "mixture_samples": [
+          "Matrix interrupted native weights sample=0 layer/group/final=[[0.768151147247507, 0.1714411007328226, 0.06301001765316767], [0.768151147247507, 0.17788841598362912, 0.05448027644244237], [0.768151147247507, 0.17464740365558504, 0.0595112381629812]]",
+          "Matrix interrupted native weights sample=1 layer/group/final=[[0.7304607400903537, 0.1651321945016676, 0.10702310297826761], [0.7230551289219693, 0.1651321945016676, 0.10946171077829933], [0.7304607400903537, 0.1651321945016676, 0.10224173308810132]]",
+          "Matrix interrupted native weights sample=2 layer/group/final=[[0.6938717612919899, 0.1559264637078274, 0.14995978981060856], [0.6938717612919899, 0.1589608350608804, 0.14995978981060856], [0.6866853124353135, 0.1559264637078274, 0.15292615199615017]]"
+        ]
+      },
+      "94419": {
+        "captures": 56,
+        "texels": 43008,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut",
+          "transition-interrupt-final"
+        ],
+        "renderer_lifetimes": 3,
+        "mixture_samples": [
+          "Matrix interrupted native weights sample=0 layer/group/final=[[0.3564001441459435, 0.3662525955988395, 0.2788942634768104], [0.35153259950043936, 0.3662525955988395, 0.2831487404299921], [0.35153259950043936, 0.3662525955988395, 0.2831487404299921]]",
+          "Matrix interrupted native weights sample=1 layer/group/final=[[0.2195261997292692, 0.2232279573168085, 0.5583403896342679], [0.2195261997292692, 0.22696587351009836, 0.5520114015120001], [0.2195261997292692, 0.22696587351009836, 0.5520114015120001]]",
+          "Matrix interrupted native weights sample=2 layer/group/final=[[0.09084171118340768, 0.09084171118340768, 0.8227857543962835], [0.08650046203654976, 0.09084171118340768, 0.8227857543962835], [0.08650046203654976, 0.09084171118340768, 0.8227857543962835]]"
+        ]
+      }
+    },
+    "grid": [
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9994 burst_and_recovery_ms=10548 elapsed_ms=11298",
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9994 burst_and_recovery_ms=16042 elapsed_ms=22277"
+    ],
+    "completed_adapters": [
+      "M07 native Matrix adapter=AdapterId { low: 93226, high: 0 } description=Intel(R) Graphics completed",
+      "M07 native Matrix adapter=AdapterId { low: 94419, high: 0 } description=NVIDIA GeForce RTX 5080 Laptop GPU completed"
+    ],
+    "endpoint_retirement": [
+      "Matrix interruption original_mix=[0.8307698767746546, 0.16826940018969075, 0.0] outgoing_ratio=Some(0.8175367015837579) samples=3 retired_channels=4",
+      "Matrix interruption original_mix=[0.7379104087727308, 0.26225065752969623, 0.0] outgoing_ratio=Some(0.4931831356120122) samples=3 retired_channels=4"
+    ],
+    "terminal": [
+      "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 135.05s "
+    ],
+    "after_executable_sha256": "e1f931d6e286a1c683fff6c42cc34a6b6780bad381a76de290496c6f69f8a5d8"
+  },
+  "acceptance_mapping": {
+    "outputs": "Layer, post-composite Group and Final have independent SDK consumers; a fourth consumer reads the production PreviewController/PreviewLayout compositor on the same explicit adapter. Channel production is shared.",
+    "raster": "Four blend modes, layer/group opacity and alpha, reorder/Undo, source deletion/Undo, empty columns, sparse-grid state, recovery and reload/fresh renderer cover14 states x4 outputs x2 adapters =112 full-image raster captures/86016 texels.",
+    "oracle": "Per-pass legal UNORM intervals propagate through linear premultiplied RGBA8 intermediate passes and straight-alpha sRGB output. Max residual outside intervals0/255, nominal max3/255 retained; not a nominal<=2/255 claim.",
+    "transitions": "Each adapter obtains three concurrent independent Layer/Group/Final interrupted mixtures with opaque coverage, conserved RGB weight, stable outgoing red/green ratio and monotonic progress. Final blue Layer/Group/Final/preview rasters pass and outgoing channel demand prunes to4.",
+    "scale": "1000 layers x1000 columns, six populated cells;1000 configured launches on10ms schedule, request span9994ms on each adapter, eight admissions; no authored history, bounded bytes/in-flight/prepared/retiring/outstanding work, drain and recovered Cut.",
+    "lifetime": "Three renderer lifetimes per adapter; Fixture Drop confirms plan created/released balance, live0, no output/source owners. Fresh probes release receiving/staging/CPU reservations and the test readback pool is idle.",
+    "software": "Four oracle tests per Matrix/Composition executable pass before native run. Existing strict all-target native/process-feature Clippy and206-library/20-application-frontend tests passed in batch81; no production code changes since."
+  },
+  "scope_limits": [
+    "This closes Matrix native feature content/bounded-runtime/owner-retirement acceptance, not the retained global qualification series.",
+    "No actual mounted editor input, physical presentation, exact sampled-frame timestamp, driver residency, process handle/private-growth budget or sustained release CPU/GPU/cadence pass is inferred.",
+    "Q01/Q02 renderer budgets and failed growth/recovery remain M03; physical/input qualification remains M05; integrated Q03/Q04/full Q05 including Matrix remains M09. No owner, workload, budget or failure is removed.",
+    "The five failed native invocations remain preserved in their existing evidence."
+  ],
+  "acceptance": {
+    "closed_gates": [
+      "M07/4"
+    ],
+    "M07": "3/4",
+    "overall": "4/10",
+    "remaining_M07": "Gate3 actual editor observations requested, unanswered; caller/headless preparation complete.",
+    "next": "M08 gate4: one bounded verification of the existing aggregate target-outcome check with its corrected Windows193/216 expectation. Preserve truthful RetirementUnverified and missing actual elevated/form/full-cleanup evidence."
+  }
+}
