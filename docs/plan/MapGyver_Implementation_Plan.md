@@ -178,6 +178,12 @@ observations pending. Next select M08 gate4's actual application form editing/hi
 existing ordinary bundled-browser fixture; no native dialog/preview/OS-pointer/presentation pass
 is inferred. Do not retry CDP/desktop activation or add helpers/alternate flags/settings changes.
 
+Batch85 verifies actual Applications browser form/catalog/history input through the existing
+ordinary host, preserving native dialog/retirement/elevation/full-app gaps. Next select existing
+M05 gate6 actual Screen controls/source/gesture/history if naturally enabled in that same bundled
+browser route. Native preview/physical presentation/OS capture/DPI/latency keep their original
+gates; do not bypass guards or infer those properties from DOM input. No acceptance changes.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

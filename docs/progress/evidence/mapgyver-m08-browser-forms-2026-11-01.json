@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "batch": 85,
+  "date": "2026-11-01",
+  "gate": "M08/4",
+  "status": "PASSED_ACTUAL_BUNDLED_BROWSER_APPLICATION_FORMS",
+  "execution": {
+    "command": "node apps/mapgyver/tests/headless/media.mjs --application-ui",
+    "exit_code": 0,
+    "attempts": 2,
+    "first_attempt": "Actual creation/rename/argument drafts work; exact wrapped-select label locator Window times out. Corrected only test matching for Window/Ready when/Readiness evidence; no production UI defect or fix claimed.",
+    "final_elapsed_seconds": 5.31,
+    "raw_log": "target/m08-browser-form-b85-retry.log",
+    "log_sha256": "2c5786e361b4a871a220aa103be1b6ce9bda69969c186666aeb56145abf5b63d",
+    "reports": [
+      {
+        "result": "pass",
+        "scope": "actual bundled application form/catalog/history input; no native dialogs or launched process",
+        "browser": "149.0.7827.55",
+        "first": "7d911050-6872-4f41-8ef4-e151c0ac645b",
+        "copy": "ecc95f38-11c8-402e-8fa7-1c874358899e",
+        "definition": {
+          "arguments": [
+            "literal & value",
+            "two words"
+          ],
+          "directory": "D:\\Projects\\Dev\\Chataigne2\\target\\debug",
+          "environment": [
+            [
+              "MAPGYVER_UI",
+              "literal = value"
+            ]
+          ],
+          "executable": "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\application_process_fixture.exe",
+          "readiness": {
+            "kind": "Spout",
+            "sender": "UI Exact Sender",
+            "first_frame": true,
+            "timeout_ms": 2500
+          },
+          "restart": {
+            "enabled": false,
+            "initial_ms": 750,
+            "maximum_ms": 3000
+          },
+          "stop": {
+            "graceful_ms": 25,
+            "retirement_ms": 1000
+          },
+          "window": "Normal"
+        },
+        "page_errors": 0
+      },
+      {
+        "result": "pass",
+        "scope": "M04 ordinary headless source intents, atomic rejection, shared assets, history and Save/New/Load",
+        "sources": 3,
+        "channels": 6,
+        "stable_asset": "c4c90c75-214e-47aa-8ec1-5a4b2ad4801b",
+        "native_preview": "Not instantiated; native recreation retains source-gate evidence.",
+        "elapsed_ms": 4205
+      }
+    ],
+    "source_sha256": {
+      "apps/mapgyver/tests/browser/applications.mjs": "4e76145413333b9dcfba2c1b45d1ded2216c34200089b61d49393ecd5253e5af",
+      "apps/mapgyver/tests/headless/media.mjs": "31bec5897602a551d32f5ecb7d733553b819fb34cb2ea7c955b16ad831d8a443"
+    },
+    "first_failure_sha256": "da6c99309eb7ed459e2dcc43488c986dbc95d278eb6cd32a90da3efce75f5ed1"
+  },
+  "coverage": [
+    "Actual Applications tab and Create/Rename controls; backend-assigned identity and label.",
+    "Executable/directory, separate literal argument values, window mode and full replaced environment.",
+    "Explicit Spout sender/first-image readiness/timeout and stop/restart fields saved intact.",
+    "One definition Save undone/redone through actual toolbar; complete definition roundtrip.",
+    "Populated replacement, empty replacement and inherited environment remain distinct through Save/Undo.",
+    "Duplicate commits a new selected identity with preserved definition; availability/history leaves peer unchanged.",
+    "Remove/Undo restores the persistent copy identity; explicit selection follows UI catalog.",
+    "Invalid .cmd configuration rejects visibly without mutation or consuming the prior removal redo.",
+    "No JavaScript page errors; unloaded definitions never start a process."
+  ],
+  "method": "Existing playwright-core headless Chromium against the ordinary bundled host. All authored mutations and history commands originate from actual DOM controls; backend calls in the browser fixture are read-only catalog/definition/runtime observations. The existing host fixture also repeats M04 source intents/history/reload and exits normally.",
+  "limits": [
+    "Browser form/toolbar/catalog behavior is proved; native executable dialog remains unverified.",
+    "Native preview, physical/OS input alignment/capture and desktop presentation are not established.",
+    "M08 singleton RetirementUnverified, actual elevation and full app cleanup remain open.",
+    "Existing earlier intermittent Rust burst-recovery assertion has no established cause; this test does not fix it."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M08": "3/4",
+    "overall": "4/10",
+    "next": "M05 gate6: inspect actual Screen editor/source controls, then one bounded ordinary bundled-browser input/history test if naturally enabled. Native/physical preview, OS capture/DPI/latency and unavailable routes remain with their original gates; no guard bypass or acceptance reduction."
+  }
+}

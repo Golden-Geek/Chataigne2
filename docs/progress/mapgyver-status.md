@@ -4,17 +4,17 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M08 gate 4, actual application form input through the existing ordinary
-bundled-browser test route**. Batch 84's one isolated native app launches, but no CDP endpoint
-appears within20 seconds; no editor input occurs. Native desktop/Composition/Matrix observations
-remain pending. Batch 83's aggregate process outcomes pass with explicit retirement/elevation gaps.
+**Selected next gate:** **M05 gate 6, actual Screen editor/source controls and grouped history**.
+Batch85 verifies real Applications form/catalog/history input in the ordinary bundled browser.
+M08 native file-dialog, retirement/elevation/full-app gaps stay open. Native CDP/desktop activation
+remains unavailable; Composition/Matrix requested observations are pending.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 84, then reuse the ordinary host/browser fixture for real application
-form editing/history and read-only backend correlation. Do not infer native file-dialog, preview,
-OS pointer or physical presentation behavior from that browser route. CDP/desktop activation stays
-parked; no more native launch, helper, alternate flags, registry/security or driver workaround.
+**Next action:** publish batch85, inspect naturally enabled Screen controls, then one bounded
+actual bundled-browser source-selection/gesture/history test with read-only backend correlation.
+Native preview/physical geometry/OS pointer capture/DPI/latency retain their original gates. No
+control guard bypass, CDP/desktop retry, helper, alternate flags or settings/acceptance change.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -30,7 +30,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Native content/runtime accepted; caller/review ready, actual editor input pending | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Caller and normal-headless parity verified; actual form/target/full-app qualification open | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -86,11 +86,21 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   the retirement gap, actual elevated-target and complete
   mode/recovery/cleanup evidence. Historical project replacement/shutdown proof remains scoped;
   callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
+  Batch85 also verifies actual browser forms/catalog/history, including all definition fields,
+  environment modes and atomic rejection. Native executable-dialog input remains unverified.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 84:** one actual native app starts with private profiles and loopback
+**Latest checkpoint, batch85:** actual bundled Applications UI passes **exit0 /5.31 s**, Chromium
+**149.0.7827.55**, zero page errors. Creation/rename, all definition fields, environment modes,
+Save/Undo/Redo, copy, availability, removal and visible atomic rejection are backend-correlated;
+no process launches. First attempt exposes an exact wrapped-select locator mismatch; test-only
+matching correction passes on the second/final invocation. Host returns normally. Native dialog/
+retirement/elevation/full-app acceptance stays open: **M08 3/4**, overall **4/10 (40%)**.
+[Browser form evidence](evidence/mapgyver-m08-browser-forms-2026-11-01.json).
+
+**Retained checkpoint, batch 84:** one actual native app starts with private profiles and loopback
 ports, but its requested CDP endpoint is absent after20 seconds. The test exits **1**, native host
 shuts down normally, and no MapGyver remains. No Composition action/connection/input pass occurs;
 the opt-in candidate fixture preserves the unavailable route. JS syntax/Prettier pass. **No gate
@@ -171,6 +181,34 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Actual browser form batch 85:** started 2026-11-01 **04:48 UTC**, stop **05:33 UTC**. Only M08
+gate 4 is active. MapGyver owns Applications forms and intents; Golden owns bundled transport,
+history and project identity. Reuse existing ordinary headless/bundled-browser fixtures to drive
+actual application creation, field editing, save/history, copy/availability/selection and rejection,
+with read-only public backend correlation. Native file-dialog/preview/OS input and unverified
+retirement/elevation stay open. One browser/host invocation after syntax/format prerequisites;
+a concrete UI defect may receive one corrected verification, max two attempts/20 minutes total.
+No new runtime framework, CDP/desktop retry, process-target rerun or settings/acceptance change.
+
+**Batch85 result, 04:52 UTC:** real bundled browser input passes the second/final invocation,
+**exit0 /5.31 s**, browser **149.0.7827.55**, zero page errors. All mutations/history commands use
+DOM controls; public backend calls only observe. Create/rename, executable/directory/argument
+boundaries, window mode, explicit Spout sender/first-image timeout, stop/restart fields and full
+definition Save/Undo/Redo preserve exact values. Populated/empty/inherited environment modes stay
+distinct. Copy has its own selected committed identity; availability Undo/Redo leaves the peer
+enabled; Remove/Undo restores the persistent identity. A visibly rejected `.cmd` draft leaves the
+saved definition and removal redo intact. No unloaded definition starts a process. The ordinary
+host repeats source/history/reload checks and exits normally; no MapGyver remains.
+
+The first invocation exercises create/rename/argument drafts, then an exact Window select-label
+locator times out. Correct only test matching for wrapped-select labels, without production code
+changes or another experiment after success. Syntax/Prettier and both formatters pass. Native
+file-dialog, preview/physical/OS input, retirement/elevation/full-app evidence is not inferred.
+**No gate closes: M08 3/4**, overall **4/10 (40%)**. Publish, then select existing M05 gate6 actual
+Screen controls/source/gesture/history in the same ordinary bundled browser, only if naturally
+enabled; retain native/physical requirements separately without bypassing controls or changing
+acceptance. [Evidence](evidence/mapgyver-m08-browser-forms-2026-11-01.json).
 
 **Aggregate target-outcome batch 83:** started 2026-11-01 **04:33 UTC**, stop **05:18 UTC**;
 native/process experiment cutoff **04:53 UTC**, one existing-check invocation. Previous turn is
@@ -1028,7 +1066,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch 81 caller/normal-headless parity and batch 83 aggregate target outcomes pass; singleton retirement remains unverified, actual elevation/form/full-app gaps remain |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch81 caller/normal-headless parity, batch83 aggregate outcomes and batch85 actual browser form/catalog/history pass; native file-dialog, singleton retirement, actual elevation/full-app gaps remain |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -5025,8 +5063,10 @@ the singleton retirement gap and missing actual elevated/form/full-app proof. Pu
 **M06 gate 4**'s supported isolated WebView2 CDP smoke. Batch84 finds no endpoint within20 seconds,
 despite native app/frontend startup; no input occurs. Stop this unavailable route. After publication
 select **M08 gate4** actual application form editing/history via the existing ordinary bundled
-browser fixture. Native dialog/preview/OS-pointer/presentation observations stay open. Do not
-retry CDP/desktop activation, add helpers or alter registry/security/driver settings or acceptance.
+browser fixture. Batch85 now verifies that real form/catalog/history flow. Publish and select
+**M05 gate6** actual Screen controls/source/gesture/history if naturally enabled in that same
+browser route. Native dialog/preview/physical/OS capture/DPI/latency observations stay open in
+their original gates. No control bypass, CDP/desktop retry, new helper or settings/acceptance change.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

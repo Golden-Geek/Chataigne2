@@ -39,6 +39,11 @@ node apps/mapgyver/tests/headless/check.mjs --orderly-shutdown
 Real form/dialog input, elevated targets and complete unobserved-tree retirement still require
 their own evidence; the finite host check does not establish those outcomes.
 
+`node apps/mapgyver/tests/headless/media.mjs --application-ui` exercises real bundled browser
+application controls and history, correlating them with read-only backend queries. It verifies
+exact field/argument/environment/readiness values, copy/availability/removal and atomic rejection.
+Native executable-dialog and desktop/physical observations retain their own acceptance checks.
+
 The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and
