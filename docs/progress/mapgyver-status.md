@@ -4,18 +4,18 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate4, actual Composition browser input/history**. Batch88 reaches
-form submission in two failed checks, corrects selector/f32 assumptions and fixes a captured
-dock-width layout defect. The corrected full flow and visual fix remain unverified.
+**Selected next gate:** **M07 gate3, actual Matrix grid input**. Batch89 verifies Composition
+forms/source/order/copy/removal/Translate/Rotate/Scale/Escape/rejection/source loss/panel/history
+through actual bundled-browser controls and confirms the dock-width layout correction.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch88's partial checkpoint. Resume M06 only against the concrete f32
-assertion and dock-width corrections, retaining its cumulative two failed invocations. Verify
-remaining controls/history; do not open a new automation route. Native integration/physical and
-all unverified checklist items remain required. Do not repeat passing Source input or parked CDP.
+**Next action:** publish batch89, then verify existing Matrix grid/selection/assignment/structure/
+settings/playback feedback using the same bundled-browser route and read-only backend correlation.
+M06 stays open for native image/extent outlines and remaining original checklist scope, including
+project replacement. Do not repeat passing Composition controls or retry parked desktop/CDP.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -29,7 +29,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Dock-width layout corrected; browser candidate incomplete, editor acceptance open | `███████████████░░░░░` 75% | 3/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Browser input/history and dock layout verified; native/complete-editor gaps open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Native content/runtime accepted; caller/review ready, actual editor input pending | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -79,9 +79,10 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
-  Batch88's browser candidate stops after two test failures (selector, then f32 expectation).
-  Concrete assertion corrections and the captured dock-layout defect justify targeted follow-up;
-  later gesture/history/lifetime coverage has not run. Cumulative failed invocations stay two.
+  Batch89 completes the real browser form/source/order/copy/remove/geometry/Escape/rejection/
+  missing-source/panel/history flow and confirms the dock layout fix. Return for actual native
+  image/extent outlines and remaining complete-editor checklist (including project replacement),
+  not another passing input-preparation run. Three earlier failures are retained, fourth run passes.
   Batch 84's isolated documented WebView2 CDP attempt is unavailable: native app and frontend start,
   but no endpoint appears in20 seconds. Return only on actual observations or a concrete changed
   supported capability; no alternate flags/helper/registry/security workaround.
@@ -100,7 +101,16 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch88:** two Composition checks exit1 at the form stage; both owned hosts
+**Latest checkpoint, batch89:** real Composition browser input passes **exit0**, hosted flow
+**7,332 ms**, Chromium **149.0.7827.55**, zero page errors. First correction run reaches Scale but
+fails; the second/final run waits for the selected form to render committed history values and
+passes with the same tolerance. The first failure's precise mechanism was not captured. Source media/peers remain
+unchanged and every gesture restores in one Undo/Redo. Actual docked layout is inspected/correct.
+Native preview is explicitly unavailable, source outline count0, project replacement/other original
+editor gaps stay open. **No gate closes:** M06 **3/4**, overall **4/10 (40%)**.
+[Composition browser evidence](evidence/mapgyver-m06-browser-input-2026-11-01.json).
+
+**Retained checkpoint, batch88:** two Composition checks exit1 at the form stage; both owned hosts
 exit0 normally. Exact f32 expectations and a narrow-panel canvas layout defect are corrected,
 without a third run. Svelte (zero errors/warnings), JS syntax/Prettier, rebuilt ordinary app and
 both workspace formatters pass. Full-flow/visual acceptance remains open. **No gate closes:**
@@ -1794,6 +1804,38 @@ is atomic Matrix launches/transitions and demanded shared render passes, not mor
 
 ### M06 acceptance items
 
+**Batch89 result, 05:41 UTC:** first run exits1 at Scale after passing full form, ordering, copy/
+removal, Translate and Rotate with complete history. Static review finds the test can observe a
+backend history commit before the selected form renders it. Synchronize the form's position/
+scale/rotation with that committed transform before taking real handle coordinates; retain the
+same0.08 scale tolerance and include transform diagnostics on failure. The second/final run passes
+the complete candidate, **exit0 /7,332 ms**, zero page errors. Exact source/channel identity,
+mirrored/nonuniform scale, pivot, blend/opacity/Enabled, independent peers, all three grouped
+gestures, Escape, invalid form with no history consumption, missing source/Undo and panel switching
+are verified. No authored mutation uses a backend request. Cumulative results are three failures
+and one pass; there is no additional app run.
+
+Inspected capture confirms the dock-width fix: the canvas occupies the narrow panel width, with
+forms stacked beneath. Preview remains explicitly unavailable; source outlines count0. The capture
+also retains the expected invalid-scale alert. Native source-extent/outline/image integration,
+project replacement and unobserved complete-editor checklist items stay required. M06 gate4 does
+not close, **3/4**, overall **4/10 (40%)**. Return only for those gaps, not another passing full
+candidate. After publication, select M07 gate3's existing grid/control/history/selection/live-state
+acceptance through the already working browser route; do not reopen CDP/desktop work.
+
+**Corrective verification batch89:** 2026-11-01 **05:39 UTC**, stop **06:24 UTC**; investigation
+cutoff **05:59 UTC**. Only M06 gate4 is active. Batch88 delivered a specific dock-width layout
+correction and exact f32 test expectations, rebuilt in `57a0cdc4`; those concrete changes reopen
+verification, not the parked automation investigation. Cumulative previous failures remain two.
+Run the existing corrected full browser flow and inspect its real capture. The first corrective
+run passes forms/order/copy/removal/Translate/Rotate history but fails Scale; its capture confirms
+the dock layout correction. One final comparison synchronizes the selected form's rendered f32
+values with the committed state before pointer-down, retaining the same scale tolerance and
+reporting actual transforms on failure. No further run in this batch; cumulative total at most4.
+Verify the
+remaining original checklist against the source/evidence before any gate closure; native imagery,
+extent outlines and physical integration remain required. No new automation route or budget change.
+
 **Actual Composition input batch88:** started 2026-11-01 **05:20 UTC**, stop **06:05 UTC**. Only
 M06 gate4 is active. The workflow-only turn is no progress; `68d308e2` verifies Source controls/history and
 retains native preview gate7. MapGyver owns Composition/source/instance/geometry intent semantics;
@@ -2101,7 +2143,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
 | 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
 | 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05 |
-| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — batch 75 verifies caller/headless parity and prepares the saved review scene; six actual-editor observation groups requested/pending |
+| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — batch75 caller parity and batch89 real browser forms/source/order/copy/remove/geometry/Escape/rejection/source-loss/panel/history pass; native image/extent outlines, project replacement and other complete-editor checklist gaps remain |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -5154,21 +5196,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source actual input is verified; native Source preview, hotplug/minimize and full physical matrix remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native rasters](#m06-acceptance-items): gates 1–3/4 accepted. Caller/headless parity is verified and the ordinary-app review scene is ready; actual editor/source-picker observations retain gate 4. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser input](#m06-acceptance-items): gates1–3/4 accepted. Browser forms/gestures/history and dock layout pass; native image/extent outlines, project replacement and other complete-editor gaps retain gate4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2 and 4/4 accepted; batch 82 verifies native raster/interruption/scale/lifetime. Caller/headless parity is verified; actual editor observations retain gate 3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Publish batch88's Composition test/layout checkpoint. **M06 gate4** stays active: the exact f32
-assertion correction and captured dock-width layout correction are concrete prerequisites for a
-targeted follow-up. Two failed invocations remain cumulative. Verify the remaining instance/order/
-geometry/history behavior and narrow-panel layout before any pass claim; no new automation route.
-All authored mutations must be actual UI input; backend queries only observe. Native image/extent/
-physical integration, project replacement and other unverified complete-editor checklist items
-remain required. Do not infer them from unavailable preview, bypass guards, repeat passing Source
-input or retry parked CDP/desktop activation. M05 gate7 still needs native Source preview.
+Publish batch89's verified Composition browser input/history and dock layout. Gate4 stays open
+for native image/extent outlines, project replacement and unobserved original complete-editor
+checks; do not repeat the passing candidate. Select **M07 gate3** actual Matrix grid selection,
+assignment/settings/structure/history and distinct playback feedback via the existing bundled
+browser. All authored mutations must be actual UI input; backend queries only observe. Keep any
+unverified complete-editor/native integration required. No guard bypass, passing Source/input
+repeat or parked CDP/desktop retry. M05 gate7 still needs native Source preview.
 
 M06 and M07 actual-editor observations remain requested/pending against their saved review
 projects; no response is inferred and preparation is not repeated. M08 caller/headless/aggregate

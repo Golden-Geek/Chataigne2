@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "batch": 89,
+  "date": "2026-11-01",
+  "gate": "M06/4",
+  "status": "ACTUAL_BROWSER_INPUT_PASSED_NATIVE_COMPLETE_EDITOR_GAPS_OPEN",
+  "base_revision": "57a0cdc44e3b1ed295e10d0367e26c0aed403d48",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --composition-ui",
+  "execution": {
+    "invocations_this_batch": 2,
+    "cumulative_failures": 3,
+    "cumulative_passes": 1,
+    "first_exit_code": 1,
+    "first_failure": "Scale assertion after form/order/copy/removal/Translate/Rotate history pass. Precise first-run mechanism was not captured; source review identifies possible committed-read/render lag.",
+    "correction": "Before pointer-down, wait for displayed position/scale/rotation to equal the committed f32 transform. Same0.08 scale tolerance; failure diagnostics added. No production geometry change.",
+    "final_exit_code": 0,
+    "hosted_flow_ms": 7332,
+    "browser": "149.0.7827.55",
+    "page_errors": 0,
+    "host": "Both shutdown-file exits0; no remaining MapGyver after final run.",
+    "first_log": "target/m06-composition-ui-b89.log",
+    "first_log_sha256": "632d76f3a02719bc1b5f08f622b91cded364e7c91388ecae354ae1580a25d086",
+    "final_log": "target/m06-composition-ui-b89-final.log",
+    "final_log_sha256": "c0d13d3d2e40dc63a08e65f15881494d04deecbe47b1bca599f4b93585221eab"
+  },
+  "reports": {
+    "reference": {
+      "channel": "e7df82d3-9456-499b-a095-466feb3c506b",
+      "media": "f7a15894-04d8-4e7e-a7bc-1d980377f1e6"
+    },
+    "primary": "75f88d8e-1bc5-4bb7-9b8b-b81d72efbd33",
+    "copy": "e583107c-f433-4342-958c-b2f74398480c",
+    "final_transform": {
+      "pivot": [0.30000001192092896, 0.699999988079071],
+      "position": [242, 178.00006103515625],
+      "rotation": 1.0353968143463135,
+      "scale": [-2.4000000953674316, 1.600003957748413]
+    },
+    "source_outline_count": 0
+  },
+  "coverage": [
+    "Canvas resize, visible atomic cycle rejection and no rejected history step.",
+    "Actual source selection/admission, non-authoring instance selection/drafts and rename.",
+    "Complete source/transform/pivot/opacity/Screen blend/Enabled form with whole-definition Undo/Redo and unchanged peer.",
+    "Order, copy identity and definition, remove/Undo/Redo/Undo.",
+    "Actual Translate/Rotate/Scale handles, unchanged non-target fields/peers, one complete Undo/Redo per sampled gesture.",
+    "Escape retains accepted motion and stops later held-pointer samples; invalid zero-scale form preserves last state/history.",
+    "Actual media deletion produces Missing channel; Undo restores original IDs, source definitions/assets and instance state.",
+    "Screen/Composition tab switching preserves committed state and usable controls."
+  ],
+  "visual": {
+    "screenshot": "target/m06-composition-ui.png",
+    "sha256": "a1d38af49573323fd151baf0ba813836ee1797f518168a9253777bbe8f6c017b",
+    "inspection": "Docked canvas now occupies panel width with forms beneath. Native Preview unavailable and expected invalid-scale alert remain explicit. No native outline/image pass inferred."
+  },
+  "hashes": {
+    "apps/mapgyver/tests/browser/composition.mjs": "9341fae149f6455a3c450a25f1d150846d3281a84d599a450cb039dbd5c9a2cf",
+    "target/debug/MapGyver.exe": "7ebb2cb637ed4fac419143df58fc4e06ea5a9eb46a6182b069b852590a18e876"
+  },
+  "limits": [
+    "Native preview unavailable and source outlines0; actual native image/extent-based selection/outline integration unverified.",
+    "Original complete-editor checklist remains, including project replacement and unobserved cases. No physical pointer/DPI/latency or global qualification inferred.",
+    "Functional transform tolerances are not physical alignment/performance budgets; exact final transform retained."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M06": "3/4",
+    "overall": "4/10",
+    "return": "Actual native imagery/extent outlines and remaining complete-editor checklist; do not repeat the passing browser candidate.",
+    "next": "M07 gate3 actual grid/selection/assignment/settings/structure/history/playback feedback via existing browser route, retaining unverified complete scope."
+  }
+}

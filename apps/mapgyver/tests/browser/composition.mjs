@@ -156,6 +156,19 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		const svg = panel.getByRole('group', { name: 'Composition transform controls', exact: true });
 		async function begin(selector) {
 			await ready();
+			// History commits can reach the public read before the panel has rendered their response.
+			const expected = (await current()).definition.transform;
+			for (const [label, value] of Object.entries({
+				'Position X': expected.position[0],
+				'Position Y': expected.position[1],
+				'Scale X': expected.scale[0],
+				'Scale Y': expected.scale[1],
+				'Rotation (radians, clockwise)': expected.rotation
+			}))
+				await wait(
+					async () => Number(await form.getByLabel(label, { exact: true }).inputValue()),
+					(actual) => Math.fround(actual) === value
+				);
 			await svg.scrollIntoViewIfNeeded();
 			const rect = await svg.boundingBox();
 			const handle = await svg.locator(selector).boundingBox();
@@ -207,7 +220,8 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 						transform.scale,
 						before.scale.map((value) => value * 2),
 						0.08
-					)
+					),
+					JSON.stringify({ mode, before, transform, point, target, rect })
 				);
 			const field = { Translate: 'position', Rotate: 'rotation', Scale: 'scale' }[mode];
 			assert.deepEqual(transform, { ...before, [field]: transform[field] });

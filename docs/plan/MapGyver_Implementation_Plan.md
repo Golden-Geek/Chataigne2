@@ -202,6 +202,12 @@ squeeze also receives the container-query layout used by other editors. Full inp
 verification remain open; no third run or gate closure. Follow up on those concrete corrections,
 retaining cumulative effort and every native/complete-editor requirement. No new automation route.
 
+Batch89 verifies the complete Composition browser candidate and dock layout after synchronizing
+rendered form values with committed history before pointer input. Native image/extent outlines,
+project replacement and remaining complete-editor scope retain gate4. Next select existing M07
+gate3 actual grid/control/history/selection/live-state input via the same browser route. Retain
+any unavailable complete-editor scope; no repeated passing fixture or parked automation retry.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

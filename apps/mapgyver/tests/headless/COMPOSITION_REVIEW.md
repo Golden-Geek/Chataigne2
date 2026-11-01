@@ -5,10 +5,12 @@ It does not manufacture desktop input evidence. Composition and source-picker be
 owned; the shared host, transport, history and project file codec remain Golden contracts.
 
 The opt-in bundled-browser check is `node apps/mapgyver/tests/headless/media.mjs --composition-ui`.
-It uses real DOM input and read-only backend correlation. Its batch88 candidate is incomplete:
-two runs stop at form-stage test assertions; corrected f32 expectations and dock-width layout
-still need runtime verification. Later checks are not evidence until they run. Browser input
-cannot prove native imagery/extents, physical presentation or the complete checklist below.
+It uses real DOM input and read-only backend correlation. Batch89 verifies its full form/source/
+ordering/copy/removal/transform/Escape/rejection/source-loss/panel/history flow and dock-width
+layout. Three earlier failures remain recorded; the final run synchronizes rendered form values
+after history commits before pointer input. Browser input cannot prove native imagery/extents,
+physical presentation or every item below, including project replacement. Do not repeat the
+passing candidate to fill those different gaps.
 See the owning [ledger](../../../../docs/progress/mapgyver-status.md#m06-acceptance-items).
 
 Generate and verify the review project from the repository root:
