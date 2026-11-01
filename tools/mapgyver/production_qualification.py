@@ -703,6 +703,7 @@ def fingerprints(executable):
               Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",
               ROOT / "crates/golden_core/runtime/io/Cargo.toml",
+              ROOT / "crates/golden_video/build.rs",
               ROOT / "apps/mapgyver/build.rs"]
     for directory in ("crates/golden_time/src", "crates/golden_video/src", "crates/golden_core/hosts/desktop/src",
                       "crates/golden_core/runtime/io/src",

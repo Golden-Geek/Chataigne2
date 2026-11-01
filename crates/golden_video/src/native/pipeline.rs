@@ -2,10 +2,15 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use windows::Win32::Foundation::RECT;
+use windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+#[cfg(test)]
 use windows::Win32::Graphics::Direct3D::Fxc::D3DCompile;
-use windows::Win32::Graphics::Direct3D::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, ID3DBlob};
+#[cfg(test)]
+use windows::Win32::Graphics::Direct3D::ID3DBlob;
 use windows::Win32::Graphics::Direct3D11::*;
-use windows::core::{Error, HRESULT, Result, s};
+#[cfg(test)]
+use windows::core::s;
+use windows::core::{Error, HRESULT, Result};
 
 use crate::plan::{BlendMode, BlitRegion, Layer, LayerSource, Pattern, ProjectiveMapping, SampleFilter, UnitRect};
 mod pattern;
@@ -14,7 +19,12 @@ use pattern::PatternParameters;
 
 use super::texture::Texture;
 
+#[cfg(test)]
 const SHADER: &str = include_str!("shader.hlsl");
+
+mod shaders {
+    include!(concat!(env!("OUT_DIR"), "/native_shaders.rs"));
+}
 
 #[cfg(test)]
 mod tests;
@@ -81,10 +91,6 @@ pub(super) struct Pipeline {
 
 impl Pipeline {
     pub(super) fn new(device: &ID3D11Device) -> Result<Self> {
-        let mut vertex_code = None;
-        let mut pixel_code = None;
-        let mut mapped_code = None;
-        let mut pattern_code = None;
         let mut vertex = None;
         let mut pixel = None;
         let mut mapped_pixel = None;
@@ -92,62 +98,12 @@ impl Pipeline {
         let mut constants = None;
         let mut pattern_constants = None;
         let mut rasterizer = None;
-        // SAFETY: fixed in-memory source, no includes/macros or external compiler inputs.
+        // SAFETY: compiler-validated immutable programs are embedded in this crate. Each
+        // native object still belongs exclusively to this device/worker and its retirement.
         unsafe {
-            D3DCompile(
-                SHADER.as_ptr().cast(),
-                SHADER.len(),
-                s!("golden-video"),
-                None,
-                None,
-                s!("vs_main"),
-                s!("vs_5_0"),
-                0,
-                0,
-                &mut vertex_code,
-                None,
-            )?;
-            D3DCompile(
-                SHADER.as_ptr().cast(),
-                SHADER.len(),
-                s!("golden-video"),
-                None,
-                None,
-                s!("ps_main"),
-                s!("ps_5_0"),
-                0,
-                0,
-                &mut pixel_code,
-                None,
-            )?;
-            device.CreateVertexShader(
-                blob(vertex_code.as_ref().ok_or_else(missing_output)?),
-                None,
-                Some(&mut vertex),
-            )?;
-            device.CreatePixelShader(
-                blob(pixel_code.as_ref().ok_or_else(missing_output)?),
-                None,
-                Some(&mut pixel),
-            )?;
-            D3DCompile(
-                SHADER.as_ptr().cast(),
-                SHADER.len(),
-                s!("golden-video"),
-                None,
-                None,
-                s!("ps_mapped"),
-                s!("ps_5_0"),
-                0,
-                0,
-                &mut mapped_code,
-                None,
-            )?;
-            device.CreatePixelShader(
-                blob(mapped_code.as_ref().ok_or_else(missing_output)?),
-                None,
-                Some(&mut mapped_pixel),
-            )?;
+            device.CreateVertexShader(shaders::VERTEX, None, Some(&mut vertex))?;
+            device.CreatePixelShader(shaders::PIXEL, None, Some(&mut pixel))?;
+            device.CreatePixelShader(shaders::MAPPED_PIXEL, None, Some(&mut mapped_pixel))?;
             device.CreateBuffer(
                 &D3D11_BUFFER_DESC {
                     ByteWidth: size_of::<Parameters>() as u32,
@@ -168,24 +124,7 @@ impl Pipeline {
                 },
                 Some(&mut rasterizer),
             )?;
-            D3DCompile(
-                SHADER.as_ptr().cast(),
-                SHADER.len(),
-                s!("golden-video"),
-                None,
-                None,
-                s!("ps_pattern"),
-                s!("ps_5_0"),
-                0,
-                0,
-                &mut pattern_code,
-                None,
-            )?;
-            device.CreatePixelShader(
-                blob(pattern_code.as_ref().ok_or_else(missing_output)?),
-                None,
-                Some(&mut pattern_pixel),
-            )?;
+            device.CreatePixelShader(shaders::PATTERN_PIXEL, None, Some(&mut pattern_pixel))?;
             device.CreateBuffer(
                 &D3D11_BUFFER_DESC {
                     ByteWidth: size_of::<PatternParameters>() as u32,
@@ -433,6 +372,7 @@ fn alpha(value: AlphaMode) -> u32 {
     }
 }
 
+#[cfg(test)]
 unsafe fn blob(value: &ID3DBlob) -> &[u8] {
     // SAFETY: caller retains the compiled blob for the returned borrow.
     unsafe { std::slice::from_raw_parts(value.GetBufferPointer().cast(), value.GetBufferSize()) }

@@ -50,6 +50,14 @@ The implemented foundations are:
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.
+  Its four fixed HLSL programs are compiled by this crate's `build.rs` and embedded as DXBC.
+  Device initialization/recovery only creates device-owned shaders/state from those bytes;
+  it does not recompile constant HLSL or retain a process-global compiler cache. Entry points,
+  Shader Model 5 profiles, flags and source name are unchanged and regression-checked byte for
+  byte against the former compiler path. Shader edits automatically rebuild the generated
+  module. Native D3D11 builds currently require a Windows build host for the system compiler;
+  portable plan/null builds skip shader generation. Qualification fixtures with their own
+  marker programs retain their explicit test compiler path.
   Public `SpoutProbe` observes an exact sender on an IO worker without a renderer/window.
   Read-only `adapters()` reports PCI identity, memory capacities and adapter-owned GDI outputs.
   Display enumeration errors are explicit and do not prevent device creation or masquerade as

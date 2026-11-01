@@ -16,9 +16,10 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** attribute the private-memory checkpoint peaks at the native preparation/device
-lifecycle boundary using batch 67's existing full dataset and bounded source inspection.
-The complete corrected 100-cycle run now finishes without a watchdog/cleanup failure, but
+**Next:** run the fixed 100-cycle lifecycle acceptance once with batch 68's build-time shaders,
+after its pinned release build and fresh environment observations. Software verification passes;
+the runtime memory effect remains unmeasured. No further attribution investigation is scheduled.
+The complete corrected batch-67 run finishes without a watchdog/cleanup failure, but
 peak post-baseline checkpoint growth is **40.445 MiB**, above the unchanged **32 MiB** limit.
 Final drained growth is **6.852 MiB**; it does not override that peak failure or prove its cause.
 Do not repeat the unchanged workload, silently change peak-to-final semantics, or reduce the
@@ -3202,6 +3203,45 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Native preparation memory batch 68:** started 2026-11-01 **00:26 UTC**, stop by **01:11 UTC**.
+Previous turn is progress: `e08ede9b` verifies the complete corrected lifecycle workload and
+isolates its failed maximum private checkpoint growth, **40.445 MiB >32 MiB**, while final
+drained growth is 6.852 MiB and logical/handle/shutdown checks pass. Only gate 9 is active.
+Use at most two fixed analyses of the existing 100-checkpoint record plus owning native
+preparation/teardown source to distinguish sustained retention from repeat preparation cost.
+Hypothesis: repeated fixed-HLSL compilation during each new renderer/device lifetime contributes
+avoidable process-private preparation peaks. Native `Pipeline::new` currently compiles all four
+unchanging entry points on every initialization. A bounded correction is justified only if
+it removes proven repeated preparation at the right boundary and preserves shader behavior,
+resource ownership, build portability and budgets; no driver/cache cause is presumed.
+Investigation ends by **00:46 UTC** or the two analyses. Do not add an expanding profiler chain
+or rerun the unchanged baseline. If supported, deliver the coherent preparation correction,
+meaningful shader/contract checks and at most one native verification after software/strict
+Clippy/build prerequisites pass. A full live acceptance check may finish on its original handle
+within the 01:11 batch stop. Preserve previous failures and all thresholds. No global allocator/
+timer/driver tuning, GPU reset, window-gate change or app-identity workaround. Checkpoint/push
+before the next batch; no compiler optimization alone closes the renderer gate.
+
+**Batch 68 checkpoint:** the existing dataset separates larger full-extent checkpoints from
+smaller ones but does not establish a leak or driver-cache cause. Source inspection proves four
+unchanging HLSL programs were compiled on every native device/pipeline initialization. Golden
+Video now compiles those programs in its build script and embeds the resulting bytecode. Device
+shader/state objects retain their worker/device ownership and retirement; no global cache or
+runtime fallback is added. Entry points, profiles, source name and flags are unchanged. Native
+D3D11 generation requires a Windows build host; portable plan/null builds skip generation.
+Qualification's independent marker shaders retain their explicit compiler path. Build-script
+inputs are included in qualification fingerprints.
+
+**Verified:** **164 Golden Video tests pass / 23 existing hardware tests ignored**, including
+independent byte-for-byte comparison of all four programs against their former runtime compiler
+inputs. Strict all-target/all-feature Video Clippy and MapGyver native-bin/test Clippy pass;
+the no-default-feature Video check, **282 qualification-tool tests** and both workspace
+formatters pass. No native run is claimed by this checkpoint, and no
+memory reduction is inferred. Batch 67's **40.445 MiB >32 MiB** peak failure remains operative.
+**No acceptance gate closes; M03 remains 7/9.** Next is one unchanged, pinned full lifecycle
+acceptance run, not another profiler or parameter sweep. All pending decisions and return-queue
+items remain required; reaching this batch's time limit cannot waive them.
 
 **Full settled lifecycle acceptance batch 67:** started 2026-10-31 **23:48 UTC**, stop by
 2026-11-01 **00:33 UTC**. Previous turn is progress: `fe8cb154` corrects the admitted-versus-

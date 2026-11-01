@@ -1,4 +1,5 @@
 use super::*;
+mod compiled;
 mod mapping;
 mod pattern;
 use std::num::NonZeroUsize;
