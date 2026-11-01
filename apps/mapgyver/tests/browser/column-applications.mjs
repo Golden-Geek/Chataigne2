@@ -294,6 +294,9 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		await phase('Idle');
 		assert(!alive(running.process_id));
 		await launch(first.media, columns[0]);
+		await wait(runtime, (value) => value.applications.length === 0);
+		// Unavailable neighbors are not preloaded; direct column demand must expose Unavailable.
+		await launch(first.media, columns[1]);
 		const unavailable = await phase('Unavailable');
 		assert.equal(unavailable.process_id, null);
 		await showRuntime(unavailable);

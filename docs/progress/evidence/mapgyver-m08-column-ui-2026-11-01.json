@@ -1,0 +1,62 @@
+{
+	"schema": 1,
+	"batch": 97,
+	"date": "2026-11-01",
+	"gate": "M08/4",
+	"status": "ACTUAL_COLUMN_SHARED_PROCESS_RECOVERY_NEW_PASSED_NATIVE_OS_FULL_APP_OPEN",
+	"base_revision": "e6abf7b8ac980a63ca62323d97ec99653d56e647",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+	"execution": {
+		"invocations": 1,
+		"exit_code": 0,
+		"hosted_flow_ms": 10810,
+		"browser": "149.0.7827.55",
+		"page_errors": 0,
+		"rejected_requests": 0,
+		"host_exit_code": 0,
+		"log": "target/m08-column-applications-ui-b97.log",
+		"log_sha256": "97528484eb073e3e41779ec7670e7abb543b174387b2287974b0e97b9f135b17"
+	},
+	"correction": {
+		"evidence": "applications/runtime/capture.rs deliberately skips unavailable targets whose demand reasons are all Neighbor. Existing headless/check.mjs uses associated Column2 for Unavailable.",
+		"change": "Keep disabled neighboring Column1 and require an empty runtime list, then use actual associated Column2 input for direct-demand Unavailable and recovery.",
+		"production": "No source, binary or policy change; both batch96 failures remain preserved."
+	},
+	"report": {
+		"application": "ff7fa71c-eed5-4a14-8840-57e59e1160f0",
+		"matrices": ["ba6cb83f-bae7-46e9-9d6f-ca799e68b936", "bce5559c-9117-4568-96dc-15b796b068b1"],
+		"owned_pids": [33820, 15204, 46196],
+		"initial_launch": "96cd8dab-1757-4cde-b6d1-67f7e3a91471",
+		"recovered_launch": "3b1043bc-3358-475d-b378-139ece51c3d9",
+		"owned_pids_absent": true
+	},
+	"coverage": [
+		"Actual association/distance Save/Undo/Redo, remove/copy/history and stable shared references; missing definition preserves saved references and Undo identity.",
+		"Pre/post neighbor holds and two independent Matrix scopes share one owned process; final hold release stops it.",
+		"Actual runtime Refresh correlates Ready/Idle/Unavailable and PID with public read-only state.",
+		"Blocking new launches retains an in-use process, unload stops it, unavailable neighbor creates no entry, direct demand reports Unavailable and enabling admits a fresh launch/PID.",
+		"Runtime operations preserve both authored Matrix snapshots; actual File New clears runtime/catalog and retires the active owned process.",
+		"Zero rejected UI requests/page errors, all three recorded PIDs absent, normal host exit0."
+	],
+	"visual": {
+		"screenshot": "target/m08-column-applications-ui.png",
+		"sha256": "c1d8691754e4325df691d570950bbbcddc809abe24f7d6d9b6339b4720a1a453",
+		"inspection": "Final Untitled project, empty application list/runtime, Headless supervision and both services Running; no loading overlay or stale definition."
+	},
+	"checks": {
+		"syntax_prettier_both_workspace_formatters": "pass",
+		"software_prerequisites": "Current batch96 binary and owned fixture hashes unchanged; 35 frontend tests and Svelte 0 errors/warnings passed immediately before this continuation. No production source change."
+	},
+	"hashes": {
+		"apps/mapgyver/tests/browser/column-applications.mjs": "d8fa1a9e07b8ab91cb3b9b17d90f8550a3843b6bb372c05b924ba7e2bfbf5579",
+		"target/debug/MapGyver.exe": "3cadbb216320cbd9e9d4f3f0c22a82149038cf917acb223ce984517b31646314",
+		"target/debug/application_process_fixture.exe": "99ef591036233f59b8d80ac820c7e832d42870b9b4bdbf35165434b54a5c794e"
+	},
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "4/10",
+		"remaining": "Native executable dialog, singleton retirement limit, elevated-target and complete app/mode/recovery/cleanup. Known PID absence is not complete native process-tree qualification.",
+		"next": "M08/4 elevation-required target outcome through normal launch without requesting elevation or changing privileges; distinguish denial from a running elevated target."
+	}
+}

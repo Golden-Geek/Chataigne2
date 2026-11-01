@@ -4,22 +4,21 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Active gate:** **M08 gate4, actual column/application UI integration**. Batch96 verifies column
-association/distance/history/missing-reference controls, shared owned processes across two Matrices,
-pre/post holds, runtime snapshot input and blocking new launches while retaining an in-use process.
-The final check fails after blocked relaunch: the runtime list is empty instead of `Unavailable`.
-Cause remains unresolved; recovery and New with a live process were not reached. No gate closes.
+**Active gate:** **M08 gate4, remaining native/OS/full-app acceptance**. Batch97 passes actual column
+association/distance/history/missing-reference controls, shared processes across two Matrices,
+pre/post holds, runtime snapshot input, availability recovery and New with a live owned process.
+Batch96's last failure was a fixture expectation: unavailable neighbor-only demand is omitted;
+direct associated-column demand correctly reports `Unavailable`. No production policy changed.
 M06 gate4 returns for native imagery/extent outlines; M07 gate3 for native renderer feedback.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** retain M08 gate4 and narrow batch96's blocked-relaunch failure to the actual
-accepted launch, authored association and demand/runtime
-contract. Both app invocations are used; no third run in this batch. Fix only an established cause,
-then verify availability recovery and New with a live owned process in a subsequent bounded batch.
-Do not repeat passing definition/parity preparation or infer native dialog/retirement/elevation.
+**Next action:** retain M08 gate4 and qualify the truthful elevation-required target outcome using
+the normal owned-process launch path, without requesting elevation or changing privileges.
+Native executable-dialog input, the preserved singleton retirement limit and complete app/mode/
+recovery/cleanup remain required. Do not repeat passing browser/caller/column preparation.
 M06/M07 return for real native image/outline/renderer observations; no injected status or parked
 automation retry. Composition project lifetime and Matrix stale inspections now pass in scope.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
@@ -37,7 +36,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Active: column UI/shared scopes verified; blocked-relaunch check fails; native/OS/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Active: complete column UI/shared-scope/recovery/New check passes; native/OS/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -66,7 +65,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Active | M08/4 | Resolve the exact blocked-relaunch runtime mismatch; verify recovery and New with a live process. Native dialog, singleton retirement, elevation and full-app checks remain required afterward. |
+| Active | M08/4 | Qualify the elevation-required target outcome without elevation. Native dialog, singleton retirement and full-app checks remain required; column/shared-process/recovery/New UI checks now pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
 | Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
@@ -126,13 +125,21 @@ with measured cost and consequences, requiring explicit agreement before any low
   environment modes and atomic rejection. Native executable-dialog input remains unverified.
   Batch96 verifies original association/distance/history/missing-reference and shared-process input
   across two Matrix scopes. Its final blocked-relaunch observation fails with no runtime entry;
-  recovery/project-New checks remain unexecuted. Resolve that exact mismatch before expanding scope.
+  batch97 identifies the neighbor-only fixture expectation and passes direct-demand Unavailable,
+  re-enable recovery and actual project New with a live process. Both earlier failures remain.
   Keep native/OS/retirement/elevation/full-app gaps required; do not repeat definition/caller prep.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch96:** two app invocations, both fail. A regression-proven pending-removal
+**Latest checkpoint, batch97:** the corrected comparison passes **exit0 /10,810 ms**, Chromium
+**149.0.7827.55**, zero rejected requests/page errors. Disabled neighbor demand has no entry;
+direct demand reports `Unavailable`, enabling starts a fresh launch/PID, and actual File New
+clears definitions/runtime while retiring the live process. All three observed PIDs are absent,
+and the host exits normally. **M08 remains 3/4; overall 4/10 (40%)** for native/OS/full-app gaps.
+[Column UI/recovery/New evidence](evidence/mapgyver-m08-column-ui-2026-11-01.json).
+
+**Retained checkpoint, batch96:** two app invocations, both fail. A regression-proven pending-removal
 inspection race is fixed; **35 frontend tests** and the rebuilt app pass. The corrected actual UI
 run reaches shared scopes/holds/stops and disabled in-use retention, then times out waiting for
 `Unavailable` after relaunch; runtime reports no applications, with zero rejected UI requests.
@@ -310,6 +317,28 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Blocked-relaunch correction batch97:** starts 2026-11-01 **06:50 UTC**, stop **07:35 UTC**.
+The previous turn is progress: `e6abf7b8` fixes a regression-proven removal race and preserves two
+failed app runs. Keep the original investigation cutoff **06:55 UTC**; no time-box reset.
+Source evidence identifies the remaining mismatch: `runtime/capture.rs` deliberately omits
+unavailable neighbor-only demand, while the new fixture launches Column1, a neighbor of the
+associated Column2. The existing headless lifecycle check correctly selects the associated column.
+Retain the disabled-neighbor/no-entry assertion, then use actual Column2 input for `Unavailable`,
+enablement recovery and project New with a live process. This concrete fixture correction permits
+one corrected comparison; no production policy change, new automation route or native claim.
+
+**Batch97 result:** the single corrected comparison passes **exit0**, complete hosted flow
+**10,810 ms**, zero rejected UI requests/page errors. Existing `runtime/capture.rs` omits
+unavailable neighbor-only demand; preserving that assertion and selecting associated Column2
+proves direct-demand `Unavailable`. Actual Allow new launches admits a fresh process/launch,
+authored snapshots remain unchanged, and actual File New clears definitions/runtime and retires
+the active process. Observed PIDs **33820/15204/46196** are absent; host exits0 normally.
+No app source/binary/policy changed; current binary hashes match batch96. Both previous failures
+remain recorded, not converted to passes. No native dialog, elevated target or complete tree/
+singleton/full-app qualification is inferred. M08 gate4 stays active for those requirements.
+Next qualify truthful elevation-required target behavior through the normal non-elevated launch
+contract; no UAC/elevation/settings change. [Evidence](evidence/mapgyver-m08-column-ui-2026-11-01.json).
 
 **Actual column/application integration batch96:** 2026-11-01 **06:35 UTC**, stop **07:20 UTC**;
 investigation cutoff **06:55 UTC**, at most two finite app invocations. Only M08 gate4 is active.
@@ -1220,7 +1249,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms and batch96 column/history/shared-scope input pass in scope; blocked-relaunch runtime check fails, recovery/New and native dialog/singleton retirement/elevation/full-app gaps remain |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms and batch97 complete column/history/shared-process/recovery/New input pass in scope; native dialog/singleton retirement/elevation/full-app gaps remain |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -5486,14 +5515,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Continue from batch96's verified pending-removal correction and partial column/shared-process UI evidence.
-Keep **M08 gate4** active. The next bounded action isolates the exact blocked-relaunch mismatch:
-the UI shows Column1 requested, but no runtime application appears instead of `Unavailable`.
-Inspect the accepted launch, authored association and demand/runtime contract before correcting
-anything. Both app invocations are spent; no third run in batch96. A later verification requires
-a supported correction or a specific newly evidenced contract/fixture cause, not a timeout reset.
-Availability recovery and project New with a live owned process are still unexecuted. Native
-dialog, singleton retirement, actual elevation and full-app scope remain required afterward.
+Continue from batch97's passing complete column/shared-process/availability-recovery/New UI check.
+Keep **M08 gate4** active. The next bounded action qualifies truthful elevation-required target
+behavior through the normal owned-process contract without requesting elevation or changing
+privileges. Start from the existing native launch failure contract and test tooling; no shell or
+elevation fallback. Native executable-dialog input, the preserved singleton retirement limit,
+actual elevated-target scope and complete app/mode/recovery/cleanup remain required. A denied
+elevation-required launch alone must not be described as a successfully running elevated process.
 No phase switch merely because a checkpoint did not close the gate; record an actual missing
 prerequisite and return trigger if the active work becomes blocked.
 M06 returns for native imagery/extent/shape selection, M07 for native renderer feedback and M05

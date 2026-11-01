@@ -257,6 +257,13 @@ reduce the next action to that exact accepted-launch/association/demand/runtime 
 both failed attempts; no third invocation in this batch, speculative fix, new phase or lowered
 gate. Native dialog/singleton retirement/elevation/full-app acceptance remains required.
 
+Batch97 identifies a fixture expectation rather than a production defect: unavailable neighbor-only
+demand is intentionally omitted. The corrected actual UI comparison preserves that assertion and
+passes direct associated-column `Unavailable`, re-enable recovery and project New with a live
+owned process. Keep M08 gate4 active for its native/OS/full-app requirements. Next qualify the
+elevation-required launch outcome without requesting elevation or changing privileges; distinguish
+denial evidence from a running elevated process. Native dialog and retirement limits remain open.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
