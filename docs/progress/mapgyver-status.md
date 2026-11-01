@@ -4,7 +4,23 @@
 
 **Updated: 2026-11-01 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Execution: user-required Parameter-node refactor active, beginning with Composition.**
+**Execution: user-required Parameter-node refactor; Composition instance slice verified.**
+**Composition Parameter result —22:40 CET:** real bundled browser input verifies all9 generic
+Golden widgets, SetParam opacity/scale, exact Undo/Redo, invariant rejection and independent
+copy/remove. No custom instance Inspector remains; contextual icons live in the canvas toolbar.
+The initial browser check observed the previous selection before the copy receipt; fixture now
+waits for returned copy parameter identities. Second run passes in2779ms with exactly1expected
+invalid-scale rejection and0page errors; owned headless host exits0. Copy uses Golden's complete
+subtree capture/import forest, retaining defaults, editable constraints and expression control
+nodes; dedicated Rust test verifies copy/history/sparse roundtrip. Composition13pass; shared
+engine659pass/3existing ignores; Svelte0errors/0warnings, clippy/build and both formatters pass.
+This closes the instance conversion slice, not M06's native gate or the full Parameter request.
+Next owner: source/channel/asset Parameters, including Composition canvas settings; plan ordering
+updated for that dependency. All other owners remain required.
+**Current slice —22:36 CET, stop23:21 CET:** `d42dde54` pushed and remotely verified.
+Same Composition owner: preserve full Parameter subtrees on copy through Golden's public
+duplication boundary, use generic Inspector, and verify real browser editing/history/rejection.
+Software checks precede at most two live acceptance runs; no native qualification attempted.
 The previous custom definition structs and ordinary Inspector forms do not satisfy the requested
 Golden model. Replace every authored setting with typed Parameter children; runtime/read DTOs
 become projections, with the generic Inspector owning ordinary property editing. Preserve prior
@@ -429,7 +445,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Parameter-backed channel/source/asset authoring pending | `█████████████████░░░` 83% | 5/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Parameter-backed Screen/Surface authoring pending; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Active instance Parameter conversion; generic UI/copy verification pending; native scope retained | `███████████████░░░░░` 75% | 3/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Instance Parameters/generic UI/copy verified; channel canvas conversion and native scope retained | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Matrix/association Parameter conversion and native feedback pending | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -465,10 +481,10 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Pending | M04/5 | Convert every channel/source/asset setting to typed Parameter children and verify generic Inspector, history and project lifetime. Prior bespoke-form evidence retained. |
+| Active | M04/5 | Convert every channel/source/asset setting to typed Parameter children and verify generic Inspector, history and project lifetime. Includes Composition canvas settings; prior bespoke-form evidence retained. |
 | Pending | M05/6 | Convert Screen/Surface settings to typed Parameter children, preserve atomic geometry validation, then verify generic Inspector and canvases. |
 | Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
-| Active | M06/4 | Composition instance Parameter nodes implemented and software checked; verify generic Inspector and complete Parameter-state copying. Channel canvas conversion follows in its owner. Native image/extent/selection scope retained. |
+| Pending | M06/4 | Instance Parameter nodes, generic Inspector, full copy/history/project lifetime verified. Channel canvas conversion follows in M04 owner. Native image/extent/selection scope retains its supported-observation return trigger. |
 | Pending | M07/3 | Convert Matrix elements and association children to Parameters and verify generic Inspector. Native preparation/installation/submission feedback retains its supported-observation return trigger. |
 | Pending | M08/4 | Convert Application settings, arguments/environment entries to Parameter nodes and generic Inspector. Native picker/lifecycle, singleton retirement and full-app scope retained. User says native input unavailable; do not repeat that question or retry alternate helpers. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |

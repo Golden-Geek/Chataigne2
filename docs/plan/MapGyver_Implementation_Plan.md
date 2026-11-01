@@ -74,10 +74,12 @@ history/project lifetime, scripts/commands, worker ownership and scalable subtre
 Remove ordinary property forms and opaque authored codecs as their owners migrate. Verify direct
 parameter edits, public caller parity, generic Inspector, undo/redo, duplication and roundtrip.
 
-Execute one owner at a time: Composition instances; Screens/Surfaces; source/channel/asset fields;
+Execute one owner at a time: Composition instances; source/channel/asset fields; Screens/Surfaces;
 Matrix elements and association children; Application definitions/argument/environment children;
 then complete field coverage and shared Inspector cleanup. Each coherent owner is committed and
 pushed with its checks. This adds no waiver to original native/resource/display acceptance.
+Channel fields follow instances so the Composition canvas settings and structural instance
+actions can share the generic parameter Inspector before converting dependent Screens/Surfaces.
 
 ### Golden workbench design correction — 2026-11-01
 

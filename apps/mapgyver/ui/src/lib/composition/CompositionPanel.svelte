@@ -2,6 +2,8 @@
 	import { IconButton, type PanelProps, type PanelState } from 'golden_ui';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import resetIcon from 'golden_ui/style/icons/reset.svg';
+	import copyIcon from 'golden_ui/style/icons/copy.svg';
+	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import { useCompositionAuthoring } from './context.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import CompositionPreview from './CompositionPreview.svelte';
@@ -12,6 +14,23 @@
 	const channel = $derived(owner.channel),
 		busy = $derived(owner.busy);
 	const selection = useDocumentSelection();
+	async function duplicate() {
+		if (!view.instance) return;
+		const selectCreated = selection.capture();
+		const result = await controller.edit({
+			kind: 'DuplicateInstances',
+			instances: [view.instance]
+		});
+		if (result?.kind === 'InstancesCreated' && result.instances[0])
+			selectCreated(result.instances[0].instance);
+	}
+	async function remove() {
+		if (!view.instance) return;
+		const selectParent = selection.capture(),
+			parent = view.selected?.channel;
+		const result = await controller.edit({ kind: 'RemoveInstance', instance: view.instance });
+		if (result?.kind === 'Changed' && parent) selectParent(parent);
+	}
 </script>
 
 <section
@@ -34,6 +53,16 @@
 			label="Refresh Composition"
 			disabled={busy}
 			onclick={() => controller.refresh()} />
+		<IconButton
+			icon={copyIcon}
+			label="Copy instance"
+			disabled={busy || !view.instance}
+			onclick={duplicate} />
+		<IconButton
+			icon={deleteIcon}
+			label="Remove instance"
+			disabled={busy || !view.instance}
+			onclick={remove} />
 	</div>
 	<div class="editor-canvas">
 		{#if view.error || gestureState.error}<p class="editor-error" role="alert">

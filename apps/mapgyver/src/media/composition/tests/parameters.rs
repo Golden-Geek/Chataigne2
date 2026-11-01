@@ -113,3 +113,114 @@ fn direct_parameter_edits_reject_invalid_geometry_and_reference_cycles_without_s
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     }
 }
+
+#[test]
+fn copying_preserves_parameter_configuration_and_control_subtrees_with_independent_identities() {
+    use golden_core::{
+        edit::Edit,
+        parameter::{ParameterControlMode, ParameterControlSpec, ParameterControlState},
+    };
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let composition = create(&mut engine, MediaKind::Composition);
+    let original = add(&mut engine, composition, vec![source])[0];
+    let root = engine.node_id_by_uuid(original.instance.0).unwrap();
+    let opacity = opacity_parameter(&engine, root);
+    // Only user-editable constraints are authored; producer-owned catalogs/ranges
+    // are deliberately rebuilt from their declaration on sparse project load.
+    engine
+        .nodes
+        .get_mut(opacity)
+        .unwrap()
+        .node_data_mut()
+        .meta
+        .user_permissions
+        .can_edit_constraints = true;
+    engine.edits.push(Edit::SetParam {
+        node: opacity,
+        value: ParamValue::Float(0.25),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    let mut constraints = engine
+        .nodes
+        .get(opacity)
+        .unwrap()
+        .engine_param_snapshot()
+        .unwrap()
+        .constraints;
+    constraints.step = Some(0.25);
+    engine.edits.push(Edit::SetParamConstraints {
+        node: opacity,
+        constraints,
+    });
+    engine.edits.push(Edit::SetParamControlState {
+        node: opacity,
+        state: ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression),
+    });
+    engine.apply_edits().unwrap();
+    let parameter = engine.nodes.get(opacity).unwrap().engine_param_snapshot().unwrap();
+    assert_ne!(parameter.value, parameter.default_value);
+    let control = engine.nodes.get(opacity).unwrap().node_data().first_child.unwrap();
+    let before = inspect(&mut engine, composition);
+    let history = engine.undo_len();
+    let MediaEditResult::InstancesCreated { instances } = edit(
+        &mut engine,
+        composition,
+        CompositionEdit::DuplicateInstances {
+            instances: vec![original.instance],
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(engine.undo_len(), history + 1);
+    let copy = engine.node_id_by_uuid(instances[0].instance.0).unwrap();
+    let copied_opacity = opacity_parameter(&engine, copy);
+    let copied_parameter = engine
+        .nodes
+        .get(copied_opacity)
+        .unwrap()
+        .engine_param_snapshot()
+        .unwrap();
+    assert_eq!(copied_parameter, parameter);
+    assert_ne!(opacity, copied_opacity);
+    let copied_control = engine
+        .nodes
+        .get(copied_opacity)
+        .unwrap()
+        .node_data()
+        .first_child
+        .unwrap();
+    assert_ne!(control, copied_control);
+    assert_eq!(
+        engine.nodes.get(control).unwrap().get_type(),
+        engine.nodes.get(copied_control).unwrap().get_type()
+    );
+    let after = inspect(&mut engine, composition);
+    assert!(engine.undo().unwrap());
+    assert_eq!(inspect(&mut engine, composition), before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(inspect(&mut engine, composition), after);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    let copied_uuid = engine.nodes.get(copied_opacity).unwrap().node_data().meta.uuid;
+    let loaded_parameter = loaded
+        .nodes
+        .get(loaded.node_id_by_uuid(copied_uuid).unwrap())
+        .unwrap()
+        .engine_param_snapshot()
+        .unwrap();
+    assert_eq!(loaded_parameter, parameter);
+}
+
+fn opacity_parameter(engine: &AppEngine, root: golden_core::node::NodeId) -> golden_core::node::NodeId {
+    let folder = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
+    let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
+    loop {
+        let id = child.unwrap();
+        let node = engine.nodes.get(id).unwrap();
+        if node.node_data().meta.decl_id.0 == "parameters/opacity" {
+            return id;
+        }
+        child = node.node_data().next_sibling;
+    }
+}

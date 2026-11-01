@@ -19,7 +19,6 @@
 	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
 	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
-	import InstanceInspector from '../lib/composition/InstanceInspector.svelte';
 	import '../lib/workbench.css';
 	import { treeIcons } from '../lib/icons/tree';
 	import { provideDocumentSelection } from '../lib/selection.svelte';
@@ -44,7 +43,6 @@
 		'mapgyver.application'
 	])
 		registerNodeInspector(type, { component: DomainInspector });
-	registerNodeInspector('mapgyver.composition.instance', { component: InstanceInspector });
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
 		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },

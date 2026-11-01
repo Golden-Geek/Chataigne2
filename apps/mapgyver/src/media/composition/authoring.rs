@@ -4,7 +4,9 @@ use crate::{
     media::protocol::{ChannelReference, ChannelSource, MediaEditResult},
 };
 use golden_core::{
+    app::ProjectNode,
     edit::{Edit, NodeTree, UserItemTreeInsertion},
+    engine::ProjectImportSpec,
     node::{Node, NodeId},
 };
 use std::collections::HashSet;
@@ -116,17 +118,49 @@ pub(crate) fn apply(
             if targets.is_empty() || targets.len() > MAX_ADD_BATCH {
                 return Err("duplicate 1..4096 instances per atomic batch".into());
             }
-            let definitions = targets
+            if instances(engine, parent)?.len().saturating_add(targets.len()) > MAX_INSTANCES {
+                return Err("Composition exceeds 100000 authored instances".into());
+            }
+            let mut unique = HashSet::new();
+            let imports = targets
                 .into_iter()
                 .map(|target| {
                     let id = instance(engine, parent, target)?;
-                    let AppNode::CompositionInstance(node) = engine.nodes.get(id).unwrap() else {
-                        unreachable!()
-                    };
-                    Ok(node.definition().clone())
+                    if !unique.insert(id) {
+                        return Err("duplicate targets must be distinct".into());
+                    }
+                    // Capture the full authored subtree, including constraints/defaults and
+                    // control nodes. A value-only definition loses normal Parameter state.
+                    let project = engine
+                        .capture_project_subtree_with(id, Node::project_encode_data)
+                        .map_err(|error| error.to_string())?;
+                    Ok(ProjectImportSpec {
+                        project,
+                        initial_params: Vec::new(),
+                    })
                 })
                 .collect::<Result<Vec<_>, String>>()?;
-            append(engine, reference, parent, definitions)
+            let previous = engine.nodes.get(parent).unwrap().node_data().last_child;
+            let result = engine
+                .import_project_subtrees_with(
+                    imports,
+                    parent,
+                    previous,
+                    AppNode::project_decode_node,
+                    // These are internally captured, already admitted instance subtrees.
+                    |_, _| Ok(()),
+                )
+                .map_err(|error| error.to_string())?;
+            Ok(MediaEditResult::InstancesCreated {
+                instances: result
+                    .roots
+                    .into_iter()
+                    .map(|id| InstanceReference {
+                        composition: reference,
+                        instance: InstanceId(engine.nodes.get(id).unwrap().node_data().meta.uuid),
+                    })
+                    .collect(),
+            })
         }
         CompositionEdit::ConfigureInstance {
             instance: target,

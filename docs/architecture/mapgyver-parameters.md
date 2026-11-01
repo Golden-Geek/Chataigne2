@@ -23,7 +23,7 @@ required scope; a converted owner does not complete the refactor.
 
 | Owner | Required parameter fields | State |
 | --- | --- | --- |
-| Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Implemented; software checks pass, generic UI verification pending |
+| Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip |
 | Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Pending |
 | Asset | Typed locator kind/path and authored preparation settings | Pending |
 | Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Pending |
@@ -45,8 +45,11 @@ Composition instances currently expose nine parameters beneath their declared Pa
 Their definition projects Golden's synchronized typed handles. The ordinary property form and
 opaque instance codec are removed; unsupported old opaque instance records fail explicitly.
 Backend operations emit SetParam edits with independent command history; explicit gesture groups
-retain one undo unit. Copying creates independent parameter children and source references remain
-shared. Existing reference scenes are preserved as historical evidence, not silently migrated.
+retain one undo unit. Copy uses Golden's complete subtree capture/import boundary in one forest,
+preserving values, defaults, user-editable constraints and control subtrees with independent
+identities. Source references remain shared. Producer-owned constraints rebuild from declarations
+on project load, following Golden's standard policy. Instances use the default Inspector without
+an app-specific inspector component. Existing reference scenes remain historical evidence.
 
 The additional real nodes require an explicit, bounded MapGyver materialization policy:
 4,194,304 generated-work units with Golden's unchanged 64-pass limit. This supports the existing

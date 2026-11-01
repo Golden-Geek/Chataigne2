@@ -110,12 +110,11 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		await page.getByRole('button', { name: 'Copy instance', exact: true }).click();
 		const copied = await wait(inspect, (value) => value.instances.length === 2);
 		assert.deepEqual(copied.instances[1].definition, scaled.instances[0].definition);
-		await wait(
-			() => parameters.count(),
-			(count) => count === 9
-		);
-		const copiedIds = await parameters.evaluateAll((nodes) =>
-			nodes.map((node) => node.dataset.nodeId)
+		// The backend commit can be observed before the UI receives its receipt
+		// and selects the returned copy. Wait for that selection, not the old count.
+		const copiedIds = await wait(
+			() => parameters.evaluateAll((nodes) => nodes.map((node) => node.dataset.nodeId)),
+			(values) => values.length === 9 && values.every((id) => !ids.includes(id))
 		);
 		assert(
 			copiedIds.every((id) => !ids.includes(id)),
