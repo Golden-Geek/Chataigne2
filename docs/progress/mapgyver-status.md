@@ -4,13 +4,13 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate 2, dependency correctness across all media types**. Begin its
-bounded acceptance batch after publishing batch 72. No simultaneous gate work. M05 gate 4's fresh
-ordinary-window activation failed with the single supported retry; the input investigation stops.
+**Selected next gate:** **M06 gate 3, nested/shared Composition native pixels**. Begin its bounded
+acceptance batch after publishing batch 73. Gate 2 is accepted; M06 is **2/4 (50%)**. No simultaneous
+gate work. M05's fresh ordinary-window activation failed with the single supported retry; input stops.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** verify Composition/Matrix cycle rejection, source deletion/Undo and large/deep graph
-behavior through the existing backend contracts. Reuse existing tests; add only missing acceptance
-coverage or a concrete correctness fix. Do not start another desktop-helper or renderer investigation.
+**Next action:** verify nested/shared Composition output pixels, canvas resize, transforms/pivots,
+alpha and blends through existing native contracts and finite independent readbacks. Preserve the
+native-preview requirement if supported activation remains unavailable; no helper recovery chain.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -24,14 +24,14 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Active next: dependency correctness; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Dependency correctness accepted; active next: native pixels | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 1 / 4 = 25%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 2 / 4 = 50%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -70,13 +70,15 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 72:** a fresh ordinary MapGyver window and its single fresh-selection
-retry both fail supported activation. Input stops; the initial fixture checkpoint fails rather
-than being advanced. Independent Spout receives **90** copies; all **6,144** captured RGBA texels
-match the eight reference bars exactly. Actual fullscreen/editor states remain unverified.
-The app exits **0**, unforced; launcher/app/receiver processes are absent and launch control is
-removed. **No gate closes; M05 stays 3/8 and overall stays 40%.**
-[Activation evidence](evidence/mapgyver-m05-activation-2026-11-01.json).
+**Latest checkpoint, batch 73:** **M06 gate 2 closes**, **2/4 =50%**, denominators unchanged.
+All-media source removal/Undo/Redo preserves instance/source identity; both Composition/Matrix
+feedback directions reject atomically. A **4,096-deep** authored forest with **16,384** Composition
+nodes validates and reloads; a **100,000-node** dependency graph admits missing leaves/repeated
+edges and rejects a closing cycle on a **128 KiB** stack. Full app tests: **196 pass /one existing
+hardware ignore**; strict all-target native-qualification Clippy and both workspace formatters pass.
+Overall stays **4/10 =40%** because M06's native pixels/editor gates remain open.
+[Dependency evidence](#m06-acceptance-items).
+M05's [supported activation failure](evidence/mapgyver-m05-activation-2026-11-01.json) remains open.
 The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-2026-11-01.json)
 and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
 remain unchanged; neither certifies driver residency or repairs the failed growth budget.
@@ -1372,6 +1374,42 @@ is atomic Matrix launches/transitions and demanded shared render passes, not mor
 
 ### M06 acceptance items
 
+**Dependency acceptance batch 73:** started 2026-11-01 **02:30 UTC**, stop **03:15 UTC**.
+Only M06 gate 2 is active. App-owned media dependency validation and Composition/Matrix authoring
+own this gate. Reconcile the existing cycle/deletion/history/scale tests, then cover only missing
+all-media and deep/large dependency cases through those contracts. Verify rejected edits preserve
+the whole document/history and missing references preserve identity through Undo. Large fixtures
+must use detached batched construction or the existing pure graph boundary, not sequential UI
+edits/full snapshots. Run focused acceptance, app regressions, strict app Clippy and both workspace
+formatters. No GPU/UI/helper recovery or new qualification infrastructure. Investigation retains
+the cumulative 20-minute/two-experiment limit; unresolved scope stays open at the stop.
+
+**Batch 73 result — gate 2 accepted:** four focused regressions complete the existing dependency
+coverage. [Dependency tests](../../apps/mapgyver/src/media/dependencies/tests/mod.rs) verify all
+five source kinds (Solid Color, Picture, Shared Texture, Composition and Matrix) preserve the two
+referencing instances through removal/Undo/Redo, restore the exact source and keep missing leaves
+valid. A detached Media Manager forest constructs **4,096 nested compositions /16,384 composition
+nodes**, sharing one leaf. Whole-project validation succeeds; adding the back edge returns the
+specific dependency-cycle error with byte-identical persisted document and unchanged history.
+Reload retains node count/identity and passes project validation. The focused forest insertion plus
+validation takes **129.7883 ms** in this control; this is diagnostic timing, not a new budget.
+A separate **100,000-node** chain/wide graph admits unresolved leaves and repeated references,
+rejects a closing cycle and completes on a **128 KiB** thread stack, without recursive traversal.
+
+The [opposite Matrix feedback test](../../apps/mapgyver/src/matrix/tests/validation.rs) rejects an
+entire two-cell batch, including its otherwise-valid cell, without document/history changes.
+Existing Composition tests cover direct/indirect cycles, wrong ownership, source deletion and
+1,000-instance atomic history; Matrix validation covers Matrix/Matrix feedback, all leaf types,
+loaded invalid feedback and bounded grouping depth. Existing rendering transition tests retain
+outgoing runtime edges when validating atomic source replacement. Together these close gate 2's
+dependency scope; native deletion/resize/transform pixels and actual editor behavior stay gates 3/4.
+
+Final validation: `cargo test --locked -p MapGyver --lib` **196 pass /one existing hardware ignore**;
+`cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings`,
+both workspace formatters and whitespace checks pass. No production API or runtime behavior changes.
+M06 is **2/4 (50%)**, overall **4/10 (40%)**; no acceptance denominator/budget changes. Next is one
+bounded M06 gate 3 native-pixel batch; M05 activation and every M03 gate stay in the return queue.
+
 **Product batch 21:** started 2026-10-31 **02:59 UTC**, recorded stop **03:44 UTC**.
 Deliver graphical Composition instance selection and drag/rotate/scale through typed backend
 geometry intents, one in-flight/latest-sample stream and coalesced grouped history. MapGyver owns
@@ -1499,7 +1537,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | # | Acceptance scope | State |
 | --- | --- | --- |
 | 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
-| 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Open |
+| 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
 | 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Open |
 | 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open |
 
@@ -4494,20 +4532,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, nested production and graphical editor](#m06-acceptance-items): gate 1/4 accepted; producer software/native submission smoke and editor geometry/history/routing/fencing pass. Matrix dependencies, native pixels and real editor acceptance remain open. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring and dependency correctness](#m06-acceptance-items): gates 1–2/4 accepted; all-media cycles, source deletion/Undo and deep/large dependency graphs pass. Producer/editor software checks pass; native pixels and real editor acceptance remain open. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-M04 is complete. Batch 72's fresh ordinary MapGyver window fails supported activation and its single
-fresh-selection retry. Stop that desktop investigation. M05 gate 4 returns on working supported
-activation or actual manual verification of the missing fullscreen/editor states; its Spout control
-does not close the gate. After publishing this checkpoint, take **M06 gate 2**, dependency correctness
-across Composition/Matrix/all media, atomic cycle rejection, source deletion/Undo and large/deep
-graphs. Reconcile existing backend tests first; add only missing acceptance coverage or an evidenced
-correctness fix. No helper retry chain, alternate automation framework or renderer experiment.
+M04 is complete. Batch 73 accepts M06 gate 2's all-media dependency correctness, source deletion/
+Undo and deep/large graph behavior; M06 is 2/4. After publishing this checkpoint, take **M06 gate 3**:
+finite independent native pixel checks for nested/shared Composition, canvas resize, alpha/blends
+and transform pivots. Reuse native contracts and fixtures, preserving native-preview acceptance if
+the supported activation prerequisite remains unavailable. M05 gate 4 returns on working supported
+activation or actual manual fullscreen/editor observations; its Spout control does not close it.
+No helper retry chain, alternate automation framework or renderer timing/resource experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

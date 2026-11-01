@@ -125,6 +125,56 @@ fn group_moves_reject_tree_and_export_feedback_without_partial_edits() {
 }
 
 #[test]
+fn composition_to_matrix_feedback_rejects_the_whole_cell_batch_and_history() {
+    use crate::media::composition::protocol::CompositionEdit;
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let composition = create(&mut engine, MediaKind::Composition);
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let items = layers(&mut engine, matrix.media, None, 2);
+    let cols = columns(&mut engine, matrix.media, 1);
+    apply(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: composition,
+            edit: CompositionEdit::AddInstances { sources: vec![matrix] },
+        },
+    );
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    let ack = invoke(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::SetCells {
+                assignments: vec![
+                    CellAssignment {
+                        layer: layer(items[0]),
+                        column: cols[0],
+                        source: Some(source),
+                    },
+                    CellAssignment {
+                        layer: layer(items[1]),
+                        column: cols[0],
+                        source: Some(composition),
+                    },
+                ],
+            },
+        },
+    );
+    assert!(!ack.success);
+    assert!(
+        ack.error_message
+            .as_deref()
+            .is_some_and(|message| message.contains("dependency cycle")),
+        "{ack:?}"
+    );
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    crate::media::validate_project(&engine).unwrap();
+}
+
+#[test]
 fn ownership_batch_and_export_invariants_reject_before_mutation() {
     let mut engine = fixture();
     let a = create(&mut engine, MediaKind::Matrix);

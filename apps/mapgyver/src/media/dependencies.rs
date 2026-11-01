@@ -5,6 +5,9 @@ use crate::{
 use golden_core::node::Node;
 use std::collections::{HashMap, HashSet};
 
+#[cfg(test)]
+mod tests;
+
 fn authored_graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<ChannelReference>>, String> {
     let mut result = HashMap::new();
     for (_, node) in engine.nodes.iter() {
