@@ -24,6 +24,10 @@ Batch93 verifies the UUID-named upload route, but the strict missing-media asser
 after the viewport-owner correction. A small read-only intent/rejection observer is now prepared
 to identify the exact failing request; it has not run. Do not add another controller hypothesis
 without that provenance. Native feedback and clean lifecycle acceptance remain open.
+Batch94 uses that observer to identify MediaManager's obsolete Matrix channel editor requests.
+The catalog ownership correction passes the strengthened lifecycle check with zero rejected
+receipts/missing-media messages/page errors. This verifies actual New/browser reload and clean
+selection/history/control replacement; actual native renderer feedback remains unverified.
 
 Generate the validated review scene from the repository root:
 

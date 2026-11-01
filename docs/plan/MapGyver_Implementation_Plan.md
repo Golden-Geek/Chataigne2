@@ -230,6 +230,12 @@ persists. Reduce investigation to the exact rejected operation using the existin
 read-only receipt observer before any further correction. Preserve all four lifecycle invocations,
 original assertions and native gaps; no speculative controller chain or new diagnostic framework.
 
+Batch94 identifies the exact obsolete InspectPlayback/Inspect requests from the hidden Media
+Manager Matrix channel editor. Owning its catalog by session/generation resolves the strict
+New/upload check with zero rejected requests/errors; prior failures remain. M07 gate3 retains
+actual native feedback. Next select M06 gate4's original project/gesture lifetime checks through
+the same UI route; no broad passing-candidate repeat, new automation route or acceptance waiver.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

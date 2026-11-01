@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { appState, type PanelProps, type PanelState } from 'golden_ui';
 	import type { MediaEdit } from './generated/MediaEdit';
 	import type { MediaEditResult } from './generated/MediaEditResult';
@@ -23,6 +23,19 @@
 	};
 	const session = $derived(appState.session);
 	let catalog = $state<MediaManagerSnapshot | null>(null);
+	let catalogOwner = $state.raw<{ session: typeof session; generation: number } | null>(null);
+	const currentCatalog = $derived.by(() => {
+		const current = session;
+		if (
+			!current ||
+			current.status !== 'connected' ||
+			current.loading.visible ||
+			catalogOwner?.session !== current ||
+			catalogOwner.generation !== current.snapshotGeneration
+		)
+			return null;
+		return catalog;
+	});
 	let selected = $state<ChannelId | null>(null);
 	let pending = $state(false);
 	let importing = $state(false);
@@ -34,8 +47,13 @@
 	);
 	let error = $state('');
 	let request = 0;
+	let disposed = false;
+	onDestroy(() => {
+		disposed = true;
+		++request;
+	});
 	const selectedMedia = $derived(
-		catalog?.media.find((media) =>
+		currentCatalog?.media.find((media) =>
 			media.channels.some((channel) => channel.reference.channel === selected)
 		)
 	);
@@ -44,14 +62,32 @@
 	);
 
 	async function refresh() {
-		if (!session || session.status !== 'connected') return;
+		if (disposed) return;
+		const current = session,
+			read = ++request;
+		if (!current || current.status !== 'connected' || current.loading.visible) {
+			catalog = null;
+			catalogOwner = null;
+			selected = null;
+			error = '';
+			return;
+		}
 		// A live gesture publishes samples; inspect once when its shared edit group closes.
-		if (session.hasActiveEditSession) return;
-		const current = ++request;
+		if (current.hasActiveEditSession) return;
+		const generation = current.snapshotGeneration;
+		const valid = () =>
+			!disposed &&
+			read === request &&
+			session === current &&
+			current.status === 'connected' &&
+			!current.loading.visible &&
+			!current.hasActiveEditSession &&
+			current.snapshotGeneration === generation;
 		try {
-			const result = await invokeMediaEdit(session, { kind: 'InspectManager' });
-			if (current !== request || result.kind !== 'Manager') return;
+			const result = await invokeMediaEdit(current, { kind: 'InspectManager' });
+			if (!valid() || result.kind !== 'Manager') return;
 			catalog = result.snapshot;
+			catalogOwner = { session: current, generation };
 			if (
 				!catalog.media.some((media) =>
 					media.channels.some((channel) => channel.reference.channel === selected)
@@ -60,7 +96,7 @@
 				selected = catalog.media[0]?.channels[0]?.reference.channel ?? null;
 			}
 		} catch (cause) {
-			if (current === request) error = String(cause);
+			if (valid()) error = String(cause);
 		}
 	}
 
@@ -74,6 +110,7 @@
 			void current.hasActiveEditSession;
 			void current.editSessionEpoch;
 			void current.status;
+			void current.loading.visible;
 			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}
 		untrack(() => {
@@ -82,17 +119,26 @@
 	});
 
 	async function edit(intent: MediaEdit): Promise<MediaEditResult | undefined> {
-		if (!session || busy) return;
+		const current = session;
+		if (disposed || !current || busy) return;
+		const generation = current.snapshotGeneration;
+		const valid = () =>
+			!disposed &&
+			session === current &&
+			current.status === 'connected' &&
+			!current.loading.visible &&
+			current.snapshotGeneration === generation;
 		pending = true;
 		error = '';
 		try {
-			const result = await invokeMediaEdit(session, intent);
+			const result = await invokeMediaEdit(current, intent);
+			if (!valid()) return;
 			if (result.kind === 'Created' || result.kind === 'PictureImported')
 				selected = result.reference.channel;
 			if (result.kind !== 'MatrixLaunched') await refresh();
 			return result;
 		} catch (cause) {
-			error = String(cause);
+			if (valid()) error = String(cause);
 		} finally {
 			pending = false;
 		}
@@ -154,9 +200,9 @@
 	{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{#if session?.status !== 'connected'}
 		<p class="empty">Connect to MapGyver to edit media.</p>
-	{:else if catalog === null}
+	{:else if currentCatalog === null}
 		<p class="empty">Loading media…</p>
-	{:else if catalog.media.length === 0}
+	{:else if currentCatalog.media.length === 0}
 		<div class="empty">
 			<h3>No media yet</h3>
 			<p>Add media, then configure its independent output channels.</p>
@@ -164,7 +210,7 @@
 	{:else}
 		<div class="workspace">
 			<nav aria-label="Media and channels">
-				{#each catalog.media as media (media.id)}
+				{#each currentCatalog.media as media (media.id)}
 					<article class:active={selectedMedia?.id === media.id}>
 						<form
 							class="name"
@@ -259,7 +305,7 @@
 					{:else if selectedChannel.definition.source.kind === 'Picture'}
 						<PictureChannelEditor
 							channel={selectedChannel}
-							assets={catalog.assets}
+							assets={currentCatalog.assets}
 							disabled={busy}
 							{configure}
 							{edit} />
@@ -268,7 +314,11 @@
 					{:else if selectedChannel.definition.source.kind === 'Composition'}
 						<CompositionChannelEditor channel={selectedChannel} disabled={busy} {configure} />
 					{:else if selectedChannel.definition.source.kind === 'Matrix'}
-						<MatrixChannelEditor channel={selectedChannel} {catalog} disabled={busy} {edit} />
+						<MatrixChannelEditor
+							channel={selectedChannel}
+							catalog={currentCatalog}
+							disabled={busy}
+							{edit} />
 					{/if}
 					<button
 						class="danger"

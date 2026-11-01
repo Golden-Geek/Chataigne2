@@ -273,6 +273,11 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			0,
 			'project transitions must not dispatch expired media inspections'
 		);
+		assert.deepEqual(
+			rejectedRequests,
+			[],
+			'project lifecycle must not reject stale channel-editor inspections'
+		);
 		assert.equal(await projectHash(), originalHash, 'upload never modifies the reference project');
 		assert.deepEqual(errors, []);
 		await page.screenshot({ path: 'target/m07-matrix-project-ui.png' });
@@ -291,6 +296,7 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 				upload_name: uploadName,
 				page_errors: errors.length,
 				missing_media_errors: missingMediaErrors,
+				rejected_requests: rejectedRequests.length,
 				screenshot: 'target/m07-matrix-project-ui.png'
 			})
 		);

@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "batch": 94,
+  "date": "2026-11-01",
+  "gate": "M07/3",
+  "status": "STRICT_BROWSER_PROJECT_LIFECYCLE_PASSED_NATIVE_FEEDBACK_OPEN",
+  "base_revision": "a282cea3710a7b165bb49dbb16c115956d1a41e0",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-project-ui",
+  "trace": {
+    "exit_code": 1,
+    "obsolete_media": "c970316e-61a6-4a19-a55f-d6c0276f9143",
+    "operations": ["InspectPlayback", "Inspect", "Inspect", "Inspect"],
+    "namespace": "mapgyver.media",
+    "request_ids": ["intent-mvxfxqt9-72", "intent-mvxfxqth-73", "intent-mvxfxqx4-7e", "intent-mvxfxqz9-7n"],
+    "stages": ["actual browser File Open upload", "actual browser File Open upload", "loaded editor mutation and history stay in loaded project", "loaded editor mutation and history stay in loaded project"],
+    "error_code": "app_operation_failed",
+    "error": "media reference is missing",
+    "log": "target/m07-matrix-project-ui-b94.log",
+    "log_sha256": "5d0c69704c5efd20506548207cfd78111185d1b02065ab042bf07171916fcd47"
+  },
+  "cause_and_fix": {
+    "producer": "apps/mapgyver/ui/src/lib/media/MatrixChannelEditor.svelte",
+    "owner": "apps/mapgyver/ui/src/lib/media/MediaManagerPanel.svelte",
+    "cause": "Hidden MediaManager retains old catalog/selected Matrix while refreshing after replacement. Child observes new session signals and issues InspectPlayback/Inspect for obsolete media.",
+    "fix": "Publish only catalog owned by current session/generation; unpublish children during loading/disconnect/epoch changes; clear obsolete selection and fence async read/edit results and disposal. No backend validation suppression.",
+    "scope": "App-owned catalog/editor lifetime. Golden runtime/protocol and native feedback path unchanged."
+  },
+  "final": {
+    "exit_code": 0,
+    "hosted_flow_ms": 7875,
+    "browser": "149.0.7827.55",
+    "page_errors": 0,
+    "missing_media_errors": 0,
+    "rejected_requests": 0,
+    "replaced_media": "788a031b-632c-4dd0-bcae-f77f79c46d33",
+    "fresh_media": "00326983-f20f-4281-b4a9-bce5ff921e67",
+    "loaded_media": "c648e931-ff61-4ac0-9b6a-abafd4bfad5b",
+    "project_epochs": ["29dc9d46-a38e-42d4-bed0-0fb5e372eb4c", "8f236f40-8838-4c6a-afbd-40fb8bf498c3", "74dcd19e-6eb6-4b50-b81b-caa7a91381ad"],
+    "upload_name": "MatrixReview-c2c8df04-6fa9-4a55-bca4-70a77bf1aeae.mapgyver",
+    "review_sha256": "756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9",
+    "log": "target/m07-matrix-project-ui-b94-final.log",
+    "log_sha256": "dd43854c7bc03d048cfae0283853bedf2f2199b5d6a4fd00c9355ed85d11d8ba",
+    "screenshot": "target/m07-matrix-project-ui.png",
+    "screenshot_sha256": "9cc8b03b8e2dd5ee4bb3c98a17a82898c71c2bc5bd9e50c7a223bddb66d2903a",
+    "inspection": "Empty final Matrix scene, no selection or stale-inspection error; normal project resync notifications remain."
+  },
+  "checks": {
+    "svelte": "pass, zero errors and warnings",
+    "ordinary_app_build": "pass before corrected invocation",
+    "syntax_prettier_both_workspace_formatters": "pass",
+    "cleanup": "Both owned hosts exit0 normally; no remaining MapGyver. No third app invocation.",
+    "fixture": "Original reference hash unchanged; unique uploaded copy retained in normal browser project directory. Not native file-dialog qualification."
+  },
+  "hashes": {
+    "apps/mapgyver/ui/src/lib/media/MediaManagerPanel.svelte": "309fd1c1d46cd7af3d08d7ab4e9993453f00d93e5707c917f9b9c7110c0daeb5",
+    "apps/mapgyver/tests/browser/matrix-project.mjs": "e5a54029ca54ac13777b680500942029ea15a51c01624f03dc82b27401d4af27",
+    "target/debug/MapGyver.exe": "3f6b3143674ad210af79db95e9c56252e3bd19eb34a4c923c00c445dc7a9f908"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "resolved_defect": "Stale hidden MatrixChannelEditor inspections during project replacement.",
+    "M07": "3/4",
+    "overall": "4/10",
+    "remaining": "Actual native preparation/installation/submission feedback and original unverified native/global scope; no injected events or physical/performance claim.",
+    "next": "M06 gate4 original actual project replacement/gesture disposal check through existing browser route; no broad passing-candidate repeat."
+  }
+}
