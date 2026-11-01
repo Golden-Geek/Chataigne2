@@ -4,13 +4,14 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate 3, nested/shared Composition native pixels**. Begin its bounded
-acceptance batch after publishing batch 73. Gate 2 is accepted; M06 is **2/4 (50%)**. No simultaneous
-gate work. M05's fresh ordinary-window activation failed with the single supported retry; input stops.
+**Selected next gate:** **M06 gate 4, actual Composition editor and caller parity**. Begin its
+bounded acceptance batch after publishing batch 74. Gate 3's production preview-compositor/output
+rasters pass; M06 is **3/4 (75%)**. No simultaneous gate work. Unsupported desktop activation stays
+parked; preparing real editor acceptance does not authorize another helper retry chain.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** verify nested/shared Composition output pixels, canvas resize, transforms/pivots,
-alpha and blends through existing native contracts and finite independent readbacks. Preserve the
-native-preview requirement if supported activation remains unavailable; no helper recovery chain.
+**Next action:** prepare a reviewable ordinary-app Composition scene and bounded editor/source-picker
+gesture flow; reconcile UI/script/headless parity tests. Actual input evidence is required for gate 4.
+Use supported activation only when its prerequisite changes, or real manual observations.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -24,14 +25,14 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Dependency correctness accepted; active next: native pixels | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Dependency and native raster gates accepted; editor gate next | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 2 / 4 = 50%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 2 / 4 = 50%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -66,27 +67,30 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   report `failed to activate captured window`. Return when supported activation is available or
   actual manual observations cover the missing editor/fullscreen states. Do not repeat helper
   workarounds. Independent Spout pixels pass; no actual editor/minimize/fullscreen behavior is inferred.
+- **M06 gate 4:** selected next. Prepare the ordinary-app acceptance scene/caller parity checks,
+  then collect real editor/source-picker selection, drag/rotate/scale and grouped history evidence.
+  Raster readbacks do not establish actual UI gestures; failed supported activation remains parked.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 73:** **M06 gate 2 closes**, **2/4 =50%**, denominators unchanged.
-All-media source removal/Undo/Redo preserves instance/source identity; both Composition/Matrix
-feedback directions reject atomically. A **4,096-deep** authored forest with **16,384** Composition
-nodes validates and reloads; a **100,000-node** dependency graph admits missing leaves/repeated
-edges and rejects a closing cycle on a **128 KiB** stack. Full app tests: **196 pass /one existing
-hardware ignore**; strict all-target native-qualification Clippy and both workspace formatters pass.
-Overall stays **4/10 =40%** because M06's native pixels/editor gates remain open.
-[Dependency evidence](#m06-acceptance-items).
+**Latest checkpoint, batch 74:** **M06 gate 3 closes**, **3/4 =75%**, denominators unchanged.
+Intel and NVIDIA pass nine Composition states each: **54 captures /41,472 texels** across two
+channel outputs and the production preview compositor. Residual error outside the documented
+UNORM conversion range is at most **1/255**; the retained nominal near-black difference is **13/255**.
+Four renderer lifetimes release all plan/source/output owners; all probe pools return idle.
+Three oracle tests, strict app all-target Clippy and both workspace formatters pass.
+Overall stays **4/10 =40%** because actual Composition editor/caller parity acceptance remains open.
+[Raster evidence](evidence/mapgyver-m06-composition-pixels-2026-11-01.json).
 M05's [supported activation failure](evidence/mapgyver-m05-activation-2026-11-01.json) remains open.
 The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-2026-11-01.json)
 and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
 remain unchanged; neither certifies driver residency or repairs the failed growth budget.
 
-**Last accepted product capability:** multi-channel Solid Color, Picture and Shared Texture
-authoring/rendering; Media Manager UI/commands/scripts/callbacks, shared assets, project/history
-and ordinary headless parity. Picture reload preserves identity, locator and history through
-every caller. Renderer qualification and remaining product acceptance are still open.
+**Last accepted product capability:** nested/shared Composition raster content, independent
+rotation/mirror/scale/pivots, opacity/blends/alpha, live canvas resize, missing-source Undo and
+reload/device recreation work in channel outputs and the production preview compositor on both
+hardware adapters. Actual editor gestures and physical presentation remain unverified.
 
 ## Detailed acceptance evidence
 
@@ -1374,6 +1378,59 @@ is atomic Matrix launches/transitions and demanded shared render passes, not mor
 
 ### M06 acceptance items
 
+**Native-pixel acceptance batch 74:** started 2026-11-01 **02:37 UTC**, stop **03:22 UTC**.
+Only M06 gate 3 is active. Reuse app-owned ChannelRenderer/Composition intents, Golden's native
+Spout readback and existing preview-layout contract. Add a finite pixel acceptance fixture for
+nested/shared sources, independent transforms/pivots, canvas resize, alpha/blends and missing
+source/Undo. Use independent reference pixels, verify shared pass/resource identity and retire all
+owned renderers/probes. Software compile/tests and strict Clippy must pass before at most two
+native invocations/20 minutes; do not retry desktop activation or change system/GPU settings.
+Preview evidence must exercise its real composition route; mere output delivery cannot close it.
+If complete preview/output coverage is unavailable, preserve that exact scope and keep gate 3 open.
+
+Software prerequisites pass: two independent-oracle tests, native fixture compilation and strict
+fixture Clippy. First native invocation starts **02:44 UTC**, cutoff **03:04 UTC**, at most two
+invocations. Its watchdog is 120 seconds; verify the existing live handle rather than restarting
+on an observation timeout. No system setting change, desktop input or M03 qualification claim.
+
+The first invocation passes all nine Intel cases and NVIDIA through transformed channel pixels,
+then rejects NVIDIA's resized preview texel 391: actual `[0,224,0,255]`, nominal CPU
+`[13,225,13,255]`. Investigation identifies the oracle's assumed unique intermediate UNORM
+rounding. [D3D11 specification §3.2.3.6](https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.3.6%20FLOAT%20-%3E%20UNORM)
+allows integers within 0.6 ULP; this pixel's final linear preview conversion can legally choose
+zero or one before sRGB encoding. The corrected oracle bounds that specific conversion before
+encoding, preserving the two-byte residual allowance and all original plan budgets. A software
+regression verifies the exact `[0,224,0,255]`–`[13,225,13,255]` legal interval and rejects unrelated
+extra rounding. No renderer change or proven renderer defect. Three oracle tests now pass;
+only one native retry remains, still within the original **03:04 UTC** investigation cutoff.
+
+**Batch 74 result — gate 3 accepted, 02:51 UTC:** the second/final invocation passes in **44.67 s**.
+Both **Intel LUID 00000000:00016c2a** and **NVIDIA LUID 00000000:000170d3** complete nine states:
+Normal/Add/Multiply/Screen, changed independent transform, live 32×24→64×48 canvas resize, shared
+source deletion, Undo and reload/fresh device. Each state independently reads two shared channel
+outputs and the production native-preview compositor: **54 captures ×768 =41,472 RGBA texels**.
+Every residual comparison is within **1/255** of the legally quantized reference interval, below
+the fixed two-byte residual allowance. The raw nominal **13/255** near-black NVIDIA differences
+remain recorded; they are not described as two-byte nominal matches. The first failed oracle
+run and exact correction are preserved in the [compact packet](evidence/mapgyver-m06-composition-pixels-2026-11-01.json).
+
+The test uses ordinary app intents and public ChannelRenderer, real PreviewController negotiation/
+layout resolution and production PreviewLayout rendering with the same linear premultiplied RGBA8
+descriptor as the ordinary host. The preview compositor's GPU image is delivered through a Spout
+endpoint for bounded independent SDK/device readback. Five unique shared channel targets feed all
+three consumers; existing plan tests verify the same deduplicated nested/shared pass construction.
+Independent inverse-affine CPU sampling validates asymmetric rotated/mirrored/off-center-pivot
+instances and premultiplied linear-light blending. This accepts **raster content**, not actual
+on-screen gestures, window geometry or scanout; those remain M06 gate 4 and M05/M03 qualification.
+
+All **four** renderer lifetimes retire, with created/released plan counts balanced, zero live plan
+objects and empty source/output owners. Every readback pool returns idle; the test process is
+absent after normal exit. No driver allocation-growth, cadence or M03 budget claim follows.
+Three software oracle tests, strict app all-target/native-qualification Clippy, both formatters
+and whitespace checks pass. [Fixture boundary/reproduction](../../apps/mapgyver/tests/composition_pixels/README.md).
+Only M06 gate 3 closes: **3/4 (75%)**, overall **4/10 (40%)**, denominators/budgets unchanged.
+Next is the real Composition editor/caller-parity gate; do not reopen the activation investigation.
+
 **Dependency acceptance batch 73:** started 2026-11-01 **02:30 UTC**, stop **03:15 UTC**.
 Only M06 gate 2 is active. App-owned media dependency validation and Composition/Matrix authoring
 own this gate. Reconcile the existing cycle/deletion/history/scale tests, then cover only missing
@@ -1538,7 +1595,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | --- | --- | --- |
 | 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
 | 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
-| 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Open |
+| 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05 |
 | 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
@@ -4532,20 +4589,21 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring and dependency correctness](#m06-acceptance-items): gates 1–2/4 accepted; all-media cycles, source deletion/Undo and deep/large dependency graphs pass. Producer/editor software checks pass; native pixels and real editor acceptance remain open. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native raster content](#m06-acceptance-items): gates 1–3/4 accepted; both adapters pass nested/shared channel and production preview-compositor pixels. Actual editor/source-picker gestures and complete caller parity remain gate 4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-M04 is complete. Batch 73 accepts M06 gate 2's all-media dependency correctness, source deletion/
-Undo and deep/large graph behavior; M06 is 2/4. After publishing this checkpoint, take **M06 gate 3**:
-finite independent native pixel checks for nested/shared Composition, canvas resize, alpha/blends
-and transform pivots. Reuse native contracts and fixtures, preserving native-preview acceptance if
-the supported activation prerequisite remains unavailable. M05 gate 4 returns on working supported
-activation or actual manual fullscreen/editor observations; its Spout control does not close it.
-No helper retry chain, alternate automation framework or renderer timing/resource experiment.
+M04 is complete. Batch 74 accepts M06 gate 3's production preview-compositor and channel raster
+content on both adapters; M06 is 3/4. After publishing this checkpoint, take **M06 gate 4**: prepare
+a reviewable ordinary-app Composition scene and bounded real editor/source-picker gesture flow,
+and reconcile complete UI/script/headless parity evidence. Actual selection/drag/rotate/scale and
+grouped history observations are required; raster readbacks cannot substitute for real input.
+Supported activation failed in batch 72; use it only when its prerequisite changes or collect real
+manual observations. M05 gate 4 retains the same return trigger. No helper retry chain, alternate
+automation framework or renderer timing/resource experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

@@ -1,0 +1,419 @@
+{
+  "schema": 1,
+  "batch": 74,
+  "date": "2026-11-01",
+  "gate": "M06/3",
+  "status": "ACCEPTED_NATIVE_RASTER",
+  "production_revision": "b5aa98c1c9e4804af8b3f478dd0be76152c83d0a",
+  "native_invocations": 2,
+  "native_exit_code": 0,
+  "native_test_seconds": 44.67,
+  "oracle_tests_passed": 3,
+  "strict_app_all_target_clippy": true,
+  "scope": {
+    "nested_shared_channel_pixels": true,
+    "production_preview_controller_and_compositor_pixels": true,
+    "ordinary_host_preview_texture_format_matched": true,
+    "same_root_channel_for_two_outputs_and_preview": true,
+    "shared_channel_productions": 5,
+    "opacity_alpha_all_four_blends": true,
+    "rotation_mirror_scale_off_center_pivots": true,
+    "live_canvas_resize": true,
+    "source_deletion_undo_reload_device_recreation": true,
+    "onscreen_editor_or_actual_gestures": false,
+    "physical_alignment_dpi_scanout_cadence": false
+  },
+  "readbacks": {
+    "method": "separate Spout SDK consumer/device in the test process",
+    "captures": 54,
+    "rgba_texels": 41472,
+    "output_byte_residual_limit": 2,
+    "max_residual_outside_legal_quantization_interval": 1,
+    "max_difference_from_nominal_rounding": 13,
+    "preview_unorm_spec": "https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.3.6%20FLOAT%20-%3E%20UNORM"
+  },
+  "retirement": {
+    "renderer_lifetimes": 4,
+    "all_plan_objects_released": true,
+    "created_equals_released": true,
+    "source_and_output_owners_empty": true,
+    "all_probe_pools_idle": true,
+    "driver_physical_allocations_measured": false
+  },
+  "first_invocation": {
+    "exit_code": 101,
+    "cause": "CPU oracle assumed unique intermediate FLOAT-to-UNORM rounding",
+    "location": "NVIDIA canvas-resize preview output2 texel391",
+    "actual": [
+      0,
+      224,
+      0,
+      255
+    ],
+    "original_nominal": [
+      13,
+      225,
+      13,
+      255
+    ],
+    "legal_lower": [
+      0,
+      224,
+      0,
+      255
+    ],
+    "legal_upper": [
+      13,
+      225,
+      13,
+      255
+    ],
+    "renderer_changed": false,
+    "raw_log": "target/m06-composition-b74.log"
+  },
+  "adapters": [
+    {
+      "luid": {
+        "low": 93226,
+        "high": 0
+      },
+      "description": "Intel(R) Graphics",
+      "captures": 27,
+      "texels": 20736,
+      "phases": {
+        "normal": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "add": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "multiply": [
+          {
+            "output": 0,
+            "residual_error": 0,
+            "nominal_error": 0
+          },
+          {
+            "output": 1,
+            "residual_error": 0,
+            "nominal_error": 0
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "screen": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "independent-transform": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "canvas-resize": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "missing-shared-source": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "undo-source-removal": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "reload-recreate": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ]
+      }
+    },
+    {
+      "luid": {
+        "low": 94419,
+        "high": 0
+      },
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "captures": 27,
+      "texels": 20736,
+      "phases": {
+        "normal": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "add": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "multiply": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "screen": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "independent-transform": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 1
+          }
+        ],
+        "canvas-resize": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 13
+          }
+        ],
+        "missing-shared-source": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 13
+          }
+        ],
+        "undo-source-removal": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 13
+          }
+        ],
+        "reload-recreate": [
+          {
+            "output": 0,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 1,
+            "residual_error": 1,
+            "nominal_error": 1
+          },
+          {
+            "output": 2,
+            "residual_error": 1,
+            "nominal_error": 13
+          }
+        ]
+      }
+    }
+  ],
+  "sha256": {
+    "apps/mapgyver/tests/composition_rendering.rs": "265e186525fd6f2fc6bdf2db753bad2929e58e172a3565f55884c3ffaccfcb67",
+    "apps/mapgyver/tests/composition_pixels/fixture.rs": "7c287e204ee568e1f72e65d23df5bb3e64c61538f61e089e19409e5710fb5933",
+    "apps/mapgyver/tests/composition_pixels/mod.rs": "fef623739beba7edc53168353f9964f75cf77bcbe23f956286c2f96c87035644",
+    "apps/mapgyver/tests/composition_pixels/oracle.rs": "d8a30bd0468212810319c6944308cb698104f9e5a18eb19283d33d6a530d8f55",
+    "Cargo.lock": "91362f5b06ec9104788aa2c2bf0c2b6e5a8fa77619af928a5a491d2909339627",
+    "target/debug/deps/composition_rendering-ec7019d9cb2adb4d.exe": "18f9e1fcb365efb1ecc12b85ab81d4a6f33164756eab8637bbdb1892f71144af",
+    "target/m06-composition-b74.log": "2674918d3147337ff4b06a26d334130f434b9113000546b4f40589746c21b336",
+    "target/m06-composition-b74-retry.log": "a3ee320877f193907ec4432685cdfafe05b5c064baa940d6b1773d5bde078fcb"
+  },
+  "remaining": [
+    "M06/4 real editor/source-picker gestures and full UI/script/headless parity",
+    "M05 physical presentation/input/display matrix",
+    "all retained M03 resource/performance/recovery gates"
+  ]
+}
