@@ -4,7 +4,12 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Active gate:** **M08 gate4, remaining native/OS/full-app acceptance**. Batch97 passes actual column
+**Execution: blocked pending external verification prerequisites.** Native access remains blocked
+through batches98–99 and the current source/queue audit. Guided native-check availability is
+unanswered; no manual result is inferred. No live app/test remains to wait on. All original
+requirements and accepted counts are retained; the goal is unfinished.
+
+**Retained active gate:** **M08 gate4, remaining native/OS/full-app acceptance**. Batch97 passes actual column
 association/distance/history/missing-reference controls, shared processes across two Matrices,
 pre/post holds, runtime snapshot input, availability recovery and New with a live owned process.
 Batch96's last failure was a fixture expectation: unavailable neighbor-only demand is omitted;
@@ -338,6 +343,19 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Blocked audit — 2026-11-01 07:14 UTC:** previous turn supplied new supported-launch failure
+evidence; this source-only review establishes no production correction or acceptance progress.
+Golden IO requires signalled root/captured handles and zero unobserved lifetimes; the saved
+singleton packet reports RetirementUnverified without native accounting details sufficient to
+identify a cause. No source policy change, app rerun, console/window variant or new probe occurs.
+The native-access prerequisite remains unsatisfied across the previous two goal turns and this
+audit; manual availability is unanswered and CIM confirms no remaining MapGyver process.
+The full return queue retains native/physical M05–M07 observations, M08 dialog/retirement/full-app
+scope, and M03 pending reset/timing decisions and preserved memory failure; M09 depends on those
+gates. Resume on the named prerequisite/decision or concrete supported correction, not an unchanged
+automatic continuation. Nothing is waived or marked complete. Standing milestone delivery remains
+authorized when implementation resumes.
 
 **Native launch-context check batch99:** starts 2026-11-01 **07:05 UTC**, stop **07:50 UTC**;
 investigation ends **07:25 UTC**. Keep M08 gate4 active. Previous turn is progress: `c87b6394`
