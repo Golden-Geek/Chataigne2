@@ -4,12 +4,51 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Execution: Composition's complete new-layout input and project-lifetime checks pass.**
-M06 remains3/4: actual native imagery/extent outlines/shape selection is still unverified.
-The original forms/source/order/copy/remove/transform/history and accepted-drag New/review-upload
-scope now works through the tree/shared Inspector/full-panel layout. Retain its native blocker
-and return on supported current-build control/manual observations. After delivery only M07 gate3's
-remaining Matrix input/project fixture migration is active; native renderer feedback stays required.
+**Execution: Matrix's original new-layout input and project-lifetime checks pass.**
+M07 remains3/4: native renderer feedback stays required. Screenshot review also identifies a
+concrete remaining UI defect: scrolling the selected row/column out of the virtualized window
+removes its Inspector fields while the shared Inspector header retains that selection. Only
+M07 gate3 is active; next fix selection inspection at a bounded backend/UI boundary, independent
+of the visible grid. Preserve passing input/project evidence and all retained native gates.
+
+**M07 Matrix-layout batch — 2026-11-01 20:38 CET, stop 21:23 CET:** previous turn is progress,
+pushed as `a74e3d1c`, clean checkout. Only M07 gate3's remaining redesigned input is active.
+Owner: app Matrix window controller/grid/shared Inspector and existing browser fixtures. Preserve
+full row/group/column/cell selection/assignment/settings/blends/names/copy/remove/move/history,
+requested playback distinct from rendering, source loss/recovery, virtualized keyboard scroll/
+resize/panel lifetime and actual New/review-upload/fresh-epoch/history scope. Toolbar creation
+must adopt the Matrix Inspector; removal must retain a usable parent. Use existing backend
+result IDs, guarded selection and shared canvas error overlay; no UI domain defaults or fake
+native renderer observations. Run software/build prerequisites before at most two finite host
+invocations/20 minutes investigation within21:23. Native feedback remains an open prerequisite.
+
+Prerequisites pass:64frontend tests, Svelte0errors/0warnings and ordinary bundled build. Review
+fixture SHA256 `75610307…0540ab9` matches its manifest. Invocation1 passes selection/assignment,
+feedback-cycle rejection, all layer/group blends and exact history, then fails to commit the
+column transition override; no page errors or other rejected request. The final form has its
+override unchecked. The fixture had required the backend history result but not the Inspector's
+corresponding refreshed Matrix transition. Require the rendered320x240/350ms/SmoothStep values
+before drafting the column override and assert its checked100ms state immediately before Save.
+Preserve the first failure; no product cause inferred yet. Invocation2 is the final permitted
+live comparison, with all original scope/tolerances retained.
+
+**M07 redesign input result — 20:55 CET:** invocation2 passes both complete original fixtures
+and source/history/Save/New/Load baseline, **exit0 /26,265 ms** hosted flow. Toolbar creation
+adopts the committed Matrix channel Inspector, and selected row/column removal retains a usable
+parent. Backend result IDs and the existing pre-operation selection guard fence late replies.
+Grid selection never authors or launches. Assignment/drafts, cycle rejection, every layer/group
+blend, canvas/Matrix/column transitions, names, copy/remove/move/reorder, exact history, Cut/
+Configured/Unload, source loss/Undo and panel lifetime pass. Twenty-four rows/sixteen columns,
+keyboard scrolling and1440→2560→1440 resize preserve the document; only210/384 cells render.
+The sole expected cycle rejection leaves geometry fixed within0.01CSS pixels; no page errors.
+Actual File New replaces an active Matrix, clears selection/history, creates fresh identities
+and project epochs, uploads the existing review through File Open, restores saved IDs and usable
+loaded-project Undo/Redo, then New clears again. Zero rejected requests/page errors and unchanged
+review SHA256. [Evidence](evidence/mapgyver-m07-workbench-input-2026-11-01.json).
+The final screenshot exposes the offscreen-selection Inspector defect above: do not call the
+complete redesigned editor accepted or reduce M07 to native-only scope. Checkpoint this result
+before its focused correction; no third live invocation in this batch. No acceptance denominator
+or native budget changes: M07 stays3/4 and overall4/10=40%.
 
 **M06 Composition-layout batch — 2026-11-01 20:25 CET, stop 21:10 CET:** previous turn is
 progress, pushed as `f023ad10`, clean checkout. Only M06 gate4's remaining redesign input is
@@ -282,7 +321,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete: original source UI matrix passes in Golden tree/Inspector | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Full new-layout Screen/Source input passes; native/physical gates retained | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Complete new-layout input/project lifetime verified; native image/extent/shape selection open | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | New-layout original input/project scope passes; offscreen Inspector fix active; native feedback open | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Active: column/recovery/New UI and actual elevated owned target pass; native dialog/retirement/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
@@ -320,7 +359,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 | Accepted | M05/6 | Full Screen tree/Inspector/canvas input, all corners/Escape/rejection/history and stable mapping bounds pass. M05 returns4/8. |
 | Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
 | Blocked remaining scope | M06/4 | Complete new-layout Composition input/history/project lifetime passes; return for actual native imagery/extent-based outlines and shape selection on supported native control/manual observation. |
-| Active after this checkpoint is pushed | M07/3 | Migrate full Matrix grid/Inspector/input/history and project-lifetime fixtures to the new layout; preserve actual native preparation/installation/submission feedback. |
+| Active | M07/3 | Original new-layout input/project fixtures pass. Fix selected row/column/cell Inspector independently of the grid's virtualized viewport, with bounded reads and history/project fencing. Actual native preparation/installation/submission feedback remains required. |
 | Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |

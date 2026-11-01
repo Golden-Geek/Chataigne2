@@ -88,7 +88,7 @@
 					disabled={busy}
 					onclick={() => {
 						if (selectedRow?.item.id.kind === 'Layer' && selectedColumn)
-							void controller.edit({
+							void owner.edit({
 								kind: 'SetCells',
 								assignments: [
 									{
@@ -107,7 +107,7 @@
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
-							void controller.edit({
+							void owner.edit({
 								kind: 'LaunchColumn',
 								column: selectedColumn.id,
 								mode: 'Configured'
@@ -118,7 +118,7 @@
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
-							void controller.edit({
+							void owner.edit({
 								kind: 'LaunchColumn',
 								column: selectedColumn.id,
 								mode: 'Cut'
@@ -131,15 +131,14 @@
 					label="Copy row"
 					disabled={busy || !selectedRow}
 					onclick={() => {
-						if (selectedRow)
-							void controller.edit({ kind: 'DuplicateItem', item: selectedRow.item.id });
+						if (selectedRow) void owner.edit({ kind: 'DuplicateItem', item: selectedRow.item.id });
 					}} /><IconButton
 					icon={duplicateIcon}
 					label="Copy column"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
-							void controller.edit({ kind: 'DuplicateColumn', column: selectedColumn.id });
+							void owner.edit({ kind: 'DuplicateColumn', column: selectedColumn.id });
 					}} />
 			</div>
 			<div class="actions">
@@ -148,15 +147,14 @@
 					label="Remove row"
 					disabled={busy || !selectedRow}
 					onclick={() => {
-						if (selectedRow)
-							void controller.edit({ kind: 'RemoveItem', item: selectedRow.item.id });
+						if (selectedRow) void owner.edit({ kind: 'RemoveItem', item: selectedRow.item.id });
 					}} /><IconButton
 					icon={deleteIcon}
 					label="Remove column"
 					disabled={busy || !selectedColumn}
 					onclick={() => {
 						if (selectedColumn)
-							void controller.edit({ kind: 'RemoveColumn', column: selectedColumn.id });
+							void owner.edit({ kind: 'RemoveColumn', column: selectedColumn.id });
 					}} />
 			</div>
 		{:else}<p>
@@ -169,7 +167,7 @@
 					media={view.media}
 					{session}
 					disabled={busy}
-					edit={(value) => controller.edit(value)} />
+					edit={(value) => owner.edit(value)} />
 			{/key}
 		{/if}
 		{#if selectedColumn && view.media && definition}
@@ -180,12 +178,12 @@
 					media={view.media}
 					{session}
 					disabled={busy}
-					edit={(value) => controller.edit(value)} />
+					edit={(value) => owner.edit(value)} />
 			{/key}
 		{/if}
 		{#if definition}
 			{#key JSON.stringify(definition)}
-				<MatrixForm {definition} disabled={busy} edit={(value) => controller.edit(value)} />
+				<MatrixForm {definition} disabled={busy} edit={(value) => owner.edit(value)} />
 			{/key}
 		{/if}
 		<h3>Output preview</h3>

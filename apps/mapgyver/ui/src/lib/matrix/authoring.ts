@@ -177,12 +177,12 @@ export class MatrixController<S extends Connection> {
 	}
 	async edit(edit: MatrixEdit) {
 		const media = this.state.media;
-		if (media) await this.mutate({ kind: 'Matrix', media, edit });
+		if (media) return this.mutate({ kind: 'Matrix', media, edit });
 	}
 	async create() {
-		await this.mutate({ kind: 'CreateMedia', media_kind: 'Matrix', label: null });
+		return this.mutate({ kind: 'CreateMedia', media_kind: 'Matrix', label: null });
 	}
-	private async mutate(edit: MediaEdit) {
+	private async mutate(edit: MediaEdit): Promise<MediaEditResult | undefined> {
 		const session = this.session(),
 			media = this.state.media;
 		if (!session || this.busy) return;
@@ -200,6 +200,7 @@ export class MatrixController<S extends Connection> {
 				this.state.window = null;
 				this.state.viewport = { ...this.state.viewport, row_start: 0, column_start: 0 };
 			}
+			return result;
 		} catch (error) {
 			if (mutation === this.mutation && this.current(session, generation, media))
 				this.state.error = String(error);

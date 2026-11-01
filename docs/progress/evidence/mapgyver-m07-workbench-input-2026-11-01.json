@@ -1,0 +1,70 @@
+{
+	"date": "2026-11-01",
+	"gate": "M07.3 Matrix input and project lifetime after Golden workbench redesign",
+	"status": "ORIGINAL_INPUT_PROJECT_PASS_OFFSCREEN_INSPECTOR_AND_NATIVE_OPEN",
+	"acceptance": "No gate closes; M07 remains3/4 and overall4/10=40%. Fixed budgets retained.",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --matrix-ui --matrix-project-ui",
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "f0ab85a4c838a793b417663b633005543db17042be0c3396fe7d2af3519958a4",
+		"base_revision": "a74e3d1c394147e999e3a3832efab415a39db776"
+	},
+	"product_changes": [
+		"Matrix creation adopts the committed backend channel in shared Inspector through the pre-operation selection guard.",
+		"Selected row/column deletion adopts the parent Matrix channel only while its captured selection is still current.",
+		"Matrix errors use the shared stable canvas overlay; parameters stay in Inspector and structural toolbar buttons are icon-only."
+	],
+	"method": "Actual browser controls in isolated ordinary bundled headless host; backend operations during UI tests only inspect committed state. No synthetic preview/native status.",
+	"browser": "Chromium149.0.7827.55",
+	"runs": [
+		{
+			"invocation": 1,
+			"result": "fail",
+			"log": "target/mapgyver-m07-workbench-first.log",
+			"sha256": "03e6cb44200feb344dd50c72d71ad73023215a1f216826987b61da42b2f08424",
+			"observation": "Column override remained null after history; final override form unchecked. No page error or other rejection. Backend history receipt did not require rendered Inspector transition readiness. Corrected fixture waits for rendered320x240/350ms/SmoothStep state and asserts checked100ms override before Save. No product cause inferred.",
+			"host_exit": 0
+		},
+		{
+			"invocation": 2,
+			"result": "pass",
+			"log": "target/mapgyver-m07-workbench-corrected.log",
+			"sha256": "2700ea80d288576feef5e1b414fdadfcff0c5e3ce4133b2b96c4b390af5fad03",
+			"host_exit": 0,
+			"hosted_flow_ms": 26265,
+			"editing_page_errors": 0,
+			"expected_cycle_rejections": 1,
+			"other_editing_rejections": 0,
+			"project_page_errors": 0,
+			"project_rejected_requests": 0
+		}
+	],
+	"verified_original_scope": [
+		"Full-panel grid, Inspector-owned properties, icon-only toolbar; row/column/cell selection does not author or launch.",
+		"Source assignment drafts/history; self-feedback rejection with stable grid bounds within0.01CSS pixels.",
+		"All4blend modes for layer/group, independent opacity/enabled settings, Matrix canvas/transition and column override.",
+		"Row/group/column naming, copy/removal/move/reorder, stable exported identities and exact Undo/Redo.",
+		"Cut/Configured launch and Unload preserve authored document; requested state remains explicitly distinct from unavailable native rendering.",
+		"Source deletion and Undo preserve binding/IDs; manager/editor lifetime;24rows/16columns, keyboard scrolling and1440→2560→1440 resize preserve document/playback with210of384cells rendered.",
+		"Actual New replaces active project, clears selection/history; fresh IDs/epochs/history, actual File Open upload preserves saved IDs, loaded edits/history and final New pass without stale rejected requests."
+	],
+	"review_sha256": "756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9",
+	"artifacts": [
+		{
+			"path": "target/m07-matrix-ui.png",
+			"sha256": "018fd37f52480fa4df71e53704ad6919c58a62fe5a61c3da2d8525cf567377f1",
+			"visual_review": "Inspected full central grid/icon toolbar/Media outliner/separate Inspector. Native preview unavailable. Defect: Inspector header retains UI Lower while row/cell forms disappear after selected row/column scrolls out of visible window; selected inspection currently derives only from viewport DTO."
+		},
+		{
+			"path": "target/m07-matrix-project-ui.png",
+			"sha256": "77c542a72a10dc71e230da408959f944ee094c44c6b06bb1419d74d887eb4091",
+			"visual_review": "Inspected final New: empty Media tree, Matrix empty state, no selected node or stale controls."
+		}
+	],
+	"prerequisites": "64frontend tests; Svelte0errors/0warnings; ordinary bundled app build; JS syntax/Prettier. No Rust/protocol/native source changes; existing209Rust pass/1existing ignore retained.",
+	"remaining": [
+		"Fix offscreen shared Inspector selection with bounded typed inspection independent of visible grid. No full-document polling or stale UI cache.",
+		"Actual native preparation/installation/submission feedback and all retained physical/resource/full-app gates remain required.",
+		"Both hosts exited0 through supported sentinel and owned browsers closed. No third invocation in this batch."
+	]
+}

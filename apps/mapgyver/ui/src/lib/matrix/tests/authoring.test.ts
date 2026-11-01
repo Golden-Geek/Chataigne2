@@ -259,9 +259,32 @@ test('a stale creation cannot select a backend identity in the replacement proje
 	session.snapshotGeneration++;
 	controller.observe(false);
 	creation.resolve({ kind: 'Created', reference: { media: 'old-created', channel: 'final' } });
-	await task;
+	assert.equal(await task, undefined);
 	await flush();
 	assert.equal(state.media, null);
 	assert.equal(state.pending, false);
+	controller.dispose();
+});
+
+test('current creation returns the committed backend channel identity for shared Inspector selection', async () => {
+	const session = connection(),
+		state = matrixState();
+	const created: MediaEditResult = {
+		kind: 'Created',
+		reference: { media: 'created', channel: 'final' }
+	};
+	const controller = new MatrixController(
+		() => session,
+		state,
+		choiceState(),
+		choiceState(),
+		async (_session, edit) => {
+			if (edit.kind === 'CreateMedia') return created;
+			if (edit.kind === 'Matrix') return snapshot('created');
+			return { kind: 'Choices', page: { choices: [], total: 0, start: 0 } };
+		}
+	);
+	assert.deepEqual(await controller.create(), created);
+	assert.equal(state.media, 'created');
 	controller.dispose();
 });

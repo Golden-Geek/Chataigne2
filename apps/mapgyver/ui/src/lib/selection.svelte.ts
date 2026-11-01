@@ -32,7 +32,9 @@ export function provideDocumentSelection() {
 		const session = appState.session;
 		const current = captureSelectionGuard(session);
 		return (uuid: string) => {
-			if (session && current(appState.session)) request = { session, uuid, current };
+			if (!session || !current(appState.session)) return false;
+			request = { session, uuid, current };
+			return true;
 		};
 	}
 	const owner = { capture, select: (uuid: string) => capture()(uuid) };

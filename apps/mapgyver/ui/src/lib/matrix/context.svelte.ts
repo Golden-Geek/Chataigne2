@@ -8,9 +8,12 @@ import { MEDIA_NAMESPACE, MATRIX_PLAYBACK_EVENT } from '../media/generated/const
 import { usePreview } from '../preview/context.svelte';
 import { previewKey } from '../preview/identity';
 import { matrixFeedback } from './render-feedback';
+import { useDocumentSelection } from '../selection.svelte';
+import type { MatrixEdit } from '../media/generated/MatrixEdit';
 const key = Symbol('mapgyver-matrix-editor');
 export function provideMatrixAuthoring() {
 	const session = $derived(appState.session);
+	const documentSelection = useDocumentSelection();
 	const previewOwner = usePreview();
 	const view = $state(matrixState()),
 		matrices = $state(choiceState()),
@@ -122,6 +125,25 @@ export function provideMatrixAuthoring() {
 		});
 	});
 	const owner = {
+		async create() {
+			const selectCreated = documentSelection.capture();
+			const result = await controller.create();
+			if (result?.kind === 'Created') selectCreated(result.reference.channel);
+			return result;
+		},
+		async edit(intent: MatrixEdit) {
+			const selectParent = documentSelection.capture();
+			const parent = matrixWindow?.final_output.reference.channel;
+			const result = await controller.edit(intent);
+			if (
+				result?.kind === 'Changed' &&
+				(intent.kind === 'RemoveItem' || intent.kind === 'RemoveColumn') &&
+				parent
+			) {
+				if (selectParent(parent)) controller.select(null, null);
+			}
+			return result;
+		},
 		view,
 		controller,
 		matrices,

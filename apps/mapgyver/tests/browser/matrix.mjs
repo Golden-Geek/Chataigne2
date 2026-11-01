@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
+import { observeRejectedRequests } from './intent-observer.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
@@ -13,6 +14,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
+	const rejected = observeRejectedRequests(page, () => stage);
 	try {
 		async function wait(read, predicate) {
 			const deadline = Date.now() + 5000;
@@ -26,8 +28,10 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
 		await tab.click();
-		const panel = page.getByRole('region', { name: 'Matrix', exact: true });
-		const button = (name) => panel.getByRole('button', { name, exact: true });
+		const panel = page.locator('section[aria-label="Matrix"]');
+		const properties = page.locator('.properties');
+		const actions = page.locator('section[aria-label="Matrix"] .editor-toolbar, .properties');
+		const button = (name) => actions.getByRole('button', { name, exact: true });
 		const ready = async () => {
 			await wait(() => button('Add Matrix').isEnabled(), Boolean);
 			await wait(
@@ -70,7 +74,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			);
 			await grid.getByTitle(`Select ${label}`, { exact: true }).click();
 			await wait(
-				() => panel.getByLabel('Row name', { exact: true }).inputValue(),
+				() => properties.getByLabel('Row name', { exact: true }).inputValue(),
 				(value) => value === label
 			);
 		};
@@ -82,14 +86,32 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			);
 			await grid.getByTitle(`Select ${label}`, { exact: true }).click();
 			await wait(
-				() => panel.getByLabel('Column name', { exact: true }).inputValue(),
+				() => properties.getByLabel('Column name', { exact: true }).inputValue(),
 				(value) => value === label
 			);
 		};
 		const nameForm = (label) =>
-			panel
+			properties
 				.locator('form')
 				.filter({ has: page.getByRole('textbox', { name: label, exact: true }) });
+		await properties.getByRole('textbox', { name: 'Channel name', exact: true }).waitFor();
+		const outer = await panel.boundingBox(),
+			canvas = await panel.locator('.editor-canvas').boundingBox();
+		assert(
+			canvas.width >= outer.width * 0.95 && canvas.height >= outer.height * 0.8,
+			'Matrix uses its panel'
+		);
+		assert.equal(
+			await panel.locator('input,select,fieldset').count(),
+			0,
+			'Matrix properties live in Inspector'
+		);
+		assert(
+			(await panel.locator('.editor-toolbar button').allTextContents()).every(
+				(text) => text.trim() === ''
+			),
+			'Structural toolbar actions are icon-only'
+		);
 		stage = 'create rows columns and independent selection';
 		await button('Add layer').click();
 		let snapshot = await wait(inspect, (value) => value.items.length === 1);
@@ -139,8 +161,8 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			'row/column/cell selection cannot launch'
 		);
 		stage = 'source assignment history and feedback rejection';
-		const sourcePicker = panel.getByRole('combobox', { name: /^Source to assign/ });
-		await panel.getByLabel('Find Matrix source', { exact: true }).fill(solid.label);
+		const sourcePicker = properties.getByRole('combobox', { name: /^Source to assign/ });
+		await properties.getByLabel('Find Matrix source', { exact: true }).fill(solid.label);
 		await button('Search sources').click();
 		await sourcePicker.selectOption(
 			JSON.stringify([solid.id, solid.channels[0].reference.channel])
@@ -156,11 +178,21 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			(value) => value === solid.channels[0].label
 		);
 		const assigned = after;
-		await panel.getByLabel('Find Matrix source', { exact: true }).fill(root.label);
+		await properties.getByLabel('Find Matrix source', { exact: true }).fill(root.label);
 		await button('Search sources').click();
 		await sourcePicker.selectOption(JSON.stringify([root.id, root.channels[0].reference.channel]));
+		const beforeError = await grid.boundingBox();
 		await button('Assign source').click();
 		await panel.getByRole('alert').waitFor();
+		const afterError = await grid.boundingBox();
+		assert(
+			beforeError &&
+				afterError &&
+				['x', 'y', 'width', 'height'].every(
+					(key) => Math.abs(beforeError[key] - afterError[key]) < 0.01
+				),
+			'Rejection cannot shift Matrix geometry'
+		);
 		assert.deepEqual(await inspect(), assigned);
 		await restore(snapshot, assigned);
 		stage = 'row and group settings';
@@ -168,7 +200,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			await selectRow(row.label);
 			for (const blend of ['Normal', 'Add', 'Multiply', 'Screen']) {
 				snapshot = await inspect();
-				const settings = panel.getByRole('group', { name: 'Row blending', exact: true });
+				const settings = properties.getByRole('group', { name: 'Row blending', exact: true });
 				const expected = snapshot.items.find((entry) => entry.id.id === row.id.id).settings;
 				await wait(
 					async () => ({
@@ -201,7 +233,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			}
 		}
 		stage = 'canvas and transitions';
-		const matrixSettings = panel.getByRole('group', { name: 'Matrix settings', exact: true });
+		const matrixSettings = properties.getByRole('group', { name: 'Matrix settings', exact: true });
 		snapshot = await inspect();
 		await matrixSettings.getByLabel('Canvas width', { exact: true }).fill('320');
 		await matrixSettings.getByLabel('Canvas height', { exact: true }).fill('240');
@@ -218,10 +250,32 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		await restore(snapshot, after);
 		await selectColumn(first.label);
 		snapshot = after;
-		const transition = panel.getByRole('group', { name: 'Column transition', exact: true });
+		// History receipt precedes the Inspector's bounded viewport refresh.
+		await wait(
+			async () => ({
+				width: Number(
+					await matrixSettings.getByLabel('Canvas width', { exact: true }).inputValue()
+				),
+				height: Number(
+					await matrixSettings.getByLabel('Canvas height', { exact: true }).inputValue()
+				),
+				duration: Number(
+					await matrixSettings.getByLabel('Duration (ms)', { exact: true }).inputValue()
+				),
+				curve: await matrixSettings.getByRole('combobox', { name: /^Curve/ }).inputValue()
+			}),
+			(value) =>
+				isDeepStrictEqual(value, { width: 320, height: 240, duration: 350, curve: 'SmoothStep' })
+		);
+		const transition = properties.getByRole('group', { name: 'Column transition', exact: true });
 		await transition.getByLabel('Override Matrix transition', { exact: true }).check();
 		await transition.getByLabel('Duration (ms)', { exact: true }).fill('100');
 		await transition.getByRole('combobox', { name: /^Curve/ }).selectOption('Linear');
+		assert.equal(
+			await transition.getByLabel('Override Matrix transition', { exact: true }).isChecked(),
+			true
+		);
+		assert.equal(await transition.getByLabel('Duration (ms)', { exact: true }).inputValue(), '100');
 		await button('Save column transition').click();
 		after = await wait(
 			inspect,
@@ -274,7 +328,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		stage = 'move row into out of group and reorder columns';
 		await selectRow('UI Lower');
 		snapshot = await inspect();
-		const moveRow = panel.getByRole('group', { name: 'Move row', exact: true });
+		const moveRow = properties.getByRole('group', { name: 'Move row', exact: true });
 		await moveRow
 			.getByRole('combobox', { name: /^Destination group/ })
 			.selectOption({ label: 'UI Group' });
@@ -296,7 +350,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		);
 		await selectColumn('UI First');
 		snapshot = await inspect();
-		await panel
+		await properties
 			.getByRole('group', { name: 'Reorder column', exact: true })
 			.getByRole('combobox', { name: /^Place after column/ })
 			.selectOption({ label: second.label });
@@ -307,7 +361,10 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		const document = await inspect();
 		await button('Cut').click();
 		let live = await wait(playback, (value) => value.desired_column === first.id);
-		const feedback = panel.getByRole('region', { name: 'Matrix runtime feedback', exact: true });
+		const feedback = properties.getByRole('region', {
+			name: 'Matrix runtime feedback',
+			exact: true
+		});
 		await wait(
 			() => feedback.innerText(),
 			(value) => value.includes('Requested column: UI First')
@@ -331,17 +388,15 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			.filter({ hasText: /^Media Manager$/ })
 			.click();
 		await page
-			.locator('section.manager article')
-			.filter({
-				has: page.getByRole('textbox', { name: `Media name: ${solid.label}`, exact: true })
-			})
-			.getByRole('button', { name: 'Delete media', exact: true })
+			.locator('section[aria-label="Media Manager"]')
+			.getByRole('button', { name: solid.label, exact: true })
 			.click();
+		await properties.getByRole('button', { name: 'Delete media', exact: true }).click();
 		await wait(inspectMedia, (value) => !value.media.some((entry) => entry.id === solid.id));
 		await tab.click();
 		await grid.getByTitle(`UI Lower / UI First`, { exact: true }).click();
 		await wait(
-			() => panel.locator('aside').innerText(),
+			() => properties.innerText(),
 			(value) => value.includes('Assigned source: Missing source')
 		);
 		assert.deepEqual(await inspect(), document);
@@ -416,6 +471,17 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			originalMedia.media
 		);
 		assert.deepEqual(errors, []);
+		assert.equal(rejected.length, 1, 'Only the feedback source assignment rejects');
+		assert(
+			rejected.every(
+				(item) =>
+					item.request?.stage === 'source assignment history and feedback rejection' &&
+					item.request.intent?.kind === 'invokeAppOperation' &&
+					item.request.intent.namespace === 'mapgyver.media' &&
+					item.request.intent.payload?.kind === 'Matrix' &&
+					item.request.intent.payload.edit?.kind === 'SetCells'
+			)
+		);
 		await page.screenshot({ path: 'target/m07-matrix-ui.png' });
 		console.log(
 			JSON.stringify({
@@ -431,6 +497,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 				grid_geometry: geometry,
 				final_launch_id: live.launch_id,
 				page_errors: errors.length,
+				expected_feedback_rejections: rejected.length,
 				screenshot: 'target/m07-matrix-ui.png'
 			})
 		);
@@ -438,6 +505,8 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		console.error(
 			JSON.stringify({
 				failed_stage: stage,
+				page_errors: errors,
+				rejected_requests: rejected,
 				body: (
 					await page
 						.locator('body')

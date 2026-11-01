@@ -7,6 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { selectMediaChannel } from './media-tree.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
@@ -55,8 +56,10 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
 		await tab.click();
-		const panel = page.getByRole('region', { name: 'Matrix', exact: true });
-		const button = (name) => panel.getByRole('button', { name, exact: true });
+		const panel = page.locator('section[aria-label="Matrix"]');
+		const properties = page.locator('.properties');
+		const actions = page.locator('section[aria-label="Matrix"] .editor-toolbar, .properties');
+		const button = (name) => actions.getByRole('button', { name, exact: true });
 		const grid = panel.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		const undo = page.getByTitle('Ctrl/Cmd+Z', { exact: true });
 		const redo = page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true });
@@ -74,16 +77,16 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 				(value) => value === 0
 			);
 			await wait(
-				() => panel.getByLabel('Row name', { exact: true }).count(),
+				() => properties.getByLabel('Row name', { exact: true }).count(),
 				(value) => value === 0
 			);
 			await wait(
-				() => panel.getByLabel('Column name', { exact: true }).count(),
+				() => properties.getByLabel('Column name', { exact: true }).count(),
 				(value) => value === 0
 			);
 			await wait(
-				() => panel.getByLabel('Matrix media', { exact: true }).inputValue(),
-				(value) => value === ''
+				() => properties.getByLabel('Canvas width', { exact: true }).count(),
+				(value) => value === 0
 			);
 			await wait(() => undo.isDisabled(), Boolean);
 			await wait(() => redo.isDisabled(), Boolean);
@@ -102,8 +105,8 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 				(entry) => entry.media_kind === 'Matrix' && !before.media.some((old) => old.id === entry.id)
 			);
 			await wait(
-				() => panel.getByLabel('Matrix media', { exact: true }).inputValue(),
-				(value) => value === root.id
+				() => grid.getAttribute('aria-rowcount'),
+				(value) => value === '1'
 			);
 			await button('Add layer').click();
 			const authored = await wait(
@@ -118,13 +121,13 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			await grid.getByTitle(`Select ${authored.items[0].label}`, { exact: true }).click();
 			await grid.getByTitle(`Select ${snapshot.columns[0].label}`, { exact: true }).click();
 			await wait(
-				() => panel.getByLabel('Row name', { exact: true }).inputValue(),
+				() => properties.getByLabel('Row name', { exact: true }).inputValue(),
 				(value) => value === authored.items[0].label
 			);
 			return snapshot;
 		}
 		async function rename(label) {
-			const form = panel
+			const form = properties
 				.locator('form')
 				.filter({ has: page.getByRole('textbox', { name: 'Row name', exact: true }) });
 			await form.getByLabel('Row name', { exact: true }).fill(label);
@@ -181,16 +184,17 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 		await wait(inspectMedia, (value) =>
 			value.media.some((entry) => entry.id === review.root.media)
 		);
+		await selectMediaChannel(page, await inspectMedia(), review.root);
 		await wait(
-			() => panel.getByLabel('Matrix media', { exact: true }).inputValue(),
-			(value) => value === review.root.media
+			() => grid.getAttribute('aria-rowcount'),
+			(value) => value === String(review.rows + 1)
 		);
 		await wait(
-			() => panel.getByLabel('Row name', { exact: true }).count(),
+			() => properties.getByLabel('Row name', { exact: true }).count(),
 			(value) => value === 0
 		);
 		await wait(
-			() => panel.getByLabel('Column name', { exact: true }).count(),
+			() => properties.getByLabel('Column name', { exact: true }).count(),
 			(value) => value === 0
 		);
 		const loaded = await inspect(review.root.media);
@@ -206,7 +210,10 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 		const loadedEpoch = (await window(review.root.media)).project;
 		assert.notEqual(loadedEpoch, secondEpoch);
 		assert.notEqual(loadedEpoch, firstEpoch);
-		const feedback = panel.getByRole('region', { name: 'Matrix runtime feedback', exact: true });
+		const feedback = properties.getByRole('region', {
+			name: 'Matrix runtime feedback',
+			exact: true
+		});
 		await wait(
 			() => feedback.innerText(),
 			(value) => value.includes('Requested column: None')
