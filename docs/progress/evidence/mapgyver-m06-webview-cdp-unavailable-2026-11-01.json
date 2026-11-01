@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "batch": 84,
+  "date": "2026-11-01",
+  "gate": "M06/4",
+  "status": "UNAVAILABLE_NATIVE_WEBVIEW2_CDP_NO_EDITOR_INPUT",
+  "source": "https://playwright.dev/docs/webview2",
+  "sha256": {
+    "apps/mapgyver/tests/browser/native-editor.mjs": "2307c8e298f62d724b70da652c61fe1c62cbb47f49d3f697dd4e81aabfa3cc1f",
+    "target/debug/MapGyver.exe": "64c74f8fea641564598e6b8482558f661ee708af281a8d8d7b1ed5fd3e7b41d7",
+    "target/m06-native-editor-b84.log": "8c05fdcdcff6251502de1521d4af79b185828e81a83a3e27c7eec9b0d2155cea"
+  },
+  "preparation": "Existing playwright-core, one actual bundled MapGyver app, private APPDATA/WebView profile, separately allocated loopback host/CDP ports, existing shutdown-file option. No host API, registry, privilege, security or driver change.",
+  "initial_tool_failure": "Persistent node_repl import reports process is not defined; authoritative process check confirms no MapGyver launch. The normal Node repository test entrypoint then performs the single owned-app launch.",
+  "execution": {
+    "command": "node apps/mapgyver/tests/browser/native-editor.mjs",
+    "exit_code": 1,
+    "owned_app_launches": 1,
+    "cdp_observation_timeout_ms": 20000,
+    "raw_log": "target/m06-native-editor-b84.log",
+    "host": "http://127.0.0.1:57814",
+    "app_pid": null,
+    "finding": "Ordinary native app starts; bundled frontend connects WebSocket and receives default project snapshot. No requested CDP endpoint appears before timeout; no Playwright connection or Composition tab action occurs.",
+    "cleanup": "The test shutdown-file path obtains host exit0 without cleanup warning; no MapGyver process remains. Exact isolated preferences/profile directory removed by test cleanup.",
+    "limitations": "App PID and selected CDP port were not emitted; do not reconstruct them from host port or infer a runtime cause."
+  },
+  "checks": {
+    "node_syntax": "pass",
+    "prettier": "pass",
+    "current_app_build": "batch83 terminal success; same executable hash",
+    "runtime": "Only the stated unavailable-route result; no UI functionality pass"
+  },
+  "scope": "No second launch, helper, alternate flags, registry/security/power/driver setting or acceptance change. Supported desktop activation remains unavailable. Candidate test is opt-in reproduction evidence, not a passing UI fixture.",
+  "acceptance": {
+    "closed_gates": [],
+    "M06": "3/4",
+    "M07": "3/4",
+    "M08": "3/4",
+    "overall": "4/10",
+    "manual": "Previously requested Composition and Matrix actual-editor observations remain unanswered.",
+    "next": "M08 gate4 actual application form input via the existing ordinary bundled-browser test route. It can verify browser DOM editing/history without claiming native dialog, preview, OS pointer or desktop presentation acceptance."
+  }
+}

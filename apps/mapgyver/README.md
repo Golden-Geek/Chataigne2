@@ -12,6 +12,11 @@ same Composition mutation contracts. The [editor acceptance flow](tests/headless
 generates a normal project for real input verification; native raster acceptance lives in
 [the pixel fixture](tests/composition_pixels/README.md).
 
+From the repository root, run `node apps/mapgyver/tests/browser/native-editor.mjs`. This opt-in native
+WebView2/CDP candidate uses isolated profiles and the ordinary bundled host. Its recorded Windows
+run starts the app but exposes no requested CDP endpoint; it currently provides unavailable-route
+evidence, not a passing editor check. Do not substitute a browser-only preview for native input.
+
 The [Matrix editor acceptance flow](tests/headless/MATRIX_REVIEW.md) saves an initially unlaunched
 ordinary project and checks the same authoring/playback contracts through the headless transport.
 Selection, requested launch and actual renderer feedback are separate states; only real editor

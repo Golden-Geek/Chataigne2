@@ -172,6 +172,12 @@ owned-app connection/input smoke with isolated profiles/loopback ports; connecti
 verified. Keep desktop activation parked and stop if this supported route fails, without helper,
 registry/security or acceptance changes. Real editor actions still require direct observations.
 
+Batch84's one native app starts but no requested CDP endpoint appears within20 seconds. No editor
+action occurs; native host exits normally. Keep that route unavailable and actual native editor
+observations pending. Next select M08 gate4's actual application form editing/history through the
+existing ordinary bundled-browser fixture; no native dialog/preview/OS-pointer/presentation pass
+is inferred. Do not retry CDP/desktop activation or add helpers/alternate flags/settings changes.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

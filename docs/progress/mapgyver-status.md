@@ -4,17 +4,17 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate 4, real Composition editor input through the existing browser
-test dependency and documented isolated WebView2 CDP connection**. Connection is unverified;
-one bounded smoke attempt is next. Batch 83 passes M08 aggregate target outcomes, preserving
-singleton `RetirementUnverified`, missing actual elevation/form and complete cleanup proof.
+**Selected next gate:** **M08 gate 4, actual application form input through the existing ordinary
+bundled-browser test route**. Batch 84's one isolated native app launches, but no CDP endpoint
+appears within20 seconds; no editor input occurs. Native desktop/Composition/Matrix observations
+remain pending. Batch 83's aggregate process outcomes pass with explicit retirement/elevation gaps.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 83, then one owned-app CDP connection/smoke attempt using the
-[official Playwright WebView2 route](https://playwright.dev/docs/webview2), isolated app/WebView
-data and loopback ports. This does not retry desktop activation. Stop if the supported route fails;
-no helper/security/registry workaround. No more Matrix native or unchanged process-outcome run.
+**Next action:** publish batch 84, then reuse the ordinary host/browser fixture for real application
+form editing/history and read-only backend correlation. Do not infer native file-dialog, preview,
+OS pointer or physical presentation behavior from that browser route. CDP/desktop activation stays
+parked; no more native launch, helper, alternate flags, registry/security or driver workaround.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -74,8 +74,9 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
-  A newly checked official WebView2 CDP route may provide actual input through the existing
-  Playwright dependency. One bounded connection smoke is selected; no connection/input pass yet.
+  Batch 84's isolated documented WebView2 CDP attempt is unavailable: native app and frontend start,
+  but no endpoint appears in20 seconds. Return only on actual observations or a concrete changed
+  supported capability; no alternate flags/helper/registry/security workaround.
 - **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
@@ -89,7 +90,14 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 83:** aggregate target outcomes pass **exit 0 /5.28 s**: singleton
+**Latest checkpoint, batch 84:** one actual native app starts with private profiles and loopback
+ports, but its requested CDP endpoint is absent after20 seconds. The test exits **1**, native host
+shuts down normally, and no MapGyver remains. No Composition action/connection/input pass occurs;
+the opt-in candidate fixture preserves the unavailable route. JS syntax/Prettier pass. **No gate
+closes:** M06/M07/M08 remain **3/4**, overall **4/10 (40%)**. Stop automation-route work; actual
+editor observations remain pending. [CDP evidence](evidence/mapgyver-m06-webview-cdp-unavailable-2026-11-01.json).
+
+**Retained checkpoint, batch 83:** aggregate target outcomes pass **exit 0 /5.28 s**: singleton
 non-adoption/external survival (retirement still unverified), launcher root/known child retirement,
 breakaway denial **error5**, missing image **2**, invalid image **216**, atomic `.cmd` rejection,
 availability/overload/callbacks and normal host shutdown. All eight reported PIDs are absent after
@@ -1716,6 +1724,31 @@ other retained qualification remain open; overall stays **3/10 (30%)**. The next
 is atomic Matrix launches/transitions and demanded shared render passes, not more UI recovery.
 
 ### M06 acceptance items
+
+**Native editor connection batch 84:** started 2026-11-01 **04:41 UTC**, stop **05:26 UTC**;
+connection investigation cutoff **05:01 UTC**, one owned-app launch only. Previous turn is
+progress: `42013b45` verifies M08 aggregate outcomes and preserves its retirement/elevation/input
+gaps. Only M06 gate 4 is active. MapGyver owns editor behavior; Golden owns native host/preview.
+Use the existing Playwright dependency with its documented WebView2 CDP route, private app/WebView
+profiles, two loopback ports and the existing shutdown-file host option. Hypothesis: this supported
+browser route can observe and drive the actual bundled native editor despite unavailable desktop
+activation. Prove connection and one real Composition panel selection without changing domain
+state; if successful, continue the existing live session for the required editor observations.
+If unavailable, record the exact prerequisite and stop, without a helper/registry/security change
+or second launch. No GPU-performance, physical-DPI or input-alignment pass is inferred from CDP.
+
+**Batch 84 result, 04:43 UTC:** the persistent JS sandbox lacks `process`, so its import fails before
+any native launch. The normal Node test then performs the one actual launch. Native host listens
+on **127.0.0.1:57814**, the bundled WebView frontend connects and receives its initial snapshot,
+but the requested CDP endpoint never appears in **20 s**. The candidate test exits **1** without
+connecting Playwright or clicking Composition. Shutdown-file cleanup obtains native exit0; no
+MapGyver remains and isolated app/WebView data is removed. Native PID/CDP port were not emitted;
+do not guess them or a runtime cause. Syntax/Prettier pass; this is unavailable-route evidence,
+not a passing UI test. No second launch, alternate flags, helper or registry/security change.
+**M06 remains3/4**, overall **4/10 (40%)**, actual Composition/Matrix observations still pending.
+Publish, then select M08 gate4's actual application form editing/history via the already working
+ordinary bundled-browser route, without native dialog/preview/OS-pointer/presentation claims.
+[Evidence](evidence/mapgyver-m06-webview-cdp-unavailable-2026-11-01.json).
 
 **Editor acceptance batch 75:** started 2026-11-01 **02:55 UTC**, stop **03:40 UTC**.
 Only M06 gate 4 is active. MapGyver owns Composition editor/source-picker and domain intents;
@@ -4989,9 +5022,11 @@ lifecycle, then batch 82 completes the exact Matrix fixture on both adapters and
 activation availability. Publish native acceptance, then select **M08 gate 4**'s existing aggregate
 target-outcome check with the corrected193/216 expectation. Batch 83 passes that check, retaining
 the singleton retirement gap and missing actual elevated/form/full-app proof. Publish, then select
-**M06 gate 4** for one supported isolated WebView2 CDP connection/input smoke with the existing
-Playwright dependency. This is a documented browser automation route, not a retry of failed desktop
-activation. Stop if unavailable, without new helpers, registry/security changes or a waiver.
+**M06 gate 4**'s supported isolated WebView2 CDP smoke. Batch84 finds no endpoint within20 seconds,
+despite native app/frontend startup; no input occurs. Stop this unavailable route. After publication
+select **M08 gate4** actual application form editing/history via the existing ordinary bundled
+browser fixture. Native dialog/preview/OS-pointer/presentation observations stay open. Do not
+retry CDP/desktop activation, add helpers or alter registry/security/driver settings or acceptance.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,
