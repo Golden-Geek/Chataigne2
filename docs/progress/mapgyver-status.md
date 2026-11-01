@@ -4,16 +4,16 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected gate:** **M07 gate 3, Matrix editor/caller parity and review preparation**, delivered as
-batch 78 with actual interaction still open. M06's requested editor observations remain pending.
-The next bounded gate is M07 gate 4's precise corrected native fixture verification after this
-checkpoint is published. Its initialization-observer fix is software checked but not native verified.
+**Selected gate:** **M07 gate 4, native Matrix verification**. Batch 79 confirms the startup
+correction and all Intel checks, but NVIDIA's interrupted-fade observations time out. Concurrent
+owning-worker sampling is now software checked, native unverified. Gate 3's caller/review
+preparation is complete; Matrix and Composition actual editor observations remain pending.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 78, then record one bounded M07 gate-4 verification against the
-corrected existing fixture. The ordinary Matrix review scene/checklist is ready for actual input;
-that requirement remains open. Retain the original scope and three cumulative native failures.
+**Next action:** publish batch 79, then one bounded verification of the precise concurrent-sampling
+correction. A further failure stops this native chain for another dependency-ready acceptance task.
+The ordinary editor reviews remain open. Retain original scope and four cumulative native failures.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -76,16 +76,26 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 - **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
-- **M07 gate 4:** native chain stopped after three cumulative invocations. Batch 77 validates
-  adapter identity too early, before asynchronous native initialization; the check now follows a
-  matching actual output frame but has software checks only. Return after the selected gate-3
-  parity/review delivery to a named bounded verification of the corrected fixture. No new probe,
-  clock or framework; preserve the existing partial rasters, failures and complete original scope.
+- **M07 gate 4:** four cumulative native invocations, with prior failures preserved. Batch 79
+  confirms actual adapter identity and completes Intel; NVIDIA's interrupted-fade observation
+  times out after static/scale/reload passes. Return after publishing the narrow concurrent-receiver
+  correction for one bounded verification; another failure stops this chain. No new probe, clock
+  or framework; preserve the complete original scope and every failure.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 78:** Matrix parity verifies **124 caller cases**, **12 frontend tests**,
+**Latest checkpoint, batch 79:** the single native invocation exits **101** after **131.92 s**.
+Intel completes **14 states /56 raster captures** plus three interrupted mixture samples and final
+retirement; NVIDIA passes **13 states /52 captures**, sparse-grid burst and reload but misses the
+six-second intermediate-fade observation window. All **108 captures /82,944 texels** have zero
+residual outside legal UNORM intervals (nominal maximum **3/255**, not a nominal <=2 claim).
+Concurrent owning-worker sampling compiles, four oracle tests per executable and strict Clippy
+pass; **no second native invocation**. Original fade duration, sample count, tolerances and renderer
+budgets remain. **No gate closes:** M07 **2/4**, overall **4/10 (40%)**.
+[Fade-observation evidence](evidence/mapgyver-m07-native-fade-observation-2026-11-01.json).
+
+**Retained checkpoint, batch 78:** Matrix parity verifies **124 caller cases**, **12 frontend tests**,
 **202 Rust tests /one existing hardware ignore**, strict Clippy and normal-headless history/reload.
 The initially unlaunched ordinary-app review scene and six-group checklist are ready. No native
 experiment or actual input occurred. **No gate closes:** M07 **2/4**, overall **4/10 (40%)**.
@@ -986,6 +996,33 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Native Matrix verification batch 79:** started 2026-11-01 **04:05 UTC**, stop **04:50 UTC**;
+native experiment cutoff **04:25 UTC**, one invocation only. Previous turn is progress: published
+`7aa1798b` verifies caller parity and saves the ordinary review scene. MapGyver owns Matrix
+playback/production; Golden owns GPU/shared preview execution. Hypothesis: identity checks after
+a matching real frame, and fresh single-image transition probes, permit the existing complete
+layer/group/final/preview, interrupted fade, sparse-grid and retirement test to finish on both
+adapters. Run only after software prerequisites pass and observed overlay Off. A failure changes
+the next action to its exact supported correction or records a return prerequisite; no second
+native run, new probe framework, desktop activation retry or acceptance revision in this batch.
+
+**Batch 79 result, 04:10 UTC:** exactly one native invocation exits **101 /131.92 s**. Actual
+adapter logging now confirms Intel LUID **00000000:00016c2a** and NVIDIA **00000000:000170d3**.
+Intel completes all checks; NVIDIA completes static content, sparse-grid burst/recovery and reload
+but cannot obtain three intermediate interruption samples within the six-second window. Combined
+**108 captures /82,944 texels** pass interval-aware raster checks, nominal max **3/255** retained.
+Both 1,000-request launches measure **9,994 /9,993 ms** spans with eight admissions; engine runtime
+bounds and all six renderer owner-retirement assertions pass, including NVIDIA unwind. Overlay is
+observed Off before/after with no setting/input changes. Serial fresh receiver startup is a
+fixture-serialization hypothesis, not an established production defect. Fresh probes now sample
+Layer/Group/Final concurrently on owning workers; nine test readback credits cover three consumers,
+without changing production budgets, fade duration, sample count or tolerances. Four oracle tests
+per executable and strict Clippy pass; **the correction is native unverified**. Publish before one
+bounded verification; a further failure stops this native chain for another dependency-ready task.
+M07 stays **2/4**, overall **4/10 (40%)**. Actual Matrix observations have now been requested; the
+prior Composition request remains pending. No response is inferred.
+[Evidence](evidence/mapgyver-m07-native-fade-observation-2026-11-01.json).
+
 **Matrix editor/caller batch 78:** started 2026-11-01 **03:51 UTC**, stop **04:36 UTC**.
 Only M07 gate 3 is active. Extend the existing immutable authoring observer to include Matrix
 documents, verify UI/QuickJS/hosted/command authoring and ephemeral launch semantics, and reuse the
@@ -1460,8 +1497,8 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — grid/settings/reorder/renderer feedback software-verified in batches 26–28; batch 29 displays the panel but higher-integrity target/no changed click leaves real interaction/parity acceptance open |
-| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open — batch 76 records static/scale partial evidence; corrected fresh-probe fade sampling and complete native verification remain |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch 78 verifies caller/headless parity and saves the review scene; six actual editor observation groups requested/pending |
+| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Open — batch 79 completes Intel; NVIDIA static/scale/reload pass, interrupted-fade observations time out. Concurrent owning-worker sampling is software checked, native unverified |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
 Deliver Matrix media and the document/module foundation under `apps/mapgyver/src/matrix`: sparse
@@ -4778,11 +4815,13 @@ that completed preparation or infer input from software. M05/M06 activation retu
 changed prerequisite or real observations. Batch 78 completes **M07 gate 3** caller parity and
 ordinary-app Matrix review preparation. Actual grid interaction remains required; its six-group
 checklist and saved reference are ready, not accepted. Publish this checkpoint before selecting
-one bounded **M07 gate 4** verification of the corrected existing fixture.
-The Matrix native chain stops after three cumulative failed invocations; the initialization-check
-correction compiles but is native unverified. Return to its precise corrected fixture only after
-the selected parity/review delivery, with frozen hashes and no scope reduction. No helper retry
-chain, new clock/telemetry framework or M03 experiment.
+one bounded **M07 gate 4** verification of the corrected existing fixture. Batch 79 supplies that
+verification: Intel completes, NVIDIA's fade observations time out. Publish its precise concurrent
+sampling correction, then one final bounded verification of this chain. Another failure selects
+an existing dependency-ready acceptance task, preserving the exact failure and return trigger.
+The fourth cumulative invocation confirms initialization identity; concurrent transition sampling
+is native unverified. Freeze candidate hashes for that one check, without scope reduction. No
+helper retry chain, new clock/telemetry framework or M03 experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

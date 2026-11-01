@@ -36,6 +36,18 @@ fn sample(name: &str, adapter: AdapterId, budget: &PayloadPool) -> [f64; 3] {
     weights
 }
 
+fn sample_outputs(fixture: &Fixture, adapter: AdapterId, budget: &PayloadPool) -> [[f64; 3]; 3] {
+    // Each receiver owns its device on its worker. Serial receiver/device startup must not
+    // consume the other outputs' fade observation window; no native handle crosses workers.
+    std::thread::scope(|scope| {
+        let workers: [_; 3] = std::array::from_fn(|index| {
+            let name = fixture.sender(index);
+            scope.spawn(move || sample(name, adapter, budget))
+        });
+        workers.map(|worker| worker.join().unwrap())
+    })
+}
+
 pub(super) fn check(adapter: AdapterId) {
     let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
@@ -109,7 +121,9 @@ pub(super) fn check(adapter: AdapterId) {
     fixture.publish_channels(&engine, &routes, root, Some(4));
     let red = image([1.0, 0.0, 0.0, 1.0]);
     fixture.pixels_channels(adapter, &[&red, &red, &red], &red, "transition-initial-cut");
-    let budget = PayloadPool::new("matrix-transition-readback", 3, 1024 * 1024).unwrap();
+    // Three independent consumers each reserve receiving, staging and CPU storage. This is
+    // qualification readback storage, separate from the unchanged renderer admission limits.
+    let budget = PayloadPool::new("matrix-transition-readback", 9, 1024 * 1024).unwrap();
     for index in 0..3 {
         assert_eq!(sample(fixture.sender(index), adapter, &budget), [1.0, 0.0, 0.0]);
     }
@@ -130,14 +144,12 @@ pub(super) fn check(adapter: AdapterId) {
     };
     launch(&mut engine, root, columns[2], LaunchMode::Configured);
     fixture.publish_channels(&engine, &routes, root, None);
-    let mut previous = None;
+    let mut previous: Option<[[f64; 3]; 3]> = None;
     let mut count = 0;
     let deadline = Instant::now() + Duration::from_secs(6);
     let mut ratio: Option<f64> = None;
     while count < 3 {
-        let weights = (0..3)
-            .map(|i| sample(fixture.sender(i), adapter, &budget))
-            .collect::<Vec<_>>();
+        let weights = sample_outputs(&fixture, adapter, &budget);
         if weights.iter().all(|w| w.iter().all(|v| *v > 0.02) && w[2] < 0.85) {
             for w in &weights {
                 let current = w[0] / (w[0] + w[1]);
@@ -151,7 +163,6 @@ pub(super) fn check(adapter: AdapterId) {
                 }
             }
             if let Some(old) = &previous {
-                let old: &Vec<[f64; 3]> = old;
                 for (now, then) in weights.iter().zip(old) {
                     assert!(
                         now[2] >= then[2] - 2.0 / 255.0
@@ -166,7 +177,7 @@ pub(super) fn check(adapter: AdapterId) {
         }
         assert!(
             Instant::now() < deadline,
-            "three-color interruption mixture was not observed"
+            "three-color interruption mixture was not observed: samples={count} weights={weights:?}"
         );
         std::thread::sleep(Duration::from_millis(80));
     }

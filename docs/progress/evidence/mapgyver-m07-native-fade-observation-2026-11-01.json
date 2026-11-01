@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "batch": 79,
+  "date": "2026-11-01",
+  "gate": "M07/4",
+  "status": "OPEN_NVIDIA_INTERRUPTED_FADE_NOT_OBSERVED",
+  "before": {
+    "git_revision": "7aa1798bd797077c388614bb2fd50bbf56795095",
+    "captured_at_utc": "2026-11-01T04:05:44.312149+00:00",
+    "profile": "Cargo test optimized with debug info; not release/performance qualification",
+    "sha256": {
+      "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "82f9093c51f527397f0be2d02096c0520c36fd29b0258f426979132685146a48",
+      "apps/mapgyver/tests/support/native_pixels.rs": "c486e909c38db59555596bb477c4ac544424520a958aaba47574b39af90df50b",
+      "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca",
+      "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+      "apps/mapgyver/tests/matrix_pixels/transitions.rs": "23e5a1727e2cf3100000ed1917560902c9bb258011352f7cb9779d4f557523d0",
+      "Cargo.lock": "91362f5b06ec9104788aa2c2bf0c2b6e5a8fa77619af928a5a491d2909339627"
+    }
+  },
+  "overlay": {
+    "before": {
+      "utc": "2026-11-01T04:05:43.579Z",
+      "action": "Enable and open overlay"
+    },
+    "after": {
+      "utc": "2026-11-01T04:08:15.488Z",
+      "action": "Enable and open overlay"
+    },
+    "interpretation": "Off, read-only UIA observations; no settings or input changes"
+  },
+  "execution": {
+    "command": "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe native_matrix_pixels --ignored --nocapture",
+    "exit_code": 101,
+    "duration_seconds": 131.92,
+    "invocations_this_batch": 1,
+    "cumulative_matrix_native_invocations": 4,
+    "raw_log": "target/m07-native-b79.log",
+    "log_sha256": "0f33ee3468aa62a40063d752240edbaf87da76c2fed794cd25eefbee5a2ce811",
+    "adapters": {
+      "93226": {
+        "captures": 56,
+        "texels": 43008,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut",
+          "transition-interrupt-final"
+        ],
+        "renderer_lifetimes": 3
+      },
+      "94419": {
+        "captures": 52,
+        "texels": 39936,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut"
+        ],
+        "renderer_lifetimes": 3
+      }
+    },
+    "grid": [
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9994 burst_and_recovery_ms=10541 elapsed_ms=11298",
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9993 burst_and_recovery_ms=16033 elapsed_ms=22268"
+    ],
+    "transition_samples": [
+      "Matrix interrupted native weights sample=0 layer/group/final=[[0.7454042095403874, 0.16826940018969075, 0.08650046203654976], [0.7230551289219693, 0.1651321945016676, 0.10946171077829933], [0.7083757798916868, 0.162029375639111, 0.13286832155381798]]",
+      "Matrix interrupted native weights sample=1 layer/group/final=[[0.6795424696330938, 0.1559264637078274, 0.1651321945016676], [0.6583748172794485, 0.15292615199615017, 0.18782077230067787], [0.6444796819705821, 0.14702726649759498, 0.21223075741405523]]",
+      "Matrix interrupted native weights sample=2 layer/group/final=[[0.6172065624196511, 0.14126329114027164, 0.24620132670783548], [0.5972017883637634, 0.13843161503245183, 0.26635560480286247], [0.5775804404296506, 0.13286832155381798, 0.29177064981753587]]"
+    ],
+    "terminal": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 131.92s "
+    ]
+  },
+  "interpretation": {
+    "intel": "All native fixture checks complete; 14 raster states and three interrupted Layer/Group/Final mixture observations, endpoint and outgoing demand retirement.",
+    "nvidia": "13 raster states, configured-launch admission/recovery and reload pass; three intermediate interrupted-fade observations were not obtained in the six-second window. No claim of a renderer defect or passing fade.",
+    "raster_error": "Residual outside documented per-pass UNORM intervals is zero. Nominal error reaches 3/255 and is not reported as nominal <=2/255.",
+    "retirement": "Three renderer lifetimes on each adapter execute Fixture::drop checks: created/released plan owners equal with live zero, output/source inventories empty. Normal failed-test exit, no secondary destructor panic.",
+    "scale": "1000 layers x1000 columns, six populated cells;1000 configured launches scheduled every10ms, eight admitted on each adapter. Observed request spans9994ms Intel/9993ms NVIDIA; includes no global release/cadence qualification."
+  },
+  "correction": {
+    "owner": "test fixture only",
+    "change": "Sample three fresh one-image probes concurrently on their own scoped workers; no native handle crosses threads. Shared readback pool has nine receiving/staging/CPU credits, three per independent consumer.",
+    "hypothesis": "Serial receiver/device startup consumes intermediate-observation time; concurrent independent sampling removes this fixture serialization. No per-probe startup timing was measured, so this cause remains a hypothesis.",
+    "unchanged": [
+      "six-second configured fade",
+      "three observations per output",
+      "weight/ratio/monotonicity tolerances",
+      "renderer plan/admission/resource budgets",
+      "original M03/M05/M09 requirements"
+    ],
+    "native_verified": false,
+    "software": "four raster tests per Matrix/Composition executable pass; native tests ignored; strict all-target native-feature Clippy passes",
+    "after_sha256": {
+      "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "8d2a303ede63d9d4e0537318b6b941b9c378118127b6a941c367c20e5758b619",
+      "apps/mapgyver/tests/matrix_pixels/transitions.rs": "cde518ae349c7f02eaed295639304575e1aab609f1e926c602da522190ee7f3b",
+      "apps/mapgyver/tests/matrix_pixels/README.md": "ca7da3df063fff872cad8a96d267364b79136af1681d050a00d3813f4e630ac7"
+    }
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "2/4",
+    "overall": "4/10",
+    "actual_editor": "Unverified; six-group Matrix review requested. Prior Composition request pending.",
+    "next": "Publish this precise correction; one bounded verification of concurrent sampling, with no new probe or settings change. A further failure stops this native chain for another dependency-ready acceptance task."
+  }
+}

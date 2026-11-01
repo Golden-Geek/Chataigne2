@@ -142,6 +142,12 @@ is software checked, not native accepted. Preserve the three cumulative native f
 further native work, complete **M07 gate 3** caller-parity and ordinary-app editor review preparation.
 Its actual interaction requirement stays open, as do M06's requested observations and M07 gate 4.
 
+Batch 78 publishes that caller/review preparation. Batch 79 confirms native startup identity and
+complete Intel Matrix behavior; NVIDIA passes static/scale/reload but misses intermediate-fade
+observations. Publish the narrow concurrent owning-worker receiver correction, then verify it
+once with original fade/tolerance/production budgets. Another failure stops this native chain and
+selects an already implemented dependency-ready acceptance task; every original gate stays required.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
