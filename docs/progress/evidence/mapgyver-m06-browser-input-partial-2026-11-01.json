@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "batch": 88,
+  "date": "2026-11-01",
+  "gate": "M06/4",
+  "status": "PARTIAL_TWO_FAILED_CHECKS_LAYOUT_CORRECTED_RUNTIME_UNVERIFIED",
+  "base_revision": "68d308e2f7f371ea204a278c7dfda669ff724c53",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --composition-ui",
+  "invocations": [
+    {
+      "exit_code": 1,
+      "stage": "complete instance form",
+      "failure": "Exact Blend label locator misses the wrapped select. Test label matching corrected.",
+      "log": "target/m06-composition-ui-b88.log",
+      "log_sha256": "d585e4eadb439102a7ba436fde282597165cc37ef3ceb1c869f89fa46ea40d5f"
+    },
+    {
+      "exit_code": 1,
+      "stage": "complete instance form",
+      "failure": "Form submits, but assertion expects JavaScript decimals instead of Rust f32 values. Exact Math.fround expectations corrected after run; not rerun.",
+      "log": "target/m06-composition-ui-b88-final.log",
+      "log_sha256": "2379dbe45665c6b98bc6b46fa08c47f78354b703d29629c0fd8057c864444968",
+      "actual_opacity": 0.6000000238418579,
+      "actual_scale": [-1.2000000476837158, 0.800000011920929],
+      "actual_pivot": [0.30000001192092896, 0.699999988079071]
+    }
+  ],
+  "reached_assertions": [
+    "Canvas400x300 and atomic cycle rejection preserve the prior canvas Undo/Redo.",
+    "Two actual source admissions, non-authoring selection, rename and non-authoring form drafts.",
+    "Second run reaches submitted source/transform/opacity/blend/enabled definition, then fails its f32 expectation. Whole-form history and later checks do not run."
+  ],
+  "layout_correction": {
+    "evidence": "Inspected actual failure screenshot: narrow docked panel squeezes canvas beside minimum15rem instance column while browser viewport is1440 pixels.",
+    "source": "apps/mapgyver/ui/src/lib/composition/CompositionPanel.svelte",
+    "change": "Query the Composition container width rather than the browser viewport, matching existing MapGyver editors.",
+    "runtime_verified": false,
+    "screenshot": "target/m06-composition-ui-failure.png",
+    "screenshot_sha256": "50eab763e96dbdb0d485f600b7a21cb9b8b382da13fc6efd6b0fdabfdcf6c579"
+  },
+  "hashes": {
+    "tested_target/debug/MapGyver.exe": "64c74f8fea641564598e6b8482558f661ee708af281a8d8d7b1ed5fd3e7b41d7",
+    "rebuilt_target/debug/MapGyver.exe_not_run": "7ebb2cb637ed4fac419143df58fc4e06ea5a9eb46a6182b069b852590a18e876",
+    "second_run_composition.mjs": "57c6e5a713be886bedc17c6fdace07f0a0a672f7a0c5a4b30c72544ded1236e1",
+    "corrected_composition.mjs": "7dd7382180ed00b0afb6018ee06650736b2ee93963f7ececac75cbad35a3082e",
+    "apps/mapgyver/tests/headless/media.mjs": "ca1bdcfd2b281d46ea583fb61ecf1b10799722cc9421eff137947ecd7643503c",
+    "corrected_CompositionPanel.svelte": "99058bd5550d0ac886463e62129461860c1c6dc1d6f2e7a498e8d7a3f16d36fb"
+  },
+  "checks": {
+    "svelte": "pass, zero errors and warnings",
+    "ordinary_app_build": "pass, UI bundle rebuilt; build is after the failed invocations",
+    "syntax_and_prettier": "pass after concrete test corrections",
+    "both_workspace_formatters": "pass",
+    "host_cleanup": "Both shutdown-file exits0; no MapGyver remains after checks.",
+    "full_browser_flow": "not passed; exactly two failed invocations, no third"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M06": "3/4",
+    "overall": "4/10",
+    "remaining": "Corrected full test and narrow-panel layout, original editor checklist, native image/extent/physical integration and retained global qualification.",
+    "next": "Targeted verification against concrete f32/layout corrections, retaining cumulative two failures. Do not restart unchanged automation or add another route."
+  }
+}

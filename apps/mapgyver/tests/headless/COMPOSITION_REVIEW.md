@@ -4,6 +4,13 @@ The headless flow verifies backend intents and saves an ordinary project for rea
 It does not manufacture desktop input evidence. Composition and source-picker behavior are app
 owned; the shared host, transport, history and project file codec remain Golden contracts.
 
+The opt-in bundled-browser check is `node apps/mapgyver/tests/headless/media.mjs --composition-ui`.
+It uses real DOM input and read-only backend correlation. Its batch88 candidate is incomplete:
+two runs stop at form-stage test assertions; corrected f32 expectations and dock-width layout
+still need runtime verification. Later checks are not evidence until they run. Browser input
+cannot prove native imagery/extents, physical presentation or the complete checklist below.
+See the owning [ledger](../../../../docs/progress/mapgyver-status.md#m06-acceptance-items).
+
 Generate and verify the review project from the repository root:
 
 ```text

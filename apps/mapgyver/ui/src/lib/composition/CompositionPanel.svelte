@@ -259,6 +259,7 @@
 
 <style>
 	.composition {
+		container-type: inline-size;
 		height: 100%;
 		overflow: auto;
 		padding: 1rem;
@@ -320,7 +321,7 @@
 	.error {
 		color: #ffb3b3;
 	}
-	@media (max-width: 55rem) {
+	@container (max-width: 55rem) {
 		.workspace {
 			grid-template-columns: minmax(0, 1fr);
 		}

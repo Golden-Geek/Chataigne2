@@ -196,6 +196,12 @@ actual Composition source/instance/form/geometry/history in naturally enabled bu
 controls. Keep native integration/physical requirements and unverified complete-editor scope;
 no guard bypass, repeated passing Source input, parked automation retry or acceptance change.
 
+Batch88 adds the actual Composition browser check but stops after two form-stage test failures:
+wrapped-select matching, then f32 expectations. Both are corrected; the captured dock-width canvas
+squeeze also receives the container-query layout used by other editors. Full input and visual
+verification remain open; no third run or gate closure. Follow up on those concrete corrections,
+retaining cumulative effort and every native/complete-editor requirement. No new automation route.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
