@@ -20,6 +20,17 @@ export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 		'mapgyver.media.folder',
 		'mapgyver.media.asset'
 	].includes(node.node_type);
+export const mediaManagerItems: UiCreatableUserItem[] = [
+	...mediaTreeItems,
+	{
+		node_type: 'ImportPicture',
+		item_kind: 'media',
+		label: 'Import Picture…',
+		menu_path: [],
+		initial_params: [],
+		select_when_created: true
+	}
+];
 export async function createMediaTreeItem(
 	parent: UiNodeDto,
 	item: UiCreatableUserItem,

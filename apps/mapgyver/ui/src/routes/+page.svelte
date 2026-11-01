@@ -30,6 +30,7 @@
 	provideMatrixAuthoring();
 	onMount(() => preview.mount());
 	for (const type of [
+		'mapgyver.media.manager',
 		'mapgyver.media',
 		'mapgyver.media.channel',
 		'mapgyver.media.asset',

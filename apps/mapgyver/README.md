@@ -19,6 +19,10 @@ Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinar
 tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
 Browser previews correctly report unavailable; this check does not qualify native display output.
 
+`node apps/mapgyver/tests/headless/media.mjs --source-ui` covers the complete M04 source-authoring
+matrix in the tree/Inspector. `--ui-reload` retains the separate Picture reload/history check.
+Their redesign migration is in progress; current failure evidence and acceptance live in the ledger.
+
 `media::composition::inspect` reads committed Composition instance state without settling queued
 commands or authoring history. UI intents, scripts, command nodes and the headless host share the
 same Composition mutation contracts. The [editor acceptance flow](tests/headless/COMPOSITION_REVIEW.md)

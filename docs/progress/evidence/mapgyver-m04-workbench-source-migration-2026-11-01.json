@@ -1,0 +1,54 @@
+{
+	"date": "2026-11-01",
+	"gate": "M04.5 source UI after Golden workbench redesign",
+	"status": "PARTIAL_NOT_ACCEPTED",
+	"batch": {
+		"start_cet": "19:53",
+		"stop_cet": "20:38",
+		"checkpoint_cet": "20:01",
+		"interaction_invocations": 2,
+		"allowed": 2
+	},
+	"ownership": "App-owned Media tree and shared Inspector; existing backend ImportPicture operation/defaults; ordinary bundled-browser fixtures",
+	"product_change": "Restored top-level Import Picture in the manager plus menu, routing selection to the manager Inspector locator form. Backend still owns defaults, identities and atomic asset/media/channel creation. No embedded manager form or new domain protocol.",
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "650530a7b5630f4e2ea2a836f308cacf2e38b7cff465230ce61ba337ac32f6a1"
+	},
+	"software": {
+		"svelte": "0 errors, 0 warnings",
+		"frontend_tests": "61 passed",
+		"ordinary_build": "pass",
+		"js_syntax_and_prettier": "pass",
+		"root_and_core_cargo_fmt": "pass",
+		"rust": "No Rust source change; retain preceding 209-pass/1-ignore evidence"
+	},
+	"interaction": [
+		{
+			"invocation": 1,
+			"command": "node apps/mapgyver/tests/headless/media.mjs --source-ui",
+			"result": "fail",
+			"log": "target/mapgyver-m04-source-ui-first.log",
+			"sha256": "aea0cc59802cf055c84dd0781302b57d27a4adc5a7dea0ab3bb6774823a411b5",
+			"observation": "Actual File New, Solid creation/media+channel rename/add and RGBA/size draft input reached the Inspector. Exact Sampling label locator omitted the wrapped select's option text. No page errors/rejected requests. Corrected all select locators to observed combobox prefixes; later cases unexecuted.",
+			"host_exit": 0
+		},
+		{
+			"invocation": 2,
+			"command": "node apps/mapgyver/tests/headless/media.mjs --ui-reload --source-ui",
+			"result": "fail",
+			"log": "target/mapgyver-m04-source-ui-corrected.log",
+			"sha256": "e3612084e16ebb087ea7d46c2fcc6fe42e49a9f0214a0fe3c0d134323a286166",
+			"observation": "Reload Picture runs first against the existing headless baseline. Actual Inspector button sends exactly one selected-asset request and InspectManager remains exactly equal. Assertion finds one global alert; its content/origin was not captured. Stops before redo/undo and the corrected full source matrix. No pass inferred.",
+			"host_exit": 0
+		}
+	],
+	"followup": "The failure assertion now captures alert text, page errors, rejected intents, body and screenshot. Next bounded batch investigates that concrete alert then executes the corrected full original source matrix. Do not ignore unknown alerts or add native/renderer scope.",
+	"limits": [
+		"No M04 gate closes; 5/6 source gates and 3/10 full phases remain accepted.",
+		"Top-level Picture import compiles but actual input is still unverified.",
+		"The original full source matrix is preserved, not replaced by the partial source run or earlier combined workbench smoke.",
+		"No native preview, file dialog, discovered-sender input, pixels, hardware, timing or physical-output pass is claimed.",
+		"Both owned browsers close and both ordinary hosts exit0 via their sentinel. No running test handle remains."
+	]
+}

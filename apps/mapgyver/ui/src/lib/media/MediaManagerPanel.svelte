@@ -6,7 +6,7 @@
 		type PanelState,
 		type UiNodeDto
 	} from 'golden_ui';
-	import { mediaTreeItems, createMediaTreeItem, isMediaTreeNode } from './tree';
+	import { mediaTreeItems, mediaManagerItems, createMediaTreeItem, isMediaTreeNode } from './tree';
 	import MediaTreeActions from './MediaTreeActions.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	const selection = useDocumentSelection();
@@ -29,11 +29,15 @@
 		searchPlaceholder="Search media…"
 		emptyMessage="No media"
 		addButtonTitle="Create media or folder"
-		addItems={mediaTreeItems}
+		addItems={selectedFolder ? mediaTreeItems : mediaManagerItems}
 		createDisabled={appState.session?.status !== 'connected' ||
 			appState.session.loading.visible ||
 			appState.session.hasActiveEditSession}
 		onCreateItem={async (parent, item) => {
+			if (item.node_type === 'ImportPicture') {
+				selection.select(parent.uuid);
+				return;
+			}
 			try {
 				await createMediaTreeItem(parent, item, selection.select);
 				error = '';

@@ -4,12 +4,43 @@
 
 **Updated: 2026-11-01 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
-**Execution: active — user-requested Golden UI redesign.** The 2026-11-01 design correction is
-required: manager outliners/shared selection, Inspector-owned properties, full-panel editors,
-Matrix grid/icon actions and consistent remaining panels. One redesign slice is active: shared
-manager/Inspector integration, starting with Media Manager. Native qualification stays blocked.
+**Execution: active — M04 gate5 source acceptance after the Golden UI redesign.** Manager trees,
+shared Inspector, full-panel editors, Matrix icons and Applications tree are implemented.
+The complete source fixture is migrated but has not passed; an unexpected Reload Picture alert
+needs its actual content captured. Only M04/5 is active. Native qualification stays blocked.
 The design changes reopen M04's UI gate5 and M05's screen-editor gate6 until their replacements
 are verified; their historical input evidence is retained, not applied to the new layouts.
+
+**M04 source acceptance batch — 2026-11-01 19:53 CET, stop 20:38 CET:** previous turn is
+progress, published as `c0a52035` with a clean checkout. M04 gate5 is the sole active gate.
+Owner: app Media Manager/Inspector and ordinary browser acceptance fixtures. Recover the full
+original batch50 matrix (source creation/settings/rename/reorder/delete, Picture import/relink,
+independent Spout selectors, guards, Undo/reload), including the missing top-level import affordance,
+using existing backend operations. Migrate Picture reload input to the shared Inspector.
+Run prerequisites first; at most two finite interaction invocations (source matrix, Reload Picture),
+20 minutes of investigation and the 20:38 stop. Preserve failures and original native limits.
+Close gate5 only on its complete new-layout scope; do not rerun old renderer qualification.
+
+Invocation1 stops at the Sampling selector: the fixture uses exact label text, while wrapped
+select labels include their option text. No page error or rejected request; creation, name and
+channel-add input reached the actual Inspector. Use the observed combobox name prefixes for
+selects. Invocation2 will verify Reload Picture first on the unchanged source baseline, then the
+corrected full source matrix in the same isolated host. This keeps two host invocations total;
+retain the first failure and stop rather than adding another comparison if it fails.
+
+**Source batch result — partial, two invocations consumed:** invocation2 reaches the actual
+Reload Picture Inspector control, sends exactly one selected-asset request and retains the exact
+catalog/IDs. It stops at an unexpected global alert count before redo/undo or the corrected source
+matrix. The alert content was not captured; its origin is unproven. Add text/body/screenshot and
+rejected-request capture to that failure assertion; do not scope it away or infer a product cause.
+Both hosts exit0 after their orderly sentinel; both browser instances close. No gate closes.
+Top-level Picture import is restored through the plus menu into an Inspector-owned locator form,
+using existing ImportPicture defaults/atomic operation. This new affordance compiles but its actual
+input remains unverified. Source settings reached the first run; later cases remain unexecuted.
+Svelte reports0 diagnostics, 61 frontend tests and the ordinary bundled build pass.
+[Partial evidence](evidence/mapgyver-m04-workbench-source-migration-2026-11-01.json).
+Checkpoint this useful source/fixture work. Next batch starts with the captured Reload Picture
+alert and the corrected source matrix; no native, renderer or other phase work is substituted.
 
 **Retained native constraint:** Native access remains blocked
 through batches98–99 and the source/queue audit. On 2026-11-01 the user confirms native interaction
@@ -118,7 +149,8 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Active | UI redesign / M04/5 | Combined workbench scope passes. Migrate original full source CRUD/history and Screen gesture/history fixture selectors; close only their original verified gates. |
+| Active | UI redesign / M04/5 | Complete source fixture prepared; first run has a corrected select-label defect. Second stops after Reload Picture on an uncaptured global alert. Capture its content, resolve its proven cause, then verify complete source CRUD/history. |
+| Pending after M04/5 | M05/6 | Migrate the original complete Screen gesture/history fixture to the new manager, Inspector and full-panel editor; preserve existing scope. |
 | Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
@@ -5658,12 +5690,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-The requested workbench redesign and its combined bundled-browser flow pass. Publish this
-checkpoint before another batch. Continue M04 gate5 by migrating its remaining source CRUD/history/
-Picture-reload fixture selectors to the Media tree/shared Inspector, then migrate M05 gate6's
-original Screen gesture/history scope to the separate full-panel editor. Reuse accepted backend/
-native evidence. Do not rerun the passing combined workbench flow unchanged as qualification.
-Native hardware/input/resource work remains parked behind its concrete prerequisites.
+Publish the current M04 source/fixture checkpoint before another batch. The source matrix is
+prepared and its exact select-label issue corrected. Reload Picture now targets the Inspector;
+its first comparison sends exactly one request and retains the exact catalog, then stops on an
+unexpected alert. Its next failure capture includes actual alert text/body/screenshot and rejected
+intents. Resolve only the demonstrated cause and run the complete source matrix, preserving both
+failures. M04 remains5/6; original native evidence stays accepted. After verified closure,
+migrate M05 gate6's original full Screen gesture/history scope. Do not repeat passing workbench
+smokes or broaden into native/hardware qualification without its missing prerequisite.
 
 **Retained qualification queue:**
 

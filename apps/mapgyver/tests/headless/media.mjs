@@ -2,6 +2,7 @@
 // Build: cargo build --locked -p MapGyver --bin MapGyver
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
+// Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
 // Add --application-ui for M08 real bundled browser form/history verification.
@@ -26,6 +27,7 @@ assert(
 	'Run the Screen and Surface Source UI checks separately'
 );
 const withUi = [
+	'--source-ui',
 	'--ui-reload',
 	'--application-ui',
 	'--screen-ui',
@@ -238,6 +240,10 @@ try {
 	if (process.argv.includes('--ui-reload')) {
 		const { verifyPictureReloadUi } = await import('../browser/picture-reload.mjs');
 		await verifyPictureReloadUi({ base, inspect, picture, asset });
+	}
+	if (process.argv.includes('--source-ui')) {
+		const { verifySourcesUi } = await import('../browser/sources.mjs');
+		await verifySourcesUi({ base, inspect });
 	}
 	if (process.argv.includes('--application-ui')) {
 		const { verifyApplicationUi } = await import('../browser/applications.mjs');

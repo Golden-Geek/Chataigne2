@@ -154,6 +154,12 @@
 {@render defaultHeader?.()}
 <div class="properties">
 	{#if error}<p role="alert">{error}</p>{/if}
+	{#if node.node_type === 'mapgyver.media.manager'}
+		<AssetLocatorForm
+			disabled={busy}
+			submitLabel="Import Picture"
+			submit={(locator) => edit({ kind: 'ImportPicture', locator, target: null, label: null })} />
+	{/if}
 	{#if node.node_type === 'mapgyver.media.folder'}
 		<NameField
 			label="Folder name"
