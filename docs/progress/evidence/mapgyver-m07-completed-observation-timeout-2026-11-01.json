@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "batch": 80,
+  "date": "2026-11-01",
+  "gate": "M07/4",
+  "status": "OPEN_COMPLETED_OBSERVATION_TIMEOUT_ASSERTION",
+  "before": {
+    "utc": "2026-11-01T04:12:14.730649+00:00",
+    "commit": "b7de2f951e077e0bd2c920038ca3495259a8f4c4",
+    "sha256": {
+      "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe": "8d2a303ede63d9d4e0537318b6b941b9c378118127b6a941c367c20e5758b619",
+      "apps/mapgyver/tests/support/native_pixels.rs": "c486e909c38db59555596bb477c4ac544424520a958aaba47574b39af90df50b",
+      "apps/mapgyver/tests/support/raster.rs": "e8a3e9342a4bb2ab47bb3bf44af505259d46d01c5826ac48479f460dc23875ca",
+      "apps/mapgyver/tests/matrix_pixels/mod.rs": "ff1492ec9a49659ce0af5bd8f20e5bf2f096b690029dd60b0bfb54e38f21d84b",
+      "apps/mapgyver/tests/matrix_pixels/transitions.rs": "cde518ae349c7f02eaed295639304575e1aab609f1e926c602da522190ee7f3b",
+      "Cargo.lock": "91362f5b06ec9104788aa2c2bf0c2b6e5a8fa77619af928a5a491d2909339627"
+    }
+  },
+  "overlay": {
+    "before": {
+      "utc": "2026-11-01T04:12:13.980Z",
+      "action": "Enable and open overlay"
+    },
+    "after": {
+      "utc": "2026-11-01T04:15:04.706Z",
+      "action": "Enable and open overlay"
+    },
+    "interpretation": "Off, read-only observations; no settings change"
+  },
+  "execution": {
+    "command": "target/debug/deps/matrix_rendering-4f2c15a7302a9778.exe native_matrix_pixels --ignored --nocapture",
+    "exit_code": 101,
+    "duration_seconds": 129.02,
+    "cumulative_invocations": 5,
+    "invocations_this_batch": 1,
+    "raw_log": "target/m07-native-b80.log",
+    "log_sha256": "10f975eb6baa42cbf2820703e896fc10e16dae77c466e13cd3b70fdff187f50c",
+    "adapters": {
+      "93226": {
+        "captures": 56,
+        "texels": 43008,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut",
+          "transition-interrupt-final"
+        ],
+        "renderer_lifetimes": 3,
+        "mixture_samples": [
+          "Matrix interrupted native weights sample=0 layer/group/final=[[0.7605245046752924, 0.17788841598362912, 0.06301001765316767], [0.768151147247507, 0.17788841598362912, 0.0595112381629812], [0.768151147247507, 0.17788841598362912, 0.05448027644244237]]",
+          "Matrix interrupted native weights sample=1 layer/group/final=[[0.7304607400903537, 0.16826940018969075, 0.10224173308810132], [0.7230551289219693, 0.16826940018969075, 0.10702310297826761], [0.7304607400903537, 0.16826940018969075, 0.10224173308810132]]",
+          "Matrix interrupted native weights sample=2 layer/group/final=[[0.6866853124353135, 0.162029375639111, 0.14995978981060856], [0.6866853124353135, 0.1589608350608804, 0.15292615199615017], [0.6938717612919899, 0.162029375639111, 0.14412847085805777]]"
+        ]
+      },
+      "94419": {
+        "captures": 52,
+        "texels": 39936,
+        "max_residual": 0,
+        "max_nominal": 3,
+        "states": [
+          "normal",
+          "add",
+          "multiply",
+          "screen",
+          "reordered",
+          "undo-order",
+          "missing-source",
+          "undo-source",
+          "empty-column",
+          "large-sparse-grid",
+          "burst-recovered",
+          "reload-recreate",
+          "transition-initial-cut"
+        ],
+        "renderer_lifetimes": 3,
+        "mixture_samples": [
+          "Matrix interrupted native weights sample=0 layer/group/final=[[0.35153259950043936, 0.3662525955988395, 0.2831487404299921], [0.3467040563550296, 0.3613067797835095, 0.29177064981753587], [0.3467040563550296, 0.3662525955988395, 0.2874408377269175]]",
+          "Matrix interrupted native weights sample=1 layer/group/final=[[0.21586050011389926, 0.2232279573168085, 0.5583403896342679], [0.2195261997292692, 0.22696587351009836, 0.5520114015120001], [0.21586050011389926, 0.2232279573168085, 0.5583403896342679]]",
+          "Matrix interrupted native weights sample=2 layer/group/final=[[0.08650046203654976, 0.09084171118340768, 0.8227857543962835], [0.0822827071298148, 0.08650046203654976, 0.8307698767746546], [0.0822827071298148, 0.08650046203654976, 0.8307698767746546]]"
+        ]
+      }
+    },
+    "grid": [
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9993 burst_and_recovery_ms=10547 elapsed_ms=11316",
+      "Matrix large grid 1000x1000 cells=6 configured_launch_requests=1000 scheduled_period_ms=10 admitted=8 launch_span_ms=9993 burst_and_recovery_ms=16023 elapsed_ms=22225"
+    ],
+    "terminal": [
+      "test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 129.02s "
+    ],
+    "post_correction_source_sha256": "2da92f2f4e278aaa6d47e41dd90669496d051adae1362c1dddce5a4940fda805"
+  },
+  "finding": "Intel completes. NVIDIA obtains all three intermediate Layer/Group/Final mixtures and passes their weight, outgoing-ratio and monotonicity assertions; the following unconditional six-second deadline assertion then fails with samples=3. NVIDIA final fade endpoint/outgoing-demand retirement are not reached.",
+  "correction": {
+    "scope": "test control only",
+    "change": "Expire the observation deadline only while fewer than three valid samples have completed. Finite GPU readbacks may finish after the sampled frame; an already completed observation set is not pending.",
+    "unchanged": [
+      "six-second configured fade and pending-observation timeout",
+      "three valid samples per output",
+      "weight/ratio/monotonicity tolerances",
+      "original renderer admission/resource/performance budgets"
+    ],
+    "native_verified": false,
+    "software": "Four oracle tests per executable pass, native tests ignored; strict all-target native-feature Clippy passes."
+  },
+  "limits": [
+    "No exact sampled-frame timestamp or global GPU/cadence qualification.",
+    "108 raster captures/82944 texels pass interval-aware oracle; nominal max3/255 is retained, not reported as nominal<=2/255.",
+    "All six Fixture Drop owner-inventory assertions complete, including NVIDIA unwind; no secondary panic."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "2/4",
+    "overall": "4/10",
+    "next": "Stop this native chain. Select existing M08 gate4 caller/edit/control/observation acceptance. Return to exactly the corrected Matrix fixture after a separate reviewable acceptance delivery; no extra probe, settings or acceptance change.",
+    "actual_editor": "M06 and M07 requested observations remain unanswered."
+  }
+}

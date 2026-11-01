@@ -175,8 +175,9 @@ pub(super) fn check(adapter: AdapterId) {
             previous = Some(weights);
             count += 1;
         }
+        // A finite readback may finish after its sampled frame. Expire only pending observations.
         assert!(
-            Instant::now() < deadline,
+            count == 3 || Instant::now() < deadline,
             "three-color interruption mixture was not observed: samples={count} weights={weights:?}"
         );
         std::thread::sleep(Duration::from_millis(80));

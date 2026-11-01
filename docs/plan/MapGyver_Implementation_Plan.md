@@ -148,6 +148,12 @@ observations. Publish the narrow concurrent owning-worker receiver correction, t
 once with original fade/tolerance/production budgets. Another failure stops this native chain and
 selects an already implemented dependency-ready acceptance task; every original gate stays required.
 
+Batch 80 obtains three valid concurrent NVIDIA interrupted mixtures, then an unconditional
+deadline assertion rejects the completed set. Its pending-only correction is software checked,
+not native verified. Stop the native chain and select existing **M08 gate 4** caller/edit/control/
+observation acceptance. Return to exactly this corrected Matrix fixture after a separate reviewable
+acceptance delivery, retaining all five invocations, failures, endpoint gaps and original budgets.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

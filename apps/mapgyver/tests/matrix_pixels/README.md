@@ -37,3 +37,8 @@ static rasters, sparse-grid bursts and reload, but sequential receiver sampling 
 three interrupted-fade mixtures before its six-second deadline. Concurrent owning-worker sampling
 is the precise fixture correction; it remains native unverified. The fade duration, sample count,
 weight/ratio tolerances and original production budgets are unchanged.
+
+Batch 80 observes all three required NVIDIA mixtures, but its unconditional pending deadline
+rejects the already-completed set. Expiration now applies only while observations remain pending;
+the final NVIDIA endpoint/demand checks are still unverified. The native chain stops for separate
+M08 acceptance work before the exact corrected fixture returns. No further native retry in batch 80.
