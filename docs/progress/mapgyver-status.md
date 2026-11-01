@@ -4,21 +4,20 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate4, actual Composition project/gesture lifetime**. Batch94 traces
-the exact stale requests to the hidden Media Manager's MatrixChannelEditor and corrects catalog
-ownership there. Strict Matrix New/upload now passes with zero rejected requests, missing-media
-messages or page errors. M07 gate3 remains open for actual native renderer feedback.
+**Selected next gate:** **M08 gate4, actual column/application UI integration**. Batch95 verifies
+Composition New during an accepted drag, held-pointer disposal, fresh history and review upload/
+post-load editing, with zero rejected requests/page errors. M06 gate4 now returns for actual native
+imagery/extent outlines; M07 gate3 still requires actual native renderer feedback.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch94, then verify M06's remaining actual New/load/project replacement
-and gesture disposal through the same browser route. Do not repeat passing broad candidates.
-M07 returns for actual native preparation/installation/submission observations; no injected status
-or parked automation retry. The stale-inspection correctness defect is resolved by strict proof.
-M06 stays open for native image/extent outlines and remaining original checklist scope, including
-project replacement. Do not repeat passing Composition controls or retry parked desktop/CDP.
+**Next action:** publish batch95, then verify M08's existing column association/distance/history
+controls and truthful runtime feedback through actual UI. Definition forms/caller parity already
+pass; do not repeat them as preparation or infer native dialog/retirement/elevation qualification.
+M06/M07 return for real native image/outline/renderer observations; no injected status or parked
+automation retry. Composition project lifetime and Matrix stale inspections now pass in scope.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -32,7 +31,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Browser input/history and dock layout verified; native/complete-editor gaps open | `███████████████░░░░░` 75% | 3/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -82,10 +81,11 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
-  Batch89 completes the real browser form/source/order/copy/remove/geometry/Escape/rejection/
-  missing-source/panel/history flow and confirms the dock layout fix. Return for actual native
-  image/extent outlines and remaining complete-editor checklist (including project replacement),
-  not another passing input-preparation run. Three earlier failures are retained, fourth run passes.
+  Batch89 completes real browser form/source/order/copy/remove/geometry/Escape/rejection/source-loss/
+  panel/history and dock layout. Batch95 verifies accepted-drag New, old pointer disposal, fresh
+  identity/history, actual review upload and post-load instance history. Return for actual native
+  imagery/extent-based outlines and original unverified image/shape-selection integration, not a
+  repeated browser preparation run. Earlier failures remain recorded.
   Batch 84's isolated documented WebView2 CDP attempt is unavailable: native app and frontend start,
   but no endpoint appears in20 seconds. Return only on actual observations or a concrete changed
   supported capability; no alternate flags/helper/registry/security workaround.
@@ -105,11 +105,20 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
   Batch85 also verifies actual browser forms/catalog/history, including all definition fields,
   environment modes and atomic rejection. Native executable-dialog input remains unverified.
+  Next verify the original column association/distance/control/runtime UI integration, not another
+  definition-form or caller-parity run. Keep native/OS/retirement/elevation/full-app gaps required.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch94:** the trace identifies four obsolete Matrix InspectPlayback/Inspect
+**Latest checkpoint, batch95:** Composition project lifetime passes its first/only invocation,
+**exit0 /7,150 ms**, Chromium **149.0.7827.55**, zero rejected requests and page errors. Actual New
+during accepted held-pointer motion discards the old scene safely; fresh canvas history, saved
+instance IDs on browser upload, post-load editing/history and final menu New pass. The original
+review file remains unchanged. Native image/extent outlines stay open: **M06 3/4**, overall
+**4/10 (40%)**. [Composition lifetime evidence](evidence/mapgyver-m06-project-lifetime-2026-11-01.json).
+
+**Retained checkpoint, batch94:** the trace identifies four obsolete Matrix InspectPlayback/Inspect
 requests from Media Manager's hidden channel editor. Its catalog now belongs to one session/epoch;
 children unpublish immediately during replacement, and stale reads/mutation replies cannot adopt
 new selection. The strengthened strict New/upload check passes **exit0 /7,875 ms**, zero rejected
@@ -2000,6 +2009,30 @@ is atomic Matrix launches/transitions and demanded shared render passes, not mor
 
 ### M06 acceptance items
 
+**Batch95 result:** first/only invocation passes **exit0 /7,150 ms**, zero rejected control receipts,
+missing-media messages or page errors. A real pivot drag is accepted at `[220.000015,160.000015]`
+before actual Ctrl+N while the mouse is held. New clears selection/history/media; later held-pointer
+motion/release cannot author into the new scene. Fresh Composition identities and canvas Apply/
+Undo/Redo work. Actual File→Open→Load From uploads the unchanged saved review under a UUID filename,
+preserving all three instance references. Loaded selection/name follows the saved scene; rename/
+Undo/Redo stays in that project, and actual menu New clears it again. Inspected final empty editor
+is usable without a loading overlay or stale instance. Original file hash remains unchanged.
+
+The existing receipt observer is reused in a small shared test helper; Matrix's passing test body
+is unchanged. Syntax/Prettier and both workspace formatters pass. No production/runtime change,
+second app invocation, native image/extent injection or physical claim. **M06 stays3/4**, overall
+**4/10 (40%)**; actual native imagery/extent-based outline/shape selection remains required. Publish,
+then select M08 gate4's existing actual column association/distance/history/runtime UI integration;
+do not repeat definition forms or the broad passing Composition/Matrix candidates.
+
+**Composition project lifetime batch95:** 2026-11-01 **06:28 UTC**, stop **07:13 UTC**;
+investigation cutoff **06:48 UTC**, at most two finite app invocations. Only M06 gate4 is active.
+Previous turn is progress: `3589786f` fixes exact hidden Media Manager stale queries and passes
+strict Matrix New/upload. Target remaining original Composition lifetime: New during an accepted
+drag, held-pointer disposal, fresh identities/history/controls and actual saved-review upload.
+Reuse existing browser/menu/receipt observation and unchanged review; no broad input rerun, fake
+preview/extent, native automation retry or acceptance revision. Native imagery/outlines stay open.
+
 **Batch89 result, 05:41 UTC:** first run exits1 at Scale after passing full form, ordering, copy/
 removal, Translate and Rotate with complete history. Static review finds the test can observe a
 backend history commit before the selected form renders it. Synchronize the form's position/
@@ -2339,7 +2372,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
 | 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
 | 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05 |
-| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — batch75 caller parity and batch89 real browser forms/source/order/copy/remove/geometry/Escape/rejection/source-loss/panel/history pass; native image/extent outlines, project replacement and other complete-editor checklist gaps remain |
+| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — caller parity, batch89 browser input/history and batch95 actual project/gesture lifetime pass; actual native imagery/extent-based outline/shape-selection integration remains |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -5392,19 +5425,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source actual input is verified; native Source preview, hotplug/minimize and full physical matrix remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser input](#m06-acceptance-items): gates1–3/4 accepted. Browser forms/gestures/history and dock layout pass; native image/extent outlines, project replacement and other complete-editor gaps retain gate4. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser lifetime](#m06-acceptance-items): gates1–3/4 accepted. Input/history/dock layout and accepted-drag New/review reload pass; native imagery/extent-based outline/shape selection retain gate4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Media Manager catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Publish batch94's exact Media Manager catalog correction and strict zero-rejection lifecycle pass.
-Select **M06 gate4** remaining actual New/load/project replacement and gesture disposal through
-the existing browser route; do not repeat broad passing input candidates. M07 gate3 returns for
-actual native preparation/installation/submission feedback. Its stale-inspection defect is resolved;
-all six lifecycle invocations remain recorded. No injected native state, new automation route or
-unchanged native rerun. Original physical/global budgets and other unavailable checks remain.
+Publish batch95's verified Composition project/gesture lifetime. Select **M08 gate4** existing
+actual column/application association and distance/history controls with truthful runtime feedback.
+Use the current ordinary browser/host/public contracts, actual authored input and read-only state
+correlation. Reuse definition/caller/owned-process evidence; do not repeat it as preparation or
+infer unobserved native dialog, retirement, elevation, renderer or full-app behavior. M06 returns
+for native imagery/extent-based outline/shape selection; M07 for native renderer feedback. No
+injected state, new automation route, unchanged native rerun or original-budget revision.
 Native feedback still needs real observation/capability change; no injection, new route or bypass.
 M06 returns for native image/extent outlines, project replacement and other original checklist gaps;
 do not repeat its passing candidate. M05 gate7 still needs native preview. All global budgets remain.

@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
+import { observeRejectedRequests } from './intent-observer.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
@@ -31,39 +32,7 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
-	const rejectedRequests = [];
-	// Observe only intent/control frames; never retain session authentication messages.
-	page.on('websocket', (socket) => {
-		const pending = new Map();
-		socket.on('framesent', ({ payload }) => {
-			try {
-				const frame = JSON.parse(String(payload));
-				if (frame.kind === 'intent' || frame.kind === 'intentBatch')
-					pending.set(frame.request_id, { stage, intent: frame.intent ?? frame.intents });
-			} catch {}
-		});
-		socket.on('framereceived', ({ payload }) => {
-			try {
-				const frame = JSON.parse(String(payload));
-				if (frame.kind !== 'control') return;
-				const update = frame.update;
-				if (update.phase !== 'applied' && update.phase !== 'rejected') return;
-				const request = pending.get(update.request_id);
-				pending.delete(update.request_id);
-				if (update.phase === 'rejected')
-					rejectedRequests.push({
-						request_id: update.request_id,
-						request,
-						errors: (update.acknowledgements ?? [update.acknowledgement])
-							.filter(Boolean)
-							.map((ack) => ({
-								error_code: ack.error_code,
-								error_message: ack.error_message
-							}))
-					});
-			} catch {}
-		});
-	});
+	const rejectedRequests = observeRejectedRequests(page, () => stage);
 	try {
 		async function wait(read, predicate) {
 			const deadline = Date.now() + 5000;

@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "batch": 95,
+  "date": "2026-11-01",
+  "gate": "M06/4",
+  "status": "ACTUAL_PROJECT_GESTURE_LIFETIME_PASSED_NATIVE_IMAGE_OUTLINES_OPEN",
+  "base_revision": "3589786fbf082ef81c0e7aceb621209c9d7f66c0",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --composition-project-ui",
+  "execution": {
+    "invocations": 1,
+    "exit_code": 0,
+    "hosted_flow_ms": 7150,
+    "browser": "149.0.7827.55",
+    "page_errors": 0,
+    "rejected_requests": 0,
+    "missing_media_messages": 0,
+    "host": "Shutdown-file exit0 normally; no remaining MapGyver.",
+    "log": "target/m06-composition-project-ui-b95.log",
+    "log_sha256": "56f26f49fd448a7e3b362b781753080dc59142bff3dfba2047544b97ae759e62"
+  },
+  "reports": {
+    "replaced": { "channel": "6d7ab922-6402-437c-8a0c-ae5c0df839c0", "media": "6ee73b6f-1a09-4995-8f04-255d24511a3c" },
+    "fresh": { "channel": "546d0d93-e2ed-4549-b8e3-3e03e00f2e0f", "media": "98cf4d05-df97-4849-8bbb-ca71fef64126" },
+    "loaded": { "channel": "7c3074ac-53c4-48a4-9ec3-41e2105f9db7", "media": "4d41d612-3fc3-4479-9006-9b98d455be57" },
+    "accepted_drag": { "pivot": [0.5, 0.5], "position": [220.00001525878906, 160.00001525878906], "rotation": 0, "scale": [1, 1] },
+    "review_sha256": "d4861eb6ace9c6ad24bacf5e19b3aed1292b6e370340629afd17d04369122ed8",
+    "upload_name": "CompositionReview-c510aaee-995e-4037-b37f-a44a855b58d3.mapgyver"
+  },
+  "coverage": [
+    "Actual source instance and pivot drag accepted before Ctrl+N while pointer held.",
+    "New clears media/assets/selection/history; later old pointer motion/release cannot author into the new project.",
+    "Fresh Composition references and empty instances, canvas Apply512x288 with exact whole-history Undo/Redo.",
+    "Actual File Open/Load From chooser uploads verified saved review; three instance references and canvas320x240 preserved.",
+    "Loaded selection follows saved first instance; rename/Undo/Redo affects only loaded scene; actual menu New clears it.",
+    "No rejected receipts, page errors or stale missing-media messages; original reference unchanged."
+  ],
+  "visual": {
+    "screenshot": "target/m06-composition-project-ui.png",
+    "sha256": "98dd5710d21b9efd82088785da464a1dddcaeefc95697c673a5fa18f67d18cc3",
+    "inspection": "Empty final Composition editor, no stale selected instance/loading overlay/error; normal project resync notifications remain."
+  },
+  "checks": {
+    "syntax_prettier_both_workspace_formatters": "pass",
+    "runtime": "Existing current ordinary binary reused; no production source or native setting changed.",
+    "observer": "Existing read-only receipt observer extracted to small shared test helper, used by both project checks; no duplicated wire observer or fake state.",
+    "fixture": "Original review unchanged; UUID upload copy retained in normal browser project directory, not native file-dialog qualification."
+  },
+  "hashes": {
+    "apps/mapgyver/tests/browser/composition-project.mjs": "1050b3adb01fe189fa65936a004aef285e9470eb2b3d273cb0106f6d0bfb12df",
+    "apps/mapgyver/tests/browser/intent-observer.mjs": "52debb5b2ff7557bfc5eeec98143a02ddb8d12a8c8cb0e7a9fbd6ad5b47633db",
+    "apps/mapgyver/tests/browser/matrix-project.mjs": "52f57905fc9bfd8d147d13f92a69321c504b89883af81f5ee2f9e02b3a24a9a7",
+    "apps/mapgyver/tests/headless/media.mjs": "b9364fdd53422626bb83cf3e9c0f3d2202f66c7bfdfe56c0cdd492f1180f4613",
+    "target/debug/MapGyver.exe": "3f6b3143674ad210af79db95e9c56252e3bd19eb34a4c923c00c445dc7a9f908"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M06": "3/4",
+    "overall": "4/10",
+    "return": "Actual native imagery/extent-based outline/shape-selection integration; no passing input/lifetime preparation repeat or fake preview.",
+    "next": "M08 gate4 original actual column association/distance/history/control/runtime UI integration, keeping native dialog/retirement/elevation/full-app gaps required."
+  }
+}

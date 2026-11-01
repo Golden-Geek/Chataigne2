@@ -13,6 +13,14 @@ physical presentation or every item below, including project replacement. Do not
 passing candidate to fill those different gaps.
 See the owning [ledger](../../../../docs/progress/mapgyver-status.md#m06-acceptance-items).
 
+Run `node apps/mapgyver/tests/headless/media.mjs --composition-project-ui` for the separate actual
+project-lifetime check. Batch95 passes New during an accepted held-pointer drag, subsequent pointer
+disposal, fresh canvas history, browser review upload with saved instance IDs, post-load rename/
+history and menu New, with zero rejected requests/page errors. The reference hash is preserved;
+the UUID-named upload copy stays in the app's normal browser project directory. Actual native
+imagery/extent-based outline/shape-selection integration remains unverified; do not infer it from
+browser controls or repeat the passing input/lifetime checks to fill that different gap.
+
 Generate and verify the review project from the repository root:
 
 ```text

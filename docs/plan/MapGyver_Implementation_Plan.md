@@ -236,6 +236,12 @@ New/upload check with zero rejected requests/errors; prior failures remain. M07 
 actual native feedback. Next select M06 gate4's original project/gesture lifetime checks through
 the same UI route; no broad passing-candidate repeat, new automation route or acceptance waiver.
 
+Batch95 verifies actual Composition New during an accepted drag, held-pointer disposal, fresh
+history and saved-review upload/post-load editing. Native image/extent-based outline/shape-selection
+integration retains M06 gate4. Next select M08 gate4's original actual column association/distance/
+history/control/runtime UI integration. Reuse prior definition/caller/process proof rather than
+repeating it; native dialog/retirement/elevation/full-app gaps and all original budgets remain.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
