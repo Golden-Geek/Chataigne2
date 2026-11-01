@@ -1,0 +1,91 @@
+{
+	"date": "2026-11-01",
+	"gate": "M05.6 full Screen input/history after Golden workbench redesign",
+	"status": "ACCEPTED",
+	"acceptance": "M05 gates1-3 and6 accepted:4/8=50%; overall4/10=40%; fixed denominators",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --source-ui --screen-ui",
+	"invocations_this_batch": 1,
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "2b16382d6826992107fa4f318a8024fb28e4abd8343be0b561086481d93df43f",
+		"base_revision": "6e1348dfd57bba71fb06dda2d23f62cca1da1602",
+		"production_changes_this_batch": "none"
+	},
+	"method": "Actual pointer/keyboard controls in ordinary bundled UI served by isolated headless host; public backend requests during each browser flow only inspect committed state. No mocked UI transport or direct backend authoring.",
+	"browser": "Chromium149.0.7827.55",
+	"viewport": { "width": 1440, "height": 1000 },
+	"result": {
+		"host_exit": 0,
+		"hosted_flow_ms": 12867,
+		"page_errors": 0,
+		"expected_invalid_geometry_rejections": 2,
+		"other_rejected_requests": 0,
+		"owned_browsers_closed": 2
+	},
+	"coverage": [
+		{
+			"case": "Screen/Surface plus-menu creation, name fields and Golden tree selection; selecting and drafting a source do not author until Inspector Apply",
+			"result": "pass"
+		},
+		{
+			"case": "Same-node user selection supersedes delayed Add Surface selection; source Apply reaches intended Surface and preserves complete peer",
+			"result": "pass"
+		},
+		{
+			"case": "Separate full-panel Screen Warping canvas; no manager/editor property forms; authored settings remain in shared Inspector",
+			"result": "pass"
+		},
+		{
+			"case": "All four real corner handles preserve other corners, exact source reference and peer Surface; one Undo/Redo restores exact full catalog per gesture",
+			"result": "pass"
+		},
+		{
+			"case": "Invalid quad rejected visibly without replacing prior mapping or consuming history",
+			"result": "pass;2 explicitly correlated geometry rejections, no others"
+		},
+		{
+			"case": "Showing and clearing rejection leaves actual SVG x/y/width/height unchanged within0.01 CSS pixels",
+			"result": "pass"
+		},
+		{
+			"case": "Escape after accepted drag ends input; further held-pointer move/release cannot author; exact grouped Undo/Redo retained",
+			"result": "pass"
+		},
+		{
+			"case": "Switch both manager and central editor tabs away/back; retain selection/catalog/usable controls; shared source media stays exactly unchanged",
+			"result": "pass"
+		},
+		{
+			"case": "Complete source UI regression covers changed Media creation selection, Solid/Picture/Shared Texture settings, source independence, atomic import, guards, Undo and reload",
+			"result": "pass;0page errors/0rejected requests"
+		},
+		{ "case": "Ordinary source HTTP/history/Save/New/Load baseline in same host", "result": "pass" }
+	],
+	"final_quad": {
+		"corners": [
+			{ "x": 0.2600000202655792, "y": 0.20000000298023224 },
+			{ "x": 0.8600000143051147, "y": 0.10000000149011612 },
+			{ "x": 0.8600000143051147, "y": 0.8699999451637268 },
+			{ "x": 0.10000000149011612, "y": 0.8800000548362732 }
+		]
+	},
+	"artifacts": [
+		{
+			"path": "target/mapgyver-m05-stable-canvas-first.log",
+			"sha256": "9d0ef38d0f1a7f11744df8f0b7fc3d78f92da09bb76b5c1aa7c51a4ee9788496"
+		},
+		{
+			"path": "target/m05-screen-ui.png",
+			"sha256": "0c02abc1acf0d993f39a3d9c6af18d03a7471004df3d57679df42a652cfefc12",
+			"visual_review": "Inspected: Golden Screen/Surface tree left, full-panel edited quad/all four handles center, properties confined to shared Inspector. Browser Preview unavailable explicit."
+		}
+	],
+	"earlier_failures": "Retain mapgyver-m05-workbench-input-partial-2026-11-01.json: first comparison exposed late creation selection; second proved its correction then exposed error-banner geometry displacement. Current run verifies both exact corrections, not a weaker tolerance or reduced matrix.",
+	"prerequisites": "Unchanged candidate's ordinary build,63frontend tests, Svelte0errors/0warnings and existing Rust209pass/1ignore evidence retained. Current JS syntax/Prettier and both Cargo formatters pass.",
+	"limits": [
+		"Functional target tolerance remains0.005 normalized units. CSS geometry stability is not physical1-pixel alignment or OS pointer-capture/DPI qualification.",
+		"No native texture/preview, physical presentation, fullscreen/minimized/hotplug, underlay alignment, input-to-visible latency or resource qualification is inferred.",
+		"M05 gates4/5/7/8 remain open. Gate7 retains its native selected-source preview prerequisite, alongside new-layout Source-input fixture migration.",
+		"No M03, M06, M07, M08 or M09 acceptance gate is closed by this run."
+	]
+}
