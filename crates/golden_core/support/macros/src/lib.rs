@@ -1727,6 +1727,22 @@ fn build_params_plan(dsl: &ParamsDsl) -> Result<ParamsPlan> {
     Ok(plan)
 }
 
+fn declared_parent_id_tokens(plan: &ParamsPlan, path: &[String]) -> proc_macro2::TokenStream {
+    let parent = &path[..path.len().saturating_sub(1)];
+    if parent.is_empty() {
+        return quote!(Some(__golden_node_owner_id));
+    }
+    let index = plan
+        .folders
+        .iter()
+        .position(|folder| folder.path == parent)
+        .expect("a nested declaration has a declared parent folder");
+    quote!({
+        let id = self.__golden_declared_folder_ids[#index];
+        (id != golden_core::node::NodeId(0)).then_some(id)
+    })
+}
+
 fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], plan: &mut ParamsPlan) -> Result<()> {
     let parent_key = join_decl_path(parent_path);
     for item in items {
@@ -2721,6 +2737,17 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
 
     if let Some(plan) = &params_plan {
         let plan_param_fields = plan.params.iter().map(|param| param.field.clone()).collect::<Vec<_>>();
+        // Folder identities belong to this declaration owner. Internal load replay
+        // binds them from structural events without allocating a tree snapshot.
+        let folder_count = plan.folders.len();
+        if folder_count > 0 {
+            fields.push(parse_quote! {
+                __golden_declared_folder_ids: [golden_core::node::NodeId; #folder_count]
+            });
+            ctor_inits.push(quote! {
+                __golden_declared_folder_ids: [golden_core::node::NodeId(0); #folder_count]
+            });
+        }
         for param in &plan.params {
             if fields
                 .iter()
@@ -2774,16 +2801,46 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             });
         }
 
+        // Attachment can retain children (for example ReplaceNode). Bind their
+        // identities and values before readiness even without synthetic child events.
+        for (index, folder) in plan.folders.iter().enumerate() {
+            let path = LitStr::new(&join_decl_path(&folder.path), proc_macro2::Span::call_site());
+            generated_init_statements.push(quote! {
+                if let Some(snapshot) = ctx.tree_snapshot() {
+                    self.__golden_declared_folder_ids[#index] = snapshot.resolve_path_from(__golden_node_owner_id, #path)
+                        .unwrap_or(golden_core::node::NodeId(0));
+                }
+            });
+        }
+        for param in &plan.params {
+            let field = &param.field;
+            let decl_id = &param.decl_id;
+            let parent = declared_parent_id_tokens(plan, &param.path);
+            generated_init_statements.push(quote! {
+                if let Some(snapshot) = ctx.tree_snapshot()
+                    && let Some(parent) = #parent
+                    && let Some(id) = snapshot.find_child_by_decl_id(parent, #decl_id)
+                {
+                    self.#field.set_node_id(id);
+                    if let Some(value) = snapshot.node(id).and_then(|node| node.param_value.as_ref()) {
+                        let _ = self.#field.apply_runtime_value(value);
+                    }
+                }
+            });
+        }
+
         let root_materialize =
             materialize_children_tokens(plan, &resolved_type_name, "", quote!(__golden_node_owner_id));
         generated_init_statements.extend(root_materialize);
 
-        for folder in &plan.folders {
+        for (folder_index, folder) in plan.folders.iter().enumerate() {
             let decl_id_lit = &folder.decl_id;
             let folder_key = join_decl_path(&folder.path);
+            let expected_parent = declared_parent_id_tokens(plan, &folder.path);
             let materialize = materialize_children_tokens(plan, &resolved_type_name, &folder_key, quote!(child));
             child_added_decl_statements.push(quote! {
-                if decl_id.0 == #decl_id_lit {
+                if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
+                    self.__golden_declared_folder_ids[#folder_index] = child;
                     #(#materialize)*
                 }
             });
@@ -2792,6 +2849,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
         for param in &plan.params {
             let decl_id_lit = &param.decl_id;
             let field_ident = &param.field;
+            let expected_parent = declared_parent_id_tokens(plan, &param.path);
             let sync_bound_widget = param.widget.as_ref().map(|widget| {
                 quote! {
                     golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
@@ -2805,7 +2863,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                 }
             });
             child_added_decl_statements.push(quote! {
-                if decl_id.0 == #decl_id_lit {
+                if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
                     self.#field_ident.set_node_id(child);
                     #sync_bound_widget
                 }
@@ -2819,12 +2877,14 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             });
         }
 
-        for folder in &plan.folders {
+        for (folder_index, folder) in plan.folders.iter().enumerate() {
             let decl_id_lit = &folder.decl_id;
             let folder_key = join_decl_path(&folder.path);
+            let expected_parent = declared_parent_id_tokens(plan, &folder.path);
             let materialize = materialize_children_tokens(plan, &resolved_type_name, &folder_key, quote!(new));
             child_replaced_decl_statements.push(quote! {
-                if decl_id.0 == #decl_id_lit {
+                if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
+                    self.__golden_declared_folder_ids[#folder_index] = new;
                     #(#materialize)*
                 }
             });
@@ -2833,6 +2893,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
         for param in &plan.params {
             let decl_id_lit = &param.decl_id;
             let field_ident = &param.field;
+            let expected_parent = declared_parent_id_tokens(plan, &param.path);
             let sync_bound_widget = param.widget.as_ref().map(|widget| {
                 quote! {
                     golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
@@ -2846,7 +2907,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                 }
             });
             child_replaced_decl_statements.push(quote! {
-                if decl_id.0 == #decl_id_lit {
+                if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
                     self.#field_ident.set_node_id(new);
                     #sync_bound_widget
                 }
@@ -2865,6 +2926,14 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             child_removed_statements.push(quote! {
                 if self.#field_ident.id() == child {
                     self.#field_ident.clear_node_id();
+                }
+            });
+        }
+
+        for folder_index in 0..plan.folders.len() {
+            child_removed_statements.push(quote! {
+                if self.__golden_declared_folder_ids[#folder_index] == child {
+                    self.__golden_declared_folder_ids[#folder_index] = golden_core::node::NodeId(0);
                 }
             });
         }

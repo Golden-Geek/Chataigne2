@@ -1,4 +1,4 @@
-//! Rust-owned app intents and authored contracts, also used by project codecs.
+//! Rust-owned app intents and read/runtime projections; media settings persist in Parameter children.
 
 pub use golden_assets::{AssetId, AssetLocator, AssetRecord};
 use golden_core::model::NodeUuid;

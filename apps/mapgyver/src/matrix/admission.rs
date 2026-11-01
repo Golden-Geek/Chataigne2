@@ -11,7 +11,7 @@ use golden_core::{
 fn owned(engine: &AppEngine, mut id: NodeId) -> bool {
     // Engine parent links are acyclic. Matrix membership may be nested beneath a group/layer.
     while let Some(node) = engine.nodes.get(id) {
-        if matches!(node, AppNode::Media(media) if media.kind == MediaKind::Matrix) {
+        if matches!(node, AppNode::Media(media) if media.kind() == MediaKind::Matrix) {
             return true;
         }
         let Some(parent) = node.node_data().parent else {

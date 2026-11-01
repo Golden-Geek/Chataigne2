@@ -206,7 +206,7 @@ pub(crate) fn capture_channels_with_time(
                     Some(AppNode::MediaChannel(channel))
                         if channel.node_data().parent == Some(media.node_data().id) =>
                     {
-                        if channel.definition().media_kind() != media.kind {
+                        if channel.definition().media_kind() != media.kind() {
                             return Err("channel kind differs from owner".into());
                         }
                         guards.push(channel.guard());
@@ -240,6 +240,12 @@ pub(crate) fn capture_channels_with_time(
             let mut active = Vec::new();
             let mut admitted = true;
             while let Some(id) = next {
+                if let Some(node) = engine.nodes.get(id)
+                    && crate::parameters::is_parameter_folder(node)
+                {
+                    next = node.node_data().next_sibling;
+                    continue;
+                }
                 if instance_budget == 0 {
                     admitted = false;
                     break;

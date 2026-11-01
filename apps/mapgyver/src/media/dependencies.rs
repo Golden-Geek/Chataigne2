@@ -12,7 +12,7 @@ fn authored_graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<Ch
     let mut result = HashMap::new();
     for (_, node) in engine.nodes.iter() {
         if let AppNode::Media(node) = node
-            && node.kind == super::protocol::MediaKind::Matrix
+            && node.kind() == super::protocol::MediaKind::Matrix
         {
             result.extend(crate::matrix::document::dependencies(&crate::matrix::inspect(
                 engine,

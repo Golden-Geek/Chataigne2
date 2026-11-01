@@ -8,10 +8,16 @@
 	import { newerDiscovery } from './discovery-state';
 
 	let {
-		sender = $bindable(),
+		sender,
+		onSelect,
 		disabled,
 		transport = createSenderDiscoveryTransport()
-	}: { sender: string; disabled: boolean; transport?: SenderDiscoveryTransport } = $props();
+	}: {
+		sender: string;
+		onSelect: (sender: string) => void | Promise<void>;
+		disabled: boolean;
+		transport?: SenderDiscoveryTransport;
+	} = $props();
 	let catalog = $state<SenderDiscoverySnapshot | null>(null);
 	let connected = $state(false);
 	let error = $state('');
@@ -55,10 +61,12 @@
 </script>
 
 <div class="picker">
-	<label>Spout sender name<input type="text" bind:value={sender} {disabled} /></label>
 	{#if available}
 		<label
-			>Discovered senders<select bind:value={sender} disabled={disabled || !catalog}>
+			>Discovered senders<select
+				value={sender}
+				onchange={(event) => onSelect(event.currentTarget.value)}
+				disabled={disabled || !catalog}>
 				<option value="">Unconfigured</option>
 				{#if sender && !catalog?.names.includes(sender)}
 					<option value={sender}>{sender} (not in last scan)</option>

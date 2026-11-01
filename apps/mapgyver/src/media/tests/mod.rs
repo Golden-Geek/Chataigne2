@@ -3,6 +3,7 @@ mod authoring;
 mod catalog;
 mod commands;
 mod folders;
+mod parameters;
 mod picture_import;
 mod resolution;
 mod script;

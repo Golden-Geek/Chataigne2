@@ -106,7 +106,8 @@
 		return (node?.children ?? [])
 			.map((childId: NodeId) => session?.getNodeData(childId))
 			.filter((child: UiNodeDto | null | undefined): child is UiNodeDto => child != null)
-			.filter((child: UiNodeDto) => shouldRenderChildInInspector(child));
+			.filter((child: UiNodeDto) => shouldRenderChildInInspector(child))
+			.filter((child: UiNodeDto) => customInspectorEntry?.childFilter?.(child) ?? true);
 	});
 	let isParameter = $derived(node?.data.kind === 'parameter');
 	let showAsContainer = $derived(!isParameter);

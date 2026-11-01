@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { verifyMediaParameters } from './media-parameters.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 export async function verifyParameterUi({ base, edit, inspectMedia }) {
@@ -106,6 +107,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		await wait(inspect, (value) => isDeepStrictEqual(value, opacity));
 		await redo();
 		await wait(inspect, (value) => isDeepStrictEqual(value, scaled));
+		await page.screenshot({ path: 'target/mapgyver-composition-parameters-ui.png' });
 		stage = 'parameter-backed duplication and removal';
 		await page.getByRole('button', { name: 'Copy instance', exact: true }).click();
 		const copied = await wait(inspect, (value) => value.instances.length === 2);
@@ -124,23 +126,33 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		await wait(inspect, (value) => value.instances.length === 1);
 		await undo();
 		await wait(inspect, (value) => isDeepStrictEqual(value, copied));
+		await verifyMediaParameters({
+			page,
+			inspectMedia,
+			composition,
+			rejected,
+			wait,
+			stage: (value) => {
+				stage = value;
+			}
+		});
 		assert.deepEqual(errors, []);
-		assert.equal(rejected.length, 1);
+		assert.equal(rejected.length, 2);
 		assert.equal(rejected[0].request.intent.kind, 'setParam');
-		assert(intents.filter((intent) => intent.kind === 'setParam').length >= 3);
+		assert.equal(rejected[1].request.intent.kind, 'setParam');
+		assert(intents.filter((intent) => intent.kind === 'setParam').length >= 15);
 		assert(
 			!intents.some((intent) => intent.payload?.edit?.kind === 'ConfigureInstance'),
 			'Ordinary fields use generic SetParam'
 		);
-		await page.screenshot({ path: 'target/mapgyver-composition-parameters-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Composition generic Parameter nodes, edit/history/rejection and independent duplicate/remove',
+					'Composition instance, Media/channel and asset generic Parameters, visibility, history/rejection and independent copy/remove',
 				browser: browser.version(),
 				parameter_nodes: 9,
-				expected_rejections: 1,
+				expected_rejections: 2,
 				page_errors: errors.length
 			})
 		);

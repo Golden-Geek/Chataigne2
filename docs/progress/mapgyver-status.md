@@ -5,6 +5,38 @@
 **Updated: 2026-11-01 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
 
 **Execution: user-required Parameter-node refactor; Composition instance slice verified.**
+**Media Parameter checkpoint —23:25 CET:** kind, channel source/output and asset locators now
+live in typed Parameter children (1/20/3 fields). Ordinary source/channel/asset and canvas forms
+and codecs are removed; generic widgets retain identities/values across conditional visibility.
+Fixed native previews/discovery/import/reload/structural UI remain specialized. Golden's Inspector
+has an app-neutral child-filter hook. A real nested-owner Params DSL collision was corrected with
+owner-scoped folder IDs, snapshot-free loaded replay and binding retained children on attachment.
+Matrix cell edits retain their previous logical application membership scope despite deeper
+declared-parameter event interest. Original 4096-depth creation/roundtrip remains intact.
+
+Confirmed software:216MapGyver tests pass; the sole remaining failure was the new malformed-record
+fixture calling runtime preparation without the separate production candidate validator. That
+fixture is corrected and the full rerun is queued. Shared engine659tests pass; its new owner-scope
+fixture needed normal inbox dispatch after raw edits and the documented ReplaceNode identity
+semantics; corrected full rerun is compiling. Chataigne209pass/1existing ignore; Golden UI213pass;
+Svelte0errors/0warnings and frontend fixture syntax/format checks pass. Root/core formatters pass.
+No live browser run in this batch (0/2). No acceptance item closes. Keep M04/5 Active.
+
+Running handles at checkpoint: shared engine `20860` (log `target/mapgyver-parameters-golden-final.log`),
+MapGyver full rerun `49156` (`target/mapgyver-parameters-media-qualified.log`), clippy/ordinary build
+`83523` (`target/mapgyver-parameters-media-clippy.log`, `target/mapgyver-parameters-media-build.log`).
+Finish these same checks; do not restart unchanged live jobs. Then run the prepared ordinary
+bundled `--parameter-ui` flow (two expected invalid-input rejections, zero page errors), inspect
+its captures and close this owner only on proof. Screens/Surfaces, Matrix elements/associations,
+Applications/argument/environment children and command coverage remain required. Native gates
+and original budgets remain retained; do not switch to their unavailable lane.
+
+**Media Parameter batch —22:40 CET, stop23:25 CET:** `98eaeb34` pushed and remotely verified.
+Owner: app media/channel/asset schemas, domain projections and generic Inspector. Deliver typed
+kind/output/source/size/filter/color/asset/sender/canvas/transition and locator fields; remove
+opaque authored codecs/forms. Preserve Matrix ownership/runtime invalidation and scalable child
+traversal. Prove generic SetParam, backend parity, history/project lifetime and real UI input.
+No native qualification; at most two live checks after terminal software/build prerequisites.
 **Composition Parameter result —22:40 CET:** real bundled browser input verifies all9 generic
 Golden widgets, SetParam opacity/scale, exact Undo/Redo, invariant rejection and independent
 copy/remove. No custom instance Inspector remains; contextual icons live in the canvas toolbar.

@@ -379,16 +379,21 @@ fn project_candidate_preparation_rejects_loaded_feedback_and_orphaned_exports() 
     .unwrap();
     let export = snapshot.items[0].channel;
     let export_id = engine.node_id_by_uuid(export.channel.0).unwrap();
-    let Some(AppNode::MediaChannel(node)) = engine.nodes.get_mut(export_id) else {
-        panic!()
-    };
-    let mut definition = node.definition().clone();
-    definition.source = ChannelSource::Matrix {
-        output: MatrixOutput::Group {
-            group: GroupId(node.node_data().meta.uuid),
-        },
-    };
-    node.set_definition(definition);
+    // Deliberately corrupt persisted parameter state below the validated edit API.
+    let folder = engine.nodes.get(export_id).unwrap().node_data().first_child.unwrap();
+    let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
+    while let Some(id) = child {
+        let node = engine.nodes.get_mut(id).unwrap();
+        child = node.node_data().next_sibling;
+        if node.node_data().meta.decl_id.0 == "parameters/output_kind" {
+            node.engine_set_param_value(golden_core::parameter::ParamValue::Enum("Group".into()));
+        }
+        if node.node_data().meta.decl_id.0 == "parameters/output_item" {
+            node.engine_set_param_value(golden_core::parameter::ParamValue::Reference(
+                golden_core::node::NodeReference::new(export.channel.0),
+            ));
+        }
+    }
     let encoded = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
     assert!(AppNode::prepare_project_candidate(&mut loaded).is_err());

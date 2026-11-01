@@ -37,14 +37,18 @@ pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<
         .first_child;
     let mut result = Vec::new();
     while let Some(id) = next {
-        let Some(AppNode::CompositionInstance(node)) = engine.nodes.get(id) else {
+        let child = engine.nodes.get(id).ok_or("missing Composition child")?;
+        next = child.node_data().next_sibling;
+        if crate::parameters::is_parameter_folder(child) {
+            continue;
+        }
+        let Some(AppNode::CompositionInstance(_)) = engine.nodes.get(id) else {
             return Err("Composition children must be instances".into());
         };
         if result.len() == MAX_INSTANCES {
             return Err("Composition exceeds 100000 authored instances".into());
         }
         result.push(id);
-        next = node.node_data().next_sibling;
     }
     Ok(result)
 }

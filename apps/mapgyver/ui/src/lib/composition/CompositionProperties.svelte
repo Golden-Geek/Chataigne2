@@ -11,7 +11,6 @@
 	import { channelReferenceFromKey } from '../media/identity';
 	import type { CompositionEdit } from '../media/generated/CompositionEdit';
 	import SourcePicker from './SourcePicker.svelte';
-	import CompositionChannelEditor from '../media/CompositionChannelEditor.svelte';
 	let { node, defaultHeader }: { node?: UiNodeDto; defaultHeader?: Snippet } = $props();
 	const owner = useCompositionAuthoring();
 	const { view, controller } = owner;
@@ -44,14 +43,6 @@
 {@render defaultHeader?.()}
 <div class="properties">
 	{#if view.catalog}
-		{#if !node || node.node_type === 'mapgyver.media.channel'}
-			{#if channel}<CompositionChannelEditor
-					{channel}
-					disabled={busy}
-					configure={async (definition) => {
-						await controller.configure(definition);
-					}} />{/if}
-		{/if}
 		<form onsubmit={add}>
 			<fieldset disabled={busy || !view.composition}>
 				<legend>Add source instance</legend>

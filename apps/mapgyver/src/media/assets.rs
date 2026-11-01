@@ -1,90 +1,145 @@
-//! App-owned asset catalog nodes. Source locators are authored; clocks and decoded bytes are not.
+//! Asset locators are typed Parameters; prepared bytes and clocks remain runtime state.
 use crate::app::{AppEngine, AppNode};
-use golden_assets::{AssetId, AssetLocator, AssetRecord};
-use golden_core::model::NodeUuid;
-use golden_core::node::{Node, NodeData, NodeId};
-use golden_core::process_ctx::ProcessCtx;
+use golden_assets::{AbsoluteAssetPath, AssetId, AssetLocator, AssetRecord, RelativeAssetPath};
+use golden_core::{
+    edit::Edit,
+    model::NodeUuid,
+    node,
+    node::{Node, NodeId, ParameterHandle, ParameterValidationContext},
+    parameter::{Enum, File, ParamValue, ParameterEventBehaviour},
+    process_ctx::ProcessCtx,
+};
 use golden_io::{RevisionGuard, RevisionSource};
-use serde_json::Value;
-use std::any::Any;
 
+#[node("mapgyver.media.asset", label = "Asset")]
+#[children(
+    folder(parameters, label = "Parameters") {
+        locator_kind: Enum = "Unconfigured" (label = "Location", enum_options = crate::parameters::enum_options(&["Unconfigured", "ProjectRelative", "Absolute"]));
+        project_path: File = File::default() (label = "Project path");
+        absolute_path: File = File::default() (label = "Absolute path");
+    }
+)]
 pub struct AssetNode {
-    data: NodeData,
-    locator: Option<AssetLocator>,
+    #[state(default = RevisionSource::default())]
     revision: RevisionSource,
 }
-
 impl AssetNode {
-    pub(super) fn new(label: String, locator: Option<AssetLocator>) -> Self {
-        Self {
-            data: NodeData::new(label),
-            locator,
-            revision: RevisionSource::default(),
+    pub(super) fn from_locator(label: String, locator: Option<AssetLocator>) -> Self {
+        let mut node = Self::new();
+        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label);
+        match locator {
+            Some(AssetLocator::ProjectRelative { path }) => {
+                node.locator_kind = ParameterHandle::new(Enum::new("ProjectRelative"));
+                node.project_path = ParameterHandle::new(File::new(path.as_str()));
+            }
+            Some(AssetLocator::Absolute { path }) => {
+                node.locator_kind = ParameterHandle::new(Enum::new("Absolute"));
+                node.absolute_path = ParameterHandle::new(File::new(path.as_str()));
+            }
+            None => {}
         }
+        node
     }
     pub fn id(&self) -> AssetId {
-        AssetId::from_uuid(self.data.meta.uuid.0)
+        AssetId::from_uuid(self.node_data().meta.uuid.0)
+    }
+    fn locator(&self) -> Option<AssetLocator> {
+        match self.locator_kind.get_ref().as_str() {
+            "ProjectRelative" => RelativeAssetPath::try_from(self.project_path.get_ref().as_str().to_owned())
+                .ok()
+                .map(|path| AssetLocator::ProjectRelative { path }),
+            "Absolute" => AbsoluteAssetPath::try_from(self.absolute_path.get_ref().as_str().to_owned())
+                .ok()
+                .map(|path| AssetLocator::Absolute { path }),
+            _ => None,
+        }
     }
     pub(super) fn snapshot(&self) -> super::protocol::AssetSnapshot {
         super::protocol::AssetSnapshot {
             id: self.id(),
-            label: self.data.meta.label.clone(),
-            locator: self.locator.clone(),
+            label: self.node_data().meta.label.clone(),
+            locator: self.locator(),
         }
     }
     pub fn record(&self) -> Result<AssetRecord, String> {
         Ok(AssetRecord {
             id: self.id(),
-            locator: self.locator.clone().ok_or("asset source is unconfigured")?,
+            locator: self.locator().ok_or("asset source is unconfigured")?,
         })
     }
-    pub(super) fn set_locator(&mut self, locator: Option<AssetLocator>) {
-        if self.locator != locator {
-            self.revision.advance();
-            self.locator = locator;
-        }
+    pub(super) fn locator_edits(&self, locator: AssetLocator) -> Vec<Edit> {
+        let (node, path, kind) = match locator {
+            AssetLocator::ProjectRelative { path } => {
+                (self.project_path.id(), path.as_str().to_owned(), "ProjectRelative")
+            }
+            AssetLocator::Absolute { path } => (self.absolute_path.id(), path.as_str().to_owned(), "Absolute"),
+        };
+        vec![
+            Edit::SetParam {
+                node,
+                value: ParamValue::File(path),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+            Edit::SetParam {
+                node: self.locator_kind.id(),
+                value: ParamValue::Enum(kind.into()),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        ]
     }
     pub(super) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
-    /// Withdraw captured/prepared content without changing the authored locator or identity.
     pub(super) fn reload(&mut self) {
         self.revision.advance();
     }
 }
-
+#[node("mapgyver.media.asset", from_struct)]
 impl Node for AssetNode {
-    fn node_data(&self) -> &NodeData {
-        &self.data
+    fn needs_update(&self) -> bool {
+        false
     }
-    fn node_data_mut(&mut self) -> &mut NodeData {
-        &mut self.data
-    }
-    fn get_type(&self) -> &str {
-        "mapgyver.media.asset"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
+        golden_core::engine::NodeExecutionRule::passive()
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.revision.advance();
     }
-    fn project_create(node_type: &str) -> Option<Self> {
-        (node_type == "mapgyver.media.asset").then(|| Self::new("Asset".into(), None))
+    fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
+        self.revision.advance();
     }
-    fn project_encode_data(&self) -> Result<Value, String> {
-        serde_json::to_value(&self.locator).map_err(|error| error.to_string())
+    fn project_decode_data(&mut self, value: &serde_json::Value) -> Result<(), String> {
+        crate::parameters::reject_opaque(value)
     }
-    fn project_decode_data(&mut self, value: &Value) -> Result<(), String> {
-        self.set_locator(serde_json::from_value(value.clone()).map_err(|error| error.to_string())?);
+    fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        if !["Unconfigured", "ProjectRelative", "Absolute"].contains(&self.locator_kind.get_ref().as_str()) {
+            return Err("unknown asset location kind".into());
+        }
+        if !self.project_path.get_ref().as_str().is_empty() {
+            RelativeAssetPath::try_from(self.project_path.get_ref().as_str().to_owned())
+                .map_err(|error| error.to_string())?;
+        }
+        if !self.absolute_path.get_ref().as_str().is_empty() {
+            AbsoluteAssetPath::try_from(self.absolute_path.get_ref().as_str().to_owned())
+                .map_err(|error| error.to_string())?;
+        }
+        Ok(())
+    }
+    fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if let ParamValue::File(path) = change.value
+            && !path.is_empty()
+        {
+            if change.parameter == self.project_path.id() {
+                RelativeAssetPath::try_from(path.clone()).map_err(|error| error.to_string())?;
+            }
+            if change.parameter == self.absolute_path.id() {
+                AbsoluteAssetPath::try_from(path.clone()).map_err(|error| error.to_string())?;
+            }
+        }
         Ok(())
     }
 }
-
 pub(super) fn node_id(engine: &AppEngine, asset: AssetId) -> Result<NodeId, String> {
     let id = engine
         .node_id_by_uuid(NodeUuid(asset.get()))

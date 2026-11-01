@@ -29,7 +29,9 @@ pub(super) fn children(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>
     let mut result = Vec::new();
     while let Some(id) = next {
         let node = engine.nodes.get(id).ok_or("missing Matrix child")?;
-        result.push(id);
+        if !crate::parameters::is_parameter_folder(node) {
+            result.push(id);
+        }
         next = node.node_data().next_sibling;
     }
     Ok(result)
@@ -206,7 +208,7 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     let mut owned = HashSet::new();
     for (_, node) in engine.nodes.iter() {
         if let AppNode::Media(node) = node
-            && node.kind == MediaKind::Matrix
+            && node.kind() == MediaKind::Matrix
         {
             owned.extend(Document::load(engine, MediaId(node.node_data().meta.uuid))?.elements);
         }

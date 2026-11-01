@@ -39,7 +39,7 @@ pub(super) fn export(media: MediaId, item: MatrixItemId, label: String) -> (Node
             MatrixItemId::Group { id } => MatrixOutput::Group { group: id },
         },
     };
-    let node = ChannelNode::new(label, definition);
+    let node = ChannelNode::from_definition(label, definition);
     let reference = ChannelReference {
         media,
         channel: ChannelId(node.node_data().meta.uuid),
@@ -118,17 +118,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             channel.source = ChannelSource::Matrix {
                 output: MatrixOutput::Final { definition },
             };
-            engine.edits.push(Edit::CallNodeMutation {
-                node: document.root,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    node.as_any_mut()
-                        .downcast_mut::<ChannelNode>()
-                        .ok_or("Matrix output type changed")?
-                        .set_definition(channel);
-                    Ok(())
-                }),
-            });
+            let Some(AppNode::MediaChannel(node)) = engine.nodes.get(document.root) else {
+                unreachable!()
+            };
+            for edit in node.parameter_edits(channel) {
+                engine.edits.push(edit);
+            }
         }
         MatrixEdit::AddLayers { parent, count } => {
             let count = admit_count(&document, count)?;

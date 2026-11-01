@@ -33,6 +33,8 @@ export interface NodeInspectorPanelHeaderComponentProps {
 export interface NodeInspectorEntry {
 	component?: any;
 	panelHeaderComponent?: any;
+	/** Filter ordinary child rendering without replacing the generic Inspector. */
+	childFilter?: NodeInspectorChildFilter;
 }
 
 export type NodeInspectorRegistry = Record<string, NodeInspectorEntry>;

@@ -42,7 +42,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         let AppNode::Media(media) = node else {
             continue;
         };
-        if media.kind != MediaKind::Matrix {
+        if media.kind() != MediaKind::Matrix {
             continue;
         }
         guards.push(media.guard());

@@ -22,6 +22,11 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
         };
         let mut child = media.node_data().first_child;
         while let Some(id) = child {
+            let node = engine.nodes.get(id).ok_or("missing media child")?;
+            child = node.node_data().next_sibling;
+            if crate::parameters::is_parameter_folder(node) {
+                continue;
+            }
             let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
                 return Err("media child is not a channel".into());
             };
@@ -75,11 +80,16 @@ pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String
         let mut snapshot = MediaSnapshot {
             id: media_id,
             label: data.meta.label.clone(),
-            media_kind: media.kind,
+            media_kind: media.kind(),
             channels: Vec::new(),
         };
         let mut channel = data.first_child;
         while let Some(id) = channel {
+            let node = engine.nodes.get(id).ok_or("missing media child")?;
+            channel = node.node_data().next_sibling;
+            if crate::parameters::is_parameter_folder(node) {
+                continue;
+            }
             let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
                 return Err("media children must be channels".into());
             };

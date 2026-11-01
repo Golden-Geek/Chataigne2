@@ -5,7 +5,18 @@
 	import ScreenInspector from './screens/ScreenInspector.svelte';
 	import MatrixProperties from './matrix/MatrixProperties.svelte';
 	import ApplicationInspector from './applications/ApplicationInspector.svelte';
-	let { node, defaultHeader }: { node: UiNodeDto; defaultHeader?: Snippet } = $props();
+	import type { NodeInspectorChildFilter } from 'golden_ui';
+	let {
+		node,
+		defaultHeader,
+		defaultContent,
+		defaultChildren
+	}: {
+		node: UiNodeDto;
+		defaultHeader?: Snippet;
+		defaultContent?: Snippet<[Snippet?]>;
+		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
+	} = $props();
 </script>
 
 {#if node.node_type === 'mapgyver.screen' || node.node_type === 'mapgyver.surface'}<ScreenInspector
@@ -13,4 +24,4 @@
 		{defaultHeader} />
 {:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}<MatrixProperties />
 {:else if node.node_type === 'mapgyver.application'}<ApplicationInspector {node} {defaultHeader} />
-{:else}<MediaInspector {node} {defaultHeader} />{/if}
+{:else}<MediaInspector {node} {defaultHeader} {defaultContent} {defaultChildren} />{/if}

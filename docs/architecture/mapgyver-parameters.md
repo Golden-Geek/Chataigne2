@@ -24,8 +24,8 @@ required scope; a converted owner does not complete the refactor.
 | Owner | Required parameter fields | State |
 | --- | --- | --- |
 | Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip |
-| Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Pending |
-| Asset | Typed locator kind/path and authored preparation settings | Pending |
+| Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Implemented; current software/UI acceptance running |
+| Asset | Typed locator kind and project-relative/absolute File paths | Implemented; current software/UI acceptance running |
 | Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Pending |
 | Surface | Enabled, source references, crop, four corner positions, opacity and calibration | Pending |
 | Matrix row/group | Opacity, blend and enabled; existing node hierarchy/order | Pending |
@@ -50,6 +50,18 @@ preserving values, defaults, user-editable constraints and control subtrees with
 identities. Source references remain shared. Producer-owned constraints rebuild from declarations
 on project load, following Golden's standard policy. Instances use the default Inspector without
 an app-specific inspector component. Existing reference scenes remain historical evidence.
+
+Media has one kind Parameter, each channel has twenty source/output Parameters, and an asset has
+three locator Parameters. Inactive fields keep their identity and authored values. Golden's
+Inspector registry child-filter hook controls visibility while retaining default widgets; the
+app does not mirror values in forms. Source/output identities are structural, read-only persisted
+Parameters. Native previews, sender discovery, import/reload and structural actions remain focused
+custom UI. Ordinary channel/asset/Composition/Matrix canvas forms and opaque codecs are removed.
+
+The Params DSL scopes folder/parameter bindings to their declaring owner, even when nested owners
+reuse the same declaration path. Generated per-owner folder IDs support snapshot-free structural
+replay; attachment also rebinds retained children before readiness. Channel event handling keeps
+Matrix cell edits separate from direct column/application membership changes.
 
 The additional real nodes require an explicit, bounded MapGyver materialization policy:
 4,194,304 generated-work units with Golden's unchanged 64-pass limit. This supports the existing

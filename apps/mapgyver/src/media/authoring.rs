@@ -3,8 +3,8 @@ use golden_core::edit::{Edit, NodeTree};
 use golden_core::node::{Node, NodeId};
 use serde_json::Value;
 
-use super::nodes::{ChannelNode, MediaManagerNode, MediaNode};
 use super::protocol::*;
+use super::{ChannelNode, MediaManagerNode, MediaNode};
 use crate::app::labels::rename;
 pub(super) use crate::app::labels::unique as label_with_reserved;
 use crate::app::{AppEngine, AppNode};
@@ -50,7 +50,7 @@ pub(crate) fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, Media
     if !super::folders::contains_parent(engine, node.node_data().parent, manager(engine)?) {
         return Err("media is outside its manager".into());
     }
-    Ok((id, node.kind))
+    Ok((id, node.kind()))
 }
 
 pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Result<NodeId, String> {
@@ -127,7 +127,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         } => {
             let parent = manager(engine)?;
             let fallback = locator_label(&locator);
-            let node = super::assets::AssetNode::new(label(engine, parent, requested, fallback)?, Some(locator));
+            let node =
+                super::assets::AssetNode::from_locator(label(engine, parent, requested, fallback)?, Some(locator));
             let asset = node.id();
             engine.edits.push(Edit::AddNodeTree {
                 parent,
@@ -138,18 +139,12 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         MediaEdit::RelinkAsset { asset, locator } => {
             let id = super::assets::node_id(engine, asset)?;
-            engine.edits.push(Edit::CallNodeMutation {
-                node: id,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    let node = node
-                        .as_any_mut()
-                        .downcast_mut::<super::AssetNode>()
-                        .ok_or("asset type changed")?;
-                    node.set_locator(Some(locator));
-                    Ok(())
-                }),
-            });
+            let Some(AppNode::MediaAsset(node)) = engine.nodes.get(id) else {
+                unreachable!()
+            };
+            for edit in node.locator_edits(locator) {
+                engine.edits.push(edit);
+            }
             MediaEditResult::Changed
         }
         MediaEdit::ReloadAsset { asset } => {
@@ -239,7 +234,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             if kind == MediaKind::Matrix {
                 return Err("Matrix exports are created with their owning layer/group".into());
             }
-            let channel = ChannelNode::new(
+            let channel = ChannelNode::from_definition(
                 label(engine, parent, requested, "Channel")?,
                 ChannelDefinition::for_media(kind),
             );
@@ -290,8 +285,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             }
             let node = channel_id(engine, reference)?;
             let (parent, _) = media(engine, reference.media)?;
-            let data = engine.nodes.get(parent).expect("validated media").node_data();
-            if data.first_child == Some(node) && data.last_child == Some(node) {
+            if crate::parameters::domain_children(engine, parent)?.len() == 1 {
                 return Err("media must retain at least one channel".into());
             }
             engine.edits.push(Edit::RemoveNode { node });
@@ -327,13 +321,13 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 }
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
-    let media = MediaNode::new(label, definition.media_kind());
+    let media = MediaNode::from_kind(label, definition.media_kind());
     let channel_label = if definition.media_kind() == MediaKind::Matrix {
         "Final"
     } else {
         "Channel 1"
     };
-    let channel = ChannelNode::new(channel_label.into(), definition);
+    let channel = ChannelNode::from_definition(channel_label.into(), definition);
     let reference = ChannelReference {
         media: MediaId(media.node_data().meta.uuid),
         channel: ChannelId(channel.node_data().meta.uuid),
@@ -358,18 +352,12 @@ pub(super) fn configure_channel(
             return Err("use Matrix operations to configure document/output ownership".into());
         }
     }
-    engine.edits.push(Edit::CallNodeMutation {
-        node: id,
-        needs_tree_snapshot: false,
-        callback: Box::new(move |node, _| {
-            let channel = node
-                .as_any_mut()
-                .downcast_mut::<ChannelNode>()
-                .ok_or("channel type changed")?;
-            channel.set_definition(definition);
-            Ok(())
-        }),
-    });
+    let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
+        unreachable!()
+    };
+    for edit in channel.parameter_edits(definition) {
+        engine.edits.push(edit);
+    }
     Ok(())
 }
 
@@ -401,6 +389,11 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 let mut child = node.node_data().first_child;
                 let mut count = 0;
                 while let Some(id) = child {
+                    let node = engine.nodes.get(id).ok_or("missing media child")?;
+                    child = node.node_data().next_sibling;
+                    if crate::parameters::is_parameter_folder(node) {
+                        continue;
+                    }
                     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
                         return Err("media children must be channels".into());
                     };
@@ -421,7 +414,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 let AppNode::Media(parent) = parent else {
                     return Err("channel owner is not media".into());
                 };
-                if parent.kind != node.definition().media_kind() {
+                if parent.kind() != node.definition().media_kind() {
                     return Err("channel source does not match its media kind".into());
                 }
                 if !matches!(
@@ -430,7 +423,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                         | ChannelSource::Matrix {
                             output: crate::matrix::protocol::MatrixOutput::Final { .. }
                         }
-                ) && node.node_data().first_child.is_some()
+                ) && crate::parameters::has_domain_children(engine, id)
                 {
                     return Err("only Composition channels may own instances".into());
                 }

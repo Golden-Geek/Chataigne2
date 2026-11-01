@@ -33,7 +33,7 @@ pub(super) fn picture(
     };
     let reserved = media_label.as_deref().into_iter().collect::<Vec<_>>();
     let asset_label = label_with_reserved(engine, parent, None, locator_label(&locator), &reserved)?;
-    let node = super::AssetNode::new(asset_label, Some(locator));
+    let node = super::AssetNode::from_locator(asset_label, Some(locator));
     let asset = node.id();
     definition.source = ChannelSource::Picture { asset: Some(asset) };
     let previous = engine.nodes.get(parent).and_then(|node| node.node_data().last_child);

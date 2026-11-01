@@ -147,7 +147,13 @@
 				></select
 			></label>
 		{#if readiness === 'Spout'}
-			<SpoutSenderPicker bind:sender disabled={formDisabled} />
+			<label>Readiness sender<input bind:value={sender} disabled={formDisabled} /></label>
+			<SpoutSenderPicker
+				{sender}
+				onSelect={(value) => {
+					sender = value;
+				}}
+				disabled={formDisabled} />
 			<label
 				>Readiness evidence<select
 					name="readiness-evidence"

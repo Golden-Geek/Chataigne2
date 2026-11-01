@@ -10,7 +10,6 @@
 	import { channelKey, channelReferenceFromKey } from '../media/identity';
 	import RowForm from './RowForm.svelte';
 	import ColumnForm from './ColumnForm.svelte';
-	import MatrixForm from './MatrixForm.svelte';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import RuntimeFeedback from './RuntimeFeedback.svelte';
 	import './forms.css';
@@ -179,11 +178,6 @@
 					{session}
 					disabled={busy}
 					edit={(value) => owner.edit(value)} />
-			{/key}
-		{/if}
-		{#if definition}
-			{#key JSON.stringify(definition)}
-				<MatrixForm {definition} disabled={busy} edit={(value) => owner.edit(value)} />
 			{/key}
 		{/if}
 		<h3>Output preview</h3>
