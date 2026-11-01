@@ -1,0 +1,35 @@
+{
+	"schema": 1,
+	"batch": 99,
+	"date": "2026-11-01",
+	"gate": "M08/4",
+	"base_revision": "c87b6394f67d95e0a3de6ad2ac230d9514db0834",
+	"status": "BLOCKED_SUPPORTED_LAUNCH_RESOLVES_OTHER_BINARY_ACTIVATION_STILL_FAILS",
+	"hypothesis": "Already elevated development context, observed in batch98, might explain earlier native activation failure. Supported app launch could offer a usable normal desktop context; not assumed proved.",
+	"launch": {
+		"method": "computer-use @oai/sky launch_app",
+		"calls": 1,
+		"requested": "D:\\Projects\\Dev\\Chataigne2\\target\\debug\\MapGyver.exe",
+		"observed_executable": "C:\\Program Files\\MapGyver\\MapGyver.exe",
+		"pid": 47000,
+		"parent_pid": 30292,
+		"window_id": 117118890,
+		"window_title": "MapGyver 1.0.0b7 - New unsaved session",
+		"current_build_qualified": false
+	},
+	"cleanup": {
+		"supported_normal_close_attempts": 2,
+		"fresh_selection_before_retry": true,
+		"error": "failed to activate captured window",
+		"fallback": "Ordinary process cleanup of only newly launched PID47000, guarded by exact executable path and parent PID; no UI/privilege helper.",
+		"observation": "Immediate process object transiently visible; subsequent CIM and Get-Process both return no PID47000.",
+		"owned_pid_absent": true
+	},
+	"scope": "No current-build authoring, picker, input, native preview or physical qualification. No settings/security/token changes, Run dialog, shell/COM launcher, alternate UI API or relaunch.",
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "4/10",
+		"next": "Supported interaction with exact checkout binary or guided manual observations; availability question pending. Do not repeat this route or infer a working integrity-context fix."
+	}
+}

@@ -13,12 +13,15 @@ M06 gate4 returns for native imagery/extent outlines; M07 gate3 for native rende
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/full-app and remaining actual-editor scope stay open. Batch98 verifies
 a real elevated owned target under the already elevated caller, with no elevation request.
-Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
-review preparation without a specific new failure.
+Native access remains blocked: batch99's supported explicit-path launch resolves to installed
+MapGyver1.0.0b7 instead of this checkout; both supported close attempts also fail activation.
+The newly launched installed PID is cleaned up and absent. No current-build UI result is inferred.
+Do not repeat helper retries, alternate launch routes, parity fixtures or review preparation.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
 **Next action:** retain M08 gate4 and obtain native executable-picker and actual desktop lifecycle
-observations. A guided native-check availability question is pending; last supported activation
-failed and no capability change is established. The singleton retirement limit and complete
+observations against **this checkout's** executable. A guided-check availability question is
+pending. The supported launcher resolved to the wrong installed app, and activation remains
+unavailable; the elevated-context hypothesis is not proved. The singleton retirement limit and complete
 app/mode/recovery/cleanup remain required. Non-elevated denial was not exercised in this elevated
 session. Do not repeat passing browser/caller/column/elevated-process preparation or helper retries.
 M06/M07 return for real native image/outline/renderer observations; no injected status or parked
@@ -135,7 +138,14 @@ with measured cost and consequences, requiring explicit agreement before any low
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch98:** actual elevation-required target passes the first/only app run
+**Native-access result, batch99:** one supported explicit-path launch resolves to installed
+`C:\Program Files\MapGyver\MapGyver.exe` / **1.0.0b7**, not the checkout binary. Both normal-close
+inputs fail `failed to activate captured window`, including fresh selection. Guarded cleanup of
+the newly launched PID47000 completes; later CIM/Get-Process confirms absence. No current-build
+native input/preview/dialog acceptance is earned. Stop this route; return on supported control of
+the exact checkout build or guided manual observations. [Evidence](evidence/mapgyver-m08-native-access-2026-11-01.json).
+
+**Latest usable checkpoint, batch98:** actual elevation-required target passes the first/only app run
 **exit0 /2.86 s**. The embedded/read-back manifest requires administrator; current caller and
 target are observed elevated. Normal owned launch reaches Ready, token-report PID matches
 **17672**, unload reaches Idle with PID absent and external **35760** retained, then host exits0.
@@ -328,6 +338,31 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Native launch-context check batch99:** starts 2026-11-01 **07:05 UTC**, stop **07:50 UTC**;
+investigation ends **07:25 UTC**. Keep M08 gate4 active. Previous turn is progress: `c87b6394`
+verifies a real elevated owned target. New concrete evidence is the development caller's elevated
+token, consistent with the earlier integrity warning. The prior activation attempts used an app
+launched by the command host. Test only the computer-use skill's supported `sky.launch_app` with
+the exact current MapGyver executable; no Run dialog, shell/COM launch helper, token adjustment,
+security setting, new binary or alternate automation API. Select the one returned app window,
+then perform supported activation (one fresh-selection retry if needed). If native input works,
+verify the existing executable-picker requirement in the owned app; inspect current scene before
+authoring. If activation still fails, stop the input chain and preserve the exact outcome; no
+further unchanged relaunch. The elevated-context hypothesis is not a proven cause in advance.
+
+**Batch99 result:** no current-build native acceptance. The one supported explicit-path launch
+instead starts installed MapGyver1.0.0b7, PID47000/parent30292, window117118890 titled
+`MapGyver 1.0.0b7 - New unsaved session`. This is a different product binary; no authoring is
+performed and none of its UI is counted. Supported normal-close input fails activation twice,
+with fresh window selection before the single retry. The elevated-context hypothesis therefore
+does not establish a working native route. Exact PID/path/parent-guarded process cleanup is
+requested; after a transient immediate process observation, authoritative CIM/Get-Process shows
+the PID absent. No settings, token, Run dialog, shell/COM helper, alternate API or relaunch is used.
+Native access remains blocked pending supported control of the exact checkout build or actual
+manual observations; the guided-check availability question remains unanswered. Stop automation
+route work. M08 stays3/4, overall4/10; all native/retirement/full-app requirements remain.
+[Small access result](evidence/mapgyver-m08-native-access-2026-11-01.json).
 
 **Elevation-required target batch98:** starts 2026-11-01 **06:54 UTC**, stop **07:39 UTC**;
 investigation ends **07:14 UTC**, max two finite app invocations including baseline. Only M08

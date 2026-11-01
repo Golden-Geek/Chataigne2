@@ -273,6 +273,11 @@ denial remains unexercised. Keep M08 gate4 active for native executable-picker/d
 observations and retirement/full-app scope. Return on supported native input or guided manual
 observations; no passing preparation repeat or alternate helper chain.
 
+Batch99's one supported explicit-path launch resolves to installed MapGyver1.0.0b7, not this
+checkout. Both supported close inputs still fail activation; the newly launched instance is
+cleaned up and verified absent. No current-build native acceptance is inferred. Stop this route;
+return on supported interaction with the exact checkout binary or guided manual observations.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor
