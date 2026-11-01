@@ -1,0 +1,50 @@
+{
+	"date": "2026-11-01",
+	"gate": "M08.4 Golden Applications/column UI input and owned-process project lifetime",
+	"status": "BROWSER_SCOPE_VERIFIED_NATIVE_RETIREMENT_FULL_APP_OPEN",
+	"acceptance": "No full gate closes: M08 remains3/4, overall4/10=40%, fixed scope/budgets unchanged.",
+	"base_revision": "917a569eaea947e13c4942a87d0da01f1e473063",
+	"candidate_sha256": "d93052a2f0be616d1840837f86bf90db13477f747956e935b5b2ccb8eb0dff0f",
+	"correction": "A selected Inspect may be queued before deletion and execute afterward. Backend returns typed ApplicationMissing for absent identity; current Inspector clears definition/error data and displays absence. Wrong-type queries and missing-definition mutations still reject. Superseded selection replies remain fenced. Rust source, generated MediaEditResult and UI consumer updated together; no polling/retry/Golden transport patch.",
+	"software": {
+		"rust": "211pass/1existing ignore; deletion/Undo/Redo without history mutation, strict mutation/wrong-type failure, all-public-caller parity and generated DTO parity",
+		"rust_log": "target/mapgyver-m08-missing-inspection-rust.log",
+		"rust_log_sha256": "bfc9e7481c03ea89642a359c410015220e4d8a50535d70dbe594d0c74dce3d82",
+		"frontend": "69pass; queued read after deletion, property restoration and late/mismatched absence cases included",
+		"svelte": "0errors/0warnings",
+		"clippy": "pass with warnings denied",
+		"ordinary_build": "pass"
+	},
+	"command": "node apps/mapgyver/tests/headless/media.mjs --application-ui --column-applications-ui",
+	"run": {
+		"method": "One acceptance run after material backend/UI correction and terminal software prerequisites. No unchanged-candidate investigation rerun; previous2failures preserved in prior partial evidence.",
+		"log": "target/mapgyver-m08-missing-inspection-acceptance.log",
+		"sha256": "14d70d3b8c3894a00736764a4528be96abb583ccdab53d1c4830878cb7f26d14",
+		"result": "pass",
+		"browser": "Chromium149.0.7827.55",
+		"hosted_flow_ms": 16413,
+		"host_exit": 0,
+		"application_page_errors": 0,
+		"expected_unsupported_executable_rejections": 1,
+		"other_application_rejections": 0,
+		"column_page_errors": 0,
+		"column_rejected_requests": 0,
+		"owned_pids": [36844, 33292, 21888],
+		"owned_pids_absent_after_new": true
+	},
+	"application_scope": "Real Golden outliner/Inspector creation and rename; full executable/directory/argument/environment/readiness/stop/restart form, exact definition history, independent copy enablement, guarded duplicate selection, removal/Undo/Redo and unsupported executable rejection without definition/history mutation. Form edits launch no process.",
+	"column_scope": "Actual Matrix tree selection and Inspector association/pre/post distances/history, reference-preserving copy/remove, missing definition state, two-Matrix shared application ownership, real preload/postload, availability blocks new launches while retaining an owner, unload/recovery, truthful runtime refresh and actual File New retirement. Public backend calls during UI flows inspect committed state only.",
+	"screenshots": [
+		{
+			"path": "target/m08-applications-ui.png",
+			"sha256": "c29bb520ed2d34d95c1bf3b5f0999a76a9678519a55c732c78df2baf9286d5b6",
+			"review": "Inspected: filtered Application tree and selected duplicate's properties in shared Inspector; expected prior invalid-path toast visible."
+		},
+		{
+			"path": "target/m08-column-applications-ui.png",
+			"sha256": "d8a9656fbb2755d7baecaa36ff29b863f5cbae88e2599b0122b1e7bbea27a539",
+			"review": "Inspected after actual New: empty Application tree and no selected node/old controls."
+		}
+	],
+	"limits": "Ordinary bundled browser/headless-host evidence with existing finite owned executable; no native dialog or native renderer. Singleton retirement accounting, native picker/desktop observations, outstanding elevation-denial and full-app qualification remain as previously recorded. All M03/M05–M07 physical/resource/native gates retained; M09 waits. Browsers close, host exits0; no further run needed for this resolved defect."
+}

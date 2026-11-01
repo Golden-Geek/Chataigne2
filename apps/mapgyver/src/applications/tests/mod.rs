@@ -13,6 +13,7 @@ use golden_core::{
 mod availability;
 mod demand;
 mod headless;
+mod inspection;
 mod logical;
 mod references;
 fn fixture() -> AppEngine {

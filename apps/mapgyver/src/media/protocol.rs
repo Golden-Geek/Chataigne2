@@ -267,6 +267,10 @@ pub enum MediaEditResult {
     Application {
         snapshot: crate::applications::protocol::ApplicationSnapshot,
     },
+    /// A query can arrive after deletion even when its caller's selection was valid.
+    ApplicationMissing {
+        application: crate::applications::protocol::ApplicationId,
+    },
     Applications {
         page: crate::applications::protocol::ApplicationPage,
     },

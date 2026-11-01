@@ -11,6 +11,7 @@ export interface ApplicationState {
 	loading: boolean;
 	error: string;
 	readError: string;
+	missing: boolean;
 }
 export const applicationState = (): ApplicationState => ({
 	selected: null,
@@ -18,7 +19,8 @@ export const applicationState = (): ApplicationState => ({
 	pending: false,
 	loading: false,
 	error: '',
-	readError: ''
+	readError: '',
+	missing: false
 });
 export class ApplicationController<S extends Connection> {
 	readonly catalog: ApplicationCatalog<S>;
@@ -85,6 +87,7 @@ export class ApplicationController<S extends Connection> {
 		this.state.loading = false;
 		this.state.error = '';
 		this.state.readError = '';
+		this.state.missing = false;
 		this.refresh();
 	}
 	refresh() {
@@ -112,12 +115,20 @@ export class ApplicationController<S extends Connection> {
 			() => this.invoke(session, { kind: 'Applications', edit: { kind: 'Inspect', application } }),
 			(result) => {
 				if (!current()) return;
+				if (result.kind === 'ApplicationMissing' && result.application === application) {
+					this.state.snapshot = null;
+					this.state.missing = true;
+					this.state.error = '';
+					this.state.readError = '';
+					return;
+				}
 				if (result.kind !== 'Application' || result.snapshot.id !== application) {
 					this.state.snapshot = null;
 					this.state.readError = 'Unexpected application snapshot';
 					return;
 				}
 				this.state.snapshot = result.snapshot;
+				this.state.missing = false;
 				this.state.readError = '';
 			},
 			(error) => {

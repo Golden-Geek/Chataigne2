@@ -78,6 +78,7 @@
 {@render defaultHeader?.()}
 <div class="properties">
 	{#if view.error || view.readError}<p role="alert">{view.error || view.readError}</p>{/if}
+	{#if view.missing}<p role="status">Application no longer exists.</p>{/if}
 	{#if view.snapshot}
 		{@const application = view.snapshot}
 		<NameField

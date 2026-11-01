@@ -484,7 +484,12 @@ and timeout inputs rather than UI policy defaults. Matrix column forms author sh
 and pre/post column distances while preserving transition settings and saved missing references.
 Association names/missing state come from one bounded backend lookup, not page-presence inference.
 Catalog and selected-definition readers retain one active/latest request and fence session,
-project generation, history, selection and disposal. Generic request coalescing and the reader/
+project generation, history, selection and disposal. `ApplicationEdit::Inspect` returns typed
+`ApplicationMissing` for an
+identity deleted before query execution, so a queued read clears the Inspector without an error
+or retry loop. Mutations of missing definitions and references to the wrong node type still
+reject. Undo can restore the same identity and normal observation restores its properties.
+Generic request coalescing and the reader/
 session capability interface live in the app's `ui/src/lib/requests/`, shared with Matrix readers.
 Full lifecycle control/observation and
 actual interactive/native qualification remain M08 work.

@@ -288,7 +288,7 @@ fn application_observation_bounds_and_stale_callback_tickets_match_all_callers()
             ApplicationEdit::Inspect {
                 application: scene.missing,
             },
-            false,
+            true,
         ),
         (
             ApplicationEdit::InspectCatalog {
@@ -383,6 +383,10 @@ fn application_observation_bounds_and_stale_callback_tickets_match_all_callers()
                     assert_eq!(snapshot.definition, scene.definition);
                     assert!(!snapshot.definition_instance.is_nil());
                     serde_json::json!([snapshot.id, snapshot.label, snapshot.enablement, snapshot.definition])
+                }
+                MediaEditResult::ApplicationMissing { application } => {
+                    assert_eq!(application, scene.missing);
+                    serde_json::json!(["Missing", application])
                 }
                 MediaEditResult::ApplicationRuntime { snapshot } => {
                     assert!(snapshot.applications.is_empty(), "observing cannot launch a process");

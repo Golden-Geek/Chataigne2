@@ -113,9 +113,14 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
             })
         }
         ApplicationEdit::Create { label } => create(engine, label, Default::default(), true),
-        ApplicationEdit::Inspect { application } => Ok(MediaEditResult::Application {
-            snapshot: inspect(engine, application)?,
-        }),
+        ApplicationEdit::Inspect { application } => {
+            if engine.node_id_by_uuid(application.0).is_none() {
+                return Ok(MediaEditResult::ApplicationMissing { application });
+            }
+            Ok(MediaEditResult::Application {
+                snapshot: inspect(engine, application)?,
+            })
+        }
         ApplicationEdit::InspectCatalog { search, start, count } => {
             if count == 0 || count > 128 || search.len() > 256 {
                 return Err("application catalog requires 1..128 results and search at most 256 bytes".into());

@@ -4,13 +4,40 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Execution: requested Golden layouts implemented; M08 Application acceptance remains active.**
-Matrix's complete new-layout input/project and offscreen Inspector editing pass. Applications now
-supports Inspector name editing and guarded duplicate selection, but its strict receipt check
-finds a stale Inspect after Redo removes a definition. Next repair that lifecycle ordering with a
-software regression before further live validation; the migrated column fixture has not run.
-M07 remains3/4 for native renderer feedback. All retained native/physical/resource gates remain;
-do not repeat passing Matrix/browser checks as a substitute or infer complete acceptance here.
+**Execution: Golden redesign functional input and project/lifecycle checks pass.**
+Latest capability: Applications handles deletion-raced reads as typed absence, clears Inspector
+data and restores properties through Undo. Complete Application and column/shared-process UI
+flows now pass in the tree/Inspector layout. The redesign's browser migration is finished.
+No full acceptance gate closes: M08 remains3/4 for native picker/desktop, singleton retirement
+and full-app scope. Return on supported current-build native interaction/manual observations;
+the user says native interaction is unavailable, so do not repeat that request. M03/M05–M07
+qualification blockers remain in the board; M09 waits. No further browser rerun substitutes for
+these missing requirements. Overall4/10=40%, with all original gates and budgets retained.
+
+**M08 deleted-selection correction —21:15 CET, stop22:00 CET:** previous turn is progress,
+checkpoint `917a569e` pushed and clean. Same gate4; retained2-run investigation is not reset.
+Code review identifies the owning contract: an Inspect valid when queued can arrive after deletion;
+graph-cache checks cannot make a remote read atomic with another edit. Add an explicit typed
+ApplicationMissing query reply at the app backend, clear current Inspector data on it, retain
+wrong-type/mutation failures and stale-reply fencing. Prove deletion/Undo/Redo without history or
+process mutation and superseded missing replies in software before one acceptance run of the
+materially corrected app plus the pending column fixture. No unchanged-candidate diagnostic run.
+Regenerate protocol from Rust and keep strict unexpected-rejection checks; native gates retained.
+
+**M08 correction result —21:19 CET:** the single acceptance run of the corrected contract passes
+both full Application and column fixtures, **exit0/16,413ms** hosted flow. Applications has exactly
+one expected invalid executable rejection and zero page errors; the deletion-raced Inspect is
+typed ApplicationMissing, with no retry or failed receipt. Column association/distances/history,
+missing definitions, copied references, two-Matrix shared demand, preload/postload, availability
+retention/recovery, truthful runtime refresh and actual New cleanup pass with0rejections/errors.
+All3owned PIDs are absent after cleanup; host exits0. Screenshots inspected: filtered Application
+tree/shared Inspector; final New shows empty tree/no selection. Rust211pass/1existing ignore,
+frontend69pass, Svelte0errors/0warnings, clippy and ordinary rebuild pass. Rust tests retain strict
+missing-definition mutation and wrong-type rejection; all public callers return the same typed
+absence without history mutation. [Evidence](evidence/mapgyver-m08-workbench-acceptance-2026-11-01.json).
+M08's browser redesign scope is verified; remaining native/OS/retirement/full-app requirements
+stay blocked with their existing return triggers. Do not reopen the completed stale-read
+investigation or run another browser comparison. Publish this coherent correction.
 
 **M08 Application-layout batch —21:04 CET, stop21:49 CET:** `4c760af5` pushed and remotely
 verified; worktree clean. Only gate4's existing browser input is active. Owner: app Applications
@@ -387,7 +414,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Full new-layout Screen/Source input passes; native/physical gates retained | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Complete new-layout input/project lifetime verified; native image/extent/shape selection open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | New-layout input/project and offscreen Inspector editing verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Active: Application deletion-history stale read; column migration unrun; native/full-app gaps retained | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | New-layout Application/column/process/New input verified; native/retirement/full-app gaps retained | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -425,7 +452,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 | Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
 | Blocked remaining scope | M06/4 | Complete new-layout Composition input/history/project lifetime passes; return for actual native imagery/extent-based outlines and shape selection on supported native control/manual observation. |
 | Blocked remaining scope | M07/3 | Full new-layout input/project and offscreen Inspector editing pass. Return for actual native preparation/installation/submission feedback on supported current-build native control or manual observation. |
-| Active | M08/4 | Repair Application Inspector stale Inspect after removal Redo at the receipt/graph-publication boundary with a software regression; retain strict rejection check. Migrated column/process/New fixture is unrun. Native executable-picker/desktop lifecycle, singleton retirement/full-app remain open; user says native input unavailable, so do not repeat that question. |
+| Blocked remaining scope | M08/4 | Full redesigned Application/column/process/New input passes. Return for native executable-picker/desktop lifecycle on supported current-build interaction or manual observations, plus unresolved singleton retirement/full-app evidence. User says native input unavailable; do not repeat that question or retry alternate launch/control helpers. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
 | Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
