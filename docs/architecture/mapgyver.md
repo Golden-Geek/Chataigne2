@@ -10,6 +10,9 @@ gestures, history and project fencing coherent across these views.
 Creation selection captures Golden's selection revision before the operation and fences both
 its reply and delayed graph projection, so later user clicks retain ownership of the Inspector.
 Mapping errors overlay the canvas; showing or clearing one must not move its pointer coordinate space.
+Composition creation/copy/removal adopts committed result identities in the shared Inspector;
+its window context retains ordered-instance pagination across Inspector remounts. Canvas errors
+use the shared app workbench overlay style rather than changing available editor geometry.
 
 Media folders are persisted app-owned nodes. Backend folder-aware catalogs, channel capture and
 logical Matrix application demand traverse the same hierarchy; folder revisions fence retained

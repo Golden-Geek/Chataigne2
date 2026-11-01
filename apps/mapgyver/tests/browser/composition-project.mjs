@@ -7,6 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { selectMediaChannel } from './media-tree.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
@@ -46,7 +47,8 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			.getByRole('tab')
 			.filter({ hasText: /^Composition$/ })
 			.click();
-		const panel = page.getByRole('region', { name: 'Composition', exact: true });
+		const panel = page.locator('section[aria-label="Composition"]');
+		const properties = page.locator('.properties');
 		const add = panel.getByRole('button', { name: 'Add Composition', exact: true });
 		const undo = page.getByTitle('Ctrl/Cmd+Z', { exact: true });
 		const redo = page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true });
@@ -63,11 +65,12 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			await wait(inspectMedia, (value) => value.media.length === 0 && value.assets.length === 0);
 			await wait(() => add.isEnabled(), Boolean);
 			await wait(
-				() => panel.getByLabel('Composition channel', { exact: true }).count(),
+				() =>
+					panel.getByRole('group', { name: 'Composition transform controls', exact: true }).count(),
 				(value) => value === 0
 			);
 			await wait(
-				() => panel.getByRole('region', { name: 'Selected instance', exact: true }).count(),
+				() => properties.getByRole('region', { name: 'Selected instance', exact: true }).count(),
 				(value) => value === 0
 			);
 			await wait(() => undo.isDisabled(), Boolean);
@@ -90,9 +93,9 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			return root.channels[0].reference;
 		}
 		async function canvas(width, height) {
-			await panel.getByLabel('Canvas width', { exact: true }).fill(String(width));
-			await panel.getByLabel('Canvas height', { exact: true }).fill(String(height));
-			await panel.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
+			await properties.getByLabel('Canvas width', { exact: true }).fill(String(width));
+			await properties.getByLabel('Canvas height', { exact: true }).fill(String(height));
+			await properties.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
 		}
 		stage = 'accepted drag replaced through actual New shortcut';
 		const media = await inspectMedia();
@@ -103,7 +106,7 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			() => inspect(first),
 			(value) => value.canvas.width === 400 && value.canvas.height === 300
 		);
-		const source = panel
+		const source = properties
 			.locator('form')
 			.filter({ has: page.getByRole('button', { name: 'Add instance', exact: true }) });
 		await source
@@ -186,16 +189,21 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 		);
 		assert.deepEqual(loaded.canvas, { width: 320, height: 240 });
 		assert.notDeepEqual(loaded.reference, fresh);
+		await selectMediaChannel(page, await inspectMedia(), review.root);
+		await properties
+			.getByRole('navigation', { name: 'Ordered instances', exact: true })
+			.getByRole('button', { name: loaded.instances[0].label, exact: true })
+			.click();
 		await wait(
-			() => panel.getByLabel('Instance name', { exact: true }).inputValue(),
+			() => properties.getByLabel('Instance name', { exact: true }).inputValue(),
 			(value) => value === loaded.instances[0].label
 		);
 		await wait(() => undo.isDisabled(), Boolean);
 		await wait(() => redo.isDisabled(), Boolean);
 		await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 		stage = 'loaded instance edit and history';
-		await panel.getByLabel('Instance name', { exact: true }).fill('After upload');
-		await panel
+		await properties.getByLabel('Instance name', { exact: true }).fill('After upload');
+		await properties
 			.getByRole('region', { name: 'Selected instance', exact: true })
 			.getByRole('button', { name: 'Rename', exact: true })
 			.click();

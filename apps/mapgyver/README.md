@@ -26,6 +26,11 @@ failures live in the ledger. `--screen-ui` and `--surface-source-ui` verify the 
 and crop/form/calibration/history input in the new full-panel layout. Native preview and physical
 display qualification remain separate, explicitly open requirements in the ledger.
 
+Composition's `--composition-ui --composition-project-ui` checks cover the complete shared-Inspector
+editing flow plus New during a drag, fresh history and saved-project upload/history. They use the
+existing [review scene](tests/headless/COMPOSITION_REVIEW.md); native imagery and extent-based
+outlines/shape selection remain open qualification requirements.
+
 `media::composition::inspect` reads committed Composition instance state without settling queued
 commands or authoring history. UI intents, scripts, command nodes and the headless host share the
 same Composition mutation contracts. The [editor acceptance flow](tests/headless/COMPOSITION_REVIEW.md)

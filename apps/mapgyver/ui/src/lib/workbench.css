@@ -49,6 +49,14 @@
 	font-size: 0.8rem;
 	color: var(--color-error, #e88);
 }
+/* Error visibility must not change the pointer coordinate space of a canvas. */
+.editor-canvas > .editor-error {
+	position: absolute;
+	inset: 0 0 auto;
+	z-index: 5;
+	background: var(--gc-dock-panel-background, #202329);
+	pointer-events: none;
+}
 .properties {
 	min-width: 0;
 }

@@ -11,7 +11,7 @@
 	const { view, controller, gestureState, gesture } = owner;
 	const channel = $derived(owner.channel),
 		busy = $derived(owner.busy);
-	const { select: selectDocumentNode } = useDocumentSelection();
+	const selection = useDocumentSelection();
 </script>
 
 <section
@@ -24,17 +24,21 @@
 			icon={addIcon}
 			label="Add Composition"
 			disabled={busy}
-			onclick={() => controller.create()} />
+			onclick={async () => {
+				const selectCreated = selection.capture();
+				const result = await controller.create();
+				if (result?.kind === 'Created') selectCreated(result.reference.channel);
+			}} />
 		<IconButton
 			icon={resetIcon}
 			label="Refresh Composition"
 			disabled={busy}
 			onclick={() => controller.refresh()} />
 	</div>
-	{#if view.error || gestureState.error}<p class="editor-error" role="alert">
-			{view.error || gestureState.error}
-		</p>{/if}
 	<div class="editor-canvas">
+		{#if view.error || gestureState.error}<p class="editor-error" role="alert">
+				{view.error || gestureState.error}
+			</p>{/if}
 		{#if channel && view.composition}
 			{#key channel.reference.channel}<CompositionPreview
 					{channel}
@@ -44,7 +48,7 @@
 					active={gestureState.active}
 					select={(id) => {
 						view.instance = id;
-						if (id) selectDocumentNode(id);
+						if (id) selection.select(id);
 					}}
 					start={(reference, handle) => gesture.start(reference, handle)}
 					move={(point) => gesture.move(point)}

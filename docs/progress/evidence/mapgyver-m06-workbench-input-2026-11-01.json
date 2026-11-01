@@ -1,0 +1,93 @@
+{
+	"date": "2026-11-01",
+	"gate": "M06.4 complete Composition input and project lifetime after Golden workbench redesign",
+	"status": "INPUT_AND_PROJECT_VERIFIED_NATIVE_INTEGRATION_OPEN",
+	"acceptance": "No gate closes; M06 remains3/4=75%, overall4/10=40%. Original budgets and native imagery/extent/shape-selection requirements retained.",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --composition-ui --composition-project-ui",
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "b2239c57f446144ed8e1015998c4c5e69339596ab4bcd64e9a33438e0a93ea9c",
+		"base_revision": "f023ad1057e90e5562dadbde47c2d51ec77e2210"
+	},
+	"product_changes": [
+		"Toolbar creation selects the committed Composition channel in the shared Inspector using the existing pre-operation selection guard.",
+		"Inspector instance creation/copy selects committed instance identities; removal returns to the parent channel, preserving a usable editing path.",
+		"Instance pagination remains owned by the window context across Inspector remounts.",
+		"Composition reuses the existing stable canvas error-overlay rule, now centralized in app workbench styles; Screen/Source retain the same overlay values. No backend/protocol/native source changed."
+	],
+	"method": "Actual browser controls against isolated ordinary bundled headless host. During browser flows, public backend operations only inspect committed state. No mocked UI transport, direct backend authoring or synthetic preview status.",
+	"browser": "Chromium149.0.7827.55",
+	"viewport": { "width": 1440, "height": 1000 },
+	"runs": [
+		{
+			"invocation": 1,
+			"result": "fail",
+			"log": "target/mapgyver-m06-workbench-first.log",
+			"sha256": "8a710308a866620fa051e5baf073f8351411f40edbb98ad96c296f25965f009d",
+			"observation": "Toolbar creation/Inspector canvas resize and explicit self-cycle rejection reached. Baseline bounds were read after backend resize without requiring the SVG's400x300 viewBox. Geometry assertion failed without capturing both rectangles; no product layout cause inferred. Fixture now waits for actual readiness/viewBox and reports both rectangles.",
+			"host_exit": 0
+		},
+		{
+			"invocation": 2,
+			"result": "pass",
+			"log": "target/mapgyver-m06-workbench-corrected.log",
+			"sha256": "aa1575b68500e7577761779ea54550ae5a1ab4e5f60f7e710f64d96d38d1f9cb",
+			"host_exit": 0,
+			"hosted_flow_ms": 13689,
+			"editing_page_errors": 0,
+			"expected_editing_rejections": 2,
+			"other_editing_rejections": 0,
+			"project_page_errors": 0,
+			"project_rejected_requests": 0
+		}
+	],
+	"original_input_scope_preserved": [
+		"Shared Inspector canvas resize; self-cycle rejects visibly without state/history change; actual rendered geometry stays fixed when the error appears.",
+		"Source picker, non-authoring selection/drafts, instance rename and full source/position/scale/pivot/rotation/opacity/blend/enabled form with exact Undo/Redo and peer preservation.",
+		"Ordering, duplicate identity/definition and removal/Undo/Redo/Undo, with explicit created-instance selection and parent-channel adoption.",
+		"Real Translate/Rotate/Scale handles change only their intended fields and preserve peers; each sampled gesture is one exact Undo/Redo.",
+		"Escape preserves accepted movement and blocks later held-pointer motion; invalid zero scale rejects without replacing the last definition/history.",
+		"Actual Media tree/Inspector Delete yields Missing channel without rewriting the saved binding; Undo restores original media/assets/instance state.",
+		"Manager and central-editor tab lifetime preserves state; editor is full-panel and contains no property forms."
+	],
+	"original_project_scope_preserved": [
+		"Actual New shortcut during an accepted drag discards subsequent held old pointer input and leaves empty media/assets/history.",
+		"Fresh Composition identities and canvas Undo/Redo work after replacement.",
+		"Actual File Open browser upload reads the existing hashed review file and restores saved channel/instance IDs plus320x240 canvas.",
+		"Actual instance rename after upload roundtrips exact loaded state through Undo/Redo.",
+		"Actual File New clears loaded selection/forms/history; no stale rejected request/page error; source review file hash remains unchanged."
+	],
+	"final_transform": {
+		"pivot": [0.30000001192092896, 0.699999988079071],
+		"position": [241.99998474121094, 178.00001525878906],
+		"rotation": 1.035398006439209,
+		"scale": [-2.3999977111816406, 1.5999999046325684]
+	},
+	"accepted_drag_before_new": {
+		"pivot": [0.5, 0.5],
+		"position": [220, 160],
+		"rotation": 0,
+		"scale": [1, 1]
+	},
+	"review_sha256": "d4861eb6ace9c6ad24bacf5e19b3aed1292b6e370340629afd17d04369122ed8",
+	"source_outline_count": 0,
+	"artifacts": [
+		{
+			"path": "target/m06-composition-ui.png",
+			"sha256": "cbabf1643ffd294bf418ed1d02e494f2cbb944235e8902b7a1b153963ff392af",
+			"visual_review": "Inspected: full central transform canvas, properties confined to Inspector, expected invalid-scale error in an overlay. Native Preview unavailable; no extent outline/image claim."
+		},
+		{
+			"path": "target/m06-composition-project-ui.png",
+			"sha256": "d3dc89e94e6d80031984b4f98868e4c9edf18c850b6cd375c8f046194da156b5",
+			"visual_review": "Inspected after final New: empty manager, no selected node, Composition empty state and no old instance controls."
+		}
+	],
+	"prerequisites": "63frontend tests, Svelte0errors/0warnings, ordinary rebuilt app, JS syntax/Prettier and both Rust formatters pass. Review fixture hash verified before running; no regeneration or parked stash restore. Rust/native/protocol unchanged; prior209pass/1existing-ignore evidence retained.",
+	"limits": [
+		"Original functional tolerances retained:2canvas texels for position,0.05 radians rotation and0.08 scale; geometry error-overlay stability0.01 CSS pixels. None is physical alignment, DPI or latency qualification.",
+		"Native preview unavailable and source outlines0. Actual native imagery/extent-based outlines/shape selection remains required; M06 gate4 cannot close on these browser results.",
+		"Both comparison hosts exit0 by supported sentinel, owned browsers close; no live test remains.",
+		"Next independent work is M07 gate3's remaining new-layout Matrix input/project coverage, preserving actual native renderer feedback and all original complete-app/resource requirements."
+	]
+}

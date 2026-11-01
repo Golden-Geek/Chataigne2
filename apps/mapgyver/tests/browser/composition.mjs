@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
+import { observeRejectedRequests } from './intent-observer.mjs';
+import { selectMediaChannel } from './media-tree.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 const near = (actual, expected, epsilon = 0.05) =>
@@ -15,6 +17,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
+	const rejected = observeRejectedRequests(page, () => stage);
 	try {
 		async function wait(read, predicate) {
 			const deadline = Date.now() + 5000;
@@ -28,7 +31,8 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Composition$/ });
 		await tab.click();
-		const panel = page.getByRole('region', { name: 'Composition', exact: true });
+		const panel = page.locator('section[aria-label="Composition"]');
+		const properties = page.locator('.properties');
 		const addComposition = panel.getByRole('button', { name: 'Add Composition', exact: true });
 		const ready = () => wait(() => addComposition.isEnabled(), Boolean);
 		const media = await inspectMedia();
@@ -51,14 +55,36 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		}
 		stage = 'canvas and cycle rejection';
 		const initial = await inspect();
-		await panel.getByLabel('Canvas width', { exact: true }).fill('400');
-		await panel.getByLabel('Canvas height', { exact: true }).fill('300');
-		await panel.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
+		await properties.getByLabel('Canvas width', { exact: true }).fill('400');
+		await properties.getByLabel('Canvas height', { exact: true }).fill('300');
+		await properties.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
 		const resized = await wait(
 			inspect,
 			(value) => value.canvas.width === 400 && value.canvas.height === 300
 		);
-		const add = panel
+		await ready();
+		await wait(
+			() =>
+				panel
+					.getByRole('group', { name: 'Composition transform controls' })
+					.getAttribute('viewBox'),
+			(value) => value === '0 0 400 300'
+		);
+		const outer = await panel.boundingBox(),
+			canvas = await panel.locator('.editor-canvas').boundingBox();
+		assert(
+			canvas.width >= outer.width * 0.95 && canvas.height >= outer.height * 0.8,
+			'Composition canvas fills its panel'
+		);
+		assert.equal(
+			await panel.locator('input,select,fieldset').count(),
+			0,
+			'Composition parameters belong in Inspector'
+		);
+		const stableBounds = await panel
+			.getByRole('group', { name: 'Composition transform controls' })
+			.boundingBox();
+		const add = properties
 			.locator('form')
 			.filter({ has: page.getByRole('button', { name: 'Add instance', exact: true }) });
 		const root = catalog.media.find((entry) => entry.media_kind === 'Composition');
@@ -67,10 +93,22 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 			.selectOption({ label: `${root.label} / ${root.channels[0].label}` });
 		await add.getByRole('button', { name: 'Add instance', exact: true }).click();
 		await panel.getByRole('alert').waitFor();
+		const rejectedBounds = await panel
+			.getByRole('group', { name: 'Composition transform controls' })
+			.boundingBox();
+		assert(
+			stableBounds &&
+				rejectedBounds &&
+				['x', 'y', 'width', 'height'].every(
+					(key) => Math.abs(stableBounds[key] - rejectedBounds[key]) < 0.01
+				),
+			`Error visibility cannot shift Composition geometry: ${JSON.stringify({ stableBounds, rejectedBounds })}`
+		);
 		assert.deepEqual(await inspect(), resized);
 		await restore(initial, resized);
 		const solid = media.media.find((entry) => entry.media_kind === 'SolidColor');
 		const picture = media.media.find((entry) => entry.media_kind === 'Picture');
+		let createdCount = 0;
 		for (const source of [solid, picture]) {
 			await add.getByLabel('Find source channel', { exact: true }).fill(source.label);
 			await add
@@ -78,16 +116,25 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				.selectOption({ label: `${source.label} / ${source.channels[0].label}` });
 			await add.getByRole('button', { name: 'Add instance', exact: true }).click();
 			await ready();
+			createdCount++;
+			const created = await wait(inspect, (value) => value.instances.length === createdCount);
+			await wait(
+				() => properties.getByLabel('Instance name', { exact: true }).inputValue(),
+				(value) => value === created.instances.at(-1).label
+			);
 		}
 		let snapshot = await wait(inspect, (value) => value.instances.length === 2);
 		const primary = snapshot.instances[0].reference.instance;
 		const peer = snapshot.instances[1];
-		const navigation = panel.getByRole('navigation', { name: 'Ordered instances', exact: true });
+		const navigation = properties.getByRole('navigation', {
+			name: 'Ordered instances',
+			exact: true
+		});
 		await navigation
 			.getByRole('button', { name: snapshot.instances[0].label, exact: true })
 			.click();
 		assert.deepEqual(await inspect(), snapshot, 'selection does not author');
-		const form = panel.getByRole('region', { name: 'Selected instance', exact: true });
+		const form = properties.getByRole('region', { name: 'Selected instance', exact: true });
 		stage = 'complete instance form';
 		await form.getByLabel('Instance name', { exact: true }).fill('UI Instance');
 		await form.getByRole('button', { name: 'Rename', exact: true }).click();
@@ -107,7 +154,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 			Opacity: 0.6
 		}))
 			await form.getByLabel(label, { exact: true }).fill(String(value));
-		await form.getByLabel('Blend').selectOption('Screen');
+		await form.getByRole('combobox', { name: /^Blend/ }).selectOption('Screen');
 		await form.getByLabel('Enabled', { exact: true }).uncheck();
 		assert.deepEqual(await inspect(), snapshot, 'form edits remain drafts');
 		await form.getByRole('button', { name: 'Apply instance', exact: true }).click();
@@ -133,7 +180,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		after = await wait(inspect, (value) => value.instances[1].reference.instance === primary);
 		await restore(snapshot, after);
 		snapshot = after;
-		await panel.getByRole('button', { name: 'Duplicate', exact: true }).click();
+		await properties.getByRole('button', { name: 'Duplicate', exact: true }).click();
 		after = await wait(inspect, (value) => value.instances.length === 3);
 		const copy = after.instances.find(
 			(entry) =>
@@ -141,8 +188,13 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		);
 		assert(copy);
 		assert.deepEqual(copy.definition, snapshot.instances[1].definition);
-		await panel.getByRole('button', { name: 'Remove', exact: true }).click();
+		await wait(
+			() => form.getByLabel('Instance name', { exact: true }).inputValue(),
+			(value) => value === copy.label
+		);
+		await properties.getByRole('button', { name: 'Remove', exact: true }).click();
 		await wait(inspect, (value) => value.instances.length === 2);
+		await properties.getByRole('textbox', { name: 'Channel name', exact: true }).waitFor();
 		await undo();
 		await wait(inspect, (value) => isDeepStrictEqual(value, after));
 		await redo();
@@ -265,11 +317,12 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 			.getByRole('tab')
 			.filter({ hasText: /^Media Manager$/ })
 			.click();
-		const article = page.locator('section.manager article').filter({
-			has: page.getByRole('textbox', { name: `Media name: ${solid.label}`, exact: true })
-		});
-		await article.getByRole('button', { name: 'Delete media', exact: true }).click();
+		const manager = page.locator('section[aria-label="Media Manager"]');
+		await manager.getByRole('button', { name: solid.label, exact: true }).click();
+		await properties.getByRole('button', { name: 'Delete media', exact: true }).click();
 		await wait(inspectMedia, (value) => !value.media.some((entry) => entry.id === solid.id));
+		await selectMediaChannel(page, await inspectMedia(), reference);
+		await navigation.getByRole('button', { name: 'UI Instance', exact: true }).click();
 		await tab.click();
 		await wait(
 			() =>
@@ -288,6 +341,10 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 			.getByRole('tab')
 			.filter({ hasText: /^Screen Manager$/ })
 			.click();
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Screen Warping$/ })
+			.click();
 		await tab.click();
 		await ready();
 		assert.deepEqual(await inspect(), after);
@@ -301,6 +358,20 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		await svg.scrollIntoViewIfNeeded();
 		await page.screenshot({ path: 'target/m06-composition-ui.png' });
 		assert.deepEqual(errors, []);
+		assert(rejected.length === 2, 'Cycle and zero-scale edits reject explicitly');
+		assert(
+			rejected.every(
+				(item) =>
+					item.request?.intent?.kind === 'invokeAppOperation' &&
+					item.request.intent.namespace === 'mapgyver.media' &&
+					item.request.intent.payload?.kind === 'Composition' &&
+					((item.request.stage === 'canvas and cycle rejection' &&
+						item.request.intent.payload.edit?.kind === 'AddInstances') ||
+						(item.request.stage === 'Escape and invalid form' &&
+							item.request.intent.payload.edit?.kind === 'ConfigureInstance'))
+			),
+			'No unrelated request may reject'
+		);
 		console.log(
 			JSON.stringify({
 				result: 'pass',
@@ -313,6 +384,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				final_transform: accepted,
 				source_outline_count: outlineCount,
 				page_errors: errors.length,
+				expected_rejections: rejected.length,
 				screenshot: 'target/m06-composition-ui.png'
 			})
 		);
@@ -320,6 +392,8 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		console.error(
 			JSON.stringify({
 				failed_stage: stage,
+				page_errors: errors,
+				rejected_requests: rejected,
 				body: (
 					await page
 						.locator('body')

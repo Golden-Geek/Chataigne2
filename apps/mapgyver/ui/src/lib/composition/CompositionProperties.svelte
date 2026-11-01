@@ -9,6 +9,7 @@
 	import { useCompositionAuthoring } from './context.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import { channelReferenceFromKey } from '../media/identity';
+	import type { CompositionEdit } from '../media/generated/CompositionEdit';
 	import SourcePicker from './SourcePicker.svelte';
 	import InstanceForm from './InstanceForm.svelte';
 	import CompositionChannelEditor from '../media/CompositionChannelEditor.svelte';
@@ -23,17 +24,22 @@
 		currentPage = $derived(owner.currentPage),
 		start = $derived(owner.start),
 		pageSize = owner.pageSize;
-	let page = $state(0);
-	$effect(() => {
-		owner.page = page;
-	});
 	function add(event: SubmitEvent & { currentTarget: HTMLFormElement }) {
 		event.preventDefault();
 		const key = String(new FormData(event.currentTarget).get('source'));
-		if (key)
-			void controller.edit({ kind: 'AddInstances', sources: [channelReferenceFromKey(key)] });
+		if (key) void edit({ kind: 'AddInstances', sources: [channelReferenceFromKey(key)] });
 	}
-	const { select: selectDocumentNode } = useDocumentSelection();
+	const selection = useDocumentSelection();
+	async function edit(intent: CompositionEdit) {
+		const selectResult = selection.capture();
+		const parent = view.selected?.channel;
+		const result = await controller.edit(intent);
+		if (result?.kind === 'InstancesCreated' && result.instances[0])
+			selectResult(result.instances[0].instance);
+		else if (result?.kind === 'Changed' && intent.kind === 'RemoveInstance' && parent)
+			selectResult(parent);
+		return result;
+	}
 </script>
 
 {@render defaultHeader?.()}
@@ -65,7 +71,7 @@
 							class="previous"
 							disabled={busy || currentPage === 0}
 							onclick={() => {
-								page = currentPage - 1;
+								owner.page = currentPage - 1;
 							}} />
 						<span>Page {currentPage + 1} / {pages}</span>
 						<IconButton
@@ -73,7 +79,7 @@
 							label="Next instances"
 							disabled={busy || currentPage === pages - 1}
 							onclick={() => {
-								page = currentPage + 1;
+								owner.page = currentPage + 1;
 							}} />
 					</div>
 				{/if}
@@ -86,14 +92,14 @@
 							disabled={busy}
 							onclick={() => {
 								view.instance = item.reference.instance;
-								selectDocumentNode(item.reference.instance);
+								selection.select(item.reference.instance);
 							}}>{item.label}</button>
 						<button
 							title="Move earlier"
 							aria-label={`Move ${item.label} earlier`}
 							disabled={busy || index === 0}
 							onclick={() =>
-								controller.edit({
+								edit({
 									kind: 'ReorderInstance',
 									instance: item.reference.instance,
 									after: view.composition?.instances[index - 2]?.reference.instance ?? null
@@ -103,7 +109,7 @@
 							aria-label={`Move ${item.label} later`}
 							disabled={busy || index === view.composition.instances.length - 1}
 							onclick={() =>
-								controller.edit({
+								edit({
 									kind: 'ReorderInstance',
 									instance: item.reference.instance,
 									after: view.composition!.instances[index + 1].reference.instance
@@ -119,7 +125,7 @@
 					label="Duplicate"
 					disabled={busy}
 					onclick={() =>
-						controller.edit({
+						edit({
 							kind: 'DuplicateInstances',
 							instances: [instance.reference.instance]
 						})} />
@@ -128,7 +134,7 @@
 					label="Remove"
 					disabled={busy}
 					onclick={() =>
-						controller.edit({
+						edit({
 							kind: 'RemoveInstance',
 							instance: instance.reference.instance
 						})} />
@@ -139,13 +145,13 @@
 					catalog={view.catalog}
 					disabled={busy}
 					configure={(definition) =>
-						controller.edit({
+						edit({
 							kind: 'ConfigureInstance',
 							instance: instance.reference.instance,
 							definition
 						})}
 					rename={(label) =>
-						controller.edit({
+						edit({
 							kind: 'RenameInstance',
 							instance: instance.reference.instance,
 							label
