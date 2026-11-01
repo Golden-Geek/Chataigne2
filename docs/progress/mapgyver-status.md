@@ -4,18 +4,22 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M08 gate4, actual column/application UI integration**. Batch95 verifies
-Composition New during an accepted drag, held-pointer disposal, fresh history and review upload/
-post-load editing, with zero rejected requests/page errors. M06 gate4 now returns for actual native
-imagery/extent outlines; M07 gate3 still requires actual native renderer feedback.
+**Active gate:** **M08 gate4, actual column/application UI integration**. Batch96 verifies column
+association/distance/history/missing-reference controls, shared owned processes across two Matrices,
+pre/post holds, runtime snapshot input and blocking new launches while retaining an in-use process.
+The final check fails after blocked relaunch: the runtime list is empty instead of `Unavailable`.
+Cause remains unresolved; recovery and New with a live process were not reached. No gate closes.
+M06 gate4 returns for native imagery/extent outlines; M07 gate3 for native renderer feedback.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch95, then verify M08's existing column association/distance/history
-controls and truthful runtime feedback through actual UI. Definition forms/caller parity already
-pass; do not repeat them as preparation or infer native dialog/retirement/elevation qualification.
+**Next action:** retain M08 gate4 and narrow batch96's blocked-relaunch failure to the actual
+accepted launch, authored association and demand/runtime
+contract. Both app invocations are used; no third run in this batch. Fix only an established cause,
+then verify availability recovery and New with a live owned process in a subsequent bounded batch.
+Do not repeat passing definition/parity preparation or infer native dialog/retirement/elevation.
 M06/M07 return for real native image/outline/renderer observations; no injected status or parked
 automation retry. Composition project lifetime and Matrix stale inspections now pass in scope.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
@@ -33,7 +37,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Active: column UI/shared scopes verified; blocked-relaunch check fails; native/OS/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -57,6 +61,21 @@ waives acceptance. Every unfinished M03/M05/M06/M07/M08/M09 item returns. The us
 of the agreed plan; a day-scale minor optimization may justify a precise proposal, never a silent
 lower gate. Track cumulative effort across batches. Correctness/ownership remain required.
 See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-priority--2026-10-31).
+
+**Execution board:** open phases are retained acceptance, not simultaneous implementation.
+
+| State | Gate(s) | Next requirement / return condition |
+| --- | --- | --- |
+| Active | M08/4 | Resolve the exact blocked-relaunch runtime mismatch; verify recovery and New with a live process. Native dialog, singleton retirement, elevation and full-app checks remain required afterward. |
+| Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
+| Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
+| Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
+| Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification and shared Chataigne regression checks. |
+
+Only a passed gate or a named missing prerequisite permits leaving the active gate. A batch cutoff
+checkpoints work; it does not waive acceptance or automatically select another phase. The target
+is **100% of agreed scope**. A roughly day-long minor optimization can prompt a specific proposal
+with measured cost and consequences, requiring explicit agreement before any lower gate applies.
 
 **Closure return queue:**
 - **M03 gate 9:** prescribed Q01/Q02 on stabilized inputs, complete lifecycle/resource-return
@@ -105,13 +124,23 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
   Batch85 also verifies actual browser forms/catalog/history, including all definition fields,
   environment modes and atomic rejection. Native executable-dialog input remains unverified.
-  Next verify the original column association/distance/control/runtime UI integration, not another
-  definition-form or caller-parity run. Keep native/OS/retirement/elevation/full-app gaps required.
+  Batch96 verifies original association/distance/history/missing-reference and shared-process input
+  across two Matrix scopes. Its final blocked-relaunch observation fails with no runtime entry;
+  recovery/project-New checks remain unexecuted. Resolve that exact mismatch before expanding scope.
+  Keep native/OS/retirement/elevation/full-app gaps required; do not repeat definition/caller prep.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch95:** Composition project lifetime passes its first/only invocation,
+**Latest checkpoint, batch96:** two app invocations, both fail. A regression-proven pending-removal
+inspection race is fixed; **35 frontend tests** and the rebuilt app pass. The corrected actual UI
+run reaches shared scopes/holds/stops and disabled in-use retention, then times out waiting for
+`Unavailable` after relaunch; runtime reports no applications, with zero rejected UI requests.
+Both hosts exit normally; all four reported owned PIDs are absent. Recovery and New are not claimed.
+**M08 stays 3/4; overall 4/10 (40%).** No third run or phase switch follows from this checkpoint.
+[Column integration evidence](evidence/mapgyver-m08-column-ui-partial-2026-11-01.json).
+
+**Retained checkpoint, batch95:** Composition project lifetime passes its first/only invocation,
 **exit0 /7,150 ms**, Chromium **149.0.7827.55**, zero rejected requests and page errors. Actual New
 during accepted held-pointer motion discards the old scene safely; fresh canvas history, saved
 instance IDs on browser upload, post-load editing/history and final menu New pass. The original
@@ -281,6 +310,31 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Actual column/application integration batch96:** 2026-11-01 **06:35 UTC**, stop **07:20 UTC**;
+investigation cutoff **06:55 UTC**, at most two finite app invocations. Only M08 gate4 is active.
+Previous turn is progress: `61e08238` verifies Composition project/gesture lifetime, retaining
+native imagery/outlines. Verify existing column association/distance/history/missing-reference
+controls through actual UI, then actual owned-fixture readiness/shared holds/stop/availability/
+project replacement and snapshot runtime feedback. Reuse current ordinary app and finite owned
+executable with no arguments; no GPU/Spout/privilege/settings work. Backend calls only inspect;
+all authoring and launches use real UI. Retain native dialog/singleton/elevation/full-app gaps.
+
+**Batch96 result:** partial, not accepted. The first run reaches shared holds/normal stop but
+fails selecting a restored definition before availability input; Remove intentionally clears
+selection and Undo does not select it. Its receipt trace also proves an obsolete definition Inspect
+during pending removal. A failing unit regression (one stale inspection instead of zero) supports
+deferring `ApplicationController.refresh()` until the mutation reply reconciles selection.
+All **35 Matrix/Application frontend tests**, Svelte (zero errors/warnings), syntax/Prettier and
+the app rebuild pass. The fixture explicitly reselects the restored definition through the UI.
+The second/final run has **zero rejected requests**, verifies disabled in-use process retention,
+unloads/stops it, then requests the preload column while disabled. It fails waiting for
+`Unavailable`: runtime `applications=[]`. No cause or correction is established; later availability
+recovery and project replacement were not reached. Both hosts exit0 normally, and reported PIDs
+3572/34536/20344/48408 are absent. Do not generalize this to complete tree/native retirement.
+Keep M08 gate4 active, reduce the next action to the exact launch/demand/runtime mismatch, and
+preserve both failed attempts. No third invocation, new phase or acceptance revision in this batch.
+[Bounded result](evidence/mapgyver-m08-column-ui-partial-2026-11-01.json).
 
 **Actual browser form batch 85:** started 2026-11-01 **04:48 UTC**, stop **05:33 UTC**. Only M08
 gate 4 is active. MapGyver owns Applications forms and intents; Golden owns bundled transport,
@@ -1166,7 +1220,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch81 caller/normal-headless parity, batch83 aggregate outcomes and batch85 actual browser form/catalog/history pass; native file-dialog, singleton retirement, actual elevation/full-app gaps remain |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms and batch96 column/history/shared-scope input pass in scope; blocked-relaunch runtime check fails, recovery/New and native dialog/singleton retirement/elevation/full-app gaps remain |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -5432,16 +5486,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish batch95's verified Composition project/gesture lifetime. Select **M08 gate4** existing
-actual column/application association and distance/history controls with truthful runtime feedback.
-Use the current ordinary browser/host/public contracts, actual authored input and read-only state
-correlation. Reuse definition/caller/owned-process evidence; do not repeat it as preparation or
-infer unobserved native dialog, retirement, elevation, renderer or full-app behavior. M06 returns
-for native imagery/extent-based outline/shape selection; M07 for native renderer feedback. No
-injected state, new automation route, unchanged native rerun or original-budget revision.
-Native feedback still needs real observation/capability change; no injection, new route or bypass.
-M06 returns for native image/extent outlines, project replacement and other original checklist gaps;
-do not repeat its passing candidate. M05 gate7 still needs native preview. All global budgets remain.
+Continue from batch96's verified pending-removal correction and partial column/shared-process UI evidence.
+Keep **M08 gate4** active. The next bounded action isolates the exact blocked-relaunch mismatch:
+the UI shows Column1 requested, but no runtime application appears instead of `Unavailable`.
+Inspect the accepted launch, authored association and demand/runtime contract before correcting
+anything. Both app invocations are spent; no third run in batch96. A later verification requires
+a supported correction or a specific newly evidenced contract/fixture cause, not a timeout reset.
+Availability recovery and project New with a live owned process are still unexecuted. Native
+dialog, singleton retirement, actual elevation and full-app scope remain required afterward.
+No phase switch merely because a checkpoint did not close the gate; record an actual missing
+prerequisite and return trigger if the active work becomes blocked.
+M06 returns for native imagery/extent/shape selection, M07 for native renderer feedback and M05
+gate7 for native full-source preview. No injection, new automation route or passing-preparation
+rerun substitutes for those observations. All global budgets remain.
 
 M06 and M07 actual-editor observations remain requested/pending against their saved review
 projects; no response is inferred and preparation is not repeated. M08 caller/headless/aggregate

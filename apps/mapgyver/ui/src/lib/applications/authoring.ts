@@ -92,6 +92,7 @@ export class ApplicationController<S extends Connection> {
 			application = this.state.selected;
 		if (
 			this.disposed ||
+			this.state.pending ||
 			!session ||
 			!application ||
 			session.status !== 'connected' ||

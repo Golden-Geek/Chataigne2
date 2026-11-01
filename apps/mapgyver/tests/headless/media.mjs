@@ -11,6 +11,7 @@
 // Add --matrix-ui for M07 real Matrix grid/authoring/playback-feedback verification.
 // Add --matrix-project-ui for M07 actual File New/upload and editor replacement verification.
 // Add --composition-project-ui for M06 actual New-during-drag and review-upload verification.
+// Add --column-applications-ui for M08 actual column UI and owned-process lifecycle verification.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -32,7 +33,8 @@ const withUi = [
 	'--composition-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
-	'--composition-project-ui'
+	'--composition-project-ui',
+	'--column-applications-ui'
 ].some((flag) => process.argv.includes(flag));
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -271,6 +273,10 @@ try {
 	if (process.argv.includes('--composition-project-ui')) {
 		const { verifyCompositionProjectUi } = await import('../browser/composition-project.mjs');
 		await verifyCompositionProjectUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--column-applications-ui')) {
+		const { verifyColumnApplicationsUi } = await import('../browser/column-applications.mjs');
+		await verifyColumnApplicationsUi({ base, edit, inspectMedia: inspect });
 	}
 	console.log(
 		JSON.stringify({

@@ -107,6 +107,13 @@ roughly a full day, present a specific proposed deferral/lower gate, evidence an
 for the user's decision before changing acceptance. This is not blanket authorization to lower
 gates, and correctness/ownership/data integrity/essential behavior are not small optimizations.
 
+The ledger's compact execution board distinguishes one **Active** gate from **Pending/Blocked**
+acceptance and **Waiting** final qualification. Several open phases are unfinished commitments,
+not concurrent execution. A gate may be left only after verified acceptance or a named blocker
+with a concrete return trigger. Time-box expiry alone checkpoints work; it does not justify phase
+hopping. Keep the same gate and narrow its next action when useful work remains. A successful
+commit, test count or report never substitutes for closing its original acceptance requirements.
+
 After two bounded qualification batches without gate closure, the anti-drift rule can select
 one acceptance batch in an already implemented, dependency-ready phase, with a concrete return
 trigger in the ledger. On 2026-10-31 the prescribed Q01 series and rejected window-sync candidate
@@ -241,6 +248,14 @@ history and saved-review upload/post-load editing. Native image/extent-based out
 integration retains M06 gate4. Next select M08 gate4's original actual column association/distance/
 history/control/runtime UI integration. Reuse prior definition/caller/process proof rather than
 repeating it; native dialog/retirement/elevation/full-app gaps and all original budgets remain.
+
+Batch96 verifies column association/distance/history/missing-reference input and shared owned
+process holds across two Matrices. A regression-proven pending-removal inspection race is fixed.
+The second/final app run still fails on blocked relaunch (`applications=[]` instead of
+`Unavailable`); recovery and project replacement were not reached. Keep **M08 gate4 active** and
+reduce the next action to that exact accepted-launch/association/demand/runtime mismatch. Preserve
+both failed attempts; no third invocation in this batch, speculative fix, new phase or lowered
+gate. Native dialog/singleton retirement/elevation/full-app acceptance remains required.
 
 ### M00 — Reconcile and define evidence
 

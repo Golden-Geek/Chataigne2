@@ -181,6 +181,53 @@ test('create uses backend defaults and adopts only the current project result', 
 	controller.dispose();
 });
 
+test('history observed before a removal reply cannot inspect the definition being removed', async () => {
+	const session = connection(),
+		state = applicationState(),
+		removal = deferred<MediaEditResult>();
+	let removing = false,
+		staleInspections = 0;
+	const controller = new ApplicationController(
+		() => session,
+		state,
+		catalogState(),
+		async (_, edit) => {
+			if (edit.kind !== 'Applications') throw new Error('wrong route');
+			if (edit.edit.kind === 'Remove') {
+				removing = true;
+				return removal.promise;
+			}
+			if (edit.edit.kind === 'Inspect') {
+				if (removing) {
+					staleInspections++;
+					throw new Error('application reference is missing');
+				}
+				return { kind: 'Application', snapshot: snapshot('owned') };
+			}
+			return { kind: 'Applications', page: { applications: [], total: 0, start: 0 } };
+		}
+	);
+	controller.observe();
+	await flush();
+	controller.select('owned');
+	await flush();
+	const work = controller.edit({ kind: 'Remove', application: 'owned' });
+	session.currentHistoryStateId++;
+	controller.observe();
+	await flush();
+	assert.equal(
+		staleInspections,
+		0,
+		'pending removal owns reconciliation until its committed reply'
+	);
+	removal.resolve({ kind: 'Changed' });
+	await work;
+	assert.equal(state.selected, null);
+	assert.equal(state.snapshot, null);
+	assert.equal(state.readError, '');
+	controller.dispose();
+});
+
 test('definition failures retain selection and saved data; active edit groups block authoring', async () => {
 	const session = connection(),
 		state = applicationState(),

@@ -1,0 +1,75 @@
+{
+	"schema": 1,
+	"batch": 96,
+	"date": "2026-11-01",
+	"gate": "M08/4",
+	"status": "PARTIAL_BLOCKED_RELAUNCH_CHECK_FAILED_GATE_REMAINS_ACTIVE",
+	"base_revision": "61e082388ba3ee880258e0bc22480c7f6c3bd2c8",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+	"invocations": [
+		{
+			"attempt": 1,
+			"exit_code": 1,
+			"application": "6ff9eee5-090b-41c6-a1a8-d4cc72a3025b",
+			"owned_pids": [3572, 34536],
+			"failure": "Restored definition was not reselected before Block new launches input; Remove intentionally clears selection.",
+			"additional_defect": "An obsolete Applications/Inspect was rejected during pending removal before its reply reconciled selection.",
+			"log": "target/m08-column-applications-ui-b96.log",
+			"log_sha256": "1a274764de99edd9bb18e07212dd604e6eb564ab081ff4614e9bbcdfa660e911"
+		},
+		{
+			"attempt": 2,
+			"result": "Assertion failure; no live execution handle remains. Final log confirms normal host exit0.",
+			"application": "5eadf88e-44cb-4122-886e-ab77afa0d9dd",
+			"owned_pids": [20344, 48408],
+			"rejected_requests": 0,
+			"failure": "After blocking new launches, retaining the in-use process, unloading and relaunching Column1, applications=[] instead of the expected Unavailable entry.",
+			"assertion": "column-applications.mjs:297 waits for phase Unavailable; final runtime elapsed_ms=15153, revision=23, callbacks acknowledged=8/pending=0/fault=null, demand/callback services Running, host Headless.",
+			"cause": "Not established. Do not infer backend correctness, fixture error or successful unavailable feedback.",
+			"log": "target/m08-column-applications-ui-b96-final.log",
+			"log_sha256": "badcaf1bb9885575879720a7626a5d75984ac31d007243db9606728116ef2f87",
+			"screenshot": "target/m08-column-applications-ui-failure.png",
+			"screenshot_sha256": "44f123d19b18177462cf0b5cc3c8b0db043bbfe97493a8521b002a39d14258cf",
+			"visual": "Actual Matrix pane has four columns, Column1 requested and UI Column Fixture visible in the outliner. No native Matrix observation/preview is claimed."
+		}
+	],
+	"verified_partial_coverage": [
+		"Actual column association, exact distances, distance Save and whole-snapshot Undo/Redo; remove/copy associations and shared stable definition references.",
+		"Definition removal displays Missing definition while retaining saved references; Undo restores the same application identity.",
+		"Two authored Matrix scopes share one actual owned process; pre/post column holds and final shared-scope Unload stop it.",
+		"Actual runtime Refresh correlates observed Ready/Idle and PID with read-only public runtime state.",
+		"Block new launches preserves the currently in-use Ready process; subsequent actual Unload stops it.",
+		"Both hosts exit0 normally. All four recorded owned PIDs are absent after their runs; no name-based adoption or termination."
+	],
+	"unreached": [
+		"Unavailable runtime UI after blocked relaunch",
+		"Allow new launches recovery with fresh launch/PID",
+		"Actual project New while recovered owned process is active",
+		"Final post-runtime authored snapshots and complete zero-page-error assertion"
+	],
+	"correction": {
+		"owner": "apps/mapgyver/ui/src/lib/applications/authoring.ts",
+		"change": "Do not refresh the selected definition while its mutation reply is pending.",
+		"regression": "History observed before removal reply must produce zero obsolete Inspect calls; fails before correction with one, passes afterward.",
+		"selection": "No automatic reselection after Remove/Undo added. Fixture explicitly selects the restored definition through actual UI."
+	},
+	"checks": {
+		"frontend": "35 Matrix/Application tests pass",
+		"svelte": "0 errors, 0 warnings",
+		"build": "cargo build --locked -p MapGyver --bin MapGyver passes before attempt2",
+		"syntax_prettier": "pass",
+		"both_workspace_formatters": "pass"
+	},
+	"binaries": {
+		"target/debug/MapGyver.exe": "3cadbb216320cbd9e9d4f3f0c22a82149038cf917acb223ce984517b31646314",
+		"target/debug/application_process_fixture.exe": "99ef591036233f59b8d80ac820c7e832d42870b9b4bdbf35165434b54a5c794e",
+		"fixture_arguments": "Empty; finite hidden ProcessStarted fixture, no sender/native flags."
+	},
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "4/10",
+		"next": "Keep M08/4 active; isolate accepted-launch/association/demand/runtime mismatch before a supported correction or later bounded verification. Both invocations spent; no third run this batch.",
+		"retained": "Native executable dialog, singleton retirement, actual elevation, complete app/mode/recovery/cleanup; known PID absence is not complete tree or native qualification. All original budgets remain."
+	}
+}

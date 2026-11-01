@@ -71,6 +71,16 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   Track cumulative effort on the same unresolved issue across batches and continuations; a new
   batch does not reset that day-scale decision point. Present a recommended next action with the
   evidence instead of silently repeating experiments or dropping the requirement.
+- Make execution state explicit: exactly one gate is `Active`; unfinished gates are `Pending`
+  or `Blocked`, with the missing prerequisite and a concrete return action; dependent final
+  qualification is `Waiting`; only verified gates are `Accepted`. Several open phases are a
+  backlog, not authorization to work on them concurrently. Keep this compact board at the top
+  of the active ledger, separate from historical batch reports.
+- Leaving an active gate requires either verified acceptance or a named blocker and return
+  trigger. Hitting a time limit alone is not a blocker or a reason to hop phases. Checkpoint the
+  result and retain the same gate with a smaller next action when useful work remains. Every
+  checkpoint must name the exact remaining requirement; do not replace closure with more
+  preparation, reports or passing-test reruns.
 - Gate native/hardware experiments on terminal success of prerequisite compile/software checks.
   Inspect returned results before issuing dependent validation; do not spend the experiment
   allowance on a known failing build or continue a validation chain after its prerequisite fails.
