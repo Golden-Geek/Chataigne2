@@ -150,6 +150,7 @@ export class ApplicationController<S extends Connection> {
 				return;
 			if (result.kind === 'ApplicationCreated') this.select(result.application);
 			else if (edit.kind === 'Remove' && edit.application === selected) this.select(null);
+			return result;
 		} catch (error) {
 			if (
 				mutation === this.mutation &&

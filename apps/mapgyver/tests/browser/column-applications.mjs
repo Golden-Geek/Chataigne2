@@ -5,6 +5,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { selectMediaChannel } from './media-tree.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 function alive(pid) {
@@ -38,17 +39,30 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
 	const matrix = page.getByRole('region', { name: 'Matrix', exact: true });
 	const apps = page.getByRole('region', { name: 'Applications', exact: true });
-	const button = (name) => matrix.getByRole('button', { name, exact: true });
-	try {
-		async function wait(read, predicate) {
-			const deadline = Date.now() + 7000;
-			while (true) {
-				const value = await read();
-				if (predicate(value)) return value;
-				assert(Date.now() < deadline, `${stage}: ${JSON.stringify(value)}`);
-				await delay(25);
-			}
+	const properties = page.locator('.properties');
+	const actions = page.locator('section[aria-label="Matrix"] .editor-toolbar, .properties');
+	const button = (name) => actions.getByRole('button', { name, exact: true });
+	async function wait(read, predicate) {
+		const deadline = Date.now() + 7000;
+		while (true) {
+			const value = await read();
+			if (predicate(value)) return value;
+			assert(Date.now() < deadline, `${stage}: ${JSON.stringify(value)}`);
+			await delay(25);
 		}
+	}
+	async function selectMatrix(media) {
+		const catalog = await inspectMedia();
+		const snapshot = await inspect(media);
+		await selectMediaChannel(page, catalog, snapshot.final_channel);
+		await tab('Matrix').click();
+		await wait(
+			() => matrix.getByRole('grid').getAttribute('aria-colcount'),
+			(value) => value === String(snapshot.columns.length + 1)
+		);
+		await wait(() => button('Add Matrix').isEnabled(), Boolean);
+	}
+	try {
 		const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		async function restore(media, before, after, back = false) {
@@ -70,16 +84,12 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 				);
 			}
 		}
-		async function selectMatrix(media) {
-			await tab('Matrix').click();
-			await matrix.getByLabel('Matrix media', { exact: true }).selectOption(media);
-			await wait(() => button('Add Matrix').isEnabled(), Boolean);
-		}
+
 		async function selectColumn(label) {
 			const grid = matrix.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 			await grid.getByTitle(`Select ${label}`, { exact: true }).click();
 			await wait(
-				() => matrix.getByLabel('Column name', { exact: true }).inputValue(),
+				() => properties.getByLabel('Column name', { exact: true }).inputValue(),
 				(value) => value === label
 			);
 		}
@@ -109,7 +119,7 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		async function associate(media, column, pre, post) {
 			await selectMatrix(media);
 			await selectColumn(column.label);
-			const form = matrix.getByRole('group', {
+			const form = properties.getByRole('group', {
 				name: 'Associate a shared application',
 				exact: true
 			});
@@ -145,8 +155,10 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 			return current;
 		}
 		async function showRuntime(expected) {
-			await tab('Applications').click();
-			const view = apps.getByRole('region', { name: 'Application runtime', exact: true });
+			await selectApplication();
+			const details = properties.locator('details');
+			if ((await details.getAttribute('open')) === null) await details.locator('summary').click();
+			const view = properties.getByRole('region', { name: 'Application runtime', exact: true });
 			await view.getByRole('button', { name: 'Refresh runtime status', exact: true }).click();
 			const article = view.getByRole('article', { name: `Runtime ${application}`, exact: true });
 			await wait(
@@ -159,9 +171,9 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		}
 		async function selectApplication() {
 			await tab('Applications').click();
-			await apps.locator('nav button').filter({ hasText: 'UI Column Fixture' }).click();
+			await apps.getByRole('button', { name: 'UI Column Fixture', exact: true }).click();
 			await wait(
-				() => apps.getByLabel('Application name', { exact: true }).inputValue(),
+				() => properties.getByLabel('Application name', { exact: true }).inputValue(),
 				(value) => value === 'UI Column Fixture'
 			);
 		}
@@ -171,22 +183,31 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 			await button('Cut').click();
 		}
 		await page.goto(base);
+		await page.getByRole('button', { name: 'Open File menu', exact: true }).click();
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('New', { exact: true }) })
+			.click();
+		await wait(catalog, (value) => value.total === 0);
+		await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 		stage = 'minimal owned application definition';
 		await tab('Applications').click();
-		await apps.getByRole('button', { name: 'Add application', exact: true }).click();
+		await apps.getByRole('button', { name: 'Add child item', exact: true }).click();
 		application = (await wait(catalog, (value) => value.total === 1)).applications[0].id;
-		await apps.getByLabel('Application name', { exact: true }).fill('UI Column Fixture');
-		await apps.getByRole('button', { name: 'Rename application', exact: true }).click();
+		await properties.getByLabel('Application name', { exact: true }).fill('UI Column Fixture');
+		await properties.getByLabel('Application name', { exact: true }).press('Enter');
 		await wait(appSnapshot, (value) => value.label === 'UI Column Fixture');
-		await apps
+		await properties
 			.getByLabel('Executable path', { exact: true })
 			.fill(path.resolve('target/debug/application_process_fixture.exe'));
-		await apps.getByLabel('Window').selectOption('Hidden');
-		await apps.getByLabel('Ready when').selectOption('ProcessStarted');
-		await apps.getByLabel('Graceful stop (ms)', { exact: true }).fill('30');
-		await apps.getByLabel('Retirement timeout (ms)', { exact: true }).fill('1000');
-		await apps.getByLabel('Restart after failure').uncheck();
-		await apps.getByRole('button', { name: 'Save application definition', exact: true }).click();
+		await properties.getByLabel('Window').selectOption('Hidden');
+		await properties.getByLabel('Ready when').selectOption('ProcessStarted');
+		await properties.getByLabel('Graceful stop (ms)', { exact: true }).fill('30');
+		await properties.getByLabel('Retirement timeout (ms)', { exact: true }).fill('1000');
+		await properties.getByLabel('Restart after failure').uncheck();
+		await properties
+			.getByRole('button', { name: 'Save application definition', exact: true })
+			.click();
 		await wait(
 			appSnapshot,
 			(value) => value.definition.executable !== null && !value.definition.restart.enabled
@@ -196,7 +217,7 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 			columns = first.columns;
 		let { before, after } = await associate(first.media, columns[1], 1, 1);
 		await restore(first.media, before, after);
-		const settings = matrix.getByRole('group', { name: 'Column applications', exact: true });
+		const settings = properties.getByRole('group', { name: 'Column applications', exact: true });
 		await wait(
 			() => settings.locator('.association').count(),
 			(value) => value === 1
@@ -242,8 +263,8 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		await associate(first.media, columns[2], 0, 0);
 		const firstAuthored = await inspect(first.media);
 		stage = 'missing definition retains saved column references';
-		await tab('Applications').click();
-		await apps.getByRole('button', { name: 'Remove definition', exact: true }).click();
+		await selectApplication();
+		await properties.getByRole('button', { name: 'Remove definition', exact: true }).click();
 		await wait(catalog, (value) => value.total === 0);
 		await selectMatrix(first.media);
 		await selectColumn(columns[1].label);
@@ -286,7 +307,7 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		const running = await phase('Ready');
 		assert.notEqual(running.launch, initial.launch);
 		await selectApplication();
-		await apps.getByRole('button', { name: 'Block new launches', exact: true }).click();
+		await properties.getByLabel('Allow new launches', { exact: true }).uncheck();
 		await wait(appSnapshot, (value) => value.enablement === 'Disabled');
 		assert.equal((await phase('Ready')).process_id, running.process_id);
 		await selectMatrix(first.media);
@@ -300,7 +321,7 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		const unavailable = await phase('Unavailable');
 		assert.equal(unavailable.process_id, null);
 		await showRuntime(unavailable);
-		await apps.getByRole('button', { name: 'Allow new launches', exact: true }).click();
+		await properties.getByLabel('Allow new launches', { exact: true }).check();
 		await wait(appSnapshot, (value) => value.enablement === 'Enabled');
 		const recovered = await phase('Ready');
 		await showRuntime(recovered);
@@ -361,8 +382,7 @@ export async function verifyColumnApplicationsUi({ base, edit, inspectMedia }) {
 		for (const media of matrices) {
 			try {
 				if (!(await inspectMedia()).media.some((entry) => entry.id === media)) continue;
-				await tab('Matrix').click();
-				await matrix.getByLabel('Matrix media', { exact: true }).selectOption(media);
+				await selectMatrix(media);
 				if (await button('Unload Matrix').isEnabled()) await button('Unload Matrix').click();
 			} catch {}
 		}

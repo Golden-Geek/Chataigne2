@@ -1,0 +1,30 @@
+{
+	"date": "2026-11-01",
+	"gate": "M08.4 Application and column new-layout input",
+	"status": "PARTIAL_STALE_DELETION_HISTORY_INSPECTION_COLUMN_FIXTURE_UNRUN",
+	"acceptance": "No gate closes; M08 stays3/4, overall4/10=40%, original scope retained.",
+	"base_revision": "4c760af59314327778a2c83ce3e0f304ea9dd9f3",
+	"candidate_sha256": "d01a3fc546034254a32637a1c795ae204e3b4bb92c3c0ddf464a18b0a7f463c4",
+	"product": "Shared Inspector adds the standard application-name field and adopts committed duplicate identity through the pre-operation selection guard. Controller returns only current mutation replies. Inspector unifies node/session observation and clears absent/changing graph ownership; this alone does not resolve the remaining deletion-history race.",
+	"software": "67frontend tests, Svelte0errors/0warnings, ordinary bundled build, JS syntax and Prettier pass. Rust/backend/native unchanged; prior210Rust pass/1existing ignore and clippy retained. Existing owned fixture builds with its application-process-fixture feature; ordinary app builds separately without that feature.",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --application-ui --column-applications-ui",
+	"runs": [
+		{
+			"invocation": 1,
+			"log": "target/mapgyver-m08-workbench-first.log",
+			"sha256": "8665598ee504b65cfc090008178ddcafb8e4d0c7ab301c7fd1c1c87c355ebf49",
+			"result": "fail:2rejections instead of1; extra receipt not printed; no cause inferred",
+			"host_exit": 0
+		},
+		{
+			"invocation": 2,
+			"log": "target/mapgyver-m08-workbench-corrected.log",
+			"sha256": "651b04345ee8aa0a743755f77b96c9829b5faeb5e841e492fd03e01d3cff2214",
+			"result": "fail:expected Configure unsupported.cmd rejection plus unexpected Inspect for the removed application; error application reference is missing",
+			"host_exit": 0
+		}
+	],
+	"verified_partial": "Both runs reach final strict receipt assertion after actual creation/name editing, complete launch definition, environment replacement/inheritance, exact definition history, duplicate Inspector adoption, independent enablement, removal/Undo and invalid executable rejection without definition/history mutation. Form edits launch no process.",
+	"unverified": "Complete Application fixture does not pass. Migrated column association/history/shared-process/recovery/New fixture never starts. No target process launches; only owned browsers/headless hosts run and close. No native dialog, desktop lifecycle, singleton retirement or full-app result.",
+	"next": "Same active M08 gate4: add software regression for read dispatch across removal Redo receipt and graph publication, repair the owning lifecycle boundary, then finish original column scope. Stop at2live invocations; do not weaken strict rejection assertions or rerun the unchanged candidate."
+}
