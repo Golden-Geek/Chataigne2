@@ -453,6 +453,38 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		assert(rendered > 0 && rendered < 24 * 16, 'DOM renders a bounded visible window');
 		assert.deepEqual(await inspect(), large);
 		assert.equal((await playback()).desired_column, null, 'scrolling cannot launch');
+		stage = 'offscreen selection retains usable Inspector and history';
+		assert.equal(await grid.getByTitle('Select UI Lower', { exact: true }).count(), 0);
+		assert.equal(await grid.getByTitle('Select UI First', { exact: true }).count(), 0);
+		await wait(
+			() => properties.getByLabel('Row name', { exact: true }).inputValue(),
+			(value) => value === 'UI Lower'
+		);
+		await wait(
+			() => properties.getByLabel('Column name', { exact: true }).inputValue(),
+			(value) => value === 'UI First'
+		);
+		await wait(
+			() => properties.innerText(),
+			(value) => value.includes(`Assigned source: ${solid.channels[0].label}`)
+		);
+		await nameForm('Row name').getByLabel('Row name', { exact: true }).fill('Offscreen edited');
+		await nameForm('Row name').getByRole('button', { name: 'Rename', exact: true }).click();
+		const offscreenEdit = await wait(
+			inspect,
+			(value) =>
+				value.items.find((entry) => entry.id.id === lower.id.id).label === 'Offscreen edited'
+		);
+		await restore(large, offscreenEdit, true);
+		await wait(
+			() => properties.getByLabel('Row name', { exact: true }).inputValue(),
+			(value) => value === 'UI Lower'
+		);
+		assert.equal(
+			await grid.getByTitle('Select UI Lower', { exact: true }).count(),
+			0,
+			'Inspector editing never scrolls the grid'
+		);
 		await page.setViewportSize({ width: 2560, height: 1200 });
 		await ready();
 		await grid.scrollIntoViewIfNeeded();
@@ -492,6 +524,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 				media: root.id,
 				rows: large.items.length,
 				columns: large.columns.length,
+				offscreen_inspector_edit_history: 'pass',
 				rendered_cells: rendered,
 				visible_row_indices: indices,
 				grid_geometry: geometry,

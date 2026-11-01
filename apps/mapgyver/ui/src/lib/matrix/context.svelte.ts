@@ -10,6 +10,7 @@ import { previewKey } from '../preview/identity';
 import { matrixFeedback } from './render-feedback';
 import { useDocumentSelection } from '../selection.svelte';
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
+import { sameSelection } from './selection';
 const key = Symbol('mapgyver-matrix-editor');
 export function provideMatrixAuthoring() {
 	const session = $derived(appState.session);
@@ -41,19 +42,12 @@ export function provideMatrixAuthoring() {
 			session?.status === 'connected' && !session.loading.visible
 		)
 	);
-	const selectedRow = $derived(
-		matrixWindow?.rows.find((row) => row.item.id.id === view.selected?.item?.id)
+	const selected = $derived(
+		sameSelection(matrixWindow?.selected?.selection, view.selected) ? matrixWindow?.selected : null
 	);
-	const selectedColumn = $derived(
-		matrixWindow?.columns.find((column) => column.id === view.selected?.column)
-	);
-	const selectedCell = $derived(
-		matrixWindow?.cells.find(
-			(value) =>
-				value.cell.layer === view.selected?.item?.id &&
-				value.cell.definition.column === view.selected?.column
-		)
-	);
+	const selectedRow = $derived(selected?.row);
+	const selectedColumn = $derived(selected?.column);
+	const selectedCell = $derived(selected?.cell);
 	let draft = $state('');
 	let draftKey = '';
 	const definition = $derived.by(() => {
@@ -108,7 +102,6 @@ export function provideMatrixAuthoring() {
 			media = parent === undefined ? undefined : graph.nodesById.get(parent);
 		}
 		const choices = matrices.page;
-		const window = matrixWindow;
 		untrack(() => {
 			if (
 				media?.node_type === 'mapgyver.media' &&
@@ -116,12 +109,13 @@ export function provideMatrixAuthoring() {
 			) {
 				if (view.media !== media.uuid) controller.selectMedia(media.uuid);
 			}
-			const row = window?.rows.find((row) => row.item.id.id === node.uuid);
-			const column = window?.columns.find((column) => column.id === node.uuid);
-			if (row && view.selected?.item?.id !== row.item.id.id)
-				controller.select(row.item.id, view.selected?.column ?? null);
-			else if (column && view.selected?.column !== column.id)
-				controller.select(view.selected?.item ?? null, column.id);
+			if (node.node_type === 'mapgyver.matrix.layer' || node.node_type === 'mapgyver.matrix.group')
+				controller.select(
+					{ kind: node.node_type === 'mapgyver.matrix.layer' ? 'Layer' : 'Group', id: node.uuid },
+					view.selected?.column ?? null
+				);
+			else if (node.node_type === 'mapgyver.matrix.column')
+				controller.select(view.selected?.item ?? null, node.uuid);
 		});
 	});
 	const owner = {

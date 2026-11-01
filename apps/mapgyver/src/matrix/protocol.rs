@@ -174,6 +174,18 @@ pub struct MatrixViewCell {
     pub source_label: Option<String>,
     pub source_missing: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixSelection {
+    pub item: Option<MatrixItemId>,
+    pub column: Option<ColumnId>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixSelectionSnapshot {
+    pub selection: MatrixSelection,
+    pub row: Option<MatrixViewRow>,
+    pub column: Option<ColumnSnapshot>,
+    pub cell: Option<MatrixViewCell>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewportSnapshot {
     /// Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
@@ -188,6 +200,8 @@ pub struct MatrixViewportSnapshot {
     pub rows: Vec<MatrixViewRow>,
     pub columns: Vec<ColumnSnapshot>,
     pub cells: Vec<MatrixViewCell>,
+    /// Inspector data is bounded independently of the virtualized grid window.
+    pub selected: Option<Box<MatrixSelectionSnapshot>>,
     pub playback: MatrixPlaybackSnapshot,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -229,6 +243,7 @@ pub enum MatrixEdit {
     },
     InspectViewport {
         viewport: MatrixViewport,
+        selection: Option<MatrixSelection>,
     },
     LaunchColumn {
         column: ColumnId,

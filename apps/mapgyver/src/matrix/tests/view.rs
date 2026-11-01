@@ -6,6 +6,7 @@ fn viewport(engine: &mut AppEngine, media: MediaId, row: u32, column: u32) -> Ma
         engine,
         media,
         MatrixEdit::InspectViewport {
+            selection: None,
             viewport: MatrixViewport {
                 row_start: row,
                 row_count: 16,
@@ -133,6 +134,100 @@ fn viewport_refreshes_structure_payload_labels_history_and_missing_source_withou
 }
 
 #[test]
+fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_source_loss() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let items = layers(&mut engine, matrix.media, None, 128);
+    let columns = columns(&mut engine, matrix.media, 128);
+    let selection = MatrixSelection {
+        item: Some(items[127]),
+        column: Some(columns[127]),
+    };
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::SetCells {
+            assignments: vec![CellAssignment {
+                layer: layer(items[127]),
+                column: columns[127],
+                source: Some(source),
+            }],
+        },
+    );
+    let read = |engine: &mut AppEngine, selection| {
+        let MediaEditResult::MatrixViewport { snapshot } = edit(
+            engine,
+            matrix.media,
+            MatrixEdit::InspectViewport {
+                viewport: MatrixViewport {
+                    row_start: 0,
+                    row_count: 1,
+                    column_start: 0,
+                    column_count: 1,
+                },
+                selection: Some(selection),
+            },
+        ) else {
+            panic!()
+        };
+        assert_eq!(
+            (snapshot.rows.len(), snapshot.columns.len(), snapshot.cells.len()),
+            (1, 1, 0)
+        );
+        assert!(snapshot.playback.desired_column.is_none());
+        snapshot.selected.unwrap()
+    };
+    let history = engine.undo_len();
+    let authored = to_sparse_project_json_pretty(&engine).unwrap();
+    let selected = read(&mut engine, selection);
+    assert_eq!(selected.selection, selection);
+    assert_eq!(selected.row.as_ref().unwrap().item.id, items[127]);
+    assert_eq!(selected.column.as_ref().unwrap().id, columns[127]);
+    assert_eq!(selected.cell.as_ref().unwrap().cell.definition.source, Some(source));
+    assert!(!selected.cell.as_ref().unwrap().source_missing);
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);
+
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::RenameItem {
+            item: items[127],
+            label: "Offscreen".into(),
+        },
+    );
+    assert_eq!(read(&mut engine, selection).row.unwrap().item.label, "Offscreen");
+    assert!(engine.undo().unwrap());
+    assert_eq!(
+        read(&mut engine, selection).row.unwrap().item.label,
+        selected.row.unwrap().item.label
+    );
+    assert!(engine.redo().unwrap());
+    assert_eq!(read(&mut engine, selection).row.unwrap().item.label, "Offscreen");
+    apply(&mut engine, MediaEdit::RemoveMedia { media: source.media });
+    assert!(read(&mut engine, selection).cell.unwrap().source_missing);
+    assert!(engine.undo().unwrap());
+    assert!(!read(&mut engine, selection).cell.unwrap().source_missing);
+    edit(&mut engine, matrix.media, MatrixEdit::RemoveItem { item: items[127] });
+    let missing = read(&mut engine, selection);
+    assert!(missing.row.is_none() && missing.cell.is_none());
+    assert_eq!(missing.column.unwrap().id, columns[127]);
+    assert!(engine.undo().unwrap());
+    assert_eq!(read(&mut engine, selection).row.unwrap().item.id, items[127]);
+    let missing = read(
+        &mut engine,
+        MatrixSelection {
+            item: Some(MatrixItemId::Layer {
+                id: LayerId(matrix.media.0),
+            }),
+            column: Some(ColumnId(matrix.media.0)),
+        },
+    );
+    assert!(missing.row.is_none() && missing.column.is_none() && missing.cell.is_none());
+}
+
+#[test]
 fn oversized_viewports_and_choice_queries_reject_without_changes() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
@@ -144,6 +239,7 @@ fn oversized_viewports_and_choice_queries_reject_without_changes() {
                 MediaEdit::Matrix {
                     media: matrix.media,
                     edit: MatrixEdit::InspectViewport {
+                        selection: None,
                         viewport: MatrixViewport {
                             row_start: 0,
                             row_count: rows,

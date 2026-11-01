@@ -56,6 +56,7 @@ function snapshot(media: string, row = 0): MediaEditResult {
 			rows: [],
 			columns: [],
 			cells: [],
+			selected: null,
 			playback: {
 				desired_column: null,
 				launch_id: null,
@@ -215,7 +216,13 @@ test('assignment invokes only its explicit backend intent; a later launch is sep
 		}
 	);
 	controller.select({ kind: 'Layer', id: 'layer' }, 'column');
-	assert.equal(calls.length, 0);
+	assert.deepEqual(calls, [
+		{
+			kind: 'Matrix',
+			media: 'matrix',
+			edit: { kind: 'InspectViewport', viewport: state.viewport, selection: state.selected }
+		}
+	]);
 	await controller.edit({
 		kind: 'SetCells',
 		assignments: [
@@ -263,6 +270,47 @@ test('a stale creation cannot select a backend identity in the replacement proje
 	await flush();
 	assert.equal(state.media, null);
 	assert.equal(state.pending, false);
+	controller.dispose();
+});
+
+test('selection changes coalesce with viewport reads and suppress superseded Inspector replies', async () => {
+	const session = connection(),
+		state = matrixState();
+	state.media = 'matrix';
+	const reads: { edit: MediaEdit; reply: ReturnType<typeof deferred<MediaEditResult>> }[] = [];
+	const controller = new MatrixController(
+		() => session,
+		state,
+		choiceState(),
+		choiceState(),
+		async (_, edit) => {
+			const reply = deferred<MediaEditResult>();
+			reads.push({ edit, reply });
+			return reply.promise;
+		}
+	);
+	const first = { item: { kind: 'Layer' as const, id: 'first' }, column: 'first-column' };
+	const last = { item: { kind: 'Layer' as const, id: 'last' }, column: 'last-column' };
+	controller.select(first.item, first.column);
+	controller.select(last.item, last.column);
+	assert.equal(reads.length, 1);
+	reads[0].reply.resolve(snapshot('matrix'));
+	await flush();
+	assert.equal(state.window, null, 'superseded selection must never publish');
+	assert.equal(reads.length, 2);
+	assert.deepEqual(reads[1].edit, {
+		kind: 'Matrix',
+		media: 'matrix',
+		edit: { kind: 'InspectViewport', viewport: state.viewport, selection: last }
+	});
+	const current = snapshot('matrix');
+	assert(current.kind === 'MatrixViewport');
+	current.snapshot.selected = { selection: last, row: null, column: null, cell: null };
+	reads[1].reply.resolve(current);
+	await flush();
+	assert.deepEqual(controller.window?.selected?.selection, last);
+	controller.select(last.item, last.column);
+	assert.equal(reads.length, 2, 'reselect does not create a duplicate read');
 	controller.dispose();
 });
 

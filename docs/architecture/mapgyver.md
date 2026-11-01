@@ -727,7 +727,11 @@ column launch/Cut. Row and column headings select independently, including when 
 empty. The panel exposes sparse layer/group/column creation, copy/removal and the existing
 native Final preview. `MatrixEdit::InspectViewport` returns at most 128 rows, 64 columns and 4,096
 addresses; the UI requests at most 64 by 32 and mounts only that window. Compressed rem-based scroll
-ranges retain normal cell dimensions without giant browser canvases. Each controller keeps one
+ranges retain normal cell dimensions without giant browser canvases. An optional typed selection
+in the same query returns at most one row, column and cell, independently of that window; cached
+identity indices resolve them and the current source availability without scanning the document.
+The shared Inspector uses that selection reply, retaining editable offscreen objects; it never
+uses visible grid rows as the authoritative selected definition. Each controller keeps one
 active read and one latest replacement, fenced by session, project generation and history. Switching
 Matrices resets the grid's scroll context. `InspectChoices` supplies searched, paged channel IDs and
 labels without copying channel definitions; Matrix selection filters to Final outputs.

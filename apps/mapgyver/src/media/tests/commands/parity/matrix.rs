@@ -322,6 +322,10 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
         for query in [
             MatrixEdit::InspectPlayback,
             MatrixEdit::InspectViewport {
+                selection: Some(crate::matrix::protocol::MatrixSelection {
+                    item: Some(scene.snapshot.items[0].id),
+                    column: Some(scene.snapshot.columns[0].id),
+                }),
                 viewport: MatrixViewport {
                     row_start: 0,
                     row_count: 32,
@@ -354,6 +358,7 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                 },
             },
             MatrixEdit::InspectViewport {
+                selection: None,
                 viewport: MatrixViewport {
                     row_start: 0,
                     row_count: 0,
@@ -387,7 +392,8 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                 assert!(matches!(
                     query,
                     MatrixEdit::InspectViewport {
-                        viewport: MatrixViewport { row_count: 0, .. }
+                        viewport: MatrixViewport { row_count: 0, .. },
+                        ..
                     }
                 ));
             }

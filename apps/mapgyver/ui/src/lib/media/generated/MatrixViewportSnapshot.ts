@@ -2,6 +2,7 @@
 import type { ChannelSnapshot } from "./ChannelSnapshot";
 import type { ColumnSnapshot } from "./ColumnSnapshot";
 import type { MatrixPlaybackSnapshot } from "./MatrixPlaybackSnapshot";
+import type { MatrixSelectionSnapshot } from "./MatrixSelectionSnapshot";
 import type { MatrixViewCell } from "./MatrixViewCell";
 import type { MatrixViewRow } from "./MatrixViewRow";
 import type { MediaId } from "./MediaId";
@@ -10,4 +11,8 @@ export type MatrixViewportSnapshot = {
 /**
  * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
  */
-project: string, media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, column_total: number, row_start: number, column_start: number, rows: Array<MatrixViewRow>, columns: Array<ColumnSnapshot>, cells: Array<MatrixViewCell>, playback: MatrixPlaybackSnapshot, };
+project: string, media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, column_total: number, row_start: number, column_start: number, rows: Array<MatrixViewRow>, columns: Array<ColumnSnapshot>, cells: Array<MatrixViewCell>,
+/**
+ * Inspector data is bounded independently of the virtualized grid window.
+ */
+selected: MatrixSelectionSnapshot | null, playback: MatrixPlaybackSnapshot, };

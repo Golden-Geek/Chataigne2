@@ -1,0 +1,51 @@
+{
+	"date": "2026-11-01",
+	"gate": "M07.3 offscreen shared Inspector correction",
+	"status": "INPUT_PROJECT_OFFSCREEN_EDIT_VERIFIED_NATIVE_FEEDBACK_OPEN",
+	"acceptance": "No gate closes; M07 stays3/4, overall4/10=40%, fixed budgets retained.",
+	"base_revision": "46f3977e495e4af8d2398daa4ba2e7acccca8044",
+	"candidate_sha256": "0bb413c9446c7d74cfb0df19641714304a101eaf3d7a6aac42ff05370ffd7555",
+	"change": "InspectViewport accepts an optional typed selection and returns at most one selected row/column/cell beside the bounded grid. Cached identity indices resolve live definitions/source availability. Shared Inspector uses this reply; existing single active/latest read queue and session/project/history fencing remain. Rust is the protocol source; generated TypeScript updated together. General design rules require selected properties independently of virtualization.",
+	"software": {
+		"rust": "210pass/1existing ignore; includes generated DTO parity, all-caller read parity and bounded offscreen/history/source-loss/deletion tests",
+		"rust_log": "target/mapgyver-m07-offscreen-rust-final.log",
+		"rust_log_sha256": "a7a961f9e6ae8f9d06a1250a392d4c6b0c708e8d61ae01a0434516b6966cf675",
+		"frontend": "67pass; delayed/superseded selection and reordered-reply identity regression included",
+		"svelte": "0errors/0warnings",
+		"clippy": "pass with warnings denied; optional selection boxed to resolve enlarged result enum",
+		"ordinary_build": "pass"
+	},
+	"command": "node apps/mapgyver/tests/headless/media.mjs --matrix-ui --matrix-project-ui",
+	"runs": [
+		{
+			"invocation": 1,
+			"result": "fail",
+			"log": "target/mapgyver-m07-offscreen-first.log",
+			"sha256": "5ffb7d538cfe2526ac35ec20e64ccf82ad559e75b9a15380fa97e2641ec1189f",
+			"cause": "New selection comparison incorrectly used JSON member order; initial Group Inspector failed to adopt reordered backend DTO. Replaced with typed item kind/ID and column equality plus regression test.",
+			"page_errors": 0,
+			"rejected_requests": 0,
+			"host_exit": 0
+		},
+		{
+			"invocation": 2,
+			"result": "pass",
+			"log": "target/mapgyver-m07-offscreen-corrected.log",
+			"sha256": "77386850faac2854c6353d0abd91e45d143c83e5a639041bbd4be99f090bb1fc",
+			"hosted_flow_ms": 27214,
+			"host_exit": 0,
+			"expected_cycle_rejections": 1,
+			"other_rejections": 0,
+			"page_errors": 0,
+			"project_rejections": 0
+		}
+	],
+	"new_browser_proof": "Selected UI Lower/UI First are absent from rendered grid after keyboard scrolling. Inspector retains row name, column name and assigned source; offscreen rename commits and exact Undo/Redo/Undo works without moving the grid. All prior full input/history/resize/source-recovery/panel and actual New/review upload/fresh epoch/history assertions still pass.",
+	"review_sha256": "756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9",
+	"screenshot": {
+		"path": "target/m07-matrix-ui.png",
+		"sha256": "1929fe5f6e7e7f804058402454af856d7859beab8449f48bda0f4fb123657f09",
+		"review": "Inspected: central grid shows Layer5+/Column8+ while shared Inspector retains UI Lower/UI First, assigned Second source and editable row properties. Native preview unavailable; no renderer result inferred."
+	},
+	"limits": "Native preparation/installation/submission feedback remains required. Original physical/resource/full-app gates unchanged. Both hosts exit0 and owned browsers close. No third invocation; next independent work is existing M08 Application fixture migration."
+}

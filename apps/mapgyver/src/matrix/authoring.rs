@@ -88,8 +88,8 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if let MatrixEdit::InspectTargets { query } = edit {
         return super::view::targets(engine, media, query);
     }
-    if let MatrixEdit::InspectViewport { viewport } = edit {
-        return super::view::inspect(engine, media, viewport);
+    if let MatrixEdit::InspectViewport { viewport, selection } = edit {
+        return super::view::inspect(engine, media, viewport, selection);
     }
     if let MatrixEdit::LaunchColumn { column, mode } = edit {
         return super::playback::launch(engine, media, column, mode);

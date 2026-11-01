@@ -77,6 +77,10 @@ supersedes their previous layout acceptance; existing domain behavior and native
 5. Apply the same workbench conventions to remaining app UIs, including Applications. Preserve
    authoring, selection, history, lifecycle fencing, missing references and all public callers.
 
+Shared Inspector selection is independent of editor visibility and virtualization. Scrolling a
+selected object out of the canvas/grid must retain its properties and editing/history. Use bounded
+backend inspection at this boundary rather than full-document reads or stale UI-owned copies.
+
 Reuse Golden's public components/hooks. Add only app-neutral shared primitives there and keep
 MapGyver policy/inspectors in the app. Do not imitate a tree with local-only folders or make UI
 state the source of document behavior. Verify the bundled UI with real pointer/keyboard input,

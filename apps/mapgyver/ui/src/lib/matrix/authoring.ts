@@ -4,16 +4,18 @@ import type { MatrixEdit } from '../media/generated/MatrixEdit';
 import type { MatrixItemId } from '../media/generated/MatrixItemId';
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
 import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
+import type { MatrixSelection } from '../media/generated/MatrixSelection';
 import { ChoiceReader, choiceState } from './choices.ts';
 import type { Connection } from '../requests/connection';
 import { ReadQueue } from '../requests/read-queue.ts';
+import { sameSelection } from './selection.ts';
 
 export interface MatrixState {
 	generation: number | null;
 	media: string | null;
 	window: MatrixViewportSnapshot | null;
 	viewport: MatrixViewport;
-	selected: { item: MatrixItemId | null; column: string | null } | null;
+	selected: MatrixSelection | null;
 	pending: boolean;
 	refreshing: boolean;
 	error: string;
@@ -125,7 +127,9 @@ export class MatrixController<S extends Connection> {
 		this.refresh();
 	}
 	select(item: MatrixItemId | null, column: string | null) {
+		if (sameSelection(this.state.selected, { item, column })) return;
 		this.state.selected = { item, column };
+		this.refresh();
 	}
 	setViewport(viewport: MatrixViewport) {
 		if (this.disposed) return;
@@ -144,6 +148,7 @@ export class MatrixController<S extends Connection> {
 		const generation = session.snapshotGeneration,
 			history = session.currentHistoryStateId,
 			viewport = { ...this.state.viewport };
+		const selection = this.state.selected ? { ...this.state.selected } : null;
 		const current = () =>
 			this.current(session, generation, media) && history === session.currentHistoryStateId;
 		this.state.refreshing = true;
@@ -153,7 +158,7 @@ export class MatrixController<S extends Connection> {
 				this.invoke(session, {
 					kind: 'Matrix',
 					media,
-					edit: { kind: 'InspectViewport', viewport }
+					edit: { kind: 'InspectViewport', viewport, selection }
 				}),
 			(result) => {
 				if (!current()) return;

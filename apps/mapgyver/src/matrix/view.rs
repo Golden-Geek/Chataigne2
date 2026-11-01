@@ -9,7 +9,9 @@ use std::{collections::HashMap, sync::Arc};
 
 pub(crate) struct ViewIndex {
     rows: Vec<ViewRow>,
+    row_positions: HashMap<MatrixItemId, usize>,
     columns: Vec<(ColumnId, NodeId)>,
+    column_nodes: HashMap<ColumnId, NodeId>,
     cells: HashMap<(LayerId, ColumnId), NodeId>,
 }
 struct ViewRow {
@@ -22,7 +24,7 @@ struct ViewRow {
 impl ViewIndex {
     fn build(document: Document) -> Self {
         let mut depths = HashMap::new();
-        let rows = document
+        let rows: Vec<_> = document
             .snapshot
             .items
             .iter()
@@ -47,8 +49,14 @@ impl ViewIndex {
             .map(|column| (column.id, document.columns[&column.id]))
             .collect();
         Self {
+            row_positions: rows
+                .iter()
+                .enumerate()
+                .map(|(position, row)| (row.id, position))
+                .collect(),
             rows,
             columns,
+            column_nodes: document.columns,
             cells: document.cells,
         }
     }
@@ -139,7 +147,97 @@ pub(super) fn targets(engine: &AppEngine, media: MediaId, query: MatrixTargetQue
     Ok(MediaEditResult::MatrixTargets { page })
 }
 
-pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewport) -> Result<MediaEditResult, String> {
+fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, String> {
+    let Some(AppNode::MatrixElement(node)) = engine.nodes.get(row.node) else {
+        return Err("Matrix row changed".into());
+    };
+    let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = node.definition() else {
+        return Err("Matrix row type changed".into());
+    };
+    Ok(MatrixViewRow {
+        item: MatrixItemSnapshot {
+            id: row.id,
+            parent: row.parent,
+            label: node.node_data().meta.label.clone(),
+            settings: settings.clone(),
+            channel: row.channel,
+        },
+        depth: row.depth,
+    })
+}
+
+fn column_snapshot(engine: &AppEngine, id: ColumnId, node_id: NodeId) -> Result<ColumnSnapshot, String> {
+    let Some(AppNode::MatrixElement(node)) = engine.nodes.get(node_id) else {
+        return Err("Matrix column changed".into());
+    };
+    let ElementDefinition::Column { definition } = node.definition() else {
+        return Err("Matrix column type changed".into());
+    };
+    Ok(ColumnSnapshot {
+        id,
+        label: node.node_data().meta.label.clone(),
+        definition: definition.clone(),
+    })
+}
+
+fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<MatrixViewCell, String> {
+    let Some(AppNode::MatrixElement(cell)) = engine.nodes.get(node_id) else {
+        return Err("Matrix cell changed".into());
+    };
+    let ElementDefinition::Cell { definition } = cell.definition() else {
+        return Err("Matrix cell type changed".into());
+    };
+    let source = definition
+        .source
+        .and_then(|reference| crate::media::channel(engine, reference).ok());
+    Ok(MatrixViewCell {
+        cell: CellSnapshot {
+            id: CellId(cell.node_data().meta.uuid),
+            layer,
+            definition: definition.clone(),
+        },
+        source_label: source.as_ref().map(|source| source.label.clone()),
+        source_missing: definition.source.is_some() && source.is_none(),
+    })
+}
+
+fn selected_snapshot(
+    engine: &AppEngine,
+    index: &ViewIndex,
+    selection: MatrixSelection,
+) -> Result<MatrixSelectionSnapshot, String> {
+    let row = selection
+        .item
+        .and_then(|id| index.row_positions.get(&id))
+        .map(|position| row_snapshot(engine, &index.rows[*position]))
+        .transpose()?;
+    let column = selection
+        .column
+        .and_then(|id| index.column_nodes.get(&id).map(|node| (id, *node)))
+        .map(|(id, node)| column_snapshot(engine, id, node))
+        .transpose()?;
+    let cell = match (row.as_ref().map(|row| row.item.id), column.as_ref()) {
+        (Some(MatrixItemId::Layer { id: layer }), Some(column)) => index
+            .cells
+            .get(&(layer, column.id))
+            .map(|node| cell_snapshot(engine, layer, *node))
+            .transpose()?,
+        _ => None,
+    };
+    Ok(MatrixSelectionSnapshot {
+        selection,
+        row,
+        column,
+        cell,
+    })
+}
+
+pub(super) fn inspect(
+    engine: &AppEngine,
+    media: MediaId,
+    viewport: MatrixViewport,
+    selection: Option<MatrixSelection>,
+) -> Result<MediaEditResult, String> {
     if viewport.row_count == 0
         || viewport.row_count > 128
         || viewport.column_count == 0
@@ -165,35 +263,10 @@ pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewpo
         .skip(column_start)
         .take(usize::from(viewport.column_count))
     {
-        let Some(AppNode::MatrixElement(node)) = engine.nodes.get(*node_id) else {
-            return Err("Matrix column changed".into());
-        };
-        let ElementDefinition::Column { definition } = node.definition() else {
-            return Err("Matrix column type changed".into());
-        };
-        columns.push(ColumnSnapshot {
-            id: *id,
-            label: node.node_data().meta.label.clone(),
-            definition: definition.clone(),
-        });
+        columns.push(column_snapshot(engine, *id, *node_id)?);
     }
     for row in index.rows.iter().skip(row_start).take(usize::from(viewport.row_count)) {
-        let Some(AppNode::MatrixElement(node)) = engine.nodes.get(row.node) else {
-            return Err("Matrix row changed".into());
-        };
-        let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = node.definition() else {
-            return Err("Matrix row type changed".into());
-        };
-        rows.push(MatrixViewRow {
-            item: MatrixItemSnapshot {
-                id: row.id,
-                parent: row.parent,
-                label: node.node_data().meta.label.clone(),
-                settings: settings.clone(),
-                channel: row.channel,
-            },
-            depth: row.depth,
-        });
+        rows.push(row_snapshot(engine, row)?);
         let MatrixItemId::Layer { id: layer } = row.id else {
             continue;
         };
@@ -201,24 +274,7 @@ pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewpo
             let Some(cell_id) = index.cells.get(&(layer, column.id)) else {
                 continue;
             };
-            let Some(AppNode::MatrixElement(cell)) = engine.nodes.get(*cell_id) else {
-                return Err("Matrix cell changed".into());
-            };
-            let ElementDefinition::Cell { definition } = cell.definition() else {
-                return Err("Matrix cell type changed".into());
-            };
-            let source = definition
-                .source
-                .and_then(|reference| crate::media::channel(engine, reference).ok());
-            cells.push(MatrixViewCell {
-                cell: CellSnapshot {
-                    id: CellId(cell.node_data().meta.uuid),
-                    layer,
-                    definition: definition.clone(),
-                },
-                source_label: source.as_ref().map(|source| source.label.clone()),
-                source_missing: definition.source.is_some() && source.is_none(),
-            });
+            cells.push(cell_snapshot(engine, layer, *cell_id)?);
         }
     }
     Ok(MediaEditResult::MatrixViewport {
@@ -240,6 +296,10 @@ pub(super) fn inspect(engine: &AppEngine, media: MediaId, viewport: MatrixViewpo
             rows,
             columns,
             cells,
+            selected: selection
+                .map(|selection| selected_snapshot(engine, &index, selection))
+                .transpose()?
+                .map(Box::new),
             playback: control.snapshot(),
         },
     })

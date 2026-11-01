@@ -4,12 +4,11 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Execution: Matrix's original new-layout input and project-lifetime checks pass.**
-M07 remains3/4: native renderer feedback stays required. Screenshot review also identifies a
-concrete remaining UI defect: scrolling the selected row/column out of the virtualized window
-removes its Inspector fields while the shared Inspector header retains that selection. Only
-M07 gate3 is active; next fix selection inspection at a bounded backend/UI boundary, independent
-of the visible grid. Preserve passing input/project evidence and all retained native gates.
+**Execution: Matrix's new-layout input/project checks and offscreen Inspector editing pass.**
+M07 remains3/4 for actual native renderer feedback, returning on supported current-build control
+or manual observation. The selection correction is complete; do not repeat passing Matrix UI
+checks as native evidence. After this checkpoint is pushed, only M08 gate4's remaining Application
+fixture migration is active. Its native executable picker/OS/retirement/full-app scope stays open.
 
 **M07 Matrix-layout batch — 2026-11-01 20:38 CET, stop 21:23 CET:** previous turn is progress,
 pushed as `a74e3d1c`, clean checkout. Only M07 gate3's remaining redesigned input is active.
@@ -32,7 +31,7 @@ before drafting the column override and assert its checked100ms state immediatel
 Preserve the first failure; no product cause inferred yet. Invocation2 is the final permitted
 live comparison, with all original scope/tolerances retained.
 
-**M07 redesign input result — 20:55 CET:** invocation2 passes both complete original fixtures
+**M07 redesign input result — 20:51 CET:** invocation2 passes both complete original fixtures
 and source/history/Save/New/Load baseline, **exit0 /26,265 ms** hosted flow. Toolbar creation
 adopts the committed Matrix channel Inspector, and selected row/column removal retains a usable
 parent. Backend result IDs and the existing pre-operation selection guard fence late replies.
@@ -49,6 +48,36 @@ The final screenshot exposes the offscreen-selection Inspector defect above: do 
 complete redesigned editor accepted or reduce M07 to native-only scope. Checkpoint this result
 before its focused correction; no third live invocation in this batch. No acceptance denominator
 or native budget changes: M07 stays3/4 and overall4/10=40%.
+
+**M07 offscreen Inspector correction — 20:53 CET, stop21:38 CET:** checkpoint `46f3977e` is
+pushed and verified; worktree clean. Same active gate3. Owner: app Matrix typed viewport query,
+cached view index and window selection context. Add at most one selected row/column/cell beside
+the existing bounded grid reply, using indexed identity lookup; regenerate TypeScript from Rust.
+Inspector selection must survive scrolling without whole-document reads or stale local caches.
+Fence selected replies through existing session/project/history/read-queue ownership. Proof:
+offscreen selected definitions and missing/history recovery at backend boundary, delayed selection
+read tests, and real grid scroll→Inspector edit→Undo/Redo/project replacement. Compile/software
+success before at most two live runs; preserve all current native/resource blockers.
+
+Prerequisites pass:210Rust tests/1existing ignore (including generated DTO parity and selected
+offscreen/history/missing-source bounds),65frontend tests, Svelte0errors/0warnings, clippy with
+warnings denied and ordinary app rebuild. Clippy's enlarged enum finding is resolved by boxing
+the optional selected snapshot; wire shape stays unchanged. Invocation1 stops at initial Group
+selection with no page/rejection errors: JSON-string equality incorrectly treats reordered DTO
+members as a different selection. Replace it with typed item-kind/ID/column comparison and add
+the exact reordered-reply regression test before rebuilding. Invocation2 is the final live run.
+
+**Offscreen correction result —21:01 CET:** invocation2 passes full Matrix input plus project
+replacement, **exit0/27,214ms**. Real grid scrolling removes selected row/column from the DOM,
+while Inspector retains their names and assigned source. Offscreen rename and exact Undo/Redo/
+Undo work without scrolling; resize and actual New/review upload still pass. One expected cycle
+rejection, zero other rejections/page errors. Rust210pass/1existing ignore, frontend67pass,
+Svelte0errors/0warnings, clippy and ordinary build pass. Screenshot inspected: selected UI Lower/
+UI First fields remain while grid shows Layer5+/Column8+. Optional selected reply is bounded to
+one row/column/cell and uses identity indices, the existing coalesced queue and ownership fences.
+[Correction evidence](evidence/mapgyver-m07-offscreen-inspector-2026-11-01.json).
+No gate closes on browser-only evidence; M07 stays3/4 and overall4/10=40%. Publish before M08's
+existing Application input/project fixture migration; no further Matrix host invocation.
 
 **M06 Composition-layout batch — 2026-11-01 20:25 CET, stop 21:10 CET:** previous turn is
 progress, pushed as `f023ad10`, clean checkout. Only M06 gate4's remaining redesign input is
@@ -321,8 +350,8 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete: original source UI matrix passes in Golden tree/Inspector | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Full new-layout Screen/Source input passes; native/physical gates retained | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Complete new-layout input/project lifetime verified; native image/extent/shape selection open | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | New-layout original input/project scope passes; offscreen Inspector fix active; native feedback open | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Active: column/recovery/New UI and actual elevated owned target pass; native dialog/retirement/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | New-layout input/project and offscreen Inspector editing verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Application new-layout input migration next; native dialog/retirement/full-app gaps retained | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -359,8 +388,8 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 | Accepted | M05/6 | Full Screen tree/Inspector/canvas input, all corners/Escape/rejection/history and stable mapping bounds pass. M05 returns4/8. |
 | Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
 | Blocked remaining scope | M06/4 | Complete new-layout Composition input/history/project lifetime passes; return for actual native imagery/extent-based outlines and shape selection on supported native control/manual observation. |
-| Active | M07/3 | Original new-layout input/project fixtures pass. Fix selected row/column/cell Inspector independently of the grid's virtualized viewport, with bounded reads and history/project fencing. Actual native preparation/installation/submission feedback remains required. |
-| Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
+| Blocked remaining scope | M07/3 | Full new-layout input/project and offscreen Inspector editing pass. Return for actual native preparation/installation/submission feedback on supported current-build native control or manual observation. |
+| Active after this checkpoint is pushed | M08/4 | Migrate existing Application/column input/project fixture to Golden Applications tree/Inspector; preserve existing process/history/recovery assertions. Native executable-picker/desktop lifecycle, singleton retirement/full-app remain open; user says native input unavailable, so do not repeat that question. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
 | Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |

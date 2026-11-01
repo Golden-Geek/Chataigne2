@@ -184,6 +184,9 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   organization must persist and work through backend, script and transport callers.
 - Canvas, warping, composition and grid editors use the available panel area. Put authored
   parameters and detailed settings in the Inspector, not permanent forms beside/below a canvas.
+- Inspector selection must remain editable when its object scrolls out of a virtualized editor.
+  Read selected definitions through bounded backend queries independently of visible rows;
+  do not retain stale UI copies or read the whole document to keep properties available.
 - Use compact icon actions with accessible names and tooltips in editor toolbars and grid
   headers. Keep labels for document objects and useful runtime state; avoid repeated panel
   headings, explanatory banners and walls of text buttons. Use contextual menus for secondary
