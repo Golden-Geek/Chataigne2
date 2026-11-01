@@ -250,6 +250,25 @@ class ProductionQualificationTests(unittest.TestCase):
         self.assertEqual(result['criteria']['gpu_critical_path']['status'], 'UNAVAILABLE')
         self.assertFalse(result['prescribed_sample'])
 
+    def test_native_ownership_inventory_requires_complete_metadata_and_actual_final_release(self):
+        spec = importlib.util.spec_from_file_location('allocation_test_fixture',
+            ROOT / 'tools/mapgyver/tests/test_production_allocations.py')
+        fixtures = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fixtures)
+        self.renderer.append({'kind': 'snapshot', 'qpc': BEGIN + 10,
+                              'native': {'allocations': fixtures.inventory()}})
+        summary_path = self.directory/'renderer-summary.json'
+        summary = json.loads(summary_path.read_text())
+        summary.setdefault('final_native', {})['allocations'] = fixtures.empty()
+        summary_path.write_text(json.dumps(summary), encoding='utf-8')
+        write_rows(self.directory/'renderer.jsonl', self.renderer)
+        result = self.analyze()
+        self.assertIs(result['criteria']['native_allocation_ownership']['observed_within_target'], True)
+        self.assertEqual(result['criteria']['native_allocation_ownership']['status'], 'UNAVAILABLE')
+        summary['final_native']['allocations']['sources'][0]['import_aliases'] = 1
+        summary_path.write_text(json.dumps(summary), encoding='utf-8')
+        self.assertFalse(self.analyze()['criteria']['native_allocation_ownership']['observed_within_target'])
+
     def test_complete_short_capture_stays_diagnostic_and_contexts_never_become_critical_path(self):
         result = self.analyze()
         self.assertFalse(result["prescribed_sample"])

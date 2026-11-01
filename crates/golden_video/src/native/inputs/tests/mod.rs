@@ -50,6 +50,8 @@ fn fixture() -> (Arc<Shared>, TextureDescriptor) {
         sequence: 0,
         bridge_busy: 0,
         imports: 0,
+        import_aliases: 0,
+        reader_leases: 0,
         renderer_copies: 0,
         hresult: None,
     }));

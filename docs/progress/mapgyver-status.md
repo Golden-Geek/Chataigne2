@@ -4,228 +4,16 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current topic:** M03 renderer qualification **gate 9 is the only active gate**. M04 source
-acceptance is complete, **6/6 gates (100%)**; the one scheduled M05 batch is checkpointed. M03 retains
-**7/9**; recovery awaits the explicit GPU-reset decision. M05 remains **3/8** with UI activation
-and fullscreen/editor-state observations still unverified.
-**Execution mode:** completion first. Keep one phase/gate active, close its dependency-ready
-acceptance and retain an explicit return queue. No incidental features or simultaneous expansion.
-**Completion commitment:** every unfinished M03/M05/M06/M07/M08/M09 item returns for verification;
-implementation and checkpoint commits do not close it. The user reaffirmed 100% of the agreed
-plan on 2026-10-31. A minor optimization taking roughly a day may justify a precise proposed
-lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
-effort across batches; correctness and ownership requirements are not optional optimizations.
-
-**Next:** complete the missing allocation/ownership observation within M03 gate 9, preserving
-the failed memory-growth criterion. The bounded GPU timing investigation ends with batch 70:
-its complete **600/600-frame** enclosure is **18.754 ms p95 /19.658 ms p99**, too wide to prove
-the unchanged **12 /16.667 ms** GPU budget, and not proof of an actual GPU failure. A narrower
-[GPU-work acceptance proposal](#gpu-acceptance-proposal--awaiting-user-decision) is prepared for
-explicit user review; it is not operative. The original GPU criterion stays **UNAVAILABLE**.
-Return to timing only on a validated supported cross-context clock mapping with bounded error,
-or the user's explicit scope decision; no more clock/profiler/parameter sweeps are scheduled.
-Batch 69's publication-capacity observation is verified in one finite control, not the required
-prescribed series. Freeze instrumentation before Q01/Q02 series. Batch 68 still fails:
-**36.102 MiB >32 MiB**. Final drained growth **4.977 MiB** does not override that maximum.
-All 100 cycles, 1,000 edits, pauses, drains, logical return, handle and shutdown checks complete;
-all 339 execution inputs and paired overlay-Off inventories match. The shader change removes
-proven repeated preparation but does not resolve the memory criterion or establish its cause.
-This memory experiment chain is stopped. Its return trigger is new ownership/allocation evidence
-supporting a specific correction; the failure stays required in the return queue. Do not rerun
-unchanged workloads, silently change peak-to-final semantics or reduce the budget. Historical
-batch-67 peak **40.445 MiB** remains recorded. Golden's documented bounded resize path works;
-the initial Golden-defect diagnosis remains withdrawn. No gate closes; M03 stays **7/9**.
-Gate 9 alone is active. The prescribed precise-timer
-Q02 series is complete and still fails window
-deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
-awaits explicit user decision. Finish missing GPU/queue/lifecycle observations before freezing
-one set of inputs for the next required Q01/Q02 series; avoid rerunning the series after each
-instrumentation edit. Q01 on this mechanism and selected route remains required.
-The full prescribed series now passes environment identity, Spout deadlines, exact image
-capture/age and editor independence; **window displayed deadlines remain its only observed
-failure**. No cause or gate reduction is inferred. Q01 on this same route remains queued after
-that decision. The contract requires one named qualified route, not both vendors; do not combine
-different adapters' workloads into a pass. Preserve the exact build, original failures/budgets
-and the NVIDIA renderer → Intel display route; no repeated baseline or parameter sweep.
-Complete GPU-path, queue and lifecycle-growth evidence still remain required. No timeout/Present
-sweep, silent adapter switch or budget reduction is approved.
-M05 gate 4 returns after the desktop helper's activation failure is resolved: its new finite
-flow proves Spout pixels and rectangle bars, but actual fullscreen/editor-state checks stay open.
-Q02 sustained qualification and every other measurement requirement remain unchanged.
-Preserve real resource fences, healthy outputs and original budgets; do not restore the parked
-performance/collector stash or change driver settings. **Blocker:** genuine removal needs an
-approved reset window; genuine source/driver stuck-drain bounds remain unverified.
-
-**Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
-rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
-headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
-**Latest bounded observation (batch 70):** query timing records QPC before submission and after
-successful nonblocking collection. The full exact app source/renderer/output enclosure covers
-**600/600** frames; p95/p99 are **18.754/19.658 ms**, so the unchanged critical-path criterion
-remains **UNAVAILABLE**. Correlated per-frame GPU span charge **3.194/3.230 ms** is descriptive,
-not a replacement pass. All outputs accept **600/600**, all **342** inputs and paired overlay-Off
-identities match, all four PIDs are absent and shutdown is **420.408 ms**. Timing investigation
-stops; a precise GPU-work proposal needs user approval. **No gate closes; M03 remains 7/9.**
-[GPU-path enclosure evidence](evidence/mapgyver-m03-gpu-path-enclosure-2026-11-01.json).
-**Latest bounded observation (batch 69):** the public native trace carries actual window
-descriptor/latency readbacks, the pre-Present readiness permit and accepted Spout image/version.
-One schema-9 NVIDIA Q01 control (**2 s warmup /10 s sample /1 s each interruption**) covers all
-**582/600/600** accepted main/Spout/editor publications with conservative capacities **2/1/2**,
-within the unchanged **≤2** ceiling. Main also records **18 Busy** attempts. Exact occupancy is
-unknown, and the short queue criterion stays **UNAVAILABLE** despite observed bounds passing.
-All **341** inputs and paired overlay-Off identities match, all four PIDs are absent and
-shutdown is **418.801 ms**. No series, renderer gate or memory criterion closes; M03 stays **7/9**.
-[Output-queue mechanism evidence](evidence/mapgyver-m03-output-queue-2026-11-01.json).
-**Latest full lifecycle result (batch 68):** build-time production shaders preserve exact bytecode
-and device ownership. The one prescribed renderer run completes **100** cycles, **1,000** edits
-and **373** superseded outcomes in **1,142.773 s**. Native verdict is **FAILED_NATIVE** for
-**36.102 MiB >32 MiB** peak growth; final growth is **4.977 MiB**, handles **−4**, logical
-reservations return exactly and no prepared/retiring generation remains. Pauses are at least
-**2.000 s**, baseline/final drains **10.003/10.002 s**. All **103** child exits are zero/unforced,
-the owned job is empty, recorded PIDs are absent and whole-parent shutdown is bounded by
-**2,796.897 ms**. All **339** inputs and paired overlay-Off identities match; all **419** raw
-file hashes are verified. Native memory benefit/cause is not established. No extra memory probe
-or threshold change follows. **No gate closes; M03 remains 7/9.**
-[Embedded-shader lifecycle evidence](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json).
-**Latest full lifecycle result (batch 67):** all **100** source resize/restart, project replacement
-and native-output recreation cycles complete, with **1,000** accepted edits in **100 × 10**
-bursts scheduled at 100 Hz and **386** superseded outcomes. Native summary is eligible but
-**FAILED_NATIVE**: private checkpoint growth **40.445 MiB >32 MiB**. Final drained growth is
-**6.852 MiB**, handles **−4**, logical reservations return exactly, and no prepared/retiring
-generation remains. Pauses are at least **2.000 s**, baseline/final drains **10.001 s**. All
-**103** fixture exits are zero/unforced; whole-parent shutdown is bounded by **2,825.153 ms**.
-All **337** inputs and paired overlay-Off inventories match, the job is empty and **101**
-recorded PIDs are absent. Full GPU/queue/physical allocation and complete-app qualification
-remain open. **No gate closes; M03 remains 7/9.**
-[Full lifecycle evidence](evidence/mapgyver-m03-lifecycle-full-2026-11-01.json).
-**Latest lifecycle result (batch 66):** the fixture adopts actual source extents while preserving
-the admitted Spout maximum. It completes **95/100** cycles, **950** burst edits and **370**
-superseded outcomes, then the outer watchdog forces cleanup at **900.101 s**. No final drain
-or full growth verdict exists. Prefix checkpoint private growth peaks at **43.75 MiB**, above
-32 MiB; matched-extent checkpoint handles are **−5** from baseline. The old start-based wait
-gave slow cycles no post-work pause. It now waits two seconds after the work, records that
-pause and gives fixtures 30 minutes; those corrections have six tests/strict Clippy, not native
-verification. All 337 captured inputs and paired overlay-Off identities match. All 100 recorded
-PIDs are absent. **No gate closes; M03 remains 7/9.**
-[Prefix evidence](evidence/mapgyver-m03-lifecycle-prefix-2026-11-01.json).
-**Latest lifecycle prerequisite (batch 65):** the new production-runtime fixture implements
-100 source restart/resize, project-replacement and native-output recreate cycles plus 1,000
-100 Hz preview edits, with cycle-10 baseline and 10-second drain. Its one native attempt fails
-on cycle 1: Golden's `InputPool::ensure` permanently rejects a changed Spout binding under an
-existing texture ID. **Zero cycles complete; no baseline/growth acceptance is claimed.** The
-parent exits **1 in 7.17 s**, without watchdog timeout/force, with zero descendants at job close;
-all five recorded PIDs are absent. Captured inputs and paired overlay-Off inventories match.
-Four software tests and strict app/bin/test Clippy pass. Added child-exit sidecars preserve
-future failure-path cleanup; that post-capture correction has software checks only.
-M03 stays **7/9**. [Failure evidence](evidence/mapgyver-m03-lifecycle-resize-rejection-2026-11-01.json).
-**Latest sustained timing result (batch 64):** all three prescribed NVIDIA Q02 samples complete,
-with paired environment identity **PASSED_NATIVE**, **7,200/7,200** exact Spout captures and
-zero Spout deadline misses in every sample. All six 60-second interruption cohorts pass.
-Frame-start lateness p95 is **0.536/0.524/0.537 ms**; CPU wall p95 **0.685/0.637/0.615 ms**.
-Window display deadlines still fail: main **214/36/8**, editor **214/37/8** out of 7,200 each,
-against unchanged **0.1%**. Maximum over-deadline window lateness is **3.876/11.646/2.276 ms**.
-The sole observed failure remains window deadlines; complete GPU-path, queue and lifecycle-growth
-evidence remains unavailable. All 48 raw hashes and 333 execution fingerprints match; 12 owned
-native PIDs and three trace sessions are absent. **No gate closes; M03 stays 7/9.**
-[Compact evidence](evidence/mapgyver-m03-precise-q02-prescribed-2026-10-31.json).
-**Latest bounded correction (batch 63):** Golden IO offers worker-owned Windows timer/event
-deadline waiting; only native Video opts in. The finite NVIDIA Q02 control observes frame-start
-lateness **0.534 ms p95**, versus **1.52–1.62 ms** in the historical sustained captures; different
-durations do not prove sustained or isolated causal performance. All outputs accept **600/600**
-sample images, Spout captures **600/600**, and each one-second interruption captures **60/60**.
-Both window outputs miss **1/600** deadlines; the unchanged **0.1%** gate remains unmet.
-One-second interruptions observe complete cohorts but cannot meet the prescribed 60-second gate.
-Actual retirement **142 ms**, shutdown **449 ms**, environment/333 execution fingerprints match,
-all native processes exit zero and the trace session is absent. **No gate closes; M03 stays 7/9.**
-[Compact evidence](evidence/mapgyver-m03-precise-worker-q02-2026-10-31.json).
-**Latest sustained NVIDIA evidence (batch 62):** full prescribed Q02 release series completes
-with **environment identity PASSED_NATIVE in all three samples**, fresh overlay-Off observations
-and unchanged paired inventories. Every other observed criterion passes except window display
-deadlines: main misses **4,572/1,841/139**, editor **4,572/1,846/141**, each out of **7,200** against
-unchanged **0.1%**. Spout misses **1/1/0**; exact sample captures **7,199/7,199**, **7,199/7,199**,
-**7,200/7,200**, with no missing accepted image in any sample or interruption. CPU p95
-**0.557/0.656/0.695 ms**, renderer-context GPU p95 **3.523/4.218/3.383 ms**, shutdown
-**446/454/426 ms**. Full GPU-path, lifecycle-growth and queue requirements remain unavailable;
-M03 stays **7/9**. [Compact evidence](evidence/mapgyver-m03-nvidia-q02-prescribed-2026-10-31.json).
-**Latest verified mechanism (batch 61):** public read-only GPU/output metadata and app-owned
-build/environment capture now record the actual selected MSVC/SDK, drivers, default WebView,
-AC power, overlay observations and display route. A finite NVIDIA Q02 control verifies paired
-identity/QPC/overlay bracketing, **180/180** accepted deliveries on all outputs and **180/180**
-exact Spout captures, with actual retirement and **450 ms** shutdown. Environment observation
-is true; short-control eligibility keeps its criterion **UNAVAILABLE**, and M03 stays **7/9**.
-Both displays are Intel-owned; RTX 5080 LUID `00000000:000170d3` has no attached display.
-Native Home UIA exposes `Enable and open overlay` before/after; the setting is left unchanged.
-[Compact evidence](evidence/mapgyver-m03-environment-route-2026-10-31.json).
-**Latest Q02 evidence (batch 60):** the full prescribed release series on Intel LUID
-`00000000:00016c2a` **fails** cadence, deadlines, exact capture and independence. Main misses
-**7,037/7,087/4,277**, editor **7,198/7,173/6,984** out of **7,200** per sample. Independent
-sample Spout captures miss **4/7/2** accepted images. CPU p95 **0.562/0.592/0.530 ms**;
-renderer-context GPU p95 **15.031/15.107/13.302 ms**, with the largest median stage at outputs.
-All runs retire and exit normally; actual 4K client/backing is confirmed, physical 4K remains
-unverified. No source or budget changed; M03 stays **7/9**.
-[Compact evidence](evidence/mapgyver-m03-window-admission-q02-2026-10-31.json).
-**Latest verified correction (batch 59):** Golden Video delivers ready outputs before retrying
-initially busy windows, within the same frame/fence and one shared requested **1 ms** kernel wait.
-The complete prescribed Q01 series passes **every observed criterion**: main deadline misses
-**0/0/0**, editor **0/1/0**, Spout **0/0/1**, each out of **7,200** against unchanged **0.1%**.
-Exact sample Spout cohorts are **7,200/7,200**, **7,200/7,200**, **7,199/7,199**; independence
-passes all three runs. CPU p95 **0.648/0.538/0.560 ms**; shutdown **387/407/398 ms**.
-Unmeasured criteria keep series status **UNAVAILABLE**, qualification false and M03 **7/9**.
-[Compact evidence](evidence/mapgyver-m03-window-admission-q01-2026-10-31.json).
-**Prior production-route baseline (batch 58):** qualification uses the same public `NativeOutputWindow` owner
-as production Screens, with exact client bounds and actual GPU-before-HWND retirement. The
-prescribed Q01 series finishes normally; sample 1 has **670/7,200** main-output Busy outcomes,
-sample 2 misses one independent Spout capture while minimized, and sample 3 misses **9/7,200**
-editor display deadlines. All sample Spout cohorts are **7,200/7,200**. No pacing improvement or
-gate closure is claimed. [Compact evidence](evidence/mapgyver-m03-production-window-q01-2026-10-31.json).
-**Latest M05 evidence (batch 57):** two finite flows activate all three targets; independent Spout
-receives **179 / 104** copies and all **6,144 RGBA texels** match eight bars exactly in each.
-Rectangle screenshot bar centers are within **1/255** in both captures. The normal-integrity
-launcher restores accessibility, but activation fails after the supported retry. Both UI
-checkpoints time out and apps exit zero; no editor state/fullscreen pixels are inferred.
-[Partial evidence](evidence/mapgyver-m05-concurrent-partial-2026-10-31.json).
-**Latest correction result (batch 56):** interval-one presentation passes six pixel/flip-buffer
-frames, but its full-duration single Q01 control still misses **893/7,200** editor display
-deadlines. The candidate is reverted; no runtime/target/threshold change is retained.
-[Rejected control](evidence/mapgyver-m03-sync1-control-2026-10-31.json).
-**Latest sustained evidence (batch 55):** prescribed Q01 release series completes all three
-30+120-second samples plus 60-second minimize/disconnect intervals. Exact Spout cohorts are
-**7,199/7,199**, **7,200/7,200**, **7,200/7,200**; all native/collector processes exit normally.
-CPU, API cadence, observed source age, allocation/private-memory, telemetry and shutdown criteria
-pass. **Display deadlines fail**: main misses **3/496/1**, editor **1,269/568/45**, each out of
-7,200 against the unchanged 0.1% budget. GPU critical path, lifecycle growth, queue occupancy
-and complete environment pinning remain unavailable. [Compact evidence](evidence/mapgyver-m03-q01-prescribed-2026-10-31.json).
-**Latest recovery evidence (batches 53–54):** held-observation ownership/healthy-output qualification
-passes on both GPUs, **1/1 in 7.38 s**. Corrected source-fixture preflight passes **1/1 in 9.23 s**,
-with actual source streaming/copies, independent green output, **471 ms** runtime retirement and
-normal producer exits. The earlier disabled-input fixture failure remains recorded. No GPU reset
-occurs and no recovery gate closes.
-**Last completed phase evidence (batch 52):** the updated ordinary HTTP matrix plus actual Reload Picture UI
-passes in **2,375 ms**, including a single selected-asset request and preserved redo/undo. The
-updated native Picture matrix passes **1/1 in 46.09 s** on Intel/NVIDIA, including replacement
-through `ReloadAsset`, full color/alpha pixels, 4K reload/recreation and actual retirement. Both
-live invocations pass within the fixed window; host/browser cleanup completes. Prior **152 caller
-executions**, sparse/full codecs, **192 app tests / one existing hardware ignore**, strict Clippy,
-**58 frontend tests**, zero Svelte diagnostics and generated-contract drift remain verified.
-
-**Remaining product qualification:** M05 physical output/DPI/hotplug and editor input; M06/M07
-composition/Matrix native pixels, interactions and scale; M08 complete mode/control/unsupported-
-target and retirement acceptance; M09 complete app/artifact. Native picker/preview input is not
-proved by browser authoring and is not added as a new M04 prerequisite. Detailed evidence and
-retained failures remain under their owning phase sections below.
-**Execution states:** **active:** M03 gate 9; **waiting for a return trigger:** M03 gate 4
-(reset decision) and M05 gate 4 (supported window activation); **queued:** remaining M05,
-M06, M07 and M08 acceptance, then M09. An implemented phase with open acceptance is unfinished,
-not another simultaneous workstream. Time limits end a work batch; they never waive a gate.
-**Qualification debt:** M03 gate 4 retains genuine device removal/stuck retirement; gate 9
-retains full GPU/queue, growth and window deadline requirements. Complete-series NVIDIA Q02
-environment, exact capture/age, Spout deadlines and independence now pass; the full renderer gate
-and Q01 on that route remain open. Historical Intel Q02
-sample Spout acceptance is **7,199/7,196/7,199** with **4/7/2** missing exact captures. Minimized
-intervals miss **1/1/2** accepted Spout images; disconnected intervals miss **1/0/0**. Captured
-source-age p95 stays below 50 ms, but missing images leave the complete age requirement unqualified.
-All recorded failures and original budgets remain operative. These requirements
-must be satisfied for production readiness, within the bounded qualification lane below.
+**Selected gate:** **M05 gate 4, concurrent native targets/editor independence**. Start the next
+bounded batch after publishing the completed M03 allocation checkpoint. No simultaneous gate work.
+M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
+**Next action:** launch a fresh owned ordinary MapGyver window through the supported normal-integrity
+path, verify supported activation, then complete the existing concurrent rectangle/fullscreen/Spout
+flow and editor-state observations. If activation still fails, preserve the exact failure and stop
+that automation investigation within its time box; do not repeat the old helper retry chain.
+**Blockers:** M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
+**36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
+unapproved reset window. M05 physical 4K/other unavailable configurations remain unverified.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -234,7 +22,7 @@ must be satisfied for production readiness, within the bounded qualification lan
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Output modes/both editors implemented; qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active next: concurrent targets; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Functional producer/editor implemented; native/interactive qualification open | `█████░░░░░░░░░░░░░░░` 25% | 1/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
@@ -255,23 +43,50 @@ These counts measure accepted scope, not effort or product readiness. Partial ev
 no item closure; future breakdowns must preserve the complete acceptance scope and explain
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
-**Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
-activation blocker and exact remaining evidence. M03 gate 9 remains active: next complete missing
-allocation/ownership evidence. GPU-path timing returns on a validated supported clock mapping
-with bounded error or explicit GPU-work gate revision; the original criterion stays required
-while the proposal is pending. Publication-capacity metadata has one verified finite control;
-its prescribed-series acceptance remains queued. The failed
-private-growth criterion returns when that ownership/allocation evidence supports a concrete new
-correction; its limit stays 32 MiB. Q01 on the selected route and final Q02 remain required once
-instrumentation is stable and the window-deadline decision is resolved. No repeated baseline,
-memory parameter sweep or interval sweep. M03 gate 4 returns on explicit reset approval
-after current-run cleanup. Resume M05 gate 4 after successful supported window activation, then
-remaining M05, M06, M07 and M08 acceptance before M09's
-complete-app/artifact gate. Every original requirement remains required. A small optimization
-consuming roughly a full day warrants a specific user-reviewed deferral/lower-gate proposal, not
-automatic acceptance; correctness, ownership, data integrity and essential behavior stay required.
-The earlier product/diagnostic ratio is historical bookkeeping in this closure mode; it must not
-force new feature scope. Batch/investigation limits and honest gate accounting still apply.
+**Completion policy:** one active gate, an explicit return trigger before leaving blocked work,
+45-minute delivery batches and at most 20 minutes/two investigation experiments. A time box never
+waives acceptance. Every unfinished M03/M05/M06/M07/M08/M09 item returns. The user requires 100%
+of the agreed plan; a day-scale minor optimization may justify a precise proposal, never a silent
+lower gate. Track cumulative effort across batches. Correctness/ownership remain required.
+See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-priority--2026-10-31).
+
+**Closure return queue:**
+- **M03 gate 9:** prescribed Q01/Q02 on stabilized inputs, complete lifecycle/resource-return
+  evidence and the preserved private-growth failure. Timing returns on a validated supported
+  clock mapping with bounded error or an explicit [GPU-work decision](#gpu-acceptance-proposal--awaiting-user-decision).
+  The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision) also needs
+  explicit approval. Neither is operative. Memory investigation returns only for a concrete
+  ownership/allocation-supported correction; do not repeat unchanged long runs or parameter sweeps.
+  Native owner inventories are verified only in a short control; driver physical size/transients
+  remain unknown and all original budgets/failures stay recorded.
+- **M03 gate 4:** genuine removal/stuck-drain recovery; return on the explicit reset decision and
+  the required owned-window/process preparation. No reset is authorized by ordinary continuation.
+- **M05 gate 4:** the selected batch first verifies supported activation of a fresh ordinary app
+  window, then the existing concurrent-output/editor flow. Its earlier activation failure and
+  partial pixel observations are retained until the exact missing UI/fullscreen state is verified.
+- **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
+  pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
+  checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
+
+**Latest checkpoint, batch 71:** actual native owner metadata distinguishes shared plan textures,
+committed bridges, uncharged import/view owners and endpoint storage. All **96** short-sample
+inventories are known, at **100,454,400 bytes /95.801 MiB** of validated owned texel payload.
+Five plan objects, six bridge slots and output storage release after actual retirement; aliases
+and readers end at zero. This is not driver residency or a repair of process-private growth.
+Main accepts **340/600** with **260 Busy**; Spout/editor accept **600/600**. All **345** inputs and
+paired overlay-Off identities match; all four PIDs are absent, shutdown **446.332 ms**.
+**No gate closes; M03 stays 7/9.**
+[Owner evidence](evidence/mapgyver-m03-native-allocations-2026-11-01.json),
+[GPU enclosure](evidence/mapgyver-m03-gpu-path-enclosure-2026-11-01.json),
+[queue control](evidence/mapgyver-m03-output-queue-2026-11-01.json),
+[retained full growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json).
+
+**Last accepted product capability:** multi-channel Solid Color, Picture and Shared Texture
+authoring/rendering; Media Manager UI/commands/scripts/callbacks, shared assets, project/history
+and ordinary headless parity. Picture reload preserves identity, locator and history through
+every caller. Renderer qualification and remaining product acceptance are still open.
+
+## Detailed acceptance evidence
 
 ### M08 acceptance items
 
@@ -3247,6 +3062,66 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M03 acceptance items
 
+**Native allocation ownership batch 71:** started 2026-11-01 **01:40 UTC**, stop by **02:25 UTC**.
+Previous turn is progress: `1d5716c7` delivers the complete GPU CPU enclosure and retains the
+unqualified original GPU budget. Its scope proposal is pending and not operative. Only M03
+gate 9 is active. Deliver the missing native allocation/alias ownership observation at Golden's
+source/texture/output boundary, with app-owned capture consuming public metadata. Define what
+the API can actually establish: descriptor texel charges and owned allocations/aliases are not
+driver physical residency or allocator overhead. Avoid duplicate charges for shared aliases;
+retain unknown SDK/driver counters explicitly. Hypothesis: matching actual object/lease ownership
+to reservation checkpoints can establish whether app-owned resources return, without guessing
+the cause of the failed +32 MiB process-private peak. Source/API investigation ends by
+**02:00 UTC**, at most two fixed analyses/experiments. Prefer existing resource owners and
+metadata over a tracing/profiling framework. Gate native verification on terminal software/
+Clippy/build success; at most one finite mechanism check. No 100-cycle memory rerun unless new
+ownership evidence identifies a concrete correction; no reset, timing probe or budget revision.
+Checkpoint/push the coherent result and exact remaining coverage before the next batch.
+
+**Batch 71 result:** Golden Video exposes `allocations_snapshot` for actual committed native
+owners. A plan texture's metadata guard publishes release after its native texture/views drop;
+Rc reuse and weak cache entries add no charge. Source pool/descriptor, imported view owners
+and completion-retained reader counts are separate, coalesced metadata. Imported aliases add no
+owned storage. Existing resize/retirement handshakes remain intact; source bridge zero-count
+publication now follows actual object/handle release. Windows report the checked two-buffer
+backing; an accepted Spout send establishes its one shared image/layout. Partial SDK owners
+remain unknown. Outputs keep their allocation observation through actual endpoint retirement.
+No recurring resource opens, GPU query, pixel readback, global allocator or driver change is added.
+The total is validated texel payload, not driver allocation size/residency or a transient peak.
+
+Rust owns capture schema **11**, generated in the same change. Ordinary renderer snapshots and
+final native state consume the public inventory; lifecycle checkpoints/baseline/final/retirement
+also record it for future required acceptance. Those lifecycle additions have software checks
+only; no new 100-cycle run is claimed. **168 Video tests /23 existing hardware ignores**, strict
+Video all-target/all-feature and MapGyver native-bin/test Clippy, **304 tooling tests**, generated
+drift and both workspace formatters pass. Tests cover shared/weak ownership, peaks versus current
+storage, partial SDK state, uncharged aliases, invalid/duplicate inventories and final retention.
+
+One finite Q01 release check uses **MSVC 14.51.36231 /SDK 10.0.26100.0**, executable SHA-256
+`2e23eb210ad27da532fa18743b8df7df5098016dd935e2e979baad9c25a5624c`, NVIDIA adapter 1 on the
+retained Intel-owned display route. **2 s warmup /10 s sample /1 s each interruption** complete
+normally in **17.042 s**. All **96** sample inventories are known and constant: **5** owned plan
+textures, **6** source bridges and native output storage total **100,454,400 bytes /95.801 MiB**.
+Up to **4** renderer import/view owners are uncharged. Final inventory has all five plan objects
+released, no bridge/import/read leases, no output owners and zero known texel payload. Driver
+physical bytes remain unknown. This establishes this short owner-release mechanism, not a
+repair/cause of the preserved **36.102 MiB >32 MiB** growth failure.
+
+Main output accepts **340/600** with **260 Busy** outcomes; Spout/editor each accept **600/600**.
+Preserve that adverse cadence without assigning a cause or running another timing control.
+All **345** inputs and paired overlay-Off identities/QPC brackets match; all three children exit
+zero/unforced, the job is empty and all four PIDs are absent. Actual retirement **133.398 ms**
+retains both HWNDs; whole-parent shutdown **446.332 ms**. All **22** local raw hashes plus paired
+analysis/build/environment hashes verify. [Owner evidence](evidence/mapgyver-m03-native-allocations-2026-11-01.json).
+
+**Decision:** the short criterion stays **UNAVAILABLE**, qualification false; no gate closes,
+M03 **7/9**, overall **4/10**. Stop expanding renderer instrumentation. The GPU/window decisions,
+original resource/growth/recovery budgets and final prescribed evidence remain required with
+the dashboard return triggers. After this checkpoint is pushed, take one bounded **M05 gate 4**
+acceptance batch under the plan's anti-drift rule, beginning with supported activation of a fresh
+ordinary app window. Preserve the earlier activation failure until its exact missing flow is
+verified. This changes execution order, not acceptance scope or any budget.
+
 **Full GPU-path observation batch 70:** started 2026-11-01 **01:19 UTC**, stop by **02:04 UTC**.
 Previous turn is progress: `4510ebbd` delivers native publication-capacity metadata and the
 finite schema-9 control, retaining sustained eligibility and every existing failure. Only
@@ -4601,24 +4476,22 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M04 is complete. The scheduled M05 gate 4 batch proves independent Spout/rectangle colors and
-retains the native UI-activation blocker; fullscreen pixels/editor state are still unverified.
-Continue **M03 gate 9** by inspecting the existing full NVIDIA Q02 native schedule, Present and
-display-event epochs. Its environment, Spout deadlines, exact captures/age and independence pass;
-windows remain the only observed failing endpoint. Distinguish a scheduling defect from a
-deadline/cohort mapping defect before implementing a correction; retain all original counts and
-budgets. No baseline repeat, timeout/Present sweep or shader-tuning expansion is scheduled. Q01
-on that same build/route returns after this decision. Complete GPU-path, lifecycle-growth and
-queue requirements remain unavailable, and both adapters' historical failures remain retained.
-Gate 4 returns after explicit reset approval and current-run cleanup; genuine removal/stuck-
-drain acceptance stays open. M05 returns after supported activation is available. Preserve source
-pixel passes; do not restore the parked stash or change driver/overlay settings.
+M04 is complete. Batch 71 completes the bounded native-owner observation and its short release
+check; it does not close M03 gate 9 or repair private growth. After publishing that checkpoint,
+take one **M05 gate 4** concurrent-output acceptance batch under the plan's anti-drift rule.
+Start with a fresh ordinary owned MapGyver window through the supported normal-integrity path
+and verify supported activation before the existing rectangle/fullscreen/Spout/editor-state flow.
+The prior activation failure is retained; if the fresh supported attempt fails, stop within the
+investigation limit and record the exact remaining prerequisite. No helper retry chain or
+alternative automation framework is authorized by a timeout.
 
-Finish both M03 gates, then M05/M06/M07/M08 and M09. A genuinely blocked
-gate must retain its exact missing prerequisite/evidence and next decision in the return queue.
-Every original requirement and budget remains required. Missing editor/UI/physical evidence stays
-open. No incidental feature or concurrent phase expansion is scheduled. Preserve Chataigne's root
-default and unfinished P11 work.
+M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
+unapproved reset, GPU/window scope decisions, private growth without a supported correction,
+physical/opaque allocation limits and final prescribed evidence. Do not repeat long memory or
+timing controls, restore the parked stash, change driver settings or apply pending proposals.
+Complete remaining M05/M06/M07/M08 acceptance and return to all retained M03 requirements before
+M09. Only one gate is active; this is an execution-order change, not a waiver or concurrent
+expansion. Preserve Chataigne's root default and unfinished P11 work.
 
 Record the slice's owner, observable result, validation and 45-minute stopping time before
 coding. Ship and push a coherent product checkpoint before the next implementation batch.

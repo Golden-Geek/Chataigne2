@@ -54,6 +54,12 @@ enum Output {
 }
 
 impl Output {
+    fn allocation(&self) -> super::OutputTextureAllocation {
+        match self {
+            Self::Window(output) => output.allocation(),
+            Self::Spout(output) => output.allocation(),
+        }
+    }
     fn new(device: &ID3D11Device, binding: &OutputBinding, diagnostics: bool) -> Result<Self> {
         match binding {
             OutputBinding::Window { window, .. } => {
@@ -237,6 +243,7 @@ impl Binding {
                 generation: self.recovery.generation,
                 attempts: self.recovery.attempts,
                 hresult: self.recovery.error.map(|error| error.0),
+                allocation: self.endpoint.value().map(Output::allocation),
             },
         );
     }
@@ -372,6 +379,7 @@ impl OutputPool {
         for binding in self.bindings.values_mut() {
             if binding.endpoint.retire(completed) {
                 binding.flush_before_create = matches!(binding.config, OutputBinding::Window { .. });
+                binding.publish(&self.control, self.generation);
             }
         }
     }

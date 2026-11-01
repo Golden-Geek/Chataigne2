@@ -6,7 +6,7 @@ use ts_rs::TS;
 use crate::preview::protocol::PreviewView;
 
 /// Native artifact contract, including explicit isolated-source send ownership waits.
-pub const CAPTURE_SCHEMA_VERSION: u32 = 10;
+pub const CAPTURE_SCHEMA_VERSION: u32 = 11;
 
 /// Per-lock wait on isolated 60 Hz fixture producers; renderer outputs continue to pass zero.
 /// Two locks may each wait this long, excluding opaque SDK/driver work.

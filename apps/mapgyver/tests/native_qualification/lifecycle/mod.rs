@@ -202,6 +202,7 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
     let mut owner = create_owner(adapter, &output_name, ceiling, &names, full)?;
     owner.settle(Duration::from_secs(2))?;
     let mut baseline = None;
+    let mut baseline_allocations = None;
     let mut maximum_private = 0;
     let mut edits = 0;
     let mut superseded = 0;
@@ -256,8 +257,10 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
         owner.settle(post_cycle_settle)?;
         let settle_end_qpc = roles::qpc()?;
         let counters = owner.counters()?;
+        let allocations = owner.native.allocations_snapshot();
         if cycle == BASELINE_CYCLE {
             baseline = Some(counters);
+            baseline_allocations = Some(allocations.clone());
         }
         if cycle > BASELINE_CYCLE {
             maximum_private = maximum_private.max(counters.private_bytes);
@@ -272,11 +275,12 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
             "post_cycle_settle_begin_qpc":settle_begin_qpc,"post_cycle_settle_end_qpc":settle_end_qpc,
             "post_cycle_settle_requested_seconds":post_cycle_settle.as_secs_f64(),
             "edit_burst_begin_qpc":burst_begin_qpc,"edit_burst_end_qpc":burst_end_qpc,"edit_receipts_qpc":edit_receipts_qpc,
-            "output_retirement_ms":retirement.as_secs_f64()*1000.0,"counters":counters}),
+            "output_retirement_ms":retirement.as_secs_f64()*1000.0,"counters":counters,"allocations":allocations}),
         )?;
     }
     let baseline = baseline.ok_or_else(|| Error::other("warm baseline missing"))?;
     let final_state = owner.counters()?;
+    let final_allocations = owner.native.allocations_snapshot();
     let verdict = contract::evaluate(
         baseline,
         final_state,
@@ -289,6 +293,7 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
     let observed = verdict.observed_within_target;
     let eligible = verdict.eligible && !config.diagnostic;
     let shutdown = owner.retire()?;
+    let post_shutdown_allocations = owner.native.allocations_snapshot();
     drop(owner);
     finish(&mut source, &mut output)?;
     finish(&mut healthy, &mut output)?;
@@ -301,6 +306,8 @@ fn execute(config: Config, context: &WorkerContext<(), ()>) -> io::Result<()> {
             "adapter":adapter,"process_id":std::process::id(),"cycles":config.cycles,"spacing_ms":config.spacing_ms,
             "source_resize_restarts":config.cycles,"project_replacements":config.cycles,"output_remove_recreates":config.cycles,
             "superseding_edits":edits,"superseded_outcomes":superseded,"baseline":baseline,"final_state":final_state,
+            "baseline_allocations":baseline_allocations,"final_allocations":final_allocations,
+            "post_shutdown_allocations":post_shutdown_allocations,
         "maximum_post_baseline_checkpoint_private_bytes":maximum_private,"verdict":verdict,"shutdown_ms":shutdown.as_secs_f64()*1000.0,
         "post_shutdown_process":golden_video::native::query_process_resources(std::process::id()).map_err(Error::other)?,
         "sampling":"stable checkpoints after every completed cycle; transient creation peaks are not established",

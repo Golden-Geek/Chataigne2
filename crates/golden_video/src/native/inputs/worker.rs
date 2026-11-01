@@ -410,7 +410,6 @@ impl Drop for Session {
             },
         );
         self.retire_imports();
-        self.shared.update(|status| status.bridge_slots = 0);
         if let Some(timing) = &mut self.timing {
             if self.device.removed() {
                 timing.abandon();
@@ -425,5 +424,9 @@ impl Drop for Session {
             self.device.context.ClearState();
             self.device.context.Flush();
         }
+        // Publish zero only after the committed source-owned bridge objects/handles drop.
+        self.slots.clear();
+        self.descriptor = None;
+        self.shared.update(|status| status.bridge_slots = 0);
     }
 }

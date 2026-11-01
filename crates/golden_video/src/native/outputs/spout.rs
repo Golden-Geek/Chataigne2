@@ -26,6 +26,7 @@ pub(crate) struct SpoutOutput {
     name: CString,
     descriptor: TextureDescriptor,
     failure: Option<HRESULT>,
+    allocation_handle: Option<u32>,
     _local: PhantomData<Rc<()>>,
 }
 
@@ -63,6 +64,7 @@ impl SpoutOutput {
             name,
             descriptor,
             failure: None,
+            allocation_handle: None,
             _local: PhantomData,
         };
         // SAFETY: output owns the instance and an AddRef of the exact borrowed device.
@@ -128,6 +130,16 @@ impl SpoutOutput {
         SpoutImageVersion::copied_legacy(handle, frame)
     }
 
+    pub(super) fn allocation(&self) -> super::super::OutputTextureAllocation {
+        self.allocation_handle
+            .map_or(super::super::OutputTextureAllocation::UnknownSdk, |shared_handle| {
+                super::super::OutputTextureAllocation::Spout {
+                    descriptor: self.descriptor,
+                    shared_handle,
+                }
+            })
+    }
+
     fn try_deliver(
         &mut self,
         texture: &Texture,
@@ -187,6 +199,9 @@ impl SpoutOutput {
         };
         if !initialized {
             return Err(Error::new(FAILURE, "Spout sender did not retain its admitted extent"));
+        }
+        if self.allocation_handle.is_none() {
+            self.allocation_handle = self.copied_image_version().map(|image| image.shared_handle);
         }
         Ok(Delivery::Accepted)
     }

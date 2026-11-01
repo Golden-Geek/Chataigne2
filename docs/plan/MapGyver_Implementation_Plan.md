@@ -113,6 +113,15 @@ trigger in the ledger. On 2026-10-31 the prescribed Q01 series and rejected wind
 leave M03 open; one M05 concurrent-output acceptance batch precedes the return to M03 presentation
 pacing. No milestone is waived or claimed complete, and only one gate is active at a time.
 
+On 2026-11-01, bounded batches 69–71 deliver publication-capacity, complete CPU GPU-path
+enclosure and native-owner inventories, without closing M03 gate 9. The original GPU/window
+scope decisions remain pending; private growth still fails and no supported correction is
+established. After publishing the allocation checkpoint, select one bounded **M05 gate 4**
+acceptance batch: verify supported activation of a fresh ordinary owned app window, then finish
+the retained concurrent rectangle/fullscreen/Spout and editor-state flow. Keep all M03 evidence,
+budgets and return triggers in the ledger. No further renderer measurement sweep, gate revision
+or automatic restoration of parked investigations follows from this ordering change.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

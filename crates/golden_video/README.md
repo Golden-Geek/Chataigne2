@@ -142,6 +142,25 @@ upgraded; equal app asset IDs alone do not establish equal content. Expired weak
 pruned at preparation. The index owns neither GPU storage nor asset leases. Core reservations
 still charge the full declared generation footprint, preserving the existing conservative bounds.
 
+`D3d11Control::allocations_snapshot` separately observes actual committed native owners. Each
+production plan texture carries one metadata release guard after its native texture/views;
+Rc sharing, reused generations and weak cache entries add no charge. Source inventories report
+the committed three-slot bridge pool, its actual descriptor and retained renderer import/view
+owners/readers. Imported aliases reference source storage and add no owned texel payload. Resize
+retains its existing real GPU/alias retirement handshake; source zero-count publication follows
+actual bridge object/handle release. Output inventories retain checked DXGI back buffers or the
+accepted SDK shared-image identity through endpoint recovery/retirement. Partial SDK owners
+remain unknown until a successful send establishes their layout, rather than reporting zero.
+
+The observer retains only counts/layouts/identities; it adds no native resource opens, per-frame
+GPU query, pixel readback or persistent COM ownership. Plan create/release counters update at
+their existing object lifetimes; source/output metadata remains worker-owned. Sources publish
+independently, so construction transients are not an atomic measured peak. The known total is
+validated descriptor texel payload, not physical driver allocation size, row padding or residency.
+Those remain explicitly unknown and separate from process-local DXGI usage/budget observations.
+Native qualification captures the public inventory at sampled snapshots and after retirement;
+the renderer lifecycle fixture also records each checkpoint and baseline/final inventories.
+
 Preparation diagnostics join proposed resource/plan identity, native creation/reuse counts and
 CPU wall time to each submitted frame's exact resource generation. Offline analysis can measure
 native preparation and prepared-to-first-submit delay. Optional plan lifecycle records come

@@ -33,6 +33,7 @@ GPU_PATH = runpy.run_path(str(Path(__file__).with_name("production_gpu_path.py")
 OUTPUT_ORDER = runpy.run_path(str(Path(__file__).with_name("production_output_order.py")))
 OUTPUT_QUEUE = runpy.run_path(str(Path(__file__).with_name("production_output_queue.py")))
 ENVIRONMENT = runpy.run_path(str(Path(__file__).with_name("production_environment.py")))
+ALLOCATIONS = runpy.run_path(str(Path(__file__).with_name("production_allocations.py")))
 
 
 class ArtifactError(ValueError):
@@ -411,6 +412,10 @@ def resource_metrics(manifest, summary, renderer, window, frequency):
                          "handle_peak": max((row["handle_count"] for row in samples
                                              if row.get("handle_count") is not None), default=None)})
     return {"logical_reserved_peak_bytes": peak, "logical_workload_ceiling_bytes": ceiling,
+            "native_allocations": ALLOCATIONS["analyze_allocations"](
+                [row.get("native", {}).get("allocations") for row in renderer
+                 if row["kind"] == "snapshot" and in_window(row["qpc"], window)],
+                summary.get("final_native", {}).get("allocations"), ceiling),
             "logical_within_target": peak <= ceiling,
             "admission_limit_bytes": limit, "minimum_observed_local_budget_bytes": min(budgets) if budgets else None,
             "local_budget_coverage_complete": local_complete,
@@ -612,6 +617,8 @@ def analyze_capture(directory, environment=None):
         "gpu_critical_path": criterion(gpu_path["observed_within_target"], eligible, scope=gpu_path["scope"],
             reason="complete CPU enclosure can prove an upper bound; a loose bound remains unknown"),
         "logical_texture_charge": criterion(resources["logical_within_target"], eligible),
+        "native_allocation_ownership": criterion(resources["native_allocations"]["observed_within_target"], eligible,
+            scope=resources["native_allocations"]["scope"]),
         "dxgi_admission": criterion(resources["admission_within_target"], eligible),
         "renderer_private_memory": criterion(resources["renderer_private_within_target"], eligible),
         "completion_retirement": criterion(ownership_ok and children_ok, True),
@@ -709,6 +716,7 @@ def fingerprints(executable):
               Path(__file__).with_name("production_output_order.py"),
               Path(__file__).with_name("production_output_queue.py"),
               Path(__file__).with_name("production_gpu_path.py"),
+              Path(__file__).with_name("production_allocations.py"),
               Path(__file__).with_name("production_environment.py"),
               Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",

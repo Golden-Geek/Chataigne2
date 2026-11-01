@@ -91,6 +91,10 @@ pub struct SourceSnapshot {
     pub bridge_busy: u64,
     /// Renderer-local shared-resource opens (cached by allocation identity).
     pub imports: u64,
+    /// Currently retained renderer import/view owners; not new owned texture storage.
+    pub import_aliases: usize,
+    /// Current completion-retained reader leases; not additional texture storage.
+    pub reader_leases: usize,
     /// Copies into generation-owned renderer textures.
     pub renderer_copies: u64,
     /// Last endpoint/device error, when supplied by an API.
@@ -105,6 +109,7 @@ struct Input {
     imports: [Option<std::rc::Rc<Imported>>; INPUT_BRIDGE_SLOTS],
     // One ownership lease per admitted bridge slot, fenced through its latest renderer use.
     readers: [Option<(u64, Reader)>; INPUT_BRIDGE_SLOTS],
+    observed_ownership: (usize, usize),
 }
 
 pub(super) struct SourcePool {
@@ -163,6 +168,8 @@ impl SourcePool {
             sequence: 0,
             bridge_busy: 0,
             imports: 0,
+            import_aliases: 0,
+            reader_leases: 0,
             renderer_copies: 0,
             hresult: None,
         }));
@@ -207,6 +214,7 @@ impl SourcePool {
                 worker,
                 imports: std::array::from_fn(|_| None),
                 readers: std::array::from_fn(|_| None),
+                observed_ownership: (0, 0),
             },
         );
         Ok(())
@@ -220,6 +228,33 @@ impl SourcePool {
         input.shared.shutdown.store(true, Ordering::Release);
         input.shared.released.store(true, Ordering::Release);
         input.worker.cancel();
+        Self::observe_imports(input);
+    }
+
+    fn observe_imports(input: &mut Input) {
+        let mut aliases = [std::ptr::null(); INPUT_BRIDGE_SLOTS * 2];
+        let mut count = 0;
+        for imported in input
+            .imports
+            .iter()
+            .flatten()
+            .chain(input.readers.iter().flatten().map(|(_, reader)| &reader.imported))
+        {
+            let pointer = std::rc::Rc::as_ptr(imported);
+            if !aliases[..count].contains(&pointer) {
+                aliases[count] = pointer;
+                count += 1;
+            }
+        }
+        let counts = (count, input.readers.iter().flatten().count());
+        if input.observed_ownership == counts {
+            return;
+        }
+        input.observed_ownership = counts;
+        input.shared.update(|status| {
+            status.import_aliases = counts.0;
+            status.reader_leases = counts.1;
+        });
     }
 
     fn publish_statuses(&self) {
@@ -335,7 +370,10 @@ impl SourcePool {
             }
             if input.shared.retiring.load(Ordering::Acquire) && input.readers.iter().all(Option::is_none) {
                 input.imports = std::array::from_fn(|_| None);
+                Self::observe_imports(input);
                 input.shared.released.store(true, Ordering::Release);
+            } else {
+                Self::observe_imports(input);
             }
         }
     }
@@ -390,6 +428,7 @@ impl SourcePool {
                 imported
             }
         };
+        Self::observe_imports(input);
         if let Some((last_use, reader)) = &mut input.readers[index] {
             if !reader.imported.same_surface(&publication.surface) {
                 // A replacement allocation cannot displace ownership of unfinished work.
@@ -415,6 +454,7 @@ impl SourcePool {
         input
             .shared
             .update(|status| status.renderer_copies = status.renderer_copies.saturating_add(1));
+        Self::observe_imports(input);
         Ok(Some(CopyFrame {
             sequence: publication.sequence,
             timing: publication.timing,

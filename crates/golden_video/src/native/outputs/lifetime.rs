@@ -25,6 +25,9 @@ impl<T> Endpoint<T> {
     pub fn can_create(&self) -> bool {
         self.value.is_none() && self.retire_after.is_none()
     }
+    pub fn value(&self) -> Option<&T> {
+        self.value.as_ref()
+    }
     pub fn begin_use(&mut self, serial: u64) -> Option<&mut T> {
         if self.retire_after.is_some() {
             return None;

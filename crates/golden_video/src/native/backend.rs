@@ -202,7 +202,7 @@ impl D3d11Backend {
             Ok::<_, windows::core::Error>(NativeState {
                 #[cfg(all(test, feature = "qualification"))]
                 copy_tap: tests::copy_tap::Tap::new(&device, self.control.copy_tap.clone())?,
-                textures: Default::default(),
+                textures: resources::TextureCache::new(self.control.texture_allocations.clone()),
                 timing,
                 inputs,
                 outputs,

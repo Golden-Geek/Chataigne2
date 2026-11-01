@@ -12,7 +12,7 @@ use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, IsIconic, IsWindowVisible};
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use crate::{ColorEncoding, TextureDescriptor};
+use crate::{AlphaMode, ColorEncoding, PixelFormat, TextureDescriptor};
 
 use super::super::config::WindowTarget;
 use super::super::pipeline::RenderTarget;
@@ -74,6 +74,9 @@ impl WindowOutput {
         // reject a different native layout rather than publishing the requested value as fact.
         let actual = unsafe { chain.GetDesc1()? };
         if actual.BufferCount != 2
+            || actual.Width != descriptor.extent.width()
+            || actual.Height != descriptor.extent.height()
+            || actual.Format != DXGI_FORMAT_B8G8R8A8_UNORM
             || actual.SwapEffect != DXGI_SWAP_EFFECT_FLIP_DISCARD
             || actual.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.0 as u32 == 0
         {
@@ -150,6 +153,18 @@ impl WindowOutput {
             maximum_frame_latency: self.maximum_frame_latency,
             sync_interval: PRESENT_INTERVAL,
             admission_permit: self.readiness.permit,
+        }
+    }
+
+    pub(super) fn allocation(&self) -> super::super::OutputTextureAllocation {
+        super::super::OutputTextureAllocation::Window {
+            descriptor: TextureDescriptor {
+                format: PixelFormat::Bgra8Unorm,
+                color_encoding: ColorEncoding::Srgb,
+                alpha_mode: AlphaMode::Opaque,
+                ..self.descriptor
+            },
+            buffers: self.buffer_count,
         }
     }
 

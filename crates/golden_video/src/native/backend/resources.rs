@@ -28,8 +28,10 @@ struct Key {
 
 /// Worker/device-local index. Only resource generations own textures; stale index entries
 /// cannot keep GPU allocations or CPU asset leases alive beyond completion-based retirement.
-#[derive(Default)]
-pub(super) struct TextureCache(HashMap<Key, Weak<Texture>>);
+pub(super) struct TextureCache {
+    entries: HashMap<Key, Weak<Texture>>,
+    owner: crate::native::allocations::TextureAllocations,
+}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct PreparationCounts {
@@ -40,12 +42,19 @@ pub(super) struct PreparationCounts {
 }
 
 impl TextureCache {
+    pub fn new(owner: crate::native::allocations::TextureAllocations) -> Self {
+        Self {
+            entries: HashMap::new(),
+            owner,
+        }
+    }
+
     pub fn prune(&mut self) {
-        self.0.retain(|_, value| value.strong_count() != 0);
+        self.entries.retain(|_, value| value.strong_count() != 0);
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.entries.len()
     }
 
     fn get(
@@ -54,13 +63,15 @@ impl TextureCache {
         counts: &mut PreparationCounts,
         create: impl FnOnce() -> Result<Texture>,
     ) -> Result<Rc<Texture>> {
-        if let Some(texture) = self.0.get(&key).and_then(Weak::upgrade) {
+        if let Some(texture) = self.entries.get(&key).and_then(Weak::upgrade) {
             counts.reused += 1;
             return Ok(texture);
         }
-        let texture = Rc::new(create()?);
+        let mut texture = create()?;
+        texture.track(&self.owner)?;
+        let texture = Rc::new(texture);
         counts.created += 1;
-        self.0.insert(key, Rc::downgrade(&texture));
+        self.entries.insert(key, Rc::downgrade(&texture));
         Ok(texture)
     }
 

@@ -22,6 +22,7 @@ fn output_notifications_coalesce_backpressure_and_frame_serials_but_wake_first_r
             output(1),
             device,
             OutputStatus {
+                allocation: None,
                 state,
                 generation,
                 attempts,

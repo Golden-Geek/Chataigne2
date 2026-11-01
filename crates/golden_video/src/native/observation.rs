@@ -72,6 +72,8 @@ pub struct OutputSnapshot {
     pub attempts: u64,
     /// Latest endpoint HRESULT; cleared by successful creation or delivery.
     pub hresult: Option<i32>,
+    /// Native object storage retained by this endpoint, including recovery/retirement.
+    pub allocation: Option<super::OutputTextureAllocation>,
 }
 
 impl OutputSnapshot {
@@ -83,6 +85,7 @@ impl OutputSnapshot {
             generation: 0,
             attempts: 0,
             hresult: None,
+            allocation: None,
         }
     }
 }
@@ -92,6 +95,7 @@ pub(super) struct OutputStatus {
     pub generation: u64,
     pub attempts: u64,
     pub hresult: Option<i32>,
+    pub allocation: Option<super::OutputTextureAllocation>,
 }
 
 /// Per-consumer delivery and recovery lifecycle. Busy/occluded endpoints retain their objects;
@@ -137,6 +141,7 @@ pub struct D3d11Control {
     state: Arc<Mutex<D3d11Snapshot>>,
     sources: Arc<Mutex<Vec<SourceRegistration>>>,
     outputs: Arc<Mutex<OutputRegistry>>,
+    pub(super) texture_allocations: super::allocations::TextureAllocations,
 }
 
 #[derive(Clone)]
@@ -155,6 +160,65 @@ pub struct SourceObservationSnapshot {
 }
 
 impl D3d11Control {
+    /// Actual owner metadata, with aliases uncharged and driver physical size unknown.
+    pub fn allocations_snapshot(&self) -> super::NativeAllocationSnapshot {
+        let plan = self.texture_allocations.snapshot();
+        let sources: Vec<_> = self
+            .sources()
+            .into_iter()
+            .map(|source| {
+                let descriptor = (source.bridge_slots != 0)
+                    .then_some(source.observed_descriptor)
+                    .flatten();
+                let owned_texel_bytes = if source.bridge_slots == 0 {
+                    Some(0)
+                } else {
+                    descriptor.and_then(|d| d.byte_len().ok()?.checked_mul(source.bridge_slots as u64))
+                };
+                super::SourceTextureSnapshot {
+                    binding: source.binding,
+                    device: source.device,
+                    pool_generation: source.pool_generation,
+                    bridge_slots: source.bridge_slots,
+                    descriptor,
+                    owned_texel_bytes,
+                    import_aliases: source.import_aliases,
+                    reader_leases: source.reader_leases,
+                }
+            })
+            .collect();
+        let outputs: Vec<_> = self
+            .output_snapshots()
+            .into_iter()
+            .map(|output| super::OutputTextureSnapshot {
+                output: output.id,
+                generation: output.generation,
+                allocation: output.allocation,
+            })
+            .collect();
+        let owned_texel_bytes = sources
+            .iter()
+            .try_fold(plan.texel_bytes, |sum, source| {
+                sum.checked_add(source.owned_texel_bytes?)
+            })
+            .and_then(|sum| {
+                outputs.iter().try_fold(sum, |sum, output| {
+                    sum.checked_add(
+                        output
+                            .allocation
+                            .map_or(Some(0), super::OutputTextureAllocation::texel_bytes)?,
+                    )
+                })
+            });
+        super::NativeAllocationSnapshot {
+            plan,
+            sources,
+            outputs,
+            owned_texel_bytes,
+            driver_physical_bytes: None,
+        }
+    }
+
     /// Drains at most budget fixed-size telemetry rows. Call from a diagnostics/qualification
     /// worker; native workers never wait for this consumer and count every dropped row.
     pub fn drain_diagnostics(&self, output: &mut Vec<super::DiagnosticEvent>, budget: NonZeroUsize) -> usize {
@@ -265,6 +329,7 @@ impl D3d11Control {
             generation,
             attempts,
             hresult,
+            allocation,
         } = status;
         let mut changed = false;
         if let Some(output) = outputs.entries.iter_mut().find(|output| output.id == id) {
@@ -275,7 +340,8 @@ impl D3d11Control {
                 && matches!(state, OutputState::Ready | OutputState::Busy);
             changed = (!backpressure && output.state != state)
                 || output.generation != generation
-                || output.hresult != hresult;
+                || output.hresult != hresult
+                || output.allocation != allocation;
             if generation != output.generation
                 || matches!(
                     state,
@@ -288,6 +354,7 @@ impl D3d11Control {
             output.generation = generation;
             output.attempts = attempts;
             output.hresult = hresult;
+            output.allocation = allocation;
         }
         drop(outputs);
         if changed {

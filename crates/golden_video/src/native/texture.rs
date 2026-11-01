@@ -20,6 +20,8 @@ pub(super) struct Texture {
     pub(super) descriptor: TextureDescriptor,
     _image_lease: Option<golden_assets::PreparedAsset<crate::image::ImageData>>,
     _local: PhantomData<Rc<()>>,
+    // Last field: release all native texture/views before publishing this object's release.
+    allocation: Option<super::allocations::TextureAllocation>,
 }
 
 impl Texture {
@@ -154,6 +156,7 @@ impl Texture {
             descriptor,
             _image_lease: None,
             _local: PhantomData,
+            allocation: None,
         })
     }
 
@@ -162,6 +165,19 @@ impl Texture {
             Some(view) => (view, ColorEncoding::Linear),
             None => (&self.srv, self.descriptor.color_encoding),
         }
+    }
+
+    pub(super) fn track(&mut self, owner: &super::allocations::TextureAllocations) -> Result<()> {
+        debug_assert!(
+            self.allocation.is_none(),
+            "one native object has one allocation observation"
+        );
+        let bytes = self
+            .descriptor
+            .byte_len()
+            .map_err(|_| Error::from_hresult(HRESULT(0x8007_0057_u32 as i32)))?;
+        self.allocation = Some(owner.register(bytes));
+        Ok(())
     }
 }
 

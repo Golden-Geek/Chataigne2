@@ -5,6 +5,7 @@
 //! remains separate integration work. Bounded source workers own their SDK and device work;
 //! renderer imports retain allocation leases through their own matching completion.
 
+mod allocations;
 mod backend;
 mod completion;
 mod config;
@@ -22,6 +23,10 @@ mod process;
 mod texture;
 pub(crate) mod timing;
 
+pub use allocations::{
+    NativeAllocationSnapshot, OutputTextureAllocation, OutputTextureSnapshot, OwnedTextureSnapshot,
+    SourceTextureSnapshot,
+};
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};

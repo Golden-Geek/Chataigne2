@@ -253,6 +253,7 @@ pub fn native_snapshot(native: &D3d11Control) -> Value {
         "created_textures": state.created_textures,
         "reused_textures": state.reused_textures,
         "cached_texture_entries": state.cached_texture_entries,
+        "allocations": native.allocations_snapshot(),
         "accepted_outputs": state.accepted_outputs,
         "busy_outputs": state.busy_outputs,
         "unavailable_outputs": state.unavailable_outputs,
