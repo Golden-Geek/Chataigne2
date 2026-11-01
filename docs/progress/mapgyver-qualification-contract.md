@@ -77,6 +77,11 @@ silently omitted from a claimed creation timing.
   be nonblocking. Report source-to-output frame age, missed deadlines, present intervals,
   plan age, queued/retiring resources and per-output cadence. A minimized editor does not
   disable output demand; test 60 seconds minimized and 60 seconds disconnected/busy.
+- The published-frame ceiling may be proved by a verified native storage/admission upper bound
+  covering every accepted output publication. Record actual window descriptor/latency/readiness
+  and Spout shared-image identities; stale versions must coalesce. Report exact occupancy as
+  unknown when it is not measured. PresentMon pending events or GPU completion alone are not
+  publication-capacity evidence; this does not replace GPU critical-path/time measurements.
 - Record logical texture allocation bytes plus DXGI current usage/budget, process private bytes,
   working set and handle counts after warmup, at peaks and after retirement. Include SDK/driver
   allocations where observable; unknown counters remain unknown. Do not equate shared GPU

@@ -16,8 +16,12 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** complete the missing published output-queue observations within M03 gate 9. Batch 68's
-single full lifecycle verification with build-time shaders still fails private checkpoint growth:
+**Next:** complete the missing full GPU-path observation within M03 gate 9, using the existing
+dependency records and the owning source/renderer/output boundaries. Batch 69 delivers verified
+native publication-capacity metadata and its analyzer; one finite Q01 control covers every accepted
+publication with capacities **2/1/2 frames**. The prescribed Q01/Q02 series remains required after
+instrumentation stabilizes. Do not rerun it after each edit or substitute exact occupancy/GPU-time
+claims for the new conservative publication bounds. Batch 68's full lifecycle run still fails:
 **36.102 MiB >32 MiB**. Final drained growth **4.977 MiB** does not override that maximum.
 All 100 cycles, 1,000 edits, pauses, drains, logical return, handle and shutdown checks complete;
 all 339 execution inputs and paired overlay-Off inventories match. The shader change removes
@@ -51,6 +55,15 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest bounded observation (batch 69):** the public native trace carries actual window
+descriptor/latency readbacks, the pre-Present readiness permit and accepted Spout image/version.
+One schema-9 NVIDIA Q01 control (**2 s warmup /10 s sample /1 s each interruption**) covers all
+**582/600/600** accepted main/Spout/editor publications with conservative capacities **2/1/2**,
+within the unchanged **≤2** ceiling. Main also records **18 Busy** attempts. Exact occupancy is
+unknown, and the short queue criterion stays **UNAVAILABLE** despite observed bounds passing.
+All **341** inputs and paired overlay-Off identities match, all four PIDs are absent and
+shutdown is **418.801 ms**. No series, renderer gate or memory criterion closes; M03 stays **7/9**.
+[Output-queue mechanism evidence](evidence/mapgyver-m03-output-queue-2026-11-01.json).
 **Latest full lifecycle result (batch 68):** build-time production shaders preserve exact bytecode
 and device ownership. The one prescribed renderer run completes **100** cycles, **1,000** edits
 and **373** superseded outcomes in **1,142.773 s**. Native verdict is **FAILED_NATIVE** for
@@ -232,7 +245,8 @@ denominator changes. See [milestones](#milestones) and [next action](#next-actio
 
 **Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
 activation blocker and exact remaining evidence. M03 gate 9 remains active: next complete missing
-published output-queue observations, then remaining GPU-path/allocation evidence. The failed
+full GPU-path observation, then remaining allocation evidence. Publication-capacity metadata has
+one verified finite native control; its prescribed-series acceptance remains queued. The failed
 private-growth criterion returns when that ownership/allocation evidence supports a concrete new
 correction; its limit stays 32 MiB. Q01 on the selected route and final Q02 remain required once
 instrumentation is stable and the window-deadline decision is resolved. No repeated baseline,
@@ -3218,6 +3232,71 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
 
 ### M03 acceptance items
+
+**Published-output queue batch 69:** started 2026-11-01 **01:04 UTC**, stop by **01:49 UTC**.
+Previous turn is progress: `d8e382f5` publishes the complete embedded-shader lifecycle result,
+retaining the failed 32 MiB maximum-growth criterion and ending that experiment chain. Only
+M03 gate 9 remains active. Deliver public, worker-owned output publication/consumption bounds
+and qualification coverage for the existing ≤2 published-but-not-consumed frames/output rule.
+Ownership belongs in Golden Video's native output boundary; app-owned capture/analysis consumes
+the public observation. Distinguish app in-flight batches, SDK latest-image storage and native
+presentation capacity; an API accept, GPU fence or PresentMon pending count alone cannot certify
+consumer occupancy. Preserve unknown states explicitly. Source/API investigation ends by
+**01:24 UTC**, at most two fixed analyses/experiments. Verify with focused policy/coverage tests,
+strict Clippy and, only after software prerequisites, at most one finite native mechanism check.
+Do not start a Q01/Q02 series until all required instrumentation is stable. No memory rerun,
+driver/reset action, window deadline revision or parallel phase work. Checkpoint/push the
+coherent result and actual remaining coverage before the next implementation batch.
+
+**Batch 69 result:** Golden Video's accepted output trace now publishes `OutputQueueBound`.
+Windows read back the actual two-buffer flip-discard descriptor and latency-one setting during
+cold creation. A trace retains the worker's readiness permit immediately before Present and the
+same zero sync interval used by that call. Spout reuses the accepted shared-image/version
+metadata from its pinned single-image send path: subsequent versions overwrite that image under
+its ownership lock. No new shared-resource open, per-frame COM layout query, CPU pixel readback,
+driver change or SDK-side allocation is introduced. The receiver-side potentially allocating
+`GetSenderTexture` helper is deliberately not used to inspect a sender.
+
+The analyzer joins every selected accepted output to its API and native incarnation/shared image,
+requiring readiness, latency and stale-image replacement policy. The complete back-buffer count
+is a conservative capacity bound, not an instantaneous DWM/GPU occupancy estimate; the single
+Spout image has capacity one. Missing metadata remains unknown. Capacity above two is insufficient
+proof rather than a measured occupancy failure. The qualification contract clarifies this
+sufficient proof without changing the **≤2** budget or any GPU/physical/latency requirement.
+Rust owns capture schema **9** and the generator updates its committed JSON; prior captures
+cannot acquire a retrospective queue pass.
+
+**Checks:** **164 Video tests /23 existing hardware ignores**, strict all-target/all-feature
+Video Clippy and MapGyver native-bin/test Clippy pass. **291 qualification-tool tests** pass,
+including eight focused capacity/identity/unknown/recreation cases and an analyzer integration
+case that preserves short-run ineligibility. Rust-generated fixture drift and both workspace
+formatters pass. Exact typed native observations remain metadata on their owning worker;
+no UI-owned domain logic or duplicated TypeScript DTO is added.
+
+The single finite NVIDIA native control uses **MSVC 14.51.36231 /SDK 10.0.26100.0**, release
+executable SHA-256 `692fca29fbd6097461aeb0f424b62b9e55c2714b0f13062026d933c63c9f5b81`.
+It completes **17.056 s** total, exit **0**, without timeout/force and with an empty owned job.
+The **10-second** sample attempts 600 opportunities/output: main accepts **582**, records
+**18 Busy**, Spout accepts **600**, editor accepts **600**. All **1,782** accepted publications
+have matching verified queue metadata; bounds are **2/1/2** frames. Plan-age and telemetry
+coverage are complete. The main API cadence/deadline observation remains adverse, and the
+one-second interruption controls cannot satisfy the required 60 seconds. No PresentMon session
+was requested, so window software-display/physical-consumption claims stay unavailable.
+
+All **341** execution inputs are frozen; paired environment/overlay-Off identities and QPC
+brackets verify the same NVIDIA renderer → Intel-owned display route. All three fixture children
+exit zero/unforced, all four recorded PIDs are absent, actual retirement is **111.201 ms**,
+and whole-parent shutdown is **418.801 ms**. Both HWNDs survive until actual GPU retirement;
+final runtime is stopped with zero reserved/in-flight/prepared/retiring work. All **22** raw
+file hashes and paired-analysis/build/environment hashes are preserved and checked in the
+[compact evidence](evidence/mapgyver-m03-output-queue-2026-11-01.json).
+
+**Decision:** queue observation now works end to end, but the short criterion and complete run
+remain **UNAVAILABLE**, qualification **false**. No acceptance gate closes; M03 stays **7/9**.
+Complete the missing full GPU-path observation next at its owning boundary. Physical allocation
+evidence, preserved **36.102 MiB >32 MiB** growth, pending window/reset decisions and all later
+phase acceptance remain required. No repeated native queue control, parameter sweep or memory
+experiment follows this result. Freeze instrumentation before the prescribed final series.
 
 **Native preparation memory batch 68:** started 2026-11-01 **00:26 UTC**, stop by **01:11 UTC**.
 Previous turn is progress: `e08ede9b` verifies the complete corrected lifecycle workload and

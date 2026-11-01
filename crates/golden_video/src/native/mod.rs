@@ -40,8 +40,9 @@ pub use process::{
 };
 pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
-    FrameCpuTrace, GpuSampleStatus, GpuTrace, OutputTrace, PublicationTiming, ScheduleClock, ScheduleClockError,
-    ScheduleDisposition, ScheduleTrace, SourceCpuTrace, SourceUseTrace, SpoutImageVersion, ThreadCpuDelta,
+    FrameCpuTrace, GpuSampleStatus, GpuTrace, OutputQueueBound, OutputTrace, PublicationTiming, ScheduleClock,
+    ScheduleClockError, ScheduleDisposition, ScheduleTrace, SourceCpuTrace, SourceUseTrace, SpoutImageVersion,
+    ThreadCpuDelta,
 };
 
 pub(crate) use backend::D3d11Backend;

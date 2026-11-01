@@ -555,6 +555,7 @@ impl Backend for D3d11Backend {
             let admission = native.outputs.admit(output.id, context, descriptor, token, attempt);
             let mut consumer_api = None;
             let mut window_present = None;
+            let mut publication_queue = None;
             let (conversion, delivery, outcome, spout_image) = match admission {
                 Err(super::outputs::Delivery::Busy) if attempt == Admission::Poll => {
                     return Attempt::DeferredWindow;
@@ -588,6 +589,7 @@ impl Backend for D3d11Backend {
                     let delivery_begin = recorder.and_then(Recorder::stamp);
                     let delivered = admitted.deliver(converted, recorder, &mut consumer_api);
                     window_present = delivered.window_present;
+                    publication_queue = delivered.publication_queue;
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));
                     (conversion, delivery, delivered.outcome, delivered.spout_image)
                 }
@@ -602,6 +604,7 @@ impl Backend for D3d11Backend {
                     outcome: outcome.into(),
                     spout_image,
                     window_present,
+                    publication_queue,
                 }));
             }
             Attempt::Complete

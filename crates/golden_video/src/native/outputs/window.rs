@@ -16,8 +16,10 @@ use crate::{ColorEncoding, TextureDescriptor};
 
 use super::super::config::WindowTarget;
 use super::super::pipeline::RenderTarget;
-use super::super::timing::{CpuInterval, Recorder};
+use super::super::timing::{CpuInterval, OutputQueueBound, Recorder};
 use super::Delivery;
+
+const PRESENT_INTERVAL: u32 = 0;
 
 /// Fixed admitted backing size; DXGI stretches it when the host's physical client size changes.
 pub(super) struct WindowOutput {
@@ -28,6 +30,8 @@ pub(super) struct WindowOutput {
     window: HWND,
     descriptor: TextureDescriptor,
     addresses: Option<[u64; 3]>,
+    buffer_count: u32,
+    maximum_frame_latency: u32,
     _local: PhantomData<Rc<()>>,
 }
 
@@ -66,11 +70,24 @@ impl WindowOutput {
             )?
         }
         .cast::<IDXGISwapChain2>()?;
+        // SAFETY: read back this exact owned chain. Resource budgets assume two flip buffers;
+        // reject a different native layout rather than publishing the requested value as fact.
+        let actual = unsafe { chain.GetDesc1()? };
+        if actual.BufferCount != 2
+            || actual.SwapEffect != DXGI_SWAP_EFFECT_FLIP_DISCARD
+            || actual.Flags & DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT.0 as u32 == 0
+        {
+            return Err(Error::new(
+                HRESULT(0x8000_4005_u32 as i32),
+                "unexpected native swapchain layout",
+            ));
+        }
         // SAFETY: only this owned swapchain is configured. The returned wait handle belongs
         // to the caller and is kept worker-local rather than sent into control metadata.
-        let readiness = unsafe {
+        let (readiness, maximum_frame_latency) = unsafe {
             chain.SetMaximumFrameLatency(1)?;
-            if chain.GetMaximumFrameLatency()? != 1 {
+            let maximum_frame_latency = chain.GetMaximumFrameLatency()?;
+            if maximum_frame_latency != 1 {
                 return Err(Error::new(
                     HRESULT(0x8000_4005_u32 as i32),
                     "DXGI did not retain maximum frame latency one",
@@ -83,7 +100,7 @@ impl WindowOutput {
                     "DXGI did not provide a frame-latency handle",
                 ));
             }
-            OwnedHandle::from_raw_handle(handle.0)
+            (OwnedHandle::from_raw_handle(handle.0), maximum_frame_latency)
         };
         // Own the wait handle before further fallible creation, so a view failure closes it.
         // D3D11 permits an SRGB RTV on a fully typed UNORM swapchain backbuffer. The
@@ -121,8 +138,19 @@ impl WindowOutput {
             window,
             descriptor,
             addresses,
+            buffer_count: actual.BufferCount,
+            maximum_frame_latency,
             _local: PhantomData,
         })
+    }
+
+    pub(super) fn publication_queue(&self) -> OutputQueueBound {
+        OutputQueueBound::Window {
+            buffer_count: self.buffer_count,
+            maximum_frame_latency: self.maximum_frame_latency,
+            sync_interval: PRESENT_INTERVAL,
+            admission_permit: self.readiness.permit,
+        }
     }
 
     pub(super) fn present_identity(&self, generation: u64) -> Option<super::super::timing::WindowPresentIdentity> {
@@ -161,7 +189,7 @@ impl WindowOutput {
         // pipeline unbound its prepared backbuffer view after drawing directly into it.
         unsafe {
             let begin = recorder.and_then(Recorder::stamp);
-            let result = self.chain.Present(0, DXGI_PRESENT_DO_NOT_WAIT);
+            let result = self.chain.Present(PRESENT_INTERVAL, DXGI_PRESENT_DO_NOT_WAIT);
             *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
             self.readiness.presented(result)
         }

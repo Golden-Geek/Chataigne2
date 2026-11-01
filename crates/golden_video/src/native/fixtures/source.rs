@@ -267,6 +267,8 @@ impl FixtureSource {
             consumer_api,
             outcome,
             spout_image,
+            publication_queue: spout_image
+                .map(|image| super::super::timing::OutputQueueBound::SpoutLatestImage { image }),
         }));
         match outcome {
             DiagnosticDelivery::Accepted => self.accepted_sends = self.accepted_sends.saturating_add(1),

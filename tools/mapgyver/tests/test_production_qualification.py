@@ -209,6 +209,28 @@ class ProductionQualificationTests(unittest.TestCase):
         (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
         self.assertIsNone(self.analyze()['criteria']['source_to_consumer_age']['observed_within_target'])
 
+    def test_native_queue_bounds_join_the_accepted_cohort_without_claiming_sustained_qualification(self):
+        for row in self.renderer:
+            output = row.get('event', {}).get('Output')
+            if output is None:
+                continue
+            if output['output'] == 2:
+                output['publication_queue'] = {'SpoutLatestImage': {'image': output['spout_image']}}
+            else:
+                output['window_present'] = {'generation': 1, 'addresses': [1000 + output['output']] * 3}
+                output['publication_queue'] = {'Window': {'buffer_count': 2, 'maximum_frame_latency': 1,
+                                                          'sync_interval': 0, 'admission_permit': True}}
+        write_rows(self.directory/'renderer.jsonl', self.renderer)
+        result = self.analyze()
+        self.assertIs(result['criteria']['plan_age_and_published_queue']['observed_within_target'], True)
+        self.assertEqual(result['criteria']['plan_age_and_published_queue']['status'], 'UNAVAILABLE')
+        self.assertEqual([row['covered_publications'] for row in result['output_publication_queue']['outputs']],
+                         [60, 60, 60])
+        first = next(row['event']['Output'] for row in self.renderer if 'Output' in row.get('event', {}))
+        first.pop('publication_queue')
+        write_rows(self.directory/'renderer.jsonl', self.renderer)
+        self.assertIsNone(self.analyze()['criteria']['plan_age_and_published_queue']['observed_within_target'])
+
     def test_complete_short_capture_stays_diagnostic_and_contexts_never_become_critical_path(self):
         result = self.analyze()
         self.assertFalse(result["prescribed_sample"])

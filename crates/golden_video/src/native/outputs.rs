@@ -11,7 +11,9 @@ use super::config::{D3d11Config, OutputBinding};
 use super::observation::{D3d11Control, OutputState, OutputStatus};
 use super::pipeline::RenderTarget;
 use super::texture::Texture;
-use super::timing::{CpuInterval, DiagnosticDelivery, Recorder, SpoutImageVersion, WindowPresentIdentity};
+use super::timing::{
+    CpuInterval, DiagnosticDelivery, OutputQueueBound, Recorder, SpoutImageVersion, WindowPresentIdentity,
+};
 use lifetime::Endpoint;
 use recovery::Recovery;
 
@@ -100,6 +102,7 @@ pub(super) struct Delivered {
     pub outcome: Delivery,
     pub spout_image: Option<SpoutImageVersion>,
     pub window_present: Option<WindowPresentIdentity>,
+    pub publication_queue: Option<OutputQueueBound>,
 }
 
 impl AdmittedOutput<'_> {
@@ -126,6 +129,10 @@ impl AdmittedOutput<'_> {
             .endpoint
             .begin_use(self.token.serial)
             .expect("exclusively admitted endpoint");
+        let window_queue = match (&endpoint, recorder.is_some()) {
+            (Output::Window(window), true) => Some(window.publication_queue()),
+            _ => None,
+        };
         let delivered = endpoint.deliver(texture, recorder, consumer_api);
         let image = match (&endpoint, delivered, recorder.is_some()) {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
@@ -133,6 +140,11 @@ impl AdmittedOutput<'_> {
         };
         let window_present = match (&endpoint, consumer_api.is_some(), recorder.is_some()) {
             (Output::Window(window), true, true) => window.present_identity(self.binding.recovery.generation),
+            _ => None,
+        };
+        let publication_queue = match (&endpoint, delivered) {
+            (Output::Window(_), Delivery::Accepted) => window_queue,
+            (Output::Spout(_), Delivery::Accepted) => image.map(|image| OutputQueueBound::SpoutLatestImage { image }),
             _ => None,
         };
         let delivered = self.binding.delivered(self.device, delivered, Instant::now());
@@ -143,6 +155,7 @@ impl AdmittedOutput<'_> {
             outcome: delivered,
             spout_image: image.filter(|_| delivered == Delivery::Accepted),
             window_present,
+            publication_queue: publication_queue.filter(|_| delivered == Delivery::Accepted),
         }
     }
 }

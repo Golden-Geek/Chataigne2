@@ -6,6 +6,7 @@ mod cpu;
 mod event;
 mod gpu;
 mod plan;
+mod queue;
 mod scheduler;
 mod sink;
 
@@ -13,6 +14,7 @@ pub(crate) use clock::Clock;
 pub(crate) use cpu::CpuScope;
 pub use event::*;
 pub(crate) use gpu::GpuTiming;
+pub use queue::OutputQueueBound;
 pub(crate) use scheduler::ScheduleClockSource;
 pub(crate) use sink::Recorder;
 

@@ -30,6 +30,7 @@ PRESENTMON = runpy.run_path(str(Path(__file__).with_name("production_presentmon.
 DELIVERY_DEADLINES = runpy.run_path(str(Path(__file__).with_name("production_delivery_deadlines.py")))
 GPU_STAGES = runpy.run_path(str(Path(__file__).with_name("production_gpu_stages.py")))
 OUTPUT_ORDER = runpy.run_path(str(Path(__file__).with_name("production_output_order.py")))
+OUTPUT_QUEUE = runpy.run_path(str(Path(__file__).with_name("production_output_queue.py")))
 ENVIRONMENT = runpy.run_path(str(Path(__file__).with_name("production_environment.py")))
 
 
@@ -471,6 +472,7 @@ def analyze_capture(directory, environment=None):
     if not healths[0]["complete"] and deadline_verdict is True:
         deadline_verdict = None
     frame_rows, cpu = cpu_metrics(native["FrameCpu"], sample, frequency)
+    output_queue = OUTPUT_QUEUE["analyze_output_queue"](frame_rows, native["Output"], healthy=healths[0]["complete"])
     preparation = PREPARATION["analyze_preparation"](native["Preparation"], native["FrameCpu"], frequency, distribution)
     plan_age = PLAN_AGE["analyze_plan_age"](native["Plan"], native["Preparation"], native["FrameCpu"],
                                           native["Output"], sample, frequency, distribution)
@@ -625,7 +627,8 @@ def analyze_capture(directory, environment=None):
                                           scope=plan_age["scope"]),
         "window_presentation": criterion(presentmon["coverage_complete"] if complete and presentmon["captured"] else None,
                                           eligible, scope="exact native Present/ETW software display cohort; not physical scanout"),
-        "plan_age_and_published_queue": criterion(None, eligible, reason="CPU plan/source age and optional software-display timelines measured; pending display events do not establish app/native buffer occupancy or GPU queue time"),
+        "plan_age_and_published_queue": criterion(output_queue["observed_within_target"]
+            if plan_age["coverage_complete"] else None, eligible, scope=output_queue["scope"]),
         "environment_identity": criterion(environment_result["observed_within_target"], eligible,
                                           **{key: value for key, value in environment_result.items()
                                              if key != "observed_within_target"}),
@@ -635,6 +638,7 @@ def analyze_capture(directory, environment=None):
             "dependencies": dependencies, "outputs": output_metrics, "producers": producers,
             "output_submission_order": OUTPUT_ORDER["analyze_output_order"](
                 frame_rows, native["Output"], healthy=healths[0]["complete"]),
+            "output_publication_queue": output_queue,
             "submission_deadlines": deadlines,
             "delivery_deadlines": delivery_deadlines,
             "native_preparation": preparation,
@@ -699,6 +703,7 @@ def fingerprints(executable):
               Path(__file__).with_name("production_delivery_deadlines.py"),
               Path(__file__).with_name("production_gpu_stages.py"),
               Path(__file__).with_name("production_output_order.py"),
+              Path(__file__).with_name("production_output_queue.py"),
               Path(__file__).with_name("production_environment.py"),
               Path(__file__).with_name("collect-baseline.ps1"),
               ROOT / "crates/golden_time/Cargo.toml", ROOT / "crates/golden_video/Cargo.toml",

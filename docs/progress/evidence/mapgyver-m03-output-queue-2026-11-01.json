@@ -1,0 +1,625 @@
+{
+  "evidence_kind": "native_output_publication_capacity_mechanism",
+  "date": "2026-11-01",
+  "owner_phase": "M03",
+  "owner_gate": 9,
+  "status": "UNAVAILABLE",
+  "qualified": false,
+  "gate_change": "none; M03 remains 7/9",
+  "raw_directory_local": "target/qualification-m03-output-queue-2026-11-01-b69",
+  "method": {
+    "scenario": "Q01",
+    "renderer_adapter_index": 1,
+    "renderer_adapter_luid": "00000000:000170d3",
+    "warmup_seconds": 2,
+    "sample_seconds": 10,
+    "interruption_seconds_each": 1,
+    "samples": 1,
+    "capture_schema_version": 9,
+    "scope": "finite mechanism check, not the prescribed three independent 30+120-second samples or 60-second interruptions",
+    "invocation": [
+      "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+      "--role",
+      "renderer",
+      "--directory",
+      "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-m03-output-queue-2026-11-01-b69\\sample-001",
+      "--scenario",
+      "Q01",
+      "--adapter",
+      "1",
+      "--warmup",
+      "2",
+      "--seconds",
+      "10",
+      "--independence",
+      "1",
+      "--trace-capacity",
+      "65536"
+    ]
+  },
+  "output_publication_queue": {
+    "coverage_complete": true,
+    "observed_within_target": true,
+    "required_maximum_frames": 2,
+    "outputs": [
+      {
+        "output": 1,
+        "accepted_publications": 582,
+        "covered_publications": 582,
+        "coverage_complete": true,
+        "maximum_verified_capacity_frames": 2,
+        "capacity_sufficient_for_target": true,
+        "exact_pending_frames": null,
+        "unknown_reasons": []
+      },
+      {
+        "output": 2,
+        "accepted_publications": 600,
+        "covered_publications": 600,
+        "coverage_complete": true,
+        "maximum_verified_capacity_frames": 1,
+        "capacity_sufficient_for_target": true,
+        "exact_pending_frames": null,
+        "unknown_reasons": []
+      },
+      {
+        "output": 3,
+        "accepted_publications": 600,
+        "covered_publications": 600,
+        "coverage_complete": true,
+        "maximum_verified_capacity_frames": 2,
+        "capacity_sufficient_for_target": true,
+        "exact_pending_frames": null,
+        "unknown_reasons": []
+      }
+    ],
+    "scope": "verified app/native publication capacity bounds, with stale-image replacement; not exact occupancy, GPU queue time or scanout",
+    "limitations": [
+      "larger/unknown capacity does not prove an actual occupancy violation",
+      "external receiver-owned storage is not an app-owned publication queue",
+      "GPU critical path and physical consumption timestamps remain separate requirements"
+    ]
+  },
+  "queue_criterion": {
+    "status": "UNAVAILABLE",
+    "observed_within_target": true,
+    "owner_phase": "M03",
+    "owner_gate": 9,
+    "scope": "verified app/native publication capacity bounds, with stale-image replacement; not exact occupancy, GPU queue time or scanout"
+  },
+  "outputs": [
+    {
+      "output": 1,
+      "counts": {
+        "Accepted": 582,
+        "Busy": 18
+      },
+      "expected_at_60hz": 600.0,
+      "accepted_shortfall": 18.0,
+      "accepted_shortfall_fraction": 0.03,
+      "accepted_call_intervals": {
+        "samples": 581,
+        "median_ms": 16.6822,
+        "p95_ms": 17.1016,
+        "p99_ms": 33.4576,
+        "maximum_ms": 33.6811
+      },
+      "consumer_api_wall": {
+        "samples": 582,
+        "median_ms": 0.0239,
+        "p95_ms": 0.0446,
+        "p99_ms": 0.1995,
+        "maximum_ms": 0.3023
+      },
+      "within_target": false
+    },
+    {
+      "output": 2,
+      "counts": {
+        "Accepted": 600
+      },
+      "expected_at_60hz": 600.0,
+      "accepted_shortfall": 0,
+      "accepted_shortfall_fraction": 0.0,
+      "accepted_call_intervals": {
+        "samples": 599,
+        "median_ms": 16.6725,
+        "p95_ms": 17.0244,
+        "p99_ms": 17.174,
+        "maximum_ms": 17.2593
+      },
+      "consumer_api_wall": {
+        "samples": 600,
+        "median_ms": 0.1144,
+        "p95_ms": 0.2167,
+        "p99_ms": 0.2973,
+        "maximum_ms": 0.5211
+      },
+      "within_target": true
+    },
+    {
+      "output": 3,
+      "counts": {
+        "Accepted": 600
+      },
+      "expected_at_60hz": 600.0,
+      "accepted_shortfall": 0,
+      "accepted_shortfall_fraction": 0.0,
+      "accepted_call_intervals": {
+        "samples": 599,
+        "median_ms": 16.6672,
+        "p95_ms": 17.0297,
+        "p99_ms": 17.1787,
+        "maximum_ms": 17.2695
+      },
+      "consumer_api_wall": {
+        "samples": 600,
+        "median_ms": 0.0151,
+        "p95_ms": 0.0299,
+        "p99_ms": 0.0567,
+        "maximum_ms": 0.1876
+      },
+      "within_target": true
+    }
+  ],
+  "criteria": {
+    "functional_completion": {
+      "status": "PASSED_NATIVE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "fixed_scene": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "telemetry_coverage": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "roles": [
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 10453,
+          "queued": 0,
+          "written": 10453,
+          "drained": 10453,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 2982,
+          "queued": 0,
+          "written": 2982,
+          "drained": 2982,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 2952,
+          "queued": 0,
+          "written": 2952,
+          "drained": 2952,
+          "dropped_full": 0,
+          "clock_failures": 0
+        },
+        {
+          "complete": true,
+          "raw_diagnostic_rows": 1740,
+          "queued": 0,
+          "written": 1740,
+          "drained": 1740,
+          "dropped_full": 0,
+          "clock_failures": 0
+        }
+      ]
+    },
+    "input_identity": {
+      "status": "PASSED_NATIVE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "gpu_context_coverage": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "cpu_submission": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "reason": "inclusive wall upper bound; exceeding it does not isolate CPU work from opaque API waits"
+    },
+    "output_api_cadence": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": false,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "producer_api_cadence": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "submission_deadlines": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "reason": "anchored native API observations; early acceptance does not prove GPU/display completion"
+    },
+    "deadline_misses": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": false,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "reason": "exact anchored opportunities; window software display and Spout ready-time bounds; late completion polls stay unknown"
+    },
+    "editor_independence": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": false,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "source_to_consumer_age": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "observed_capture_p95_within_budget": true,
+      "reason": "every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"
+    },
+    "spout_capture_identity": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"
+    },
+    "spout_capture_age": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "reason": "one first completed independent capture per accepted Spout image; missing images cannot be omitted"
+    },
+    "source_publication_age": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"
+    },
+    "gpu_critical_path": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "reason": "exact dependency identities do not calibrate separate GPU-context clocks or establish critical-path elapsed time"
+    },
+    "logical_texture_charge": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "dxgi_admission": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "renderer_private_memory": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "completion_retirement": {
+      "status": "PASSED_NATIVE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9
+    },
+    "shutdown": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scoped_elapsed_ms": 418.8007
+    },
+    "renderer_handle_growth": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "required_handle_delta_maximum": 10,
+      "required_private_growth_bytes": 33554432,
+      "required_drain_seconds": 10,
+      "reason": "applicable renderer lifecycle/resource-return series is absent; timing samples do not verify its handle/private-growth budgets"
+    },
+    "physical_display_dpi_input": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M05",
+      "owner_gate": null,
+      "reason": "M05-owned physical observations are absent"
+    },
+    "Q05_handles_growth": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M09",
+      "owner_gate": null,
+      "reason": "full-app Q05, including Matrix launches and transitions, has not been captured"
+    },
+    "native_preparation": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "native preparation/first-use coverage; no latency budget inferred"
+    },
+    "plan_publication_age": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "CPU admitted publication to first worker receipt, atomic install, first submit and accepted output API; retained plan age is not edit latency"
+    },
+    "window_presentation": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": null,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "exact native Present/ETW software display cohort; not physical scanout"
+    },
+    "plan_age_and_published_queue": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "scope": "verified app/native publication capacity bounds, with stale-image replacement; not exact occupancy, GPU queue time or scanout"
+    },
+    "environment_identity": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "display_adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "renderer_adapter": {
+        "high": 0,
+        "low": 94419
+      },
+      "same_adapter_display": false,
+      "before_evidence_sha256": "5480ac225c74997510025e60cf99abf89de77584d077b63069900f25c8d5cc7f",
+      "after_evidence_sha256": "9f944a2e025c6ddf0fda37e5473c3b7214158b073a931db6200e59de62654d3a",
+      "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+    }
+  },
+  "cleanup": {
+    "launcher": {
+      "exit_code": 0,
+      "timed_out": false,
+      "forced_cleanup": false,
+      "owned_job_active_before_close": 0,
+      "elapsed_seconds": 17.056071700004395,
+      "exit_observed_qpc": 4944561062777,
+      "qpc_frequency": 10000000,
+      "job_assignment_atomic": false,
+      "watchdog_scope": "one newly created renderer and its inherited job descendants",
+      "command": [
+        "D:\\Projects\\Dev\\Chataigne2\\target\\release\\native_qualification.exe",
+        "--role",
+        "renderer",
+        "--directory",
+        "D:\\Projects\\Dev\\Chataigne2\\target\\qualification-m03-output-queue-2026-11-01-b69\\sample-001",
+        "--scenario",
+        "Q01",
+        "--adapter",
+        "1",
+        "--warmup",
+        "2",
+        "--seconds",
+        "10",
+        "--independence",
+        "1",
+        "--trace-capacity",
+        "65536"
+      ],
+      "stdout_sha256": "d10b1e1ec9ae9cf4fde8f9fe228c38b32393f957198b574b58cb70a51de4b181",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "finished_utc": "2026-11-01T01:14:13.016510+00:00"
+    },
+    "parent_summary": {
+      "children": [
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 23820,
+          "stop_ns": "30906700",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 24372,
+          "stop_ns": "26974300",
+          "success": true
+        },
+        {
+          "exit_code": 0,
+          "forced": false,
+          "pid": 26432,
+          "stop_ns": "35975700",
+          "success": true
+        }
+      ],
+      "children_stop_ns": "94556100",
+      "qpc": 4944559429876,
+      "renderer_returned_ok": true,
+      "schema_version": 9
+    },
+    "retirement": {
+      "actual_retirement": true,
+      "begin_qpc": 4944556874770,
+      "both_hwnds_retained_until_retirement": true,
+      "elapsed_seconds": 0.1112013,
+      "end_qpc": 4944557954451,
+      "output_destroyed_after_retirement": true
+    },
+    "final_runtime": {
+      "failure": null,
+      "frames_submitted": 869,
+      "last_frame": {
+        "completion": {
+          "device": {
+            "generation": 1,
+            "runtime": "7e3905b4-0c34-4665-b3cd-0e30cb5292e4"
+          },
+          "serial": 869
+        },
+        "frame_index": 868,
+        "generation": 7,
+        "project": 0,
+        "revision": 10,
+        "scheduled_nanos": 14637527367
+      },
+      "latest_desired": false,
+      "missed_frames": 0,
+      "outstanding": 0,
+      "prepared": false,
+      "preparing": false,
+      "project": 0,
+      "resources": {
+        "active": null,
+        "byte_limit": 536870912,
+        "bytes_used": 0,
+        "device_lost": false,
+        "in_flight": 0,
+        "initialized": true,
+        "last_completed": {
+          "device": {
+            "generation": 1,
+            "runtime": "7e3905b4-0c34-4665-b3cd-0e30cb5292e4"
+          },
+          "serial": 869
+        },
+        "last_submitted": {
+          "device": {
+            "generation": 1,
+            "runtime": "7e3905b4-0c34-4665-b3cd-0e30cb5292e4"
+          },
+          "serial": 869
+        },
+        "peak_bytes": 144691472,
+        "prepared": 0,
+        "retiring": 0
+      },
+      "state": "Stopped"
+    },
+    "known_owned_pids": [
+      23820,
+      24372,
+      26432,
+      41412
+    ],
+    "known_owned_pids_live": [],
+    "trace_session_requested": false
+  },
+  "build": {
+    "manifest_local": "target/qualification-env-build-2026-11-01-b69/build.json",
+    "manifest_sha256": "c3ea01d925e2b6f8d58fba14f3e669f91c72d2c289b4f78c6a974be820fffef9",
+    "executable_sha256": "692fca29fbd6097461aeb0f424b62b9e55c2714b0f13062026d933c63c9f5b81",
+    "msvc": "14.51.36231",
+    "windows_sdk": [
+      "10.0.26100.0"
+    ]
+  },
+  "inputs_unchanged": true,
+  "execution_input_count": 341,
+  "environment": {
+    "identities_equal": true,
+    "before_sha256": "c940b2c2950260e5d7ff5e50c3799876dcd28c05cee4afedf8f42d99fc7b9374",
+    "after_sha256": "72945277b5ad9545464b4ce757ad5d066a2f566c737c9ae261b73a41da5357a4",
+    "before_clock": {
+      "begin_qpc": 4944355775266,
+      "utc_begin": "2026-11-01T01:13:52.4810233Z",
+      "end_qpc": 4944379392301,
+      "frequency": 10000000
+    },
+    "after_clock": {
+      "begin_qpc": 4944888981537,
+      "utc_begin": "2026-11-01T01:14:45.8026266Z",
+      "end_qpc": 4944910151420,
+      "frequency": 10000000
+    },
+    "overlay_before_after": "Off; native Home Enable and open overlay UIA action",
+    "criterion": {
+      "status": "UNAVAILABLE",
+      "observed_within_target": true,
+      "owner_phase": "M03",
+      "owner_gate": 9,
+      "display_adapter": {
+        "high": 0,
+        "low": 93226
+      },
+      "renderer_adapter": {
+        "high": 0,
+        "low": 94419
+      },
+      "same_adapter_display": false,
+      "before_evidence_sha256": "5480ac225c74997510025e60cf99abf89de77584d077b63069900f25c8d5cc7f",
+      "after_evidence_sha256": "9f944a2e025c6ddf0fda37e5473c3b7214158b073a931db6200e59de62654d3a",
+      "scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+    }
+  },
+  "paired_analysis_local": "target/qualification-b69-paired-analysis.json",
+  "paired_analysis_sha256": "d6f7480d92c377630eb725dd9bab83b7d079160c7666268779f76c5ab6d0350a",
+  "raw_file_count": 22,
+  "raw_tree_sha256": "48abf331e8f1411947ba082e6b873338b2cd08d86d4e46384cd598950de42e3a",
+  "raw_tree_hash_method": "SHA-256 of UTF-8 JSON mapping relative POSIX file paths to SHA-256, sort_keys=True, separators=(',',':'), ensure_ascii=True",
+  "raw_sha256": {
+    "analysis.json": "ef35820a7adf1ce2593cffc000edfba968fba53d7a7373e966fec9b773ff5bf6",
+    "sample-001/consumer.jsonl": "a439eab29c3d2d3508ba43e4d74550e2fcdf39eb36ac7df562ff5650cc74609c",
+    "sample-001/fixture-0-exit.json": "87661dec33fbedac2edb0cdb1424d46289b7c8a754a00ca38a803bcf9544eb24",
+    "sample-001/fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sample-001/fixture-0-stdout.jsonl": "69cb5f004c9c01f97464d0142b0df0023d0ce3e68687b3ce008c38e163d2a4d4",
+    "sample-001/fixture-1-exit.json": "dc222b36569a77e62787867d2c54c7505a98cc813e44167f92b82d6238a99326",
+    "sample-001/fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sample-001/fixture-1-stdout.jsonl": "0d6c2aa0a80ee862d64d687b7cf4cc8d92d3335f99f71d0e53e04f29eb1c5fa4",
+    "sample-001/fixture-2-exit.json": "b62d74fbc435e8921abf06a4c985d518c96a8a36b0e0c6c56c6248c590dc4573",
+    "sample-001/fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sample-001/fixture-2-stdout.jsonl": "9755d495e63f0ce61ae0deaa79a83bb8ab3ecb5dde4ee60dfd32451acb13dd2c",
+    "sample-001/inputs.json": "812fe30bc18b58a7224e6fa901d39c85e69e42e2e941b3f83d1c9eee84df3952",
+    "sample-001/launcher.json": "7c99611f9b4f5fd6165b0ff5f694a57e3d2414eb24b34cb2d4ad3903a0af7c6e",
+    "sample-001/manifest.json": "38a54aec5622a15cfee34544edd6e5e0d88a7185aac580705a49384ee1294128",
+    "sample-001/parent-summary.json": "83183dc88237d77084e2bfa9a608b4656d8e387465866c4ffdce489c386d128a",
+    "sample-001/renderer-summary.json": "1a9b8ef52c8fb39b74e57f119faba2f6c6c6754eb56c8516ad44073b594590e3",
+    "sample-001/renderer.jsonl": "78a18d9109606d8119860891c5fd0d45a02f179bd26ba7f0afd95eb6588c6151",
+    "sample-001/source-1.jsonl": "3c854766089d488751a9c6d7a5e02b7b1c03591009c2968b05d406c271ef53c2",
+    "sample-001/source-2.jsonl": "83b967334669eea60d89bb2be1e9cac3d6f93756ca0438383f8294bf73dd6de7",
+    "sample-001-inputs-before.json": "1ffb078cb04d857b888b2b7ea5cb121f87e004770464c8848e51088f17d9298c",
+    "sample-001-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sample-001-stdout.log": "d10b1e1ec9ae9cf4fde8f9fe228c38b32393f957198b574b58cb70a51de4b181"
+  },
+  "remaining_scope": [
+    "Prescribed Q01/Q02 duration/three samples with stabilized instrumentation",
+    "Complete GPU critical path and physical allocation observations",
+    "Failed lifecycle private checkpoint growth: 36.1015625 MiB >32 MiB",
+    "Pending window deadline proposal, genuine removal and stuck-retirement verification",
+    "M05-M09 outstanding product acceptance"
+  ],
+  "decision": "Verified native publication capacity metadata covers every accepted short-sample output, with conservative bounds 2/1/2 frames. Exact occupancy remains unknown. Preserve the 18 main-window Busy attempts and all short-control failures/unavailable checks. No native series, renderer gate or lifecycle-memory gate closes. Next complete the missing full GPU-path observation at its owning boundary; no queue or memory parameter sweep."
+}

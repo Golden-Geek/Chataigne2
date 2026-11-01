@@ -119,6 +119,8 @@ pub struct OutputTrace {
     pub spout_image: Option<SpoutImageVersion>,
     /// Actual window Present incarnation/aliases; absent when no Present API was called.
     pub window_present: Option<WindowPresentIdentity>,
+    /// Accepted native publication's verified capacity; absent is unknown, never zero.
+    pub publication_queue: Option<super::OutputQueueBound>,
 }
 
 /// Diagnostic identity for an owned window endpoint, never an owned/openable resource.

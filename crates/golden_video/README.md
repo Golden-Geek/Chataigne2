@@ -165,6 +165,27 @@ with a renderer token, source image or authored plan. Missing/dropped/ambiguous 
 explicit. Software-display backlog is separate from native buffer occupancy, GPU queue time
 and physical scanout; it cannot certify those remaining budgets.
 
+Accepted output traces also expose worker-owned `OutputQueueBound` metadata. Window creation
+reads back the actual two-buffer flip-discard descriptor and latency-one setting; each accepted
+Present records its retained readiness permit and the same zero sync interval used by the call.
+The complete native back-buffer count is a conservative app-publication capacity bound, rather
+than an estimate made from pending software display events. Spout records the actual accepted
+shared image/version: the pinned SDK's single-image send path overwrites that one image under
+its ownership lock, coalescing older versions without an app-owned receiver FIFO. This uses
+existing send metadata and adds no per-frame resource opens or CPU pixel reads. In particular,
+the SDK's `GetSenderTexture` is a receiver-side, potentially allocating helper and is not used
+to inspect an owned sender.
+
+Offline qualification requires every accepted publication in each selected output cohort to
+carry the matching API/endpoint or shared-image identity. Unknown metadata stays unavailable;
+capacity above the target is insufficient evidence, not a measured occupancy failure. Verified
+capacity at most two is sufficient for the publication-queue ceiling; exact instantaneous
+occupancy and consumption timestamps remain unknown. This does not qualify GPU queue time,
+critical path or scanout. The DXGI contracts are
+[GetMaximumFrameLatency](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_3/nf-dxgi1_3-idxgiswapchain2-getmaximumframelatency)
+and [frame readiness](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_3/nf-dxgi1_3-idxgiswapchain2-getframelatencywaitableobject);
+the SDK source/provenance is retained in the binding's ownership notes linked below.
+
 Opt-in native diagnostics retain each actual copied Spout image's 32-bit SDK share-handle/counter
 pair through source publication and output delivery. These ephemeral values are diagnostic
 identities only, absent from project files and control protocols; they retain/open no native
