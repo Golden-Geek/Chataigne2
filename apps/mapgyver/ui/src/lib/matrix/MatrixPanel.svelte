@@ -34,14 +34,15 @@
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy || session?.hasActiveEditSession === true);
+	const matrixWindow = $derived(controller.window);
 	const observation = $derived(
 		matrixFeedback(
-			view.window,
-			view.window
+			matrixWindow,
+			matrixWindow
 				? previewOwner.statuses.get(
 						previewKey({
 							kind: 'Channel',
-							reference: view.window.final_output.reference
+							reference: matrixWindow.final_output.reference
 						})
 					)
 				: undefined,
@@ -49,13 +50,13 @@
 		)
 	);
 	const selectedRow = $derived(
-		view.window?.rows.find((row) => row.item.id.id === view.selected?.item?.id)
+		matrixWindow?.rows.find((row) => row.item.id.id === view.selected?.item?.id)
 	);
 	const selectedColumn = $derived(
-		view.window?.columns.find((column) => column.id === view.selected?.column)
+		matrixWindow?.columns.find((column) => column.id === view.selected?.column)
 	);
 	const selectedCell = $derived(
-		view.window?.cells.find(
+		matrixWindow?.cells.find(
 			(value) =>
 				value.cell.layer === view.selected?.item?.id &&
 				value.cell.definition.column === view.selected?.column
@@ -64,7 +65,7 @@
 	let draft = $state('');
 	let draftKey = '';
 	const definition = $derived.by(() => {
-		const source = view.window?.final_output.definition.source;
+		const source = matrixWindow?.final_output.definition.source;
 		return source?.kind === 'Matrix' && source.output.kind === 'Final'
 			? source.output.definition
 			: null;
@@ -157,7 +158,7 @@
 				controller.matrices.refresh();
 			}}>Next</button>
 	</form>
-	{#if view.window}
+	{#if matrixWindow}
 		<div class="actions">
 			<button
 				disabled={busy}
@@ -170,15 +171,15 @@
 			<button disabled={busy} onclick={() => controller.edit({ kind: 'AddColumns', count: 1 })}
 				>Add column</button>
 			<button
-				disabled={busy || view.window.playback.desired_column === null}
+				disabled={busy || matrixWindow.playback.desired_column === null}
 				onclick={() => controller.edit({ kind: 'ClearPlayback' })}>Unload Matrix</button>
-			<span>{view.window.row_total} rows · {view.window.column_total} columns</span>
+			<span>{matrixWindow.row_total} rows · {matrixWindow.column_total} columns</span>
 			{#if view.refreshing}<span role="status">Refreshing visible cells…</span>{/if}
 		</div>
 		<div class="workspace">
 			{#key view.media}
 				<VirtualGrid
-					snapshot={view.window}
+					snapshot={matrixWindow}
 					selected={view.selected}
 					{observation}
 					disabled={busy}
@@ -187,7 +188,7 @@
 					selectColumn={(column) => controller.select(view.selected?.item ?? null, column.id)}
 					select={(row, column) => {
 						controller.select(row.item.id, column.id);
-						const source = view.window?.cells.find(
+						const source = matrixWindow?.cells.find(
 							(value) =>
 								value.cell.layer === row.item.id.id && value.cell.definition.column === column.id
 						)?.cell.definition.source;
@@ -341,8 +342,8 @@
 					{/key}
 				{/if}
 				<h3>Output preview</h3>
-				<RuntimeFeedback snapshot={view.window} {observation} />
-				<ChannelPreview channel={view.window.final_output} />
+				<RuntimeFeedback snapshot={matrixWindow} {observation} />
+				<ChannelPreview channel={matrixWindow.final_output} />
 			</aside>
 		</div>
 	{:else if view.media}<p>Loading Matrix viewport…</p>{:else}<p>Add or choose a Matrix.</p>{/if}

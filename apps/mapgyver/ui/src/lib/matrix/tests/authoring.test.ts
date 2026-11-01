@@ -153,6 +153,45 @@ test('matrix/project replacement, disconnect and disposal fence late windows and
 	}
 });
 
+test('viewport refresh cannot adopt a new project generation before parent observation resets old media', async () => {
+	const session = connection(),
+		state = matrixState(),
+		calls: MediaEdit[] = [];
+	const controller = new MatrixController(
+		() => session,
+		state,
+		choiceState(),
+		choiceState(),
+		async (_, edit) => {
+			calls.push(edit);
+			assert.equal(edit.kind, 'Matrix');
+			return snapshot(edit.media);
+		}
+	);
+	controller.observe(false);
+	controller.selectMedia('old');
+	await flush();
+	assert.equal(state.window?.media, 'old');
+	const published = () => controller.window;
+	assert.equal(published(), state.window);
+	assert.equal(calls.length, 1);
+	// A late grid resize runs before the parent's generation effect. It still owns old media.
+	session.snapshotGeneration++;
+	assert.equal(published(), null, 'old child forms must be unpublished immediately');
+	assert.equal(controller.busy, true, 'old controls cannot author into the new generation');
+	await controller.edit({ kind: 'LaunchColumn', column: 'old-column', mode: 'Cut' });
+	controller.setViewport({ ...state.viewport, row_start: 5 });
+	await flush();
+	assert.equal(calls.length, 1, 'old media must never be inspected using the new generation');
+	assert.equal(state.media, null);
+	assert.equal(state.window, null);
+	controller.selectMedia('new');
+	await flush();
+	assert.equal(published()?.media, 'new', 'current-project controls recover normally');
+	assert.equal(calls.length, 2);
+	controller.dispose();
+});
+
 test('assignment invokes only its explicit backend intent; a later launch is separate and errors survive refresh', async () => {
 	const session = connection(),
 		state = matrixState();

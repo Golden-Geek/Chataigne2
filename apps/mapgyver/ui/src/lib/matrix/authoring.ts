@@ -9,6 +9,7 @@ import type { Connection } from '../requests/connection';
 import { ReadQueue } from '../requests/read-queue.ts';
 
 export interface MatrixState {
+	generation: number | null;
 	media: string | null;
 	window: MatrixViewportSnapshot | null;
 	viewport: MatrixViewport;
@@ -19,6 +20,7 @@ export interface MatrixState {
 	readError: string;
 }
 export const matrixState = (): MatrixState => ({
+	generation: null,
 	media: null,
 	window: null,
 	viewport: { row_start: 0, row_count: 32, column_start: 0, column_count: 16 },
@@ -34,7 +36,7 @@ export class MatrixController<S extends Connection> {
 	private reads = new ReadQueue();
 	private disposed = false;
 	private mutation = 0;
-	private context: { session: S; generation: number } | null = null;
+	private owner: S | null = null;
 	private session: () => S | null;
 	readonly state: MatrixState;
 	private invoke: (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
@@ -48,6 +50,11 @@ export class MatrixController<S extends Connection> {
 		this.session = session;
 		this.state = state;
 		this.invoke = invoke;
+		const owner = session();
+		if (owner) {
+			this.owner = owner;
+			this.state.generation = owner.snapshotGeneration;
+		}
 		const connected = () => (this.disposed ? null : this.session());
 		this.matrices = new ChoiceReader(connected, matrixChoices, 'MatrixFinal', invoke, () => {
 			if (!this.state.media)
@@ -55,11 +62,27 @@ export class MatrixController<S extends Connection> {
 		});
 		this.sources = new ChoiceReader(connected, sourceChoices, 'All', invoke);
 	}
+	private owns(session: S | null): boolean {
+		return (
+			session !== null &&
+			this.state.generation === session.snapshotGeneration &&
+			this.owner === session
+		);
+	}
+	get window(): MatrixViewportSnapshot | null {
+		const session = this.session();
+		return session &&
+			this.owns(session) &&
+			this.current(session, session.snapshotGeneration, this.state.media)
+			? this.state.window
+			: null;
+	}
 	get busy() {
 		const session = this.session();
 		return (
 			this.disposed ||
 			this.state.pending ||
+			!this.owns(session) ||
 			session?.status !== 'connected' ||
 			session.loading.visible
 		);
@@ -81,12 +104,10 @@ export class MatrixController<S extends Connection> {
 			this.reset();
 			return;
 		}
-		if (
-			this.context?.session !== session ||
-			this.context.generation !== session.snapshotGeneration
-		) {
+		if (!this.owns(session)) {
 			this.reset();
-			this.context = { session, generation: session.snapshotGeneration };
+			this.owner = session;
+			this.state.generation = session.snapshotGeneration;
 		}
 		if (catalog) {
 			this.matrices.refresh();
@@ -113,9 +134,13 @@ export class MatrixController<S extends Connection> {
 		this.refresh();
 	}
 	refresh() {
-		const session = this.session(),
-			media = this.state.media;
-		if (!session || !media || this.busy) return;
+		const session = this.session();
+		if (!session || !this.owns(session)) {
+			this.observe(false);
+			return;
+		}
+		const media = this.state.media;
+		if (!media || this.busy) return;
 		const generation = session.snapshotGeneration,
 			history = session.currentHistoryStateId,
 			viewport = { ...this.state.viewport };
@@ -210,7 +235,8 @@ export class MatrixController<S extends Connection> {
 		this.state.refreshing = false;
 		this.state.error = '';
 		this.state.readError = '';
-		this.context = null;
+		this.owner = null;
+		this.state.generation = null;
 	}
 	dispose() {
 		this.disposed = true;

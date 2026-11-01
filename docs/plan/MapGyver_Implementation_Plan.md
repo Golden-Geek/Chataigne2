@@ -225,6 +225,11 @@ context before dispatch;33 frontend tests pass. The strengthened second app run 
 the live symptom. Keep M07 gate3 active, retain both outcomes and establish a supported correction
 before another strict run. No clean lifecycle/native pass or acceptance reduction is inferred.
 
+Batch93 fixes a regression-proven viewport-owner epoch defect but the strict lifecycle symptom
+persists. Reduce investigation to the exact rejected operation using the existing fixture's small
+read-only receipt observer before any further correction. Preserve all four lifecycle invocations,
+original assertions and native gaps; no speculative controller chain or new diagnostic framework.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

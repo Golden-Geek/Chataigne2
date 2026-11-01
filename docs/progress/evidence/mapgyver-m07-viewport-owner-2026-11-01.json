@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "batch": 93,
+  "date": "2026-11-01",
+  "gate": "M07/3",
+  "status": "VIEWPORT_OWNER_REGRESSION_FIXED_STRICT_LIFECYCLE_STILL_FAILS",
+  "base_revision": "3cada0475b2fcfdc939698451702535674bf2588",
+  "correction": {
+    "regression": "Before parent observation, a late viewport refresh adopts the new session generation with old media: red2calls versus expected1.",
+    "change": "Reactive owning generation plus controller session identity fence presentation/dispatch. Panel consumes only the current owned viewport; stale edits block, stale refresh resets ownership, fresh controls recover.",
+    "checks": "34 frontend tests pass; final focused5 pass; Svelte0errors0warnings, ordinary build, Prettier and both workspace formatters pass.",
+    "limit": "Proves this ownership defect corrected, not the cause or resolution of the live missing-media symptom."
+  },
+  "invocations": [
+    {
+      "exit_code": 1,
+      "stage": "active Matrix replaced through File New",
+      "failure": "Initial private owner epoch is not observable by Svelte, leaving AddMatrix disabled. Corrected with reactive state generation.",
+      "log": "target/m07-matrix-project-ui-b93.log",
+      "log_sha256": "03a8575fb9df1d14b326e8fa068990e1247b9451462569c6915634830d8e43b3",
+      "exe_sha256": "6dcc4ecb06fd557e6544432b3824ef5fe1e6641d2cfd2642c5a427bcd718aec3"
+    },
+    {
+      "exit_code": 1,
+      "stage": "loaded project replaced again",
+      "failure": "State/history/identity assertions pass; unchanged strict zero-missing-media check fails on two visible occurrences, Logger deduplicates four rejections.",
+      "log": "target/m07-matrix-project-ui-b93-final.log",
+      "log_sha256": "630fa9cb709132a9c17800273309f56d4d5cc486b828ba605756ce1c03c8791d",
+      "exe_sha256": "b4e2d06d7347ca71b6f71de21735503a7a8d5a0bc339e08c7ff794b7cd97987f",
+      "upload_name": "MatrixReview-95acf3ab-0e61-40c8-9938-9dd4bfe8125d.mapgyver",
+      "screenshot": "target/m07-matrix-project-ui-failure.png",
+      "screenshot_sha256": "51fdaa8dba3016e5fb8611fe4bb7f057af81fa6259f2027c7f63391ce2d667c4"
+    }
+  ],
+  "checks": {
+    "software_prerequisite": "Two TypeScript narrowing errors corrected before final rebuild/app invocation.",
+    "cleanup": "Both owned hosts exit0 normally; no further app invocation.",
+    "fixture": "UUID-named upload is exercised; original saved review is unchanged. Uploaded copy remains in normal browser project directory.",
+    "prepared_observer": "Existing test now correlates sent intent/stage with rejected control receipts; excludes authentication and snapshots, not run after addition."
+  },
+  "hashes": {
+    "apps/mapgyver/ui/src/lib/matrix/authoring.ts": "88ad466383b0b044d224c6ae9861a815b6697a585e34803dc81c18af24d90bde",
+    "apps/mapgyver/ui/src/lib/matrix/MatrixPanel.svelte": "9584b519eee2afbc105c99c16c92285d12b34988e0bb243eef7ededd61eebdad",
+    "apps/mapgyver/ui/src/lib/matrix/tests/authoring.test.ts": "78e30ffc23eea4f0a079e68df549c2bae393418b8d7b1144a86dbfcb6910fa50",
+    "executed_matrix-project.mjs": "6bb3c6fc7450eb74735091838eecf887b641be400b885105861af4dce5954383",
+    "matrix-project.mjs_with_observer_not_run": "64fdca2d777a6c4118440418ae6a79e04aee6a19201a3179b3d34fac77b1733e"
+  },
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "3/4",
+    "overall": "4/10",
+    "next": "Reduce to exact failed-operation provenance through existing read-only observer before another controller correction. Preserve four cumulative lifecycle invocations and all original native/complete-editor requirements."
+  }
+}

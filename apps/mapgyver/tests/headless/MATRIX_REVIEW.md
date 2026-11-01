@@ -20,6 +20,10 @@ and never modifies the original review file. Browser upload does not qualify a n
 Uploads use the app's normal browser project directory, not the private APPDATA tree. The fixture
 now supplies a UUID-suffixed upload name to avoid review-file collisions; this post-run hardening
 has syntax/format checks only. The original saved reference remains unchanged.
+Batch93 verifies the UUID-named upload route, but the strict missing-media assertion still fails
+after the viewport-owner correction. A small read-only intent/rejection observer is now prepared
+to identify the exact failing request; it has not run. Do not add another controller hypothesis
+without that provenance. Native feedback and clean lifecycle acceptance remain open.
 
 Generate the validated review scene from the repository root:
 

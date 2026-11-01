@@ -4,19 +4,19 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M07 gate3, stale inspections during project replacement**. Batch92's
-real menu/upload checks preserve IDs, clear selection/history and restore usable controls, but a
-stricter final run still exposes stale missing-media errors. A proven queued-read dispatch defect
-is fixed with33 passing frontend tests; it is insufficient for the live transition failure.
+**Selected next gate:** **M07 gate3, stale inspections during project replacement**. Batch93
+also fixes a proven viewport-owner epoch defect;34 frontend tests pass. The strict real lifecycle
+check still fails on the same missing-media errors. Neither correction proves that symptom solved.
 Batch91's input/history/virtualization proof remains scoped. Native feedback also stays open.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch92's verified read-queue correction and retained strict lifecycle
-failure. Establish a concrete correction at the reference-owner/project-transition boundary before
-another run of the existing strict check. No unchanged rerun, new probe or automation route.
+**Next action:** publish batch93, then narrow to the exact rejected operation. A read-only observer
+in the existing browser check is prepared to correlate sent intent/stage with rejected receipts;
+it has syntax/format checks only. One bounded observation must identify the actual failed payload
+before any further controller correction. No new framework/route, guessed fix or weakened assertion.
 Keep M07 active; do not move to Composition while this reproduced correctness defect is unresolved.
 M06 stays open for native image/extent outlines and remaining original checklist scope, including
 project replacement. Do not repeat passing Composition controls or retry parked desktop/CDP.
@@ -96,8 +96,9 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   Batch91 verifies actual browser source/settings/structure/history/selection/requested playback,
   source loss, keyboard virtualization, resize and panel lifetime. Batch92's actual New/upload
   state/history assertions pass, but strict transition audit fails on missing-media inspection
-  errors. Queued-dispatch guard/regression pass without resolving the live symptom. Return for
-  a supported correction and native feedback, not another unchanged run or injected native state.
+  errors. Queued-dispatch and viewport-owner regressions now pass without resolving the live
+  symptom. Reduce investigation to exact rejected-operation provenance before another correction;
+  the existing fixture's small read-only observer is prepared but unrun. Native feedback remains.
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
   Batch 83 also passes the corrected aggregate target-outcome check, with singleton retirement
   explicitly unverified. Return for actual form/dialog observations, supported evidence resolving
@@ -110,7 +111,16 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch92:** actual File→New/browser upload verifies state/history/identity
+**Latest checkpoint, batch93:** a late grid refresh can adopt a new generation while retaining
+old media; a new regression proves this before the fix. The controller now owns a reactive epoch,
+unpublishes old viewport/child controls immediately and blocks old reads/edits. **34 frontend tests**,
+final focused suite, Svelte, build and formatting pass. First app run catches an initially nonreactive
+guard (fixed); the second still fails the original missing-media check. **No gate closes:** M07
+**3/4**, overall **4/10 (40%)**. Stop controller hypotheses; next identify the exact rejected intent
+through the existing fixture's prepared read-only observer.
+[Viewport correction and retained failure](evidence/mapgyver-m07-viewport-owner-2026-11-01.json).
+
+**Retained checkpoint, batch92:** actual File→New/browser upload verifies state/history/identity
 replacement, but capture audit finds missing-media errors. A regression reproduces expired queued
 target dispatch (red), now fixed for all seven app read-queue users; **33 frontend tests**, Svelte,
 build and formatting pass. The second/final app run **exits1** on the strengthened stale-inspection
@@ -1220,6 +1230,33 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Batch93 result:** a new regression fails because a grid refresh arriving before parent observation
+captures the new session generation with old media and dispatches it. Matrix state now holds its
+own reactive generation, with session identity owned by the controller. Presentation uses only the
+owned current viewport; stale controls block mutations and refresh synchronizes/reset ownership.
+The regression also proves immediate unpublication, no stale launch/read, and fresh-control recovery.
+All34 frontend tests pass; final focused5, Svelte0errors0warnings, rebuild and formatting pass.
+
+Exactly two app invocations run. First reveals the initial private epoch guard is nonreactive,
+leaving AddMatrix disabled; storing generation in observable state corrects that. Two static
+TypeScript narrowing errors are resolved before rebuilding/retrying. Second reaches all lifecycle
+state/history checks but still exits1 on the same missing-media assertion (two visible occurrences,
+Logger deduplicates four rejections). Both hosts exit0 normally; no third run. The viewport defect
+is fixed in regression scope, not established as the live symptom's cause. **M07 stays3/4**.
+After two bounded corrective batches, reduce to one exact failed operation: the existing fixture
+now observes only sent intents/rejected receipts, retaining stage, payload and error, excluding
+authentication and snapshots. This observer is syntax/format checked but not run. Identify that
+operation before further controller edits; no new probe framework or speculative correction chain.
+
+**Owned viewport lifetime batch93:** 2026-11-01 **06:10 UTC**, stop **06:55 UTC**; investigation
+cutoff **06:30 UTC**, at most two app invocations after software checks. Only M07 gate3 is active.
+Previous turn is progress: `3cada047` fixes proven expired queued dispatch but preserves strict
+replacement failure. Hypothesis: old owned viewport/target data can adopt the new session epoch
+before parent observation resets it. Reproduce controller refresh in that ordering; fence owned
+presentation/dispatch at its app boundary, then verify the unchanged strict New/upload assertion.
+Do not rerun unchanged, add a new probe/route, suppress backend validation or lower acceptance.
+Cumulative lifecycle evidence remains two prior invocations; continuation does not erase failures.
+
 **Batch92 result, 06:06 UTC:** the first invocation exits0 on state/history assertions after
 actual File→New replaces a requested column, a fresh Matrix is created/edited, and browser Open→
 Load From uploads the unchanged saved review. Old selection/history clear, new IDs and three
@@ -1876,7 +1913,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch78 caller parity and batch91 full browser input pass; batch92 strict project replacement fails on stale missing-media inspections despite a unit-proven queued-read fix; native feedback also remains |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — caller/full browser input pass; strict replacement still fails after queued-read and viewport-owner corrections. Exact rejected-operation provenance and native feedback remain |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -5332,11 +5369,12 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish batch92's unit-proven queued-read lifetime correction and strict app failure. **M07 gate3**
-stays active: establish a supported reference-owner/project-transition correction before another
-existing strict File→New/upload check. Its state/history assertions pass but missing-media errors
-remain; no clean lifecycle acceptance. Two app invocations are retained, with no unchanged third.
-Do not repeat the passing large input candidate or switch gates to avoid this correctness defect.
+Publish batch93's unit-proven viewport-owner correction and retained strict failure. **M07 gate3**
+stays active. Reduce to exact rejected-operation provenance: the existing strict browser fixture
+has a small read-only sent-intent/rejected-receipt observer, not yet run. One bounded observation
+must identify the actual failed payload before another controller edit. Do not repeat broad input
+preparation, add a diagnostic framework/route or keep patching hypotheses. Cumulative lifecycle
+evidence spans four app invocations; continuation does not erase it. No clean lifecycle acceptance.
 Native feedback still needs real observation/capability change; no injection, new route or bypass.
 M06 returns for native image/extent outlines, project replacement and other original checklist gaps;
 do not repeat its passing candidate. M05 gate7 still needs native preview. All global budgets remain.
