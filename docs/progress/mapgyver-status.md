@@ -16,16 +16,17 @@ plan on 2026-10-31. A minor optimization taking roughly a day may justify a prec
 lower gate, with evidence and consequences, only after explicit user approval. Count cumulative
 effort across batches; correctness and ownership requirements are not optional optimizations.
 
-**Next:** run the fixed 100-cycle lifecycle acceptance once with batch 68's build-time shaders,
-after its pinned release build and fresh environment observations. Software verification passes;
-the runtime memory effect remains unmeasured. No further attribution investigation is scheduled.
-The complete corrected batch-67 run finishes without a watchdog/cleanup failure, but
-peak post-baseline checkpoint growth is **40.445 MiB**, above the unchanged **32 MiB** limit.
-Final drained growth is **6.852 MiB**; it does not override that peak failure or prove its cause.
-Do not repeat the unchanged workload, silently change peak-to-final semantics, or reduce the
-budget. Select a bounded correction only after evidence identifies its owning path. Preserve
-all 100 cycles, 1,000 edits, pacing and drains. Golden's documented bounded resize path works;
-the initial Golden-defect diagnosis remains withdrawn.
+**Next:** complete the missing published output-queue observations within M03 gate 9. Batch 68's
+single full lifecycle verification with build-time shaders still fails private checkpoint growth:
+**36.102 MiB >32 MiB**. Final drained growth **4.977 MiB** does not override that maximum.
+All 100 cycles, 1,000 edits, pauses, drains, logical return, handle and shutdown checks complete;
+all 339 execution inputs and paired overlay-Off inventories match. The shader change removes
+proven repeated preparation but does not resolve the memory criterion or establish its cause.
+This memory experiment chain is stopped. Its return trigger is new ownership/allocation evidence
+supporting a specific correction; the failure stays required in the return queue. Do not rerun
+unchanged workloads, silently change peak-to-final semantics or reduce the budget. Historical
+batch-67 peak **40.445 MiB** remains recorded. Golden's documented bounded resize path works;
+the initial Golden-defect diagnosis remains withdrawn. No gate closes; M03 stays **7/9**.
 Gate 9 alone is active. The prescribed precise-timer
 Q02 series is complete and still fails window
 deadlines; no further timing probe is scheduled. The [window-only deadline proposal](#window-deadline-proposal--awaiting-user-decision)
@@ -50,6 +51,17 @@ approved reset window; genuine source/driver stuck-drain bounds remain unverifie
 **Last accepted capability:** multi-channel Solid Color, Picture and Shared Texture authoring and
 rendering, Media Manager UI/commands/scripts/callbacks, shared assets, project/history and ordinary
 headless parity. Explicit Picture reload preserves identity/locator/history through every caller.
+**Latest full lifecycle result (batch 68):** build-time production shaders preserve exact bytecode
+and device ownership. The one prescribed renderer run completes **100** cycles, **1,000** edits
+and **373** superseded outcomes in **1,142.773 s**. Native verdict is **FAILED_NATIVE** for
+**36.102 MiB >32 MiB** peak growth; final growth is **4.977 MiB**, handles **−4**, logical
+reservations return exactly and no prepared/retiring generation remains. Pauses are at least
+**2.000 s**, baseline/final drains **10.003/10.002 s**. All **103** child exits are zero/unforced,
+the owned job is empty, recorded PIDs are absent and whole-parent shutdown is bounded by
+**2,796.897 ms**. All **339** inputs and paired overlay-Off identities match; all **419** raw
+file hashes are verified. Native memory benefit/cause is not established. No extra memory probe
+or threshold change follows. **No gate closes; M03 remains 7/9.**
+[Embedded-shader lifecycle evidence](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json).
 **Latest full lifecycle result (batch 67):** all **100** source resize/restart, project replacement
 and native-output recreation cycles complete, with **1,000** accepted edits in **100 × 10**
 bursts scheduled at 100 Hz and **386** superseded outcomes. Native summary is eligible but
@@ -219,9 +231,12 @@ no item closure; future breakdowns must preserve the complete acceptance scope a
 denominator changes. See [milestones](#milestones) and [next action](#next-action) for detail.
 
 **Closure return queue:** M04 is complete. The one M05 gate 4 batch is checkpointed with its
-activation blocker and exact remaining evidence. M03 gate 9 remains active: Q01's corrected
-prescribed series now passes observed deadlines; Q02 and missing measurements remain. No repeated
-baseline or interval sweep. M03 gate 4 returns on explicit reset approval
+activation blocker and exact remaining evidence. M03 gate 9 remains active: next complete missing
+published output-queue observations, then remaining GPU-path/allocation evidence. The failed
+private-growth criterion returns when that ownership/allocation evidence supports a concrete new
+correction; its limit stays 32 MiB. Q01 on the selected route and final Q02 remain required once
+instrumentation is stable and the window-deadline decision is resolved. No repeated baseline,
+memory parameter sweep or interval sweep. M03 gate 4 returns on explicit reset approval
 after current-run cleanup. Resume M05 gate 4 after successful supported window activation, then
 remaining M05, M06, M07 and M08 acceptance before M09's
 complete-app/artifact gate. Every original requirement remains required. A small optimization
@@ -3242,6 +3257,45 @@ memory reduction is inferred. Batch 67's **40.445 MiB >32 MiB** peak failure rem
 **No acceptance gate closes; M03 remains 7/9.** Next is one unchanged, pinned full lifecycle
 acceptance run, not another profiler or parameter sweep. All pending decisions and return-queue
 items remain required; reaching this batch's time limit cannot waive them.
+
+**Batch 68 native result (complete before the 01:11 UTC stop):** after terminal software/Clippy
+checks, the pinned release build succeeds with **MSVC 14.51.36231 / SDK 10.0.26100.0** and
+executable SHA-256 `8818da5b46c02c889558e3629452aeb2dd8864603f95ba02f0627c55f8e1457c`.
+The one fixed NVIDIA-adapter-1 run completes **100/100** source restart/resize, project replacement
+and native-output recreation cycles, plus **1,000** accepted edits in **100 × 10** bursts scheduled
+at 100 Hz. **373** requests are superseded; every recorded healthy-source/peer-absence check
+passes. No new native experiment, cache, allocator, driver, timing or threshold change is made.
+
+The maximum post-baseline checkpoint is **271,753,216 private bytes**, versus the warmed cycle-10
+baseline **233,897,984**: **37,855,232 bytes /36.1015625 MiB >32 MiB**. Final drained private
+memory is **239,116,288 bytes**, growth **5,218,304 /4.9765625 MiB**; it cannot override the maximum.
+Baseline/final handles are **939/935**, logical reserved texture bytes **160,358,672** and active
+plan bytes **32,256,000** return exactly, with two source bindings and no prepared/retiring
+generation. The native verdict is eligible **FAILED_NATIVE**, parent exit **1** solely for the
+growth budget. The different peak from batch 67 does not establish an isolated causal benefit.
+
+QPC verifies minimum post-work pause **2.0000044 s**, baseline/final drains **10.0031315 /
+10.0015329 s**. Native owner retirement is **2,647.833 ms**; final checkpoint to observed parent
+exit bounds whole-parent shutdown by **2,796.897 ms**. Total invocation duration is
+**1,142.773 s**, with watchdog timeout **false**, forced cleanup **false** and owned-job count **0**.
+All **103** fixture exit sidecars are zero/unforced and all **103** distinct recorded PIDs are
+absent on final verification. A transient earlier PID-presence assertion is retained as an
+observation requiring recheck, not evidence of a native child surviving its normal exit.
+
+All **339** execution fingerprints are frozen across the run; paired overlay-Off environment
+inventories, selected NVIDIA renderer → Intel-owned display route and QPC brackets verify.
+The default WebView inventory is environment evidence, not executed full-app WebView acceptance.
+All **419** local raw-file hashes are checked; compact evidence preserves the exact native
+summary, including full-precision process timestamps, build/environment hashes and canonical raw
+tree digest. [Complete result](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json).
+
+**Decision:** memory investigation/experiment chain ends here. Keep the shader preparation change
+for its proven removal of repeated compilation and exact shader equivalence; do not claim it
+fixes private growth. Complete the missing published output-queue observations next within gate
+9. The memory failure returns when new ownership/allocation evidence supports a specific
+correction, retaining the unchanged maximum-growth criterion. GPU critical path, physical
+allocation identity, final Q01/Q02, pending window-deadline decision, genuine removal/stuck-drain
+and later phase acceptance remain open. **No gate closes; M03 remains 7/9**, overall **4/10**.
 
 **Full settled lifecycle acceptance batch 67:** started 2026-10-31 **23:48 UTC**, stop by
 2026-11-01 **00:33 UTC**. Previous turn is progress: `fe8cb154` corrects the admitted-versus-
