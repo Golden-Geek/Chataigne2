@@ -91,6 +91,12 @@ pub trait Node: Send + Any {
         Ok(())
     }
 
+    /// Validates an edit to a descendant parameter before state, history or events change.
+    /// Keep this bounded to the owning domain; ordinary leaf constraints belong on parameters.
+    fn validate_parameter_change(&self, _change: &super::ParameterValidationContext<'_>) -> Result<(), String> {
+        Ok(())
+    }
+
     #[doc(hidden)]
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)

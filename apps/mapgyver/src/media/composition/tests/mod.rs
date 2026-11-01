@@ -9,6 +9,7 @@ use crate::{
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
 mod geometry;
+mod parameters;
 
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {
     apply(engine, MediaEdit::Composition { reference, edit })
@@ -200,7 +201,8 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
     let started = std::time::Instant::now();
     let instances = add(&mut engine, composition, vec![source; 1000]);
     eprintln!("Composition 1000-instance forest: {:?}", started.elapsed());
-    assert_eq!(engine.nodes.len(), before + 1000);
+    // Each instance owns a declared folder and nine real Parameter children.
+    assert_eq!(engine.nodes.len(), before + 1000 * 11);
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(inspect(&mut engine, composition).instances.len(), 1000);
     assert!(engine.undo().unwrap());

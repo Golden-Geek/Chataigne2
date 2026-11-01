@@ -143,17 +143,9 @@ pub(crate) fn apply(
                 super::super::channel(engine, source)?;
                 dependencies::reject_cycle(engine, reference, &[source])?;
             }
-            engine.edits.push(Edit::CallNodeMutation {
-                node: id,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    node.as_any_mut()
-                        .downcast_mut::<InstanceNode>()
-                        .ok_or("instance type changed")?
-                        .set_definition(definition);
-                    Ok(())
-                }),
-            });
+            for edit in current.parameter_edits(definition) {
+                engine.edits.push(edit);
+            }
             Ok(MediaEditResult::Changed)
         }
         CompositionEdit::RenameInstance {
@@ -179,18 +171,9 @@ pub(crate) fn apply(
                 label: current.node_data().meta.label.clone(),
                 definition: definition.clone(),
             };
-            engine.edits.push(Edit::CallNodeMutationCoalesced {
-                scope: golden_core::edit::NodeMutationScope::SelfData,
-                node: id,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    node.as_any_mut()
-                        .downcast_mut::<InstanceNode>()
-                        .ok_or("instance type changed")?
-                        .set_definition(definition);
-                    Ok(())
-                }),
-            });
+            for edit in current.parameter_edits(definition) {
+                engine.edits.push(edit);
+            }
             Ok(MediaEditResult::InstanceChanged { snapshot })
         }
         CompositionEdit::RemoveInstance { instance: target } => {
@@ -242,7 +225,7 @@ fn append(
                 break candidate;
             }
         };
-        let node = InstanceNode::new(label, definition);
+        let node = InstanceNode::from_definition(label, definition);
         created.push(InstanceReference {
             composition: reference,
             instance: node.id(),

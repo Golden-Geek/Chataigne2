@@ -712,6 +712,10 @@ without a main-thread join.
 
 ## UI, protocol and persistence
 
+Authored settings must be Golden Parameter nodes, using the generic Inspector. See the
+[parameter ownership correction](mapgyver-parameters.md) for the conversion inventory and
+the boundary between parameter state, command inputs and runtime projections.
+
 Register app panels using Golden UI's public workbench/inspector/outliner hooks:
 
 | Editor | Interaction |

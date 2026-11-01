@@ -25,6 +25,15 @@ pub type AppEngine = golden_core::engine::Engine<AppNode>;
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 impl ProjectLifecycle for AppNode {
+    fn project_lifecycle_limits() -> golden_core::engine::LifecycleLimits {
+        // The admitted 100k-instance document now has real declared parameter children.
+        // Bound generated expansion explicitly; keep Golden's shared runaway-pass limit.
+        golden_core::engine::LifecycleLimits {
+            max_work: std::num::NonZeroUsize::new(4_194_304).unwrap(),
+            ..Default::default()
+        }
+    }
+
     fn application_id() -> &'static str {
         "mapgyver"
     }

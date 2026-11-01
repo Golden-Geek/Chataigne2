@@ -454,6 +454,7 @@ where
     T: ProjectLifecycle,
 {
     let mut engine = Engine::new(T::create_project_root());
+    engine.set_lifecycle_limits(T::project_lifecycle_limits());
     T::configure_engine(&mut engine)?;
     Ok(engine)
 }

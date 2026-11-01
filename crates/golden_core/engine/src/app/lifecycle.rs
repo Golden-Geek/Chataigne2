@@ -21,6 +21,11 @@ pub trait ProjectNode: Node {
 
 /// App-controlled lifecycle hooks for engine recreation and new-project setup.
 pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
+    /// Bounded declared-child expansion allowed during new-project and project-load setup.
+    fn project_lifecycle_limits() -> crate::engine::LifecycleLimits {
+        crate::engine::LifecycleLimits::default()
+    }
+
     /// Stable application identifier used by discovery and client state isolation.
     fn application_id() -> &'static str {
         "golden"

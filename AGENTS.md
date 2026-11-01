@@ -176,6 +176,13 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ## UI Architecture Rules
 
+- Every authored product setting must be a real typed Golden Core Parameter child, declared
+  through the Params DSL or a public parameter/node API. Nested editable collections use real
+  child nodes with typed parameters. Do not persist authored settings in opaque node-data DTOs,
+  JSON/string parameters, or UI stores. Runtime definitions may only project parameter values.
+- Use the generic Golden Inspector for ordinary parameters, including constraints, references,
+  enums, file paths and conditional folders. Custom UI is reserved for specialized editors,
+  contextual operations and runtime presentation; it must edit those same parameter nodes.
 - Product panels must look and behave like Golden workbench panels. Reuse the public manager
   tree, selection, context menus, Inspector, icons and theme tokens; do not build a separate
   application-style form layout inside a docked panel.

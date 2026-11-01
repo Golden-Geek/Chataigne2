@@ -33,6 +33,7 @@ const withUi = [
 	'--screen-ui',
 	'--surface-source-ui',
 	'--composition-ui',
+	'--parameter-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -264,6 +265,10 @@ try {
 	if (process.argv.includes('--composition-ui')) {
 		const { verifyCompositionUi } = await import('../browser/composition.mjs');
 		await verifyCompositionUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--parameter-ui')) {
+		const { verifyParameterUi } = await import('../browser/parameters.mjs');
+		await verifyParameterUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

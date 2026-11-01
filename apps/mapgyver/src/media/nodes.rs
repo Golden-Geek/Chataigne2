@@ -323,7 +323,7 @@ impl Node for ChannelNode {
             return None;
         };
         (node_type == super::composition::INSTANCE_TYPE).then(|| {
-            Box::new(super::composition::InstanceNode::new(
+            Box::new(super::composition::InstanceNode::from_definition(
                 "Instance".into(),
                 // Sparse codecs need the same canonical defaults as project_create.
                 // App AddInstances explicitly applies canvas-dependent placement.

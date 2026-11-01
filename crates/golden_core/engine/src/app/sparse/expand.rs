@@ -10,11 +10,15 @@ use super::{merge_sparse_record_with_baseline, sparse_json_cache_key, sparse_ove
 
 pub(in crate::app) fn expand_sparse_project_file<T>(
     project: ProjectFile,
+    limits: crate::engine::LifecycleLimits,
 ) -> Result<ProjectFile, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
 {
-    let mut cache = SparseExpansionCache::default();
+    let mut cache = SparseExpansionCache {
+        limits,
+        ..Default::default()
+    };
     Ok(ProjectFile {
         version: project.version,
         ui_state: project.ui_state,
@@ -24,6 +28,7 @@ where
 
 #[derive(Default)]
 struct SparseExpansionCache {
+    limits: crate::engine::LifecycleLimits,
     structural_baselines: HashMap<String, ProjectNodeRecord>,
 }
 
@@ -50,7 +55,12 @@ impl SparseExpansionCache {
             return Ok(baseline);
         }
 
-        let baseline = build_structural_baseline_record_from_expanded_record::<T>(record, parent_node, parent_record)?;
+        let baseline = build_structural_baseline_record_from_expanded_record::<T>(
+            record,
+            parent_node,
+            parent_record,
+            self.limits,
+        )?;
         self.structural_baselines.insert(key, baseline.clone());
         Ok(baseline)
     }
@@ -124,6 +134,7 @@ fn build_structural_baseline_record_from_expanded_record<T>(
     record: &ProjectNodeRecord,
     parent_node: Option<&T>,
     parent_record: Option<&ProjectNodeRecord>,
+    limits: crate::engine::LifecycleLimits,
 ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
@@ -134,6 +145,7 @@ where
             parent.user_container_accepts_item(record.node_type.as_str(), recreated.user_item_kind())
         });
     let mut temp = Engine::new(Folder::new("Sparse Expand Root").into());
+    temp.set_lifecycle_limits(limits);
 
     if attach_under_parent {
         let Some(parent_record) = parent_record else {

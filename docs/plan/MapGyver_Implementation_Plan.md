@@ -59,6 +59,26 @@ architecture and remain backend policies that can change during implementation r
 
 ## Milestones and dependencies
 
+### Parameter-node ownership correction — 2026-11-01
+
+Every authored setting is a real typed Golden Core Parameter node. The previous custom definition
+storage/forms do not meet the user's requirement, even when shown inside the Inspector. Replace
+them across Media/channels/assets, Screens/Surfaces, Composition instances, Matrix elements and
+Applications. Editable collection entries are child nodes; never hide structs/arrays in JSON or
+string parameters. Typed DTOs remain only as validated command input and runtime/read projections.
+
+Use declared parameter children, the generic Inspector, normal SetParam/history/persistence,
+typed reference/enum/file controls and focused conditional folders. Specialized canvas/grid/source
+selection actions must target the same parameter nodes. Preserve atomic domain validation, IDs,
+history/project lifetime, scripts/commands, worker ownership and scalable subtree construction.
+Remove ordinary property forms and opaque authored codecs as their owners migrate. Verify direct
+parameter edits, public caller parity, generic Inspector, undo/redo, duplication and roundtrip.
+
+Execute one owner at a time: Composition instances; Screens/Surfaces; source/channel/asset fields;
+Matrix elements and association children; Application definitions/argument/environment children;
+then complete field coverage and shared Inspector cleanup. Each coherent owner is committed and
+pushed with its checks. This adds no waiver to original native/resource/display acceptance.
+
 ### Golden workbench design correction — 2026-11-01
 
 The user rejects the form-heavy bespoke panel layouts. This is required product scope and

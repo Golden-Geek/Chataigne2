@@ -113,15 +113,18 @@ where
     let parse_elapsed = parse_started.elapsed();
     let ui_state = project.ui_state.clone();
     let expand_started = std::time::Instant::now();
-    let expanded = expand_sparse_project_file::<T>(project)?;
+    let limits = T::project_lifecycle_limits();
+    let expanded = expand_sparse_project_file::<T>(project, limits)?;
     let expand_elapsed = expand_started.elapsed();
     let build_started = std::time::Instant::now();
-    let engine = if recover {
-        Engine::<T>::from_project_file_with_recovery(expanded, T::project_decode_node)
-    } else {
-        Engine::<T>::from_project_file_with(expanded, T::project_decode_node)
-            .map(|engine| (engine, ProjectLoadRecoveryReport::default()))
-    };
+    let engine = Engine::<T>::from_project_file_with_options(
+        expanded,
+        T::project_decode_node,
+        crate::engine::ProjectLoadOptions {
+            recover,
+            lifecycle_limits: limits,
+        },
+    );
     eprintln!(
         "[project-load] parse_ms={} expand_ms={} engine_build_ms={}",
         parse_elapsed.as_millis(),
@@ -242,7 +245,7 @@ where
     T: ProjectNode + From<Folder>,
 {
     let project = golden_persistence::decode_project_document(json)?;
-    let expanded = expand_sparse_project_file::<T>(project)?;
+    let expanded = expand_sparse_project_file::<T>(project, engine.lifecycle_limits())?;
     engine.insert_project_subtree_with(expanded, parent, prev_sibling, T::project_decode_node)
 }
 

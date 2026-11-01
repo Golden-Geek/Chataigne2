@@ -65,7 +65,7 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
         );
         for (instance, source) in [next, leaf].into_iter().enumerate() {
             tree.children[0].push_child(
-                NodeTree::new(InstanceNode::new(
+                NodeTree::new(InstanceNode::from_definition(
                     format!("Instance {instance}"),
                     InstanceDefinition {
                         source: Some(source),
@@ -88,7 +88,8 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
         tree: forest,
     });
     engine.apply_edits().unwrap();
-    assert_eq!(engine.nodes.len(), before_nodes + 2 + DEPTH * 4);
+    // Two media/channel nodes plus two instances, each with ten declared children.
+    assert_eq!(engine.nodes.len(), before_nodes + 2 + DEPTH * 24);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

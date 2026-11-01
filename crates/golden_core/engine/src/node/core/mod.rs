@@ -7,6 +7,7 @@ mod events;
 mod identity;
 mod inbox;
 mod metadata;
+mod parameter_validation;
 mod policies;
 mod script_support;
 mod user_items;
@@ -25,6 +26,7 @@ pub use identity::{DeclId, NodeId, NodeReference, NodeUuid};
 pub use metadata::{
     NodeData, NodeMeta, NodeMetaPatch, NodeScriptDescriptor, NodeWarning, PresentationHint, SemanticsHint,
 };
+pub use parameter_validation::ParameterValidationContext;
 pub use policies::{IntoScriptHostPolicyOption, IntoUserContextHostPolicyOption, UserContextHostPolicy};
 pub use user_items::{
     DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserCreatableItemInitialParam,

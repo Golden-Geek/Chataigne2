@@ -45,6 +45,15 @@ pub type ProjectFile = golden_persistence::ProjectDocument<ProjectNodeMeta>;
 /// Serialized node record for full-snapshot persistence.
 pub type ProjectNodeRecord = golden_persistence::ProjectNodeRecord<ProjectNodeMeta>;
 
+/// Policy applied before any project-load lifecycle expansion runs.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ProjectLoadOptions {
+    /// Skip recoverable rebuild failures only in an explicitly selected recovery flow.
+    pub recover: bool,
+    /// Bounded callback expansion for this application's declared parameter schema.
+    pub lifecycle_limits: super::LifecycleLimits,
+}
+
 impl<T: Node> Engine<T> {
     /// Builds a full in-memory project snapshot using a node-data encoder callback.
     ///
@@ -88,7 +97,8 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        Self::from_project_file_with_recovery_mode(project, decode_node, false).map(|(engine, _)| engine)
+        Self::from_project_file_with_options(project, decode_node, ProjectLoadOptions::default())
+            .map(|(engine, _)| engine)
     }
 
     /// Loads a project from an already parsed document, skipping recoverable rebuild problems.
@@ -102,13 +112,21 @@ impl<T: Node> Engine<T> {
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
     {
-        Self::from_project_file_with_recovery_mode(project, decode_node, true)
+        Self::from_project_file_with_options(
+            project,
+            decode_node,
+            ProjectLoadOptions {
+                recover: true,
+                ..Default::default()
+            },
+        )
     }
 
-    fn from_project_file_with_recovery_mode<F>(
+    /// Loads a project with policy available before declared children are materialized.
+    pub fn from_project_file_with_options<F>(
         project: ProjectFile,
         mut decode_node: F,
-        recover: bool,
+        options: ProjectLoadOptions,
     ) -> Result<(Self, ProjectLoadRecoveryReport), ProjectPersistenceError>
     where
         F: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
@@ -127,6 +145,7 @@ impl<T: Node> Engine<T> {
 
         let decode_started = std::time::Instant::now();
         let mut engine = Engine::new(root);
+        engine.set_lifecycle_limits(options.lifecycle_limits);
         let root_id = engine.root;
         engine.load_children_records(root_id, &project.root.children, &mut decode_node)?;
         let decode_elapsed = decode_started.elapsed();
@@ -158,7 +177,7 @@ impl<T: Node> Engine<T> {
             LoadedReadyMode::Deferred,
         ) {
             Ok(()) => {}
-            Err(ProjectPersistenceError::Engine(error)) if recover => {
+            Err(ProjectPersistenceError::Engine(error)) if options.recover => {
                 recovery.push_engine_rebuild_error(error);
                 engine.inbox.clear();
                 engine.edits.pending.clear();

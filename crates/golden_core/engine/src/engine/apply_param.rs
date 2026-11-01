@@ -71,14 +71,32 @@ impl<T: Node> Engine<T> {
                 })?,
             value => value,
         };
-        target
-            .engine_prepare_param_value(value)
-            .map_err(|message| EngineEditError::ParamConstraintViolation {
-                edit_index,
-                node,
-                node_type,
-                message,
-            })
+        let value =
+            target
+                .engine_prepare_param_value(value)
+                .map_err(|message| EngineEditError::ParamConstraintViolation {
+                    edit_index,
+                    node,
+                    node_type: node_type.clone(),
+                    message,
+                })?;
+        let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
+        let resolve = |uuid| self.node_id_by_uuid(uuid);
+        let change = crate::node::ParameterValidationContext::new(node, &value, &lookup, &resolve);
+        let mut parent = target.node_data().parent;
+        while let Some(id) = parent {
+            let Some(owner) = self.nodes.get(id) else { break };
+            owner
+                .validate_parameter_change(&change)
+                .map_err(|message| EngineEditError::ParamConstraintViolation {
+                    edit_index,
+                    node,
+                    node_type: node_type.clone(),
+                    message,
+                })?;
+            parent = owner.node_data().parent;
+        }
+        Ok(value)
     }
 
     /// Applies a parameter value update and returns the captured before/after effect for history.

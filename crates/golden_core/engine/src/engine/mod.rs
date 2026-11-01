@@ -82,6 +82,8 @@ pub use error::EngineEditError;
 pub use persistence::PROJECT_FILE_VERSION;
 /// Persisted project file DTO.
 pub use persistence::ProjectFile;
+/// Project-load policy applied before lifecycle materialization.
+pub use persistence::ProjectLoadOptions;
 /// One recoverable project-load problem.
 pub use persistence::ProjectLoadRecoveryProblem;
 /// Report of recoverable problems skipped while loading a project file.

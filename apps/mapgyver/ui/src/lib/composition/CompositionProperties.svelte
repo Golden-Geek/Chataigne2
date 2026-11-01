@@ -11,7 +11,6 @@
 	import { channelReferenceFromKey } from '../media/identity';
 	import type { CompositionEdit } from '../media/generated/CompositionEdit';
 	import SourcePicker from './SourcePicker.svelte';
-	import InstanceForm from './InstanceForm.svelte';
 	import CompositionChannelEditor from '../media/CompositionChannelEditor.svelte';
 	let { node, defaultHeader }: { node?: UiNodeDto; defaultHeader?: Snippet } = $props();
 	const owner = useCompositionAuthoring();
@@ -139,24 +138,6 @@
 							instance: instance.reference.instance
 						})} />
 			</div>
-			{#key instance.reference.instance}
-				<InstanceForm
-					{instance}
-					catalog={view.catalog}
-					disabled={busy}
-					configure={(definition) =>
-						edit({
-							kind: 'ConfigureInstance',
-							instance: instance.reference.instance,
-							definition
-						})}
-					rename={(label) =>
-						edit({
-							kind: 'RenameInstance',
-							instance: instance.reference.instance,
-							label
-						})} />
-			{/key}
 		{/if}
 	{/if}
 </div>
