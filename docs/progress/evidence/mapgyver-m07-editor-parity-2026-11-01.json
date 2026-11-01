@@ -1,0 +1,38 @@
+{
+  "batch": 78,
+  "date": "2026-11-01",
+  "gate": "M07.3",
+  "result": "partial; actual editor interaction remains unverified",
+  "owner": "MapGyver Matrix authoring, playback and editor; Golden host, history and transport",
+  "caller_parity": {
+    "callers": ["UI intent", "QuickJS app operation", "hosted QuickJS", "Media Operation command"],
+    "cases_per_caller": 31,
+    "total_cases": 124,
+    "coverage": ["authoring and atomic rejection", "committed creation/copy identities", "Undo/Redo without callback replay", "Cut/configured launch and clear", "bounded reads never launch"],
+    "observer": "Immutable Matrix snapshots join catalog and Composition snapshots; observing does not settle queued script operations."
+  },
+  "checks": {
+    "rust_library": {"passed": 202, "ignored_existing_hardware_test": 1},
+    "matrix_parity_final": {"passed": 4, "failed": 0},
+    "matrix_frontend": {"passed": 12, "scope": "pure controller/viewport logic, not mounted input"},
+    "strict_clippy": "pass; all targets with native-qualification feature",
+    "javascript_syntax_and_prettier": "pass"
+  },
+  "headless": {
+    "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-review",
+    "result": "pass; normal owned-host exit 0",
+    "review_project": "target/m07-editor-review/MatrixReview.mapgyver",
+    "project_sha256": "756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9",
+    "scene": "320x240; three local Solid Colors, one group, two layers, three columns, five populated cells",
+    "history_replay_operations": 7,
+    "initially_unlaunched": true,
+    "original_scene_restored": true,
+    "coverage": ["selection/reads versus explicit launch", "source assignment/history", "move/reorder/copy/remove/history", "atomic feedback rejection", "missing source/Undo", "Save/New/Load with fresh project identity"]
+  },
+  "remaining": {
+    "M07.3": "Six real editor observation groups in apps/mapgyver/tests/headless/MATRIX_REVIEW.md; preparation does not satisfy them.",
+    "M07.4": "Complete native layer/group/final, transitions, scale and recovery acceptance; prior failures retained. No native experiment in batch 78.",
+    "M06.4": "Previously requested Composition editor observations remain unanswered."
+  },
+  "acceptance": {"gates_closed": [], "M07": "2/4", "overall": "4/10", "scope_or_budget_revisions": []}
+}

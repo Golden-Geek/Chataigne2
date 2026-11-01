@@ -4,15 +4,16 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M07 gate 3, Matrix editor/caller parity and review preparation**. M06's requested real
-editor observations remain pending in the return queue; its parity/review preparation is complete.
-Only this Matrix gate is selected. Batch 77 stops the native chain; its initialization-observer fix
-is software checked but not native verified. Unsupported desktop activation stays parked; do not repeat helper
-retries, parity fixtures or review preparation without a specific new failure.
+**Selected gate:** **M07 gate 3, Matrix editor/caller parity and review preparation**, delivered as
+batch 78 with actual interaction still open. M06's requested editor observations remain pending.
+The next bounded gate is M07 gate 4's precise corrected native fixture verification after this
+checkpoint is published. Its initialization-observer fix is software checked but not native verified.
+Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
+review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** after publishing batch 77, reconcile Matrix UI/script/command/headless parity and
-prepare a normal editor review scene/checklist. Actual interaction remains required. M07 gate 4
-retains its original scope and three cumulative native failures; no further native run in this chain.
+**Next action:** publish batch 78, then record one bounded M07 gate-4 verification against the
+corrected existing fixture. The ordinary Matrix review scene/checklist is ready for actual input;
+that requirement remains open. Retain the original scope and three cumulative native failures.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -27,7 +28,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Editor/caller parity next; native chain stopped with correction unverified | `██████████░░░░░░░░░░` 50% | 2/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Caller parity/review scene ready; actual input and corrected native verification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
@@ -72,6 +73,9 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
+- **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
+  scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
+  observations or changed supported activation availability. No real input is inferred.
 - **M07 gate 4:** native chain stopped after three cumulative invocations. Batch 77 validates
   adapter identity too early, before asynchronous native initialization; the check now follows a
   matching actual output frame but has software checks only. Return after the selected gate-3
@@ -81,7 +85,13 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 77:** one verification fails before raster samples because the new
+**Latest checkpoint, batch 78:** Matrix parity verifies **124 caller cases**, **12 frontend tests**,
+**202 Rust tests /one existing hardware ignore**, strict Clippy and normal-headless history/reload.
+The initially unlaunched ordinary-app review scene and six-group checklist are ready. No native
+experiment or actual input occurred. **No gate closes:** M07 **2/4**, overall **4/10 (40%)**.
+[Matrix editor parity evidence](evidence/mapgyver-m07-editor-parity-2026-11-01.json).
+
+**Retained checkpoint, batch 77:** one verification fails before raster samples because the new
 adapter assertion treats logical resource admission as completed native initialization. Identity
 validation now follows a matching actual native output frame. Four oracle tests per executable,
 strict Clippy and both formatters pass; the corrected candidate is not native verified. Frozen
@@ -975,6 +985,29 @@ deliveries become **29**; diagnostic-only allocation remains **1 used of 7**. Ne
 definitions/column associations and neighbor-demand policy, not further process diagnostics.
 
 ### M07 acceptance items
+
+**Matrix editor/caller batch 78:** started 2026-11-01 **03:51 UTC**, stop **04:36 UTC**.
+Only M07 gate 3 is active. Extend the existing immutable authoring observer to include Matrix
+documents, verify UI/QuickJS/hosted/command authoring and ephemeral launch semantics, and reuse the
+ordinary headless host for a normal review project. Reconcile existing virtualized-grid and
+selection/preparation/live frontend tests. Actual editor interaction remains required. No native
+Matrix/Composition run, desktop activation retry or new diagnostic framework in this batch.
+Software/check/format/build evidence and the saved review scene form the delivery; keep actual
+input and every M07 gate-4 requirement open until independently verified.
+
+**Batch 78 result:** four Matrix parity tests cover **31 cases across four callers =124** paths,
+including immutable authored snapshots, committed identities, authoring/history, atomic rejection,
+ephemeral Cut/configured launch/clear and bounded reads that never launch. The full library passes
+**202 tests /one existing hardware ignore**; **12 Matrix frontend tests**, final four-test parity
+verification, strict all-target native-feature Clippy, JavaScript syntax and Prettier pass.
+The ordinary headless host exits **0** after seven operation/history cases and Save/New/Load;
+`target/m07-editor-review/MatrixReview.mapgyver` is initially unlaunched, original scene restored,
+SHA-256 `756103070d8615a6d40cb98644d1817726a74ce560aa6272ed68826120540ab9`.
+Use [the six-group review](../../apps/mapgyver/tests/headless/MATRIX_REVIEW.md) for actual editor
+acceptance. Those observations are unverified; M06's prior request is still pending. **No native
+run, actual input or gate closure in this batch. M07 remains 2/4; overall 4/10 (40%)**. Publish this
+checkpoint before one named bounded M07 gate-4 verification of the existing correction, retaining
+all failures and scope. [Evidence](evidence/mapgyver-m07-editor-parity-2026-11-01.json).
 
 **Corrected native completion batch 77:** started 2026-11-01 **03:41 UTC**, stop **04:26 UTC**.
 Only M07 gate 4 is active. Batch 76 made progress with partial rasters/scale and a concrete probe
@@ -4742,8 +4775,10 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 M04 is complete; M06 gates 1–3 are accepted. M06's six real-editor observation groups remain
 requested/pending against `target/m06-editor-review/CompositionReview.mapgyver`; do not repeat
 that completed preparation or infer input from software. M05/M06 activation returns only on a
-changed prerequisite or real observations. After publishing batch 77, take **M07 gate 3** caller
-parity and ordinary-app Matrix review preparation. Actual grid interaction remains required.
+changed prerequisite or real observations. Batch 78 completes **M07 gate 3** caller parity and
+ordinary-app Matrix review preparation. Actual grid interaction remains required; its six-group
+checklist and saved reference are ready, not accepted. Publish this checkpoint before selecting
+one bounded **M07 gate 4** verification of the corrected existing fixture.
 The Matrix native chain stops after three cumulative failed invocations; the initialization-check
 correction compiles but is native unverified. Return to its precise corrected fixture only after
 the selected parity/review delivery, with frozen hashes and no scope reduction. No helper retry

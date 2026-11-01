@@ -12,6 +12,11 @@ same Composition mutation contracts. The [editor acceptance flow](tests/headless
 generates a normal project for real input verification; native raster acceptance lives in
 [the pixel fixture](tests/composition_pixels/README.md).
 
+The [Matrix editor acceptance flow](tests/headless/MATRIX_REVIEW.md) saves an initially unlaunched
+ordinary project and checks the same authoring/playback contracts through the headless transport.
+Selection, requested launch and actual renderer feedback are separate states; only real editor
+observations qualify the grid interaction checks.
+
 The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and

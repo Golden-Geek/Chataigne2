@@ -5,6 +5,7 @@ use golden_core::app::ProjectNode;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
 mod composition;
+mod matrix;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {
@@ -29,6 +30,7 @@ fn authored(
 ) -> (
     MediaManagerSnapshot,
     Vec<crate::media::composition::protocol::CompositionSnapshot>,
+    Vec<crate::matrix::protocol::MatrixSnapshot>,
 ) {
     let catalog = inspect(engine);
     let references = catalog
@@ -43,7 +45,13 @@ fn authored(
         // An immutable query must not settle queued script operations before history is measured.
         .map(|reference| crate::media::composition::inspect(engine, reference).unwrap())
         .collect();
-    (catalog, compositions)
+    let matrices = catalog
+        .media
+        .iter()
+        .filter(|media| media.media_kind == MediaKind::Matrix)
+        .map(|media| crate::matrix::inspect(engine, media.id).unwrap())
+        .collect();
+    (catalog, compositions, matrices)
 }
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.

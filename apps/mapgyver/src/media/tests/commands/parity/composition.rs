@@ -193,7 +193,7 @@ fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_
             let MediaEditResult::InstancesCreated { instances } = serde_json::from_value(reply).unwrap() else {
                 panic!()
             };
-            let (_, compositions) = authored(&engine);
+            let (_, compositions, _) = authored(&engine);
             let current = compositions
                 .iter()
                 .find(|snapshot| snapshot.reference == scene.owner)
