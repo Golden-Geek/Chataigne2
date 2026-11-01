@@ -153,7 +153,7 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		await restore(snapshot, after);
 		await wait(
 			() => cell.innerText(),
-			(value) => value.includes(solid.label)
+			(value) => value === solid.channels[0].label
 		);
 		const assigned = after;
 		await panel.getByLabel('Find Matrix source', { exact: true }).fill(root.label);
@@ -169,6 +169,17 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 			for (const blend of ['Normal', 'Add', 'Multiply', 'Screen']) {
 				snapshot = await inspect();
 				const settings = panel.getByRole('group', { name: 'Row blending', exact: true });
+				const expected = snapshot.items.find((entry) => entry.id.id === row.id.id).settings;
+				await wait(
+					async () => ({
+						opacity: Math.fround(
+							Number(await settings.getByLabel('Opacity', { exact: true }).inputValue())
+						),
+						blend: await settings.getByRole('combobox', { name: /^Blend/ }).inputValue(),
+						enabled: await settings.getByLabel('Enabled', { exact: true }).isChecked()
+					}),
+					(value) => isDeepStrictEqual(value, expected)
+				);
 				await settings.getByLabel('Opacity', { exact: true }).fill('0.5');
 				await settings.getByRole('combobox', { name: /^Blend/ }).selectOption(blend);
 				await settings.getByLabel('Enabled', { exact: true }).uncheck();

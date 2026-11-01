@@ -213,6 +213,12 @@ on duplicate labels and backend-read/display lag before later controls run. Disp
 synchronization is corrected but unverified. Continue against that concrete change, retaining
 two cumulative failures and every original grid/live/complete-editor requirement. No new route.
 
+Batch91 verifies the complete Matrix browser candidate, including settings, source/structure/
+history, requested playback distinct from selection, missing source and virtual scrolling/resize.
+Gate3 stays open for actual project replacement and native preparation/installation/submission
+feedback. Next target only the remaining project/lifetime check through actual UI; do not repeat
+the passing large candidate, inject native observations or retry the parked automation route.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

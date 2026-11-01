@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "batch": 91,
+  "date": "2026-11-01",
+  "gate": "M07/3",
+  "status": "ACTUAL_BROWSER_INPUT_PASSED_PROJECT_NATIVE_FEEDBACK_GAPS_OPEN",
+  "base_revision": "0be21734919d81041de64591062c21d58fc75751",
+  "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-ui",
+  "execution": {
+    "invocations_this_batch": 2,
+    "cumulative_failures": 3,
+    "cumulative_passes": 1,
+    "first_exit_code": 1,
+    "first_failure": "After assignment/history, fixture expects media label; actual Matrix view deliberately displays the channel label Second.",
+    "correction": "Expect selected channel label exactly, matching view contract. Synchronize displayed row settings with committed values after history before subsequent edits.",
+    "final_exit_code": 0,
+    "hosted_flow_ms": 21401,
+    "browser": "149.0.7827.55",
+    "page_errors": 0,
+    "host": "Both shutdown-file exits0; no remaining MapGyver after final run.",
+    "first_log": "target/m07-matrix-ui-b91.log",
+    "first_log_sha256": "dfeb3ae5f001461e377b75b12b1ce7ec5b8e39f1cc81a123bef3f64d1defc40a",
+    "final_log": "target/m07-matrix-ui-b91-final.log",
+    "final_log_sha256": "384b6c330f8c2b472b27621a780b0cbe5c3b91ba2ff2653ce872cced179f1c2f"
+  },
+  "reports": {
+    "media": "f721bb05-e6d6-4439-b87a-3cd04c53e9a9",
+    "rows": 24,
+    "columns": 16,
+    "rendered_cells": 54,
+    "visible_row_indices": [1, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+    "grid_geometry_css": { "x": 742.390625, "y": 232.765625, "width": 317, "height": 192 },
+    "final_launch_id": "623199f3-efec-4c3f-a39a-7d9fc5375208"
+  },
+  "coverage": [
+    "Real row/column/cell selection does not author or launch; nested row labels remain backend-owned.",
+    "Source draft/Apply, exact shared channel, whole-history Undo/Redo and visible atomic feedback-cycle rejection.",
+    "Layer/group opacity and Enabled plus Normal/Add/Multiply/Screen, exact non-target state and whole-history restoration.",
+    "Canvas/global transition and column override forms with history.",
+    "Row/group/column rename, row/group/column copy/removal, group/root moves and column reorder preserve intended identities through history.",
+    "Cut/Configured launch/Unload change requested playback without authored mutation; selecting another column preserves launch ID.",
+    "No native observation is reported truthfully; no rendering is inferred from request.",
+    "Actual source deletion shows Missing source and Undo restores bindings; tabs preserve state.",
+    "Keyboard vertical/horizontal scroll renders54 of384 cells, resize preserves document and no launch occurs; original source media/assets unchanged."
+  ],
+  "visual": {
+    "screenshot": "target/m07-matrix-ui.png",
+    "sha256": "c2642abc4f19ff819d808229af748fe0dff321cc750004070788bc174156c6fc",
+    "inspection": "Scrolled rows are visible above the inspector in narrow dock. Prior expected cycle rejection remains in Logger. No physical-output, native image or wide-panel branch acceptance inferred."
+  },
+  "hashes": {
+    "apps/mapgyver/tests/browser/matrix.mjs": "50ef6fd90d6a5e723b1b600dbb43133dee5b53fb63dc0dfcfa997fa976bd8cdc",
+    "apps/mapgyver/tests/headless/media.mjs": "8a37dece0e8737a0290e540213259a8cccb4780da11f4e2c04e7dc16d3869962",
+    "apps/mapgyver/ui/src/lib/matrix/MatrixPanel.svelte": "fe77c37b760f42514ee1e473a1376cead463f24bec796baba32858b328830610",
+    "target/debug/MapGyver.exe": "ea17940074862143e074d3d3ffa18c19a4d4ef4ba60d3a24e455451a9055172d"
+  },
+  "limits": [
+    "Actual native preparation/installation/submission feedback remains unobserved; browser has no native Matrix observation. No fake state injected.",
+    "Actual project replacement and unobserved complete-editor checklist cases remain required.",
+    "Browser viewport resize is not physical DPI, output/cadence, throughput or full wide-panel layout qualification."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M07": "3/4",
+    "overall": "4/10",
+    "return": "Original actual project replacement and native preparation/installation/submission feedback; do not repeat passing large candidate.",
+    "next": "Target File→New/project replacement, stale selection and usable post-replacement controls through real UI. Preserve all original scope."
+  }
+}

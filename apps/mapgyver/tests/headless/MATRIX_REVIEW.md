@@ -4,11 +4,12 @@ MapGyver owns Matrix authoring, playback and the grid. These checks use Golden's
 transport, history and project codecs. Automated headless requests do not establish real input.
 
 The opt-in bundled-browser check is `node apps/mapgyver/tests/headless/media.mjs --matrix-ui`.
-It uses real DOM input and read-only backend correlation. Its batch90 candidate is incomplete:
-two runs stop at duplicate-label/render-lag selectors; corrected displayed-label synchronization
-still needs verification. Later source/settings/structure/history/playback/scroll branches are
-not evidence until run. The narrow dock stacks grid/inspector; full layout, native live feedback
-and the complete checklist below remain required.
+It uses real DOM input and read-only backend correlation. Batch91 verifies its source/settings/
+structure/history/selection/requested-playback/source-loss/scroll/resize/tab flow and narrow dock
+layout. Three earlier failures are retained; final run passes after correcting fixture label/
+render synchronization expectations. Actual project replacement, native preparation/installation/
+submission feedback and unobserved complete-checklist cases remain required. Do not repeat this
+passing candidate as proof of those different gaps or infer rendering from a launch request.
 
 Generate the validated review scene from the repository root:
 

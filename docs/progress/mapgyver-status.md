@@ -4,17 +4,19 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M07 gate3, actual Matrix grid input**. Batch90 corrects its narrow dock
-layout; two actual browser runs stop at duplicate-label/render-lag test selectors. The displayed-
-label synchronization correction is not rerun; later candidate branches are unverified.
+**Selected next gate:** **M07 gate3, remaining Matrix project/native-feedback integration**.
+Batch91 verifies the complete browser candidate: source/settings/structure/history/selection/
+requested playback/source loss/virtual scrolling/resize/panel lifetime, with the narrow dock fix.
+Actual project replacement and native preparation/installation/submission feedback remain open.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
 M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch90, then verify the existing candidate against the concrete displayed-
-label synchronization correction. Retain two cumulative failures and the complete original scope;
-do not start another automation route or count unexecuted branches as evidence.
+**Next action:** publish batch91, then target M07's remaining actual File→New/project replacement
+and stale-selection/lifetime check through the same bundled browser. Do not repeat the passing
+large candidate or inject native feedback. Native observation requires a concrete supported route
+or actual user observations; parked desktop/CDP work remains parked.
 M06 stays open for native image/extent outlines and remaining original checklist scope, including
 project replacement. Do not repeat passing Composition controls or retry parked desktop/CDP.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
@@ -31,7 +33,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/history and dock layout verified; native/complete-editor gaps open | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Native content/runtime accepted; narrow dock corrected, browser candidate incomplete | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Browser grid/input/history/virtualization verified; project/native-feedback gaps open | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Caller, headless, aggregate target and browser form evidence ready; native dialog/retirement/elevation/full-app gaps | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
@@ -90,9 +92,10 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 - **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
-  Batch90 reaches row/group creation and child selection/rename, then stops at old/ambiguous
-  displayed labels. A concrete synchronization correction is ready for targeted verification;
-  retain two cumulative failures. Captured dock stacking is not full grid/live-state acceptance.
+  Batch91 verifies actual browser source/settings/structure/history/selection/requested playback,
+  source loss, keyboard virtualization, resize and panel lifetime. Return for project replacement
+  and actual native preparation/installation/submission feedback; no passing candidate repeat or
+  injected native state. Cumulative three failures remain; fourth invocation passes.
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
   Batch 83 also passes the corrected aggregate target-outcome check, with singleton retirement
   explicitly unverified. Return for actual form/dialog observations, supported evidence resolving
@@ -105,7 +108,17 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch90:** Matrix stacks grid/inspector in a narrow dock instead of squeezing
+**Latest checkpoint, batch91:** full actual Matrix browser candidate passes **exit0**, hosted flow
+**21,401 ms**, Chromium **149.0.7827.55**, zero page errors. Layer/group settings for all four
+blends, source/cycle rejection, structure/history, distinct selection/launch, truthful unavailable
+renderer, missing source/Undo, tab lifetime and keyboard virtualization/resize pass. **24×16**
+authored grid renders **54** cells after scroll; narrow grid is **317×192 CSS pixels**, not a
+physical-output measurement. First run exposes an incorrect media-name expectation; actual view
+contract displays channel name. Test corrected; no production behavior change. Project replacement
+and actual native feedback remain open. **No gate closes:** M07 **3/4**, overall **4/10 (40%)**.
+[Matrix browser evidence](evidence/mapgyver-m07-browser-input-2026-11-01.json).
+
+**Retained checkpoint, batch90:** Matrix stacks grid/inspector in a narrow dock instead of squeezing
 the grid below its sticky-label width. Build/Svelte (zero errors/warnings), syntax/Prettier and both
 workspace formatters pass. Two actual browser runs exit1 at duplicate-label/render-lag fixture
 selectors; both owned hosts exit0 normally. Corrected displayed-label waits are not run; later
@@ -1197,6 +1210,35 @@ definitions/column associations and neighbor-demand policy, not further process 
 
 ### M07 acceptance items
 
+**Batch91 result, 05:53 UTC:** the displayed-label synchronization correction passes creation,
+selection and source assignment/history. First run then stops because the fixture expects a media
+name in the cell; `MatrixViewCell.source_label` is the selected channel's label. Correct that exact
+expectation and synchronize displayed settings after history before editing them. Second/final
+run passes the full candidate **exit0 /21,401 ms**, zero page errors. All authored mutations use
+actual DOM controls; public backend operations only inspect committed identity/state.
+
+Verified: layer/group opacity/Enabled and all four blend choices, source drafts/Apply/cycle rejection,
+canvas/global and column transitions, row/group/column names/copy/removal, grouping/root moves and
+column reorder with exact snapshots/IDs through Undo/Redo. Cut/Launch/Unload alter requested state
+without authoring history; selection never launches, and unavailable native observation is shown
+truthfully. Source Delete/Undo, tabs,24×16 grid keyboard scrolling with54 rendered cells, and browser
+resize preserve authored state and source media/assets. Inspected capture confirms dock stacking
+and visible scrolled rows; no physical/DPI/throughput or wide-panel branch pass is inferred.
+
+Cumulative candidate results are three failures and one pass; no further run. Native preparation/
+installation/submission observations and actual project replacement remain required, so M07 gate3
+stays open **3/4**, overall **4/10 (40%)**. Publish, then target only the original project replacement
+and stale-selection requirement via actual UI. Do not rerun this passing large candidate, invent
+native observations or retry parked desktop/CDP activation.
+
+**Corrective verification batch91:** 2026-11-01 **05:52 UTC**, stop **06:37 UTC**, investigation
+cutoff **06:12 UTC**. Only M07 gate3 is active. Previous turn is progress: `0be21734` fixes narrow
+dock layout and records two candidate failures. The specific displayed-label/refresh synchronization
+correction reopens verification; cumulative failures remain two, not reset by this continuation.
+Run the existing full real-input candidate; at most one further corrected comparison if a concrete
+test/product defect explains a failure. No extra probe/automation route, native state injection,
+scope revision or repeat of passing Composition input. All original acceptance remains required.
+
 **Batch90 result, 05:50 UTC:** Matrix now queries its own container width to stack grid above
 inspector in narrow docks. The previous minimum12rem aside could leave less than the sticky14rem
 row-label width for the entire grid. Svelte has zero errors/warnings; ordinary app build passes.
@@ -1785,7 +1827,7 @@ Overall remains 3/10 (30%); no existing gate, budget or qualification ownership 
 | --- | --- | --- |
 | 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
 | 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch78 caller parity/review ready; batch90 narrow dock correction and partial creation/selection/rename, full browser candidate and complete-editor/native live feedback unverified |
+| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — batch78 caller parity and batch91 full browser input/history/virtualization pass; actual project replacement and native preparation/installation/submission feedback remain |
 | 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
@@ -5235,19 +5277,19 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source actual input is verified; native Source preview, hotplug/minimize and full physical matrix remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser input](#m06-acceptance-items): gates1–3/4 accepted. Browser forms/gestures/history and dock layout pass; native image/extent outlines, project replacement and other complete-editor gaps retain gate4. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates1–2 and4/4 accepted. Narrow dock corrected; actual browser candidate stops at test label synchronization. Full interactive/live-state scope retains gate3. |
+| M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and actual grid input](#m07-acceptance-items): gates1–2 and4/4 accepted. Full browser input/history/virtualization and narrow dock pass; project replacement/native feedback retain gate3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-Publish batch90's Matrix narrow-dock/partial-input checkpoint. **M07 gate3** stays active: verify
-the existing candidate against the concrete displayed-label/refresh correction, retaining two
-cumulative failures. Later source/settings/structure/history/selection/playback/virtualization/
-lifetime branches have not run. Actual mutations must be UI input; backend queries only observe.
-No new automation route, injected renderer state or guard bypass. Every native/live/complete-editor
-requirement remains. M06 returns for native image/extent outlines, project replacement and other
-original checklist gaps; do not repeat its passing candidate. M05 gate7 still needs native preview.
+Publish batch91's verified Matrix browser input/history/virtualization and narrow dock. **M07 gate3**
+stays active: target the remaining original actual File→New/project replacement, stale selection
+and usable post-replacement controls through the same bundled browser. Do not repeat the passing
+large candidate. Native preparation/installation/submission feedback still requires real observations
+or a concrete supported capability change; no injected states, new automation route or guard bypass.
+M06 returns for native image/extent outlines, project replacement and other original checklist gaps;
+do not repeat its passing candidate. M05 gate7 still needs native preview. All global budgets remain.
 
 M06 and M07 actual-editor observations remain requested/pending against their saved review
 projects; no response is inferred and preparation is not repeated. M08 caller/headless/aggregate
