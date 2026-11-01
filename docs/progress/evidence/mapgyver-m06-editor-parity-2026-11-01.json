@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "batch": 75,
+  "date": "2026-11-01",
+  "gate": "M06/4",
+  "status": "OPEN_ACTUAL_EDITOR_OBSERVATIONS_REQUIRED",
+  "base_revision": "20c3c1192f52b7e0d00aa7365a90d75f95043faa",
+  "verified": {
+    "app_unit_tests_passed": 198,
+    "existing_ignored_hardware_test": 1,
+    "composition_frontend_tests_passed": 10,
+    "public_caller_paths": [
+      "UI intent",
+      "QuickJS gc.invokeAppOperation",
+      "hosted local.editMedia",
+      "Media Operation command node"
+    ],
+    "composition_caller_cases": 60,
+    "ordinary_headless_host_exit_code": 0,
+    "ordinary_headless_grouped_samples": 30,
+    "single_undo_redo_gesture_modes": 3,
+    "source_assignment_ordering_copy_removal_cycle_rejection": true,
+    "project_save_new_load_original_scene_restored": true,
+    "strict_app_all_target_native_qualification_clippy": true,
+    "javascript_syntax_and_prettier": true
+  },
+  "review": {
+    "result": "pass",
+    "scope": "ordinary headless Composition intents; real editor gestures remain unverified",
+    "project": "D:\\Projects\\Dev\\Chataigne2\\target\\m06-editor-review\\CompositionReview.mapgyver",
+    "project_sha256": "d4861eb6ace9c6ad24bacf5e19b3aed1292b6e370340629afd17d04369122ed8",
+    "root": {
+      "channel": "7c3074ac-53c4-48a4-9ec3-41e2105f9db7",
+      "media": "4d41d612-3fc3-4479-9006-9b98d455be57"
+    },
+    "red": {
+      "channel": "ddb35cc3-2c48-468a-b173-a5cfecc9d709",
+      "media": "7b31f6d7-c4bc-4fe7-8b81-a96c97156b64"
+    },
+    "green": {
+      "channel": "7ed7657f-732a-4467-acbf-7c6ff46a6d8e",
+      "media": "7d21f9ab-e4e8-48e6-a4ad-34b704693547"
+    },
+    "instances": [
+      {
+        "composition": {
+          "channel": "7c3074ac-53c4-48a4-9ec3-41e2105f9db7",
+          "media": "4d41d612-3fc3-4479-9006-9b98d455be57"
+        },
+        "instance": "c189754f-ade1-4a80-8cb8-261bcc10631f"
+      },
+      {
+        "composition": {
+          "channel": "7c3074ac-53c4-48a4-9ec3-41e2105f9db7",
+          "media": "4d41d612-3fc3-4479-9006-9b98d455be57"
+        },
+        "instance": "6b494b7f-142f-4cc3-8e93-96fc36bf17b1"
+      },
+      {
+        "composition": {
+          "channel": "7c3074ac-53c4-48a4-9ec3-41e2105f9db7",
+          "media": "4d41d612-3fc3-4479-9006-9b98d455be57"
+        },
+        "instance": "5cdb7104-b976-439f-a2eb-a2a19eff0654"
+      }
+    ],
+    "grouped_geometry_samples": 30,
+    "grouped_undo_redo_modes": 3,
+    "original_scene_restored": true
+  },
+  "unverified": [
+    "real editor/source-picker selection and keyboard/pointer input",
+    "real move/rotate/scale and drag release/cancellation",
+    "on-screen numeric form/blend/opacity agreement",
+    "actual duplicate/reorder/rename/remove and history UI",
+    "panel hide/reopen/project replacement interactions",
+    "actual missing-source UI and Undo"
+  ],
+  "automation": "Batch72 supported activation failure remains parked; no desktop retry in this batch.",
+  "manual_observations_requested": true,
+  "sha256": {
+    "apps/mapgyver/src/media/composition/authoring.rs": "5dd727eed022639fec5f7ef649294e83c4e262f50532ec9033a2435966e00ea1",
+    "apps/mapgyver/src/media/composition/mod.rs": "fef0f5a5cf6e327d5499f1e913aa5f26c12ef37e339702e92ea11036537a008c",
+    "apps/mapgyver/src/media/tests/commands/parity.rs": "479170b83b1711b5d806e3c3160b5025cf9fa2ea2c6075d781f6ca9b94038e99",
+    "apps/mapgyver/src/media/tests/commands/parity/composition.rs": "3af54631935a96a5b86b4d880cff18ecbbfbede063258955a72fe8aa7d71c9c1",
+    "apps/mapgyver/tests/headless/media.mjs": "328670de56d0dbb51cd285649a08d864fba044184d06325f5a31f89d8afa7d98",
+    "apps/mapgyver/tests/headless/composition.mjs": "1b0392c980c96f6e24937936b8f2a40ef9cf2be28c729f7f335ae5a47b68a356",
+    "apps/mapgyver/tests/headless/COMPOSITION_REVIEW.md": "53d1be073deaa3ff9cf625a211c655fb33529aa1b048c28f5ddff70761c5463b",
+    "target/debug/MapGyver.exe": "4d706e14b86151ca3d87fab58207bf6ab9d1f2da83ff8147a349651633a14020",
+    "target/m06-editor-review/review.json": "2ed5aca23060d9a6e832074239fb16e3f418e5a5de221615b3da4a639294da60",
+    "target/m06-editor-review/CompositionReview.mapgyver": "d4861eb6ace9c6ad24bacf5e19b3aed1292b6e370340629afd17d04369122ed8"
+  }
+}

@@ -6,6 +6,12 @@ desktop host, and generic UI. App-owned media contracts and rendering policy
 live under `src/media`; mapping authoring lives under `src/screens`. Composition builds on
 those public app-owned contracts. `src/app/labels.rs` shares backend label allocation.
 
+`media::composition::inspect` reads committed Composition instance state without settling queued
+commands or authoring history. UI intents, scripts, command nodes and the headless host share the
+same Composition mutation contracts. The [editor acceptance flow](tests/headless/COMPOSITION_REVIEW.md)
+generates a normal project for real input verification; native raster acceptance lives in
+[the pixel fixture](tests/composition_pixels/README.md).
+
 The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and

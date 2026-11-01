@@ -4,6 +4,8 @@ use crate::media::channel;
 use golden_core::app::ProjectNode;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
+mod composition;
+
 #[derive(Clone, Copy, Debug)]
 enum Caller {
     Ui,
@@ -20,6 +22,28 @@ fn relative(path: &str) -> AssetLocator {
 }
 fn inspect(engine: &AppEngine) -> MediaManagerSnapshot {
     crate::media::catalog::inspect(engine).unwrap()
+}
+
+fn authored(
+    engine: &AppEngine,
+) -> (
+    MediaManagerSnapshot,
+    Vec<crate::media::composition::protocol::CompositionSnapshot>,
+) {
+    let catalog = inspect(engine);
+    let references = catalog
+        .media
+        .iter()
+        .flat_map(|media| &media.channels)
+        .filter(|channel| matches!(channel.definition.source, ChannelSource::Composition { .. }))
+        .map(|channel| channel.reference)
+        .collect::<Vec<_>>();
+    let compositions = references
+        .into_iter()
+        // An immutable query must not settle queued script operations before history is measured.
+        .map(|reference| crate::media::composition::inspect(engine, reference).unwrap())
+        .collect();
+    (catalog, compositions)
 }
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.
@@ -65,7 +89,7 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
             );
         }
     }
-    let before = inspect(engine);
+    let before = authored(engine);
     let history = engine.undo_len();
     let result = if matches!(caller, Caller::Ui) {
         let ack = invoke(engine, operation);
@@ -106,14 +130,14 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
             None
         }
     };
-    let after = inspect(engine);
+    let after = authored(engine);
     if after != before {
         assert!(result.is_some());
         assert_eq!(engine.undo_len(), history + 1, "{caller:?}");
         assert!(engine.undo().unwrap());
-        assert_eq!(inspect(engine), before, "{caller:?} undo");
+        assert_eq!(authored(engine), before, "{caller:?} undo");
         assert!(engine.redo().unwrap());
-        assert_eq!(inspect(engine), after, "{caller:?} redo");
+        assert_eq!(authored(engine), after, "{caller:?} redo");
     } else {
         assert_eq!(
             engine.undo_len(),
@@ -123,7 +147,7 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
     }
     service_script_app_operations(engine).unwrap();
     assert_eq!(
-        inspect(engine),
+        authored(engine),
         after,
         "history replay must not requeue the command/script"
     );

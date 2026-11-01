@@ -2,6 +2,7 @@
 // Build: cargo build --locked -p MapGyver --bin MapGyver
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
+// Add --composition-review for M06 parity and a saved ordinary-app review scene.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -213,6 +214,10 @@ try {
 	if (withUi) {
 		const { verifyPictureReloadUi } = await import('../browser/picture-reload.mjs');
 		await verifyPictureReloadUi({ base, inspect, picture, asset });
+	}
+	if (process.argv.includes('--composition-review')) {
+		const { verifyComposition } = await import('./composition.mjs');
+		await verifyComposition({ post, intent, edit });
 	}
 	console.log(
 		JSON.stringify({

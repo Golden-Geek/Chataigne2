@@ -4,14 +4,15 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M06 gate 4, actual Composition editor and caller parity**. Begin its
-bounded acceptance batch after publishing batch 74. Gate 3's production preview-compositor/output
-rasters pass; M06 is **3/4 (75%)**. No simultaneous gate work. Unsupported desktop activation stays
-parked; preparing real editor acceptance does not authorize another helper retry chain.
+**Selected gate:** **M06 gate 4, actual Composition editor observations**. Batch 75 completes caller
+parity and a validated review scene; real input observations are requested and pending. M06 remains
+**3/4 (75%)**. No simultaneous gate work. Unsupported desktop activation stays parked; do not repeat
+helper retries, parity fixtures or review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** prepare a reviewable ordinary-app Composition scene and bounded editor/source-picker
-gesture flow; reconcile UI/script/headless parity tests. Actual input evidence is required for gate 4.
-Use supported activation only when its prerequisite changes, or real manual observations.
+**Next action:** collect the six real editor checklist observations using
+`target/m06-editor-review/CompositionReview.mapgyver` and the
+[review steps](../../apps/mapgyver/tests/headless/COMPOSITION_REVIEW.md). Software parity is verified;
+actual input evidence is required. The pending request is not a failed test or an acceptance waiver.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -25,7 +26,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete locally | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Dependency and native raster gates accepted; editor gate next | `███████████████░░░░░` 75% | 3/4 |
+| [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Document/module and runtime accepted; grid/qualification open | `██████████░░░░░░░░░░` 50% | 2/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
@@ -67,21 +68,23 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   report `failed to activate captured window`. Return when supported activation is available or
   actual manual observations cover the missing editor/fullscreen states. Do not repeat helper
   workarounds. Independent Spout pixels pass; no actual editor/minimize/fullscreen behavior is inferred.
-- **M06 gate 4:** selected next. Prepare the ordinary-app acceptance scene/caller parity checks,
-  then collect real editor/source-picker selection, drag/rotate/scale and grouped history evidence.
-  Raster readbacks do not establish actual UI gestures; failed supported activation remains parked.
+- **M06 gate 4:** caller parity and the ordinary-app review scene are verified. Return on the
+  requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
+  missing-source observations, or changed supported activation availability. Do not interpret a
+  pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 74:** **M06 gate 3 closes**, **3/4 =75%**, denominators unchanged.
-Intel and NVIDIA pass nine Composition states each: **54 captures /41,472 texels** across two
-channel outputs and the production preview compositor. Residual error outside the documented
-UNORM conversion range is at most **1/255**; the retained nominal near-black difference is **13/255**.
-Four renderer lifetimes release all plan/source/output owners; all probe pools return idle.
-Three oracle tests, strict app all-target Clippy and both workspace formatters pass.
-Overall stays **4/10 =40%** because actual Composition editor/caller parity acceptance remains open.
-[Raster evidence](evidence/mapgyver-m06-composition-pixels-2026-11-01.json).
+**Latest checkpoint, batch 75:** all four caller paths match committed Composition state/history
+across **60** cases. The ordinary headless host verifies **30** geometry samples as three grouped
+Undo/Redo gestures, source assignment/order/copy/removal/rejection and Save/New/Load, then exits
+normally. A normal **320×240** review project is ready; real editor observations are pending.
+**198 app tests /one existing hardware ignore**, **10 frontend tests**, strict app all-target
+Clippy, JS syntax/formatting and both workspace formatters pass. **No gate closes:** M06 **3/4 =75%**,
+overall **4/10 =40%**, denominators unchanged.
+[Parity/review evidence](evidence/mapgyver-m06-editor-parity-2026-11-01.json),
+[accepted native rasters](evidence/mapgyver-m06-composition-pixels-2026-11-01.json).
 M05's [supported activation failure](evidence/mapgyver-m05-activation-2026-11-01.json) remains open.
 The prior [native-owner checkpoint](evidence/mapgyver-m03-native-allocations-2026-11-01.json)
 and [full private-growth failure](evidence/mapgyver-m03-embedded-shaders-lifecycle-2026-11-01.json)
@@ -1378,6 +1381,43 @@ is atomic Matrix launches/transitions and demanded shared render passes, not mor
 
 ### M06 acceptance items
 
+**Editor acceptance batch 75:** started 2026-11-01 **02:55 UTC**, stop **03:40 UTC**.
+Only M06 gate 4 is active. MapGyver owns Composition editor/source-picker and domain intents;
+Golden owns shared history, scripting, transport and project codecs. Reconcile existing UI and
+caller-parity checks, add only missing Composition operation/geometry/history coverage, and prepare
+a validated ordinary-app review project plus a short finite gesture checklist. Use current public
+project APIs and existing host fixtures; no alternate desktop framework or activation retry.
+Actual user/editor input remains required and cannot be inferred from software tests. At most
+20 minutes/two investigation experiments; a review-ready partial result keeps the gate open.
+
+**Batch 75 result — caller parity and review ready, 03:05 UTC:** the existing immutable Composition
+query is exported through `media::composition::inspect`, matching the media channel read boundary.
+The parity observer includes actual Composition snapshots without settling queued script requests.
+Across UI intent, QuickJS generic operation, hosted `local.editMedia` and Media Operation command
+nodes, **60** cases verify committed responses/allocated identities, source assignment, geometry,
+rename/reorder/removal, cycle/invalid/wrong-owner rejection and exact Undo/Redo without callback replay.
+The initial observer attempted a UI inspection intent and settled queued script work before taking
+its history baseline; using the immutable query fixes that fixture defect, with no mutation behavior
+change. Runtime and test modules remain separate; no duplicate protocol or UI geometry policy.
+
+The existing isolated ordinary headless host runs
+`node apps/mapgyver/tests/headless/media.mjs --composition-review` successfully. **Thirty** absolute
+geometry samples form three Translate/Rotate/Scale gestures, each restored by one Undo/Redo while
+shared peers remain unchanged. Source assignment, ordering, rename/copy/remove, cycle rejection and
+source deletion/Undo pass, followed by Save/New/Load of the original review scene. The host exits
+**0** normally and no fixture-owned MapGyver process remains. The saved project has a **320×240**
+Composition with two Red instances and one Green; its SHA-256 is
+`d4861eb6ace9c6ad24bacf5e19b3aed1292b6e370340629afd17d04369122ed8`.
+[Evidence and source hashes](evidence/mapgyver-m06-editor-parity-2026-11-01.json),
+[reproduction and six actual-editor checks](../../apps/mapgyver/tests/headless/COMPOSITION_REVIEW.md).
+
+Validation: full app **198 pass /one existing hardware ignore**; Composition frontend **10/10**;
+strict all-target/native-qualification Clippy, ordinary app build, JS syntax/Prettier, both workspace
+formatters and whitespace checks pass. No desktop activation retry or native renderer experiment.
+Actual editor observations have been requested and remain pending, not unavailable by assumption.
+**Gate 4 stays open; M06 3/4 (75%), overall 4/10 (40%)**. Review/parity preparation is complete;
+return on actual observations or changed supported activation, not another software-only fixture batch.
+
 **Native-pixel acceptance batch 74:** started 2026-11-01 **02:37 UTC**, stop **03:22 UTC**.
 Only M06 gate 3 is active. Reuse app-owned ChannelRenderer/Composition intents, Golden's native
 Spout readback and existing preview-layout contract. Add a finite pixel acceptance fixture for
@@ -1596,7 +1636,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
 | 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
 | 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05 |
-| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open |
+| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — batch 75 verifies caller/headless parity and prepares the saved review scene; six actual-editor observation groups requested/pending |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -4589,21 +4629,20 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | [Source acceptance](#m04-acceptance-items): all six fixed gates accepted, including native sources, actual Media Manager/reload UI, commands/scripts/headless parity, shared assets, sparse/full/history and controlled native recreation. Production rendering/removal and full-app qualification retain their original owners. |
 | M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp and calibration](#m05-acceptance-items) close gates 1–3; native preview, all targets, display recovery and both dockable editors are implemented. Native source-preview, actual input/hotplug/minimize and full physical qualification remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native raster content](#m06-acceptance-items): gates 1–3/4 accepted; both adapters pass nested/shared channel and production preview-compositor pixels. Actual editor/source-picker gestures and complete caller parity remain gate 4. |
+| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies and native rasters](#m06-acceptance-items): gates 1–3/4 accepted. Caller/headless parity is verified and the ordinary-app review scene is ready; actual editor/source-picker observations retain gate 4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, timed production and grid](#m07-acceptance-items): gates 1–2/4 accepted; bounded grid/settings/reorder and correlated renderer feedback pass software checks. Actual interaction/parity acceptance and full qualification remain open. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
 
 ## Next action
 
-M04 is complete. Batch 74 accepts M06 gate 3's production preview-compositor and channel raster
-content on both adapters; M06 is 3/4. After publishing this checkpoint, take **M06 gate 4**: prepare
-a reviewable ordinary-app Composition scene and bounded real editor/source-picker gesture flow,
-and reconcile complete UI/script/headless parity evidence. Actual selection/drag/rotate/scale and
-grouped history observations are required; raster readbacks cannot substitute for real input.
-Supported activation failed in batch 72; use it only when its prerequisite changes or collect real
-manual observations. M05 gate 4 retains the same return trigger. No helper retry chain, alternate
-automation framework or renderer timing/resource experiment.
+M04 is complete; M06 gates 1–3 are accepted. Batch 75 completes caller/headless parity and saves the
+normal review scene at `target/m06-editor-review/CompositionReview.mapgyver`. The six actual-editor
+checklist groups have been requested. Collect the observations and repair any reported concrete
+failure before accepting **M06 gate 4**. Do not repeat parity/review preparation, infer input from
+raster/software tests or treat a pending response as pass/fail/unavailable. Supported activation
+failed in batch 72; it returns only on a changed prerequisite, as does M05 gate 4. No helper retry
+chain, alternate automation framework or renderer timing/resource experiment.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

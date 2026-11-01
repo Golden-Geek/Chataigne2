@@ -7,6 +7,7 @@ mod node;
 pub mod protocol;
 
 pub(super) use authoring::apply;
+pub use authoring::inspect;
 pub(crate) use node::INSTANCE_TYPE;
 pub use node::InstanceNode;
 

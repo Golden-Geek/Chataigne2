@@ -55,7 +55,8 @@ fn instance(engine: &AppEngine, parent: NodeId, instance: InstanceId) -> Result<
     }
 }
 
-pub(super) fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<CompositionSnapshot, String> {
+/// Reads committed instance state without settling queued operations or changing history.
+pub fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<CompositionSnapshot, String> {
     let (parent, canvas) = channel(engine, reference)?;
     let instances = instances(engine, parent)?
         .into_iter()
