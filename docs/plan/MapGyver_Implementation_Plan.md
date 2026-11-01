@@ -154,6 +154,11 @@ not native verified. Stop the native chain and select existing **M08 gate 4** ca
 observation acceptance. Return to exactly this corrected Matrix fixture after a separate reviewable
 acceptance delivery, retaining all five invocations, failures, endpoint gaps and original budgets.
 
+Batch 81 supplies that separate acceptance delivery: application persistent-state observation,
+144 caller paths and ordinary-headless lifecycle pass. Actual form/target/full-app acceptance
+remains open. After publication return to one named bounded verification of the exact M07
+pending-only timeout correction; no new diagnostic framework, native settings or acceptance change.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

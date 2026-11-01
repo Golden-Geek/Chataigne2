@@ -274,7 +274,8 @@ fn configured_launch_bursts_preserve_fixed_publication_credits_and_recover_after
     });
     launch(&mut engine, matrix.media, columns[2], LaunchMode::Cut);
     let capture = capture_channels_at(&engine, &[matrix], 16, owner.read_time().unwrap()).unwrap();
-    assert!(owner.publish(capture, routes(matrix)).is_ok());
+    let recovered = owner.publish(capture, routes(matrix));
+    assert!(recovered.is_ok(), "burst recovery rejected: {recovered:?}");
     let resources = owner.snapshot().resources.unwrap();
     assert!(resources.bytes_used <= resources.byte_limit);
     assert!(resources.in_flight <= 2 && resources.retiring_generations <= 2 && resources.prepared_generations <= 1);

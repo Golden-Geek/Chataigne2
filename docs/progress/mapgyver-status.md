@@ -4,16 +4,17 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M08 gate 4, application caller/edit/control/observation acceptance**.
-Batch 80 stops the Matrix native chain: NVIDIA produces all three valid interrupted mixtures,
-then an unconditional deadline assertion rejects the completed set. The pending-only timeout
-correction is software checked, native unverified. Actual Matrix/Composition input remains pending.
+**Selected gate:** **M08 gate 4, application caller/edit/control/observation acceptance**, batch 81
+delivered with full gate still open. **144 caller paths**, 20 frontend tests and normal-headless
+lifecycle pass; actual form/dialog and retained target/recovery outcomes remain unverified.
+The next named gate returns to M07's exact pending-only timeout correction after this publication.
+Actual Matrix/Composition input remains pending.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 80, then reconcile existing M08 caller and ordinary-host coverage
-against gate 4 and close its concrete gaps. Matrix native verification returns after a separate
-reviewable acceptance delivery. Retain original scope and all five cumulative native failures.
+**Next action:** publish batch 81, then one named bounded M07 gate-4 verification of the existing
+pending-only observation timeout correction. Preserve all five native failures, the missing NVIDIA
+endpoint/demand check and every original budget. No extra probe, settings or acceptance change.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -29,7 +30,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Concurrent targets await supported activation; remaining qualification open | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Caller parity/review scene ready; actual editor observations pending | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Caller parity/review scene ready; actual input and corrected native verification open | `██████████░░░░░░░░░░` 50% | 2/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Ownership/demand/controller accepted; editing/status/callbacks/default headless implemented; full parity/app qualification open | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Caller and normal-headless parity verified; actual form/target/full-app qualification open | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -81,11 +82,24 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   completed set; its exact pending-only correction compiles. NVIDIA endpoint/outgoing-demand
   acceptance remains unverified. Native chain stops. Return after a separate reviewable M08
   acceptance delivery to the corrected existing fixture; no new probe, clock, settings or scope.
+- **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
+  Return for actual form/dialog observations; the existing corrected aggregate target-outcome
+  check (including its recorded conservative retirement gaps); actual elevated-target and complete
+  mode/recovery/cleanup evidence. Historical project replacement/shutdown proof remains scoped;
+  callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 80:** the single invocation exits **101 /129.02 s**. Intel completes;
+**Latest checkpoint, batch 81:** **144 application caller paths**, **20 frontend tests**, **206 Rust
+tests /one existing hardware ignore**, strict Clippy, current ordinary app/fixture build and normal
+headless lifecycle **exit 0 /2.33 s** pass. Persistent application state now participates in the
+committed history observer. One first-run burst-recovery assertion failed; it now reports the
+rejected Result, but its cause remains unproven. The full suite passes on rerun. Actual form/target/
+full-app requirements remain open. **No gate closes:** M08 **3/4**, overall **4/10 (40%)**.
+[Application caller parity](evidence/mapgyver-m08-caller-parity-2026-11-01.json).
+
+**Retained checkpoint, batch 80:** the single invocation exits **101 /129.02 s**. Intel completes;
 NVIDIA records three valid interrupted mixtures across Layer/Group/Final but the next unconditional
 timeout assertion rejects `samples=3`. It now expires only pending observations. Four oracle tests
 per executable and strict Clippy pass; no second native run. NVIDIA's endpoint/outgoing-demand
@@ -134,6 +148,42 @@ hardware adapters. Actual editor gestures and physical presentation remain unver
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Application parity batch 81:** started 2026-11-01 **04:17 UTC**, stop **05:02 UTC**. Only M08
+gate 4 is active. MapGyver owns application definitions/Matrix associations/callback policy;
+Golden owns shared host, script operation routing and process primitives. Reuse the existing
+four-caller committed-operation harness to verify application authoring, bounded observations,
+enablement, association/history and rejection. The immutable observer must include application
+persistent state without treating runtime revision/instance changes as authored history. Reconcile
+ordinary-headless integration and frontend coverage against the complete gate; do not infer real
+input, unsupported outcomes or full app qualification. No native GPU, desktop activation retry,
+new process fixture or parked Matrix experiment. Publish one coherent acceptance improvement;
+only verified full scope may close the gate.
+
+**Batch 81 result, 04:24 UTC:** four application parity tests cover **36 cases ×four callers =144**
+paths: 14 authoring/rejection, four creation/copy, 14 bounded observations/stale tickets and four
+column-association operations. Persistent definitions/labels/enablement and Matrix associations
+now participate in the immutable history observer; recreated definition instances/revisions do
+not become authored state. Replies expose committed identities, every changed operation has one
+Undo/Redo step, reads/rejection create none and history cannot replay callbacks or commands.
+Catalog bounds/pagination/search and enabled/configured/missing reference semantics are asserted.
+
+The combined caller suite passes **14 tests**, application frontend logic **20**, full Rust library
+**206 /one existing hardware ignore**, strict combined native/process-feature all-target Clippy,
+ordinary app/fixture builds, JS syntax and both formatters pass. The first full library invocation
+fails the existing configured-burst recovery publication assertion (205 pass/one fail/one ignore).
+Its exact rejection is now retained in failures; the second full invocation passes. Cause remains
+unproven; this assertion-message change is not claimed as a runtime fix.
+
+The existing ordinary headless check exits **0 /2.33 s**, host **40944**, external **43200**, owned
+roots **42704/26444**, callbacks acknowledged **7**. Launch/retention/unload, availability, overload
+recovery, external isolation and normal sentinel shutdown pass; all four known PIDs are absent
+after test cleanup. Actual form/dialog input, corrected aggregate target outcomes, elevated cases
+and unobserved-tree/full-app cleanup remain open. No native GPU or desktop activation run occurs.
+**No gate closes:** M08 **3/4**, overall **4/10 (40%)**. This separate reviewable acceptance delivery
+fulfills M07's recorded return trigger: publish, then one bounded verification of its exact
+pending-only timeout correction with original scope/budgets and all failures retained.
+[Evidence](evidence/mapgyver-m08-caller-parity-2026-11-01.json).
 
 **Product batch 46:** started 2026-10-31 **14:06 UTC**, recorded stop **14:51 UTC**.
 Implement cancellable server ownership in Golden transport and reuse the existing automation
@@ -925,7 +975,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle; actual form/target/full-app acceptance remains |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -4853,9 +4903,10 @@ verification: Intel completes, NVIDIA's fade observations time out. Publish its 
 sampling correction, then one final bounded verification of this chain. Batch 80 performs that
 verification: all three NVIDIA mixtures pass before an unconditional completed-set timeout fails.
 Its pending-only correction is software checked, native unverified; final NVIDIA endpoint/demand
-checks remain open. Stop the five-invocation native chain. After publication select **M08 gate 4**
-caller/edit/control/observation acceptance; return to the exact corrected Matrix fixture after a
-separate reviewable acceptance delivery. No helper retry, new framework, M03 experiment or waiver.
+checks remain open. The five-invocation native chain stops for **M08 gate 4**; batch 81 now delivers
+its 144 caller paths and normal-headless lifecycle proof. Publish that separate reviewable
+acceptance delivery, then return to one named bounded verification of the exact pending-only
+Matrix timeout correction. No helper retry, new framework, M03 experiment, budget change or waiver.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,

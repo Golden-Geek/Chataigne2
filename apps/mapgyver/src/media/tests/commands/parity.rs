@@ -1,9 +1,10 @@
-//! Source authoring must preserve the same committed contract for every public caller.
+//! Media, Matrix and application operations preserve one committed contract for every caller.
 use super::*;
 use crate::media::channel;
 use golden_core::app::ProjectNode;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
+mod applications;
 mod composition;
 mod matrix;
 
@@ -25,12 +26,20 @@ fn inspect(engine: &AppEngine) -> MediaManagerSnapshot {
     crate::media::catalog::inspect(engine).unwrap()
 }
 
+type ApplicationState = (
+    crate::applications::protocol::ApplicationId,
+    String,
+    crate::applications::protocol::ApplicationEnablement,
+    crate::applications::protocol::ApplicationDefinition,
+);
+
 fn authored(
     engine: &AppEngine,
 ) -> (
     MediaManagerSnapshot,
     Vec<crate::media::composition::protocol::CompositionSnapshot>,
     Vec<crate::matrix::protocol::MatrixSnapshot>,
+    Vec<ApplicationState>,
 ) {
     let catalog = inspect(engine);
     let references = catalog
@@ -51,7 +60,20 @@ fn authored(
         .filter(|media| media.media_kind == MediaKind::Matrix)
         .map(|media| crate::matrix::inspect(engine, media.id).unwrap())
         .collect();
-    (catalog, compositions, matrices)
+    let mut applications = engine
+        .nodes
+        .iter()
+        .filter_map(|(_, node)| match node {
+            AppNode::Application(node) => {
+                let snapshot = node.snapshot();
+                // Runtime revisions and recreated node instances are not persistent authoring.
+                Some((snapshot.id, snapshot.label, snapshot.enablement, snapshot.definition))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    applications.sort_by_key(|(application, ..)| application.0.0);
+    (catalog, compositions, matrices, applications)
 }
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.

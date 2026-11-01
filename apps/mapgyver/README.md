@@ -17,6 +17,23 @@ ordinary project and checks the same authoring/playback contracts through the he
 Selection, requested launch and actual renderer feedback are separate states; only real editor
 observations qualify the grid interaction checks.
 
+Application definitions, availability, column associations and lifecycle policy live under
+`src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS,
+hosted scripts and Media Operation commands share the same application operations and committed
+history. Caller-parity tests compare persistent definitions and associations; runtime revisions,
+instance identities and lifecycle observations remain ephemeral.
+
+The ordinary headless integration check verifies owned launch/retention/unload, availability,
+callback acknowledgement, overload recovery, external-process isolation and normal host shutdown:
+
+```text
+cargo build --locked -p MapGyver --bin MapGyver --bin application_process_fixture --features application-process-fixture
+node apps/mapgyver/tests/headless/check.mjs --orderly-shutdown
+```
+
+Real form/dialog input, elevated targets and complete unobserved-tree retirement still require
+their own evidence; the finite host check does not establish those outcomes.
+
 The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and

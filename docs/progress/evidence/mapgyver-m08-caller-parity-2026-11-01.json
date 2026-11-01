@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "batch": 81,
+  "date": "2026-11-01",
+  "gate": "M08/4",
+  "status": "PARTIAL_CALLER_AND_ORDINARY_HEADLESS_PARITY_VERIFIED",
+  "identity": {
+    "utc": "2026-11-01T04:24:02.123784+00:00",
+    "base_revision": "913ca6b05fd7044012c9273ff92ea24e214a6ffb",
+    "sha256": {
+      "target/debug/MapGyver.exe": "60af98bbd3da629dc6dad5bd66be3e6d5384c0ba04e6ba10132ecba12a8bad57",
+      "target/debug/application_process_fixture.exe": "b4a214e07336c60aec1a9de63c3df4254d48738294fc94b1df42fbe2a08477cb",
+      "apps/mapgyver/src/media/tests/commands/parity.rs": "d7a66ad155669bba7cc0de6553f35067fd37e556492fa230c2d5a894fad7b635",
+      "apps/mapgyver/src/media/tests/commands/parity/applications.rs": "f73994e4cd75f8efd6633599b451c9b45216ff245b9a1c093907f452560a67d0",
+      "apps/mapgyver/tests/headless/check.mjs": "707cf70dafbaab5b83748dde32d1ec674e9be54a776718da4f6c796f83557aec"
+    }
+  },
+  "owner": "MapGyver application definition/availability/column/callback policy; Golden host/script operation routing and owned-process mechanisms",
+  "caller_parity": {
+    "callers": [
+      "UI intent",
+      "QuickJS app operation",
+      "hosted QuickJS",
+      "Media Operation command"
+    ],
+    "cases_per_caller": 36,
+    "total_paths": 144,
+    "breakdown": {
+      "authoring_and_rejection": 14,
+      "creation_and_copy": 4,
+      "bounded_observation_and_stale_tickets": 14,
+      "column_associations": 4
+    },
+    "history": "Immutable observer includes persistent application identity/label/enablement/definition plus existing media/Composition/Matrix state. Ephemeral definition revision and instance are deliberately excluded. Changed operations create one history step; Undo/Redo restores authored state without replaying callbacks/commands.",
+    "observations": "Assert catalog search/pagination/results, existing/disabled/missing references, no process from read-only runtime queries and stale callback rejection. Instance identity is checked within each caller, not compared between independent projects."
+  },
+  "checks": {
+    "caller_suite": "14 pass; includes four new application parity tests",
+    "rust_library_final": {
+      "passed": 206,
+      "ignored_existing_hardware": 1,
+      "failed": 0
+    },
+    "frontend": {
+      "passed": 20,
+      "scope": "application stores/forms/runtime pure logic; not real mounted input"
+    },
+    "strict_clippy": "pass; all targets with native-qualification and application-process-fixture",
+    "ordinary_build": "pass; MapGyver and application_process_fixture",
+    "javascript_syntax": "pass"
+  },
+  "initial_suite_failure": {
+    "test": "media::rendering::tests::transitions::configured_launch_bursts_preserve_fixed_publication_credits_and_recover_after_outcome_drain",
+    "result": "205 passed, one failed, one ignored; recovery publish rejected without reporting its error",
+    "change": "Assertion now retains the exact rejected Result. Behavior/assertion condition unchanged.",
+    "final": "Full suite passes on rerun; root cause remains unproven. No claim that this diagnostic change fixes an intermittent rejection."
+  },
+  "headless": {
+    "command": "node apps/mapgyver/tests/headless/check.mjs --orderly-shutdown",
+    "exit_code": 0,
+    "elapsed_seconds": 2.33,
+    "result": {
+      "passed": true,
+      "host": 40944,
+      "external": 43200,
+      "first": 42704,
+      "second": 26444,
+      "acknowledged": 7,
+      "admission_recovered": true,
+      "availability_verified": true,
+      "orderly_shutdown": true,
+      "admission_message": "application runtime admits at most 64 active/retiring definitions"
+    },
+    "scope": [
+      "owned launch/retention/unload",
+      "availability/current-retained configuration",
+      "callback acknowledgement",
+      "overload recovery",
+      "same-executable external isolation",
+      "normal host shutdown"
+    ],
+    "after": "Host/external/two owned root PIDs absent after test finally. Known-member absence does not establish unobserved-tree retirement."
+  },
+  "remaining": [
+    "Actual application form/file-dialog input; supported desktop activation unavailable.",
+    "Corrected aggregate singleton/launcher/breakaway/missing/invalid-image check remains native unverified; prior partial outcomes and RetirementUnverified retained.",
+    "Actual elevated-target outcomes and full app/mode/recovery/cleanup qualification.",
+    "All retained M03/M05/M09 budgets and genuine removal requirements."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M08": "3/4",
+    "overall": "4/10",
+    "next": "Publish this separate acceptance delivery, then return to the exact pending-only Matrix observation timeout correction in a named bounded verification. No new probe framework, settings change or acceptance revision."
+  }
+}
