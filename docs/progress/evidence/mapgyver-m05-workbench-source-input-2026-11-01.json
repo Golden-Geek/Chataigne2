@@ -1,0 +1,113 @@
+{
+	"date": "2026-11-01",
+	"gate": "M05.7 Surface Source after Golden workbench redesign",
+	"status": "INPUT_VERIFIED_NATIVE_PREVIEW_OPEN",
+	"acceptance": "No gate closes. M05 remains4/8=50%; overall4/10=40%; fixed denominators and budgets.",
+	"command": "node apps/mapgyver/tests/headless/media.mjs --surface-source-ui",
+	"invocations_this_batch": 1,
+	"base_revision": "0f98ef81870dd2c7498297b6d898fc01a74e6c64",
+	"candidate": {
+		"path": "target/debug/MapGyver.exe",
+		"sha256": "2b16382d6826992107fa4f318a8024fb28e4abd8343be0b561086481d93df43f",
+		"production_changes_this_batch": "none"
+	},
+	"method": "Real naturally enabled browser controls against ordinary bundled UI in isolated headless host. Browser-flow backend operations only inspect committed state; no direct backend authoring or mock transport.",
+	"browser": "Chromium149.0.7827.55",
+	"viewport": { "width": 1440, "height": 1000 },
+	"result": {
+		"host_exit": 0,
+		"hosted_flow_ms": 6237,
+		"page_errors": 0,
+		"expected_crop_rejections": 3,
+		"other_rejected_requests": 0,
+		"owned_browser_closed": true
+	},
+	"original_scope_preserved": "Batch87 complete Source form/calibration/all crop corners/origin/rejection/Escape/source-loss/history/selection/panel-lifetime matrix, now split across Screen tree, shared Inspector and full-panel Source canvas.",
+	"coverage": [
+		{
+			"case": "Screen/Surface tree creation and shared Inspector selection; Source editor fills its panel and contains no property form",
+			"result": "pass"
+		},
+		{
+			"case": "Source, enablement, opacity, crop and destination-corner drafts do not author until Apply; one Undo/Redo restores the complete definition",
+			"result": "pass"
+		},
+		{
+			"case": "Grid, ColorBars and Off preserve exact source/crop/mapping and other fields",
+			"result": "pass for authored semantics; no native pixel claim"
+		},
+		{
+			"case": "All four crop corner handles preserve peer Surface and every non-crop field; each whole gesture undoes/redoes exactly",
+			"result": "pass"
+		},
+		{
+			"case": "Origin drag preserves width/height, peers and non-crop fields; one grouped Undo/Redo",
+			"result": "pass"
+		},
+		{
+			"case": "Invalid crop pointer and form reject visibly without changing state/history",
+			"result": "pass;3 explicitly correlated rejections from those two stages only"
+		},
+		{
+			"case": "Error show/clear leaves actual Source SVG x/y/width/height unchanged within0.01 CSS pixels",
+			"result": "pass"
+		},
+		{
+			"case": "Escape after accepted origin motion keeps accepted position and prevents later held-pointer motion/release from authoring",
+			"result": "pass"
+		},
+		{
+			"case": "Actual Media tree selection/Inspector Delete produces Missing source without rewriting the Surface binding; Undo restores exact media IDs/catalog",
+			"result": "pass"
+		},
+		{
+			"case": "Peer selection and manager/central-editor tab switching preserve complete authored catalog and usable controls",
+			"result": "pass"
+		},
+		{
+			"case": "Same host's source HTTP atomic rejection, independent sources, history and Save/New/Load",
+			"result": "pass"
+		}
+	],
+	"final_definition": {
+		"calibration": "Off",
+		"crop": {
+			"height": 0.3199999928474426,
+			"width": 0.40000003576278687,
+			"x": 0.31999996304512024,
+			"y": 0.2600000500679016
+		},
+		"enabled": false,
+		"opacity": 0.6499999761581421,
+		"quad": {
+			"corners": [
+				{ "x": 0.05000000074505806, "y": 0.03999999910593033 },
+				{ "x": 0.949999988079071, "y": 0.019999999552965164 },
+				{ "x": 0.8999999761581421, "y": 0.9599999785423279 },
+				{ "x": 0.019999999552965164, "y": 0.8999999761581421 }
+			]
+		},
+		"source": {
+			"channel": "6abcebb9-d3cd-4217-a55f-d745fe9547f0",
+			"media": "4881501f-f4a2-4433-aeea-37d8f511d092"
+		}
+	},
+	"artifacts": [
+		{
+			"path": "target/mapgyver-m05-workbench-source-first.log",
+			"sha256": "64d15c0ab9f1cdb9234a687c13f26cff4f2d1e253b580c7cd184093c132bbcc4"
+		},
+		{
+			"path": "target/m05-surface-source-ui.png",
+			"sha256": "9c02b5c4aa3f45bbcadd0476c47eb1b6297db727687c5ec6eb8e298f4c005ed0",
+			"visual_review": "Inspected: Golden Screen/Surface tree, separate full-panel crop canvas/all handles, properties confined to shared Inspector. Browser Preview unavailable remains explicit. Expected invalid-edit feedback remains visible in footer; no unexpected rejection occurred."
+		}
+	],
+	"prerequisites": "Unchanged candidate's ordinary build,63frontend tests and Svelte0errors/0warnings retained. Current fixture syntax/Prettier, root/Core Cargo formatting and whitespace checks pass. No Rust/native source changed.",
+	"limits": [
+		"Functional input tolerance remains0.005 normalized units; CSS geometry stability is not physical1-pixel alignment or DPI/OS input qualification.",
+		"Native full-source selected-channel/extent/crop-overlay preview is unverified, so M05 gate7 remains open. No hardware, pixels, native frame, latency, global timing/resource or full-app pass is inferred.",
+		"Do not rerun the passing Source input as a substitute for native observation. Return on supported current-build native control or manual observations when available.",
+		"Next meaningful independent work is M06 gate4's remaining Composition new-layout input/history/project fixture migration; preserve its native imagery/extent/shape-selection requirement."
+	]
+}

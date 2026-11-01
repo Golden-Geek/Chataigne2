@@ -4,12 +4,39 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Execution: M05 gate6 accepted after the Golden UI redesign; M05 is4/8 (50%).**
-The full Screen input/history matrix passes in the tree/Inspector/full-panel layout, including
-stable mapping bounds when errors appear/clear. M04's complete source UI also passes against the
-changed selection boundary. Next active after delivery: M05 gate7's retained Source-input fixture
-migration to this layout. Its full native-source-preview requirement remains open; no native or
-physical prerequisite is weakened by software UI acceptance.
+**Execution: M05's redesigned Screen and Source input checks pass; M05 remains4/8 (50%).**
+Gate6 is accepted. Gate7's complete form/calibration/crop/history input is verified in the new
+layout, but its actual native selected-source preview remains blocked by unavailable native
+interaction. Return on supported current-build control or manual observation; do not repeat the
+passing browser checks as a substitute. After delivery, only M06 gate4's remaining Composition
+layout/input migration is active; its native-image/extent/shape-selection scope is retained.
+
+**M05 Source-layout batch — 2026-11-01 20:21 CET, stop 21:06 CET:** previous turn is progress,
+published as `0f98ef81`, clean checkout. Only M05 gate7's outstanding redesign input is active.
+Owner: app Surface Source canvas/shared Surface Inspector/Screen tree and the existing browser
+fixture. Preserve batch87's full form/calibration/all-corner/origin/rejection/Escape/source-loss/
+Undo/Redo/panel-lifetime scope. Reuse the software-verified `2b16382d…93df43f` ordinary app.
+At most two finite invocations/20 minutes investigation within21:06; correct demonstrated defects
+only. Native selected-channel/extent/crop-overlay preview remains required and unavailable, so
+software success alone cannot close gate7. On completion retain that named blocker/return trigger
+before moving to already implemented Composition UI acceptance; no native/helper retry.
+
+**Source input migration result — 20:24 CET:** first/only invocation passes **exit0 /6,237 ms**
+hosted flow, Chromium149.0.7827.55. The original batch87 scope is preserved: source/enablement/
+opacity/crop/destination fields remain drafts until Apply; one Undo/Redo restores the complete
+definition. Grid/ColorBars/Off preserve source/crop/mapping. All four crop corners and origin
+movement preserve peers/non-crop fields, origin retains width/height, each gesture undoes/redoes
+as one step. Invalid pointer/form input rejects without state/history change; Escape blocks later
+held-pointer input. Actual source Delete/Undo shows Missing source without changing the binding,
+then restores exact media/catalog IDs. Shared selection, manager/center tab lifetime and actual
+full-panel geometry pass. Error show/clear leaves SVG bounds stable within0.01 CSS pixels.
+Zero page errors; three expected, explicitly correlated invalid crop rejections and no others.
+The screenshot is inspected: separate tree/crop canvas/Inspector, Preview unavailable explicit.
+[Current input evidence](evidence/mapgyver-m05-workbench-source-input-2026-11-01.json).
+Gate7 remains open for its original native full-source/extent/crop-overlay observation; M05 stays
+4/8 and overall4/10. No native, physical, latency, alignment or pixel result is inferred.
+Publish this checkpoint, then continue M06 gate4's remaining new-layout input scope while retaining
+its native prerequisite. No second unchanged Source comparison or hardware/helper retry is needed.
 
 **M05 stable-canvas closure batch — 2026-11-01 20:18 CET, stop 21:03 CET:** previous turn is
 progress, published as `6e1348df` with a clean checkout. Only M05 gate6 is active. Reuse the
@@ -181,11 +208,11 @@ Integration started **19:21 CET**, original stop **20:06 CET**; the final app co
 **19:50 CET**, within that limit. Additional comparisons verified concrete layout/preview fixes,
 preserved-action/folder parity and readiness failures. No native retry/settings/budget change.
 
-**Remaining redesign acceptance:** M04's source and M05/6's Screen gesture/history matrices pass
-in the new layout. M05/7's retained Source input and later Composition/Matrix/Application fixtures
-still need layout migration alongside their already open native/full-app scope. The combined smoke
-alone closed no original gate; complete source and Screen matrices supply that acceptance.
-Overall is **4/10 (40%)**, fixed denominators; no new native result is inferred.
+**Remaining redesign acceptance:** M04 source, M05 Screen and M05 Surface Source input matrices
+pass in the new layout. Composition/Matrix/Application fixtures still need layout migration
+alongside their open native/full-app scope. The combined smoke alone closed no original gate;
+complete source and Screen matrices supplied that acceptance. Overall is **4/10 (40%)**, fixed
+denominators; Source input did not close its unverified native-preview gate.
 
 **Retained native next action:** retain M08 gate4 and obtain native executable-picker and actual desktop lifecycle
 observations against **this checkout's** executable when native interaction becomes available.
@@ -207,7 +234,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete: original source UI matrix passes in Golden tree/Inspector | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Full new-layout Screen gesture/history passes; Source/native/physical acceptance retained | `██████████░░░░░░░░░░` 50% | 4/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Full new-layout Screen/Source input passes; native/physical gates retained | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Active: column/recovery/New UI and actual elevated owned target pass; native dialog/retirement/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
@@ -245,7 +272,8 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 | --- | --- | --- |
 | Accepted | M04/5 | Complete source tree/Inspector matrix and Picture reload/history pass; M04 returns6/6. Earlier failures are preserved. |
 | Accepted | M05/6 | Full Screen tree/Inspector/canvas input, all corners/Escape/rejection/history and stable mapping bounds pass. M05 returns4/8. |
-| Active after this checkpoint is pushed | M05/7 | Migrate retained full Surface Source input to the new tree/Inspector/full-panel layout. Native full-source preview remains blocked with its existing return trigger. |
+| Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
+| Active after this checkpoint is pushed | M06/4 | Migrate complete Composition input/history and project-lifetime fixtures to the new manager/Inspector/full-panel layout; preserve native imagery/extent/shape-selection requirements. |
 | Parked; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or manual input. User confirms native interaction is unavailable for now (2026-11-01); do not repeat the availability question without a change. Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
@@ -3380,7 +3408,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain |
 | 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain |
 | 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Accepted again after redesign — [complete Screen input/history and stable canvas](evidence/mapgyver-m05-workbench-screen-acceptance-2026-11-01.json) preserves batch86's full scope; source/peer preservation, all corners, rejection, Escape and panel lifetime pass. |
-| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open — batch87 verifies actual Source form/calibration/all crop handles/origin/rejection/Escape/source loss/history; prior backend/script proof retained, native full-source preview remains unverified |
+| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open — [complete new-layout Source input](evidence/mapgyver-m05-workbench-source-input-2026-11-01.json) preserves batch87 form/calibration/all crop/origin/rejection/Escape/source-loss/history scope. Prior backend/script proof retained; native full-source preview remains unverified. |
 | 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
 
 **Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
@@ -5777,7 +5805,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
 | M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
 | M04 Source media | COMPLETE_LOCAL | All6/6 gates accepted. [Complete new-layout source UI](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json) reaccepts gate5; original source-native, command/script/headless, asset/history and recreation evidence is retained. |
-| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and full new-layout Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Surface Source prior input is retained pending fixture migration; native preview, hotplug/minimize and the physical matrix remain open. |
+| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and full new-layout Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Complete new-layout Source input also passes; native preview, hotplug/minimize and the physical matrix remain open. |
 | M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser lifetime](#m06-acceptance-items): gates1–3/4 accepted. Input/history/dock layout and accepted-drag New/review reload pass; native imagery/extent-based outline/shape selection retain gate4. |
 | M07 Matrix/editor | IN_PROGRESS | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Media Manager catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3. |
 | M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
@@ -5785,12 +5813,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish the M05 gate6 closure checkpoint before another batch. Its complete Screen matrix and
-source-selection regression pass; do not repeat them unchanged. Continue M05 gate7's remaining
-redesign work: migrate full Surface Source crop/form/calibration/history input to the new layout
-and check its retained scope. Gate7's native selected-source preview remains required and blocked
-by native interaction availability; browser input cannot close it. Preserve the original return
-trigger and all physical/native budgets.
+Publish the completed new-layout Surface Source input checkpoint before another batch. M05 gate7
+remains blocked only on its retained actual native selected-source/extent/crop-overlay preview;
+return on supported current-build native control or manual observation. Do not repeat passing
+source/Screen/Source input, native helpers or qualification preparation unchanged.
+Continue only M06 gate4's remaining redesign work: migrate complete Composition source/instance/
+form/gesture/history and project-lifetime fixtures to the tree/Inspector/full-panel layout. Its
+native imagery/extent/shape-selection requirement remains open; no browser check can replace it.
 
 **Retained qualification queue:**
 
