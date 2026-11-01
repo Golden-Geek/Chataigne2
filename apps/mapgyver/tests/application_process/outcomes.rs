@@ -25,6 +25,7 @@ pub fn run() -> bool {
         "--lifecycle-singleton" => singleton(&arguments[1], Path::new(&arguments[2])),
         "--lifecycle-launcher" => launcher(Path::new(&arguments[1])),
         "--lifecycle-breakaway" => breakaway(Path::new(&arguments[1])),
+        "--lifecycle-token" => token(Path::new(&arguments[1])),
         "--lifecycle-leaf" => {
             std::fs::write(&arguments[1], std::process::id().to_string()).unwrap();
             std::thread::sleep(LIFETIME);
@@ -32,6 +33,36 @@ pub fn run() -> bool {
         _ => return false,
     }
     true
+}
+
+fn token(report: &Path) {
+    use windows::Win32::{
+        Foundation::HANDLE,
+        Security::{GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation},
+        System::Threading::{GetCurrentProcess, OpenProcessToken},
+    };
+    let mut handle = HANDLE::default();
+    // Inspect this owned fixture's existing token; no token adjustment or elevation request.
+    unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut handle).unwrap() };
+    let _token = unsafe { std::os::windows::io::OwnedHandle::from_raw_handle(handle.0) };
+    let mut elevation = TOKEN_ELEVATION::default();
+    let mut length = 0;
+    unsafe {
+        GetTokenInformation(
+            handle,
+            TokenElevation,
+            Some(std::ptr::from_mut(&mut elevation).cast()),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut length,
+        )
+        .unwrap();
+    }
+    std::fs::write(
+        report,
+        json!({ "pid": std::process::id(), "elevated": elevation.TokenIsElevated != 0 }).to_string(),
+    )
+    .unwrap();
+    std::thread::sleep(LIFETIME);
 }
 
 fn singleton(name: &str, report: &Path) {

@@ -264,6 +264,15 @@ owned process. Keep M08 gate4 active for its native/OS/full-app requirements. Ne
 elevation-required launch outcome without requesting elevation or changing privileges; distinguish
 denial evidence from a running elevated process. Native dialog and retirement limits remain open.
 
+Batch98 observes that the development caller is already elevated. The initial non-elevated guard
+stops before preparation/launch. Using the existing context, the fixture reports its actual
+elevated token; normal owned launch reaches Ready, preserves authored state, unloads to Idle with
+known PID absence while retaining the external fixture, and shuts down normally. No elevation is
+requested or privilege changed. Only this running-elevated-target route is verified; non-elevated
+denial remains unexercised. Keep M08 gate4 active for native executable-picker/desktop lifecycle
+observations and retirement/full-app scope. Return on supported native input or guided manual
+observations; no passing preparation repeat or alternate helper chain.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

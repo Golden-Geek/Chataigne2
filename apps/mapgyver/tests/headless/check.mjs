@@ -3,6 +3,7 @@
 // Add --target-outcomes for the bounded singleton/launcher/breakaway/invalid-image acceptance cases.
 // Add --project-replacement for New/Save/Load and known-tree host-exit acceptance (build Golden IO's fixture too).
 // Add --orderly-shutdown to request normal exit through the shared host's shutdown-file option.
+// Add --elevation-required after prepare-elevation.ps1 for the observed caller-token target outcome.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -12,6 +13,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { verifyTargetOutcomes } from './outcomes.mjs';
 import { verifyProjectReplacement } from './project-replacement.mjs';
+import { verifyElevationRequired } from './elevation.mjs';
 
 assert(
 	!(process.argv.includes('--target-outcomes') && process.argv.includes('--project-replacement')),
@@ -263,6 +265,16 @@ try {
 	const targetOutcomes = process.argv.includes('--target-outcomes')
 		? await verifyTargetOutcomes({ applications, matrix, edit, fixture, alive })
 		: undefined;
+	const elevation = process.argv.includes('--elevation-required')
+		? await verifyElevationRequired({
+				applications,
+				matrix,
+				edit,
+				directory: runDirectory,
+				alive,
+				externalPid: external.pid
+			})
+		: undefined;
 	const replacement = process.argv.includes('--project-replacement')
 		? await verifyProjectReplacement({
 				post,
@@ -315,6 +327,7 @@ try {
 			availability_verified: true,
 			orderly_shutdown: orderly,
 			target_outcomes: targetOutcomes,
+			elevation_required: elevation,
 			project_replacement: replacement,
 			admission_message: admissionMessage
 		})

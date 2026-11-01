@@ -1,0 +1,68 @@
+{
+	"schema": 1,
+	"batch": 98,
+	"date": "2026-11-01",
+	"gate": "M08/4",
+	"status": "ACTUAL_ELEVATED_OWNED_TARGET_PASSED_NATIVE_DIALOG_RETIREMENT_FULL_APP_OPEN",
+	"base_revision": "194d888a1d855f9621f687040cfbec0788712ff4",
+	"preflight": "Initial non-elevated preparer guard refused before copy/launch because the development token is already elevated. No app invocation spent; no privilege/security change.",
+	"preparation": {
+		"command": "powershell -NoProfile -NonInteractive -File apps/mapgyver/tests/application_process/prepare-elevation.ps1",
+		"result": "Test-only owned fixture copy with requireAdministrator manifest embedded and extracted/read back; no executable invocation.",
+		"manifest_tool": "Windows SDK 10.0.26100.0/x64/mt.exe",
+		"manifest_tool_sha256": "fb1ab75294b78619bd6ac8cadf30cb95befbc7324703cbe2654ef800ddd2bf4d"
+	},
+	"execution": {
+		"command": "node apps/mapgyver/tests/headless/check.mjs --elevation-required --orderly-shutdown",
+		"invocations": 1,
+		"exit_code": 0,
+		"wall_seconds": 2.8552713,
+		"host_pid": 6268,
+		"external_pid": 35760,
+		"baseline_owned_pids": [20428, 49420],
+    "baseline_acknowledged_callbacks": 7,
+		"orderly_shutdown": true,
+		"log": "target/m08-elevation-required-b98.log",
+		"log_sha256": "81cadddbd8f9bd3846a42ada0a0faaa61622a90c06032323f9c953cb022150e3"
+	},
+	"target": {
+		"application": "be7fae5b-4a0f-4d72-8d5e-15186e5ef53f",
+		"phase": "Ready",
+		"launch": "e4c08469-d21a-4890-a663-e43214b509ca",
+		"process_id": 17672,
+		"caller_elevated": true,
+		"token_report": { "pid": 17672, "elevated": true },
+		"token_api": "OpenProcessToken(TOKEN_QUERY), GetTokenInformation(TokenElevation); no adjustment or impersonation",
+		"elevation_requested": false,
+		"denial_verified": false,
+		"running_elevated_process_verified": true,
+		"retirement": "Idle",
+		"owned_pid_absent": true,
+		"external_retained_during_unload": true,
+		"authored_definition_unchanged": true
+	},
+	"cleanup": "Normal host exit0; PIDs6268/35760/20428/49420/17672 all absent after exact test-owned cleanup; no process-name adoption/termination.",
+	"checks": {
+		"fixture_build": "cargo build --locked -p MapGyver --bin application_process_fixture --features application-process-fixture passes",
+		"fixture_clippy": "cargo clippy --locked -p MapGyver --bin application_process_fixture --features application-process-fixture -- -D warnings passes",
+		"syntax_prettier_both_workspace_formatters": "pass",
+		"production": "No production app/Golden source or host binary changed; only test fixture/harness/preparation and docs."
+	},
+	"hashes": {
+		"target/debug/MapGyver.exe": "3cadbb216320cbd9e9d4f3f0c22a82149038cf917acb223ce984517b31646314",
+		"target/debug/application_process_fixture.exe": "38ef379aec41a8279ecec36137dd83c40d7cbf9338a0194cd8b233d4dbd764a3",
+		"target/debug/application_elevation_required_fixture.exe": "7475352b63b256ae8b64921cab3ccb9150a016a91a4c14dadeea728670b3ad39",
+		"target/debug/application_elevation_required_fixture.manifest": "e774ac7cd73848d0253e85e0ff5ed6d60e8a3f280c8b30e5866f4fc3e8ad8ec1"
+	},
+	"platform_contracts": [
+		"https://learn.microsoft.com/en-us/windows-server/security/user-account-control/how-user-account-control-works",
+		"https://learn.microsoft.com/en-us/cpp/build/reference/manifestuac-embeds-uac-information-in-manifest?view=msvc-170"
+	],
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "4/10",
+		"remaining": "Native executable-picker/desktop lifecycle observations, preserved singleton retirement limit, complete app/mode/recovery/cleanup. Non-elevated denial not verified by this elevated caller.",
+		"next": "M08/4 native observations on restored supported control or guided manual input; availability question pending. No alternate helper or passing preparation repeat."
+	}
+}

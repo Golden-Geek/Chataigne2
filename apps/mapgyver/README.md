@@ -36,8 +36,22 @@ cargo build --locked -p MapGyver --bin MapGyver --bin application_process_fixtur
 node apps/mapgyver/tests/headless/check.mjs --orderly-shutdown
 ```
 
-Real form/dialog input, elevated targets and complete unobserved-tree retirement still require
-their own evidence; the finite host check does not establish those outcomes.
+To verify the elevation-required target outcome from the current development process, prepare a
+test-only copy of the owned fixture with Windows SDK `mt.exe`, then use the normal headless API:
+
+```powershell
+powershell -NoProfile -File apps/mapgyver/tests/application_process/prepare-elevation.ps1
+node apps/mapgyver/tests/headless/check.mjs --elevation-required --orderly-shutdown
+```
+
+The preparer reads back the embedded `requireAdministrator` manifest. The check observes the
+existing caller token: a non-elevated caller must report native error740 without execution/retry;
+an already elevated caller must produce an owned Ready process with its own reported elevated
+token, then retire it on unload while preserving the external process. Neither route requests
+elevation or changes privileges. Only the exercised route is qualified; native dialogs remain separate.
+
+Native executable-dialog input, non-elevated denial and complete unobserved-tree retirement still
+need their own evidence; passing one caller context does not qualify the opposite context.
 
 `node apps/mapgyver/tests/headless/media.mjs --application-ui` exercises real bundled browser
 application controls and history, correlating them with read-only backend queries. It verifies

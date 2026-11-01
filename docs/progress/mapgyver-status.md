@@ -11,14 +11,16 @@ Batch96's last failure was a fixture expectation: unavailable neighbor-only dema
 direct associated-column demand correctly reports `Unavailable`. No production policy changed.
 M06 gate4 returns for native imagery/extent outlines; M07 gate3 for native renderer feedback.
 M05 gate7 stays open for native full-source preview. M05 remains **4/8**. Native/physical/OS/DPI,
-M08 native dialog/retirement/elevation/full-app and remaining actual-editor scope stay open.
+M08 native dialog/retirement/full-app and remaining actual-editor scope stay open. Batch98 verifies
+a real elevated owned target under the already elevated caller, with no elevation request.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** retain M08 gate4 and qualify the truthful elevation-required target outcome using
-the normal owned-process launch path, without requesting elevation or changing privileges.
-Native executable-dialog input, the preserved singleton retirement limit and complete app/mode/
-recovery/cleanup remain required. Do not repeat passing browser/caller/column preparation.
+**Next action:** retain M08 gate4 and obtain native executable-picker and actual desktop lifecycle
+observations. A guided native-check availability question is pending; last supported activation
+failed and no capability change is established. The singleton retirement limit and complete
+app/mode/recovery/cleanup remain required. Non-elevated denial was not exercised in this elevated
+session. Do not repeat passing browser/caller/column/elevated-process preparation or helper retries.
 M06/M07 return for real native image/outline/renderer observations; no injected status or parked
 automation retry. Composition project lifetime and Matrix stale inspections now pass in scope.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
@@ -36,7 +38,7 @@ unapproved reset window. M05 physical 4K/other unavailable configurations remain
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Screen input/history accepted; Source input verified, native Source preview and physical qualification open | `██████████░░░░░░░░░░` 50% | 4/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Browser input/project/gesture lifetime verified; native image/extent outlines open | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Browser controls and strict project lifecycle verified; native feedback open | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Active: complete column UI/shared-scope/recovery/New check passes; native/OS/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Active: column/recovery/New UI and actual elevated owned target pass; native dialog/retirement/full-app gaps remain | `███████████████░░░░░` 75% | 3/4 |
 | [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
@@ -65,7 +67,7 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
 
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
-| Active | M08/4 | Qualify the elevation-required target outcome without elevation. Native dialog, singleton retirement and full-app checks remain required; column/shared-process/recovery/New UI checks now pass. |
+| Active; native observation blocked | M08/4 | Native executable-picker and actual desktop lifecycle observations, on restored supported control or guided manual input (availability question pending). Singleton retirement/full-app gaps remain; column/recovery/New and actual elevated owned-target checks pass. |
 | Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
 | Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
 | Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
@@ -118,8 +120,9 @@ with measured cost and consequences, requiring explicit agreement before any low
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
   Batch 83 also passes the corrected aggregate target-outcome check, with singleton retirement
   explicitly unverified. Return for actual form/dialog observations, supported evidence resolving
-  the retirement gap, actual elevated-target and complete
-  mode/recovery/cleanup evidence. Historical project replacement/shutdown proof remains scoped;
+  the retirement gap and complete mode/recovery/cleanup evidence. Batch98 verifies an actual
+  elevated owned target with token report/Ready/Idle/cleanup under the already elevated caller;
+  no elevation is requested, and non-elevated denial is unexercised. Historical project replacement/shutdown proof remains scoped;
   callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
   Batch85 also verifies actual browser forms/catalog/history, including all definition fields,
   environment modes and atomic rejection. Native executable-dialog input remains unverified.
@@ -127,12 +130,20 @@ with measured cost and consequences, requiring explicit agreement before any low
   across two Matrix scopes. Its final blocked-relaunch observation fails with no runtime entry;
   batch97 identifies the neighbor-only fixture expectation and passes direct-demand Unavailable,
   re-enable recovery and actual project New with a live process. Both earlier failures remain.
-  Keep native/OS/retirement/elevation/full-app gaps required; do not repeat definition/caller prep.
+  Keep native dialog/OS/retirement/full-app gaps required; do not repeat definition/caller prep.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch97:** the corrected comparison passes **exit0 /10,810 ms**, Chromium
+**Latest checkpoint, batch98:** actual elevation-required target passes the first/only app run
+**exit0 /2.86 s**. The embedded/read-back manifest requires administrator; current caller and
+target are observed elevated. Normal owned launch reaches Ready, token-report PID matches
+**17672**, unload reaches Idle with PID absent and external **35760** retained, then host exits0.
+All five reported PIDs are absent after fixture cleanup. No privilege adjustment/UAC is used.
+The initial non-elevated guard refusal is retained; denial is not claimed. **M08 3/4; overall 4/10**
+for native dialog/retirement/full-app gaps. [Evidence](evidence/mapgyver-m08-elevated-target-2026-11-01.json).
+
+**Retained checkpoint, batch97:** the corrected comparison passes **exit0 /10,810 ms**, Chromium
 **149.0.7827.55**, zero rejected requests/page errors. Disabled neighbor demand has no entry;
 direct demand reports `Unavailable`, enabling starts a fresh launch/PID, and actual File New
 clears definitions/runtime while retiring the live process. All three observed PIDs are absent,
@@ -317,6 +328,36 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Elevation-required target batch98:** starts 2026-11-01 **06:54 UTC**, stop **07:39 UTC**;
+investigation ends **07:14 UTC**, max two finite app invocations including baseline. Only M08
+gate4 is active. The previous turn is progress: `194d888a` verifies actual column/recovery/New UI.
+Use the existing owned fixture with an SDK-embedded/read-back `requireAdministrator` manifest.
+From a verified non-elevated caller, the ordinary public launch must report native error740,
+no PID/readiness/retry or target-main report, preserve authored state, and unload cleanly.
+Microsoft documents CreateProcess rejection for elevation-required targets; no shell/UAC/elevation
+fallback, privilege change or user software is involved. This qualifies denial, not a running
+elevated process, native dialog, complete singleton retirement or full-app qualification.
+Finish fixture preparation, syntax/format and unchanged binary prerequisites before the app run.
+
+**Preflight result, 06:56 UTC:** the preparer's non-elevated guard correctly stops before copying
+or launching: this command host already has an elevated token. No app invocation was spent.
+Use that observed existing context to verify the actual elevated target: fixture reports its own
+token via `GetTokenInformation`, public launch reaches Ready, and unload retires the owned PID
+while preserving the external fixture. No privilege adjustment/UAC is introduced. Keep the denied
+non-elevated route as a separate unverified branch, not a fabricated error740 pass.
+
+**Batch98 result:** first/only app invocation passes **exit0 /2.86 s** after fixture build,
+strict fixture Clippy, embedded/read-back manifest and JS checks succeed. The actual target reports
+`TokenIsElevated=true`, PID **17672**, matching public Ready status/launch; authored definition is
+unchanged. ClearPlayback reaches Idle and known PID absence, preserving external **35760**.
+Normal host shutdown exits0; host **6268** and fixture PIDs **35760/20428/49420/17672** are absent
+after cleanup. Running-elevated-target behavior is verified only under the existing elevated
+caller; the distinct non-elevated error740 branch was not exercised. No privilege adjustment,
+UAC/shell fallback or user application is involved. Native dialog, singleton retirement and full
+app/mode/recovery/cleanup stay open: M08 remains3/4, overall4/10. Native observations return on
+restored supported input or guided manual observations; availability question pending. No helper
+retry or passing preparation repeat. [Evidence](evidence/mapgyver-m08-elevated-target-2026-11-01.json).
 
 **Blocked-relaunch correction batch97:** starts 2026-11-01 **06:50 UTC**, stop **07:35 UTC**.
 The previous turn is progress: `e6abf7b8` fixes a regression-proven removal race and preserves two
@@ -1249,7 +1290,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms and batch97 complete column/history/shared-process/recovery/New input pass in scope; native dialog/singleton retirement/elevation/full-app gaps remain |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms, batch97 column/recovery/New input and batch98 actual elevated target pass in scope; native dialog/singleton retirement/full-app gaps remain; non-elevated denial not exercised |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -5515,13 +5556,14 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Continue from batch97's passing complete column/shared-process/availability-recovery/New UI check.
-Keep **M08 gate4** active. The next bounded action qualifies truthful elevation-required target
-behavior through the normal owned-process contract without requesting elevation or changing
-privileges. Start from the existing native launch failure contract and test tooling; no shell or
-elevation fallback. Native executable-dialog input, the preserved singleton retirement limit,
-actual elevated-target scope and complete app/mode/recovery/cleanup remain required. A denied
-elevation-required launch alone must not be described as a successfully running elevated process.
+Continue from batch98's actual elevated-owned-target/token/Ready/Idle/cleanup result and batch97's
+complete column/shared-process/availability-recovery/New UI check. Keep **M08 gate4** active.
+The next requirement needs actual native executable-picker and desktop lifecycle observations.
+The last supported activation failed; return on a concrete supported capability change or guided
+manual input, whose availability question is pending. Do not repeat preparation or try new helpers
+to extend the blocked automation chain. Singleton retirement and complete app/mode/recovery/cleanup
+remain open. Non-elevated denial was not exercised; a running elevated target does not verify the
+opposite caller context. No privilege/security/settings change is authorized by this checkpoint.
 No phase switch merely because a checkpoint did not close the gate; record an actual missing
 prerequisite and return trigger if the active work becomes blocked.
 M06 returns for native imagery/extent/shape selection, M07 for native renderer feedback and M05
