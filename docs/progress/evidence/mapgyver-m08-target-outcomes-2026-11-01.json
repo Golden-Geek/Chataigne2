@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "batch": 83,
+  "date": "2026-11-01",
+  "gate": "M08/4",
+  "status": "AGGREGATE_TARGET_OUTCOMES_PASSED_WITH_EXPLICIT_RETIREMENT_GAP",
+  "before": {
+    "utc": "2026-11-01T04:34:24.600270+00:00",
+    "commit": "31938a8e571c6b5256dda00ad14a4d37b5b330be",
+    "sha256": {
+      "target/debug/MapGyver.exe": "64c74f8fea641564598e6b8482558f661ee708af281a8d8d7b1ed5fd3e7b41d7",
+      "target/debug/application_process_fixture.exe": "99ef591036233f59b8d80ac820c7e832d42870b9b4bdbf35165434b54a5c794e",
+      "apps/mapgyver/tests/headless/check.mjs": "707cf70dafbaab5b83748dde32d1ec674e9be54a776718da4f6c796f83557aec",
+      "apps/mapgyver/tests/headless/outcomes.mjs": "a1775aaf516345cbc278eeb5778927bf3861ff20074a3f0c4a2d57d879ebd78d"
+    }
+  },
+  "execution": {
+    "command": "node apps/mapgyver/tests/headless/check.mjs --target-outcomes --orderly-shutdown",
+    "exit_code": 0,
+    "elapsed_seconds": 5.28,
+    "invocations": 1,
+    "raw_log": "target/m08-target-outcomes-b83.log",
+    "log_sha256": "2368573e2e1449f0d9db333d86011ca6266b6915f4a1994af56823e4a78a3dd8",
+    "result": {
+      "passed": true,
+      "host": 39672,
+      "external": 32920,
+      "first": 46380,
+      "second": 49372,
+      "acknowledged": 7,
+      "admission_recovered": true,
+      "availability_verified": true,
+      "orderly_shutdown": true,
+      "target_outcomes": {
+        "singleton": {
+          "external": 40480,
+          "exit_code": 17,
+          "adopted": false,
+          "phase": "RetirementUnverified",
+          "retirement": "RetirementUnverified"
+        },
+        "launcher": {
+          "child": 11508,
+          "root": 6428,
+          "phase": "Failed",
+          "exit_code": 0,
+          "retirement": "Idle"
+        },
+        "breakaway": {
+          "breakaway_error": 5,
+          "pid": 32748,
+          "retirement": "Idle"
+        },
+        "missing.exe": {
+          "error": 2,
+          "launch": "77465621-dcb4-4152-9bde-bf59a3634f08"
+        },
+        "invalid.exe": {
+          "error": 216,
+          "launch": "8c9415fa-774e-43b6-9599-7d46c033700b"
+        },
+        "complete_retirement_verified": false,
+        "elevated_target_verified": false
+      },
+      "admission_message": "application runtime admits at most 64 active/retiring definitions"
+    }
+  },
+  "checks": {
+    "current_app_and_process_fixture_build": "pass",
+    "javascript_syntax": "pass for host and outcomes scripts",
+    "application_library": "41 passed,166 filtered; no failure",
+    "prior_checks": "Batch81 strict all-target native/process-feature Clippy and full206-library/20-frontend checks; no intervening production source changes."
+  },
+  "interpretation": {
+    "singleton": "Rejected duplicate exits17, external remains alive and is not adopted; retirement stays RetirementUnverified, not complete cleanup.",
+    "launcher": "Root exits0 without being treated as sender-ready; its known child exits and unload reaches Idle.",
+    "breakaway": "CREATE_BREAKAWAY_FROM_JOB returns Windows error5; no escaped fixture; unload reaches Idle.",
+    "invalid_targets": "Missing.exe returns2, invalid native test bytes return216; unsupported.cmd configuration rejects atomically, no fallback/retry/adoption.",
+    "shutdown": "Normal host exit0 and external isolation pass; all eight reported PIDs absent after test finally. This is known-PID evidence, not unobserved-tree retirement."
+  },
+  "bounded_inspection": "Existing Golden IO observer counts job accounting, captured descendant handles and completed captured lifetimes. It deliberately withholds tree_exited when accounting includes unobserved lifetimes. No concrete production defect or cause of the singleton gap is established; no source fix, second invocation or observation-policy relaxation.",
+  "remaining": [
+    "Singleton unobserved-tree retirement/complete cleanup is unverified.",
+    "Actual elevated-target outcome remains unverified.",
+    "Actual form/file-dialog and full mode/recovery/cleanup acceptance remain open."
+  ],
+  "acceptance": {
+    "closed_gates": [],
+    "M08": "3/4",
+    "overall": "4/10",
+    "next": "M06 gate4: one bounded connection/smoke attempt using existing playwright-core and its documented isolated WebView2 CDP route, not desktop activation/helper retries. Connection and actual editor actions are not yet verified; stop if unsupported."
+  },
+  "reference": "https://playwright.dev/docs/webview2"
+}

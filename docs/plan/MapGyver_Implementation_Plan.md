@@ -165,6 +165,13 @@ with its original M03/M05/M09 owners. Next select existing M08 gate 4's aggregat
 check with the corrected Windows193/216 expectation, preserving conservative retirement gaps and
 unverified actual elevated/form/full-app outcomes. No repeat of the passing Matrix native test.
 
+Batch 83 passes the existing aggregate process-outcome check; singleton retirement and actual
+elevation/form/full cleanup remain open. The installed browser test dependency has a documented
+[WebView2 CDP connection](https://playwright.dev/docs/webview2). Select M06 gate 4 for one bounded
+owned-app connection/input smoke with isolated profiles/loopback ports; connection is not yet
+verified. Keep desktop activation parked and stop if this supported route fails, without helper,
+registry/security or acceptance changes. Real editor actions still require direct observations.
+
 ### M00 — Reconcile and define evidence
 
 Identify existing public Golden contracts and completed product work, available GPU/monitor

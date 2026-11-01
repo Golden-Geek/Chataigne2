@@ -4,16 +4,17 @@
 
 **Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Selected next gate:** **M08 gate 4, existing aggregate application target outcomes**. Batch 82
-closes M07's native feature gate on both GPUs: Matrix is **3/4**. Its actual editor observations,
-and Composition's, remain pending. M08 caller/normal-headless parity is published as `d50bd145`;
-its actual form/target/full-app gate remains open.
+**Selected next gate:** **M06 gate 4, real Composition editor input through the existing browser
+test dependency and documented isolated WebView2 CDP connection**. Connection is unverified;
+one bounded smoke attempt is next. Batch 83 passes M08 aggregate target outcomes, preserving
+singleton `RetirementUnverified`, missing actual elevation/form and complete cleanup proof.
 Unsupported desktop activation stays parked; do not repeat helper retries, parity fixtures or
 review preparation without a specific new failure.
 M03 remains **7/9**; its original performance/resource/recovery requirements are retained below.
-**Next action:** publish batch 82, then one bounded verification of the existing M08 aggregate
-target-outcome check with its corrected Windows193/216 expectation. Preserve conservative
-retirement outcomes and actual elevated/form/full-app gaps. No more Matrix native run is needed.
+**Next action:** publish batch 83, then one owned-app CDP connection/smoke attempt using the
+[official Playwright WebView2 route](https://playwright.dev/docs/webview2), isolated app/WebView
+data and loopback ports. This does not retry desktop activation. Stop if the supported route fails;
+no helper/security/registry workaround. No more Matrix native or unchanged process-outcome run.
 **Blockers:** supported MapGyver window activation fails; actual M05 editor/fullscreen observations
 remain missing. M03 GPU/window scope decisions are pending and unapplied; private checkpoint growth
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
@@ -73,19 +74,30 @@ See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-prio
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
   pending response as pass/fail/unavailable or repeat completed fixture work while waiting.
+  A newly checked official WebView2 CDP route may provide actual input through the existing
+  Playwright dependency. One bounded connection smoke is selected; no connection/input pass yet.
 - **M07 gate 3:** 124 caller cases and ordinary-headless history/reload pass; the Matrix review
   scene and six-group checklist are ready. Return on actual grid/settings/selection/history/source
   observations or changed supported activation availability. No real input is inferred.
 - **M08 gate 4:** batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle.
-  Return for actual form/dialog observations; the existing corrected aggregate target-outcome
-  check (including its recorded conservative retirement gaps); actual elevated-target and complete
+  Batch 83 also passes the corrected aggregate target-outcome check, with singleton retirement
+  explicitly unverified. Return for actual form/dialog observations, supported evidence resolving
+  the retirement gap, actual elevated-target and complete
   mode/recovery/cleanup evidence. Historical project replacement/shutdown proof remains scoped;
   callback/history parity does not certify unobserved retirement. Do not repeat completed parity.
 - **Remaining M05 → M06 → M07 → M08 → M09:** complete native/physical/DPI/input, composition/Matrix
   pixel/interaction/scale, app lifetime/parity and final app/artifact acceptance. Functional or
   checkpointed work is unfinished until its full gate passes. M09 requires all retained acceptance.
 
-**Latest checkpoint, batch 82:** the single native invocation passes **exit 0 /135.05 s** on Intel
+**Latest checkpoint, batch 83:** aggregate target outcomes pass **exit 0 /5.28 s**: singleton
+non-adoption/external survival (retirement still unverified), launcher root/known child retirement,
+breakaway denial **error5**, missing image **2**, invalid image **216**, atomic `.cmd` rejection,
+availability/overload/callbacks and normal host shutdown. All eight reported PIDs are absent after
+cleanup. **41 application library tests** and current app/fixture builds pass. No source fix or
+second process run; **M08 stays 3/4**, overall **4/10 (40%)**.
+[Target-outcome evidence](evidence/mapgyver-m08-target-outcomes-2026-11-01.json).
+
+**Retained checkpoint, batch 82:** the single native invocation passes **exit 0 /135.05 s** on Intel
 and NVIDIA. **112 full-image raster captures /86,016 texels**, three interrupted Layer/Group/Final
 mixtures per adapter, final blue outputs/preview and outgoing-demand retirement pass. Both sparse
 1,000×1,000 grids admit eight of 1,000 scheduled requests with bounded runtime and balanced native
@@ -151,6 +163,36 @@ physical presentation and global production budgets remain unverified.
 ## Detailed acceptance evidence
 
 ### M08 acceptance items
+
+**Aggregate target-outcome batch 83:** started 2026-11-01 **04:33 UTC**, stop **05:18 UTC**;
+native/process experiment cutoff **04:53 UTC**, one existing-check invocation. Previous turn is
+progress: `31938a8e` accepts M07 native Matrix gate 4 and preserves actual input/global budgets.
+Only M08 gate 4 is active. MapGyver owns application lifecycle policy; Golden IO owns native
+process/job containment and observation. After current build/software prerequisites finish,
+run existing `check.mjs --target-outcomes --orderly-shutdown` with its corrected193/216 image
+rejection expectation. Verify singleton non-adoption/external isolation, launcher child cleanup,
+breakaway denial, invalid/missing image errors and normal host exit. Record actual conservative
+retirement separately; no complete cleanup/elevation/input pass may be inferred. No GPU, desktop
+activation retry, new target fixture or settings change. A named concrete correctness defect may
+receive a bounded source correction, but no second process invocation in this batch.
+
+**Batch 83 result, 04:34 UTC:** the one existing aggregate invocation exits **0 /5.28 s**, current
+app/process-fixture builds, JS syntax and **41 application library tests** pass. Singleton duplicate
+exits **17**, never adopts/terminates the external singleton and retains **RetirementUnverified**.
+Launcher root **6428** exits **0** without false sender readiness; child **11508** terminates and
+unload reaches **Idle**. Breakaway **32748** observes native **error5**, no escaped target, then
+unloads **Idle**. Missing/invalid test images report **2 /216**, `.cmd` configuration rejects without
+mutation and no shell/elevation/retry fallback is used. Host **39672**, independent external
+**32920**, baseline roots **46380/49372** and singleton **40480** clean up normally; all eight known
+PIDs are absent after test finally. Callbacks acknowledge **7**, availability and overload recover.
+
+The existing Golden IO observer intentionally withholds completion when job accounting contains
+unobserved lifetimes; source inspection establishes no concrete defect/cause for this singleton
+gap. No policy relaxation, new process fixture, source correction or second run follows. Actual
+elevation/form/full cleanup remain unverified. **No gate closes: M08 3/4**, overall **4/10 (40%)**.
+Next, after publication, select M06 gate 4's one bounded supported CDP connection/input smoke using
+the existing Playwright dependency. Desktop activation remains parked; no registry/security/helper
+workaround. [Evidence](evidence/mapgyver-m08-target-outcomes-2026-11-01.json).
 
 **Application parity batch 81:** started 2026-11-01 **04:17 UTC**, stop **05:02 UTC**. Only M08
 gate 4 is active. MapGyver owns application definitions/Matrix associations/callback policy;
@@ -978,7 +1020,7 @@ denominator from one to four, not the overall ten-phase denominator or acceptanc
 | 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
 | 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
 | 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch 81 verifies 144 caller paths, frontend logic and ordinary-headless lifecycle; actual form/target/full-app acceptance remains |
+| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Open — batch 81 caller/normal-headless parity and batch 83 aggregate target outcomes pass; singleton retirement remains unverified, actual elevation/form/full-app gaps remain |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -4945,8 +4987,11 @@ checks remain open after batch 80. Batch 81 delivers M08's 144 caller paths and 
 lifecycle, then batch 82 completes the exact Matrix fixture on both adapters and closes **M07 gate
 4**. M07 gate 3 now returns only for its requested actual editor observations or changed supported
 activation availability. Publish native acceptance, then select **M08 gate 4**'s existing aggregate
-target-outcome check with the corrected193/216 expectation, preserving conservative retirement
-and elevated/form/full-app gaps. No helper retry, new framework, M03 experiment or budget waiver.
+target-outcome check with the corrected193/216 expectation. Batch 83 passes that check, retaining
+the singleton retirement gap and missing actual elevated/form/full-app proof. Publish, then select
+**M06 gate 4** for one supported isolated WebView2 CDP connection/input smoke with the existing
+Playwright dependency. This is a documented browser automation route, not a retry of failed desktop
+activation. Stop if unavailable, without new helpers, registry/security changes or a waiver.
 
 M03 gates 4 and 9 retain every original requirement and the dashboard's precise return triggers:
 unapproved reset, GPU/window scope decisions, private growth without a supported correction,
