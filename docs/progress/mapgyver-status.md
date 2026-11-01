@@ -2,9 +2,63 @@
 
 ## At a glance
 
-**Updated: 2026-11-01 · Overall: `██████░░░░░░░░░░░░░░` 30% · 3/10 phases complete**
+**Updated: 2026-11-01 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
+
+**Current:** M05/6 Screen/Surface Parameter conversion. **Next:** typed settings and generic
+Inspector with atomic geometry edits. **Blocker:** none for code work; retained native/display/
+reset/timing/memory prerequisites remain unavailable or unresolved in their named gates.
+The dashboard and Next action are current; dated delivery entries preserve historical evidence.
+
+| Phase | State | Progress | Done / total items |
+| --- | --- | --- | --- |
+| [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
+| [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
+| [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
+| [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
+| [M04 Source media](#m04-acceptance-items) | Complete: real Parameters and generic source UI verified | `████████████████████` 100% | 6/6 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active: Screen/Surface Parameter conversion; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M06 Composition/editor](#m06-acceptance-items) | Instance/canvas Parameters and generic UI verified; native scope retained | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix/editor](#m07-acceptance-items) | Matrix/association Parameter conversion and native feedback pending | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75% | 3/4 |
+| [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+
+### Execution board
+
+| State | Gate(s) | Next requirement / return condition |
+| --- | --- | --- |
+| Accepted | M04/5 | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6. |
+| Active | M05/6 | Convert Screen/Surface settings to real Parameters, preserve atomic geometry validation, then verify generic Inspector and canvases. |
+| Pending | M07/3 | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained. |
+| Pending | M08/4 | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained. |
+| Blocked | M03/4,9 | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure. |
+| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes. |
+| Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification. |
+
+### Media Parameter result — 23:36 CET
+
+All source/channel/asset fields use real Parameters and generic widgets. First bundled browser
+run passes in6782ms: conditional visibility, stable field identities, sizing/sampling, Spout
+descriptor/sender, Picture asset File paths, Composition/Matrix canvas and transition settings,
+history/rejection and independent instance copy/remove. Exactly2expected invalid-input rejections,
+0page errors; host exits0. Captures inspected: inline Golden widgets, no ordinary custom forms.
+Native previews correctly report unavailable in the isolated headless host; no native pixels inferred.
+
+Software: MapGyver217pass/1existing ignore; Golden engine660pass/3existing ignores;
+Chataigne209pass/1existing ignore; Golden UI213pass; Svelte0errors/0warnings; clippy,
+ordinary rebuild and both formatters pass. The public Golden facade now exposes the existing
+side-effect-free candidate validator used by malformed-record tests. M04/5 reaccepts (5/6→6/6);
+overall returns4/10. M05 stays3/8. Denominators and all native/resource requirements are unchanged.
+Composition instances and canvas settings are verified; full requested scope still includes
+Screens/Surfaces, Matrix elements/associations, Applications/collections and command coverage.
+
+## Delivery log
 
 **Execution: user-required Parameter-node refactor; Composition instance slice verified.**
+**Media Parameter acceptance —23:25 CET, stop00:10 CET:** checkpoint `14f46b91` pushed and
+remotely verified; clean checkout. Same M04/5 owner. Finish the existing shared/MapGyver/clippy/
+ordinary-build jobs, then the prepared real-input generic Inspector flow and visual inspection.
+Current batch starts with0/2live runs used; a continuation does not reset investigation
+limits. Do not start Screens or reopen native/resource qualification before this owner closes.
 **Media Parameter checkpoint —23:25 CET:** kind, channel source/output and asset locators now
 live in typed Parameter children (1/20/3 fields). Ordinary source/channel/asset and canvas forms
 and codecs are removed; generic widgets retain identities/values across conditional visibility.
@@ -469,27 +523,16 @@ remain missing. M03 GPU/window scope decisions are pending and unapplied; privat
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
 unapproved reset window. M05 physical 4K/other unavailable configurations remain unverified.
 
-| Phase | State | Progress | Done / total items |
-| --- | --- | --- | --- |
-| [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
-| [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
-| [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Parameter-backed channel/source/asset authoring pending | `█████████████████░░░` 83% | 5/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Parameter-backed Screen/Surface authoring pending; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Instance Parameters/generic UI/copy verified; channel canvas conversion and native scope retained | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Matrix/association Parameter conversion and native feedback pending | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75% | 3/4 |
-| [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
-Overall counts fully accepted milestones: `3 / 10 = 30%`; partial phases do not advance it.
+Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 The 2026-11-01 user design correction reopened M04 gate5 (6/6 →5/6) and M05 gate6 (4/8 →3/8).
 The complete source matrix previously reaccepted M04 gate5; complete Screen input reaccepted M05
 gate6. The later Parameter-node requirement reopens both again (M04 6/6→5/6, M05 4/8→3/8).
-Prior input evidence remains, but does not verify Parameter ownership. Native requirements remain open.
+The verified generic Parameter input matrix reaccepts M04/5 (5/6→6/6); M05/6 remains open.
+Prior input evidence remains. Native requirements remain open.
 Denominators stay fixed; prior backend/native evidence is retained and no unverified layout is accepted.
 Phase percentages count closed acceptance items, rounded to the nearest whole percent
-(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 5 / 6 = 83%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 3 / 4 = 75%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
+(`M01: 4 / 4 = 100%`, `M02: 7 / 7 = 100%`, `M03: 7 / 9 = 78%`, `M04: 6 / 6 = 100%`, `M05: 3 / 8 = 38%`, `M06: 3 / 4 = 75%`, `M07: 3 / 4 = 75%`, `M08: 3 / 4 = 75%`). Bars use 20 cells, rounded from the exact fraction. Each phase uses
 its whole plan acceptance as one item unless a fixed breakdown is recorded here before
 implementation continues. On 2026-10-28 the user explicitly approved changing M01 from eight
 full-qualification items to four functional-route items, allowing M02 to start. The original
@@ -509,20 +552,6 @@ of the agreed plan; a day-scale minor optimization may justify a precise proposa
 lower gate. Track cumulative effort across batches. Correctness/ownership remain required.
 See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-priority--2026-10-31).
 
-**Execution board:** open phases are retained acceptance, not simultaneous implementation.
-
-| State | Gate(s) | Next requirement / return condition |
-| --- | --- | --- |
-| Active | M04/5 | Convert every channel/source/asset setting to typed Parameter children and verify generic Inspector, history and project lifetime. Includes Composition canvas settings; prior bespoke-form evidence retained. |
-| Pending | M05/6 | Convert Screen/Surface settings to typed Parameter children, preserve atomic geometry validation, then verify generic Inspector and canvases. |
-| Blocked remaining scope | M05/7 | Complete new-layout Source input passes. Return only for actual native selected-channel/extent/crop-overlay preview when supported current-build native control or manual input is available. |
-| Pending | M06/4 | Instance Parameter nodes, generic Inspector, full copy/history/project lifetime verified. Channel canvas conversion follows in M04 owner. Native image/extent/selection scope retains its supported-observation return trigger. |
-| Pending | M07/3 | Convert Matrix elements and association children to Parameters and verify generic Inspector. Native preparation/installation/submission feedback retains its supported-observation return trigger. |
-| Pending | M08/4 | Convert Application settings, arguments/environment entries to Parameter nodes and generic Inspector. Native picker/lifecycle, singleton retirement and full-app scope retained. User says native input unavailable; do not repeat that question or retry alternate helpers. |
-| Blocked portions | M03/4, M03/9 | Explicit reset decision; supported timing evidence or an approved scope decision; concrete allocation-supported correction for the preserved memory failure. No pending proposal is applied. |
-| Pending; physical/native checks blocked | M05/4,5,7,8 | Native editor/fullscreen/Source preview observations and the complete physical display/hotplug/DPI/alignment/latency matrix. Return on supported observation capability or required hardware access. |
-| Pending; native observation blocked | M06/4, M07/3 | Actual native image/extent/selection integration and Matrix preparation/installation/submission feedback. Passing browser input/history is not rerun as a substitute. |
-| Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification and shared Chataigne regression checks. |
 
 Only a passed gate or a named missing prerequisite permits leaving the active gate. A batch cutoff
 checkpoints work; it does not waive acceptance or automatically select another phase. The target
@@ -3687,6 +3716,10 @@ physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
 
+**Current:** all6items accepted, including the later Parameter-node ownership correction.
+See the Media Parameter result in the dashboard for current generic UI/caller/history/project
+evidence. The dated qualification batches below retain their original scope and failures.
+
 **Qualification batch 52:** started 2026-10-31 **16:43 UTC**, recorded stop **17:28 UTC**.
 M04 gate 6 is the only active work. Previous turn is progress: pushed `f18de683` adds the missing
 public Picture reload path, generated contract/UI/snippet and passing worker/caller tests.
@@ -6057,13 +6090,15 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Publish the Composition selection/input/project-lifetime checkpoint before another batch.
-M06 gate4 retains its actual native imagery/extent-based outlines/shape-selection prerequisite;
-return on supported current-build native control/manual observation. Do not repeat the now-passing
-Media/Screen/Source/Composition fixtures unchanged or try alternate native helpers.
-Continue only M07 gate3's remaining redesign work: migrate full Matrix grid/Inspector/settings/
-structure/source/history and project-lifetime fixtures, preserving actual native preparation/
-installation/submission feedback and all complete-app/resource/physical qualification requirements.
+Publish the verified Media/channel/asset Parameter milestone, then continue M05/6 only:
+Screen/Surface typed Parameter children and generic Inspector, with atomic quad/crop validation,
+all public callers, history/project lifetime and actual canvas input preserved. Remove their
+ordinary property forms and opaque authored codecs. Follow the complete conversion inventory
+in [parameter ownership](../architecture/mapgyver-parameters.md); no partial owner closes the full request.
+After this owner, return to Matrix elements/association children, Application definitions and
+argument/environment children, then command/field coverage. M06 retains native image/extent/
+shape-selection requirements. Do not repeat passing source/instance UI checks unchanged or try
+alternate unavailable native helpers. All complete-app/resource/physical qualification remains.
 
 **Retained qualification queue:**
 

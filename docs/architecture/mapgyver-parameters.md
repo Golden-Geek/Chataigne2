@@ -24,8 +24,8 @@ required scope; a converted owner does not complete the refactor.
 | Owner | Required parameter fields | State |
 | --- | --- | --- |
 | Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip |
-| Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Implemented; current software/UI acceptance running |
-| Asset | Typed locator kind and project-relative/absolute File paths | Implemented; current software/UI acceptance running |
+| Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Verified: generic UI, caller parity, history/roundtrip and stable conditional-field identities |
+| Asset | Typed locator kind and project-relative/absolute File paths | Verified: generic File editing, history/roundtrip and invalid-path rejection |
 | Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Pending |
 | Surface | Enabled, source references, crop, four corner positions, opacity and calibration | Pending |
 | Matrix row/group | Opacity, blend and enabled; existing node hierarchy/order | Pending |

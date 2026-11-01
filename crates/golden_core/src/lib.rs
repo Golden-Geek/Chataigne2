@@ -90,6 +90,7 @@ pub mod logger {
 
 /// Host-independent app lifecycle hooks plus the default host/runtime entry points.
 pub mod app {
+    pub use golden_engine::app::validate_engine_project_candidate;
     pub use golden_engine::app::{
         DEFAULT_ENGINE_LOW_FREQUENCY_HZ, DEFAULT_ENGINE_MAX_FREQUENCY_HZ, GoldenApp, PREFERENCES_APP_DATA_TAG,
         PREFERENCES_DATA_FOLDER_DECL_ID, PREFERENCES_DECL_ID, PREFERENCES_ENGINE_DECL_ID,
