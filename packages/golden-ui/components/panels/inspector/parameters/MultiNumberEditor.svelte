@@ -42,6 +42,7 @@
 	let ended = $state(false);
 	let boundary = $state<EventTime | undefined>(undefined);
 	let editSession = createUiEditSession('Edit vector', 'param-vector');
+	let pendingWrite: Promise<boolean> = Promise.resolve(true);
 	let interaction = 0;
 	let disposed = false;
 	let owner: {
@@ -107,7 +108,7 @@
 		void editSession.end();
 	});
 
-	const startEdit = (): void => {
+	const startEdit = (groupGesture = true): void => {
 		if (readOnly || !enabled) {
 			return;
 		}
@@ -124,17 +125,19 @@
 		isEditing = true;
 		ownsDraft = true;
 		ended = false;
-		void editSession.begin();
+		if (groupGesture) void editSession.begin();
 	};
 
-	const endEdit = (): void => {
+	const endEdit = (groupGesture = true): void => {
 		if (!isEditing) {
 			return;
 		}
 		isEditing = false;
 		const candidate = owner;
 		const revision = interaction;
-		void editSession.end().then(() => {
+		// Text fields commit one explicit value on Enter/blur. Only slider gestures need a
+		// history session; opening one on focus can group a later action with these settings.
+		void (groupGesture ? editSession.end() : pendingWrite).then(() => {
 			if (!disposed && !isEditing && revision === interaction && currentOwner(candidate))
 				ended = true;
 		});
@@ -159,8 +162,12 @@
 		const candidate = owner;
 		// The draft is presentation only. Other axes are composed from current
 		// canonical state by the backend, even when their UI projection is delayed.
-		void sendSetParamComponentIntent(nodeId, index, normalized, param.event_behaviour, (acks) =>
-			observeApplied(candidate, acks)
+		pendingWrite = sendSetParamComponentIntent(
+			nodeId,
+			index,
+			normalized,
+			param.event_behaviour,
+			(acks) => observeApplied(candidate, acks)
 		);
 	};
 
@@ -297,8 +304,8 @@
 						disabled={!enabled}
 						class:readonly={readOnly}
 						value={item.toFixed(fractionDigits)}
-						onfocus={startEdit}
-						onblur={endEdit}
+						onfocus={() => startEdit(false)}
+						onblur={() => endEdit(false)}
 						onchange={(event) => {
 							const nextValue = Number((event.target as HTMLInputElement).value);
 							if (Number.isFinite(nextValue)) {

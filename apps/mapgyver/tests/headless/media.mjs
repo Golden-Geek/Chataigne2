@@ -1,5 +1,6 @@
 // M04 source intent parity through the ordinary host. No GPU or process fixtures.
 // Build: cargo build --locked -p MapGyver --bin MapGyver
+// MAPGYVER_TEST_BINARY can select an isolated or packaged executable instead of target/debug.
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
 // Add --resolution-ui to verify shared Resolution through the generic Golden Inspector.
@@ -63,7 +64,7 @@ const port = listener.address().port;
 await new Promise((resolve) => listener.close(resolve));
 const base = `http://127.0.0.1:${port}`;
 const app = spawn(
-	path.resolve('target/debug/MapGyver.exe'),
+	path.resolve(process.env.MAPGYVER_TEST_BINARY ?? 'target/debug/MapGyver.exe'),
 	[
 		'--headless',
 		...(withUi ? [] : ['--no-frontend']),
@@ -314,7 +315,7 @@ try {
 	}
 	if (process.argv.includes('--media-command-ui')) {
 		const { verifyMediaCommandUi } = await import('../browser/media-command.mjs');
-		await verifyMediaCommandUi({ base, edit, intent, inspectMedia: inspect });
+		await verifyMediaCommandUi({ base, edit, intent, post, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

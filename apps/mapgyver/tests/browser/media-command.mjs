@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMediaCommandUi({ base, edit, intent, inspectMedia }) {
+export async function verifyMediaCommandUi({ base, edit, intent, post, inspectMedia }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'SolidColor',
@@ -19,6 +19,21 @@ export async function verifyMediaCommandUi({ base, edit, intent, inspectMedia })
 	const rejected = observeRejectedRequests(page, () => 'typed source command');
 	const parameter = (name) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(name, { exact: true }) });
+	async function commandResolution() {
+		const root = Number(await parameter('Resolution').getAttribute('data-node-id'));
+		const snapshot = await post('/api/ui/snapshot', { scope: { subtree: { root, max_depth: 0 } } });
+		return snapshot.nodes[0].data.param.value;
+	}
+	async function waitResolutionProjection() {
+		const deadline = Date.now() + 5000;
+		while (true) {
+			const inputs = await parameter('Resolution').locator('input.number-field').all();
+			const values = await Promise.all(inputs.map((input) => input.inputValue()));
+			if (JSON.stringify(values) === '["17","9"]') return;
+			assert(Date.now() < deadline, `Command Resolution projection: ${JSON.stringify(values)}`);
+			await delay(20);
+		}
+	}
 	async function waitSize(kind) {
 		const deadline = Date.now() + 5000;
 		while (true) {
@@ -76,12 +91,15 @@ export async function verifyMediaCommandUi({ base, edit, intent, inspectMedia })
 		await waitSize('Automatic');
 		await parameter('Execute').locator('button.trigger').click();
 		await waitSize('Fixed');
+		assert.deepEqual(await commandResolution(), { Vec2: [17, 9] });
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await waitSize('Automatic');
-		assert.equal(
-			await parameter('Resolution').locator('input.number-field').first().inputValue(),
-			'17'
+		assert.deepEqual(
+			await commandResolution(),
+			{ Vec2: [17, 9] },
+			'Undo preserves authored command configuration'
 		);
+		await waitResolutionProjection();
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await waitSize('Fixed');
 		assert.deepEqual(errors, []);

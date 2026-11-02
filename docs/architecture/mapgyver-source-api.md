@@ -66,5 +66,7 @@ Trigger/method captures configuration before entering the bounded operation queu
 no update polling. Disable/removal invalidates pending command-owned requests. Reload,
 copy and Undo/Redo restore authored configuration without firing commands. Results use the
 same committed callback envelope and media result event; rejected executions also set a
-command warning. The complete revised M04/1 acceptance audit remains in the
-[status ledger](../progress/mapgyver-status.md).
+command warning. The revised M04/1 contract is
+[accepted with source/test and bundled workflow evidence](../progress/mapgyver-m04-source-api.md).
+Native variant/resource parity, Reference and Media Preview retain their separate open gates
+in the [status ledger](../progress/mapgyver-status.md).

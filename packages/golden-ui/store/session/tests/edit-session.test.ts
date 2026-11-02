@@ -9,7 +9,7 @@ const deferred = <T>() => {
 	return { promise, resolve };
 };
 function setup() {
-	let host = { hasActiveEditSession: false, editSessionEpoch: 0 };
+	let host = { hasActiveEditSession: false, editSessionEpoch: 0, snapshotGeneration: 0 };
 	const begin = deferred<boolean>(),
 		end = deferred<void>();
 	const open = vi.fn(async (opened: typeof host) => {
@@ -32,7 +32,7 @@ function setup() {
 		close,
 		host: () => host,
 		replace: () => {
-			host = { hasActiveEditSession: true, editSessionEpoch: 1 };
+			host = { hasActiveEditSession: true, editSessionEpoch: 1, snapshotGeneration: 0 };
 		}
 	};
 }
@@ -77,11 +77,83 @@ describe('UI edit-session acknowledgement ownership', () => {
 		expect(s.close).not.toHaveBeenCalled();
 		expect(s.session.active).toBe(false);
 	});
+	it('cancels a queued reopen when the next interaction also ends before close acknowledges', async () => {
+		const s = setup();
+		s.begin.resolve(true);
+		await s.session.begin();
+		const closing = s.session.end(),
+			reopening = s.session.begin(),
+			finalEnd = s.session.end();
+		s.end.resolve();
+		await Promise.all([closing, reopening, finalEnd]);
+		expect(s.open).toHaveBeenCalledTimes(1);
+		expect(s.close).toHaveBeenCalledTimes(1);
+		expect(s.session.active).toBe(false);
+	});
+	it('does not move a queued reopen to a replacement host', async () => {
+		const s = setup();
+		s.begin.resolve(true);
+		await s.session.begin();
+		const closing = s.session.end(),
+			reopening = s.session.begin();
+		s.replace();
+		s.end.resolve();
+		await Promise.all([closing, reopening]);
+		expect(s.open).toHaveBeenCalledTimes(1);
+		expect(s.session.active).toBe(false);
+	});
+	it('closes a queued reopen that has started but has not acknowledged when end arrives', async () => {
+		const s = setup(),
+			nextBegin = deferred<boolean>();
+		s.begin.resolve(true);
+		await s.session.begin();
+		s.open.mockImplementationOnce(async (host) => {
+			const result = await nextBegin.promise;
+			if (result) {
+				host.hasActiveEditSession = true;
+				host.editSessionEpoch++;
+			}
+			return result;
+		});
+		const closing = s.session.end(),
+			reopening = s.session.begin();
+		s.end.resolve();
+		await closing;
+		await Promise.resolve();
+		expect(s.open).toHaveBeenCalledTimes(2);
+		const finalEnd = s.session.end();
+		nextBegin.resolve(true);
+		await Promise.all([reopening, finalEnd]);
+		expect(s.close).toHaveBeenCalledTimes(2);
+		expect(s.session.active).toBe(false);
+	});
 	it('does not acquire a replacement host when the old begin acknowledges late', async () => {
 		const s = setup(),
 			begin = s.session.begin(),
 			end = s.session.end();
 		s.replace();
+		s.begin.resolve(true);
+		await Promise.all([begin, end]);
+		expect(s.close).not.toHaveBeenCalled();
+		expect(s.session.active).toBe(false);
+	});
+	it('does not move a queued reopen into a replaced project on the same host', async () => {
+		const s = setup();
+		s.begin.resolve(true);
+		await s.session.begin();
+		const closing = s.session.end(),
+			reopening = s.session.begin();
+		s.host().snapshotGeneration++;
+		s.end.resolve();
+		await Promise.all([closing, reopening]);
+		expect(s.open).toHaveBeenCalledTimes(1);
+		expect(s.session.active).toBe(false);
+	});
+	it('does not acquire a late begin in a replaced project on the same host', async () => {
+		const s = setup(),
+			begin = s.session.begin(),
+			end = s.session.end();
+		s.host().snapshotGeneration++;
 		s.begin.resolve(true);
 		await Promise.all([begin, end]);
 		expect(s.close).not.toHaveBeenCalled();
