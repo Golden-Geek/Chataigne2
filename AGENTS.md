@@ -47,7 +47,7 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   Larger features may span batches; keep advancing the same product behavior rather than
   replacing it with an expanding infrastructure investigation. Splitting delivery must preserve
   the full planned feature and its acceptance requirements.
-- Time-box an investigation to 20 minutes and at most two experiments, including the baseline.
+- Time-box an investigation to 60 minutes and at most two experiments, including the baseline.
   State the hypothesis and what result would change the implementation before running them.
   Reaching the limit means preserve the findings and choose the next action; do not invent
   another probe, profiler, benchmark variant or measurement prerequisite to extend the chain.
@@ -318,8 +318,8 @@ search.
 
 Choose the owning source path before exploring and scope searches accordingly:
 
-| Layer                           | Source path                            |
-| ------------------------------- | -------------------------------------- |
+| Layer                           | Source path                              |
+| ------------------------------- | ---------------------------------------- |
 | App shell and app-owned modules | `apps/chataigne`                       |
 | Golden Core                     | `crates/golden_core`                   |
 | Generic graph system            | `crates/golden_graph`                  |
@@ -330,7 +330,7 @@ Choose the owning source path before exploring and scope searches accordingly:
 | MapGyver UI                     | `apps/mapgyver/ui` (planned)           |
 | Generic video runtime           | `crates/golden_video` (planned)        |
 | Generic video preview UI        | `packages/golden-video-ui` (planned)   |
-| `golden_ui`                     | `packages/golden-ui`                   |
+| `golden_ui`                   | `packages/golden-ui`                   |
 | Generic graph UI                | `packages/golden-graph-ui`             |
 
 Avoid reading generated output, dependency trees, or entire large files when a focused search or
