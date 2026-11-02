@@ -19,11 +19,14 @@ unavailable while app editing remains usable; they do not pretend to stream remo
 The session coalesces geometry at animation-frame boundaries, keeps one IPC request in flight and
 one newest desired layout, and discards replies from replaced/disposed sessions. A one-second
 heartbeat renews the native layout lease. Endpoint failure withdraws availability and reconnects
-with bounded backoff. Source changes and pan/zoom retain the last installed frame while
-the replacement is prepared. `presentedViews` tracks that continuity separately from `installed`,
+with bounded backoff. Source changes retain the last installed frame while the replacement is
+prepared. Pan/zoom updates live native placement instead of replacing GPU resources.
+`presentedViews` tracks established presentation separately from `installed`,
 which still requires confirmation of the matching latest revision through Layout/Status replies.
-Geometry changes cover vacated and newly exposed pixels, preserving the overlap between the
-last installed aperture and its current clip. Hidden/removed views and session failure cover stale
+Geometry changes cover retired pixels outside the current aperture, leaving live placement
+uncovered while it moves. Golden's native `Viewport2D` supplies a stationary canvas clipping/backing
+rectangle: newly exposed canvas pixels are black without turning the rest of the workbench black.
+Hidden/removed views and session failure cover stale
 preview holes. Adding or removing an Inspector preview does not cover an unchanged editor preview.
 Pending views show a plain black backing; “Preview unavailable” is reserved for capability failure.
 Pending/unavailable views and retirement covers use opaque black, matching the output's empty
@@ -35,7 +38,7 @@ withdraw presentation; native lease expiry remains the fallback after frontend i
 Session-owned retirement masks survive a removed component. Each view unions its old clipped CSS
 areas until the latest native installation is confirmed; a fixed 64-cover ceiling conservatively
 merges overflow during rapid unmount/remount churn. Each cover uses at most four rectangular masks
-around its retained overlap, bounding the DOM at 256 masks. These pointer-transparent, opaque masks sit
+around its current aperture, bounding the DOM at 256 masks. These pointer-transparent, opaque masks sit
 below DOM controls. Their fixed CSS-pixel geometry is a deliberate measurement exception, not a
 product layout unit. Disposal first publishes an empty layout and waits for its installed clear
 before Disconnect. Failed/expired confirmation leaves masks in place and reports an error rather

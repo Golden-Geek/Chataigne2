@@ -538,7 +538,8 @@ impl Backend for D3d11Backend {
                     if visibility.as_ref().is_none_or(|guard| guard.is_current()) {
                         for region in regions {
                             if region.visibility.as_ref().is_none_or(|guard| guard.is_current()) {
-                                pipeline.draw_region(context, &resources.textures[&region.source], output, region);
+                                let region = region.for_frame(token);
+                                pipeline.draw_region(context, &resources.textures[&region.source], output, &region);
                             }
                         }
                     }

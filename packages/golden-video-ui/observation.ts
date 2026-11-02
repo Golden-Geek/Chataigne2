@@ -1,7 +1,6 @@
 import type { PreviewGeometry, PreviewSession, PreviewSessionState } from './session';
 import type { CssRect } from './generated/CssRect';
 import { RetirementCovers, subtractRect } from './retirement';
-import { intersectRect } from './geometry';
 
 const observations = new WeakMap<PreviewSession, LayoutObservation>();
 interface View {
@@ -128,7 +127,7 @@ class LayoutObservation {
 				view?.nativeRect &&
 				view.latest?.visible &&
 				this.session.state.presentedViews.includes(viewId)
-					? intersectRect(view.nativeRect, view.latest.clip)
+					? view.latest.clip
 					: undefined;
 			for (const [index, rect] of subtractRect(covered, aperture).entries()) {
 				const id = `${viewId}:${index}`;

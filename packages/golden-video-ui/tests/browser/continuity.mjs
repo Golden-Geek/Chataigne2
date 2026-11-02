@@ -65,12 +65,8 @@ export async function verifyContinuity(browser, baseUrl) {
 				const bounds = screen.getBoundingClientRect();
 				for (const mask of document.querySelectorAll('[data-native-preview-retirement]')) {
 					const rect = mask.getBoundingClientRect();
-					const width =
-						Math.min(rect.right, bounds.right, initial.right) -
-						Math.max(rect.left, bounds.left, initial.left);
-					const height =
-						Math.min(rect.bottom, bounds.bottom, initial.bottom) -
-						Math.max(rect.top, bounds.top, initial.top);
+					const width = Math.min(rect.right, bounds.right) - Math.max(rect.left, bounds.left);
+					const height = Math.min(rect.bottom, bounds.bottom) - Math.max(rect.top, bounds.top);
 					// Fixed CSS boxes quantize at 1/64px; transformed aperture bounds can sit
 					// halfway between those steps. Record that edge error separately from covers.
 					if (width > 1 / 64 && height > 1 / 64) window.__continuityFlashes.push('retirement mask');

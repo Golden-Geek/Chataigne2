@@ -20,7 +20,7 @@ impl PreviewLayout {
     pub(crate) const PASS_COUNT: usize = 5;
 
     pub(crate) fn maximum_dependencies(&self) -> usize {
-        self.layout.views.len().saturating_mul(2).saturating_add(3)
+        self.layout.views.len().saturating_mul(3).saturating_add(3)
     }
 
     pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
@@ -95,7 +95,12 @@ impl PreviewLayout {
             // this below the source regions so their alpha composites over black, not the theme.
             operation: RenderOperation::Regions {
                 visibility: None,
-                regions: self.layout.regions(|_| Some(black)),
+                regions: self
+                    .layout
+                    .backdrops(black)
+                    .into_iter()
+                    .chain(self.layout.regions(|_| Some(black)))
+                    .collect(),
             },
         });
         submission.plan.passes.push(RenderPass {

@@ -60,4 +60,19 @@ pub struct BlitRegion {
     /// Optional destination lifetime. Withdrawn regions are skipped even while an older
     /// plan remains active; other regions in the same pass continue to draw.
     pub visibility: Option<golden_io::RevisionGuard>,
+    /// Optional checked placement sampled by the GPU worker without preparing another plan.
+    pub placement: Option<super::RegionPlacement>,
+}
+
+impl BlitRegion {
+    #[cfg(any(test, all(windows, feature = "d3d11")))]
+    pub(crate) fn for_frame(&self, token: crate::runtime::CompletionToken) -> Self {
+        let mut sampled = self.clone();
+        if let Some(placement) = &self.placement {
+            let geometry = placement.sample(token);
+            sampled.destination = geometry.destination;
+            sampled.source_rect = geometry.source_rect;
+        }
+        sampled
+    }
 }

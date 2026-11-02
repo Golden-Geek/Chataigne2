@@ -133,3 +133,46 @@ fn overlapping_painter_order_changes_withdraw_only_affected_destinations() {
         }
     }
 }
+
+#[test]
+fn sustained_pan_zoom_moves_an_installed_region_without_replacing_resource_routing() {
+    let (control, reader, session) = fixture();
+    let mut a = at(0.);
+    layout(&control, session, 1, vec![a.clone()]);
+    let installed = reader.snapshot();
+    let region = installed.regions(|_| Some(TextureId::new(1).unwrap())).remove(0);
+    let backing = installed.backdrops(TextureId::new(1).unwrap()).remove(0);
+    let device = crate::runtime::DeviceGeneration::new(Uuid::new_v4(), 1);
+    for step in 2..100 {
+        a.rect.x = f64::from(step % 10);
+        a.rect.width = if step % 2 == 0 { 10. } else { 15. };
+        layout(&control, session, step, vec![a.clone()]);
+        let desired = reader.snapshot();
+        assert_eq!(desired.routing_generation, installed.routing_generation);
+        assert!(installed.routing_guard.is_current());
+        assert!(!installed.guard.is_current());
+        let token = crate::runtime::CompletionToken {
+            device,
+            serial: u64::from(step),
+        };
+        assert!(
+            reader
+                .mark_frame_installed(installed.routing_generation, token)
+                .is_none()
+        );
+        let actual = region.for_frame(token);
+        assert_eq!(backing.for_frame(token).destination, installed.views[0].backdrop);
+        assert_eq!(actual.destination, desired.views[0].destination);
+        assert_eq!(actual.source_rect, desired.views[0].source_rect);
+        assert_eq!(
+            reader.mark_frame_installed(installed.routing_generation, token),
+            Some(desired.generation)
+        );
+    }
+    a.source = "replacement".into();
+    layout(&control, session, 100, vec![a]);
+    assert!(
+        !installed.routing_guard.is_current(),
+        "source changes still fence resource installation"
+    );
+}

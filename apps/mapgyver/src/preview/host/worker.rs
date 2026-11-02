@@ -412,7 +412,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     },
                     layout: layout.clone(),
                 };
-                let mut changed = published != Some(layout.generation)
+                let mut changed = published != Some(layout.routing_generation)
                     || capture.as_ref().is_none_or(|capture| !capture.is_current());
                 if changed {
                     let time = owner
@@ -458,7 +458,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                             next.channels.application_demand(),
                             next.channels.guards.clone(),
                         )?;
-                        published = Some(layout.generation);
+                        published = Some(layout.routing_generation);
                         return Ok(());
                     }
                     let (created, control) =
@@ -517,7 +517,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         Some(preview),
                     )?;
                     input.receiver.mark_uninstalled(layout.generation);
-                    published = Some(layout.generation);
+                    published = Some(layout.routing_generation);
                     installed = None;
                     confirmed = None;
                 } else {
@@ -550,7 +550,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                                 capture.as_ref().map_or(0, |capture| capture.screens.len()),
                                 topology.len()
                             );
-                            installed = Some((layout.generation, generation, None));
+                            installed = Some((layout.routing_generation, generation, None));
                         }
                         OutcomeKind::Rejected(failure) if Some(outcome.request) == renderer.latest_request() => {
                             return Err(failure.to_string());
@@ -572,8 +572,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         .iter()
                         .find(|out| out.id == OutputId::new(1).unwrap())
                         .and_then(|out| out.last_accepted)
-                        .is_some_and(|done| done.device == first.device && done.serial >= first.serial);
-                    if accepted && input.receiver.mark_installed(*generation) && confirmed != Some(*generation) {
+                        .filter(|done| done.device == first.device && done.serial >= first.serial);
+                    if accepted
+                        .and_then(|accepted| input.receiver.mark_frame_installed(*generation, accepted))
+                        .is_some()
+                        && confirmed != Some(*generation)
+                    {
                         eprintln!(
                             "[mapgyver-preview] native layout {generation} installed; channels={}",
                             renderer.channels().len()

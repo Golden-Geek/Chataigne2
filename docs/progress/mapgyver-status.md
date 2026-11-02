@@ -4,12 +4,52 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** output Escape is implemented and software-verified; real native focus/input verification remains unavailable in this desktop session (M05/6 retained).
-**Next:** run the owned focused-output check and ordinary-app Escape/Undo on a desktop exposing those native windows; do not retry alternate native routes in this session.
-**Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
+**Current:** live pan/zoom placement is implemented and verified by changing GPU pixels; M05/6 remains Active for current-build editor/native acceptance.
+**Next:** after the user saves/closes the running MapGyver window, rebuild the ordinary bundled app and review held navigation in that build.
+**Blocker:** Windows locks `target/debug/MapGyver.exe` while the user's MapGyver process50812 is running; ordinary app rebuild failed with OS error5. Save/close was requested; do not terminate an unsaved project. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: an output-scoped backend request disables only its owning Screen, wakes output recapture and preserves exact Undo/Redo; focused/fresh Escape filtering passes software checks.
+Last verified capability: live native placement follows sustained pan/zoom without resource-plan replacement;32GPU pixel frames and98controller samples pass. Output Escape's software checks remain verified; real foreground-key acceptance stays open.
+
+**Continuous rendering correction:** 2 November14:18 CET, stop15:03 CET. Deliver visible progress
+through a held gesture, not merely absence of an unavailable label. Owners: Golden Video preview
+layout/render boundary and MapGyver's presentation publisher. Hypothesis: each camera sample
+supersedes pending full-plan preparation/installation, starving new frames until input goes quiet.
+Baseline plus one corrected sustained-input reproducer must show render/layout progress while
+samples continue. Use the supplied recording and existing software/native fixtures; do not retry
+the already unavailable desktop-focus routes without new access evidence. Keep memory bounds,
+source/project fences and native retirement intact; preserve independent AGENTS.md work.
+
+**Continuous rendering checkpoint — 2 November14:57 CET:** reviewed four frames from the supplied
+5.8-second recording: canvas handles follow the camera while the native image stays at its old
+rectangle until release. Camera samples were superseding full resource-plan preparation. Golden
+Video now separates source/view routing lifetime from full layout metadata and samples checked,
+fixed-size live placement once per GPU batch. MapGyver keeps the admitted resource plan through
+geometry-only changes; source, ownership, host geometry, removal and expiry still fence invalid
+work. Latest-layout acknowledgement requires an accepted frame that actually sampled that
+geometry. Shared image/black passes use coherent placement. Stationary editor backing stays
+black while the surrounding workbench retains its theme; retirement masks leave the current
+aperture clear so they cannot freeze the moving image. The initial global-black backing proposal
+failed the existing theme test and was replaced with this per-editor backing before acceptance.
+
+Verification:123Golden Video software tests pass, including98held-input samples, stationary
+backing and sampled-frame acknowledgement; native-feature software suite passes171tests with20
+hardware ignores. The new real D3D11 pixel check passes32successive placement/crop changes using
+one prepared resource set and one image upload, preserving the independent output and waiting
+for retirement. This is GPU readback evidence, not physical scanout or a current-app visual run.
+MapGyver's full library suite passes264tests with1existing hardware ignore. Both crates' strict
+all-target Clippy pass, including Golden Video's native feature; the native-qualification binary
+consumer check passes. UI29tests and browser continuity/retirement checks pass with no covers
+over the current aperture. App/video Svelte checks report0errors/0warnings, video UI formatting,
+root and Golden Core Rust formatting pass.
+
+The ordinary app rebuild remains blocked by the running executable, so current-build editor
+acceptance is open. Return action: save/close MapGyver, run the ordinary bundled build, then
+check continuous held pan/zoom against the recording. No process was killed. This checkpoint
+closes the demonstrated resource-rebuild starvation path in software and GPU fixtures; it does
+not close M05/6, physical timing/display/reset gates, output Escape foreground verification or
+all authored-parameter gestures. Phase denominators remain unchanged; independent AGENTS.md
+edits are excluded. Do not restart the earlier unavailable desktop-focus experiments.
 
 **Output Escape batch:** 2 November13:50 CET, stop14:35 CET. Deliver Escape disabling the
 owning Screen when its native output window has keyboard focus. Golden desktop host owns generic

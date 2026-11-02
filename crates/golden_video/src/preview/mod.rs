@@ -42,6 +42,8 @@ pub struct ResolvedView {
     pub destination: UnitRect,
     /// Portion of the full source image remaining after destination clipping.
     pub source_rect: UnitRect,
+    /// Stationary clipped editor backing, independent of the moving image rectangle.
+    pub backdrop: UnitRect,
 }
 
 #[derive(Clone, Debug)]
@@ -51,9 +53,15 @@ pub struct PreviewSnapshot {
     pub generation: u64,
     /// Visible, nonempty views in submitted layout order.
     pub views: Vec<ResolvedView>,
-    /// Admission fence invalidated when layout routing, geometry, ownership or liveness changes.
+    /// Full metadata fence, invalidated by geometry as well as routing/lifetime changes.
     pub guard: RevisionGuard,
+    /// Resource routing changes independently of live pan/zoom placement.
+    pub routing_generation: u64,
+    /// Admission lifetime for the source/view topology, unaffected by geometry-only updates.
+    pub routing_guard: RevisionGuard,
     view_guards: HashMap<Uuid, RevisionGuard>,
+    placements: HashMap<Uuid, crate::plan::RegionPlacement>,
+    backdrops: HashMap<Uuid, crate::plan::RegionPlacement>,
 }
 impl PreviewSnapshot {
     /// Builds a snapshot whose destinations share one visibility lifetime. Controller snapshots
@@ -62,8 +70,12 @@ impl PreviewSnapshot {
         Self {
             generation,
             views,
+            routing_generation: generation,
+            routing_guard: guard.clone(),
             guard,
             view_guards: HashMap::new(),
+            placements: HashMap::new(),
+            backdrops: HashMap::new(),
         }
     }
 
@@ -79,7 +91,23 @@ impl PreviewSnapshot {
                     source_rect: view.source_rect,
                     filter: SampleFilter::Linear,
                     visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
+                    placement: self.placements.get(&view.id).cloned(),
                 })
+            })
+            .collect()
+    }
+
+    /// Black editor backing stays under the complete canvas while its active image moves.
+    pub fn backdrops(&self, source: TextureId) -> Vec<BlitRegion> {
+        self.views
+            .iter()
+            .map(|view| BlitRegion {
+                source,
+                destination: view.backdrop,
+                source_rect: UnitRect::FULL,
+                filter: SampleFilter::Nearest,
+                visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
+                placement: self.backdrops.get(&view.id).cloned(),
             })
             .collect()
     }
@@ -97,6 +125,9 @@ struct State {
     views: Vec<ResolvedView>,
     viewport: Option<HostViewport>,
     revision: RevisionSource,
+    routing: RevisionSource,
+    placements: HashMap<Uuid, crate::plan::RegionPlacement>,
+    backdrops: HashMap<Uuid, crate::plan::RegionPlacement>,
     view_revisions: HashMap<Uuid, RevisionSource>,
     installed: Option<u64>,
 }
@@ -104,12 +135,27 @@ impl State {
     fn invalidate(&mut self) {
         self.views.clear();
         self.view_revisions.clear();
+        self.placements.clear();
+        self.backdrops.clear();
+        self.routing.advance();
         self.revision.advance();
         self.installed = None;
     }
     fn replace_views(&mut self, views: Vec<ResolvedView>, viewport: HostViewport) {
+        let routing_changed = self.viewport != Some(viewport)
+            || self.views.len() != views.len()
+            || self
+                .views
+                .iter()
+                .zip(&views)
+                .any(|(old, new)| old.id != new.id || old.source != new.source);
+        if routing_changed {
+            self.routing.advance();
+        }
         if self.viewport != Some(viewport) {
             self.view_revisions.clear();
+            self.placements.clear();
+            self.backdrops.clear();
         } else {
             let previous = self
                 .views
@@ -127,8 +173,7 @@ impl State {
                     .get(id)
                     .zip(current.get(id))
                     .is_some_and(|((old_index, old), (new_index, new))| {
-                        // Keep the installed image through pan/zoom preparation. The frontend
-                        // covers retired/newly exposed pixels outside its retained overlap.
+                        // Keep the installed image while its checked placement updates live.
                         // A reordered overlap changes which live image owns those pixels.
                         // Independent views may reorder without withdrawing their destinations.
                         !previous.iter().any(|(other, (old_other_index, old_other))| {
@@ -142,8 +187,27 @@ impl State {
             });
         }
         for view in &views {
+            self.backdrops
+                .entry(view.id)
+                .and_modify(|placement| {
+                    assert!(placement.update(view.backdrop, UnitRect::FULL));
+                })
+                .or_insert_with(|| {
+                    crate::plan::RegionPlacement::new(view.backdrop, UnitRect::FULL).expect("resolved preview backing")
+                });
             self.view_revisions.entry(view.id).or_default();
+            self.placements
+                .entry(view.id)
+                .and_modify(|placement| {
+                    assert!(placement.update(view.destination, view.source_rect));
+                })
+                .or_insert_with(|| {
+                    crate::plan::RegionPlacement::new(view.destination, view.source_rect)
+                        .expect("resolved preview geometry")
+                });
         }
+        self.placements.retain(|id, _| views.iter().any(|view| view.id == *id));
+        self.backdrops.retain(|id, _| views.iter().any(|view| view.id == *id));
         self.views = views;
         self.viewport = Some(viewport);
         self.revision.advance();
@@ -205,6 +269,9 @@ impl PreviewController {
                 views: Vec::new(),
                 viewport: None,
                 revision: RevisionSource::default(),
+                routing: RevisionSource::default(),
+                placements: HashMap::new(),
+                backdrops: HashMap::new(),
                 view_revisions: HashMap::new(),
                 installed: None,
             }),
@@ -379,6 +446,24 @@ impl PreviewController {
 }
 
 impl PreviewReceiver {
+    /// Confirm live geometry only after both its resource plan and sampled frame were accepted.
+    /// The returned full layout generation may advance without replacing resource routing.
+    pub fn mark_frame_installed(&self, routing: u64, accepted: crate::runtime::CompletionToken) -> Option<u64> {
+        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.expire(Instant::now());
+        if state.closed
+            || state.routing.reader().current() != routing
+            || !state
+                .placements
+                .values()
+                .all(|placement| placement.presented_through(accepted))
+        {
+            return None;
+        }
+        let generation = state.revision.reader().current();
+        state.installed = Some(generation);
+        Some(generation)
+    }
     /// Withdraws a prior installation when its renderer is rebuilding or unavailable.
     /// Geometry stays registered; only a fresh installation/frame proof may expose it again.
     pub fn mark_uninstalled(&self, generation: u64) -> bool {
@@ -411,6 +496,10 @@ impl PreviewReceiver {
             generation: reader.current(),
             views: state.views.clone(),
             guard: reader.guard_at(reader.current()),
+            routing_generation: state.routing.reader().current(),
+            routing_guard: state.routing.reader().guard_at(state.routing.reader().current()),
+            placements: state.placements.clone(),
+            backdrops: state.backdrops.clone(),
             view_guards: state
                 .view_revisions
                 .iter()

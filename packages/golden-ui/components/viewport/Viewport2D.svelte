@@ -118,6 +118,7 @@
 <div
 	bind:this={element}
 	class="viewport-2d"
+	data-native-preview-backdrop={native ? '' : undefined}
 	class:panning={space || drag !== null}
 	class:dragging={drag !== null}
 	role="application"

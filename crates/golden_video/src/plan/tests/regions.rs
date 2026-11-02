@@ -7,6 +7,7 @@ fn region(source: u64) -> BlitRegion {
         source_rect: UnitRect::FULL,
         filter: SampleFilter::Nearest,
         visibility: None,
+        placement: None,
     }
 }
 

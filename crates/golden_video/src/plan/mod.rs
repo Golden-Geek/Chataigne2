@@ -5,6 +5,7 @@ mod envelope;
 mod error;
 mod mapping;
 mod pattern;
+mod placement;
 mod region;
 mod weight;
 
@@ -12,6 +13,7 @@ pub use envelope::{InterpolationCurve, OpacityEnvelope};
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
 pub use pattern::{GridPattern, LayerSource, Pattern};
+pub use placement::{RegionGeometry, RegionPlacement};
 pub use region::{BlitRegion, UnitRect};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};

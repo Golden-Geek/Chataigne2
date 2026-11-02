@@ -4,6 +4,7 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 mod envelope;
 mod mapping;
 mod pattern;
+mod placement;
 mod regions;
 mod topology;
 mod validation;

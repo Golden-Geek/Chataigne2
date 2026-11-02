@@ -50,6 +50,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                     id: uuid::Uuid::new_v4(),
                     source: serde_json::to_string(&PreviewSource::Screen { screen }).unwrap(),
                     destination,
+                    backdrop: destination,
                     source_rect: UnitRect::FULL,
                 })
                 .collect(),
@@ -92,13 +93,13 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
         panic!("active regions missing")
     };
     assert!(visibility.is_none());
-    assert_eq!(black_regions.len(), destinations.len());
+    assert_eq!(black_regions.len(), destinations.len() * 2);
     assert_eq!(
         black_regions
             .iter()
             .map(|region| region.destination)
             .collect::<Vec<_>>(),
-        destinations
+        destinations.repeat(2)
     );
     assert!(
         black_regions

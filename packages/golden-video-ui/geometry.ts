@@ -84,7 +84,9 @@ export function measurePreview(element: HTMLElement, requestedVisible: boolean) 
 				clipY: clips(style.overflowY)
 			});
 	}
-	const clip = clipPreviewRect(rect, viewport, ancestors);
-	visible &&= rect.width > 0 && rect.height > 0 && clip.width > 0 && clip.height > 0;
+	const backdrop = element.closest<HTMLElement>('[data-native-preview-backdrop]');
+	const clip = clipPreviewRect(backdrop ? clientRect(backdrop) : rect, viewport, ancestors);
+	const content = intersectRect(rect, clip);
+	visible &&= rect.width > 0 && rect.height > 0 && content.width > 0 && content.height > 0;
 	return { rect, clip, visible };
 }

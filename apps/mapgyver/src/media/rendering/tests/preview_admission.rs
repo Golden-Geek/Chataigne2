@@ -118,11 +118,24 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         )
         .unwrap();
     wait(|| renderer.snapshot().prepared);
-    view.source = serde_json::to_string(&PreviewSource::Channel { reference: second }).unwrap();
+    view.rect.x = 12.;
     controller.handle(
         PreviewRequest::Layout {
             session,
             revision: 2,
+            views: vec![view.clone()],
+        },
+        host,
+    );
+    assert!(
+        admission.iter().all(|guard| guard.is_current()),
+        "camera movement must not starve prepared installation"
+    );
+    view.source = serde_json::to_string(&PreviewSource::Channel { reference: second }).unwrap();
+    controller.handle(
+        PreviewRequest::Layout {
+            session,
+            revision: 3,
             views: vec![view],
         },
         host,

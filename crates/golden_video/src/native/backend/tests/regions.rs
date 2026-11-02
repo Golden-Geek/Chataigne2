@@ -31,6 +31,7 @@ fn region(source: u64, destination: UnitRect, source_rect: UnitRect) -> BlitRegi
         source_rect,
         filter: SampleFilter::Nearest,
         visibility: None,
+        placement: None,
     }
 }
 
@@ -43,6 +44,16 @@ fn scene_with_region_fence(
     mode: u8,
     visibility: Option<golden_io::RevisionGuard>,
     region_visibility: Option<golden_io::RevisionGuard>,
+) -> CompiledPlan {
+    scene_with_placement(image, mode, visibility, region_visibility, None)
+}
+
+fn scene_with_placement(
+    image: &PreparedImageFixture,
+    mode: u8,
+    visibility: Option<golden_io::RevisionGuard>,
+    region_visibility: Option<golden_io::RevisionGuard>,
+    placement: Option<crate::plan::RegionPlacement>,
 ) -> CompiledPlan {
     let mut regions = match mode {
         0 => vec![
@@ -86,6 +97,7 @@ fn scene_with_region_fence(
     };
     if let Some(region) = regions.first_mut() {
         region.visibility = region_visibility;
+        region.placement = placement;
     }
     RenderPlan {
         external_textures: vec![ExternalTexture {
@@ -127,6 +139,85 @@ fn scene_with_region_fence(
         max_texture_bytes: 65536,
     })
     .unwrap()
+}
+
+#[test]
+#[ignore = "requires explicitly available Windows hardware D3D11"]
+fn hardware_live_pan_zoom_changes_pixels_each_frame_without_repreparing_resources() {
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(60)).is_err() {
+            std::process::exit(1);
+        }
+    });
+    let adapter = adapters()
+        .unwrap()
+        .into_iter()
+        .find(|adapter| !adapter.software)
+        .unwrap();
+    let pixels = [
+        [255, 0, 0, 255],
+        GREEN,
+        [0, 0, 255, 255],
+        [255, 255, 0, 255],
+        [0, 255, 255, 255],
+        [255, 0, 255, 255],
+        [255; 4],
+        [0, 0, 0, 255],
+    ]
+    .concat();
+    let image = prepared_image(descriptor(4, 2), &pixels);
+    let retirement = image.retirement();
+    let source = UnitRect {
+        x: 0.5,
+        y: 0.,
+        width: 0.5,
+        height: 1.,
+    };
+    let placement = crate::plan::RegionPlacement::new(UnitRect::FULL, source).unwrap();
+    let plan = scene_with_placement(&image, 0, None, None, Some(placement.clone()));
+    let mut renderer = Renderer::new(adapter.id, &plan);
+    for step in 0..32 {
+        let column = if step % 2 == 0 { 0 } else { 2 };
+        let width = if step % 3 == 0 { 1 } else { 2 };
+        let destination = UnitRect {
+            x: column as f32 / 4.,
+            y: 0.,
+            width: width as f32 / 4.,
+            height: 0.5,
+        };
+        let source = UnitRect {
+            x: 0.5,
+            y: 0.,
+            width: width as f32 / 4.,
+            height: 1.,
+        };
+        assert!(placement.update(destination, source));
+        let actual = renderer.frame(&plan);
+        let mut expected = [TRANSPARENT; 16];
+        for row in 0..2 {
+            for x in 0..width {
+                expected[row * 4 + column + x] = if row == 0 {
+                    if x == 0 { [0, 0, 255, 255] } else { [255, 255, 0, 255] }
+                } else if x == 0 {
+                    [255; 4]
+                } else {
+                    [0, 0, 0, 255]
+                };
+            }
+        }
+        for index in [10, 11, 14, 15] {
+            expected[index] = GREEN;
+        }
+        expect(&actual[0], &expected);
+        expect(&actual[1], &[GREEN; 16]);
+    }
+    assert_eq!(renderer.backend.control.snapshot().uploaded_images, 1);
+    drop(renderer);
+    drop(plan);
+    drop(image);
+    assert!(retirement.wait(WAIT));
+    done.send(()).unwrap();
 }
 
 struct Renderer {

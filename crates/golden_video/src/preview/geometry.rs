@@ -103,14 +103,28 @@ pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<Re
         (clipped_right - left) / width,
         (clipped_bottom - top) / height,
     );
+    let backdrop = unit(
+        (ox + view.clip.x * scale).max(ox).max(0.) / f64::from(host.client_width),
+        (oy + view.clip.y * scale).max(oy).max(0.) / f64::from(host.client_height),
+        (ox + (view.clip.x + view.clip.width) * scale)
+            .min(ox + f64::from(host.webview_width))
+            .min(f64::from(host.client_width))
+            / f64::from(host.client_width),
+        (oy + (view.clip.y + view.clip.height) * scale)
+            .min(oy + f64::from(host.webview_height))
+            .min(f64::from(host.client_height))
+            / f64::from(host.client_height),
+    );
     Ok(destination
         .zip(source_rect)
-        .map(|(destination, source_rect)| ResolvedView {
+        .zip(backdrop)
+        .map(|((destination, source_rect), backdrop)| ResolvedView {
             id: view.id,
             // Typed callers can supply spare String capacity that never belonged to the wire.
             // Retain only the admitted source key, not that unbounded allocation headroom.
             source: view.source.into_boxed_str().into_string(),
             destination,
             source_rect,
+            backdrop,
         }))
 }

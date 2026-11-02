@@ -86,9 +86,9 @@ pub(super) fn build(
     let mut references = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
     if let Some(preview) = preview {
         references.extend(preview.references()?);
-        // Desired routing fences pending installation; per-view geometry clocks separately
-        // keep valid pixels in an already active generation visible during replacement.
-        guards.push(preview.layout.guard.clone());
+        // Source/view routing fences pending installation. Camera placement is sampled live
+        // by the installed plan and must never supersede its resource preparation.
+        guards.push(preview.layout.routing_guard.clone());
     }
     for route in screens {
         if route.screen.project != capture.project || !route.screen.is_current() {

@@ -18,9 +18,10 @@ Space + drag or middle drag pans, **F** frames selection, and **Home** fits the 
 The compact view toolbar exposes the same actions. Handles keep their round screen-space
 size at every aspect ratio and zoom. The output area is black; surrounding panels keep the
 workbench theme. Native preview apertures remain transparent to the shared desktop underlay.
-Pan/zoom keeps the installed preview visible while its replacement layout is prepared; pending
-geometry does not show “Preview unavailable”. Retirement covers protect vacated/newly exposed
-pixels around the retained overlap, and actual capability failures still report unavailable.
+Pan/zoom updates the installed preview's placement on each GPU frame, without rebuilding its
+resource plan or waiting for gesture release. A stationary black canvas backing and covers outside
+the current aperture protect empty/retired pixels while the workbench keeps its theme. Actual
+capability failures still report unavailable.
 Rapid edits also retain the active renderer while older GPU generations finish: one newest
 replacement waits for reclaimable memory instead of reporting transient resource pressure.
 Scenes that cannot fit alongside the active generation still report the actual budget failure.

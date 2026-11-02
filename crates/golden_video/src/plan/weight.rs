@@ -21,6 +21,9 @@ impl RenderPlan {
                 RenderOperation::Regions { regions, visibility } => {
                     bytes = bytes.checked_add(regions.capacity().checked_mul(size_of::<BlitRegion>())?)?;
                     for region in regions {
+                        if let Some(placement) = &region.placement {
+                            bytes = bytes.checked_add(placement.retained_heap_bytes())?;
+                        }
                         if let Some(visibility) = &region.visibility {
                             bytes = bytes.checked_add(visibility.retained_heap_bytes())?;
                         }
