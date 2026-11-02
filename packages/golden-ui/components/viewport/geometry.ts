@@ -22,34 +22,62 @@ export function fitSize(width: number, height: number, aspect: number) {
 }
 
 export function zoomAt(camera: ViewCamera, zoom: number, anchor: ViewPoint): ViewCamera {
-	const next = Math.min(64, Math.max(0.05, zoom));
-	const ratio = next / camera.zoom;
+	const next = cameraAtZoom(
+		{ x: camera.pan.x, y: camera.pan.y, zoom: camera.zoom },
+		zoom,
+		anchor.x,
+		anchor.y,
+		0.05,
+		64
+	);
 	return {
-		zoom: next,
-		pan: {
-			x: anchor.x - (anchor.x - camera.pan.x) * ratio,
-			y: anchor.y - (anchor.y - camera.pan.y) * ratio
-		}
+		zoom: next.zoom,
+		pan: { x: next.x, y: next.y }
 	};
 }
 
-export function frameBounds(bounds: ViewBounds, aspect: number): ViewCamera | null {
+export function frameBounds(
+	bounds: ViewBounds,
+	content: { width: number; height: number },
+	viewport: { width: number; height: number },
+	padding: number
+): ViewCamera | null {
 	if (
-		![bounds.x, bounds.y, bounds.width, bounds.height, aspect].every(Number.isFinite) ||
-		bounds.width <= 0 ||
-		bounds.height <= 0 ||
-		aspect <= 0
+		![
+			bounds.x,
+			bounds.y,
+			bounds.width,
+			bounds.height,
+			content.width,
+			content.height,
+			viewport.width,
+			viewport.height,
+			padding
+		].every(Number.isFinite) ||
+		Math.min(
+			bounds.width,
+			bounds.height,
+			content.width,
+			content.height,
+			viewport.width,
+			viewport.height
+		) <= 0
 	)
 		return null;
-	// Pan is normalized to fitted content dimensions; the component converts it to CSS space.
-	const zoom = Math.min(64, Math.max(0.05, 0.85 / Math.max(bounds.width, bounds.height)));
-	return {
-		zoom,
-		pan: {
-			x: (0.5 - bounds.x - bounds.width / 2) * zoom,
-			y: (0.5 - bounds.y - bounds.height / 2) * zoom
-		}
-	};
+	const next = cameraForBounds(
+		{
+			left: (bounds.x - 0.5) * content.width,
+			top: (bounds.y - 0.5) * content.height,
+			right: (bounds.x + bounds.width - 0.5) * content.width,
+			bottom: (bounds.y + bounds.height - 0.5) * content.height
+		},
+		{ x: -viewport.width / 2, y: -viewport.height / 2, ...viewport },
+		1,
+		padding,
+		0.05,
+		64
+	);
+	return next ? { zoom: next.zoom, pan: { x: next.x, y: next.y } } : null;
 }
 
 export function pointBounds(points: readonly ViewPoint[]): ViewBounds | null {
@@ -63,3 +91,4 @@ export function pointBounds(points: readonly ViewPoint[]): ViewBounds | null {
 		height: Math.max(...points.map((point) => point.y)) - y
 	};
 }
+import { cameraAtZoom, cameraForBounds } from 'golden_graph_ui/camera-geometry';

@@ -92,15 +92,23 @@ impl Node for MediaManagerNode {
         Some(UserContainerRules::new(&[
             "mapgyver.media",
             "mapgyver.media.folder",
+            "mapgyver.media.asset",
+            "mapgyver.application",
             super::commands::MEDIA_COMMAND_TYPE,
             "script",
         ]))
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = super::commands::catalog();
+        let mut items = super::creation::items();
+        items.extend(super::commands::catalog());
         items.push(UserCreatableItem::new("script", "script", "Media Script"));
         items
+    }
+
+    fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
+        super::creation::tree(node_type)
+            .or_else(|| self.create_user_item(node_type).map(golden_core::edit::NodeTree::boxed))
     }
 
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {

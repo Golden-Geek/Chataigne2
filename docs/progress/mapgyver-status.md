@@ -4,21 +4,21 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** Media/Channel source drops into Screen and Composition editors implemented and functionally verified (M05/6).
-**Next:** return to retained native Add Screen/source-switch visual acceptance when an ordinary app window is available; keep the verified drop workflow.
-**Blocker:** none for drag-and-drop. Retained native visual/display/reset/timing/memory acceptance
+**Current:** user-requested editor stability/live crop, consistent outliners and automatic Screen/display behavior (M05/6).
+**Next:** fix lost vector components with backend component edits; finish automatic Screen defaults, display enum, conflict swaps and tolerant recovery.
+**Blocker:** none established for the requested implementation. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
-feature: typed Screen/Surface editing with bounded crop, shared navigation and source drops.
-Last delivered capability: Media/Channel drops create objects or replace sources in one undoable operation.
-**Batch:** 2 November, 08:36 CET, stop09:21 CET. Deliver tree-to-editor source drops: background
-creates a Surface/instance, existing geometry replaces its source, Media resolves its first ordered
-channel in the backend. Owners: MapGyver source resolution/atomic authoring and editor input;
-Golden owns the generic node drag payload. Proof: backend atomic/history/rejection tests, generated
-protocol checks, real bundled drag input, Svelte/build/Clippy and both formatters.
-Investigation stops08:56 CET, at most two experiments including baseline. Hypothesis: the existing
-Golden node payload can express source identity while new app-owned intents keep creation and
-assignment atomic; a missing public payload contract changes the reusable boundary, not domain policy.
-Starting checkout is clean at pushed `4ba16b06`; prior native visual acceptance remains queued.
+feature: stable shared camera navigation, contained backend crop, shared manager sorting/creation and source drops.
+Last verified capability: equal-identity geometry changes retain the camera; authored objects use shared Outliner catalogs and moves.
+**Batch:** 2 November, 09:57 CET, stop10:42 CET. Deliver stable Golden-consistent manipulation,
+live contained crop edits and uniform outliner sorting/creation as a reviewable milestone. Owners:
+shared Golden parameter preparation/viewport/tree contracts and MapGyver editing adapters.
+Proof: targeted model/history/camera/tree tests, bundled input after compile success, both app UI
+checks, Clippy and both Rust formatters. Investigation stops10:17 CET, at most two experiments
+including baseline. Hypotheses: equal-ID reactive snapshot replacement homes the camera, generic
+edit groups suppress editor reads, and plain Regular roles bypass curated tree moves/creation.
+Starting checkout is clean at pushed `1c7a09d2`. Remaining requested Screen defaults, enum,
+conflict swapping and identity recovery stay required in the same feature queue; no scope is dropped.
 **Post-review correctness return:** the first two bundled flows established the six basic drop
 paths (first stopped on a test-only f32 comparison, second passed). Review then reproduced a
 separate visual-target defect: native-visible objects beyond128 handles would be treated as empty
@@ -29,30 +29,96 @@ explicit visible handles, instead of dispatching a background event through a co
 This is verification of that named correctness fix; no further probes or native routes are added.
 The dashboard and Next action are current; dated delivery entries preserve historical evidence.
 
-| Phase | State | Progress | Done / total items |
-| --- | --- | --- | --- |
-| [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Complete locally | `████████████████████` 100% | 1/1 |
-| [M01 Functional route decision](#m01-acceptance-items) | Complete locally | `████████████████████` 100% | 4/4 |
-| [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
-| [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
-| [M04 Source media](#m04-acceptance-items) | Complete: real Parameters and generic source UI verified | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active: source drops verified; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
-| [M06 Composition/editor](#m06-acceptance-items) | Instance/canvas Parameters and generic UI verified; native scope retained | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix/editor](#m07-acceptance-items) | Matrix/association Parameter conversion and native feedback pending | `███████████████░░░░░` 75% | 3/4 |
-| [M08 App lifetimes](#m08-acceptance-items) | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75% | 3/4 |
-| [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+**Current batch checkpoint:** implementation is saved; no new investigation or scope expansion
+after10:42 CET. The ongoing engine rebuild (`48284`), app suite (`76123`), ordinary app build
+(`59804`) and Chataigne integration (`84868`) retain their existing handles. Finish those checks
+and the dependent bundled acceptance rather than restart compilation. Current evidence: owner
+normalization3/3, live controller10/10, structural policy4/4, creation context1/1, shared UI220/220,
+Graph59/59, native display metadata4/4, both app Svelte checks0errors/0warnings. The isolated real
+viewport verifies stable equal-ID geometry, temporary panning, round handles, native aperture
+transparency and0page errors. A named review correction additionally verifies shortcuts after
+toolbar clicks and native Space activation on focused buttons. Crop copy/reload's full authored
+identity assertions remain; only unreferenced unchanged declared defaults use the documented
+sparse reconstruction contract. Full app suite/bundled input/strict app Clippy stay unverified
+until their terminal results. No acceptance gate or denominator changes at this checkpoint.
+
+**Correctness blocker at10:44 CET:** the engine suite passes661tests (3manual ignores), owner
+normalization3/3, and ordinary MapGyver build succeeds. The full app suite instead reports227pass,
+18fail,1existing ignore: curated catalog construction changed sparse reconstruction of Media/Matrix
+children and related references. All8Screen/Surface Parameter tests pass. Fix the intrinsic versus
+live-context factory boundary, rerun the failed cases/full app suite, then bundled acceptance;
+do not proceed into display policy while saved-project invariants fail. The same M05/6gate stays
+Active, with this exact return action; no native experiment is admitted by the passing build alone.
+
+**Acceptance return at10:57 CET:** the corrected full app suite passes246tests (1existing ignore),
+strict app/engine all-target Clippy and ordinary build pass. The bundled Source flow has0page
+errors/rejected requests but exposes a vector draft race: sequential component edits can lose a
+previous coordinate. Generic text focus must own the draft through end acknowledgement and the
+existing applied-event boundary. This is the sole current editor acceptance blocker; preserve the
+fixture's exact coordinate/history assertions. Investigation cutoff11:17 CET, baseline plus one
+corrected acceptance run; no additional probe chain. Sibling Chataigne's broader concurrent suite
+reports1831pass/28fail/14ignore; its affected DMX98 and Spatializer row-batch6 families pass serially
+on that same binary. This supports scheduling sensitivity but is not a clean full-suite baseline.
+
+| Phase                                                                     | State                                                                                          | Progress                    | Done / total items |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------- | ------------------ |
+| [M00 Baseline/workloads](mapgyver-m00-baseline.md)                        | Complete locally                                                                               | `████████████████████` 100% | 1/1                |
+| [M01 Functional route decision](#m01-acceptance-items)                    | Complete locally                                                                               | `████████████████████` 100% | 4/4                |
+| [M02 Multi-app seams/shell](#m02-acceptance-items)                        | Complete locally                                                                               | `████████████████████` 100% | 7/7                |
+| [M03 Rendering/channels](#m03-acceptance-items)                           | Foundations ready; qualification open                                                          | `████████████████░░░░` 78%  | 7/9                |
+| [M04 Source media](#m04-acceptance-items)                                 | Complete: real Parameters and generic source UI verified                                       | `████████████████████` 100% | 6/6                |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items)                     | Active: source drops verified; native/physical gates retained                                  | `████████░░░░░░░░░░░░` 38%  | 3/8                |
+| [M06 Composition/editor](#m06-acceptance-items)                           | Instance/canvas Parameters and generic UI verified; native scope retained                      | `███████████████░░░░░` 75%  | 3/4                |
+| [M07 Matrix/editor](#m07-acceptance-items)                                | Matrix/association Parameter conversion and native feedback pending                            | `███████████████░░░░░` 75%  | 3/4                |
+| [M08 App lifetimes](#m08-acceptance-items)                                | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75%  | 3/4                |
+| [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started                                                                                    | `░░░░░░░░░░░░░░░░░░░░` 0%   | 0/1                |
 
 ### Execution board
 
-| State | Gate(s) | Next requirement / return condition |
-| --- | --- | --- |
-| Accepted | M04/5 | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6. |
-| Active | M05/6 | Source drops pass backend, bundled editor and large-scene picking checks. Remaining return action: native Add Screen/source-switch visual acceptance in a supported ordinary app window. |
-| Pending | M07/3 | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained. |
-| Pending | M08/4 | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained. |
-| Blocked | M03/4,9 | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure. |
-| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes. |
-| Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification. |
+| State                         | Gate(s)                                    | Next requirement / return condition                                                                                                                             |
+| ----------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accepted                      | M04/5                                      | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6.                                             |
+| Active                        | M05/6                                      | Finish user-requested manipulation/live crop/outliner consistency, then automatic Screen/display policy and tolerant recovery; retain native visual acceptance. |
+| Pending                       | M07/3                                      | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained.                                                            |
+| Pending                       | M08/4                                      | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained.                                     |
+| Blocked                       | M03/4,9                                    | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure.                               |
+| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes.                                 |
+| Waiting                       | M09/1                                      | All retained M03–M08 acceptance, then complete-app/artifact qualification.                                                                                      |
+
+### Editor/outliner checkpoint — 2 November, 11:10 CET
+
+Golden's 2D viewport preserves equal-identity geometry receipts, uses shared icon controls and
+Graph zoom geometry, and supports temporary Space/middle panning without a sticky move tool.
+Shortcuts continue after toolbar clicks; Space retains native button activation. Screen preview
+status footers are removed. Backend crop normalization keeps Inspector edits contained before
+validation/history; bounded live editor reads and vector draft ownership are implemented.
+Manager and generic Outliner creation use one backend catalog, with sortable curated objects,
+protected ownership and no Inspector up/down/bin rows. Intrinsic factories remain stable during
+sparse decode; live source-specific defaults use an explicit contextual factory. Loaded objects
+retain their authored identities and settings. The host exposes validated optional EDID plus
+OS index/primary metadata; Screen recovery integration remains required.
+
+Verified: MapGyver246pass/1existing ignore; Golden engine661pass/3manual ignores plus owner
+normalization3/3; live controller10/10; Golden UI220/220; Graph59/59; native display metadata4/4.
+Strict app/engine/host all-target Clippy, ordinary bundled build, both app Svelte checks
+(0errors/0warnings), isolated viewport browser acceptance, Prettier and both Rust formatters pass.
+The broader Chataigne concurrent run reports1831pass/28fail/14ignore; DMX98 and Spatializer
+row-batch6 pass serially on that same binary. A clean sibling full-suite baseline is not claimed.
+
+Bundled Source acceptance remains OPEN: both attempts have0page errors/rejected requests but
+the second proves BottomLeft x0.02 is lost when y0.9 is authored (actual x0). Global event progress
+and local draft ownership cannot guarantee a particular Parameter projection is current. The
+selected correction is a typed vector-component edit composed against canonical state at APPLY;
+do not continue investigating projection timing or add polling/queries. Preserve the exact
+coordinate/history/live-held-drag assertions for required verification after that correction.
+Both isolated owned hosts exit0. This is a useful partial checkpoint, not acceptance closure.
+
+Remaining user requirements stay required: component-safe Inspector edits and held live handles;
+new Screens enabled through node metadata, free-secondary-display/Shared Texture defaults and
+first enabled Media assignment; no Unconfigured target; detected-display enum with automatic
+refresh/recovery; atomic occupied-display swap/replacement with a log; tolerant EDID/name/OS
+index/layout recovery. M05/6 stays Active, M05 stays3/8, overall4/10(40%); all native/physical
+return triggers and acceptance denominators are unchanged.
 
 ### Source drop delivery — 2 November, 09:08 CET
 
@@ -634,7 +700,6 @@ remain missing. M03 GPU/window scope decisions are pending and unapplied; privat
 **36.102 MiB >32 MiB** still fails with no established cause/correction. Genuine removal needs the
 unapproved reset window. M05 physical 4K/other unavailable configurations remain unverified.
 
-
 Overall counts fully accepted milestones: `4 / 10 = 40%`; partial phases do not advance it.
 The 2026-11-01 user design correction reopened M04 gate5 (6/6 →5/6) and M05 gate6 (4/8 →3/8).
 The complete source matrix previously reaccepted M04 gate5; complete Screen input reaccepted M05
@@ -663,13 +728,13 @@ of the agreed plan; a day-scale minor optimization may justify a precise proposa
 lower gate. Track cumulative effort across batches. Correctness/ownership remain required.
 See [execution ordering](../plan/MapGyver_Implementation_Plan.md#completion-priority--2026-10-31).
 
-
 Only a passed gate or a named missing prerequisite permits leaving the active gate. A batch cutoff
 checkpoints work; it does not waive acceptance or automatically select another phase. The target
 is **100% of agreed scope**. A roughly day-long minor optimization can prompt a specific proposal
 with measured cost and consequences, requiring explicit agreement before any lower gate applies.
 
 **Closure return queue:**
+
 - **M03 gate 9:** prescribed Q01/Q02 on stabilized inputs, complete lifecycle/resource-return
   evidence and the preserved private-growth failure. Timing returns on a validated supported
   clock mapping with bounded error or an explicit [GPU-work decision](#gpu-acceptance-proposal--awaiting-user-decision).
@@ -1479,13 +1544,13 @@ or creates a graphics device/window. Existing native Spout evidence is retained 
 
 Gate 3's complete fixed scope maps to cumulative evidence, without a denominator or budget change:
 
-| Required behavior | Verified evidence |
-| --- | --- |
-| Independent launch, process readiness and owned cleanup | Batches 32–34/39; all four existing native regressions pass again in batch 40 |
-| Actual sender/first completed image and stale launch/sender fences | Batch 35 actual SDK/image test; tagged-evidence/project rejection regression passes again in batch 40 |
-| Readiness timeout, crash/restart/capped backoff and unload cancellation | Fake-time suites plus batch 40's real owned-process timeout and three-launch crash/retry cases |
-| Cancellation before resume and retained failed/suspended ownership | Fake resume-failure/cancellation suites plus batch 40's actual suspended-process cancellation |
-| Shared demand without transient restart and final render/unload release | Batches 33–34 final-plan and no-render/two-Matrix cases; actual owned-process regressions pass again in batch 40 |
+| Required behavior                                                                 | Verified evidence                                                                                                                                 |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Independent launch, process readiness and owned cleanup                           | Batches 32–34/39; all four existing native regressions pass again in batch 40                                                                     |
+| Actual sender/first completed image and stale launch/sender fences                | Batch 35 actual SDK/image test; tagged-evidence/project rejection regression passes again in batch 40                                             |
+| Readiness timeout, crash/restart/capped backoff and unload cancellation           | Fake-time suites plus batch 40's real owned-process timeout and three-launch crash/retry cases                                                    |
+| Cancellation before resume and retained failed/suspended ownership                | Fake resume-failure/cancellation suites plus batch 40's actual suspended-process cancellation                                                     |
+| Shared demand without transient restart and final render/unload release           | Batches 33–34 final-plan and no-render/two-Matrix cases; actual owned-process regressions pass again in batch 40                                  |
 | Bounded graceful/forced stop, complete tree retirement and stale project outcomes | Gate 1's actual close/Job primitive, fake deadline/stuck-retirement suites, and batch 40's pinned root/branch/leaf stop and retired-project cases |
 
 Reproduce the fixture builds with `cargo build --locked -p MapGyver -p golden_io
@@ -1926,12 +1991,12 @@ Before source implementation, M08's provisional whole-phase item is split into f
 Together they retain its complete plan acceptance; no item starts closed. This changes M08's
 denominator from one to four, not the overall ten-phase denominator or acceptance scope.
 
-| Gate | Full acceptance scope | State |
-| --- | --- | --- |
-| 1 | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed |
-| 2 | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries. | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below |
-| 3 | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks. | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup |
-| 4 | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup. | Active — caller/headless/outcomes/forms, batch97 column/recovery/New input and batch98 actual elevated target pass in scope; native dialog/singleton retirement/full-app gaps remain; non-elevated denial not exercised |
+| Gate | Full acceptance scope                                                                                                                                                                                                                                                                                                                | State                                                                                                                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Public app-neutral Golden IO owned-process API: explicit executable/arguments/environment/directory, suspended launch with Job Object ownership before resume, cancellation/drop safety, truthful root/tree observations, bounded termination/retirement and unsupported/access failures; actual owned executable/descendant checks. | Accepted — batch 30; retirement can remain explicitly unverified when transient lifetimes were not observed                                                                                                             |
+| 2    | MapGyver-owned persistent app definitions, stable references and column associations; clamped non-wrapping pre/post column distances, jumps/reorder/delete and aggregate demand across scopes/preparation/active/outgoing leases; fake-time/process checks and history/project boundaries.                                           | Accepted — batches 31–34; logical/rendered demand and process/history evidence mapped in batch 34 below                                                                                                                 |
+| 3    | Background launch/readiness/timeout, sender/first-frame evidence, crash/restart/backoff, intentional-unload cancellation, shared definitions without transient restarts, final render/unload completion, bounded graceful/forced stop and stale project/launch/readiness rejection; fake and actual owned process-tree checks.       | Accepted — cumulative batches 32–35/39–40; batch 40 maps the full scope and verifies actual crash/backoff, suspended cancellation, timeout and pinned descendant cleanup                                                |
+| 4    | Complete generated UI/script/headless editing/control/observation parity; actual app integration and lifecycle scenarios, truthful singleton/external/elevated/launcher/breakaway outcomes, no implicit process-name adoption/kills, project replacement/shutdown and qualified recovery/cleanup.                                    | Active — caller/headless/outcomes/forms, batch97 column/recovery/New input and batch98 actual elevated target pass in scope; native dialog/singleton retirement/full-app gaps remain; non-elevated denial not exercised |
 
 **Batch 31 result:** `apps/mapgyver/src/applications` owns shared persistent executable, argument,
 directory/environment, window, sender-readiness, deadline and restart definitions. Backend defaults,
@@ -2713,12 +2778,12 @@ Before M07 source implementation, its provisional whole-phase item is split into
 Together these retain the complete plan acceptance. All start open; M07 progress is closed gates / 4.
 Overall remains 3/10 (30%); no existing gate, budget or qualification ownership changes.
 
-| # | Acceptance scope | State |
-| --- | --- | --- |
-| 1 | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model. | Accepted — batch 22 evidence below |
-| 2 | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above |
-| 3 | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence. | Open — caller/full browser input and batch94 strict project lifecycle pass; actual native preparation/installation/submission feedback remains |
-| 4 | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements. | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
+| #   | Acceptance scope                                                                                                                                                                                                                                                              | State                                                                                                                                                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Stable Matrix/layer/group/column/cell and exported channel identities; grouping, source assignment, create/copy/reorder/remove, validation including all-media feedback, project roundtrip and Undo/Redo; command/script/callback/snippet parity for the authored model.      | Accepted — batch 22 evidence below                                                                                                                                                                             |
+| 2   | Atomic column launches and explicit empty-cell policy use shared time; deterministic layer/group/final blending and interrupted transitions preserve outgoing source demand until final use; independent consumers share passes and bursts cannot accumulate unbounded plans. | Accepted — batches 23–25 evidence above                                                                                                                                                                        |
+| 3   | App-registered virtualized Matrix editor with source assignment, authoring/copy/reorder and separate selection/preparation/live state; complete UI/script/headless intent parity and real interactive evidence.                                                               | Open — caller/full browser input and batch94 strict project lifecycle pass; actual native preparation/installation/submission feedback remains                                                                 |
+| 4   | Native preview and independently consumed layer/group/final output pixels, ordering/blends/alpha/transition interruptions, source loss/Undo/recovery and bounded large-grid runtime/lifetime behavior satisfy the retained qualification requirements.                        | Accepted — batch 82 completes both adapters, native content/interruption/endpoints, sparse-grid bounded-runtime and owner-retirement checks; global M03/M05/M09 qualification remains with its original owners |
 
 **Product batch 22:** started 2026-10-31 **03:15 UTC**, recorded stop **04:00 UTC**.
 Deliver Matrix media and the document/module foundation under `apps/mapgyver/src/matrix`: sparse
@@ -3132,12 +3197,12 @@ Before M06 source changes, its provisional whole-phase item is split into four f
 Together they preserve the complete plan acceptance; all started open. Overall remains 3/10 (30%);
 the M06 percentage is closed gates / 4. No retained qualification budget or earlier gate changes.
 
-| # | Acceptance scope | State |
-| --- | --- | --- |
-| 1 | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below |
-| 2 | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media. | Accepted — batch 73 evidence above |
-| 3 | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output. | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05 |
-| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Open — caller parity and [complete new-layout input/project lifetime](evidence/mapgyver-m06-workbench-input-2026-11-01.json) retain batch89/95 scope. Actual native imagery/extent-based outline/shape-selection integration remains. |
+| #   | Acceptance scope                                                                                                                                                                                                                                  | State                                                                                                                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below                                                                                                                                                                                                    |
+| 2   | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media.               | Accepted — batch 73 evidence above                                                                                                                                                                                                    |
+| 3   | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output.                                     | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05                                                                                                                |
+| 4   | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior.                                                        | Open — caller parity and [complete new-layout input/project lifetime](evidence/mapgyver-m06-workbench-input-2026-11-01.json) retain batch89/95 scope. Actual native imagery/extent-based outline/shape-selection integration remains. |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -3551,13 +3616,13 @@ fixture now explicitly uses its own listener as frontend URL and waits for actua
 state before receiving. No product/GPU workaround was needed. The second/final flow completed
 successfully by **23:38 UTC** with the ordinary desktop app and no frontend/editor loaded:
 
-| Condition | Independent SDK image-copy submissions | Result |
-| --- | --- | --- |
-| Color Bars with no editor | 181 | Delivered |
-| Grid with no editor | 179 | Delivered |
-| Calibration Off, authored media route restored | 179 | Delivered |
-| Screen disabled after confirmed session retirement | 0; 1,984 absent polls | Sender withdrawn |
-| Re-enabled at 128×64, previously 96×64 | 181 | Recovered at new extent |
+| Condition                                          | Independent SDK image-copy submissions | Result                  |
+| -------------------------------------------------- | -------------------------------------- | ----------------------- |
+| Color Bars with no editor                          | 181                                    | Delivered               |
+| Grid with no editor                                | 179                                    | Delivered               |
+| Calibration Off, authored media route restored     | 179                                    | Delivered               |
+| Screen disabled after confirmed session retirement | 0; 1,984 absent polls                  | Sender withdrawn        |
+| Re-enabled at 128×64, previously 96×64             | 181                                    | Recovered at new extent |
 
 All receive failures and active-layout mismatches are zero. The app reports calibration plans with
 zero media channels and Off with one restored channel, retaining output ID 2 after re-enable.
@@ -3784,16 +3849,16 @@ needed for this backend deliverable. Investigation stops by **22:04 UTC** or two
 Before implementation, M05's former single whole-phase placeholder is expanded to these eight
 fixed gates. Overall phase count remains 10; none is accepted by defining this breakdown.
 
-| # | Acceptance scope | State |
-| --- | --- | --- |
-| 1 | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets. | Accepted — batch 8 evidence below |
-| 2 | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically. | Accepted — batch 10 reference and publication evidence above |
-| 3 | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha. | Accepted — batch 12 backend/runtime and finite GPU evidence |
-| 4 | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize. | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain |
-| 5 | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins. | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain |
-| 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Accepted again after redesign — [complete Screen input/history and stable canvas](evidence/mapgyver-m05-workbench-screen-acceptance-2026-11-01.json) preserves batch86's full scope; source/peer preservation, all corners, rejection, Escape and panel lifetime pass. |
-| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Open — [complete new-layout Source input](evidence/mapgyver-m05-workbench-source-input-2026-11-01.json) preserves batch87 form/calibration/all crop/origin/rejection/Escape/source-loss/history scope. Prior backend/script proof retained; native full-source preview remains unverified. |
-| 8 | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open |
+| #   | Acceptance scope                                                                                                                                                                                                                                                          | State                                                                                                                                                                                                                                                                                      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets.                                                      | Accepted — batch 8 evidence below                                                                                                                                                                                                                                                          |
+| 2   | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically.                                                                                                                                                          | Accepted — batch 10 reference and publication evidence above                                                                                                                                                                                                                               |
+| 3   | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha.                                                                                                                                                                      | Accepted — batch 12 backend/runtime and finite GPU evidence                                                                                                                                                                                                                                |
+| 4   | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize.                                                                                                                                     | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain                                                                                                                                           |
+| 5   | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins.                                                                                                                                                              | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain                                                                                                                                  |
+| 6   | Screen editor/source selection uses backend intents; one drag is one undoable gesture.                                                                                                                                                                                    | Accepted again after redesign — [complete Screen input/history and stable canvas](evidence/mapgyver-m05-workbench-screen-acceptance-2026-11-01.json) preserves batch86's full scope; source/peer preservation, all corners, rejection, Escape and panel lifetime pass.                     |
+| 7   | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior.                                                                                                                                                                 | Open — [complete new-layout Source input](evidence/mapgyver-m05-workbench-source-input-2026-11-01.json) preserves batch87 form/calibration/all crop/origin/rejection/Escape/source-loss/history scope. Prior backend/script proof retained; native full-source preview remains unverified. |
+| 8   | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open                                                                                                                                                                                                                                                                                       |
 
 **Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
 the `mapgyver.screens.edit` route. CreateScreen builds the Screen and first full-source/full-screen
@@ -3883,14 +3948,14 @@ terminal successes within the original window; no third or corrective run occurs
 
 **Original M04 acceptance audit:**
 
-| Requirement | Accepted evidence |
-| --- | --- |
-| Default Media Manager, detached creation/import, authoritative IDs, commands/methods/callbacks/snippets | Gate 1 module tests and app-owned registration; batch 51's 152 caller executions additionally verify returned owned identities, defaults, single committed callbacks and atomic history/allocation. |
-| At least two differently sized channels per source kind, Automatic/Fixed sizing and shared consumers | Native Solid Color batch 47, Picture batches 48/52 and Shared Texture batch 49 use two channels in one relevant media and independent A/A/B consumers. Source extents/output policies and shared production/resources are checked. |
-| Worker Picture decode, color/alpha and source/pixel/decode/cache bounds | Gate 3 codec/Golden Assets/renderer tests establish admission, worker execution, retained lease/cancellation/retirement and production 4K PNG bounds. Batches 48/52 observe actual PNG/JPEG output; unsupported layouts fail explicitly, not by silently raising budgets. |
-| Missing/relinked/replaced pictures; one failed source leaves a healthy peer | Native Picture matrix plus public-intent worker tests and batch 52 replacement now exercise the real caller route. Reload changes no locator/asset/channel ID or authored history. No automatic watcher is claimed. |
-| Exact independent Spout selection/discovery, absence/restart/rename/resize, isolated failure and explicit adapter mismatch | Accepted gate 4 / batch 49 checks actual outputs, advancing healthy peer, exact-name discovery, no implicit renamed selection, bounded oversize recovery and both cross-adapter error directions without fallback. |
-| Media Manager UI, project/history, UI/script/headless parity and functional native resource recreation | Gate 5 actual UI authoring; batch 51 typed caller matrix, sparse/full codecs and source recreation evidence; batch 52 actual new Reload Picture UI/HTTP plus updated native replacement. Original source-gate tests retain controlled renderer/device teardown/recreation, upload/resource ownership and stable references. |
+| Requirement                                                                                                                | Accepted evidence                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Default Media Manager, detached creation/import, authoritative IDs, commands/methods/callbacks/snippets                    | Gate 1 module tests and app-owned registration; batch 51's 152 caller executions additionally verify returned owned identities, defaults, single committed callbacks and atomic history/allocation.                                                                                                                         |
+| At least two differently sized channels per source kind, Automatic/Fixed sizing and shared consumers                       | Native Solid Color batch 47, Picture batches 48/52 and Shared Texture batch 49 use two channels in one relevant media and independent A/A/B consumers. Source extents/output policies and shared production/resources are checked.                                                                                          |
+| Worker Picture decode, color/alpha and source/pixel/decode/cache bounds                                                    | Gate 3 codec/Golden Assets/renderer tests establish admission, worker execution, retained lease/cancellation/retirement and production 4K PNG bounds. Batches 48/52 observe actual PNG/JPEG output; unsupported layouts fail explicitly, not by silently raising budgets.                                                   |
+| Missing/relinked/replaced pictures; one failed source leaves a healthy peer                                                | Native Picture matrix plus public-intent worker tests and batch 52 replacement now exercise the real caller route. Reload changes no locator/asset/channel ID or authored history. No automatic watcher is claimed.                                                                                                         |
+| Exact independent Spout selection/discovery, absence/restart/rename/resize, isolated failure and explicit adapter mismatch | Accepted gate 4 / batch 49 checks actual outputs, advancing healthy peer, exact-name discovery, no implicit renamed selection, bounded oversize recovery and both cross-adapter error directions without fallback.                                                                                                          |
+| Media Manager UI, project/history, UI/script/headless parity and functional native resource recreation                     | Gate 5 actual UI authoring; batch 51 typed caller matrix, sparse/full codecs and source recreation evidence; batch 52 actual new Reload Picture UI/HTTP plus updated native replacement. Original source-gate tests retain controlled renderer/device teardown/recreation, upload/resource ownership and stable references. |
 
 Candidate hashes match their actual runs: ordinary bundled app
 `7e354546503c10fc2a532ecff8c4d187ed981903757c91bdb57363291973b1c4`; native test
@@ -3965,14 +4030,14 @@ The first invocation's incorrect load-response assumption remains recorded above
 corrections used the actual reply DTO (no namespace field) and Rust-typed JSON numeric comparison;
 no runtime behavior, tolerance or budget was changed to make the original checks pass.
 
-| Final parity requirement | Verified evidence |
-| --- | --- |
-| UI, generic QuickJS, hosted module and command caller parity | [Focused parity tests](../../apps/mapgyver/src/media/tests/commands/parity.rs): 29 mutation/inspection/rejection cases × four callers, source creation × three kinds × four callers, and six allocation cases × four callers = **152 executions**, including valid/wrong-owner reload. All compare committed typed values/IDs and peer state, callback correlation/count, rejection/history neutrality, one-step undo/redo and no request replay. Existing [module tests](../../apps/mapgyver/src/media/tests/commands.rs) retain public presets, passive commands, cancellation, read-only inspection, hosted snippets and app-owned callback wiring. |
-| Real UI rather than only a transport mock | Accepted gate 5 / batch 50: [browser evidence](evidence/mapgyver-m04-ui-2026-10-31.json) covers actual creation/settings/rename/reorder/delete, Picture import/relink, independent Spout selectors, guards, undo and reload, with read-only backend correlation. Its native-picker/preview limits remain explicit; no new prerequisite is invented. |
-| Ordinary headless host uses the same source intents | [Repeatable HTTP check](../../apps/mapgyver/tests/headless/media.mjs), run against ordinary `MapGyver.exe --headless --no-frontend --no-remote` with private APPDATA: three media/six channels, typed source/size/filter settings, peer continuity, shared asset relink, atomic rejection, Spout disconnect, history and exact Save/New/Load catalog/reference restoration. The supported sentinel yields exit zero. No frontend, renderer or OS application target is instantiated. Newly added `ReloadAsset`/history assertions remain unexecuted; that version is not claimed to pass. |
-| Stable authored references and project/history roundtrip across source types | New parity tests verify all three sources' Automatic/Fixed definitions, shared asset references and history through **both sparse and full codecs**, rejecting transient GPU/resource fields from sparse output. Ordinary-host Save/New/Load preserves the exact catalog. Existing [Picture import tests](../../apps/mapgyver/src/media/tests/picture_import.rs) retain atomic import/assignment and QuickJS returned asset/channel identity. |
-| Functional native resources and recreation across source types | Accepted gate 2 / [Solid Color native test](../../apps/mapgyver/tests/solid_color.rs): actual output sharing/color/extents, save/reload and fresh renderer/device on Intel/NVIDIA. Accepted gate 3 / [Picture native test](../../apps/mapgyver/tests/picture_pixels/mod.rs): decode/upload/share/relink/replacement, 4K save/reload/recreate and asset/GPU retirement on both adapters. Accepted gate 4 / [Shared Texture native test](../../apps/mapgyver/tests/shared_texture/mod.rs) retains independent inputs and recovery on both adapters; [existing channel recreation evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29) verifies authored selector/resize/reconnect/history/project identity, stale observation rejection and a fresh same-adapter runtime/device. This is controlled resource recreation; genuine removal/stuck retirement remains M03 gate 4. |
-| One Rust-owned contract and backend semantics | Existing generated-output drift test is included in the passing app suite. UI and scripts pass explicit intents; backend defaults/IDs, asset rules and history remain app-owned. No copied protocol declaration or caller compatibility shim is introduced. |
+| Final parity requirement                                                     | Verified evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI, generic QuickJS, hosted module and command caller parity                 | [Focused parity tests](../../apps/mapgyver/src/media/tests/commands/parity.rs): 29 mutation/inspection/rejection cases × four callers, source creation × three kinds × four callers, and six allocation cases × four callers = **152 executions**, including valid/wrong-owner reload. All compare committed typed values/IDs and peer state, callback correlation/count, rejection/history neutrality, one-step undo/redo and no request replay. Existing [module tests](../../apps/mapgyver/src/media/tests/commands.rs) retain public presets, passive commands, cancellation, read-only inspection, hosted snippets and app-owned callback wiring.                                                                                                                                                                                                                                                          |
+| Real UI rather than only a transport mock                                    | Accepted gate 5 / batch 50: [browser evidence](evidence/mapgyver-m04-ui-2026-10-31.json) covers actual creation/settings/rename/reorder/delete, Picture import/relink, independent Spout selectors, guards, undo and reload, with read-only backend correlation. Its native-picker/preview limits remain explicit; no new prerequisite is invented.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Ordinary headless host uses the same source intents                          | [Repeatable HTTP check](../../apps/mapgyver/tests/headless/media.mjs), run against ordinary `MapGyver.exe --headless --no-frontend --no-remote` with private APPDATA: three media/six channels, typed source/size/filter settings, peer continuity, shared asset relink, atomic rejection, Spout disconnect, history and exact Save/New/Load catalog/reference restoration. The supported sentinel yields exit zero. No frontend, renderer or OS application target is instantiated. Newly added `ReloadAsset`/history assertions remain unexecuted; that version is not claimed to pass.                                                                                                                                                                                                                                                                                                                       |
+| Stable authored references and project/history roundtrip across source types | New parity tests verify all three sources' Automatic/Fixed definitions, shared asset references and history through **both sparse and full codecs**, rejecting transient GPU/resource fields from sparse output. Ordinary-host Save/New/Load preserves the exact catalog. Existing [Picture import tests](../../apps/mapgyver/src/media/tests/picture_import.rs) retain atomic import/assignment and QuickJS returned asset/channel identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Functional native resources and recreation across source types               | Accepted gate 2 / [Solid Color native test](../../apps/mapgyver/tests/solid_color.rs): actual output sharing/color/extents, save/reload and fresh renderer/device on Intel/NVIDIA. Accepted gate 3 / [Picture native test](../../apps/mapgyver/tests/picture_pixels/mod.rs): decode/upload/share/relink/replacement, 4K save/reload/recreate and asset/GPU retirement on both adapters. Accepted gate 4 / [Shared Texture native test](../../apps/mapgyver/tests/shared_texture/mod.rs) retains independent inputs and recovery on both adapters; [existing channel recreation evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29) verifies authored selector/resize/reconnect/history/project identity, stale observation rejection and a fresh same-adapter runtime/device. This is controlled resource recreation; genuine removal/stuck retirement remains M03 gate 4. |
+| One Rust-owned contract and backend semantics                                | Existing generated-output drift test is included in the passing app suite. UI and scripts pass explicit intents; backend defaults/IDs, asset rules and history remain app-owned. No copied protocol declaration or caller compatibility shim is introduced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 The earlier passing ordinary-host baseline used binary SHA-256
 `56d0e7957e2e1795421c4291a1ef7b61a691c9b63113baf8f7b7540e38276f69`.
@@ -4119,13 +4184,13 @@ All **60 complete images / 280 texels** meet the fixed **2/255** oracle; reporte
 The small fixture deliberately tests source identity, policies, recovery and pixels, not scale or
 cadence. No production code, admission budget, color tolerance or driver/overlay setting changes.
 
-| Shared Texture requirement | Verified evidence |
-| --- | --- |
-| Independent channels and shared consumers; automatic/fixed sizes | [Fixed app/native test](../../apps/mapgyver/tests/shared_texture/mod.rs): one media owns Automatic A and Fixed 3×2 B, distinct native subscription bindings, and three independent observers on A/A/B. A resolves 2×2→4×3 while B's 3×2 channel persists through its own 3×2→4×3 input change. Installed-plan output fences precede every full-image observation. |
-| Discovery, absence/restart/rename/resize and rejected input recovery | Same test verifies exact-name catalog freshness at start/stop/restart/rename/exit, transparent unavailable output, 8×8 rejection against 4×4 admission, admitted-size recovery, no implicit renamed selection and explicit re-selection. [Discovery unit tests](../../crates/golden_video/src/native/discovery/tests/mod.rs) retain finite bounds, exact names, invalid UTF-8 and registry-churn handling. |
-| One failed channel remains isolated | Every failure retains the peer's exact prepared channel/source, requires advancing peer publications, and observes its live blue/cyan output while the failed channel is transparent. The peer remains intact through absence, oversize, rename and cross-adapter failure. |
-| Explicit adapter mismatch without fallback, followed by recovery | Known foreign producers on both opposite hardware adapters fail source-local shared-resource opening with HRESULT `0x80070057` (`E_INVALIDARG`), state Recovering, zero publications/copies/bridge slots. Selected renderer adapter/device remain unchanged; the healthy source continues. Explicit selection back to the local producer restores output. This proves the known cross-adapter scenario; it does not classify arbitrary HRESULT failures as adapter mismatch or claim a dedicated UI diagnostic. |
-| Stable references, project/history and resource lifetime | New native test retains references throughout and waits observer/render retirement plus exit-zero owned producers and disappearance from discovery. [Existing app native evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29) retains selector/resize/reconnect, undo, codec reload, stale project/device/layout rejection and fresh runtime/device recreation. [App publication tests](../../apps/mapgyver/src/media/rendering/tests/publication.rs) retain sharing, history/reload, placeholders and fresh selector bindings. Full cross-source UI/script/headless parity remains gate 6. |
+| Shared Texture requirement                                           | Verified evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Independent channels and shared consumers; automatic/fixed sizes     | [Fixed app/native test](../../apps/mapgyver/tests/shared_texture/mod.rs): one media owns Automatic A and Fixed 3×2 B, distinct native subscription bindings, and three independent observers on A/A/B. A resolves 2×2→4×3 while B's 3×2 channel persists through its own 3×2→4×3 input change. Installed-plan output fences precede every full-image observation.                                                                                                                                                                                                                                                               |
+| Discovery, absence/restart/rename/resize and rejected input recovery | Same test verifies exact-name catalog freshness at start/stop/restart/rename/exit, transparent unavailable output, 8×8 rejection against 4×4 admission, admitted-size recovery, no implicit renamed selection and explicit re-selection. [Discovery unit tests](../../crates/golden_video/src/native/discovery/tests/mod.rs) retain finite bounds, exact names, invalid UTF-8 and registry-churn handling.                                                                                                                                                                                                                      |
+| One failed channel remains isolated                                  | Every failure retains the peer's exact prepared channel/source, requires advancing peer publications, and observes its live blue/cyan output while the failed channel is transparent. The peer remains intact through absence, oversize, rename and cross-adapter failure.                                                                                                                                                                                                                                                                                                                                                      |
+| Explicit adapter mismatch without fallback, followed by recovery     | Known foreign producers on both opposite hardware adapters fail source-local shared-resource opening with HRESULT `0x80070057` (`E_INVALIDARG`), state Recovering, zero publications/copies/bridge slots. Selected renderer adapter/device remain unchanged; the healthy source continues. Explicit selection back to the local producer restores output. This proves the known cross-adapter scenario; it does not classify arbitrary HRESULT failures as adapter mismatch or claim a dedicated UI diagnostic.                                                                                                                 |
+| Stable references, project/history and resource lifetime             | New native test retains references throughout and waits observer/render retirement plus exit-zero owned producers and disappearance from discovery. [Existing app native evidence](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29) retains selector/resize/reconnect, undo, codec reload, stale project/device/layout rejection and fresh runtime/device recreation. [App publication tests](../../apps/mapgyver/src/media/rendering/tests/publication.rs) retain sharing, history/reload, placeholders and fresh selector bindings. Full cross-source UI/script/headless parity remains gate 6. |
 
 Validation: **188 passing app tests / one existing hardware ignore**; Golden Video **161 unit +
 four public integration tests pass / 20 existing hardware ignores**; strict all-target/all-feature
@@ -4200,12 +4265,12 @@ retain the same prepared texture without another upload; subsequent frames do no
 again. Save/reload preserves both channel and asset IDs. No native input receivers are created;
 observer pool release and actual asset-worker/GPU retirement pass on both adapters.
 
-| Picture requirement | Verified evidence |
-| --- | --- |
-| Worker preparation and bounded IO/decode/cache lifetime | [Golden Assets preparation tests](../../crates/golden_assets/tests/preparation.rs): background worker identity, source/seek/aggregate-read bounds, admission before decoder entry, held-clone item/byte pressure, cancellation, stale binding/file replacement rejection and final retirement off the consumer. All 17 crate tests pass. |
-| PNG/JPEG, color/alpha, dimensions and decode workspace | [App codec tests](../../apps/mapgyver/src/media/picture/tests/mod.rs): straight-alpha/sRGB metadata, grayscale/palette transparency, opaque JPEG, explicit unsupported color/16-bit rejection, pre-decode dimension/allocation admission, malformed/truncated inputs and EXIF orientation. Included in 188 passing app tests. |
-| Differing channels, production 4K budgets, lifecycle and relocation | [App renderer tests](../../apps/mapgyver/src/media/rendering/tests/pictures.rs): shared 4K preparation at production limits, automatic/fixed sizes, source sharing, undo/relink/reload, missing/replaced images, project-root relocation, healthy peer continuity and close/retirement. Included in the same app run. |
-| Actual color/alpha, sharing, missing/relink/replacement and recreate | [Fixed native pixel test](../../apps/mapgyver/tests/picture_pixels/mod.rs), driven through app authoring/capture/ChannelRenderer and independent Spout probe devices; the successful second invocation covers the complete predeclared matrix above. |
+| Picture requirement                                                  | Verified evidence                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Worker preparation and bounded IO/decode/cache lifetime              | [Golden Assets preparation tests](../../crates/golden_assets/tests/preparation.rs): background worker identity, source/seek/aggregate-read bounds, admission before decoder entry, held-clone item/byte pressure, cancellation, stale binding/file replacement rejection and final retirement off the consumer. All 17 crate tests pass. |
+| PNG/JPEG, color/alpha, dimensions and decode workspace               | [App codec tests](../../apps/mapgyver/src/media/picture/tests/mod.rs): straight-alpha/sRGB metadata, grayscale/palette transparency, opaque JPEG, explicit unsupported color/16-bit rejection, pre-decode dimension/allocation admission, malformed/truncated inputs and EXIF orientation. Included in 188 passing app tests.            |
+| Differing channels, production 4K budgets, lifecycle and relocation  | [App renderer tests](../../apps/mapgyver/src/media/rendering/tests/pictures.rs): shared 4K preparation at production limits, automatic/fixed sizes, source sharing, undo/relink/reload, missing/replaced images, project-root relocation, healthy peer continuity and close/retirement. Included in the same app run.                    |
+| Actual color/alpha, sharing, missing/relink/replacement and recreate | [Fixed native pixel test](../../apps/mapgyver/tests/picture_pixels/mod.rs), driven through app authoring/capture/ChannelRenderer and independent Spout probe devices; the successful second invocation covers the complete predeclared matrix above.                                                                                     |
 
 Strict all-target/all-feature MapGyver Clippy, both Cargo formatters and whitespace checks pass.
 Qualified binary `target/debug/deps/picture_rendering-a0263ade992b6f1b.exe` SHA-256:
@@ -4348,14 +4413,14 @@ whole-phase item with six fixed gates covering the same complete acceptance; no 
 removed and all six start open. M04 percentage is verified closed gates divided by six;
 overall remains fully accepted phases divided by ten.
 
-| Gate | Acceptance | State |
-| --- | --- | --- |
-| 1 | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30) |
-| 2 | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path | Accepted — batch 47: full-image color/alpha/extents/sharing/reload/recreation on Intel and NVIDIA |
-| 3 | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA |
-| 4 | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch | Accepted — batch 49: fixed app/native pixel/lifecycle matrix on Intel and NVIDIA, including both cross-adapter rejection directions and healthy peer continuity |
-| 5 | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts | Accepted again after redesign — [complete new-layout source matrix](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json), plus tree/folder/Inspector workbench and backend folder history/roundtrip. Original batch50 scope is preserved. |
-| 6 | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types | Accepted — batches 51–52: 152 caller executions, sparse/full codecs, full ordinary HTTP/history/Save/New/Load, actual Reload Picture UI and native public-intent replacement/recreation on Intel/NVIDIA |
+| Gate | Acceptance                                                                                                                                                                 | State                                                                                                                                                                                                                                                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30)                                                                                                                                                                                   |
+| 2    | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path                   | Accepted — batch 47: full-image color/alpha/extents/sharing/reload/recreation on Intel and NVIDIA                                                                                                                                                       |
+| 3    | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers                                           | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA                                                                                                                         |
+| 4    | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch  | Accepted — batch 49: fixed app/native pixel/lifecycle matrix on Intel and NVIDIA, including both cross-adapter rejection directions and healthy peer continuity                                                                                         |
+| 5    | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts                          | Accepted again after redesign — [complete new-layout source matrix](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json), plus tree/folder/Inspector workbench and backend folder history/roundtrip. Original batch50 scope is preserved. |
+| 6    | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types             | Accepted — batches 51–52: 152 caller executions, sparse/full codecs, full ordinary HTTP/history/Save/New/Load, actual Reload Picture UI and native public-intent replacement/recreation on Intel/NVIDIA                                                 |
 
 #### Media module commands and scripts — 2026-10-30
 
@@ -4762,12 +4827,12 @@ allows both live queries to succeed without changing the older unavailable obser
 
 ### M01 acceptance items
 
-| Item | State | Accepted scope / remaining work |
-| --- | --- | --- |
-| Ordinary underlay/DOM/native-input functional feasibility | Done | Native observations at 100%/125% establish the scoped route; full DPI/input/latency qualification stays with M05. |
-| D3D11/Spout two-source GPU composition and caller-device ownership | Done | Independent processes, finite pixel-accuracy checks and GPU-only frame transport establish functional feasibility. Renderer budgets stay with M03. |
-| Scoped editor/output independence, resize/restart and ownership cleanup | Done | Recorded interruption/reconnect/rebuild smoke establishes the functional mechanism. Sustained retirement/recovery budgets stay with M03 and owning features/M09. |
-| Host/backend/binding decision with explicit later-gate ownership | Done | Ordinary Tauri/Wry underlay, D3D11 and pinned `spout2-sys` 0.1.1 are selected for the thin shell; full qualification is explicitly not passed. |
+| Item                                                                    | State | Accepted scope / remaining work                                                                                                                                  |
+| ----------------------------------------------------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ordinary underlay/DOM/native-input functional feasibility               | Done  | Native observations at 100%/125% establish the scoped route; full DPI/input/latency qualification stays with M05.                                                |
+| D3D11/Spout two-source GPU composition and caller-device ownership      | Done  | Independent processes, finite pixel-accuracy checks and GPU-only frame transport establish functional feasibility. Renderer budgets stay with M03.               |
+| Scoped editor/output independence, resize/restart and ownership cleanup | Done  | Recorded interruption/reconnect/rebuild smoke establishes the functional mechanism. Sustained retirement/recovery budgets stay with M03 and owning features/M09. |
+| Host/backend/binding decision with explicit later-gate ownership        | Done  | Ordinary Tauri/Wry underlay, D3D11 and pinned `spout2-sys` 0.1.1 are selected for the thin shell; full qualification is explicitly not passed.                   |
 
 Evidence and limitations: [functional route decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)
 and [fixed qualification contract](mapgyver-qualification-contract.md). This is the user-approved
@@ -4775,15 +4840,15 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 
 ### M02 acceptance items
 
-| Item | State | Accepted scope / remaining work |
-| --- | --- | --- |
-| Public UI-bundling boundary | Done | [Public helper](../../crates/golden_core/support/codegen/src/ui_bundle/mod.rs) adopted by Chataigne; 19 support tests, strict Clippy and a real app build check with UI bundling enabled pass. SDK/formula/node/Tauri steps remain app-owned. |
-| MapGyver host/UI scaffold | Done | [Thin shell](mapgyver-m02-shell.md#implementation-boundaries) uses Golden's public host/workbench, app identity, project format/data directory, resources and capabilities. Fresh projects have the standard Dashboard; no placeholder Media/Screen managers. |
-| App branding and browser-state isolation | Done | [Backend metadata and browser namespaces](mapgyver-m02-shell.md#implementation-boundaries) separate layout, selection, recent path and credentials; app projects carry a validated identity. Stream Deck's editor belongs to Chataigne. |
-| Generic discovery and endpoint isolation | Done | [Rust-owned discovery DTOs](mapgyver-m02-shell.md#implementation-boundaries), generated protocol 0.13.0 and distinct backend/frontend ports; app identity is checked before UI admission and on fresh credentials. |
-| Explicit app selection in tools | Done | [Cargo/npm/xtask/watch/package commands](mapgyver-m02-shell.md#reproduction) select MapGyver explicitly; root defaults remain Chataigne. |
-| Typed optional native-presentation host lifecycle | Done | [Public extension and native smoke](mapgyver-m02-shell.md#optional-native-presentation-lifecycle) keep window construction/UI preparation at Golden's host, task resources on its worker, HWND destruction after retirement, and joining after the event loop. Default/headless paths do not prepare presentation. |
-| Combined launch and boundary verification | Done | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified. |
+| Item                                              | State | Accepted scope / remaining work                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Public UI-bundling boundary                       | Done  | [Public helper](../../crates/golden_core/support/codegen/src/ui_bundle/mod.rs) adopted by Chataigne; 19 support tests, strict Clippy and a real app build check with UI bundling enabled pass. SDK/formula/node/Tauri steps remain app-owned.                                                                      |
+| MapGyver host/UI scaffold                         | Done  | [Thin shell](mapgyver-m02-shell.md#implementation-boundaries) uses Golden's public host/workbench, app identity, project format/data directory, resources and capabilities. Fresh projects have the standard Dashboard; no placeholder Media/Screen managers.                                                      |
+| App branding and browser-state isolation          | Done  | [Backend metadata and browser namespaces](mapgyver-m02-shell.md#implementation-boundaries) separate layout, selection, recent path and credentials; app projects carry a validated identity. Stream Deck's editor belongs to Chataigne.                                                                            |
+| Generic discovery and endpoint isolation          | Done  | [Rust-owned discovery DTOs](mapgyver-m02-shell.md#implementation-boundaries), generated protocol 0.13.0 and distinct backend/frontend ports; app identity is checked before UI admission and on fresh credentials.                                                                                                 |
+| Explicit app selection in tools                   | Done  | [Cargo/npm/xtask/watch/package commands](mapgyver-m02-shell.md#reproduction) select MapGyver explicitly; root defaults remain Chataigne.                                                                                                                                                                           |
+| Typed optional native-presentation host lifecycle | Done  | [Public extension and native smoke](mapgyver-m02-shell.md#optional-native-presentation-lifecycle) keep window construction/UI preparation at Golden's host, task resources on its worker, HWND destruction after retirement, and joining after the event loop. Default/headless paths do not prepare presentation. |
+| Combined launch and boundary verification         | Done  | [Concurrent bundled/dev/headless runs](mapgyver-m02-shell.md#live-windows-verification--2026-10-28), own save/reopen and foreign-file rejection pass; engine/protocol packages and both full desktop apps compile and test through public boundaries. Native quality remains unqualified.                          |
 
 ### M03 acceptance items
 
@@ -5088,8 +5153,7 @@ tree digest. [Complete result](evidence/mapgyver-m03-embedded-shaders-lifecycle-
 
 **Decision:** memory investigation/experiment chain ends here. Keep the shader preparation change
 for its proven removal of repeated compilation and exact shader equivalence; do not claim it
-fixes private growth. Complete the missing published output-queue observations next within gate
-9. The memory failure returns when new ownership/allocation evidence supports a specific
+fixes private growth. Complete the missing published output-queue observations next within gate 9. The memory failure returns when new ownership/allocation evidence supports a specific
 correction, retaining the unchanged maximum-growth criterion. GPU critical path, physical
 allocation identity, final Q01/Q02, pending window-deadline decision, genuine removal/stuck-drain
 and later phase acceptance remain open. **No gate closes; M03 remains 7/9**, overall **4/10**.
@@ -5129,14 +5193,14 @@ post-work pause: minimum **2.0000695 s**, warmed baseline pause **10.001492 s**,
 **10.0014405 s**. These checks resolve the prior fixture pause/lifetime gaps without reducing
 the requested workload or resource limits.
 
-| Resource measurement | Cycle-10 baseline | Final drained state / observed maximum |
-| --- | --- | --- |
-| Handles | 939 | 935, delta **−4** |
-| Private bytes | 229,220,352 | Final **236,404,736**, delta **7,184,384 bytes / 6.8515625 MiB** |
-| Peak post-baseline checkpoint private bytes | Same baseline | **271,630,336**, growth **42,409,984 bytes / 40.4453125 MiB** |
-| Logical texture reservation | 160,358,672 | **160,358,672**, exact return |
-| Active plan bytes | 32,256,000 | **32,256,000**, exact return |
-| Prepared / retiring / input bindings | 0 / 0 / 2 | **0 / 0 / 2** |
+| Resource measurement                        | Cycle-10 baseline | Final drained state / observed maximum                           |
+| ------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| Handles                                     | 939               | 935, delta **−4**                                                |
+| Private bytes                               | 229,220,352       | Final **236,404,736**, delta **7,184,384 bytes / 6.8515625 MiB** |
+| Peak post-baseline checkpoint private bytes | Same baseline     | **271,630,336**, growth **42,409,984 bytes / 40.4453125 MiB**    |
+| Logical texture reservation                 | 160,358,672       | **160,358,672**, exact return                                    |
+| Active plan bytes                           | 32,256,000        | **32,256,000**, exact return                                     |
+| Prepared / retiring / input bindings        | 0 / 0 / 2         | **0 / 0 / 2**                                                    |
 
 The unchanged verifier is eligible and fails the **32 MiB maximum checkpoint growth** budget;
 handles and logical return pass their scoped checks. The lower final drained growth does not
@@ -5352,10 +5416,10 @@ and after; overlay stays Off. Paired inventories match, and environment identity
 three samples. Source/workload/Present/cadence/deadline/join/driver settings are unchanged.
 
 | Sample | Main/editor misses out of 7,200 each | Spout misses | Exact sample Spout captures | CPU wall p95/p99 ms | Renderer-context GPU p95/p99 ms | Frame-start lateness p95/p99 ms | Shutdown ms |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 214 / 214 | 0 | 7,200 / 7,200 | 0.6848 / 0.8268 | 3.487680 / 3.508512 | 0.5361 / 0.5902 | 441.9306 |
-| 2 | 36 / 37 | 0 | 7,200 / 7,200 | 0.6371 / 0.7305 | 3.447200 / 4.198880 | 0.5242 / 0.5642 | 457.6566 |
-| 3 | 8 / 8 | 0 | 7,200 / 7,200 | 0.6151 / 0.7063 | 1.845632 / 1.941184 | 0.5374 / 0.6230 | 435.4011 |
+| ------ | ------------------------------------ | ------------ | --------------------------- | ------------------- | ------------------------------- | ------------------------------- | ----------- |
+| 1      | 214 / 214                            | 0            | 7,200 / 7,200               | 0.6848 / 0.8268     | 3.487680 / 3.508512             | 0.5361 / 0.5902                 | 441.9306    |
+| 2      | 36 / 37                              | 0            | 7,200 / 7,200               | 0.6371 / 0.7305     | 3.447200 / 4.198880             | 0.5242 / 0.5642                 | 457.6566    |
+| 3      | 8 / 8                                | 0            | 7,200 / 7,200               | 0.6151 / 0.7063     | 1.845632 / 1.941184             | 0.5374 / 0.6230                 | 435.4011    |
 
 Every observed criterion passes except `deadline_misses`. Every accepted sample Spout image
 has an exact completed independent capture; all six 60-second interruption cohorts and their
@@ -5512,22 +5576,22 @@ in all three samples**: actual MSVC/SDK/executable/source, driver/default WebVie
 display identity stay fixed, before/after QPC snapshots bracket the native work, fresh native
 Home UIA exposes `Enable and open overlay` at both ends, and the setting is unchanged.
 
-| NVIDIA Q02 measured evidence | Sample 1 | Sample 2 | Sample 3 |
-| --- | --- | --- | --- |
-| Main accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
-| Editor accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
-| Spout accepted / Busy, of 7,200 | 7,199 / 1 | 7,199 / 1 | 7,200 / 0 |
-| Main deadline misses, of 7,200 | 4,572 | 1,841 | 139 |
-| Editor deadline misses, of 7,200 | 4,572 | 1,846 | 141 |
-| Spout deadline misses, of 7,200 | 1 | 1 | 0 |
-| Exact accepted Spout image captures | 7,199 / 7,199 | 7,199 / 7,199 | 7,200 / 7,200 |
-| Missing accepted images, minimized / disconnected | 0 / 0 | 0 / 0 | 0 / 0 |
-| Editor independence | Pass | Pass | Pass |
-| Environment identity | Pass | Pass | Pass |
-| CPU inclusive wall p95 / p99, ms | 0.5569 / 0.6511 | 0.6564 / 0.7761 | 0.6950 / 0.7996 |
-| Renderer-context GPU p95 / p99, ms | 3.5225 / 4.1014 | 4.2178 / 5.7830 | 3.3831 / 3.5038 |
-| Complete shutdown, ms | 446.4 | 454.0 | 426.0 |
-| Actual runtime retirement, ms | 134.4 | 130.1 | 123.9 |
+| NVIDIA Q02 measured evidence                      | Sample 1        | Sample 2        | Sample 3        |
+| ------------------------------------------------- | --------------- | --------------- | --------------- |
+| Main accepted / Busy, of 7,200                    | 7,200 / 0       | 7,200 / 0       | 7,200 / 0       |
+| Editor accepted / Busy, of 7,200                  | 7,200 / 0       | 7,200 / 0       | 7,200 / 0       |
+| Spout accepted / Busy, of 7,200                   | 7,199 / 1       | 7,199 / 1       | 7,200 / 0       |
+| Main deadline misses, of 7,200                    | 4,572           | 1,841           | 139             |
+| Editor deadline misses, of 7,200                  | 4,572           | 1,846           | 141             |
+| Spout deadline misses, of 7,200                   | 1               | 1               | 0               |
+| Exact accepted Spout image captures               | 7,199 / 7,199   | 7,199 / 7,199   | 7,200 / 7,200   |
+| Missing accepted images, minimized / disconnected | 0 / 0           | 0 / 0           | 0 / 0           |
+| Editor independence                               | Pass            | Pass            | Pass            |
+| Environment identity                              | Pass            | Pass            | Pass            |
+| CPU inclusive wall p95 / p99, ms                  | 0.5569 / 0.6511 | 0.6564 / 0.7761 | 0.6950 / 0.7996 |
+| Renderer-context GPU p95 / p99, ms                | 3.5225 / 4.1014 | 4.2178 / 5.7830 | 3.3831 / 3.5038 |
+| Complete shutdown, ms                             | 446.4           | 454.0           | 426.0           |
+| Actual runtime retirement, ms                     | 134.4           | 130.1           | 123.9           |
 
 All remaining observed criteria, including API cadence, exact capture/age and Spout deadline
 bounds, pass. The complete GPU critical path, renderer lifecycle handle/private growth and
@@ -5658,20 +5722,20 @@ actual **3840×2160** physical client/backing at **(2560, 0)**, DPI **1**, witho
 The selected physical monitor is **1920×1080**; no physical 4K, DPI, alignment or scanout pass is
 inferred. No implementation, adapter, driver, overlay, workload, cadence or budget changed.
 
-| Q02 measured evidence | Sample 1 | Sample 2 | Sample 3 |
-| --- | --- | --- | --- |
-| Main accepted / Busy | 7,192 / 8 | 7,195 / 5 | 7,198 / 3 |
-| Editor accepted / Busy | 7,175 / 25 | 7,155 / 45 | 7,116 / 84 |
-| Spout accepted / Busy | 7,199 / 1 | 7,196 / 4 | 7,199 / 1 |
-| Main deadline misses, of 7,200 anchored slots | 7,037 | 7,087 | 4,277 |
-| Editor deadline misses, of 7,200 anchored slots | 7,198 | 7,173 | 6,984 |
-| Exact accepted Spout image captures | 7,195 / 7,199 | 7,189 / 7,196 | 7,197 / 7,199 |
-| Missing accepted images, minimized / disconnected | 1 / 1 | 1 / 0 | 2 / 0 |
-| CPU inclusive wall p95 / p99, ms | 0.5619 / 0.7097 | 0.5916 / 0.8970 | 0.5301 / 1.1823 |
-| Renderer-context GPU p95 / p99, ms | 15.0306 / 16.2581 | 15.1067 / 16.5147 | 13.3021 / 16.3720 |
-| Outputs GPU-partition median / p95, ms | 7.6141 / 11.0453 | 7.7988 / 10.3905 | 5.5720 / 8.9110 |
-| Complete shutdown, ms | 409.8 | 449.9 | 418.5 |
-| Actual runtime retirement, ms | 110.2 | 119.3 | 111.8 |
+| Q02 measured evidence                             | Sample 1          | Sample 2          | Sample 3          |
+| ------------------------------------------------- | ----------------- | ----------------- | ----------------- |
+| Main accepted / Busy                              | 7,192 / 8         | 7,195 / 5         | 7,198 / 3         |
+| Editor accepted / Busy                            | 7,175 / 25        | 7,155 / 45        | 7,116 / 84        |
+| Spout accepted / Busy                             | 7,199 / 1         | 7,196 / 4         | 7,199 / 1         |
+| Main deadline misses, of 7,200 anchored slots     | 7,037             | 7,087             | 4,277             |
+| Editor deadline misses, of 7,200 anchored slots   | 7,198             | 7,173             | 6,984             |
+| Exact accepted Spout image captures               | 7,195 / 7,199     | 7,189 / 7,196     | 7,197 / 7,199     |
+| Missing accepted images, minimized / disconnected | 1 / 1             | 1 / 0             | 2 / 0             |
+| CPU inclusive wall p95 / p99, ms                  | 0.5619 / 0.7097   | 0.5916 / 0.8970   | 0.5301 / 1.1823   |
+| Renderer-context GPU p95 / p99, ms                | 15.0306 / 16.2581 | 15.1067 / 16.5147 | 13.3021 / 16.3720 |
+| Outputs GPU-partition median / p95, ms            | 7.6141 / 11.0453  | 7.7988 / 10.3905  | 5.5720 / 8.9110   |
+| Complete shutdown, ms                             | 409.8             | 449.9             | 418.5             |
+| Actual runtime retirement, ms                     | 110.2             | 119.3             | 111.8             |
 
 The three native runs and owned collectors exit normally. Every submitted frame token has exactly
 three final output records, with **zero duplicate token/output rows**; raw outcome totals match
@@ -5738,18 +5802,18 @@ it does not close gate 9 or certify unmeasured requirements. Series status is **
 not fully qualified. Candidate executable SHA-256:
 `13e045b534124f23abbec9a1b8b727f1e4c85bf4079f6009cbb176da6c311bbd`.
 
-| Q01 measured acceptance | Sample 1 | Sample 2 | Sample 3 |
-| --- | --- | --- | --- |
-| Main accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
-| Editor accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,200 / 0 |
-| Spout accepted / Busy, of 7,200 | 7,200 / 0 | 7,200 / 0 | 7,199 / 1 |
-| Main / editor / Spout deadline misses | 0 / 0 / 0 | 0 / 1 / 0 | 0 / 0 / 1 |
-| Exact accepted Spout image captures | 7,200 / 7,200 | 7,200 / 7,200 | 7,199 / 7,199 |
-| Editor independence | Pass | Pass | Pass |
-| CPU inclusive wall p95 / p99, ms | 0.6475 / 0.7280 | 0.5380 / 0.6274 | 0.5601 / 0.6227 |
-| Renderer-context GPU p95 / p99, ms | 3.2306 / 3.8086 | 3.8580 / 4.0884 | 3.4514 / 3.8922 |
-| Complete shutdown, ms | 386.6 | 406.7 | 397.6 |
-| Actual runtime retirement, ms | 95.9 | 99.2 | 102.8 |
+| Q01 measured acceptance               | Sample 1        | Sample 2        | Sample 3        |
+| ------------------------------------- | --------------- | --------------- | --------------- |
+| Main accepted / Busy, of 7,200        | 7,200 / 0       | 7,200 / 0       | 7,200 / 0       |
+| Editor accepted / Busy, of 7,200      | 7,200 / 0       | 7,200 / 0       | 7,200 / 0       |
+| Spout accepted / Busy, of 7,200       | 7,200 / 0       | 7,200 / 0       | 7,199 / 1       |
+| Main / editor / Spout deadline misses | 0 / 0 / 0       | 0 / 1 / 0       | 0 / 0 / 1       |
+| Exact accepted Spout image captures   | 7,200 / 7,200   | 7,200 / 7,200   | 7,199 / 7,199   |
+| Editor independence                   | Pass            | Pass            | Pass            |
+| CPU inclusive wall p95 / p99, ms      | 0.6475 / 0.7280 | 0.5380 / 0.6274 | 0.5601 / 0.6227 |
+| Renderer-context GPU p95 / p99, ms    | 3.2306 / 3.8086 | 3.8580 / 4.0884 | 3.4514 / 3.8922 |
+| Complete shutdown, ms                 | 386.6           | 406.7           | 397.6           |
+| Actual runtime retirement, ms         | 95.9            | 99.2            | 102.8           |
 
 Across all phases, raw output records cover **16,225 / 16,223 / 16,225** submitted frame tokens
 with exactly three final outcomes per token and **zero duplicate token/output rows**. Raw
@@ -5942,10 +6006,10 @@ all three native renderers and collectors exit **zero**. This is a full required
 another short diagnostic. All before/after execution inputs and executable/tool hashes match.
 
 | Q01 sample | Main / Spout / editor accepted | Main / Spout / editor deadline misses, each /7,200 | CPU p95 / p99 ms | Renderer-context GPU p95 / p99 ms | Complete shutdown ms |
-| --- | --- | --- | --- | --- | --- |
-| 1 | 7,200 / 7,199 / 7,200 | 3 / 1 / 1,269 | 0.6481 / 0.7294 | 4.8865 / 5.5846 | 1,343.3419 |
-| 2 | 7,200 / 7,200 / 7,200 | 496 / 0 / 568 | 0.6683 / 0.7488 | 3.9068 / 4.7371 | 1,352.1745 |
-| 3 | 7,200 / 7,200 / 7,200 | 1 / 0 / 45 | 0.6197 / 0.6770 | 5.9668 / 6.2661 | 1,285.1592 |
+| ---------- | ------------------------------ | -------------------------------------------------- | ---------------- | --------------------------------- | -------------------- |
+| 1          | 7,200 / 7,199 / 7,200          | 3 / 1 / 1,269                                      | 0.6481 / 0.7294  | 4.8865 / 5.5846                   | 1,343.3419           |
+| 2          | 7,200 / 7,200 / 7,200          | 496 / 0 / 568                                      | 0.6683 / 0.7488  | 3.9068 / 4.7371                   | 1,352.1745           |
+| 3          | 7,200 / 7,200 / 7,200          | 1 / 0 / 45                                         | 0.6197 / 0.6770  | 5.9668 / 6.2661                   | 1,285.1592           |
 
 Every accepted Spout image has an exact completed independent capture: **7,199 / 7,200 / 7,200**
 with **zero missing images**. Each renderer GPU cohort has **7,200 valid spans**, no missing
@@ -6095,17 +6159,17 @@ preflight must pass before the genuine-reset decision; actual device removal and
 recovery retain their original acceptance. The next turn must not restart the passing
 held-observation experiment or expand a diagnostic framework.
 
-| Item | State | Accepted scope / remaining work |
-| --- | --- | --- |
-| Immutable render/resource plan compiler | Done | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred. |
-| Bounded worker/null runtime and atomic install | Done | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open. |
-| D3D11/Spout backend and host integration | Done | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/steady-state budgets retain gates 4/9; physical presentation remains M05. |
-| Runtime observations and device recovery | Open | [Startup retry](mapgyver-m03-render-foundations.md#admitted-startup-retries--2026-10-29) and [endpoint recovery](mapgyver-m03-render-foundations.md#independent-native-endpoint-recovery--2026-10-29) verify baseline admission, isolated output retry/state/fenced replacement, source withdrawal and simulated failed-reset/cancellation/project fencing. Genuine native removal/recreation and stuck-drain recovery/retirement bounds remain required. |
-| App-owned media/channel backend contracts | Done | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
-| Shared production-time authority | Done | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open. |
-| Shared persistent asset/preparation boundary | Done | [App Picture/asset integration](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29): app-owned stable references/locators, sparse/full codec/history/QuickJS, missing/replaced/relinked/relocated sources, bounded worker decode and retained CPU/GPU resources. Native upload/share/recreation and stale installation rejection pass. Chataigne audio/collect/scheduling P15 acceptance and full native qualification remain open. |
-| Native preview registration/geometry contracts | Done | [Preview contract/native consumer](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29): Rust-generated DTOs, host-owned metrics, coalesced leased layout, Svelte clipping/visibility/retirement, finite crop/clear pixel oracle and actual shared-host lifecycle pass. Specialized editors/full physical/DPI/input stay M05–M07. |
-| Native renderer qualification | Open | Unchanged Q01/Q02 CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown budgets and applicable recovery against the production replacement; historical failures preserved. |
+| Item                                           | State | Accepted scope / remaining work                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Immutable render/resource plan compiler        | Done  | [Compiler evidence](mapgyver-m03-render-foundations.md#immutable-render-plan-compiler--2026-10-28): explicit texture/color/alpha, deterministic whole-graph validation/demand compilation, bounded raw work/checked logical bytes, 29 tests including a 10k chain. No runtime/native admission pass is inferred.                                                                                                                                                                |
+| Bounded worker/null runtime and atomic install | Done  | [Runtime evidence](mapgyver-m03-render-foundations.md): Golden IO workers/fences, one preparation/latest desired plan, bounded reliable outcomes and resource admission, frame-boundary install, at most two in-flight uses/two retiring generations, completion-based worker-local destruction. Null resources simulate allocation/use; native proof stays open.                                                                                                               |
+| D3D11/Spout backend and host integration       | Done  | [Native input/output evidence](mapgyver-m03-render-foundations.md#bounded-spout-inputs--2026-10-29): opaque GPU resources, explicit LUID/caller-device ownership, four-mode conversion/composition, independent-process Spout inputs and window/Spout output consumers pass. Shared-host regression passes. Full recovery/steady-state budgets retain gates 4/9; physical presentation remains M05.                                                                             |
+| Runtime observations and device recovery       | Open  | [Startup retry](mapgyver-m03-render-foundations.md#admitted-startup-retries--2026-10-29) and [endpoint recovery](mapgyver-m03-render-foundations.md#independent-native-endpoint-recovery--2026-10-29) verify baseline admission, isolated output retry/state/fenced replacement, source withdrawal and simulated failed-reset/cancellation/project fencing. Genuine native removal/recreation and stuck-drain recovery/retirement bounds remain required.                       |
+| App-owned media/channel backend contracts      | Done  | [Authoring and live bridge](mapgyver-m03-render-foundations.md#app-channel-publication-bridge--2026-10-29): typed persistent references, backend defaults/operations, generated contracts, demanded-leaf capture and guarded plan publication. History/reload, source changes/resize/reconnect and controlled native runtime/device recreation preserve channel identity. Genuine device-removal recovery stays gate 4; dedicated manager controls/commands/templates stay M04. |
+| Shared production-time authority               | Done  | [Golden Time](../../crates/golden_time/README.md) supplies checked coordinates/rational mappings and authority/discontinuity epochs consumed by the threaded video scheduler; fake-time activation/shared-output and stale-epoch tests pass. Shared P14 plan records this evidence; audio/DMX acceptance remains open.                                                                                                                                                          |
+| Shared persistent asset/preparation boundary   | Done  | [App Picture/asset integration](mapgyver-m03-render-foundations.md#app-assets-and-picture-resources--2026-10-29): app-owned stable references/locators, sparse/full codec/history/QuickJS, missing/replaced/relinked/relocated sources, bounded worker decode and retained CPU/GPU resources. Native upload/share/recreation and stale installation rejection pass. Chataigne audio/collect/scheduling P15 acceptance and full native qualification remain open.                |
+| Native preview registration/geometry contracts | Done  | [Preview contract/native consumer](mapgyver-m03-render-foundations.md#native-preview-registration-and-geometry--2026-10-29): Rust-generated DTOs, host-owned metrics, coalesced leased layout, Svelte clipping/visibility/retirement, finite crop/clear pixel oracle and actual shared-host lifecycle pass. Specialized editors/full physical/DPI/input stay M05–M07.                                                                                                           |
+| Native renderer qualification                  | Open  | Unchanged Q01/Q02 CPU/GPU/cadence/frame-age/admission/memory/handle/shutdown budgets and applicable recovery against the production replacement; historical failures preserved.                                                                                                                                                                                                                                                                                                 |
 
 The [nine-item definition](../plan/MapGyver_Implementation_Plan.md#m03--deliver-renderresource-and-channel-foundations)
 covers the original complete M03 acceptance. This is a denominator breakdown from 1 to 9, not a
@@ -6186,18 +6250,18 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Milestones
 
-| Milestone | State | Evidence / next acceptance |
-| --- | --- | --- |
-| M00 Reconciliation/workloads | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md) |
-| M01 Functional route decision | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09. |
-| M02 Multi-app seams/shell | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred. |
-| M03 Rendering/channels | IN_PROGRESS | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open. |
-| M04 Source media | COMPLETE_LOCAL | All6/6 gates accepted. [Complete new-layout source UI](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json) reaccepts gate5; original source-native, command/script/headless, asset/history and recreation evidence is retained. |
-| M05 Screens/Surfaces/editors | IN_PROGRESS | [Authoring, crop/warp, calibration and full new-layout Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Complete new-layout Source input also passes; native preview, hotplug/minimize and the physical matrix remain open. |
-| M06 Composition/editor | IN_PROGRESS | [Authoring, dependencies, native rasters and actual browser lifetime](#m06-acceptance-items): gates1–3/4 accepted. Input/history/dock layout and accepted-drag New/review reload pass; native imagery/extent-based outline/shape selection retain gate4. |
-| M07 Matrix/editor | IN_PROGRESS | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Media Manager catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3. |
-| M08 App lifetimes | IN_PROGRESS | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
-| M09 App/artifact qualification | NOT_STARTED | Requires implemented product and fixed native workloads |
+| Milestone                      | State          | Evidence / next acceptance                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M00 Reconciliation/workloads   | VERIFIED_LOCAL | [Checkout/public-boundary/hardware handoff](mapgyver-m00-baseline.md), [captured inventory](evidence/mapgyver-baseline-2026-10-27.json), and fixed [qualification workloads/budgets](mapgyver-qualification-contract.md)                                                                                                                                                                                               |
+| M01 Functional route decision  | COMPLETE_LOCAL | [Approved decision](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28): ordinary Tauri/Wry + D3D11 + pinned Spout sys binding permit the thin shell. Full qualification remains with M03/M05/M09.                                                                                                                                                                                               |
+| M02 Multi-app seams/shell      | COMPLETE_LOCAL | [Shell/isolation and typed host lifecycle](mapgyver-m02-shell.md) close all seven fixed items. The real Windows smoke verifies STA/worker/window teardown; no GPU or physical-output qualification is inferred.                                                                                                                                                                                                        |
+| M03 Rendering/channels         | IN_PROGRESS    | [Compiler, runtime, native execution, channels, shared time/assets and preview contracts](mapgyver-m03-render-foundations.md) close 7/9 fixed gates. Production recovery and native qualification remain open.                                                                                                                                                                                                         |
+| M04 Source media               | COMPLETE_LOCAL | All6/6 gates accepted. [Complete new-layout source UI](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json) reaccepts gate5; original source-native, command/script/headless, asset/history and recreation evidence is retained.                                                                                                                                                                         |
+| M05 Screens/Surfaces/editors   | IN_PROGRESS    | [Authoring, crop/warp, calibration and full new-layout Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Complete new-layout Source input also passes; native preview, hotplug/minimize and the physical matrix remain open.                                                                                                                                                                               |
+| M06 Composition/editor         | IN_PROGRESS    | [Authoring, dependencies, native rasters and actual browser lifetime](#m06-acceptance-items): gates1–3/4 accepted. Input/history/dock layout and accepted-drag New/review reload pass; native imagery/extent-based outline/shape selection retain gate4.                                                                                                                                                               |
+| M07 Matrix/editor              | IN_PROGRESS    | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Media Manager catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3.                                                                                                                                                                       |
+| M08 App lifetimes              | IN_PROGRESS    | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
+| M09 App/artifact qualification | NOT_STARTED    | Requires implemented product and fixed native workloads                                                                                                                                                                                                                                                                                                                                                                |
 
 ## Next action
 
@@ -6255,13 +6319,13 @@ default. Physical output/DPI and full-app qualification retain their M05/M09 own
 
 **Approved scope correction — continuing acceptance ownership:**
 
-| Milestone | Responsibility |
-| --- | --- |
-| M01 | Record functional feasibility and a host/backend/binding choice from the existing native evidence: ordinary Tauri/Wry underlay, D3D11, pinned Spout binding, two GPU sources, composition, editor independence and scoped ownership cleanup. Explicitly retain limitations and failed qualification results. |
-| M02 | Proceed with the thin app shell and public multi-app/host seams after that functional decision. This does not approve production editors or claim qualified rendering. |
-| M03 | Own reusable renderer scheduling, measured GPU/CPU budgets, resource bounds and applicable recovery/retirement fixes before accepting those mechanisms. |
-| M05 | Own correct physical output placement, preview alignment, quantitative input/layout latency and the full display/DPI/input matrix before accepting those features. |
-| M09 and owning features | Run the complete applicable sustained/recovery qualification against the actual app; preserve the fixed Q01/Q02 budgets and historical failures. Full product/Matrix Q05 remains here and with the features that introduce its behavior. |
+| Milestone               | Responsibility                                                                                                                                                                                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M01                     | Record functional feasibility and a host/backend/binding choice from the existing native evidence: ordinary Tauri/Wry underlay, D3D11, pinned Spout binding, two GPU sources, composition, editor independence and scoped ownership cleanup. Explicitly retain limitations and failed qualification results. |
+| M02                     | Proceed with the thin app shell and public multi-app/host seams after that functional decision. This does not approve production editors or claim qualified rendering.                                                                                                                                       |
+| M03                     | Own reusable renderer scheduling, measured GPU/CPU budgets, resource bounds and applicable recovery/retirement fixes before accepting those mechanisms.                                                                                                                                                      |
+| M05                     | Own correct physical output placement, preview alignment, quantitative input/layout latency and the full display/DPI/input matrix before accepting those features.                                                                                                                                           |
+| M09 and owning features | Run the complete applicable sustained/recovery qualification against the actual app; preserve the fixed Q01/Q02 budgets and historical failures. Full product/Matrix Q05 remains here and with the features that introduce its behavior.                                                                     |
 
 The approved M01→M02 dependency is the functional route decision. The four-item M01 gate is
 closed in its recorded scope; the original eight-item full-qualification matrix was **not
@@ -7297,7 +7361,7 @@ renderer handle/growth/drain and genuine removal/recovery remain required under 
   untagged uploads now leave existing primary/backup files byte-for-byte unchanged and never
   resolve a new destination, including recovery requests. The host keeps the configured app
   URL and admits only its exact origin. `cargo test --locked --profile dev -p
-  golden_transport_server -p golden_host_desktop` passes: **86 transport**, **13 desktop** and
+golden_transport_server -p golden_host_desktop` passes: **86 transport**, **13 desktop** and
   **1 public headless** test; two existing tests remain ignored.
 - The affected persistence, engine, desktop, transport, protocol, codegen and xtask test suites
   pass. Engine regression after module extraction: **655 passed, 3 ignored**. MapGyver's two

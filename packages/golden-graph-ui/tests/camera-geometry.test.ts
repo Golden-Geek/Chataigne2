@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	cameraAtZoom,
 	cameraForBounds,
+	cameraZoomFactor,
 	graphBoundsForNodes,
 	visibleViewport
 } from '../camera-geometry';
@@ -16,6 +17,13 @@ const node = (id: number, x: number): GraphNode => ({
 });
 
 describe('generic graph camera geometry', () => {
+	it('uses one bounded wheel response for pixel, line and page input across editors', () => {
+		expect(cameraZoomFactor(-100)).toBeCloseTo(Math.exp(0.14));
+		expect(cameraZoomFactor(-6.25, 1)).toBe(cameraZoomFactor(-100));
+		expect(cameraZoomFactor(-1, 2, 100)).toBe(cameraZoomFactor(-100));
+		expect(cameraZoomFactor(-10000)).toBe(cameraZoomFactor(-500));
+		expect(cameraZoomFactor(Number.NaN)).toBe(1);
+	});
 	it('frames 150k nodes without spreading them into function arguments', () => {
 		const nodes = Array.from({ length: 150_000 }, (_, index) => node(index, index));
 		const bounds = graphBoundsForNodes(

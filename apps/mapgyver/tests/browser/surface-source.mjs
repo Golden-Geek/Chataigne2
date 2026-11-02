@@ -54,9 +54,13 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		const controls = screenParameterControls(page);
 		await screenTab.click();
 		await tree.getByRole('button', { name: 'Add child item', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Screen', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const first = snapshot.screens[0].surfaces[0];
-		await tree.getByRole('button', { name: 'Add Surface', exact: true }).click();
+		await tree
+			.getByRole('treeitem', { name: snapshot.screens[0].label, exact: true })
+			.getByRole('button', { name: 'Add child item', exact: true })
+			.click();
 		snapshot = await wait(screens, (value) => value.screens[0].surfaces.length === 2);
 		const peer = snapshot.screens[0].surfaces[1];
 		await tree.getByRole('button', { name: first.label, exact: true }).click();
@@ -154,7 +158,10 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			{ x: 0.9, y: 0.96 },
 			{ x: 0.02, y: 0.9 }
 		].entries())
-			assert(near(configured.quad.corners[index], point));
+			assert(
+				near(configured.quad.corners[index], point),
+				`corner ${index}: actual=${JSON.stringify(configured.quad.corners[index])} expected=${JSON.stringify(point)} complete=${JSON.stringify(configured)}`
+			);
 		stage = 'generic Surface Parameter history';
 		for (let depth = configuredDepth; depth > initialDepth; depth--) {
 			await undo();
@@ -328,16 +335,92 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		assert.deepEqual(await crop(), accepted, 'held-pointer motion after Escape cannot author');
 		after = await screens();
 		await roundtrip(before, after, accepted);
-		stage = 'invalid crop Parameter';
+		stage = 'finite crop Parameters remain contained';
+		const beforeClamp = await screens();
 		await controls.setNumber('Crop origin', 0.9, 0);
-		await wait(() => rejected.some((item) => item.request?.stage === stage), Boolean);
-		await controls.number('Crop origin').press('Escape');
-		assert.deepEqual(await screens(), after);
+		const maximumOrigin = 1 - beforeClamp.screens[0].surfaces[0].definition.crop.width;
+		await wait(crop, (value) => near(value, { x: maximumOrigin }));
+		await wait(
+			() => controls.number('Crop origin').inputValue(),
+			(value) => Math.abs(Number(value) - maximumOrigin) < 0.005
+		);
+		const clamped = await screens();
+		await roundtrip(beforeClamp, clamped, clamped.screens[0].surfaces[0].definition.crop);
+		const clampedDepth = history.undo_len;
+		await controls.setNumber('Crop origin', 1.5, 0);
+		await wait(
+			() => controls.number('Crop origin').inputValue(),
+			(value) => Math.abs(Number(value) - maximumOrigin) < 0.005
+		);
+		assert.deepEqual(await screens(), clamped);
+		assert.equal(history.undo_len, clampedDepth, 'a clamped no-op cannot consume history');
 		await undo();
-		await wait(crop, (value) => near(value, before.screens[0].surfaces[0].definition.crop));
-		assert.deepEqual(await screens(), before);
+		await wait(crop, (value) => near(value, beforeClamp.screens[0].surfaces[0].definition.crop));
+		assert.deepEqual(await screens(), beforeClamp);
 		await redo();
-		await wait(crop, (value) => near(value, accepted));
+		await wait(crop, (value) => near(value, clamped.screens[0].surfaces[0].definition.crop));
+		stage = 'Inspector crop feedback before pointer release';
+		before = await screens();
+		const cropBeforeSlider = before.screens[0].surfaces[0].definition.crop;
+		await panel.getByRole('button', { name: 'Zoom in', exact: true }).click();
+		const zoomBeforeSlider = await panel.locator('output[aria-label="View zoom"]').innerText();
+		assert.notEqual(zoomBeforeSlider, '100%', 'exercise a camera different from Home');
+		const canvasBeforeSlider = await svg.boundingBox();
+		const slider = controls.parameter('Crop size').getByRole('slider').nth(0);
+		await slider.scrollIntoViewIfNeeded();
+		const sliderBounds = await slider.boundingBox();
+		assert(sliderBounds && sliderBounds.width > 10 && sliderBounds.height > 0);
+		await page.mouse.move(
+			sliderBounds.x + sliderBounds.width / 2,
+			sliderBounds.y + sliderBounds.height / 2
+		);
+		await page.mouse.down();
+		await wait(screens, () => history.active_edit_session);
+		await page.mouse.move(
+			sliderBounds.x + sliderBounds.width * 0.3,
+			sliderBounds.y + sliderBounds.height / 2,
+			{ steps: 12 }
+		);
+		await wait(
+			async () => {
+				const authored = await crop();
+				const displayed = Number(await svg.locator('rect').getAttribute('width'));
+				const handle = await panel
+					.getByRole('button', { name: 'Crop corner 2', exact: true })
+					.boundingBox();
+				const canvas = await svg.boundingBox();
+				return { authored, displayed, handle, canvas, active: history.active_edit_session };
+			},
+			(value) => {
+				if (!value.active || !value.handle || !value.canvas) return false;
+				const handleX = value.handle.x + value.handle.width / 2;
+				const expectedX =
+					value.canvas.x + (value.authored.x + value.authored.width) * value.canvas.width;
+				return (
+					value.authored.width < cropBeforeSlider.width - 0.04 &&
+					Math.abs(value.displayed - value.authored.width) < 0.00001 &&
+					Math.abs(handleX - expectedX) < 1
+				);
+			}
+		);
+		assert.equal(
+			await panel.locator('output[aria-label="View zoom"]').innerText(),
+			zoomBeforeSlider
+		);
+		const canvasHeld = await svg.boundingBox();
+		assert(
+			canvasBeforeSlider &&
+				canvasHeld &&
+				['x', 'y', 'width', 'height'].every(
+					(key) => Math.abs(canvasBeforeSlider[key] - canvasHeld[key]) < 0.01
+				),
+			'Inspector samples preserve the current view camera'
+		);
+		await page.mouse.up();
+		await ready();
+		await wait(screens, () => !history.active_edit_session);
+		after = await screens();
+		await roundtrip(before, after, after.screens[0].surfaces[0].definition.crop);
 		stage = 'source loss and Undo';
 		await page
 			.getByRole('tab')
@@ -349,7 +432,13 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			() => inspector.locator('.inspector-header .title-text').innerText(),
 			(value) => value === sourceMedia.label
 		);
-		await inspector.getByRole('button', { name: 'Delete media', exact: true }).click();
+		await manager
+			.getByRole('button', { name: sourceMedia.label, exact: true })
+			.click({ button: 'right' });
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('Delete', { exact: true }) })
+			.click();
 		await wait(inspectMedia, (value) => !value.media.some((entry) => entry.id === sourceMedia.id));
 		await screenTab.click();
 		await tree.getByRole('button', { name: first.label, exact: true }).click();
@@ -378,21 +467,14 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		await ready();
 		assert.deepEqual(await screens(), after);
 		assert.deepEqual(errors, []);
-		assert(rejected.some((item) => item.request?.stage === 'invalid crop Parameter'));
-		assert(
-			rejected.every((item) => {
-				const request = item.request;
-				return request?.stage === 'invalid crop Parameter' && request.intent?.kind === 'setParam';
-			}),
-			'Only the explicit invalid crop cases may reject'
-		);
+		assert.deepEqual(rejected, [], 'finite crop controls and Inspector drags never reject');
 		await svg.scrollIntoViewIfNeeded();
 		await page.screenshot({ path: 'target/m05-surface-source-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'actual generic Surface Parameters/calibration/crop/origin/rejection/Escape/source-loss/history input; native preview remains unverified',
+					'actual generic Surface Parameters/calibration/crop/origin/clamping/live-before-release/Escape/source-loss/history input; native preview remains unverified',
 				browser: browser.version(),
 				surface: first.reference,
 				source: source.reference,

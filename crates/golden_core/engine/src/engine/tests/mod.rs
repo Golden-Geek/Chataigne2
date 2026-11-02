@@ -30,3 +30,4 @@ mod script_properties;
 mod tree_revisions;
 mod trigger_history;
 mod ui_event_ordering;
+mod user_item_creation;

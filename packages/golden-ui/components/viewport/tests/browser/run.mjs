@@ -20,6 +20,7 @@ try {
 		headless: true
 	});
 	const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+	page.setDefaultTimeout(3000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(error.message));
 	await page.goto(`http://127.0.0.1:${address.port}`);
@@ -54,11 +55,18 @@ try {
 	const anchor = { x: initial.x + initial.width * 0.4, y: initial.y + initial.height * 0.45 };
 	await page.mouse.move(anchor.x, anchor.y);
 	await page.mouse.wheel(0, -100);
-	await zoom.getByText('122%').waitFor();
+	await zoom.getByText('115%').waitFor();
 	const zoomed = await box(active);
 	near(zoomed.x + zoomed.width * 0.4, anchor.x, 'wheel anchor X');
 	near(zoomed.y + zoomed.height * 0.45, anchor.y, 'wheel anchor Y');
 	await roundHandle(originalHandle);
+	await page.getByRole('button', { name: 'Update geometry snapshot', exact: true }).click();
+	assert.equal(
+		await zoom.textContent(),
+		'115%',
+		'A same-document geometry snapshot preserves zoom'
+	);
+	near((await box(active)).x, zoomed.x, 'A same-document geometry snapshot preserves pan');
 	await view.focus();
 	await page.keyboard.press('Home');
 	await zoom.getByText('100%').waitFor();
@@ -86,9 +94,20 @@ try {
 	await page.mouse.up({ button: 'middle' });
 	near((await box(active)).x, panned.x - 45, 'middle pan X');
 	near((await box(active)).y, panned.y + 20, 'middle pan Y');
+	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await zoom.getByText('120%').waitFor();
+	const beforeEdit = await box(active);
+	await handle.click();
+	assert.equal(await page.getByLabel('Domain edit starts').textContent(), '1');
+	near((await box(active)).x, beforeEdit.x, 'Handle edit receipts preserve pan X');
+	near((await box(active)).y, beforeEdit.y, 'Handle edit receipts preserve pan Y');
+	near((await box(active)).width, beforeEdit.width, 'Handle edit receipts preserve zoom');
+	await page.getByRole('button', { name: 'Change selection', exact: true }).click();
+	near((await box(active)).x, beforeEdit.x, 'Changing selection preserves pan');
+	near((await box(active)).width, beforeEdit.width, 'Changing selection preserves zoom');
 	await view.focus();
 	await page.keyboard.press('f');
-	await zoom.getByText('340%').waitFor();
+	await zoom.getByText('400%').waitFor();
 	const framed = await box(selection);
 	const stageBounds = await box(stage);
 	near(framed.x + framed.width / 2, stageBounds.x + stageBounds.width / 2, 'F centers selection X');
@@ -104,24 +123,35 @@ try {
 	await zoom.getByText('120%').waitFor();
 	await view.getByRole('button', { name: 'Zoom out', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
+	await page.keyboard.press('f');
+	await zoom.getByText('400%').waitFor();
 	await view.getByRole('button', { name: 'Frame selection', exact: true }).click();
-	await zoom.getByText('340%').waitFor();
+	await zoom.getByText('400%').waitFor();
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
-	await view.getByRole('button', { name: 'Pan view', exact: true }).click();
-	const panHandle = await box(handle);
-	await page.mouse.move(panHandle.x + panHandle.width / 2, panHandle.y + panHandle.height / 2);
-	await page.mouse.down();
-	await page.mouse.move(
-		panHandle.x + panHandle.width / 2 + 20,
-		panHandle.y + panHandle.height / 2 - 10
-	);
-	await page.mouse.up();
-	assert.equal(await page.getByLabel('Domain edit starts').textContent(), '0');
-	near((await box(active)).x, initial.x + 20, 'pan toolbar gesture');
-	await view.getByRole('button', { name: 'Pan view', exact: true }).click();
-	await handle.click();
-	assert.equal(await page.getByLabel('Domain edit starts').textContent(), '1');
+	assert.equal(await view.getByRole('button', { name: 'Pan view', exact: true }).count(), 0);
+	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await zoom.getByText('120%').waitFor();
+	await page.keyboard.press('+');
+	await zoom.getByText('144%').waitFor();
+	await page.keyboard.press('-');
+	await zoom.getByText('120%').waitFor();
+	await page.keyboard.press('h');
+	await zoom.getByText('100%').waitFor();
+	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await page.keyboard.press('Home');
+	await zoom.getByText('100%').waitFor();
+	const zoomIn = view.getByRole('button', { name: 'Zoom in', exact: true });
+	assert.equal(await zoomIn.getAttribute('title'), 'Zoom in (+)');
+	await zoomIn.focus();
+	await page.keyboard.press('Space');
+	await zoom.getByText('120%').waitFor();
+	assert.equal(await view.evaluate((element) => element.classList.contains('panning')), false);
+	await page.keyboard.press('h');
+	await zoom.getByText('100%').waitFor();
+	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await page.getByRole('button', { name: 'Change document', exact: true }).click();
+	await zoom.getByText('100%').waitFor();
 	await page.getByRole('button', { name: 'Resize view', exact: true }).click();
 	await page.waitForFunction(
 		() => document.querySelector('main').getBoundingClientRect().width === 512
@@ -147,6 +177,12 @@ try {
 			toolbar: true,
 			panSuppressesDomainEdits: true,
 			nativeTransparency: true,
+			cameraPreservedAcrossSnapshotsAndHandleEdits: true,
+			cameraPreservedAcrossSelection: true,
+			hShortcut: true,
+			noStickyPanTool: true,
+			shortcutsAfterToolbarClick: true,
+			nativeToolbarSpaceActivation: true,
 			pageErrors: errors
 		})
 	);

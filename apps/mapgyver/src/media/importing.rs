@@ -45,13 +45,13 @@ pub(super) fn picture(
         let (tree, reference) = media_tree(media_label.expect("new media label"), definition);
         (Some(tree), reference)
     };
-    engine.edits.push(Edit::AddNodeTree {
+    engine.edits.push(Edit::AddUserItemTree {
         parent,
         prev_sibling: previous,
         tree: NodeTree::new(node),
     });
     if let Some(tree) = tree {
-        engine.edits.push(Edit::AddNodeTree {
+        engine.edits.push(Edit::AddUserItemTree {
             parent,
             prev_sibling: previous,
             tree,

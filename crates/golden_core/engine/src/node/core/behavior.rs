@@ -97,6 +97,17 @@ pub trait Node: Send + Any {
         Ok(())
     }
 
+    /// Optionally normalizes one descendant parameter against its owning domain before
+    /// validation, mutation or history capture. This must be pure and bounded. Atomic writes
+    /// expose every leaf-prepared sibling proposal and run one normalization pass, then validate
+    /// the complete normalized proposal; return None to keep the value without cloning it.
+    fn normalize_parameter_change(
+        &self,
+        _change: &super::ParameterValidationContext<'_>,
+    ) -> Result<Option<crate::parameter::ParamValue>, String> {
+        Ok(None)
+    }
+
     #[doc(hidden)]
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)
@@ -183,6 +194,17 @@ pub trait Node: Send + Any {
     /// Creates a detached user-item subtree under the same constraints as [`Self::create_user_item`].
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
         self.create_user_item(node_type).map(NodeTree::boxed)
+    }
+
+    /// Prepares a new live user item with bounded document access. Persistence decoding
+    /// deliberately retains the intrinsic factory and never applies live creation policy.
+    fn create_user_item_tree_with_context(
+        &self,
+        node_type: &str,
+        context: &super::UserItemCreationContext<'_>,
+    ) -> Option<NodeTree> {
+        let _ = context;
+        self.create_user_item_tree(node_type)
     }
 
     /// Creates a detached hosted user item under the same constraints as [`Self::create_user_item`].

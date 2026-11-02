@@ -48,7 +48,7 @@ fn create(
     let mut node = ApplicationNode::new(label, definition);
     node.node_data_mut().meta.enabled = enabled;
     let application = ApplicationId(node.node_data().meta.uuid);
-    engine.edits.push(Edit::AddNodeTree {
+    engine.edits.push(Edit::AddUserItemTree {
         parent: manager,
         prev_sibling: engine.nodes.get(manager).unwrap().node_data().last_child,
         tree: NodeTree::new(node),
@@ -242,7 +242,11 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
     let owned = |id| matches!(engine.nodes.get(id), Some(AppNode::Application(_)));
     let protected = match intent {
-        UiEditIntent::MoveNode { node, new_parent, .. } => owned(*node) || owned(*new_parent),
+        UiEditIntent::MoveNode { node, new_parent, .. } => {
+            owned(*new_parent)
+                || (owned(*node)
+                    && engine.nodes.get(*node).and_then(|node| node.node_data().parent) != Some(*new_parent))
+        }
         UiEditIntent::DuplicateNode { source, new_parent, .. } => owned(*source) || owned(*new_parent),
         UiEditIntent::DuplicateNodes {
             nodes,

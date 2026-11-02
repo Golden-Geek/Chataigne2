@@ -273,12 +273,11 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
 }
 
 #[test]
-fn crop_parameters_expose_unit_bounds_and_reject_invalid_authored_rectangles() {
+fn crop_parameters_expose_unit_bounds_and_normalize_containment_before_history() {
     let mut engine = fixture();
     let (_, surface) = create(&mut engine);
     let root = engine.node_id_by_uuid(surface.surface.0).unwrap();
     let fields = parameters(&engine, root);
-    let original = definition(&engine, surface);
     let history = engine.undo_len();
     for field in ["parameters/crop_origin", "parameters/crop_size"] {
         let id = fields[field];
@@ -287,19 +286,120 @@ fn crop_parameters_expose_unit_bounds_and_reject_invalid_authored_rectangles() {
             snapshot.constraints.range,
             RangeConstraint::components(Some(vec![0.0, 0.0]), Some(vec![1.0, 1.0]))
         );
-        for value in [ParamValue::Vec2(-0.1, 0.5), ParamValue::Vec2(0.5, 1.1)] {
-            assert!(!set(&mut engine, id, value).success);
-            assert_eq!(definition(&engine, surface), original);
-        }
     }
-    for (field, value) in [
-        ("parameters/crop_origin", ParamValue::Vec2(1.0, 0.0)),
-        ("parameters/crop_size", ParamValue::Vec2(0.0, 1.0)),
-    ] {
-        assert!(!set(&mut engine, fields[field], value).success);
-        assert_eq!(definition(&engine, surface), original);
+    assert!(
+        set(
+            &mut engine,
+            fields["parameters/crop_origin"],
+            ParamValue::Vec2(0.9, 0.9)
+        )
+        .success
+    );
+    assert_eq!(definition(&engine, surface).crop, UnitRect::FULL);
+    assert_eq!(engine.undo_len(), history, "a clamped translation no-op has no history");
+    assert!(set(&mut engine, fields["parameters/crop_size"], ParamValue::Vec2(0.6, 0.5)).success);
+    assert_eq!(
+        engine
+            .nodes
+            .get(fields["parameters/crop_size"])
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Vec2(0.6, 0.5),
+        "valid authored values retain their precision"
+    );
+    let sized = definition(&engine, surface);
+    assert!(
+        set(
+            &mut engine,
+            fields["parameters/crop_origin"],
+            ParamValue::Vec2(0.9, -0.2)
+        )
+        .success
+    );
+    let translated = definition(&engine, surface);
+    assert!(translated.crop.is_valid());
+    assert!((translated.crop.x - 0.4).abs() < 1e-6);
+    assert_eq!(translated.crop.y, 0.0);
+    assert_eq!(
+        (translated.crop.width, translated.crop.height),
+        (sized.crop.width, sized.crop.height)
+    );
+    assert!(set(&mut engine, fields["parameters/crop_size"], ParamValue::Vec2(1.5, 1.5)).success);
+    let expanded = definition(&engine, surface);
+    assert!(expanded.crop.is_valid());
+    assert_eq!(
+        (expanded.crop.x, expanded.crop.y),
+        (translated.crop.x, translated.crop.y)
+    );
+    assert!((expanded.crop.x + expanded.crop.width - 1.0).abs() < 1e-6);
+    assert_eq!(expanded.crop.height, 1.0);
+    assert_eq!(engine.undo_len(), history + 3);
+    for expected in [&translated, &sized] {
+        assert!(engine.undo().unwrap());
+        assert_eq!(&definition(&engine, surface), expected);
     }
-    assert_eq!(engine.undo_len(), history);
+    for expected in [&translated, &expanded] {
+        assert!(engine.redo().unwrap());
+        assert_eq!(&definition(&engine, surface), expected);
+    }
+    assert!(set(&mut engine, fields["parameters/crop_size"], ParamValue::Vec2(0.0, 0.0)).success);
+    assert!(definition(&engine, surface).crop.is_valid());
+}
+
+#[test]
+fn inspector_crop_samples_remain_contained_and_one_undo_restores_the_complete_surface() {
+    let mut engine = fixture();
+    let (_, surface) = create(&mut engine);
+    let root = engine.node_id_by_uuid(surface.surface.0).unwrap();
+    let fields = parameters(&engine, root);
+    let original = definition(&engine, surface);
+    let history = engine.undo_len();
+    super::gestures::session(&mut engine, true);
+    for index in 1..=50 {
+        assert!(
+            set(
+                &mut engine,
+                fields["parameters/crop_size"],
+                ParamValue::Vec2(1.0 - f64::from(index) / 100.0, 0.8),
+            )
+            .success
+        );
+        assert!(
+            set(
+                &mut engine,
+                fields["parameters/crop_origin"],
+                ParamValue::Vec2(0.95, 0.95),
+            )
+            .success
+        );
+        assert!(definition(&engine, surface).crop.is_valid());
+    }
+    let accepted = definition(&engine, surface);
+    assert_eq!(
+        SurfaceDefinition {
+            crop: original.crop,
+            ..accepted.clone()
+        },
+        original
+    );
+    assert!(!set(&mut engine, fields["parameters/top_left"], ParamValue::Vec2(1.0, 1.0)).success);
+    assert!(
+        !set(
+            &mut engine,
+            fields["parameters/crop_origin"],
+            ParamValue::Vec2(f64::NAN, 0.0)
+        )
+        .success
+    );
+    assert_eq!(definition(&engine, surface), accepted);
+    super::gestures::session(&mut engine, false);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(definition(&engine, surface), original);
+    assert!(engine.redo().unwrap());
+    assert_eq!(definition(&engine, surface), accepted);
 }
 
 #[test]
@@ -315,7 +415,7 @@ fn atomic_mapping_uses_the_complete_quad_and_crop_and_undo_restores_the_complete
     // opposite corner. The full proposal must not validate that intermediate quad.
     assert!(!set(&mut engine, fields["parameters/top_left"], ParamValue::Vec2(1.0, 1.0)).success);
     assert!(
-        !set(
+        set(
             &mut engine,
             fields["parameters/crop_origin"],
             ParamValue::Vec2(0.75, 0.75)
@@ -640,6 +740,18 @@ fn copying_a_surface_preserves_parameters_controls_and_shared_sources_independen
     let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
     validate_engine_project_candidate(&loaded).unwrap();
     assert_eq!(super::super::inspect(&loaded).unwrap(), after);
+    let mut declared = fixture();
+    let (_, declared_surface) = create(&mut declared);
+    let declared_root = declared.node_id_by_uuid(declared_surface.surface.0).unwrap();
+    let declared_fields = parameters(&declared, declared_root);
+    let mut loaded_parameters = HashMap::new();
+    for (original_fields, reference) in [(&fields, original), (&copied_fields, copied)] {
+        let loaded_root = loaded.node_id_by_uuid(reference.surface.0).unwrap();
+        let loaded_fields = parameters(&loaded, loaded_root);
+        for (name, id) in original_fields {
+            loaded_parameters.insert(*id, loaded_fields[name]);
+        }
+    }
     for id in fields
         .values()
         .chain(copied_fields.values())
@@ -647,10 +759,25 @@ fn copying_a_surface_preserves_parameters_controls_and_shared_sources_independen
         .chain([control, copied_control])
     {
         let node = engine.nodes.get(id).unwrap();
-        let loaded_id = loaded.node_id_by_uuid(node.node_data().meta.uuid).unwrap();
+        // Sparse reconstructs unchanged declared defaults (see the generic Parameter
+        // roundtrip fixture above). Authored values, constraints and controls retain UUIDs.
+        let default_leaf = declared_fields.get(&node.node_data().meta.decl_id.0).is_some_and(|id| {
+            let baseline = declared.nodes.get(*id).unwrap();
+            let mut metadata = baseline.node_data().meta.clone();
+            metadata.uuid = node.node_data().meta.uuid;
+            baseline.engine_param_snapshot() == node.engine_param_snapshot() && metadata == node.node_data().meta
+        });
+        let loaded_id = loaded
+            .node_id_by_uuid(node.node_data().meta.uuid)
+            .or_else(|| default_leaf.then(|| loaded_parameters[&id]))
+            .unwrap_or_else(|| panic!("authored sparse UUID missing for {}", node.node_data().meta.decl_id.0));
         assert_eq!(
             loaded.nodes.get(loaded_id).unwrap().engine_param_snapshot(),
             node.engine_param_snapshot()
+        );
+        assert_eq!(
+            loaded.nodes.get(loaded_id).unwrap().node_data().meta.user_permissions,
+            node.node_data().meta.user_permissions
         );
     }
 }

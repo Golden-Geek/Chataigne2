@@ -4,20 +4,53 @@
 	let narrow = $state(false);
 	let native = $state(false);
 	let edits = $state(0);
+	let document = $state({
+		id: 'fixture',
+		aspect: 2,
+		revision: 0,
+		selection: { x: 0.15, y: 0.2, width: 0.2, height: 0.25 }
+	});
+	function replaceSnapshot() {
+		document = { ...document, revision: document.revision + 1 };
+	}
 </script>
 
 <button onclick={() => (narrow = !narrow)}>Resize view</button>
 <button onclick={() => (native = !native)}>Toggle native</button>
+<button onclick={replaceSnapshot}>Update geometry snapshot</button>
+<button
+	onclick={() => {
+		document = {
+			...document,
+			selection: { ...document.selection, x: document.selection.x + 0.05 }
+		};
+	}}>Change selection</button>
+<button
+	onclick={() => {
+		document = { ...document, id: `${document.id}-next` };
+	}}>Change document</button>
 <output aria-label="Domain edit starts">{edits}</output>
 <main style:width={narrow ? '32rem' : '50rem'}>
 	<Viewport2D
-		aspect={2}
-		identity="fixture"
+		aspect={document.aspect}
+		identity={document.id}
 		{native}
-		selection={{ x: 0.15, y: 0.2, width: 0.2, height: 0.25 }}
+		selection={document.selection}
 		label="Test viewport">
-		<ViewportHandle x={0.35} y={0.4} label="Test handle" onpointerdown={() => (edits += 1)} />
-		<div class="selection" aria-label="Test selection"></div>
+		<ViewportHandle
+			x={0.35}
+			y={0.4}
+			label="Test handle"
+			onpointerdown={() => {
+				edits += 1;
+				replaceSnapshot();
+				queueMicrotask(replaceSnapshot);
+			}} />
+		<div
+			class="selection"
+			aria-label="Test selection"
+			style:left={`${document.selection.x * 100}%`}>
+		</div>
 	</Viewport2D>
 </main>
 

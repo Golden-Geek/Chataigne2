@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { ScreenAuthoringController, createScreenAuthoringState } from '../authoring.ts';
 import type { ScreenEditResult } from '../generated/ScreenEditResult';
 import type { ScreenSnapshot } from '../generated/ScreenSnapshot';
+import type { SurfaceSnapshot } from '../generated/SurfaceSnapshot';
 
 const deferred = <T>() => {
 	let resolve!: (value: T) => void;
@@ -25,6 +26,27 @@ const catalog = (...screens: ScreenSnapshot[]): ScreenEditResult => ({
 	snapshot: { screens }
 });
 const media = async () => ({ media: [], assets: [] });
+const surface = (width = 1): SurfaceSnapshot => ({
+	reference: { screen: 'current', surface: 'surface' },
+	label: 'Surface',
+	definition: {
+		source: null,
+		crop: { x: 0, y: 0, width, height: 1 },
+		quad: {
+			corners: [
+				{ x: 0, y: 0 },
+				{ x: 1, y: 0 },
+				{ x: 1, y: 1 },
+				{ x: 0, y: 1 }
+			]
+		},
+		opacity: 1,
+		calibration: 'Off',
+		enabled: true
+	}
+});
+const ownedCatalog = (): ScreenEditResult =>
+	catalog({ ...screen('current'), surfaces: [surface()] });
 
 test('a live gesture defers catalog inspection until it finishes', async () => {
 	const current = session();
@@ -161,4 +183,124 @@ test('rejection preserves committed catalog and surfaces its error', async () =>
 	assert.equal(state.catalog, before);
 	assert.match(state.error, /invalid quad/);
 	assert.equal(state.pending, false);
+});
+
+test('generic Inspector edits publish bounded Surface reads before their edit session ends', async () => {
+	const current = { ...session(), hasActiveEditSession: false };
+	const state = createScreenAuthoringState();
+	const pending = [deferred<ScreenEditResult>(), deferred<ScreenEditResult>()];
+	let ownerReads = 0,
+		catalogs = 0,
+		mediaReads = 0;
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async (_, request) => {
+			if (request.kind === 'InspectManager') {
+				catalogs++;
+				return ownedCatalog();
+			}
+			assert.equal(request.kind, 'InspectSurface');
+			return pending[ownerReads++].promise;
+		},
+		media: async () => {
+			mediaReads++;
+			return media();
+		}
+	});
+	await controller.refresh();
+	current.hasActiveEditSession = true;
+	const request = { kind: 'InspectSurface', reference: surface().reference } as const;
+	const task = controller.refreshOwner(request);
+	for (let sample = 0; sample < 100; sample++) void controller.refreshOwner(request);
+	assert.equal(ownerReads, 1, 'one owner read is in flight');
+	pending[0].resolve({ kind: 'Surface', snapshot: surface(0.8) });
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(current.hasActiveEditSession, true);
+	assert.equal(
+		controller.surface?.definition.crop.width,
+		0.8,
+		'accepted samples render while later samples are pending'
+	);
+	assert.equal(ownerReads, 2, 'intermediate samples coalesce into one newest read');
+	pending[1].resolve({ kind: 'Surface', snapshot: surface(0.4) });
+	await task;
+	assert.equal(controller.surface?.definition.crop.width, 0.4);
+	assert.equal(catalogs, 1);
+	assert.equal(mediaReads, 1, 'live crop samples do not inspect the whole document/media catalog');
+	assert.equal(controller.busy, false);
+});
+
+test('a live Screen definition updates output geometry without replacing its Surfaces', async () => {
+	const current = session();
+	const state = createScreenAuthoringState();
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async (_, request) =>
+			request.kind === 'InspectManager'
+				? ownedCatalog()
+				: {
+						kind: 'ScreenDefinition',
+						screen: 'current',
+						definition: {
+							enabled: true,
+							target: { kind: 'Spout', sender: 'Output', extent: { width: 480, height: 640 } }
+						}
+					},
+		media
+	});
+	await controller.refresh();
+	const surfaces = controller.screen?.surfaces;
+	await controller.refreshOwner({ kind: 'InspectScreen', screen: 'current' });
+	assert.equal(controller.screen?.definition.target?.kind, 'Spout');
+	assert.equal(controller.screen?.surfaces, surfaces);
+	assert.equal(state.selectedSurface, 'surface');
+});
+
+test('canvas ownership fences in-flight Inspector reads and defers further reads until it ends', async () => {
+	const current = session();
+	const state = createScreenAuthoringState();
+	const read = deferred<ScreenEditResult>();
+	let ownerReads = 0;
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async (_, request) => {
+			if (request.kind === 'InspectManager') return ownedCatalog();
+			ownerReads++;
+			return read.promise;
+		},
+		media
+	});
+	await controller.refresh();
+	const request = { kind: 'InspectSurface', reference: surface().reference } as const;
+	const pending = controller.refreshOwner(request);
+	controller.setInteracting(true);
+	controller.acceptSurface(surface(0.7));
+	for (let sample = 0; sample < 100; sample++) await controller.refreshOwner(request);
+	read.resolve({ kind: 'Surface', snapshot: surface(0.2) });
+	await pending;
+	assert.equal(ownerReads, 1);
+	assert.equal(
+		controller.surface?.definition.crop.width,
+		0.7,
+		'late Inspector reads cannot overwrite accepted canvas geometry'
+	);
+});
+
+test('project replacement and full refresh fence stale live owner responses', async () => {
+	const current = session();
+	const state = createScreenAuthoringState();
+	const read = deferred<ScreenEditResult>();
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async (_, request) =>
+			request.kind === 'InspectManager' ? ownedCatalog() : read.promise,
+		media
+	});
+	await controller.refresh();
+	const pending = controller.refreshOwner({
+		kind: 'InspectSurface',
+		reference: surface().reference
+	});
+	current.snapshotGeneration++;
+	await controller.refresh();
+	read.resolve({ kind: 'Surface', snapshot: surface(0.2) });
+	await pending;
+	assert.equal(controller.surface?.definition.crop.width, 1);
+	assert.equal(state.error, '');
 });

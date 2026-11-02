@@ -283,14 +283,18 @@ impl<T: Node> Engine<T> {
             .nodes
             .get(factory_node_id)
             .ok_or(ProjectPersistenceError::MissingNode(factory_node_id))?;
-        let tree = factory_node.create_user_item_tree(node_type).ok_or_else(|| {
-            ProjectPersistenceError::Engine(EngineEditError::UserItemTypeUnavailable {
-                edit_index: 0,
-                operation,
-                parent,
-                node_type: node_type.to_string(),
-            })
-        })?;
+        let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
+        let context = crate::node::UserItemCreationContext::new(self.root, &lookup);
+        let tree = factory_node
+            .create_user_item_tree_with_context(node_type, &context)
+            .ok_or_else(|| {
+                ProjectPersistenceError::Engine(EngineEditError::UserItemTypeUnavailable {
+                    edit_index: 0,
+                    operation,
+                    parent,
+                    node_type: node_type.to_string(),
+                })
+            })?;
         self.prepare_user_item_subtree(parent, prev_sibling, tree, resolved_label, initial_params, operation)
     }
 

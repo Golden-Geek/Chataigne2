@@ -1,0 +1,139 @@
+//! App hierarchy policy shared by manager, generic Outliner, script and transport intents.
+use crate::app::{AppEngine, AppNode};
+use golden_core::{
+    node::{Node, NodeId, UserNodeRole},
+    ui_sync::UiEditIntent,
+};
+use std::collections::{HashMap, HashSet};
+
+fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
+    match engine.nodes.get(id) {
+        Some(AppNode::MediaChannel(node)) => !node
+            .node_data()
+            .parent
+            .and_then(|parent| engine.nodes.get(parent))
+            .is_some_and(
+                |node| matches!(node, AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Matrix),
+            ),
+        Some(
+            AppNode::Media(_)
+            | AppNode::MediaFolder(_)
+            | AppNode::MediaAsset(_)
+            | AppNode::Application(_)
+            | AppNode::CompositionInstance(_)
+            | AppNode::Screen(_)
+            | AppNode::Surface(_),
+        ) => true,
+        _ => false,
+    }
+}
+
+/// Authored app objects are curated items by hierarchy policy, including projects saved when
+/// their constructors accidentally used Regular insertion. Classify before candidate publication;
+/// keep identities, declared Parameter children, settings and paired Matrix exports unchanged.
+pub(crate) fn classify_authored_items(engine: &mut AppEngine) {
+    let ids = engine
+        .nodes
+        .iter()
+        .filter_map(|(id, _)| editable_item(engine, id).then_some(id))
+        .collect::<Vec<_>>();
+    for id in ids {
+        let data = engine.nodes.get_mut(id).unwrap().node_data_mut();
+        data.user_role = UserNodeRole::ItemRoot;
+        data.meta.user_permissions.can_edit_name = true;
+        data.meta.user_permissions.can_remove_and_duplicate = true;
+    }
+}
+
+pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
+    match intent {
+        UiEditIntent::MoveNode { node, new_parent, .. } => validate_move(engine, *node, *new_parent),
+        UiEditIntent::RemoveNode { node } => validate_removals(engine, &[*node]),
+        UiEditIntent::RemoveNodes { nodes } => validate_removals(engine, nodes),
+        _ => Ok(()),
+    }
+}
+
+pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> Result<(), String> {
+    let Some(node) = engine.nodes.get(id) else {
+        return Ok(());
+    };
+    let old_parent = node.node_data().parent;
+    let destination = engine.nodes.get(parent);
+    let valid = match node {
+        AppNode::Media(_) | AppNode::MediaFolder(_) => {
+            let folder = match destination {
+                Some(AppNode::MediaManager(_)) => None,
+                Some(AppNode::MediaFolder(node)) => Some(node.node_data().meta.uuid),
+                _ => return Err("media and folders belong in Media Manager or its folders".into()),
+            };
+            super::folders::parent(engine, folder)? == parent
+        }
+        AppNode::MediaChannel(_) | AppNode::CompositionInstance(_) => old_parent == Some(parent),
+        AppNode::MediaAsset(_) | AppNode::Application(_) => parent == super::authoring::manager(engine)?,
+        AppNode::Screen(_) => {
+            matches!(destination, Some(AppNode::ScreenManager(node)) if node.node_data().parent == Some(engine.root))
+        }
+        AppNode::Surface(_) => {
+            matches!(destination, Some(AppNode::Screen(screen)) if screen.node_data().parent.and_then(|id| engine.nodes.get(id)).is_some_and(|node| matches!(node, AppNode::ScreenManager(_))))
+        }
+        _ => return Ok(()),
+    };
+    if !valid {
+        return Err("this object may be sorted within its owner but cannot change document ownership".into());
+    }
+    if old_parent != Some(parent) {
+        let mut child = destination.and_then(|node| node.node_data().first_child);
+        while let Some(sibling) = child {
+            let sibling_node = engine.nodes.get(sibling).ok_or("destination child is missing")?;
+            if sibling != id && sibling_node.node_data().meta.label == node.node_data().meta.label {
+                return Err("destination already contains that label; rename the object before moving it".into());
+            }
+            child = sibling_node.node_data().next_sibling;
+        }
+    }
+    Ok(())
+}
+
+fn validate_removals(engine: &AppEngine, nodes: &[NodeId]) -> Result<(), String> {
+    let selected = nodes.iter().copied().collect::<HashSet<_>>();
+    let mut channels_by_owner = HashMap::<NodeId, usize>::new();
+    let mut ancestor_removed = HashMap::<NodeId, bool>::new();
+    for id in &selected {
+        let Some(AppNode::MediaChannel(node)) = engine.nodes.get(*id) else {
+            continue;
+        };
+        let parent = node.node_data().parent.ok_or("channel owner is missing")?;
+        let mut ancestor = Some(parent);
+        let mut removed_with_owner = false;
+        let mut path = Vec::new();
+        while let Some(id) = ancestor {
+            if selected.contains(&id) {
+                removed_with_owner = true;
+                break;
+            }
+            if let Some(cached) = ancestor_removed.get(&id) {
+                removed_with_owner = *cached;
+                break;
+            }
+            path.push(id);
+            ancestor = engine.nodes.get(id).and_then(|node| node.node_data().parent);
+        }
+        for id in path {
+            ancestor_removed.insert(id, removed_with_owner);
+        }
+        if !removed_with_owner {
+            *channels_by_owner.entry(parent).or_default() += 1;
+        }
+    }
+    for (parent, count) in channels_by_owner {
+        let total = crate::parameters::domain_children(engine, parent)?
+            .into_iter()
+            .filter(|id| matches!(engine.nodes.get(*id), Some(AppNode::MediaChannel(_))))
+            .count();
+        if count >= total {
+            return Err("media must retain at least one channel".into());
+        }
+    }
+    Ok(())
+}

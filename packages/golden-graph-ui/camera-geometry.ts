@@ -13,6 +13,12 @@ const clamp = (value: number, minimum: number, maximum: number): number =>
 const finiteNumber = (value: number | undefined, fallback: number): number =>
 	typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
+/** Shared canvas wheel response, normalized for pixel, line and page events. */
+export const cameraZoomFactor = (delta: number, mode = 0, viewportHeight = 1): number => {
+	const pixels = delta * (mode === 1 ? 16 : mode === 2 ? viewportHeight : 1);
+	return Math.exp(-clamp(finiteNumber(pixels, 0), -500, 500) * 0.0014);
+};
+
 export const visibleViewport = (
 	inset: GraphViewportInset,
 	viewportWidth: number,

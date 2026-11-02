@@ -58,7 +58,7 @@ fn surface_id(engine: &AppEngine, reference: SurfaceReference) -> Result<NodeId,
 }
 
 fn append(engine: &mut AppEngine, parent: NodeId, tree: NodeTree) {
-    engine.edits.push(Edit::AddNodeTree {
+    engine.edits.push(Edit::AddUserItemTree {
         parent,
         prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
         tree,
@@ -75,6 +75,29 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         ScreenEdit::InspectManager => ScreenEditResult::Manager {
             snapshot: inspect(engine)?,
         },
+        ScreenEdit::InspectSurface { reference } => {
+            let id = surface_id(engine, reference)?;
+            let Some(AppNode::Surface(node)) = engine.nodes.get(id) else {
+                unreachable!()
+            };
+            ScreenEditResult::Surface {
+                snapshot: SurfaceSnapshot {
+                    reference,
+                    label: node.node_data().meta.label.clone(),
+                    definition: node.definition(),
+                },
+            }
+        }
+        ScreenEdit::InspectScreen { screen } => {
+            let id = screen_id(engine, screen)?;
+            let Some(AppNode::Screen(node)) = engine.nodes.get(id) else {
+                unreachable!()
+            };
+            ScreenEditResult::ScreenDefinition {
+                screen,
+                definition: node.definition(),
+            }
+        }
         ScreenEdit::CreateScreen { label } => {
             let parent = manager(engine)?;
             let screen = ScreenNode::from_definition(
@@ -87,7 +110,11 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 screen: id,
                 surface: SurfaceId(surface.node_data().meta.uuid),
             };
-            append(engine, parent, NodeTree::new(screen).with_child(NodeTree::new(surface)));
+            append(
+                engine,
+                parent,
+                NodeTree::new(screen).with_child(NodeTree::new(surface).as_user_item()),
+            );
             ScreenEditResult::ScreenCreated {
                 screen: id,
                 surface: reference,

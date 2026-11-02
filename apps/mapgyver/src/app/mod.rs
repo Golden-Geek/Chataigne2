@@ -76,11 +76,13 @@ impl ProjectLifecycle for AppNode {
     }
 
     fn prepare_project_candidate(engine: &mut AppEngine) -> Result<(), String> {
+        crate::media::structure::classify_authored_items(engine);
         crate::media::validate_project(engine)?;
         crate::screens::validate_project(engine)
     }
 
     fn validate_ui_intent(engine: &AppEngine, intent: &golden_core::ui_sync::UiEditIntent) -> Result<(), String> {
+        crate::media::structure::validate_ui_intent(engine, intent)?;
         crate::matrix::validate_ui_intent(engine, intent)?;
         crate::applications::validate_ui_intent(engine, intent)
     }

@@ -56,6 +56,12 @@ impl Node for MediaFolderNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&["mapgyver.media", "mapgyver.media.folder"]))
     }
+    fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
+        super::creation::items()
+    }
+    fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
+        super::creation::tree(node_type)
+    }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.revision.advance();
     }

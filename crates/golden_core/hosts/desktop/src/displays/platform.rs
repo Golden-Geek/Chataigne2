@@ -1,8 +1,11 @@
 use super::*;
+use std::collections::HashMap;
 use windows::Win32::{
     Devices::Display::*,
     Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS},
+    Graphics::Gdi::{DISPLAY_DEVICE_PRIMARY_DEVICE, DISPLAY_DEVICEW, EnumDisplayDevicesW},
 };
+use windows::core::PCWSTR;
 
 pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
     for _ in 0..3 {
@@ -37,6 +40,7 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
             }
             paths.truncate(path_count as usize);
             modes.truncate(mode_count as usize);
+            let primaries = adapter_primaries();
             let mut displays = Vec::with_capacity(paths.len());
             for path in paths {
                 let source = modes
@@ -68,9 +72,17 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
                 if id.is_empty() {
                     return Err(io::Error::other("active display has no stable device path"));
                 }
+                let gdi_name = source_name(&path);
                 displays.push(NativeDisplay {
                     id,
                     name: String::from_utf16_lossy(terminated(&name.monitorFriendlyDeviceName)),
+                    edid: monitor_registry::read_edid(&name.monitorDevicePath),
+                    index: gdi_name.as_deref().map(metadata::display_index).unwrap_or(0),
+                    primary: gdi_name
+                        .as_ref()
+                        .and_then(|name| primaries.get(name))
+                        .copied()
+                        .unwrap_or(source.position.x == 0 && source.position.y == 0),
                     bounds: NativeOutputBounds::new(source.position.x, source.position.y, source.width, source.height)?,
                 });
             }
@@ -89,4 +101,39 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
 
 fn terminated(value: &[u16]) -> &[u16] {
     &value[..value.iter().position(|value| *value == 0).unwrap_or(value.len())]
+}
+
+fn source_name(path: &DISPLAYCONFIG_PATH_INFO) -> Option<String> {
+    let mut source = DISPLAYCONFIG_SOURCE_DEVICE_NAME {
+        header: DISPLAYCONFIG_DEVICE_INFO_HEADER {
+            r#type: DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME,
+            size: size_of::<DISPLAYCONFIG_SOURCE_DEVICE_NAME>() as u32,
+            adapterId: path.sourceInfo.adapterId,
+            id: path.sourceInfo.id,
+        },
+        ..Default::default()
+    };
+    // SAFETY: the header and output buffer match the requested DisplayConfig structure.
+    if unsafe { DisplayConfigGetDeviceInfo(&mut source.header) } != 0 {
+        return None;
+    }
+    let name = String::from_utf16(terminated(&source.viewGdiDeviceName)).ok()?;
+    (!name.is_empty()).then(|| name.to_ascii_uppercase())
+}
+
+fn adapter_primaries() -> HashMap<String, bool> {
+    let mut result = HashMap::new();
+    for index in 0..64 {
+        let mut device = DISPLAY_DEVICEW {
+            cb: size_of::<DISPLAY_DEVICEW>() as u32,
+            ..Default::default()
+        };
+        // SAFETY: a null device enumerates adapter records into this initialized owned buffer.
+        if !unsafe { EnumDisplayDevicesW(PCWSTR::null(), index, &mut device, 0) }.as_bool() {
+            break;
+        }
+        let name = String::from_utf16_lossy(terminated(&device.DeviceName)).to_ascii_uppercase();
+        result.insert(name, device.StateFlags.contains(DISPLAY_DEVICE_PRIMARY_DEVICE));
+    }
+    result
 }

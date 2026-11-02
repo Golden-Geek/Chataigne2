@@ -56,8 +56,8 @@ impl SurfaceGeometryEdit {
                 if !point.x.is_finite() || !point.y.is_finite() {
                     return Err("crop positions must be finite".into());
                 }
-                definition.crop.x = point.x.clamp(0.0, 1.0 - definition.crop.width);
-                definition.crop.y = point.y.clamp(0.0, 1.0 - definition.crop.height);
+                definition.crop.x = super::surface_node::bounded_crop_origin(point.x, definition.crop.width);
+                definition.crop.y = super::surface_node::bounded_crop_origin(point.y, definition.crop.height);
             }
         }
         definition.validate()

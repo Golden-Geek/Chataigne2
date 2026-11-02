@@ -2,7 +2,6 @@
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { appState, IconButton, type WorkbenchSession, type UiNodeDto } from 'golden_ui';
 	import copyIcon from 'golden_ui/style/icons/copy.svg';
-	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import { ApplicationController, applicationState } from './authoring';
 	import { catalogState } from './catalog';
 	import ApplicationDefinitionForm from './ApplicationDefinitionForm.svelte';
@@ -103,11 +102,6 @@
 				label="Duplicate application"
 				disabled={busy}
 				onclick={() => edit({ kind: 'Duplicate', application: application.id })} />
-			<IconButton
-				icon={deleteIcon}
-				label="Remove definition"
-				disabled={busy}
-				onclick={() => edit({ kind: 'Remove', application: application.id })} />
 		</div>
 		{#key JSON.stringify([application.id, application.definition_instance, application.definition])}
 			<ApplicationDefinitionForm

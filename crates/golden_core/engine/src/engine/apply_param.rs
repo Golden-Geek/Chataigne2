@@ -47,6 +47,7 @@ impl<T: Node> Engine<T> {
         value: ParamValue,
     ) -> Result<ParamValue, EngineEditError> {
         let value = self.prepare_set_param_leaf(edit_index, node, value)?;
+        let (value, _) = self.normalize_param_owners(edit_index, node, value, None)?;
         self.validate_param_owners(edit_index, node, &value, None)?;
         Ok(value)
     }
@@ -92,6 +93,45 @@ impl<T: Node> Engine<T> {
                     message,
                 })?;
         Ok(value)
+    }
+
+    fn normalize_param_owners(
+        &self,
+        edit_index: usize,
+        node: NodeId,
+        mut value: ParamValue,
+        proposed: Option<&std::collections::HashMap<NodeId, ParamValue>>,
+    ) -> Result<(ParamValue, bool), EngineEditError> {
+        let target = self.nodes.get(node).expect("prepared parameter exists");
+        let mut parent = target.node_data().parent;
+        let mut normalized_any = false;
+        while let Some(id) = parent {
+            let Some(owner) = self.nodes.get(id) else { break };
+            let normalized = {
+                let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
+                let resolve = |uuid| self.node_id_by_uuid(uuid);
+                let change = crate::node::ParameterValidationContext::new(node, &value, &lookup, &resolve);
+                let change = match proposed {
+                    Some(values) => change.with_proposed(values),
+                    None => change,
+                };
+                owner.normalize_parameter_change(&change).map_err(|message| {
+                    EngineEditError::ParamConstraintViolation {
+                        edit_index,
+                        node,
+                        node_type: target.get_type().into(),
+                        message,
+                    }
+                })?
+            };
+            if let Some(normalized) = normalized {
+                // Owner hooks cannot bypass the leaf's type, reference or constraint boundary.
+                value = self.prepare_set_param_leaf(edit_index, node, normalized)?;
+                normalized_any = true;
+            }
+            parent = owner.node_data().parent;
+        }
+        Ok((value, normalized_any))
     }
 
     fn validate_param_owners(
@@ -270,6 +310,21 @@ impl<T: Node> Engine<T> {
             }
             prepared.push((node, value));
         }
+        // Every owner sees the same complete leaf-prepared proposal, independently of
+        // request ordering. Normalize once, then validate the resulting complete state.
+        let mut normalized = Vec::with_capacity(prepared.len());
+        let mut replacements = Vec::new();
+        for (node, value) in prepared {
+            let (value, changed) = self.normalize_param_owners(edit_index, node, value, Some(&proposed))?;
+            if changed {
+                replacements.push((node, value.clone()));
+            }
+            normalized.push((node, value));
+        }
+        for (node, value) in replacements {
+            proposed.insert(node, value);
+        }
+        let prepared = normalized;
         for (node, value) in &prepared {
             self.validate_param_owners(edit_index, *node, value, Some(&proposed))?;
         }

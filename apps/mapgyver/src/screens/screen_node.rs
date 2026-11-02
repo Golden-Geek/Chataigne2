@@ -139,6 +139,21 @@ impl Node for ScreenNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&["mapgyver.surface"]))
     }
+    fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
+        vec![golden_core::node::UserCreatableItem::new(
+            "mapgyver.surface",
+            "mapgyver.surface",
+            "Surface",
+        )]
+    }
+    fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
+        (node_type == "mapgyver.surface").then(|| {
+            golden_core::edit::NodeTree::new(super::SurfaceNode::from_definition(
+                "Surface".into(),
+                super::protocol::SurfaceDefinition::default(),
+            ))
+        })
+    }
     fn needs_update(&self) -> bool {
         false
     }

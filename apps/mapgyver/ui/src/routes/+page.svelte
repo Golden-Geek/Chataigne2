@@ -20,6 +20,7 @@
 	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import { registerParameterVisibility } from '../lib/parameter-visibility';
+	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import '../lib/workbench.css';
 	import { treeIcons } from '../lib/icons/tree';
 	import { provideDocumentSelection } from '../lib/selection.svelte';
@@ -30,6 +31,7 @@
 	provideCompositionAuthoring();
 	provideMatrixAuthoring();
 	registerParameterVisibility();
+	registerMatrixContextMenu();
 	onMount(() => preview.mount());
 	for (const type of [
 		'mapgyver.media.manager',

@@ -14,6 +14,11 @@ installation acknowledgement. Defaults preserve the ordinary Golden theme.
   clients, host bridges, generated protocol bindings, and shared styling primitives.
 - `apps/chataigne/ui/` and `apps/mapgyver/ui/` own their routes, product assets and custom panels.
 
+`Viewport2D` uses Golden Graph's public camera geometry and wheel response, with Golden
+`IconButton` tools. F frames selection; H/Home fits the active area; Space+drag and middle-button
+drag pan temporarily. Camera state survives same-document snapshots, geometry edits and selection
+changes; only an actual document identity change or an explicit navigation action reframes it.
+
 `components/common/node-drag` owns the public node/Parameter drag payload and protected-dragover
 cache. Consumers resolve the payload against the current session/document generation and graph
 using both node ID and UUID before sending app intents; reopening identical saved UUIDs still

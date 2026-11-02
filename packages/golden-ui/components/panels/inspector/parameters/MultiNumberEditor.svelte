@@ -3,7 +3,8 @@
 	import Slider from '../../../common/Slider.svelte';
 	import { appState } from '../../../../store/workbench.svelte';
 	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
-	import type { UiNodeDto, UiRangeConstraint } from '../../../../types';
+	import type { EventTime, UiAck, UiNodeDto, UiRangeConstraint } from '../../../../types';
+	import { compareEventTime } from '../../../../store/session/event-time';
 
 	interface VectorEditorPresentation {
 		layout?: 'inline' | 'column';
@@ -37,7 +38,32 @@
 
 	let draftValue = $state<number[]>([]);
 	let isEditing = $state(false);
+	let ownsDraft = $state(false);
+	let ended = $state(false);
+	let boundary = $state<EventTime | undefined>(undefined);
 	let editSession = createUiEditSession('Edit vector', 'param-vector');
+	let interaction = 0;
+	let disposed = false;
+	let owner: {
+		session: typeof session;
+		generation: number | undefined;
+		node: number;
+		uuid: string;
+	} | null = null;
+	const currentOwner = (candidate: typeof owner) =>
+		candidate !== null &&
+		session === candidate.session &&
+		session?.snapshotGeneration === candidate.generation &&
+		liveNode.node_id === candidate.node &&
+		liveNode.uuid === candidate.uuid;
+	const observeApplied = (candidate: typeof owner, acknowledgements: readonly UiAck[]) => {
+		if (disposed || !currentOwner(candidate)) return;
+		for (const ack of acknowledgements) {
+			const time = ack.latest_event_time ?? ack.earliest_event_time ?? undefined;
+			if (ack.success && time && (!boundary || compareEventTime(time, boundary) > 0))
+				boundary = time;
+		}
+	};
 	const NUMERIC_EPSILON = 1e-9;
 	let showValueFields = $derived(presentation.show_value_fields !== false);
 	const inferFractionDigitsFromStep = (step: number | undefined): number | null => {
@@ -62,13 +88,22 @@
 	let widgetLayoutKind = $derived(presentation.layout === 'column' ? 'column' : 'inline');
 
 	$effect(() => {
-		if (isEditing) {
-			return;
+		const projected = session?.graph.state.lastEventTime;
+		if (ownsDraft && currentOwner(owner)) {
+			if (
+				isEditing ||
+				!ended ||
+				(boundary && (!projected || compareEventTime(projected, boundary) < 0))
+			)
+				return;
 		}
+		ownsDraft = false;
 		draftValue = [...value];
 	});
 
 	onDestroy(() => {
+		disposed = true;
+		interaction++;
 		void editSession.end();
 	});
 
@@ -76,7 +111,19 @@
 		if (readOnly || !enabled) {
 			return;
 		}
+		if (!currentOwner(owner)) {
+			owner = {
+				session,
+				generation: session?.snapshotGeneration,
+				node: liveNode.node_id,
+				uuid: liveNode.uuid
+			};
+			boundary = undefined;
+		}
+		interaction++;
 		isEditing = true;
+		ownsDraft = true;
+		ended = false;
 		void editSession.begin();
 	};
 
@@ -85,7 +132,12 @@
 			return;
 		}
 		isEditing = false;
-		void editSession.end();
+		const candidate = owner;
+		const revision = interaction;
+		void editSession.end().then(() => {
+			if (!disposed && !isEditing && revision === interaction && currentOwner(candidate))
+				ended = true;
+		});
 	};
 
 	const commitValue = (nextValue: number, index: number): void => {
@@ -99,21 +151,17 @@
 		if (normalized === null) {
 			return;
 		}
-		if (Math.abs((value[index] ?? 0) - normalized) <= NUMERIC_EPSILON) {
-			const next = [...draftValue];
-			next[index] = normalized;
-			draftValue = next;
-			return;
-		}
-
 		const next = [...draftValue];
 		next[index] = normalized;
 		draftValue = next;
 
+		const nodeId = liveNode.node_id;
+		const candidate = owner;
 		void sendSetParamIntent(
-			liveNode.node_id,
+			nodeId,
 			{ kind: param.value.kind, value: next as [number, number] | [number, number, number] },
-			param.event_behaviour
+			param.event_behaviour,
+			(acks) => observeApplied(candidate, acks)
 		);
 	};
 
@@ -246,6 +294,8 @@
 						disabled={!enabled}
 						class:readonly={readOnly}
 						value={item.toFixed(fractionDigits)}
+						onfocus={startEdit}
+						onblur={endEdit}
 						onchange={(event) => {
 							const nextValue = Number((event.target as HTMLInputElement).value);
 							if (Number.isFinite(nextValue)) {
@@ -263,6 +313,9 @@
 								const reverted = [...draftValue];
 								reverted[index] = value[index] ?? 0;
 								draftValue = reverted;
+								(event.target as HTMLInputElement).value = (reverted[index] ?? 0).toFixed(
+									fractionDigits
+								);
 								(event.target as HTMLInputElement).blur();
 							}
 						}} />

@@ -115,6 +115,13 @@ impl Default for SurfaceDefinition {
 #[serde(tag = "kind")]
 pub enum ScreenEdit {
     InspectManager,
+    /// Bounded live editor projection, independent of the full manager catalog.
+    InspectSurface {
+        reference: SurfaceReference,
+    },
+    InspectScreen {
+        screen: ScreenId,
+    },
     /// Backend allocates identities, labels and an initial full-screen Surface in one subtree.
     CreateScreen {
         label: Option<String>,
@@ -209,6 +216,13 @@ pub struct ScreenManagerSnapshot {
 pub enum ScreenEditResult {
     Manager {
         snapshot: ScreenManagerSnapshot,
+    },
+    Surface {
+        snapshot: SurfaceSnapshot,
+    },
+    ScreenDefinition {
+        screen: ScreenId,
+        definition: ScreenDefinition,
     },
     ScreenCreated {
         screen: ScreenId,

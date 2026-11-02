@@ -136,16 +136,40 @@ fn asset_removal_relink_and_undo_fence_captures_even_when_history_retains_the_no
     );
     assert_eq!(asset(&engine, id).unwrap().locator, relative("replacement.png"));
     let captured = capture_channels(&engine, &[reference], 16).unwrap();
+    let node = engine.node_id_by_uuid(golden_core::model::NodeUuid(id.get())).unwrap();
+    let parent = engine.node_id_by_uuid(reference.media.0).unwrap();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
     let intent = UiEditIntent::MoveNode {
-        node: engine.node_id_by_uuid(golden_core::model::NodeUuid(id.get())).unwrap(),
-        new_parent: engine.node_id_by_uuid(reference.media.0).unwrap(),
+        node,
+        new_parent: parent,
         new_prev_sibling: None,
     };
     let ack = apply_project_intent(&mut engine, intent);
-    assert!(ack.success, "{ack:?}");
+    assert!(!ack.success, "assets cannot leave their owning catalog: {ack:?}");
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert!(
+        captured.is_current(),
+        "a rejected move does not revoke valid capture evidence"
+    );
+
+    // Corrupt a detached fixture past public curated-item admission to retain independent
+    // fencing coverage for source ownership lost through malformed producer input.
+    engine.nodes.get_mut(node).unwrap().node_data_mut().user_role = golden_core::node::UserNodeRole::Regular;
+    engine.edits.push(golden_core::edit::Edit::MoveNode {
+        node,
+        new_parent: parent,
+        new_prev_sibling: None,
+    });
+    engine.apply_edits().unwrap();
+    // Match public-intent stabilization before inspecting callback-owned membership guards.
+    engine
+        .dispatch_inbox(golden_core::process_ctx::ExecutionPhase::EndOfTickStabilization)
+        .unwrap();
     assert!(
         !captured.is_current(),
-        "generic catalog move must fence captured source ownership"
+        "lost catalog ownership must fence captured source preparation"
     );
     assert!(asset(&engine, id).is_err());
 }

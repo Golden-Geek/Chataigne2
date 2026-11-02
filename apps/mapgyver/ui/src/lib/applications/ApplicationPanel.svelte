@@ -54,8 +54,7 @@
 			appState.session.loading.visible ||
 			appState.session.hasActiveEditSession}
 		onCreateItem={create}
-		{isTreeNode}
-		allowDragDrop={false} />
+		{isTreeNode} />
 </section>
 
 <style>

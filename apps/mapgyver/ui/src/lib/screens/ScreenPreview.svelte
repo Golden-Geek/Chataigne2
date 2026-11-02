@@ -56,8 +56,7 @@
 		label="Screen view"
 		native>
 		<NativePreview session={owner.session} {source} label={`Preview of ${screen.label}`}>
-			{#if status?.error}<div class="error">{status.error}</div>
-			{:else if status?.message}<div class="message">{status.message}</div>{/if}
+			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
 			{#key screen.id}
 				<SurfaceHandles {screen} {selected} {disabled} {select} {start} {move} {finish} {stop} />
 			{/key}
@@ -77,13 +76,6 @@
 		place-content: center;
 		padding: 1em;
 		background: #000;
-		overflow-wrap: anywhere;
-	}
-	.message {
-		position: absolute;
-		inset: auto 0 0;
-		padding: 0.5em;
-		background: #202329d9;
 		overflow-wrap: anywhere;
 	}
 </style>

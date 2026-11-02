@@ -22,8 +22,8 @@ use golden_io::{RevisionGuard, RevisionSource};
     folder(parameters, label = "Parameters") {
         source_media: NodeReference = NodeReference::empty() (label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media".into()]);
         source_channel: NodeReference = NodeReference::empty() (label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
-        crop_origin: Vec2 = Vec2::new(0.0, 0.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop origin", constraint_policy = "reject");
-        crop_size: Vec2 = Vec2::new(1.0, 1.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop size", constraint_policy = "reject");
+        crop_origin: Vec2 = Vec2::new(0.0, 0.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop origin");
+        crop_size: Vec2 = Vec2::new(1.0, 1.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop size");
         top_left: Vec2 = Vec2::new(0.0, 0.0) (label = "Top left");
         top_right: Vec2 = Vec2::new(1.0, 0.0) (label = "Top right");
         bottom_right: Vec2 = Vec2::new(1.0, 1.0) (label = "Bottom right");
@@ -193,6 +193,61 @@ impl Node for SurfaceNode {
         }
         Ok(())
     }
+
+    fn normalize_parameter_change(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Option<ParamValue>, String> {
+        let normalize: fn(f64, f64) -> f64;
+        let sibling;
+        if change.parameter == self.crop_origin.id() {
+            normalize = crop_origin;
+            sibling = read(&self.crop_size, Some(change));
+        } else if change.parameter == self.crop_size.id() {
+            normalize = crop_size;
+            sibling = read(&self.crop_origin, Some(change));
+        } else {
+            return Ok(None);
+        }
+        let ParamValue::Vec2(x, y) = change.value else {
+            return Ok(None);
+        };
+        if !x.is_finite() || !y.is_finite() || !finite_point(sibling) {
+            return Err("surface crop positions must be finite".into());
+        }
+        let value = ParamValue::Vec2(normalize(*x, sibling.x), normalize(*y, sibling.y));
+        Ok((value != *change.value).then_some(value))
+    }
+}
+
+fn crop_origin(value: f64, size: f64) -> f64 {
+    let projected = value as f32;
+    if projected < 1.0 && projected + size as f32 <= 1.0 {
+        value
+    } else {
+        f64::from(bounded_crop_origin(projected, size as f32))
+    }
+}
+
+pub(super) fn bounded_crop_origin(value: f32, size: f32) -> f32 {
+    // Preserve size when translating. Keep room for a positive extent even when a
+    // subnormal size rounds away in the subtraction at the source's far edge.
+    value.clamp(0.0, (1.0 - size).min(1.0_f32.next_down()))
+}
+
+fn crop_size(value: f64, origin: f64) -> f64 {
+    if value as f32 > 0.0 && origin as f32 + value as f32 <= 1.0 {
+        return value;
+    }
+    let maximum = (1.0 - origin as f32).max(f32::MIN_POSITIVE);
+    let value = value as f32;
+    // Zero is a reachable slider endpoint, but a sampled crop must have positive
+    // extent. Existing positive precision is retained rather than quantized.
+    f64::from(if value <= 0.0 {
+        f32::EPSILON.min(maximum)
+    } else {
+        value.min(maximum)
+    })
 }
 
 struct SurfaceValues {

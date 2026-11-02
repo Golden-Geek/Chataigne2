@@ -59,7 +59,11 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
         // Removing the owner removes its paired exports and all Matrix structure together.
         UiEditIntent::RemoveNode { node } => removes_protected_children(engine, &[*node]),
         UiEditIntent::RemoveNodes { nodes } => removes_protected_children(engine, nodes),
-        UiEditIntent::MoveNode { node, new_parent, .. } => owned(engine, *node) || owned(engine, *new_parent),
+        UiEditIntent::MoveNode { node, new_parent, .. } => {
+            let owner =
+                matches!(engine.nodes.get(*node), Some(AppNode::Media(media)) if media.kind() == MediaKind::Matrix);
+            (!owner && owned(engine, *node)) || owned(engine, *new_parent)
+        }
         UiEditIntent::DuplicateNode { source, new_parent, .. } => owned(engine, *source) || owned(engine, *new_parent),
         UiEditIntent::DuplicateNodes {
             nodes,

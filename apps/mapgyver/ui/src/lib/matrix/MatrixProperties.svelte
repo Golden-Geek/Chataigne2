@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { IconButton } from 'golden_ui';
-	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import duplicateIcon from 'golden_ui/style/icons/duplicate.svg';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
@@ -138,22 +137,6 @@
 					onclick={() => {
 						if (selectedColumn)
 							void owner.edit({ kind: 'DuplicateColumn', column: selectedColumn.id });
-					}} />
-			</div>
-			<div class="actions">
-				<IconButton
-					icon={deleteIcon}
-					label="Remove row"
-					disabled={busy || !selectedRow}
-					onclick={() => {
-						if (selectedRow) void owner.edit({ kind: 'RemoveItem', item: selectedRow.item.id });
-					}} /><IconButton
-					icon={deleteIcon}
-					label="Remove column"
-					disabled={busy || !selectedColumn}
-					onclick={() => {
-						if (selectedColumn)
-							void owner.edit({ kind: 'RemoveColumn', column: selectedColumn.id });
 					}} />
 			</div>
 		{:else}<p>

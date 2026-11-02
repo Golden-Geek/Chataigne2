@@ -7,6 +7,10 @@ pan and zoom, animated framing, node dragging and resizing, connection previews,
 edge routing, and domain-neutral presentation contracts. It does not own Alchemist, Statechart, or
 Chataigne mutation semantics.
 
+`golden_graph_ui/camera-geometry` exposes pure anchored zoom, bounds framing and normalized wheel
+response for other Golden 2D editors. These editors share camera calculations without mounting a
+graph document or importing the canvas's private controllers.
+
 `components/GraphCanvas.svelte` composes focused Svelte 5 controllers and renders the world,
 wires and toolbar. The component's public props, snippets and navigation methods remain the
 consumer boundary. Internal owners live under `components/canvas/`:

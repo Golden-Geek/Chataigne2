@@ -17,6 +17,8 @@ interface Client<S> {
 	media(session: S): Promise<MediaManagerSnapshot>;
 }
 
+type OwnerInspection = Extract<ScreenEdit, { kind: 'InspectSurface' | 'InspectScreen' }>;
+
 export interface ScreenAuthoringState {
 	catalog: ScreenManagerSnapshot | null;
 	media: MediaManagerSnapshot | null;
@@ -48,6 +50,14 @@ export class ScreenAuthoringController<S extends Connection> {
 	private operation = 0;
 	private disposed = false;
 	private context: { session: S; generation: number } | null = null;
+	private ownerEpoch = 0;
+	private ownerLatest: {
+		session: S;
+		generation: number;
+		epoch: number;
+		request: OwnerInspection;
+	} | null = null;
+	private ownerTask: Promise<void> | null = null;
 
 	constructor(getSession: () => S | null, state: ScreenAuthoringState, client: Client<S>) {
 		this.getSession = getSession;
@@ -88,6 +98,7 @@ export class ScreenAuthoringController<S extends Connection> {
 	async refresh() {
 		if (this.disposed) return;
 		if (this.state.interacting) return;
+		this.invalidateOwnerRead();
 		++this.read;
 		const session = this.getSession();
 		if (!session || session.status !== 'connected' || session.loading.visible) {
@@ -119,6 +130,77 @@ export class ScreenAuthoringController<S extends Connection> {
 		} finally {
 			if (active === this.read) this.state.refreshing = false;
 		}
+	}
+
+	/** Live Inspector feedback reads one owner, with one in-flight and one newest request. */
+	refreshOwner(request: OwnerInspection): Promise<void> {
+		if (this.disposed || this.state.interacting) return Promise.resolve();
+		const session = this.getSession();
+		if (!session || session.status !== 'connected' || session.loading.visible) {
+			this.reset();
+			return Promise.resolve();
+		}
+		if (
+			!this.state.catalog ||
+			this.context?.session !== session ||
+			this.context.generation !== session.snapshotGeneration
+		)
+			return this.refresh();
+		// A stale full-catalog reply must not replace a newer live Parameter projection.
+		++this.read;
+		this.state.refreshing = false;
+		this.ownerLatest = {
+			session,
+			generation: session.snapshotGeneration,
+			epoch: this.ownerEpoch,
+			request
+		};
+		this.runOwnerRead();
+		return this.ownerTask ?? Promise.resolve();
+	}
+
+	private runOwnerRead() {
+		if (this.ownerTask || !this.ownerLatest) return;
+		const task = this.pumpOwnerRead();
+		this.ownerTask = task;
+		void task.finally(() => {
+			this.ownerTask = null;
+			this.runOwnerRead();
+		});
+	}
+
+	private async pumpOwnerRead() {
+		while (this.ownerLatest) {
+			const read = this.ownerLatest;
+			this.ownerLatest = null;
+			try {
+				const result = await this.client.screens(read.session, read.request);
+				if (
+					!this.current(read.session, read.generation) ||
+					read.epoch !== this.ownerEpoch ||
+					this.state.interacting
+				)
+					continue;
+				if (result.kind === 'Surface') this.acceptSurface(result.snapshot);
+				else if (result.kind === 'ScreenDefinition') {
+					const screen = this.state.catalog?.screens.find((screen) => screen.id === result.screen);
+					if (screen) screen.definition = result.definition;
+				} else throw new Error('Owner inspection returned an unexpected result');
+				this.state.error = '';
+			} catch (cause) {
+				if (
+					this.current(read.session, read.generation) &&
+					read.epoch === this.ownerEpoch &&
+					!this.state.interacting
+				)
+					this.state.error = String(cause);
+			}
+		}
+	}
+
+	private invalidateOwnerRead() {
+		this.ownerEpoch++;
+		this.ownerLatest = null;
 	}
 
 	async edit(edit: ScreenEdit): Promise<ScreenEditResult | undefined> {
@@ -166,11 +248,17 @@ export class ScreenAuthoringController<S extends Connection> {
 
 	setInteracting(active: boolean) {
 		this.state.interacting = active;
+		if (active) {
+			++this.read;
+			this.state.refreshing = false;
+			this.invalidateOwnerRead();
+		}
 	}
 
 	private reset() {
 		++this.read;
 		++this.operation;
+		this.invalidateOwnerRead();
 		this.context = null;
 		Object.assign(this.state, createScreenAuthoringState());
 	}

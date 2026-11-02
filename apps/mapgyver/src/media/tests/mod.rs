@@ -2,6 +2,7 @@ mod assets;
 mod authoring;
 mod catalog;
 mod commands;
+mod creation;
 mod folders;
 mod parameters;
 mod picture_import;

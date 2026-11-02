@@ -130,7 +130,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let node =
                 super::assets::AssetNode::from_locator(label(engine, parent, requested, fallback)?, Some(locator));
             let asset = node.id();
-            engine.edits.push(Edit::AddNodeTree {
+            engine.edits.push(Edit::AddUserItemTree {
                 parent,
                 prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
                 tree: NodeTree::new(node),
@@ -186,7 +186,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let parent = super::folders::parent(engine, parent)?;
             let folder = super::MediaFolderNode::new(label(engine, parent, requested, "Folder")?);
             let uuid = folder.node_data().meta.uuid;
-            engine.edits.push(Edit::AddNodeTree {
+            engine.edits.push(Edit::AddUserItemTree {
                 parent,
                 prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
                 tree: NodeTree::new(folder),
@@ -214,6 +214,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 return Err("media entry is outside Media Manager".into());
             }
             let new_parent = super::folders::parent(engine, parent)?;
+            super::structure::validate_move(engine, node, new_parent)?;
             if entry_node.node_data().parent != Some(new_parent) {
                 engine.edits.push(Edit::MoveNode {
                     node,
@@ -242,7 +243,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 media: owner,
                 channel: ChannelId(channel.node_data().meta.uuid),
             };
-            engine.edits.push(Edit::AddNodeTree {
+            engine.edits.push(Edit::AddUserItemTree {
                 tree: NodeTree::new(channel),
                 parent,
                 prev_sibling: engine.nodes.get(parent).and_then(|n| n.node_data().last_child),
@@ -321,6 +322,7 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 }
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
+    let paired_export = definition.media_kind() == MediaKind::Matrix;
     let media = MediaNode::from_kind(label, definition.media_kind());
     let channel_label = if definition.media_kind() == MediaKind::Matrix {
         "Final"
@@ -332,7 +334,9 @@ pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeT
         media: MediaId(media.node_data().meta.uuid),
         channel: ChannelId(channel.node_data().meta.uuid),
     };
-    (NodeTree::new(media).with_child(NodeTree::new(channel)), reference)
+    let channel = NodeTree::new(channel);
+    let channel = if paired_export { channel } else { channel.as_user_item() };
+    (NodeTree::new(media).with_child(channel), reference)
 }
 
 pub(super) fn configure_channel(
@@ -459,7 +463,7 @@ fn create_media(
         label(engine, parent, requested, fallback)?,
         ChannelDefinition::for_media(media_kind),
     );
-    engine.edits.push(Edit::AddNodeTree {
+    engine.edits.push(Edit::AddUserItemTree {
         tree,
         parent,
         prev_sibling: engine.nodes.get(parent).and_then(|n| n.node_data().last_child),

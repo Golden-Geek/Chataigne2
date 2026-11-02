@@ -3,12 +3,13 @@
 	let {
 		icon,
 		label,
+		title = label,
 		class: className = '',
 		...rest
 	}: HTMLButtonAttributes & { icon: string; label: string } = $props();
 </script>
 
-<button type="button" {...rest} class="gc-icon-button {className}" aria-label={label} title={label}>
+<button type="button" {...rest} class="gc-icon-button {className}" aria-label={label} {title}>
 	<img src={icon} alt="" draggable="false" />
 </button>
 

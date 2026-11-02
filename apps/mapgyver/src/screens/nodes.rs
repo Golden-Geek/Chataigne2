@@ -1,6 +1,7 @@
 use std::{any::Any, sync::Arc};
 
 use golden_core::{
+    edit::NodeTree,
     events::CustomEvent,
     node::{Node, NodeData, NodeScriptDescriptor, UserContainerRules, UserCreatableItem},
     parameter::ParamValue,
@@ -80,13 +81,34 @@ impl Node for ScreenManagerNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
             super::commands::SCREEN_COMMAND_TYPE,
+            "mapgyver.screen",
             "script",
         ]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = super::commands::catalog();
+        let mut items = vec![UserCreatableItem::new("mapgyver.screen", "mapgyver.screen", "Screen")];
+        items.extend(super::commands::catalog());
         items.push(UserCreatableItem::new("script", "script", "Screen Script"));
         items
+    }
+    fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
+        if node_type == "mapgyver.screen" {
+            Some(
+                NodeTree::new(super::ScreenNode::from_definition(
+                    "Screen".into(),
+                    super::protocol::ScreenDefinition::default(),
+                ))
+                .with_child(
+                    NodeTree::new(super::SurfaceNode::from_definition(
+                        "Surface 1".into(),
+                        super::protocol::SurfaceDefinition::default(),
+                    ))
+                    .as_user_item(),
+                ),
+            )
+        } else {
+            self.create_user_item(node_type).map(NodeTree::boxed)
+        }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         match node_type {

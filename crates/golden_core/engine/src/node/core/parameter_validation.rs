@@ -42,11 +42,11 @@ impl<'a> ParameterValidationContext<'a> {
     }
     /// Reads the final normalized value in this write, or its current committed value.
     pub fn parameter_value(&self, id: NodeId) -> Option<ParamValue> {
-        if let Some(value) = self.proposed.and_then(|values| values.get(&id)) {
-            return Some(value.clone());
-        }
         if id == self.parameter {
             return Some(self.value.clone());
+        }
+        if let Some(value) = self.proposed.and_then(|values| values.get(&id)) {
+            return Some(value.clone());
         }
         self.node(id)?.engine_param_snapshot().map(|snapshot| snapshot.value)
     }

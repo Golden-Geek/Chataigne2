@@ -1,37 +1,38 @@
 {
-  "name": "golden_graph_ui",
-  "private": true,
-  "version": "0.1.0",
-  "license": "GPL-3.0-only",
-  "type": "module",
-  "scripts": {
-    "test": "vitest run tests",
-    "test:browser": "node tests/browser/canvas-smoke.mjs",
-    "test:keyboard": "node tests/browser/graph-keyboard.mjs",
-    "test:keyboard:qualify": "node tests/browser/graph-keyboard-qualification.mjs",
-    "test:discovery": "node tests/browser/graph-discovery.mjs",
-    "test:qualify": "node tests/browser/canvas-qualification.mjs"
-  },
-  "svelte": "./index.ts",
-  "types": "./index.ts",
-  "exports": {
-    ".": {
-      "types": "./index.ts",
-      "svelte": "./index.ts",
-      "default": "./index.ts"
-    },
-    "./components/*": "./components/*",
-    "./spatial-index": "./spatial-index.ts",
-    "./types": "./types.ts"
-  },
-  "peerDependencies": {
-    "svelte": "^5.0.0"
-  },
-  "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "7.2.0",
-    "playwright-core": "1.61.1",
-    "svelte": "5.57.1",
-    "vite": "8.1.6",
-    "vitest": "4.1.12"
-  }
+	"name": "golden_graph_ui",
+	"private": true,
+	"version": "0.1.0",
+	"license": "GPL-3.0-only",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run tests",
+		"test:browser": "node tests/browser/canvas-smoke.mjs",
+		"test:keyboard": "node tests/browser/graph-keyboard.mjs",
+		"test:keyboard:qualify": "node tests/browser/graph-keyboard-qualification.mjs",
+		"test:discovery": "node tests/browser/graph-discovery.mjs",
+		"test:qualify": "node tests/browser/canvas-qualification.mjs"
+	},
+	"svelte": "./index.ts",
+	"types": "./index.ts",
+	"exports": {
+		".": {
+			"types": "./index.ts",
+			"svelte": "./index.ts",
+			"default": "./index.ts"
+		},
+		"./components/*": "./components/*",
+		"./spatial-index": "./spatial-index.ts",
+		"./camera-geometry": "./camera-geometry.ts",
+		"./types": "./types.ts"
+	},
+	"peerDependencies": {
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "7.2.0",
+		"playwright-core": "1.61.1",
+		"svelte": "5.57.1",
+		"vite": "8.1.6",
+		"vitest": "4.1.12"
+	}
 }

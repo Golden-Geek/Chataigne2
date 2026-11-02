@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { IconButton } from 'golden_ui';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
-	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import duplicateIcon from 'golden_ui/style/icons/duplicate.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import type { Snippet } from 'svelte';
@@ -30,12 +29,9 @@
 	const selection = useDocumentSelection();
 	async function edit(intent: CompositionEdit) {
 		const selectResult = selection.capture();
-		const parent = view.selected?.channel;
 		const result = await controller.edit(intent);
 		if (result?.kind === 'InstancesCreated' && result.instances[0])
 			selectResult(result.instances[0].instance);
-		else if (result?.kind === 'Changed' && intent.kind === 'RemoveInstance' && parent)
-			selectResult(parent);
 		return result;
 	}
 </script>
@@ -73,8 +69,7 @@
 							}} />
 					</div>
 				{/if}
-				{#each instances.slice(start, start + pageSize) as item, offset (item.reference.instance)}
-					{@const index = start + offset}
+				{#each instances.slice(start, start + pageSize) as item (item.reference.instance)}
 					<div class="instance-row">
 						<button
 							class="name"
@@ -84,26 +79,6 @@
 								view.instance = item.reference.instance;
 								selection.select(item.reference.instance);
 							}}>{item.label}</button>
-						<button
-							title="Move earlier"
-							aria-label={`Move ${item.label} earlier`}
-							disabled={busy || index === 0}
-							onclick={() =>
-								edit({
-									kind: 'ReorderInstance',
-									instance: item.reference.instance,
-									after: view.composition?.instances[index - 2]?.reference.instance ?? null
-								})}>↑</button>
-						<button
-							title="Move later"
-							aria-label={`Move ${item.label} later`}
-							disabled={busy || index === view.composition.instances.length - 1}
-							onclick={() =>
-								edit({
-									kind: 'ReorderInstance',
-									instance: item.reference.instance,
-									after: view.composition!.instances[index + 1].reference.instance
-								})}>↓</button>
 					</div>
 				{:else}<p>No instances. Choose a source channel to begin.</p>{/each}
 			</nav>
@@ -118,15 +93,6 @@
 						edit({
 							kind: 'DuplicateInstances',
 							instances: [instance.reference.instance]
-						})} />
-				<IconButton
-					icon={deleteIcon}
-					label="Remove"
-					disabled={busy}
-					onclick={() =>
-						edit({
-							kind: 'RemoveInstance',
-							instance: instance.reference.instance
 						})} />
 			</div>
 		{/if}

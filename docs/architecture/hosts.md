@@ -55,6 +55,13 @@ module enumerates at most 32 active device paths/128 modes, with at most three t
 It returns human-readable labels and checked physical bounds, sorted by opaque monitor device
 path rather than primary-display/index identity. The SDK query does not participate in DPI
 virtualization ([QueryDisplayConfig](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-querydisplayconfig)).
+The catalog also supplies the OS GDI display number, primary-desktop flag and optional canonical
+base EDID block. SetupAPI opens the monitor interface's hardware key read-only; EDID reads are
+bounded to 4 KiB and require a complete 128-byte base block with valid header and checksum.
+Numeric and descriptor serial fields remain intact in its lowercase hexadecimal representation;
+identical panels without unique serials remain ambiguous. Optional metadata failures preserve the
+active path and bounds. OS display numbers can change after topology updates; reconnect selection,
+ambiguity handling and persistence belong to the consuming app rather than the host.
 MapGyver's preparation worker owns one-second rescans, a generated catalog/selector contract and
 revision fences. Missing displays withdraw fullscreen output while retaining the authored identity;
 no label/position/primary fallback is allowed. OS device reinstallation can change a path and needs

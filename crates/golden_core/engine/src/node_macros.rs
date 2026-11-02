@@ -809,6 +809,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn normalize_parameter_change(&self, change: &$crate::node::ParameterValidationContext<'_>) -> Result<Option<$crate::parameter::ParamValue>, String> {
+                $crate::__dispatch_node_enum!(self, normalize_parameter_change, change; $($variant),*)
+            }
+
+            #[inline(always)]
             fn project_encode_data(&self) -> Result<serde_json::Value, String> {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }
@@ -881,6 +886,15 @@ macro_rules! define_node_enum {
             #[inline(always)]
             fn create_user_item_tree(&self, node_type: &str) -> Option<$crate::edit::NodeTree> {
                 $crate::__dispatch_node_enum!(self, create_user_item_tree, node_type; $($variant),*)
+            }
+
+            #[inline(always)]
+            fn create_user_item_tree_with_context(
+                &self,
+                node_type: &str,
+                context: &$crate::node::UserItemCreationContext<'_>,
+            ) -> Option<$crate::edit::NodeTree> {
+                $crate::__dispatch_node_enum!(self, create_user_item_tree_with_context, node_type, context; $($variant),*)
             }
 
             #[inline(always)]

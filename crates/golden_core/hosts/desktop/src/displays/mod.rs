@@ -9,6 +9,14 @@ pub struct NativeDisplay {
     pub id: String,
     /// Human-readable monitor label; never used to resolve identity.
     pub name: String,
+    /// Canonical lowercase hexadecimal of a validated 128-byte base EDID block, when available.
+    /// This preserves manufacturer, product and supplied serial data without inventing uniqueness.
+    pub edid: Option<String>,
+    /// OS GDI display number (`DISPLAYn`), or zero if the source name is unavailable/unrecognized.
+    /// This is routing metadata and can change when the desktop topology changes.
+    pub index: u32,
+    /// OS primary-desktop flag, falling back to a physical origin of (0, 0) when unavailable.
+    pub primary: bool,
     /// Current physical desktop client rectangle, independent of caller DPI awareness.
     pub bounds: NativeOutputBounds,
 }
@@ -16,6 +24,7 @@ pub struct NativeDisplay {
 /// Enumerate at most 32 active desktop targets, sorted by device path. A topology race retries at
 /// most three times; capacity/query/identity errors are explicit, never a primary-display fallback.
 /// Paths can change after OS device reinstallation; unmatched persisted paths remain missing.
+/// Optional EDID/index metadata never removes an otherwise valid active target from the catalog.
 pub fn native_displays() -> io::Result<Vec<NativeDisplay>> {
     #[cfg(windows)]
     {
@@ -30,5 +39,11 @@ pub fn native_displays() -> io::Result<Vec<NativeDisplay>> {
     }
 }
 
+#[cfg(any(windows, test))]
+mod metadata;
+#[cfg(windows)]
+mod monitor_registry;
 #[cfg(windows)]
 mod platform;
+#[cfg(test)]
+mod tests;

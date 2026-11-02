@@ -5,6 +5,33 @@ graph-editing, runtime-value, observation, module-I/O, persistence, and host-lif
 `ApplicationFacades` composes those concerns independently so applications and hosts do not depend
 on engine internals.
 
+Golden's user-item catalog owns complete detached creation for every manager, Inspector add button
+and Outliner context menu. `Node::create_user_item_tree` remains intrinsic and safe during decode.
+Fresh catalog requests use `create_user_item_tree_with_context`; its borrowed
+`UserItemCreationContext` reads explicitly addressed live nodes without building a process-tree
+snapshot. Applications register their catalog and factory once instead of duplicating menu entries
+or construction defaults in UI panels.
+Intrinsic factories also define sparse persistence baselines: they must return identical defaults
+with both live and still-unbound parent Parameters. Contextual factories may choose source-specific
+defaults for fresh objects; those choices must never leak into decode or sparse omission decisions.
+
+MapGyver inserts authored objects as curated items, including nested editable Channel/Surface
+roots. Its detached project preparation also classifies existing authored types before publication,
+preserving UUIDs and Parameter state; declared Parameters and paired Matrix exports stay internal.
+`media::structure` validates shared-tree moves and removals: Channels and Composition instances
+retain their owning document, folders organize Media, and an independently retained Media cannot
+lose its final Channel. Whole Matrix and Application owners may be sorted without reparenting
+their private paired structure. These rules apply to the same public intents used by UI and
+transport callers.
+
+Parameter owners may implement the pure `normalize_parameter_change` hook to return a canonical
+value before owner validation, commit, events and history. Golden rechecks the leaf's type,
+reference and range constraints after normalization. Atomic writes normalize against one immutable
+prepared proposal, then validate the complete resulting map; a hook cannot mutate sibling state.
+MapGyver uses this contract to keep crop rectangles contained while preserving the other crop
+component. Inspector edit sessions read only their selected Screen/Surface projection while held;
+canvas gestures keep exclusive ownership, and request identities fence stale project/session replies.
+
 `golden_engine::app::ProjectLifecycle` supplies pure product metadata: application ID, display
 name, release version, app-data directory and project-file specification. Chataigne and MapGyver
 declare their own identities. Listener and frontend-process policy belongs to the shared

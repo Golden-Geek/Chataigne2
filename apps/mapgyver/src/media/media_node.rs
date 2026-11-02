@@ -5,7 +5,7 @@ use super::{
 };
 use golden_core::{
     node,
-    node::{Node, ParameterHandle, ParameterValidationContext, UserContainerRules},
+    node::{Node, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem},
     parameter::{Enum, ParamValue},
     process_ctx::ProcessCtx,
 };
@@ -69,12 +69,36 @@ impl Node for MediaNode {
         Some(UserContainerRules::new(&["mapgyver.media.channel"]))
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        (self.kind() == MediaKind::Matrix && node_type == "mapgyver.media.channel").then(|| {
-            Box::new(ChannelNode::from_definition(
-                "Channel".into(),
-                ChannelDefinition::default(),
-            )) as Box<dyn Node>
+        (node_type == "mapgyver.media.channel").then(|| {
+            // Sparse encode and decode must see the same baseline, including before
+            // the parent's declared kind parameter has been materialized or bound.
+            Box::new(ChannelNode::new()) as Box<dyn Node>
         })
+    }
+    fn create_user_item_tree_with_context(
+        &self,
+        node_type: &str,
+        _context: &golden_core::node::UserItemCreationContext<'_>,
+    ) -> Option<golden_core::edit::NodeTree> {
+        if node_type == "mapgyver.media.channel" && self.kind() != MediaKind::Matrix {
+            Some(golden_core::edit::NodeTree::new(ChannelNode::from_definition(
+                "Channel".into(),
+                ChannelDefinition::for_media(self.kind()),
+            )))
+        } else {
+            None
+        }
+    }
+    fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        if self.kind() == MediaKind::Matrix {
+            Vec::new()
+        } else {
+            vec![UserCreatableItem::new(
+                "mapgyver.media.channel",
+                "mapgyver.media.channel",
+                "Channel",
+            )]
+        }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();

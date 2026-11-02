@@ -230,7 +230,7 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 			originalBounds.y + originalBounds.height / 2
 		);
 		await page.mouse.wheel(0, -100);
-		await view.getByLabel('View zoom').filter({ hasText: '122%' }).waitFor();
+		await view.getByLabel('View zoom').filter({ hasText: '115%' }).waitFor();
 		await view.focus();
 		await page.keyboard.down('Space');
 		await page.mouse.down();

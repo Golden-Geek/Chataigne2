@@ -7,6 +7,7 @@ mod catalog;
 mod channel_node;
 mod commands;
 pub mod composition;
+mod creation;
 pub(crate) mod dependencies;
 pub(crate) mod folders;
 mod importing;
@@ -18,6 +19,7 @@ pub mod rendering;
 pub mod resolution;
 mod scripting;
 mod source_node;
+pub(crate) mod structure;
 
 pub use assets::{AssetNode, asset};
 pub use authoring::{apply_operation, channel, initialize, validate_project};

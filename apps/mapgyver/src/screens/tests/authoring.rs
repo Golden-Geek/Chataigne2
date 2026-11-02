@@ -285,6 +285,22 @@ fn project_validation_rejects_surface_reparented_outside_screen() {
     let mut engine = fixture();
     let (_, reference) = create(&mut engine);
     let node = engine.node_id_by_uuid(reference.surface.0).unwrap();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    engine.edits.push(golden_core::edit::Edit::MoveNode {
+        node,
+        new_parent: engine.root,
+        new_prev_sibling: None,
+    });
+    assert!(
+        engine.apply_edits().is_err(),
+        "curated item admission rejects the live move"
+    );
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert_eq!(engine.undo_len(), history);
+    // Deliberately bypass the stronger live curated-item guard to retain independent
+    // app validation coverage for malformed detached input from older producers.
+    engine.nodes.get_mut(node).unwrap().node_data_mut().user_role = golden_core::node::UserNodeRole::Regular;
     engine.edits.push(golden_core::edit::Edit::MoveNode {
         node,
         new_parent: engine.root,

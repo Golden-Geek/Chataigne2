@@ -175,7 +175,9 @@ impl<T: Node> Engine<T> {
             return Ok(());
         }
 
-        let Some(mut tree) = factory_node.create_user_item_tree(node_type.as_str()) else {
+        let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
+        let context = crate::node::UserItemCreationContext::new(self.root, &lookup);
+        let Some(mut tree) = factory_node.create_user_item_tree_with_context(node_type.as_str(), &context) else {
             return Err(EngineEditError::UserItemTypeUnavailable {
                 edit_index: 0,
                 operation: "CreateCatalogItem",

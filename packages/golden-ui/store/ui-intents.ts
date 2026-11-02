@@ -96,14 +96,18 @@ export const sendUiIntentBatch = async (
 export const sendSetParamIntent = async (
 	node: NodeId,
 	value: ParamValue,
-	behaviour: ParamEventBehaviour
+	behaviour: ParamEventBehaviour,
+	applied?: AppliedIntentObserver
 ): Promise<boolean> => {
-	return sendUiIntent({
-		kind: 'setParam',
-		node,
-		value,
-		behaviour
-	});
+	return sendUiIntent(
+		{
+			kind: 'setParam',
+			node,
+			value,
+			behaviour
+		},
+		{ applied }
+	);
 };
 
 export const sendSetTextParamSmartIntent = async (
