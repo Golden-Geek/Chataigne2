@@ -39,8 +39,12 @@ app target's graceful-close protocol and proof of every native descendant's reti
 
 Reusable independent native output windows live in
 `crates/golden_core/hosts/desktop/src/output_window`. The public `NativeOutputBounds` validates
-signed physical desktop client rectangles; `NativeOutputWindow` creates a borderless, topmost,
-nonactivating window with its own per-monitor-v2, event-driven message loop. Geometry queries run
+signed physical desktop client rectangles; `NativeOutputWindow` creates a borderless, topmost
+window with its own per-monitor-v2, event-driven message loop. Showing it does not activate it;
+clicking can give it keyboard focus. `with_events` reports `NativeOutputEvent::EscapePressed` only
+for a fresh keydown while that exact window owns focus and foreground activation. Its callback
+must only signal bounded app work; the host assigns no enablement policy and never closes a GPU
+borrow on Escape. Callback panics are contained on the window thread. Geometry queries run
 on that window thread, avoiding caller DPI virtualization. No WebView, engine polling, GPU objects
 or app target policy belongs there. User close/resize and DPI-suggested logical resizing cannot
 release or resize the borrowed output behind the renderer.

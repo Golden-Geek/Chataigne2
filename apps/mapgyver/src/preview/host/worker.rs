@@ -23,6 +23,7 @@ use tauri::Emitter;
 struct Owner {
     renderer: ChannelRenderer,
     windows: Vec<golden_core::app::NativeOutputWindow>,
+    escapes: Vec<(super::targets::Target, Arc<std::sync::atomic::AtomicBool>)>,
 }
 impl Drop for Owner {
     fn drop(&mut self) {
@@ -35,6 +36,37 @@ impl Drop for Owner {
         for window in self.windows.drain(..) {
             if let Err(error) = window.close() {
                 eprintln!("[mapgyver-output] window teardown failed: {error}");
+            }
+        }
+    }
+}
+
+impl Owner {
+    fn process_input(&self, runtime: &ProductionRuntime<AppNode>) {
+        use crate::screens::protocol::{SCREEN_NAMESPACE, SCREEN_OPERATION, ScreenEdit};
+        use golden_core::application::ProjectTransactions;
+        for (target, pressed) in &self.escapes {
+            if !pressed.swap(false, std::sync::atomic::Ordering::AcqRel) {
+                continue;
+            }
+            let edit = ScreenEdit::DisableOutput {
+                project: target.project,
+                screen: target.screen,
+                target: target.authored.clone(),
+            };
+            let result = serde_json::to_value(edit)
+                .map_err(|error| error.to_string())
+                .and_then(|payload| {
+                    runtime
+                        .apply_transaction(golden_core::ui_sync::UiEditIntent::InvokeAppOperation {
+                            namespace: SCREEN_NAMESPACE.into(),
+                            operation: SCREEN_OPERATION.into(),
+                            payload,
+                        })
+                        .map_err(|error| error.to_string())
+                });
+            if let Err(error) = result {
+                eprintln!("[mapgyver-output] Escape request ignored: {error}");
             }
         }
     }
@@ -68,8 +100,23 @@ fn create(
         extent,
     }];
     let mut windows = Vec::new();
+    let mut escapes = Vec::new();
     for target in targets {
-        outputs.push(target.binding(&mut windows).map_err(io::Error::other)?);
+        let pressed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let signal = pressed.clone();
+        let wake = notifier.clone();
+        outputs.push(
+            target
+                .binding(&mut windows, move |event| {
+                    if event == golden_core::app::NativeOutputEvent::EscapePressed
+                        && !signal.swap(true, std::sync::atomic::Ordering::AcqRel)
+                    {
+                        wake.notify();
+                    }
+                })
+                .map_err(io::Error::other)?,
+        );
+        escapes.push((target.clone(), pressed));
     }
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
@@ -87,6 +134,7 @@ fn create(
     let mut owner = Owner {
         renderer: ChannelRenderer::new(runtime, limits),
         windows,
+        escapes,
     };
     let native = owner
         .renderer
@@ -153,6 +201,9 @@ pub(super) fn run(input: Input) -> io::Result<()> {
         crate::applications::runtime::ApplicationCallbackSubscription,
     )> = None;
     while !input.stop.is_requested() {
+        if let Some(owner) = &owner {
+            owner.process_input(&input.runtime);
+        }
         if supervisor.as_ref().is_some_and(|owner| !owner.is_current()) {
             supervisor.take();
         }

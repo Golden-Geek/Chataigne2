@@ -332,6 +332,13 @@ node metadata enablement and share one contextual creation factory across every 
 Validate sender-name collisions before activating virtual outputs and report/recover from sender
 loss or device reset.
 
+Native output windows open without stealing focus and accept click focus. Golden desktop emits
+fresh focused Escape input without closing the borrowed HWND. MapGyver coalesces one signal per
+output and applies `ScreenEdit::DisableOutput` from the preparation worker. The backend validates
+the captured project instance, Screen identity and authored target before disabling ordinary node
+metadata. This is one undoable edit; existing topology retirement closes the window only after GPU
+use ends. No workbench-global shortcut, extra enabled parameter or window-thread engine call is used.
+
 A Surface references one `(MediaId, ChannelId)` and contains:
 
 - A normalized source crop rectangle in that channel's full image, independent of current

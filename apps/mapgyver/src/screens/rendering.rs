@@ -39,6 +39,7 @@ pub struct ScreenRoute {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapturedOutput {
     pub screen: ScreenId,
+    pub authored: ScreenTarget,
     pub target: ResolvedTarget,
 }
 
@@ -125,6 +126,7 @@ pub fn capture_outputs(
             let Some(target) = &node.definition().target else {
                 continue;
             };
+            let authored = target.clone();
             let target = match target {
                 ScreenTarget::Spout { sender, extent } => {
                     if !names.insert(sender.clone()) {
@@ -167,7 +169,11 @@ pub fn capture_outputs(
             if outputs.len() == maximum_outputs {
                 return Err("Screen outputs exceed admitted count".into());
             }
-            outputs.push(CapturedOutput { screen, target });
+            outputs.push(CapturedOutput {
+                screen,
+                authored,
+                target,
+            });
         }
     }
     Ok(CapturedOutputs {

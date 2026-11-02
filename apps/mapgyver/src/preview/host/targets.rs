@@ -2,22 +2,32 @@
 
 use crate::{
     preview::capture::CapturedPreview,
-    screens::{protocol::ScreenId, rendering::ResolvedTarget},
+    screens::{
+        protocol::{ScreenId, ScreenTarget},
+        rendering::ResolvedTarget,
+    },
 };
-use golden_core::app::{NativeOutputBounds, NativeOutputWindow};
+use golden_core::app::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow};
 use golden_video::native::OutputBinding;
 use golden_video::{AlphaMode, ColorEncoding, OutputId, PixelFormat, TextureDescriptor};
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Target {
+    pub project: uuid::Uuid,
+    pub screen: ScreenId,
+    pub authored: ScreenTarget,
     pub id: OutputId,
     pub kind: ResolvedTarget,
     pub descriptor: TextureDescriptor,
 }
 
 impl Target {
-    pub fn binding(&self, windows: &mut Vec<NativeOutputWindow>) -> Result<OutputBinding, String> {
+    pub fn binding(
+        &self,
+        windows: &mut Vec<NativeOutputWindow>,
+        on_event: impl Fn(NativeOutputEvent) + Send + 'static,
+    ) -> Result<OutputBinding, String> {
         match &self.kind {
             ResolvedTarget::Spout { sender: name, .. } => Ok(OutputBinding::Spout {
                 id: self.id,
@@ -28,8 +38,9 @@ impl Target {
                 let physical =
                     NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
                         .map_err(|error| error.to_string())?;
-                let window = NativeOutputWindow::new(&format!("MapGyver output {}", self.id.get()), physical)
-                    .map_err(|error| error.to_string())?;
+                let window =
+                    NativeOutputWindow::with_events(&format!("MapGyver output {}", self.id.get()), physical, on_event)
+                        .map_err(|error| error.to_string())?;
                 let actual = window.physical_bounds().map_err(|error| error.to_string())?;
                 if actual != physical {
                     return Err(format!(
@@ -82,6 +93,9 @@ impl Targets {
                 .ok_or("output Screen route was not captured")?;
             route.output = Some(id);
             targets.push(Target {
+                project: capture.channels.project,
+                screen: output.screen,
+                authored: output.authored.clone(),
                 id,
                 kind: output.target.clone(),
                 descriptor: TextureDescriptor {

@@ -1,4 +1,4 @@
-use super::NativeOutputBounds;
+use super::{NativeOutputBounds, NativeOutputEvent};
 use std::{
     io,
     sync::{Mutex, mpsc},
@@ -12,6 +12,7 @@ use windows::{
         System::{LibraryLoader::GetModuleHandleW, Threading::GetCurrentThreadId},
         UI::{
             HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext},
+            Input::KeyboardAndMouse::{GetFocus, VK_ESCAPE},
             WindowsAndMessaging::*,
         },
     },
@@ -30,7 +31,11 @@ pub(super) struct Window {
 }
 
 impl Window {
-    pub fn new(title: &str, bounds: NativeOutputBounds) -> io::Result<Self> {
+    pub fn new(
+        title: &str,
+        bounds: NativeOutputBounds,
+        on_event: Box<dyn Fn(NativeOutputEvent) + Send>,
+    ) -> io::Result<Self> {
         let title = title.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
         let (ready, startup) = mpsc::sync_channel(1);
         let (queries, requests) = mpsc::sync_channel::<Reply>(4);
@@ -65,6 +70,20 @@ impl Window {
                         }
                         if received == 0 || (message.hwnd.is_invalid() && message.message == CLOSE) {
                             break Ok(());
+                        }
+                        if message.hwnd == hwnd
+                            && let Some(event) = keyboard_event(
+                                message.message,
+                                message.wParam.0,
+                                message.lParam.0,
+                                GetFocus() == hwnd && GetForegroundWindow() == hwnd,
+                            )
+                        {
+                            // A consumer panic must never destroy an HWND still borrowed by a GPU.
+                            if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| on_event(event))).is_err() {
+                                eprintln!("[golden-output-window] input callback panicked");
+                            }
+                            continue;
                         }
                         if message.hwnd.is_invalid() && message.message == QUERY {
                             while let Ok(reply) = requests.try_recv() {
@@ -151,7 +170,7 @@ unsafe fn create(title: &[u16], bounds: NativeOutputBounds) -> io::Result<HWND> 
         }
         drop(registered);
         CreateWindowExW(
-            WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
+            WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
             w!("GoldenNativeOutputWindow"),
             PCWSTR(title.as_ptr()),
             WS_POPUP,
@@ -166,6 +185,11 @@ unsafe fn create(title: &[u16], bounds: NativeOutputBounds) -> io::Result<HWND> 
         )
         .map_err(io::Error::other)
     }
+}
+
+pub(super) fn keyboard_event(message: u32, key: usize, state: isize, focused: bool) -> Option<NativeOutputEvent> {
+    (focused && message == WM_KEYDOWN && key == VK_ESCAPE.0 as usize && state & (1 << 30) == 0)
+        .then_some(NativeOutputEvent::EscapePressed)
 }
 
 unsafe fn client_bounds(hwnd: HWND) -> io::Result<NativeOutputBounds> {

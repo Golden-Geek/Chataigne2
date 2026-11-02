@@ -162,6 +162,32 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             ScreenEditResult::Changed
         }
+        ScreenEdit::DisableOutput {
+            project,
+            screen,
+            target,
+        } => {
+            if crate::media::authoring::project_instance(engine)? != project {
+                return Err("output belongs to a retired project".into());
+            }
+            let node = screen_id(engine, screen)?;
+            let Some(AppNode::Screen(current)) = engine.nodes.get(node) else {
+                unreachable!()
+            };
+            if current.definition().target.as_ref() != Some(&target) {
+                return Err("output target has changed".into());
+            }
+            if current.node_data().meta.enabled {
+                engine.edits.push(Edit::PatchMeta {
+                    node,
+                    patch: golden_core::node::NodeMetaPatch {
+                        enabled: Some(false),
+                        ..Default::default()
+                    },
+                });
+            }
+            ScreenEditResult::Changed
+        }
         ScreenEdit::RenameScreen { screen, label } => {
             let node = screen_id(engine, screen)?;
             labels::rename(engine, node, label)?;

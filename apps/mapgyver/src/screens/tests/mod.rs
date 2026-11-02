@@ -5,6 +5,7 @@ mod crop_gestures;
 mod drop_sources;
 mod geometry;
 mod gestures;
+mod output_input;
 mod parameters;
 mod scripting;
 mod selection;

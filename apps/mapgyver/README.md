@@ -237,7 +237,11 @@ Surface edits and editor geometry/visibility changes only replace the render pla
 session boundary avoids overlapping same-name SDK senders or swapchains on one HWND. Rectangle
 placement/extent changes use that same boundary. The session retains Golden's `NativeOutputWindow`
 owners until rendering and picture preparation finish retiring, then closes/joins their native
-threads. Windows are borderless, topmost, nonactivating and independent of the editor window.
+threads. Windows are borderless, topmost and independent of the editor window. Opening an output
+does not steal focus; clicking it can focus it. Escape in that focused output disables its owning
+Screen through normal metadata enablement and Undo history. Repeated keydown is ignored; retired
+projects and changed targets cannot disable replacement outputs. Window closure still waits for
+actual renderer retirement.
 Checked signed physical bounds are compared with actual client geometry before binding a renderer.
 Fullscreen uses an exact Windows monitor device-path identity from Golden's bounded native display
 catalog, with current physical position/extent. The desktop selector shows active displays and

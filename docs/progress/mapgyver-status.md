@@ -4,12 +4,48 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** transient editing resource pressure now waits for GPU retirement; bounded latest-edit admission and cancellation/recovery verified in software (M05/6 retained).
-**Next:** return to the retained complete-editor/native acceptance queue; physical memory residency and sustained native timing remain unqualified by these software checks.
+**Current:** output Escape is implemented and software-verified; real native focus/input verification remains unavailable in this desktop session (M05/6 retained).
+**Next:** run the owned focused-output check and ordinary-app Escape/Undo on a desktop exposing those native windows; do not retry alternate native routes in this session.
 **Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: rapid edits preserve the active renderer, coalesce pending replacements and install the newest edit once GPU retirement frees its reservation, within the unchanged budget.
+Last verified capability: an output-scoped backend request disables only its owning Screen, wakes output recapture and preserves exact Undo/Redo; focused/fresh Escape filtering passes software checks.
+
+**Output Escape batch:** 2 November13:50 CET, stop14:35 CET. Deliver Escape disabling the
+owning Screen when its native output window has keyboard focus. Golden desktop host owns generic
+native input notification; MapGyver owns Screen identity, enablement and backend edit policy.
+Proof: host input/focus tests, stale/project/output identity fences and ordinary enable/history
+checks, app build and targeted owned-window verification after software prerequisites pass.
+Hypothesis: output windows currently discard keyboard messages and expose no app callback, so a
+bounded generic key signal plus the existing app-operation route supplies the behavior without
+closing a GPU-owned HWND prematurely. Preserve AGENTS.md edits and retained broad native gates.
+
+**Output Escape checkpoint — 2 November14:14 CET:** Golden's independent output windows now
+open without initial activation but accept click focus. Their bounded event callback reports only
+a fresh Escape keydown on the window owning keyboard focus and foreground activation; it never
+destroys the HWND. MapGyver coalesces one flag per output, wakes preparation and applies the typed
+`ScreenEdit::DisableOutput` operation. Project-instance, Screen and authored-target checks prevent
+retired/reconfigured output requests from changing a replacement. Normal metadata enablement owns
+the change, emits recapture invalidation and creates one Undo step; repeats are no-ops. Existing
+GPU/picture retirement still precedes window closure. Rust generated the updated TypeScript DTO.
+
+Verification:264app tests pass with1existing hardware ignore, including output-only disable,
+peer/source preservation, exact history, recapture invalidation and stale-project/target rejection;
+the first run exposed a test-only reload input-type mistake, corrected before rerunning the suite.
+Both host software checks pass (focus/fresh-key filtering and physical-bounds validation). Strict
+app/desktop all-target Clippy, app Svelte0errors/0warnings, generated-contract drift and ordinary
+bundled app build pass. Root and Golden Core formatting pass.
+
+Native verification is NOT accepted: the first finite owned-window test failed when Windows
+denied `SetForegroundWindow`. Its manual-focus fallback then timed out after60seconds; the
+supported computer-use inventory exposed no owned test window to click. Both test windows retired
+on failure. The two allowed native attempts are exhausted; no more helpers/routes or focus-policy
+changes are authorized by this batch. Return trigger: an interactive desktop that exposes the
+owned windows, then run `cargo test -p golden_host_desktop --lib hardware_focused_output_reports_escape_once_without_closing_itself -- --ignored --nocapture --test-threads=1`
+and ordinary MapGyver output Escape/Undo. The new ignored native test preserves that exact missing
+acceptance. This checkpoint delivers the implementation and verified software contracts, without
+closing real output-key handling or the broader M05/6 editor/native gate. Phase counts and fixed
+denominators are unchanged; independent AGENTS.md edits remain excluded.
 
 **Interactive resource batch:** 2 November13:25 CET, stop14:10 CET. Deliver reliable renderer
 updates during rapid manipulation without transient reserved-resource errors. Owners: Golden

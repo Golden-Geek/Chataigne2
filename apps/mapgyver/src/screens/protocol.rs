@@ -173,6 +173,13 @@ pub enum ScreenEdit {
         screen: ScreenId,
         definition: ScreenDefinition,
     },
+    /// Disable a live output without allowing a retired window/project to affect a new target.
+    DisableOutput {
+        #[ts(type = "string")]
+        project: uuid::Uuid,
+        screen: ScreenId,
+        target: ScreenTarget,
+    },
     RenameScreen {
         screen: ScreenId,
         label: String,
