@@ -31,6 +31,7 @@ struct Session {
     generation: DeviceGeneration,
     submitted: u64,
     shared: Arc<Shared>,
+    storage: Option<super::budget::Lease>,
 }
 
 pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: SpoutSource, shared: Arc<Shared>) {
@@ -63,7 +64,7 @@ pub(super) fn run(context: WorkerContext<(), ()>, adapter: AdapterId, config: Sp
 impl Session {
     fn new(adapter: AdapterId, config: &SpoutSource, shared: Arc<Shared>) -> Result<Self> {
         let device = Device::new(adapter)?;
-        let receiver = Receiver::new(&device.device, &config.sender, config.descriptor, config.frame_count)?;
+        let receiver = Receiver::new(&device.device, config)?;
         let completion = EventCompletion::new(&device)?;
         let slots = Vec::new();
         let generation = DeviceGeneration::new(Uuid::new_v4(), 0);
@@ -99,6 +100,7 @@ impl Session {
             generation,
             submitted: 0,
             shared,
+            storage: None,
         })
     }
 
@@ -305,6 +307,7 @@ impl Session {
             self.retire_imports();
         }
         self.slots.clear();
+        self.storage = None;
         self.descriptor = None;
         self.shared.update(|status| {
             status.bridge_slots = 0;
@@ -313,6 +316,17 @@ impl Session {
         if !self.shared.active.load(Ordering::Acquire) || self.shared.shutdown.load(Ordering::Acquire) {
             self.shared.retiring.store(false, Ordering::Release);
             return Ok(false);
+        }
+        if self.shared.declared_storage.is_none() {
+            self.storage = Some(
+                self.shared
+                    .storage_budget
+                    .claim(
+                        super::super::InputLimits::source_storage_bytes(descriptor)
+                            .map_err(|_| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?,
+                    )
+                    .ok_or_else(|| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?,
+            );
         }
         let slots = (0..INPUT_BRIDGE_SLOTS)
             .map(|index| Slot::new(&self.device, descriptor, index))

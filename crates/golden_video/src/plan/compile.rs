@@ -41,7 +41,9 @@ pub(super) fn compile(
         let bytes = validate_descriptor(texture.id, &texture.descriptor, limits)?;
         match &texture.source {
             Some(ExternalSource::Spout(source)) => {
-                validate_descriptor(texture.id, &source.descriptor, limits)?;
+                if let Some(descriptor) = source.reserved_descriptor() {
+                    validate_descriptor(texture.id, &descriptor, limits)?;
+                }
                 if !source.frame_count.accepts_sender_name(&source.sender)
                     || source.poll_interval < std::time::Duration::from_millis(1)
                     || source.poll_interval > std::time::Duration::from_secs(1)

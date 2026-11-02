@@ -16,7 +16,7 @@ pub const INSTANCE_TYPE: &str = "mapgyver.composition.instance";
     folder(parameters, label = "Parameters") {
         source_media: NodeReference = NodeReference::empty() (
             label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v3".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v4".into()]
         );
         source_channel: NodeReference = NodeReference::empty() (
             label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode,

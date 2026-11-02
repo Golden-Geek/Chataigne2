@@ -2,6 +2,5 @@
 import type { AssetId } from "./AssetId";
 import type { Extent2D } from "./Extent2D";
 import type { MatrixOutput } from "./MatrixOutput";
-import type { TextureDescriptor } from "./TextureDescriptor";
 
-export type ChannelSource = { "kind": "Matrix", output: MatrixOutput, } | { "kind": "Composition", canvas: Extent2D, } | { "kind": "Picture", asset: AssetId | null, } | { "kind": "SolidColor", rgba: [number, number, number, number], } | { "kind": "Spout", sender: string | null, maximum: TextureDescriptor, };
+export type ChannelSource = { "kind": "Matrix", output: MatrixOutput, } | { "kind": "Composition", canvas: Extent2D, } | { "kind": "Picture", asset: AssetId | null, } | { "kind": "SolidColor", rgba: [number, number, number, number], } | { "kind": "Spout", sender: string | null, };

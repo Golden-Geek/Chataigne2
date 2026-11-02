@@ -151,13 +151,7 @@ try {
 			if (kind === 'SharedTexture')
 				source = {
 					kind: 'Spout',
-					sender: `Exact Input ${index}`,
-					maximum: {
-						extent: { width: 16, height: 16 },
-						format: 'Bgra8Unorm',
-						color_encoding: 'Srgb',
-						alpha_mode: 'Straight'
-					}
+					sender: `Exact Input ${index}`
 				};
 			const definition = {
 				...before.definition,
@@ -243,7 +237,7 @@ try {
 	const unsupported = path.join(directory, 'unsupported-media-schema.mapgyver');
 	await writeFile(
 		unsupported,
-		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v3', 'mapgyver.media')
+		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v4', 'mapgyver.media')
 	);
 	await assert.rejects(
 		() => post('/api/ui/project-load', { path: unsupported }),
@@ -305,6 +299,8 @@ try {
 	if (process.argv.includes('--channels-ui')) {
 		const { verifyChannelsUi } = await import('../browser/channels.mjs');
 		await verifyChannelsUi({ base, edit, inspectMedia: inspect });
+		const { verifySharedTextureUi } = await import('../browser/shared-texture.mjs');
+		await verifySharedTextureUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

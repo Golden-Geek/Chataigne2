@@ -90,7 +90,7 @@ impl Node for MediaManagerNode {
 
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            "mapgyver.media.v3",
+            "mapgyver.media.v4",
             "mapgyver.media.folder",
             "mapgyver.media.asset",
             "mapgyver.application",

@@ -227,9 +227,13 @@ impl FixtureConsumer {
         let timing = GpuTiming::new(&device.device, recorder.clone(), context);
         let receiver = Receiver::new(
             &device.device,
-            &config.sender_name,
-            config.descriptor,
-            config.frame_count,
+            &crate::plan::SpoutSource {
+                sender: config.sender_name.clone(),
+                descriptor: config.descriptor,
+                metadata: crate::plan::SpoutMetadata::Declared,
+                poll_interval: std::time::Duration::from_millis(16),
+                frame_count: config.frame_count,
+            },
         )?;
         let records = Vec::with_capacity(config.max_frames as usize);
         Ok(Self {

@@ -56,7 +56,16 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         assert_eq!(media_fields.len(), 3);
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
-        assert_eq!(fields.len(), 16, "{fields:?}");
+        assert_eq!(fields.len(), 11, "{fields:?}");
+        for removed in [
+            "maximum_width",
+            "maximum_height",
+            "pixel_format",
+            "color_encoding",
+            "alpha_mode",
+        ] {
+            assert!(!fields.contains_key(&format!("parameters/{removed}")));
+        }
         assert!(!fields.contains_key("parameters/filter"));
         assert!(engine.nodes.get(root).unwrap().project_encode_data().unwrap().is_null());
         assert!(

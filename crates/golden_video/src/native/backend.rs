@@ -135,14 +135,17 @@ impl D3d11Backend {
             .external_textures()
             .iter()
             .filter_map(|source| source.source.as_ref().and_then(ExternalSource::spout));
-        let source_bytes = spout_sources.clone().try_fold(0_u64, |total, source| {
-            total
-                .checked_add(
-                    InputLimits::source_storage_bytes(source.descriptor)
-                        .map_err(|_| BackendError::ResourceSizeOverflow)?,
-                )
-                .ok_or(BackendError::ResourceSizeOverflow)
-        })?;
+        let source_bytes = spout_sources
+            .clone()
+            .filter_map(|source| source.reserved_descriptor())
+            .try_fold(0_u64, |total, descriptor| {
+                total
+                    .checked_add(
+                        InputLimits::source_storage_bytes(descriptor)
+                            .map_err(|_| BackendError::ResourceSizeOverflow)?,
+                    )
+                    .ok_or(BackendError::ResourceSizeOverflow)
+            })?;
         if spout_sources.count() > self.config.inputs.max_sources || source_bytes > self.config.inputs.max_storage_bytes
         {
             return Err(BackendError::SourceCapacity);

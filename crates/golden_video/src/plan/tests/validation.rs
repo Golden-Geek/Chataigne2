@@ -34,6 +34,7 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
     use crate::plan::SpoutSource;
     use std::time::Duration;
     let valid = SpoutSource {
+        metadata: crate::plan::SpoutMetadata::Declared,
         sender: "Source".into(),
         descriptor: descriptor(4, 4),
         poll_interval: Duration::from_millis(16),
@@ -55,6 +56,7 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
     ] {
         assert_eq!(
             make(SpoutSource {
+                metadata: crate::plan::SpoutMetadata::Declared,
                 sender: "x".repeat(length),
                 frame_count,
                 ..valid.clone()
@@ -68,19 +70,23 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
     let mut invalid = Vec::new();
     for sender in [String::new(), "x".repeat(256), "bad\0source".into()] {
         invalid.push(SpoutSource {
+            metadata: crate::plan::SpoutMetadata::Declared,
             sender,
             ..valid.clone()
         });
     }
     invalid.push(SpoutSource {
+        metadata: crate::plan::SpoutMetadata::Declared,
         poll_interval: Duration::ZERO,
         ..valid.clone()
     });
     invalid.push(SpoutSource {
+        metadata: crate::plan::SpoutMetadata::Declared,
         poll_interval: Duration::from_secs(2),
         ..valid.clone()
     });
     invalid.push(SpoutSource {
+        metadata: crate::plan::SpoutMetadata::Declared,
         descriptor: TextureDescriptor {
             alpha_mode: AlphaMode::Straight,
             ..valid.descriptor
@@ -88,6 +94,7 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         ..valid.clone()
     });
     invalid.push(SpoutSource {
+        metadata: crate::plan::SpoutMetadata::Declared,
         descriptor: descriptor(1, 1),
         ..valid.clone()
     });
@@ -102,12 +109,60 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
     retained.push_str("Source");
     assert!(
         make(SpoutSource {
+            metadata: crate::plan::SpoutMetadata::Declared,
             sender: retained,
             ..valid
         })
         .retained_bytes()
         .unwrap()
             >= compact + 65000
+    );
+}
+
+#[test]
+fn discovered_spout_metadata_accepts_both_byte_layouts_with_runtime_bounds() {
+    let source = SpoutSource {
+        sender: "Exact input".into(),
+        descriptor: TextureDescriptor {
+            extent: Extent2D::new(16384, 16384).unwrap(),
+            alpha_mode: AlphaMode::Straight,
+            color_encoding: ColorEncoding::Srgb,
+            ..descriptor(1, 1)
+        },
+        metadata: SpoutMetadata::Discover,
+        poll_interval: std::time::Duration::from_millis(16),
+        frame_count: SpoutFrameCount::Unversioned,
+    };
+    for format in [PixelFormat::Bgra8Unorm, PixelFormat::Rgba8Unorm] {
+        let actual = source
+            .observed_descriptor(Extent2D::new(4, 4).unwrap(), format)
+            .unwrap();
+        assert_eq!(actual.format, format);
+        assert_eq!(actual.color_encoding, ColorEncoding::Srgb);
+        assert_eq!(actual.alpha_mode, AlphaMode::Straight);
+        let plan = RenderPlan {
+            external_textures: vec![ExternalTexture {
+                id: texture(1),
+                descriptor: actual,
+                source: Some(source.clone().into()),
+            }],
+            ..Default::default()
+        };
+        assert!(plan.compile_with_source_demands(&limits(), &[texture(1)]).is_ok());
+    }
+    assert!(
+        source
+            .observed_descriptor(Extent2D::new(16385, 1).unwrap(), PixelFormat::Bgra8Unorm)
+            .is_none()
+    );
+    let declared = SpoutSource {
+        metadata: SpoutMetadata::Declared,
+        ..source
+    };
+    assert!(
+        declared
+            .observed_descriptor(Extent2D::new(4, 4).unwrap(), PixelFormat::Rgba8Unorm)
+            .is_none()
     );
 }
 

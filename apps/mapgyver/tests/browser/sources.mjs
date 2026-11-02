@@ -194,26 +194,15 @@ export async function verifySourcesUi({ base, inspect }) {
 		await apply();
 		await state(picture.id, (value) => value?.channels[0].definition.source.asset === asset.id);
 
-		stage = 'Shared Texture exact selectors, admitted layout and independent peers';
+		stage = 'Shared Texture exact selectors and independent peers';
 		const shared = await create('Shared Texture', 'Receiver A');
 		await properties.getByLabel('Spout sender name', { exact: true }).fill('Exact sender A');
-		await properties.getByLabel('Maximum width (texels)', { exact: true }).fill('4');
-		await properties.getByLabel('Maximum height (texels)', { exact: true }).fill('4');
-		await properties.getByRole('combobox', { name: /^Storage/ }).selectOption('Rgba8Unorm');
-		await properties.getByRole('combobox', { name: /^Color encoding/ }).selectOption('Linear');
-		await properties.getByRole('combobox', { name: /^Source alpha/ }).selectOption('Premultiplied');
 		await size(64, 32);
 		await apply();
 		const expected = {
 			source: {
 				kind: 'Spout',
-				sender: 'Exact sender A',
-				maximum: {
-					extent: { width: 4, height: 4 },
-					format: 'Rgba8Unorm',
-					color_encoding: 'Linear',
-					alpha_mode: 'Premultiplied'
-				}
+				sender: 'Exact sender A'
 			},
 			size: { kind: 'Fixed', extent: { width: 64, height: 32 } },
 			filter: 'Nearest'

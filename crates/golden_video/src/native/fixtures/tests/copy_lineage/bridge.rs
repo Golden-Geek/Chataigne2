@@ -60,6 +60,7 @@ impl BridgeCapture {
                 descriptor: descriptor(),
                 source: Some(
                     SpoutSource {
+                        metadata: crate::plan::SpoutMetadata::Declared,
                         sender: sender.into(),
                         descriptor: descriptor(),
                         poll_interval: Duration::from_millis(1),

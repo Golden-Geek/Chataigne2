@@ -1,6 +1,15 @@
 use super::*;
 use crate::media::resolution::*;
-use golden_video::{AlphaMode, Extent2D};
+use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
+
+fn observed(width: u32, height: u32) -> TextureDescriptor {
+    TextureDescriptor {
+        extent: Extent2D::new(width, height).unwrap(),
+        format: PixelFormat::Bgra8Unorm,
+        color_encoding: ColorEncoding::Srgb,
+        alpha_mode: AlphaMode::Straight,
+    }
+}
 
 #[test]
 fn automatic_and_fixed_extents_keep_availability_separate() {
@@ -17,12 +26,11 @@ fn automatic_and_fixed_extents_keep_availability_separate() {
         resolve(&spout, SourceObservation::Unavailable).unwrap().availability,
         ChannelAvailability::Unconfigured
     );
-    let ChannelSource::Spout { sender, maximum } = &mut spout.source else {
+    let ChannelSource::Spout { sender } = &mut spout.source else {
         panic!()
     };
     *sender = Some("Input".into());
-    let mut actual = *maximum;
-    actual.extent = Extent2D::new(640, 480).unwrap();
+    let mut actual = observed(640, 480);
     assert_eq!(
         resolve(&spout, SourceObservation::Available(actual)).unwrap().extent,
         Some(actual.extent)
@@ -60,12 +68,11 @@ fn invalid_extents_selectors_colors_and_oversized_observations_do_not_resolve() 
     };
     assert!(source.validate().is_err());
     source = ChannelDefinition::for_media(MediaKind::SharedTexture);
-    let ChannelSource::Spout { sender, maximum } = &mut source.source else {
+    let ChannelSource::Spout { sender } = &mut source.source else {
         panic!()
     };
     *sender = Some("Input".into());
-    let mut actual = *maximum;
-    actual.extent = Extent2D::new(3840, 2160).unwrap();
+    let actual = observed(16385, 2160);
     assert_eq!(
         resolve(&source, SourceObservation::Available(actual))
             .unwrap()

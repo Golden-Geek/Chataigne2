@@ -14,6 +14,7 @@ use crate::runtime::DeviceGeneration;
 
 mod freshness;
 mod hardware_freshness;
+mod metadata;
 mod retirement;
 
 #[test]
@@ -56,6 +57,8 @@ fn fixture() -> (Arc<Shared>, TextureDescriptor) {
         hresult: None,
     }));
     let shared = Arc::new(Shared {
+        storage_budget: budget::Budget::new(u64::MAX),
+        declared_storage: None,
         diagnostics: None,
         observation_revision: Default::default(),
         source_notifier: Default::default(),

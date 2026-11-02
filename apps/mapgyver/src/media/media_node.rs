@@ -14,7 +14,7 @@ use golden_video::plan::SampleFilter;
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v3",
+    "mapgyver.media.v4",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -95,7 +95,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v3", from_struct)]
+#[node("mapgyver.media.v4", from_struct)]
 impl Node for MediaNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);

@@ -106,13 +106,14 @@ pub struct D3d11Config {
     pub inputs: InputLimits,
 }
 
-/// Fixed capacity reserved before any source worker is created. Zero disables inputs.
+/// Aggregate source capacity, including pools still retiring. Zero disables inputs.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InputLimits {
     /// Maximum overlapping subscriptions/workers, including those still retiring; at most 32.
     pub max_sources: usize,
     /// Admitted descriptor storage for three bridge slots and one sender alias per input.
-    /// This capacity stays reserved even while unused; physical driver residency is separate.
+    /// Declared sources reserve their maximum before worker creation; discovered sources reserve
+    /// actual layouts before allocation. Physical driver residency is separate.
     pub max_storage_bytes: u64,
 }
 

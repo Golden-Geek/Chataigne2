@@ -295,7 +295,7 @@ fn authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch()
         catalog(&mut discovery, &[&names[0], &names[1]], &[]);
         fixture.settle([available(4, 3), available(3, 2)], Some(healthy));
         fixture.pixels(adapter.id, [[0, 255, 0, 255], [0, 0, 255, 255]], "restart-resize");
-        a.command("start 8 8 1 0 0");
+        a.command("start 32 32 1 0 0");
         fixture.settle(
             [(ChannelAvailability::Incompatible, None), available(3, 2)],
             Some(healthy),
@@ -330,17 +330,21 @@ fn authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch()
         );
         let healthy_a = fixture.live().channels()[0];
         b.command("start 4 3 0 1 1");
+        wait("fixed-output input metadata follows the native resize", || {
+            let live = fixture.live();
+            if let Err(error) = live.refresh() {
+                assert!(error.contains("source observations"), "{error}");
+            }
+            live.native_control().unwrap().sources().iter().any(|source| {
+                source.texture == healthy.source.unwrap()
+                    && source.observed_descriptor
+                        == Some(TextureDescriptor {
+                            alpha_mode: AlphaMode::Straight,
+                            ..descriptor(4, 3)
+                        })
+            })
+        });
         fixture.settle([available(2, 2), available(3, 2)], Some(healthy_a));
-        assert!(
-            fixture
-                .live()
-                .native_control()
-                .unwrap()
-                .sources()
-                .iter()
-                .any(|source| source.texture == healthy.source.unwrap()
-                    && source.observed_descriptor == Some(descriptor(4, 3)))
-        );
         fixture.pixels(
             adapter.id,
             [[0, 255, 0, 255], [0, 255, 255, 255]],

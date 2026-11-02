@@ -7,7 +7,7 @@ use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device, I
 use windows::core::{Error, HRESULT, Interface, Result};
 
 use super::super::texture::{Texture, format};
-use crate::plan::SpoutFrameCount;
+use crate::plan::{SpoutFrameCount, SpoutSource};
 use crate::{Extent2D, TextureDescriptor};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,7 +26,7 @@ pub(crate) struct Receiver {
     raw: NonNull<sdk::spout_dx_t>,
     device: ID3D11Device,
     name: CString,
-    descriptor: TextureDescriptor,
+    binding: SpoutSource,
     handle: usize,
     alias: Option<ID3D11Texture2D>,
     freshness: Freshness,
@@ -35,23 +35,20 @@ pub(crate) struct Receiver {
 }
 
 impl Receiver {
-    pub fn new(
-        device: &ID3D11Device,
-        name: &str,
-        descriptor: TextureDescriptor,
-        frame_count: SpoutFrameCount,
-    ) -> Result<Self> {
+    pub fn new(device: &ID3D11Device, binding: &SpoutSource) -> Result<Self> {
+        let name = &binding.sender;
+        let frame_count = binding.frame_count;
         if !frame_count.accepts_sender_name(name) {
             return Err(invalid());
         }
-        let name = CString::new(name).map_err(|_| invalid())?;
+        let name = CString::new(name.as_str()).map_err(|_| invalid())?;
         // SAFETY: uniquely owned SDK instance, retained device AddRef outlives its borrowed pointer.
         let raw = NonNull::new(unsafe { sdk::spout_dx_create() }).ok_or_else(invalid)?;
         let receiver = Self {
             raw,
             device: device.clone(),
             name,
-            descriptor,
+            binding: binding.clone(),
             handle: 0,
             alias: None,
             freshness: Freshness::new(frame_count),
@@ -96,18 +93,9 @@ impl Receiver {
             self.disconnect();
             return Ok(Some(Received::Absent));
         }
-        if width == 0
-            || height == 0
-            || width > self.descriptor.extent.width()
-            || height > self.descriptor.extent.height()
-            || storage != format(self.descriptor.format).0 as u32
-        {
+        let Some(descriptor) = layout(&self.binding, width, height, storage) else {
             self.disconnect();
             return Ok(Some(Received::Mismatch));
-        }
-        let descriptor = TextureDescriptor {
-            extent: Extent2D::new(width, height).map_err(|_| invalid())?,
-            ..self.descriptor
         };
         if handle as usize != self.handle || self.actual_descriptor != Some(descriptor) {
             self.disconnect();
@@ -176,17 +164,8 @@ impl Receiver {
             let width = unsafe { sdk::spout_dx_get_sender_width(self.raw.as_ptr()) };
             let height = unsafe { sdk::spout_dx_get_sender_height(self.raw.as_ptr()) };
             let storage = unsafe { sdk::spout_dx_get_sender_format(self.raw.as_ptr()) };
-            if width == 0
-                || height == 0
-                || width > self.descriptor.extent.width()
-                || height > self.descriptor.extent.height()
-                || storage != format(self.descriptor.format).0 as u32
-            {
+            let Some(descriptor) = layout(&self.binding, width, height, storage) else {
                 return Ok(Received::Mismatch);
-            }
-            let descriptor = TextureDescriptor {
-                extent: Extent2D::new(width, height).map_err(|_| invalid())?,
-                ..self.descriptor
             };
             if !self.validate_alias(actual, descriptor)? {
                 return Ok(Received::Mismatch);
@@ -204,7 +183,7 @@ impl Receiver {
         };
         if actual_width != expected.extent.width()
             || actual_height != expected.extent.height()
-            || actual_format != format(self.descriptor.format).0 as u32
+            || actual_format != format(expected.format).0 as u32
         {
             return Ok(Received::Mismatch);
         }
@@ -238,7 +217,7 @@ impl Receiver {
         }
         if desc.Width != descriptor.extent.width()
             || desc.Height != descriptor.extent.height()
-            || desc.Format != format(self.descriptor.format)
+            || desc.Format != format(descriptor.format)
             || desc.MipLevels != 1
             || desc.ArraySize != 1
             || desc.SampleDesc.Count != 1
@@ -279,6 +258,13 @@ impl Receiver {
         self.last_copied_frame()
             .and_then(|frame| super::super::timing::SpoutImageVersion::copied_legacy(self.handle, frame))
     }
+}
+
+pub(super) fn layout(binding: &SpoutSource, width: u32, height: u32, storage: u32) -> Option<TextureDescriptor> {
+    let pixel_format = [crate::PixelFormat::Bgra8Unorm, crate::PixelFormat::Rgba8Unorm]
+        .into_iter()
+        .find(|candidate| format(*candidate).0 as u32 == storage)?;
+    binding.observed_descriptor(Extent2D::new(width, height).ok()?, pixel_format)
 }
 
 /// Counter history belongs to one validated sender-handle/descriptor lifetime. Only detailed

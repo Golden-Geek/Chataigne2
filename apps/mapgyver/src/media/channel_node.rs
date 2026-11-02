@@ -13,7 +13,7 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
-use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, plan::SampleFilter};
+use golden_video::{Extent2D, plan::SampleFilter};
 use std::sync::OnceLock;
 
 #[node("mapgyver.media.channel", label = "Channel", collapsed = true)]
@@ -24,11 +24,6 @@ use std::sync::OnceLock;
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.asset".into()]);
         sender: String = String::new() (label = "Spout sender");
-        maximum_width: i32 = 1920 [1..16384] (label = "Maximum width", constraint_policy = "reject");
-        maximum_height: i32 = 1080 [1..16384] (label = "Maximum height", constraint_policy = "reject");
-        pixel_format: Enum = "Bgra8Unorm" (label = "Pixel format", enum_options = crate::parameters::enum_options(&["Bgra8Unorm", "Rgba8Unorm"]));
-        color_encoding: Enum = "Srgb" (label = "Color encoding", enum_options = crate::parameters::enum_options(&["Srgb", "Linear"]));
-        alpha_mode: Enum = "Straight" (label = "Alpha mode", enum_options = crate::parameters::enum_options(&["Straight", "Premultiplied", "Opaque"]));
         canvas_width: i32 = 1920 [1..16384] (label = "Canvas width", constraint_policy = "reject");
         canvas_height: i32 = 1080 [1..16384] (label = "Canvas height", constraint_policy = "reject");
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
@@ -77,32 +72,8 @@ impl ChannelNode {
                 seed!(canvas_width, canvas.width() as i32);
                 seed!(canvas_height, canvas.height() as i32);
             }
-            ChannelSource::Spout { sender, maximum } => {
+            ChannelSource::Spout { sender } => {
                 seed!(sender, sender.unwrap_or_default());
-                seed!(maximum_width, maximum.extent.width() as i32);
-                seed!(maximum_height, maximum.extent.height() as i32);
-                seed!(
-                    pixel_format,
-                    Enum::new(match maximum.format {
-                        PixelFormat::Bgra8Unorm => "Bgra8Unorm",
-                        PixelFormat::Rgba8Unorm => "Rgba8Unorm",
-                    })
-                );
-                seed!(
-                    color_encoding,
-                    Enum::new(match maximum.color_encoding {
-                        ColorEncoding::Linear => "Linear",
-                        ColorEncoding::Srgb => "Srgb",
-                    })
-                );
-                seed!(
-                    alpha_mode,
-                    Enum::new(match maximum.alpha_mode {
-                        AlphaMode::Straight => "Straight",
-                        AlphaMode::Premultiplied => "Premultiplied",
-                        AlphaMode::Opaque => "Opaque",
-                    })
-                );
             }
             ChannelSource::Matrix { output } => match output {
                 MatrixOutput::Final { definition } => {
@@ -135,24 +106,6 @@ impl ChannelNode {
             },
             "SharedTexture" => ChannelSource::Spout {
                 sender: (!self.sender.get_ref().is_empty()).then(|| self.sender.get_ref().clone()),
-                maximum: TextureDescriptor {
-                    extent: extent(self.maximum_width.get(), self.maximum_height.get()),
-                    format: if self.pixel_format.get_ref().as_str() == "Rgba8Unorm" {
-                        PixelFormat::Rgba8Unorm
-                    } else {
-                        PixelFormat::Bgra8Unorm
-                    },
-                    color_encoding: if self.color_encoding.get_ref().as_str() == "Linear" {
-                        ColorEncoding::Linear
-                    } else {
-                        ColorEncoding::Srgb
-                    },
-                    alpha_mode: match self.alpha_mode.get_ref().as_str() {
-                        "Opaque" => AlphaMode::Opaque,
-                        "Premultiplied" => AlphaMode::Premultiplied,
-                        _ => AlphaMode::Straight,
-                    },
-                },
             },
             "Matrix" => ChannelSource::Matrix {
                 output: match self.output_kind.get_ref().as_str() {
@@ -208,45 +161,9 @@ impl ChannelNode {
                 (self.canvas_width.id(), ParamValue::Int(canvas.width() as i32)),
                 (self.canvas_height.id(), ParamValue::Int(canvas.height() as i32)),
             ]),
-            ChannelSource::Spout { sender, maximum } => values.extend([
-                (self.sender.id(), ParamValue::Str(sender.unwrap_or_default())),
-                (self.maximum_width.id(), ParamValue::Int(maximum.extent.width() as i32)),
-                (
-                    self.maximum_height.id(),
-                    ParamValue::Int(maximum.extent.height() as i32),
-                ),
-                (
-                    self.pixel_format.id(),
-                    ParamValue::Enum(
-                        match maximum.format {
-                            PixelFormat::Bgra8Unorm => "Bgra8Unorm",
-                            PixelFormat::Rgba8Unorm => "Rgba8Unorm",
-                        }
-                        .into(),
-                    ),
-                ),
-                (
-                    self.color_encoding.id(),
-                    ParamValue::Enum(
-                        match maximum.color_encoding {
-                            ColorEncoding::Linear => "Linear",
-                            ColorEncoding::Srgb => "Srgb",
-                        }
-                        .into(),
-                    ),
-                ),
-                (
-                    self.alpha_mode.id(),
-                    ParamValue::Enum(
-                        match maximum.alpha_mode {
-                            AlphaMode::Straight => "Straight",
-                            AlphaMode::Premultiplied => "Premultiplied",
-                            AlphaMode::Opaque => "Opaque",
-                        }
-                        .into(),
-                    ),
-                ),
-            ]),
+            ChannelSource::Spout { sender } => {
+                values.push((self.sender.id(), ParamValue::Str(sender.unwrap_or_default())))
+            }
             ChannelSource::Matrix {
                 output: MatrixOutput::Final { definition },
             } => values.extend([
@@ -327,11 +244,6 @@ impl Node for ChannelNode {
             self.rgba.id(),
             self.asset.id(),
             self.sender.id(),
-            self.maximum_width.id(),
-            self.maximum_height.id(),
-            self.pixel_format.id(),
-            self.color_encoding.id(),
-            self.alpha_mode.id(),
             self.canvas_width.id(),
             self.canvas_height.id(),
             self.output_kind.id(),
@@ -391,12 +303,7 @@ impl Node for ChannelNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
-        for value in [
-            self.maximum_width.get(),
-            self.maximum_height.get(),
-            self.canvas_width.get(),
-            self.canvas_height.get(),
-        ] {
+        for value in [self.canvas_width.get(), self.canvas_height.get()] {
             if !(1..=16384).contains(&value) {
                 return Err("channel dimensions must contain 1..16384 texels".into());
             }
@@ -407,12 +314,6 @@ impl Node for ChannelNode {
                 &["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"][..],
             ),
             (self.output_kind.get_ref().as_str(), &["Final", "Layer", "Group"][..]),
-            (self.pixel_format.get_ref().as_str(), &["Bgra8Unorm", "Rgba8Unorm"][..]),
-            (self.color_encoding.get_ref().as_str(), &["Srgb", "Linear"][..]),
-            (
-                self.alpha_mode.get_ref().as_str(),
-                &["Straight", "Premultiplied", "Opaque"][..],
-            ),
             (self.empty_cell.get_ref().as_str(), &["Transparent"][..]),
             (self.transition_curve.get_ref().as_str(), &["Linear", "SmoothStep"][..]),
         ] {

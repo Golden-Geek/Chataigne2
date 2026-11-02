@@ -304,12 +304,7 @@ pub(super) fn build(
                         }
                     }
                 }
-                Some(
-                    source @ ChannelSource::Spout {
-                        sender: Some(sender),
-                        maximum,
-                    },
-                ) => {
+                Some(source @ ChannelSource::Spout { sender: Some(sender) }) => {
                     let id = match &entry.source {
                         Some((id, configured)) if configured == source => *id,
                         _ => allocate(next)?,
@@ -320,6 +315,20 @@ pub(super) fn build(
                         guards.push(observed.guard.clone());
                     }
                     let actual = observed.and_then(|source| source.descriptor);
+                    let maximum = TextureDescriptor {
+                        extent: Extent2D::new(
+                            limits.max_texture_dimension.min(resolution::MAX_CHANNEL_DIMENSION),
+                            limits.max_texture_dimension.min(resolution::MAX_CHANNEL_DIMENSION),
+                        )
+                        .map_err(|error| error.to_string())?,
+                        format: PixelFormat::Bgra8Unorm,
+                        color_encoding: ColorEncoding::Srgb,
+                        alpha_mode: AlphaMode::Straight,
+                    };
+                    let placeholder = TextureDescriptor {
+                        extent: Extent2D::new(1, 1).unwrap(),
+                        ..maximum
+                    };
                     let definition = channel.definition.as_ref().unwrap();
                     resolution = resolution::resolve(
                         definition,
@@ -332,11 +341,12 @@ pub(super) fn build(
                         id,
                         descriptor: actual
                             .filter(|_| resolution.availability == ChannelAvailability::Ready)
-                            .unwrap_or(*maximum),
+                            .unwrap_or(placeholder),
                         source: Some(
                             SpoutSource {
                                 sender: sender.clone(),
-                                descriptor: *maximum,
+                                descriptor: maximum,
+                                metadata: golden_video::plan::SpoutMetadata::Discover,
                                 poll_interval: Duration::from_millis(16),
                                 frame_count: golden_video::plan::SpoutFrameCount::Unversioned,
                             }

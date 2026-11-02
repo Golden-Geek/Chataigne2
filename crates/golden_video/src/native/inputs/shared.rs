@@ -14,6 +14,8 @@ pub(super) struct Publication {
 }
 
 pub(super) struct Shared {
+    pub storage_budget: super::budget::Budget,
+    pub declared_storage: Option<super::budget::Lease>,
     pub diagnostics: Option<super::super::timing::Recorder>,
     pub observation_revision: golden_io::RevisionSource,
     pub source_notifier: Arc<Mutex<Option<WorkerNotifier>>>,

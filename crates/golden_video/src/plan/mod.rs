@@ -205,22 +205,69 @@ impl SpoutFrameCount {
 pub struct SpoutSource {
     /// Exact sender selector; never the SDK's active-sender fallback.
     pub sender: String,
-    /// Maximum admitted storage/extent and explicitly declared transfer/alpha.
+    /// Maximum extent. Storage/transfer/alpha are fixed only in declared metadata mode;
+    /// discovery replaces them with admitted native metadata.
     pub descriptor: TextureDescriptor,
+    /// Storage discovery or caller-declared transfer/alpha interpretation.
+    pub metadata: SpoutMetadata,
     /// Dedicated source-worker polling interval, between one millisecond and one second.
     pub poll_interval: Duration,
     /// Explicit peer capability, supplied by the endpoint owner rather than inferred at runtime.
     pub frame_count: SpoutFrameCount,
 }
 
+/// Classic Spout byte textures carry storage format but no transfer/alpha metadata.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpoutMetadata {
+    /// Require the caller's fixed storage, transfer and alpha contract.
+    Declared,
+    /// Discover BGRA/RGBA byte storage and interpret it as sRGB with straight alpha.
+    Discover,
+}
+
 impl SpoutSource {
+    /// Only fixed contracts reserve a maximum before native metadata is available.
+    pub(crate) fn reserved_descriptor(&self) -> Option<TextureDescriptor> {
+        (self.metadata == SpoutMetadata::Declared).then_some(self.descriptor)
+    }
+
+    /// Admits native storage metadata before any receiving pool is allocated.
+    pub fn observed_descriptor(
+        &self,
+        extent: crate::Extent2D,
+        format: crate::PixelFormat,
+    ) -> Option<TextureDescriptor> {
+        let descriptor = match self.metadata {
+            SpoutMetadata::Declared => TextureDescriptor {
+                extent,
+                format,
+                ..self.descriptor
+            },
+            SpoutMetadata::Discover => TextureDescriptor {
+                extent,
+                format,
+                color_encoding: crate::ColorEncoding::Srgb,
+                alpha_mode: crate::AlphaMode::Straight,
+            },
+        };
+        self.accepts(descriptor).then_some(descriptor)
+    }
+
     pub(crate) fn accepts(&self, actual: TextureDescriptor) -> bool {
         let maximum = self.descriptor;
         actual.extent.width() <= maximum.extent.width()
             && actual.extent.height() <= maximum.extent.height()
-            && actual.format == maximum.format
-            && actual.color_encoding == maximum.color_encoding
-            && actual.alpha_mode == maximum.alpha_mode
+            && match self.metadata {
+                SpoutMetadata::Declared => {
+                    actual.format == maximum.format
+                        && actual.color_encoding == maximum.color_encoding
+                        && actual.alpha_mode == maximum.alpha_mode
+                }
+                SpoutMetadata::Discover => {
+                    actual.color_encoding == crate::ColorEncoding::Srgb
+                        && actual.alpha_mode == crate::AlphaMode::Straight
+                }
+            }
     }
 }
 

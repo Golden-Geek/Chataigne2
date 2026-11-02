@@ -180,7 +180,6 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, sender: &str) 
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = ChannelSource::Spout {
         sender: Some(sender.into()),
-        maximum: descriptor(4, 4),
     };
     edit(
         engine,

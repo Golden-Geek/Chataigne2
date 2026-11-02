@@ -180,6 +180,7 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
                 id: TextureId::new(1).unwrap(),
                 source: Some(
                     SpoutSource {
+                        metadata: crate::plan::SpoutMetadata::Declared,
                         sender: "uninitialized-source".into(),
                         descriptor: TextureDescriptor {
                             extent: Extent2D::new(4, 4).unwrap(),

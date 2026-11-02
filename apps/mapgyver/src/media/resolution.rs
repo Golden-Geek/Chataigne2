@@ -1,7 +1,7 @@
 //! Backend source validation and size policy; observations are separate from project data.
 
 use golden_video::plan::SampleFilter;
-use golden_video::{AlphaMode, ColorEncoding, Extent2D, LinearColor, PixelFormat, TextureDescriptor};
+use golden_video::{AlphaMode, ColorEncoding, Extent2D, LinearColor, TextureDescriptor};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -32,15 +32,7 @@ impl ChannelDefinition {
                 },
             },
             MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [1.0; 4] },
-            MediaKind::SharedTexture => ChannelSource::Spout {
-                sender: None,
-                maximum: TextureDescriptor {
-                    extent: default_canvas(),
-                    format: PixelFormat::Bgra8Unorm,
-                    color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: AlphaMode::Straight,
-                },
-            },
+            MediaKind::SharedTexture => ChannelSource::Spout { sender: None },
         };
         Self {
             source,
@@ -74,9 +66,7 @@ impl ChannelDefinition {
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
             }
-            ChannelSource::Spout { sender, maximum } => {
-                validate_extent(maximum.extent)?;
-                maximum.byte_len().map_err(|e| e.to_string())?;
+            ChannelSource::Spout { sender } => {
                 if sender
                     .as_ref()
                     .is_some_and(|s| s.is_empty() || s.len() > 255 || s.contains('\0'))
@@ -155,14 +145,13 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
         },
         ChannelSource::Spout { sender: None, .. } => (None, ChannelAvailability::Unconfigured),
-        ChannelSource::Spout { maximum, .. } => match observed {
+        ChannelSource::Spout { .. } => match observed {
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual)
-                if actual.extent.width() <= maximum.extent.width()
-                    && actual.extent.height() <= maximum.extent.height()
-                    && actual.format == maximum.format
-                    && actual.color_encoding == maximum.color_encoding
-                    && actual.alpha_mode == maximum.alpha_mode =>
+                if actual.extent.width() <= MAX_CHANNEL_DIMENSION
+                    && actual.extent.height() <= MAX_CHANNEL_DIMENSION
+                    && actual.color_encoding == ColorEncoding::Srgb
+                    && actual.alpha_mode == AlphaMode::Straight =>
             {
                 (Some(actual.extent), ChannelAvailability::Ready)
             }

@@ -74,7 +74,7 @@ has one owned output; its output and Matrix exports do not advertise source-vari
 Every media has a disableable integer-constrained Vec2 **Resolution**, in pixels, default
 disabled, bounds 1–16384 per axis and unit steps. Disabled uses each source's native size;
 procedural canvases default to 1920×1080. Enabled forces every channel to that extent.
-The shared-Resolution/Sampling document uses node type `mapgyver.media.v3`. Projects containing
+The shared-Resolution/Sampling document uses node type `mapgyver.media.v4`. Projects containing
 older media types are rejected as unsupported; per-channel sizing or sampling is never silently
 reinterpreted. `ChannelDefinition.size` and `.filter` are runtime/read projections. Change Resolution
 through its generic Parameter (including enabled state) or `ConfigureMediaResolution`;
@@ -82,6 +82,13 @@ change shared Sampling through its generic Enum Parameter or `ConfigureMediaSamp
 `ConfigureChannel` accepts only source settings. Media revision guards invalidate captures
 for pixel changes and enable-only edits without walking or rebuilding all channel subtrees.
 Shared Texture no longer persists format, encoding, alpha mode or maximum dimensions.
+Only the exact sender selector belongs to its channel Parameters. Golden discovers supported
+BGRA/RGBA byte storage at the native receiver. Classic Spout does not carry independent
+transfer/alpha metadata; the discovery profile interprets byte colors as sRGB with straight
+alpha. Unsupported formats fail explicitly. Source extents remain bounded by the render host's
+texture limits. The existing aggregate source byte budget admits actual discovered bridge
+pools before allocation, including pools still retiring; declared Golden subscriptions retain
+their explicit metadata and maximum reservation. No admission budget is increased.
 Internal device/allocation limits still reject unsupported resources and supervise recovery.
 
 References preserve target-channel correspondence by stable channel identity, not position

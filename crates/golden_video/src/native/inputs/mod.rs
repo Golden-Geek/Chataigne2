@@ -1,6 +1,7 @@
 //! Fixed-size source pools. SDK/device work stays on one worker per configured input;
 //! renderer imports are local and remain leased through matching renderer completion.
 
+mod budget;
 mod reader;
 pub(crate) mod receiver;
 mod shared;
@@ -14,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use golden_io::{BoundedWorker, PendingDrainState, RetirementPool, WorkerLimits, WorkerNotifier};
-use windows::core::{Error, HRESULT, Result};
+use windows::core::{Error, Result};
 
 use crate::plan::{CompiledPlan, ExternalSource, SpoutSource};
 use crate::runtime::backend::BackendError;
@@ -113,6 +114,7 @@ struct Input {
 }
 
 pub(super) struct SourcePool {
+    storage_budget: budget::Budget,
     inputs: BTreeMap<TextureId, Input>,
     lifetimes: RetirementPool,
     adapter: AdapterId,
@@ -137,6 +139,7 @@ impl SourcePool {
         control.register_sources(Vec::new());
         let lifetimes = RetirementPool::new(NonZeroUsize::new(limits.max_sources.max(1)).unwrap());
         Self {
+            storage_budget: budget::Budget::new(limits.max_storage_bytes),
             inputs: BTreeMap::new(),
             lifetimes,
             adapter,
@@ -147,7 +150,19 @@ impl SourcePool {
         }
     }
 
-    fn spawn(&mut self, texture: TextureId, binding: SpoutSource) -> Result<()> {
+    fn spawn(&mut self, texture: TextureId, binding: SpoutSource) -> std::result::Result<(), BackendError> {
+        let storage = if let Some(descriptor) = binding.reserved_descriptor() {
+            Some(
+                self.storage_budget
+                    .claim(
+                        InputLimits::source_storage_bytes(descriptor)
+                            .map_err(|_| BackendError::ResourceSizeOverflow)?,
+                    )
+                    .ok_or(BackendError::SourceCapacity)?,
+            )
+        } else {
+            None
+        };
         let device = self.device;
         let status = Arc::new(Mutex::new(SourceSnapshot {
             binding: uuid::Uuid::new_v4(),
@@ -174,6 +189,8 @@ impl SourcePool {
             hresult: None,
         }));
         let shared = Arc::new(Shared {
+            storage_budget: self.storage_budget.clone(),
+            declared_storage: storage,
             diagnostics: self.control.recorder(),
             observation_revision: Default::default(),
             source_notifier: self.control.source_notifier.clone(),
@@ -203,7 +220,7 @@ impl SourcePool {
             },
             move |context| worker::run(context, adapter, config, worker_shared),
         )
-        .map_err(|error| Error::new(HRESULT(0x8000_4005_u32 as i32), error.to_string()))?;
+        .map_err(|_| BackendError::AllocationFailed)?;
         *shared.worker_notify.lock().unwrap_or_else(|error| error.into_inner()) = Some(worker.wake_notifier());
         self.inputs.insert(
             texture,
@@ -290,13 +307,6 @@ impl SourcePool {
         });
         self.publish_statuses();
         let mut count = self.inputs.len();
-        let mut bytes = self
-            .inputs
-            .values()
-            .try_fold(0_u64, |sum, input| {
-                sum.checked_add(InputLimits::source_storage_bytes(input.binding.descriptor).ok()?)
-            })
-            .ok_or(BackendError::ResourceSizeOverflow)?;
         for source in plan.external_textures() {
             let Some(binding) = source.source.as_ref().and_then(ExternalSource::spout) else {
                 continue;
@@ -310,16 +320,9 @@ impl SourcePool {
                 }
             } else {
                 count += 1;
-                bytes = bytes
-                    .checked_add(
-                        InputLimits::source_storage_bytes(binding.descriptor)
-                            .map_err(|_| BackendError::ResourceSizeOverflow)?,
-                    )
-                    .ok_or(BackendError::ResourceSizeOverflow)?;
             }
         }
         if count > self.limits.max_sources
-            || bytes > self.limits.max_storage_bytes
             || self.lifetimes.metrics().active + count - self.inputs.len() > self.limits.max_sources
         {
             return Err(BackendError::SourceCapacity);
@@ -330,12 +333,12 @@ impl SourcePool {
                 continue;
             };
             if !self.inputs.contains_key(&source.id) {
-                if self.spawn(source.id, binding.clone()).is_err() {
+                if let Err(error) = self.spawn(source.id, binding.clone()) {
                     for id in created {
                         Self::stop(self.inputs.get_mut(&id).unwrap());
                     }
                     self.publish_statuses();
-                    return Err(BackendError::AllocationFailed);
+                    return Err(error);
                 }
                 created.push(source.id);
             }

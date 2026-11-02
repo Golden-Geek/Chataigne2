@@ -2,7 +2,7 @@
 use super::*;
 use crate::media::channel;
 use golden_core::app::ProjectNode;
-use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
+use golden_video::Extent2D;
 
 mod applications;
 mod composition;
@@ -173,14 +173,8 @@ fn baseline() -> Baseline {
             let mut definition = channel(&engine, reference).unwrap().definition;
             match &mut definition.source {
                 ChannelSource::Picture { asset: selected } => *selected = Some(asset),
-                ChannelSource::Spout { sender, maximum } => {
+                ChannelSource::Spout { sender } => {
                     *sender = Some(format!("Source {index}"));
-                    *maximum = TextureDescriptor {
-                        extent: Extent2D::new(4, 4).unwrap(),
-                        format: PixelFormat::Bgra8Unorm,
-                        color_encoding: ColorEncoding::Srgb,
-                        alpha_mode: AlphaMode::Straight,
-                    };
                 }
                 _ => {}
             }

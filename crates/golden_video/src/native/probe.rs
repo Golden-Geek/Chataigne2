@@ -176,9 +176,13 @@ impl Session {
         let device = Device::new(adapter)?;
         let receiver = Receiver::new(
             &device.device,
-            name.to_str().map_err(|_| invalid())?,
-            descriptor,
-            SpoutFrameCount::Unversioned,
+            &crate::plan::SpoutSource {
+                sender: name.to_str().map_err(|_| invalid())?.into(),
+                descriptor,
+                metadata: crate::plan::SpoutMetadata::Declared,
+                poll_interval: Duration::from_millis(16),
+                frame_count: SpoutFrameCount::Unversioned,
+            },
         )?;
         let completion = EventCompletion::new(&device)?;
         let texture = Texture::new(&device.device, descriptor)?;

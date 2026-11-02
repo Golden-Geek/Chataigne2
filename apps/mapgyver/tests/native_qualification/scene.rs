@@ -93,6 +93,7 @@ pub fn plan(
                 id: texture(index as u64 + 1),
                 descriptor,
                 source: Some(ExternalSource::Spout(SpoutSource {
+                    metadata: golden_video::plan::SpoutMetadata::Declared,
                     sender: sources[index].clone(),
                     descriptor,
                     poll_interval: Duration::from_millis(1),

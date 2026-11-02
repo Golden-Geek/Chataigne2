@@ -2,16 +2,18 @@
 
 **Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** revised M04 shared media settings and source-only channel edits.
-**Next deliverable:** remove remaining channel-owned procedural canvas and Shared Texture
-metadata settings, retain only variant differences, then complete manager menus and module API.
+**Current topic:** revised M04 sender-only Shared Texture and native metadata ownership.
+**Next deliverable:** remove channel-owned procedural canvas settings and project media
+Resolution into Composition/Matrix; then complete manager menus and the module API.
 **Execution:** implementing M04/1 on `mapgyver`; one active gate, delivered in reviewable slices.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
-the generic Inspector, source media, Screen/Surface editing, Composition and Matrix playback.
-**Last delivered capability:** media-owned Sampling across existing/new variants, generic/API/
-script editing, history/reload and capture invalidation. Channel edits accept source settings;
-runtime size/filter projections are read-only. The v3 schema rejects unsupported older media.
+the generic Inspector, sender-only Shared Texture authoring, source media, Screen/Surface
+editing, Composition and Matrix playback.
+**Last delivered capability:** Shared Texture metadata is native runtime state; authored
+variants contain only the exact sender. Discovered inputs reserve actual pool storage before
+allocation under the unchanged aggregate budget. Schema v4 rejects unsupported older media.
+Software/browser verification passed; full native lifecycle acceptance remains open.
 **Last accepted:** user-reviewed native Screen/Surface, Composition and Matrix playback behavior
 on the prior schema. Remaining revised ownership and native editor acceptance stay open.
 
@@ -48,8 +50,8 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                   |
 | ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active  | M04/1            | Shared Resolution/Sampling and Channels authoring are functionally verified. Finish procedural/source ownership, manager context-menu visibility, authoritative creation/import defaults and complete command/function/callback/snippet API; verify all revised generic/direct editing and history contracts.          |
-| Pending | M04/2,4–8        | After M04/1, verify revised source/Spout contracts and generic UI/lifetime; implement Reference, then Media Preview. M04/3 Picture worker bounds retain acceptance.                                                                                                                                                    |
+| Active  | M04/1            | Shared Resolution/Sampling, Channels and sender-only authoring are software/browser verified. Finish procedural canvas/shared settings, manager context-menu visibility, creation/import defaults and complete command/function/callback/snippet API; verify revised generic/direct editing and history contracts.     |
+| Pending | M04/2,4–8        | After M04/1, finish revised source/Spout/native checks, including the corrected lifecycle and declared-input capacity cases in the linked evidence; verify generic UI/lifetime, then Reference and Media Preview. M04/3 Picture worker bounds retain acceptance.                                                       |
 | Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                        |
 | Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                       |
 | Pending | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                              |
@@ -74,25 +76,31 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/1 shared Sampling; owner: MapGyver media Parameters, public edit
-  API and generic Inspector. One media-owned Enum now projects its filter to every variant;
-  channel-authored Sampling was removed. `ConfigureMediaSampling` edits that same Parameter;
-  `ConfigureChannel` accepts source settings only. Generated contracts, Rust/UI/native-fixture
-  callers and headless fixtures changed together. Media schema `mapgyver.media.v3` rejects
-  old sizing/sampling schemas before project replacement. Started 2026-11-02 20:23 CET;
-  scope cutoff 21:08 CET, completed within the batch. The Picture-import test fixture retained
-  its asset-copy setup after separating shared Sampling from variant edits. **Checks:** 276
-  MapGyver tests passed/1 existing ignored (generated parity, all source caller parity, generic
-  ownership, invalid-value rollback, stable variants/new-channel inheritance, history/reload
-  and capture invalidation); strict all-target Clippy with `native-qualification`; MapGyver UI
-  check (0 errors/warnings); ordinary executable build; combined bundled Sampling/Resolution,
-  Channels and manager-catalog workflows plus source Save/New/Load and atomic rejection;
-  root/Golden formatting and touched UI/test/doc formatting. No native experiment or gate
-  closure. Channels authoring remains in `151ca682`; Resolution in `a6a5ea11`.
-  **Remaining:** procedural canvas/shared source ownership, discovered Shared Texture metadata,
-  manager context-menu channel-creation visibility, complete command/function/callback/snippet
-  API and revised full source/browser/native parity (including porting the legacy broad source
-  browser fixtures). Reference/Preview and the return queue remain required. Counts stay 24/57.
+- **Current milestone:** M04/1 Shared Texture ownership. MapGyver channels persist only their
+  exact sender selector; maximum dimensions, storage format, transfer and alpha Parameters
+  were removed. Golden discovers BGRA/RGBA byte storage and applies its documented classic
+  Spout sRGB/straight-alpha interpretation. Internal host bounds remain; discovered pool charges
+  follow actual ownership through retirement under the unchanged aggregate capacity. Declared
+  Golden bindings retain maximum reservations. Backend preflight and worker admission share
+  that policy, with a software regression for the initial native capacity failure. Schema v4,
+  generated contracts and consumers changed together; codegen also prunes obsolete owned DTOs.
+  **Checks:** MapGyver 276 passed/1 existing ignored; Golden plan 30 passed; Golden input
+  software 12 passed/1 hardware ignored; new backend preflight regression passed; strict
+  app/Golden all-target Clippy with `native-qualification`; UI check (0 errors/warnings);
+  ordinary app/sender builds; bundled sender-only Inspector, independent variants, history,
+  shared settings/Channels/catalogs and source Save/New/Load; root/Golden and touched-file
+  formatting passed. Corrected native fixture compiles. The broad legacy source-browser
+  fixtures still need their full revised-workflow port; they are not claimed verified.
+  **Native limit:** two inspected, prerequisite-gated attempts. The second verified pixels and
+  recovery through explicit renamed-sender selection, then stopped at an old opaque-alpha
+  metadata assertion. The fixture now waits for the required straight-alpha resize metadata;
+  it was compiled, not run a third time. [Exact coverage and return action](evidence/mapgyver-spout-metadata-native-2026-11-02.json)
+  retain fixed-output resize, cross-adapter/both-adapter completion, RGBA pixels and declared
+  overlap/capacity checks for revised M04 native acceptance after M04/1. No native gate closed.
+  Started 2026-11-02 20:38 CET, cutoff 21:23 CET. Sampling remains in `72853505`, Channels
+  in `151ca682`, Resolution in `a6a5ea11`. **Remaining:** procedural canvas/shared ownership,
+  manager menus, complete module API and revised full browser/native parity; Reference/Preview
+  and all retained return-queue requirements. Counts stay 24/57; 3/11 phases, 27% overall.
 
 ## Maintenance rule
 

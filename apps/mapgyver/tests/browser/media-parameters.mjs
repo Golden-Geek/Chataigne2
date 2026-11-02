@@ -122,56 +122,21 @@ export async function verifyMediaParameters({
 	await fields(['Kind']);
 	assert.match(await choice('Kind').getAttribute('class'), /readonly/);
 
-	stage('generic Spout descriptor and sender Parameters');
+	stage('generic sender-only Shared Texture Parameters');
 	const input = shared.channels.find((item) => item.definition.size.kind === 'Automatic');
 	const inputPeer = shared.channels.find((item) => item !== input);
 	assert(input && inputPeer);
 	await select(input.reference, 'SharedTexture');
-	await fields([
-		'Source kind',
-		'Size',
-		'Sampling',
-		'Spout sender',
-		'Maximum width',
-		'Maximum height',
-		'Pixel format',
-		'Color encoding',
-		'Alpha mode'
-	]);
+	await fields(['Source kind', 'Spout sender']);
 	await setText(parameter('Spout sender').locator('input.string-editor'), 'Parameter Input');
-	await wait(
-		() => channel(input.reference),
-		(value) => value.definition.source.sender === 'Parameter Input'
-	);
-	await setNumber('Maximum width', 1024);
-	await wait(
-		() => channel(input.reference),
-		(value) => value.definition.source.maximum.extent.width === 1024
-	);
-	await setNumber('Maximum height', 768);
-	await wait(
-		() => channel(input.reference),
-		(value) => value.definition.source.maximum.extent.height === 768
-	);
-	await choice('Pixel format').selectOption('Rgba8Unorm');
-	await wait(
-		() => channel(input.reference),
-		(value) => value.definition.source.maximum.format === 'Rgba8Unorm'
-	);
-	await choice('Color encoding').selectOption('Linear');
-	await wait(
-		() => channel(input.reference),
-		(value) => value.definition.source.maximum.color_encoding === 'Linear'
-	);
-	await choice('Alpha mode').selectOption('Opaque');
 	const spout = await wait(
 		() => channel(input.reference),
-		(value) => value.definition.source.maximum.alpha_mode === 'Opaque'
+		(value) => value.definition.source.sender === 'Parameter Input'
 	);
 	await undo();
 	await wait(
 		() => channel(input.reference),
-		(value) => value.definition.source.maximum.alpha_mode === 'Straight'
+		(value) => value.definition.source.sender === input.definition.source.sender
 	);
 	await redo();
 	await wait(

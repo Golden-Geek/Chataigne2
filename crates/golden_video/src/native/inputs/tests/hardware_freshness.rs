@@ -174,6 +174,7 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
             descriptor: descriptor(8),
             source: Some(
                 SpoutSource {
+                    metadata: crate::plan::SpoutMetadata::Declared,
                     sender: name.clone(),
                     descriptor: descriptor(8),
                     poll_interval: Duration::from_millis(5),

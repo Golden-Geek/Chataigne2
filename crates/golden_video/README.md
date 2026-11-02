@@ -426,14 +426,17 @@ consumers or abandon already queued GPU uses. The pinned SDK's detailed transfer
 distinguishes an actual Spout copy from an access timeout; API acceptance still does not prove
 consumer delivery or scanout. Opaque API waits remain part of native cadence qualification.
 
-`ExternalTexture::source` selects an immutable image or `ExternalSource::Spout`: exact selector, required storage/
-color/alpha, polling interval and admitted maximum extent. Bindings travel inside the same
-revisioned plan as their consumers. `D3d11Config::inputs` reserves `InputLimits` before native
-allocation: at most 32 overlapping source workers and an explicit descriptor-storage capacity.
-That capacity remains charged while unused; each subscription consumes four maximum-size
-image charges (three bridge slots and sender alias). The public checked
-`InputLimits::source_storage_bytes` derives this charge from the same slot count used by
-allocation and renderer import caches; apps do not duplicate pool-layout arithmetic.
+`ExternalTexture::source` selects an immutable image or `ExternalSource::Spout`: exact selector,
+metadata policy, polling interval and admitted maximum extent. `SpoutMetadata::Declared` fixes
+storage/transfer/alpha. `Discover` admits native BGRA/RGBA byte storage and interprets byte colors
+as sRGB with straight alpha, since classic Spout carries no independent transfer/alpha metadata.
+Unsupported native formats are rejected rather than guessed. Bindings travel inside the same
+revisioned plan as their consumers. `D3d11Config::inputs` bounds at most 32 overlapping workers
+and one aggregate source-storage budget. Declared subscriptions reserve their maximum before
+worker creation; discovered subscriptions reserve actual layouts before bridge allocation.
+Each reservation charges three bridge images and one sender alias. The public checked
+`InputLimits::source_storage_bytes` uses the same slot count as allocation and import caches;
+apps do not duplicate pool-layout arithmetic. Capacity remains held through actual retirement.
 Old/prepared/retiring subscriptions share
 these limits. Each source owns a Golden IO worker and a separate
 device on the selected adapter. Prepared resource generations hold demand leases, warming inputs
@@ -445,9 +448,9 @@ SDK-allocated receiving image or a private capture-to-bridge copy. Three NT-hand
 bridge slots coalesce input; capacity is checked before receive.
 Renderer imports stay local and retain reader leases through renderer completion. Source-device
 completion separately protects SDK aliases and bridge-writer work. Resize retires old readers
-and cached aliases before replacing its pool within the same reservation. Source snapshots report
+and cached aliases before replacing its pool within the same aggregate budget. Source snapshots report
 actual extents; a plan must adopt that descriptor before copying the resized input. Missing or
-mismatched input has zero storage (black for opaque descriptors), with explicit source state.
+mismatched input samples zero source pixels (black for opaque descriptors), with explicit source state.
 
 Each input owns one reader lease per admitted bridge slot. Multiple prepared targets can copy
 the same immutable publication using that device's existing ownership, extending retirement
@@ -465,6 +468,8 @@ across generations. Unused subscriptions cancel asynchronously; they consume cap
 their worker has actually disconnected after native cleanup. Source/worker pressure returns an
 explicit resource-pressure outcome without waiting for retirement on the renderer. Source
 snapshots carry a subscription UUID in addition to device/texture/session identity.
+Discovered allocation pressure reports its native out-of-memory cause and retries through
+the source worker's existing bounded recovery backoff, independently of healthy peers.
 
 A retiring source session withdraws its latest publication, enters `Recovering` and invalidates
 its observation guard before draining source-device completion. Reader, bridge and SDK

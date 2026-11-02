@@ -240,11 +240,10 @@ fn pending_spout_dependencies_warm_without_drawing_and_disabled_instances_withdr
     let mut engine = engine();
     let source = create(&mut engine, MediaKind::SharedTexture);
     let mut definition = channel(&engine, source).unwrap().definition;
-    let ChannelSource::Spout { sender, maximum } = &mut definition.source else {
+    let ChannelSource::Spout { sender } = &mut definition.source else {
         panic!()
     };
     *sender = Some("CompositionTestInput".into());
-    maximum.extent = Extent2D::new(4, 2).unwrap();
     edit(
         &mut engine,
         MediaEdit::ConfigureChannel {

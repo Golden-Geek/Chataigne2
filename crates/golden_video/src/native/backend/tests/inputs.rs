@@ -19,6 +19,47 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, Opacity, PixelFormat};
 
 const WAIT: Duration = Duration::from_secs(5);
 
+#[test]
+fn discovered_metadata_preflight_does_not_reserve_a_maximum_pool_before_native_layout_admission() {
+    use crate::plan::SpoutMetadata;
+    let mut config = native_config(AdapterId { low: 0, high: 0 }, "No device is opened".into());
+    config.inputs = InputLimits {
+        max_sources: 1,
+        max_storage_bytes: InputLimits::source_storage_bytes(external(2, 2)).unwrap(),
+    };
+    let backend = D3d11Backend::new(config, D3d11Control::default(), DeviceGeneration::new(Uuid::nil(), 0));
+    for metadata in [SpoutMetadata::Declared, SpoutMetadata::Discover] {
+        let straight = |width, height| TextureDescriptor {
+            alpha_mode: AlphaMode::Straight,
+            ..external(width, height)
+        };
+        let plan = RenderPlan {
+            external_textures: vec![ExternalTexture {
+                id: TextureId::new(1).unwrap(),
+                descriptor: straight(2, 2),
+                source: Some(
+                    SpoutSource {
+                        sender: "Exact input".into(),
+                        metadata,
+                        descriptor: straight(16, 16),
+                        poll_interval: Duration::from_millis(16),
+                        frame_count: crate::plan::SpoutFrameCount::Unversioned,
+                    }
+                    .into(),
+                ),
+            }],
+            ..Default::default()
+        }
+        .compile_with_source_demands(&runtime_config().plan_limits, &[TextureId::new(1).unwrap()])
+        .unwrap();
+        let result = backend.validate(&plan);
+        match metadata {
+            SpoutMetadata::Declared => assert!(matches!(result, Err(BackendError::SourceCapacity))),
+            SpoutMetadata::Discover => assert!(result.is_ok(), "{result:?}"),
+        }
+    }
+}
+
 pub(super) struct Producer {
     child: Arc<Mutex<Child>>,
     input: ChildStdin,
@@ -163,6 +204,7 @@ pub(super) fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan 
                 descriptor: external(width, height),
                 source: Some(
                     SpoutSource {
+                        metadata: crate::plan::SpoutMetadata::Declared,
                         sender: names[0].clone(),
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),
@@ -176,6 +218,7 @@ pub(super) fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan 
                 descriptor: external(2, 2),
                 source: Some(
                     SpoutSource {
+                        metadata: crate::plan::SpoutMetadata::Declared,
                         sender: names[1].clone(),
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),

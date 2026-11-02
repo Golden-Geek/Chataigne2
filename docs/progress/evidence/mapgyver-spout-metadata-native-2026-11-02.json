@@ -1,0 +1,38 @@
+{
+	"date": "2026-11-02",
+	"scope": "M04 sender-only Shared Texture and Golden discovered input admission",
+	"result": "partial; native acceptance remains open",
+	"native_attempts": 2,
+	"test": "shared_texture::authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch",
+	"target": "apps/mapgyver/tests/channel_rendering.rs",
+	"features": ["native-qualification"],
+	"baseline": {
+		"result": "failed at initial preflight",
+		"finding": "Legacy backend preflight charged discovered sources at maximum extent.",
+		"correction": "Plan, backend preflight and source worker now share the declared reservation policy; software regression passed."
+	},
+	"second_attempt": {
+		"result": "failed at legacy fixed-output metadata fixture assertion",
+		"verified_pixel_tolerance": "2/255",
+		"verified_stages": [
+			"independent inputs and shared consumers",
+			"source absence with healthy peer live",
+			"restart and resize with healthy peer live",
+			"oversize rejection with healthy peer live",
+			"size recovery",
+			"rename without implicit selection",
+			"explicit renamed-sender selection"
+		],
+		"correction": "Fixture now waits for native resize metadata and expects straight alpha; compiled but no third hardware run."
+	},
+	"remaining_native_checks": [
+		"corrected fixed-output resize metadata and pixels",
+		"cross-adapter mismatch and recovery",
+		"completion of the full lifecycle on both hardware adapters",
+		"RGBA byte-storage pixels",
+		"Golden declared-binding overlap and storage-capacity case"
+	],
+	"return_action": "Run corrected lifecycle and declared-input checks during revised M04 native acceptance after M04/1 ownership delivery.",
+	"budgets": "unchanged",
+	"gates_closed": []
+}
