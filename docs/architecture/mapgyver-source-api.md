@@ -23,9 +23,10 @@ from physical source-channel authoring. Command records now use schema v2; v1 re
 
 | Method                     | Arguments after request id                                                      |
 | -------------------------- | ------------------------------------------------------------------------------- |
-| `createMedia`              | kind (`SolidColor`, `Picture`, `SharedTexture`, `Composition`, `Matrix`), label |
+| `createMedia`              | kind (`SolidColor`, `Picture`, `SharedTexture`, `Composition`, `Matrix`, `Reference`), label |
 | `createReference`          | target media UUID or empty string, label                                      |
 | `configureReference`       | Reference media UUID, target media UUID or empty string                       |
+| `inspectChannels`          | media UUID, nonnegative integer start, count in 1–128                          |
 | `addChannel`               | media UUID, label; backend rejects derived outputs                              |
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
 | `configureMediaSampling`   | media UUID, `Linear` or `Nearest`                                               |
@@ -63,7 +64,7 @@ The section mounts at most 32 commands per page. Commands stay out of object cre
 and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
 typed Parameters, including references, enums, file paths, resolution and color.
 
-The 30 command kinds cover source/variant and Reference creation, settings, assets, folders, ordering,
+The 31 command kinds cover source/variant and Reference creation, settings, assets, folders, ordering,
 removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
 Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
 `execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's

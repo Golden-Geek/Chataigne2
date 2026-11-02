@@ -243,6 +243,13 @@ impl MediaCommandNode {
             },
             MediaCommandKind::InspectManager => MediaEdit::InspectManager,
             MediaCommandKind::InspectChannel => MediaEdit::InspectChannel { reference },
+            MediaCommandKind::InspectChannels => MediaEdit::InspectChannels {
+                query: MediaChannelsQuery {
+                    media,
+                    start: self.start.get() as u32,
+                    count: self.count.get() as u16,
+                },
+            },
             MediaCommandKind::InspectChoices => MediaEdit::InspectChoices {
                 query: ChannelChoiceQuery {
                     scope: choice(self.choice_scope.get_ref().as_str())?,

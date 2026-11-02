@@ -100,6 +100,31 @@ pub struct ChannelChoicePage {
     pub start: u32,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MediaChannelsQuery {
+    pub media: MediaId,
+    pub start: u32,
+    pub count: u16,
+}
+
+/// Authored channel membership, independent of runtime input availability.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum MediaChannelsStatus {
+    Ready,
+    Unconfigured,
+    MissingTarget,
+    MissingMedia,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MediaChannelsPage {
+    pub media: MediaId,
+    pub status: MediaChannelsStatus,
+    pub start: u32,
+    pub total: u32,
+    pub channels: Vec<ChannelSnapshot>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SizePolicy {
@@ -158,6 +183,9 @@ pub enum MediaEdit {
     },
     InspectChoices {
         query: ChannelChoiceQuery,
+    },
+    InspectChannels {
+        query: MediaChannelsQuery,
     },
     Matrix {
         media: MediaId,
@@ -311,6 +339,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    Channels {
+        page: MediaChannelsPage,
+    },
     ReferenceCreated {
         media: MediaId,
     },

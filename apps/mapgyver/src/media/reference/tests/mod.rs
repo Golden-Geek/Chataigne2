@@ -1,4 +1,5 @@
 use super::*;
+mod pages;
 use crate::media::tests::{apply, create, fixture};
 use golden_core::{
     app::{from_sparse_project_json, to_sparse_project_json_pretty},

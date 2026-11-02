@@ -42,6 +42,7 @@ command_kinds! {
     MoveEntry => "Move Media or Folder", "Folders", ["entry", "target_folder"];
     InspectManager => "Inspect Media", "Queries", [];
     InspectChannel => "Inspect Variant", "Queries", ["media", "channel"];
+    InspectChannels => "Inspect Media Channels", "Queries", ["media", "start", "count"];
     InspectAsset => "Inspect Asset", "Queries", ["asset"];
     InspectChoices => "Inspect Channel Choices", "Queries", ["choice_scope", "search", "start", "count"];
     CreateScript => "Create Media Script", "Scripts", ["label"];

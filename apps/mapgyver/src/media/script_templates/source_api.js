@@ -24,6 +24,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.configurePicture("asset", mediaId, channelId, assetId); // "" clears the asset
 	// local.configureSharedTexture("sender", mediaId, channelId, "Exact sender"); // "" clears
 	// local.inspectChannel("channel", mediaId, channelId);
+	// local.inspectChannels("channels", mediaId, 0, 32); // bounded page; also mirrors References
 	// local.inspectMedia("catalog");
 	// local.editMedia("rename", JSON.stringify({kind: "RenameMedia", media: mediaId, label: "Source"}));
 	// editMedia accepts the complete Rust-owned MediaEdit contract, including folders,

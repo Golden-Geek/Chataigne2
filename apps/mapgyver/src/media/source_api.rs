@@ -16,6 +16,7 @@ pub(super) const METHODS: &[&str] = &[
     "configurePicture",
     "configureSharedTexture",
     "inspectChannel",
+    "inspectChannels",
     "importPicture",
     "executeCommand",
 ];
@@ -63,6 +64,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configurePicture" | "configureSharedTexture" => 3,
         "importPicture" => 2,
         "executeCommand" => 1,
+        "inspectChannels" => 3,
         "createReference" | "configureReference" => 2,
         _ => return Ok(None),
     };
@@ -70,6 +72,24 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "inspectChannels" => {
+            let start = number(args, 1)?;
+            let count = number(args, 2)?;
+            if start.fract() != 0.0
+                || !(0.0..=f64::from(u32::MAX)).contains(&start)
+                || count.fract() != 0.0
+                || !(1.0..=128.0).contains(&count)
+            {
+                return Err("channel pages require a whole nonnegative start and count in 1..128".into());
+            }
+            MediaEdit::InspectChannels {
+                query: MediaChannelsQuery {
+                    media: MediaId(uuid(args, 0)?),
+                    start: start as u32,
+                    count: count as u16,
+                },
+            }
+        }
         "createReference" => MediaEdit::CreateReference {
             target: optional_text(args, 0)?
                 .map(|value| uuid::Uuid::parse_str(&value).map(|id| MediaId(golden_core::node::NodeUuid(id))))

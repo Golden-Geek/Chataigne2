@@ -5,6 +5,51 @@ use golden_core::node::Node;
 use super::protocol::*;
 use crate::app::{AppEngine, AppNode};
 
+/// Only the requested page owns snapshots; Reference membership stays virtual.
+pub(super) fn channels(engine: &AppEngine, query: MediaChannelsQuery) -> Result<MediaChannelsPage, String> {
+    if query.count == 0 || query.count > 128 {
+        return Err("media channel pages require 1..128 results".into());
+    }
+    let mut result = MediaChannelsPage {
+        media: query.media,
+        status: MediaChannelsStatus::MissingMedia,
+        start: query.start,
+        total: 0,
+        channels: Vec::new(),
+    };
+    if engine.node_id_by_uuid(query.media.0).is_none() {
+        return Ok(result);
+    }
+    let (id, _) = super::authoring::media(engine, query.media)?;
+    let owner = engine.nodes.get(id).ok_or("missing media")?;
+    let mut resolver = super::reference::Resolver::new(engine);
+    result.status = match resolver.target(query.media)? {
+        super::reference::Target::Ready(_) => MediaChannelsStatus::Ready,
+        super::reference::Target::Unconfigured => MediaChannelsStatus::Unconfigured,
+        super::reference::Target::Missing => MediaChannelsStatus::MissingTarget,
+    };
+    for channel in resolver.channels(query.media)? {
+        let position = result.total;
+        result.total = result.total.checked_add(1).ok_or("too many media channels")?;
+        if position < query.start || result.channels.len() == usize::from(query.count) {
+            continue;
+        }
+        let channel_id = ChannelId(channel.node_data().meta.uuid);
+        result.channels.push(ChannelSnapshot {
+            reference: ChannelReference {
+                media: query.media,
+                channel: channel_id,
+            },
+            label: channel.node_data().meta.label.clone(),
+            definition: match owner {
+                AppNode::ReferenceMedia(reference) => reference.definition(engine, channel_id),
+                _ => super::authoring::effective_definition(engine, channel)?,
+            },
+        });
+    }
+    Ok(result)
+}
+
 pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<ChannelChoicePage, String> {
     if query.count == 0 || query.count > 128 || query.search.len() > 256 {
         return Err("channel choices require 1..128 results and at most 256 search bytes".into());

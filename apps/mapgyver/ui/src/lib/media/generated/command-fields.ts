@@ -58,6 +58,11 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "channel"
   ],
+  "InspectChannels": [
+    "media",
+    "start",
+    "count"
+  ],
   "InspectChoices": [
     "choice_scope",
     "search",

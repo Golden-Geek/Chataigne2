@@ -14,6 +14,7 @@
 	import SpoutSenderPicker from './SpoutSenderPicker.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
+	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
 	import MediaScriptsSection from './MediaScriptsSection.svelte';
 	import MediaCommandsSection from './MediaCommandsSection.svelte';
 	let {
@@ -158,6 +159,8 @@
 	{@render defaultChildren?.('', parametersOnly)}
 	{#if node.node_type === 'mapgyver.media.v5'}
 		{#key node.uuid}<ChannelsSection {node} {defaultChildren} />{/key}
+	{:else if node.node_type === 'mapgyver.media.reference.v1' && !collapsed}
+		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}
 	{/if}
 	<div class="properties">
 		{#if error}<p role="alert">{error}</p>{/if}

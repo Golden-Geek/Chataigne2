@@ -39,6 +39,11 @@ after those product deliveries. M04/8 Preview follows Reference. This uses the f
 dependencies above and preserves every source, interaction, resource and native requirement;
 it does not waive a gate or change qualification budgets.
 
+M04/7's default Reference/Alt-copy drops require actual Composition/Matrix child-media
+containment. Establish that ownership/copy/drop foundation while M04/7 is active, before
+closing Reference or starting Preview. M06/M07 retain their complete transform, editor,
+playback, scale and native acceptance; this dependency work does not accept those later gates.
+
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

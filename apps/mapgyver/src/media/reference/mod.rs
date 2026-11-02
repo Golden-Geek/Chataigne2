@@ -9,10 +9,17 @@ pub use node::ReferenceNode;
 use std::collections::{HashMap, HashSet};
 pub(crate) const NODE_TYPE: &str = "mapgyver.media.reference.v1";
 
+#[derive(Clone, Copy)]
+pub(super) enum Target {
+    Ready(MediaId),
+    Unconfigured,
+    Missing,
+}
+
 /// One immutable query memoizes chains; no document-wide channel materialization or callbacks.
 pub(super) struct Resolver<'a> {
     engine: &'a AppEngine,
-    leaves: HashMap<MediaId, Option<MediaId>>,
+    leaves: HashMap<MediaId, Target>,
 }
 impl<'a> Resolver<'a> {
     pub fn new(engine: &'a AppEngine) -> Self {
@@ -21,7 +28,13 @@ impl<'a> Resolver<'a> {
             leaves: HashMap::new(),
         }
     }
-    pub fn leaf(&mut self, mut media: MediaId) -> Result<Option<MediaId>, String> {
+    pub fn leaf(&mut self, media: MediaId) -> Result<Option<MediaId>, String> {
+        Ok(match self.target(media)? {
+            Target::Ready(media) => Some(media),
+            Target::Unconfigured | Target::Missing => None,
+        })
+    }
+    pub fn target(&mut self, mut media: MediaId) -> Result<Target, String> {
         let mut path = Vec::new();
         let mut seen = HashSet::new();
         let leaf = loop {
@@ -37,12 +50,12 @@ impl<'a> Resolver<'a> {
                 .node_id_by_uuid(media.0)
                 .and_then(|id| self.engine.nodes.get(id))
             {
-                Some(AppNode::Media(_)) => break Some(media),
+                Some(AppNode::Media(_)) => break Target::Ready(media),
                 Some(AppNode::ReferenceMedia(node)) => match node.target() {
                     Some(target) => media = target,
-                    None => break None,
+                    None => break Target::Unconfigured,
                 },
-                None => break None,
+                None => break Target::Missing,
                 _ => return Err("Reference target must be media".into()),
             }
         };

@@ -14,6 +14,22 @@ Unconfigured/missing targets expose no outputs; existing demanded identities bec
 and recover when the target returns. Channel settings are edited at the target, while a
 Reference's own settings remain ordinary typed Parameters.
 
+`InspectChannels { query: { media, start, count } }` returns at most 128 channel snapshots,
+the current total and an authored membership status (Ready, Unconfigured, MissingTarget or
+MissingMedia). It does not report decoder readiness. Reference chains distinguish an unset
+target from a deleted target. Only the requested page projects channel definitions; counting
+walks the terminal target's ordered channel siblings without allocating the full mirrored set.
+The same query supports physical media and never changes history or document identity.
+
+The Reference Inspector's Channels section requests 32 outputs per page. It reflects current
+target labels/order and navigates to a real target channel's generic Inspector for editing;
+the mirrored output itself remains virtual. No add/remove controls imply local channel
+ownership. The reader permits one active request plus one latest replacement and fences replies
+by session, project, history and selection. Disconnect, active editing and disposal hide old
+pages; removing the final item on a later page returns to the last valid page.
+This bounds the Reference reader, not every existing workbench provider: the global
+Composition catalog refresh remains a named M06 cleanup requirement in the status ledger.
+
 The read resolver memoizes Reference chains within each immutable query. Catalog choice pages
 iterate target channels and retain only the requested bounded page. Capture follows demanded
 Reference outputs as dependencies under its existing count/guard limits, retaining Reference,
@@ -37,13 +53,13 @@ also accept References. Mirrored channel definitions use `ChannelSource::Referen
 must treat those outputs as derived. Standard manager creation, folders, selection and the
 generic Inspector expose the real Reference node.
 
-The manager's named `createReference` and `configureReference` methods use the same intents,
-committed callbacks and embedded source examples. Corresponding typed command kinds use real
+The manager's named `createReference`, `configureReference` and `inspectChannels` methods use
+the same intents, committed callbacks and embedded source examples. Typed command kinds use real
 Reference-target Parameters. Adding that command Parameter advances the command document
 schema to **`mapgyver.media.command.v2`**; unsupported v1 records reject explicitly. Existing
 source media remain schema v5; Reference uses its separate v1 schema. No migration is added.
 
-This is the first M04/7 product slice. Full acceptance still requires the complete mirrored
-output presentation/selection and stress coverage, default-drop/Alt-copy child-media behavior,
-complete mixed Matrix/Reference parity and native sharing/resampling/recovery checks. The
+Reference core and paged output presentation are implemented. Full acceptance still requires
+default-drop/Alt-copy child-media behavior, complete mixed Matrix/Reference parity and native
+sharing/resampling/recovery checks. The
 [status ledger](../progress/mapgyver-status.md) keeps the full gate open.
