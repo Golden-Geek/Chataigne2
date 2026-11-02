@@ -6,12 +6,12 @@
 
 **Current:** M05 editors and M06 Composition native editor acceptance are verified by the user.
 **Active:** M07/3 Matrix Parameter/native-feedback scope.
-**Next:** open the prepared current-schema Matrix scene for a small native launch/transition review;
-Matrix/association Parameter conversion remains required. **Blocker:** none for this manual path; display configuration,
+**Next:** convert Matrix/association settings to real Parameters and generic Inspector controls;
+the user's native playback review now passes. **Blocker:** none for this code path; display configuration,
 physical output/DPI and retained reset/timing/memory requirements remain open.
 **Usable capability:** continuous native Screen/Composition editing, aligned shape selection and
 transforms, full-source cropping, grouped Undo/Redo, panel restore and focused-output Escape.
-**Last accepted:** M06/4, completing M06. A brief “preview unavailable” message on restore is explicitly
+**Last accepted:** M07's native playback-feedback portion; M06 remains complete. A brief “preview unavailable” message on restore is explicitly
 accepted for now; other timing budgets are unchanged.
 
 **Composition acceptance correction:** 2 November15:54 CET, stop16:39 CET. Resolve the user's
@@ -47,11 +47,24 @@ M05 stays5/8. Denominators are unchanged.
 | State | Gate(s) | Next requirement / return action |
 | --- | --- | --- |
 | Accepted | M04/5; M05/6,7; M06/4 | Source Parameters, Screen/Surface editors and Composition native selection/transform/history observations. |
-| Active | M07/3 | Matrix/association Parameter conversion and actual native playback feedback; current-schema manual scene is ready. |
+| Active | M07/3 | Native playback observations pass; complete Matrix/association Parameter conversion and generic Inspector/history/project verification. |
 | Pending | M08/4 | Application/collection Parameters, then native picker/lifecycle and retained retirement checks. |
 | Blocked | M05/4,5,8 | Report resolution/scaling/layout and available outputs; run the exact concurrent-output, hotplug/DPI and physical presentation cases. |
 | Blocked | M03/4,9 | Recorded reset decision, supported timing/scope decision and concrete ownership correction for the preserved memory failure. |
 | Waiting | M09/1 | All retained M03–M08 feature and qualification acceptance. |
+
+### Matrix native playback accepted — 2 November
+
+The user reports all five guided checks pass: selection does not launch, explicit Blue launch
+matches actual native preview/feedback, the configured mixed-column transition is visible,
+rapid launches and tab lifetime recover, and Unload clears output. This accepts only the native
+playback-feedback remainder against the reviewed build. Matrix/association Parameter conversion
+and its generic UI/lifetime proof remain required, so M07/3 stays Active and M07 remains3/4.
+[Manual evidence](evidence/mapgyver-m07-manual-playback-acceptance-2026-11-02.json).
+Do not repeat these native observations unchanged or treat them as proof of future code.
+The committed baseline's unrelated stray `²` in the owner-normalization integration test is
+removed as a one-character syntax repair. Its three integration tests pass; no normalization
+behavior changes. Concurrent icon/presentation edits remain outside this checkpoint.
 
 ### Matrix native review prepared — 2 November
 

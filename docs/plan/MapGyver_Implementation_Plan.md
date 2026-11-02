@@ -170,7 +170,8 @@ existing software/browser evidence. Brief preview unavailability during restore 
 accepted for now, without changing other timing budgets. M05/4,5,8 retain their physical/output/
 DPI scope. The subsequent manual Composition review accepts M06/4, including the user's confirmed
 source-alpha correction in the review scene. M06 is complete. M07/3 is the next single active
-gate: Matrix/association Parameters and native playback feedback. Application Parameter conversion
+gate: Matrix/association Parameters; the user's 2 November native playback checks are accepted
+for their reviewed build. Application Parameter conversion
 and all retained qualification remain required.
 
 After two bounded qualification batches without gate closure, the anti-drift rule can select

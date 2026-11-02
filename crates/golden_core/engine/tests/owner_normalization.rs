@@ -11,7 +11,7 @@ use golden_engine::{
 #[children(folder(parameters) { a: i32 = 2 [0..100]; b: i32 = 3 [0..100]; })]
 struct BoundedPair {}
 
-#[golden_engine::node("bounded_pair", from_struct)]²
+#[golden_engine::node("bounded_pair", from_struct)]
 impl Node for BoundedPair {
     fn normalize_parameter_change(
         &self,

@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-02",
+  "evidence_kind": "guided_user_manual_report",
+  "requested_executable": "target/debug/MapGyver.exe",
+  "reviewed_project_sha256": "0d3db45d42b49289212a12642685b5918d1d172fe40ff72a1c9ac20d1c88f1a8",
+  "checks": [
+    { "scope": "Cell/column selection does not launch playback", "reported": "All good" },
+    { "scope": "Explicit Blue launch produces the native blue preview and matching playback feedback", "reported": "All good" },
+    { "scope": "Configured transition to the mixed Red/Green column is visible", "reported": "All good" },
+    { "scope": "Rapid column launches retain the latest choice without freezing; tab hide/reopen recovers", "reported": "All good" },
+    { "scope": "Unload stops playback and clears output", "reported": "All good" }
+  ],
+  "accepted_scope": "The retained native playback-feedback portion of M07/3",
+  "remaining_scope": "Matrix row/group/column/cell and application-association Parameter conversion, generic Inspector and corresponding software/history/project verification",
+  "gate_state": "M07/3 remains Active; M07 remains 3/4",
+  "limits": "These observations do not qualify future refactored code, physical pixels/DPI/latency, sustained resource budgets, or unobserved lifecycle cases."
+}
