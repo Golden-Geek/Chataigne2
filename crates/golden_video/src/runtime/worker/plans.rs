@@ -7,7 +7,7 @@ use crate::runtime::preparation::{self, PreparationJob};
 use crate::runtime::shared::PlanRequest;
 use crate::runtime::types::{FailureCode, FrameObservation, LatePolicy, PlanActivation, RuntimeFailure};
 
-fn activation(request: &PlanRequest, time: TimeSnapshot) -> Result<ActivationState, RuntimeFailure> {
+pub(super) fn activation(request: &PlanRequest, time: TimeSnapshot) -> Result<ActivationState, RuntimeFailure> {
     if !request.guards.iter().all(golden_io::RevisionGuard::is_current) {
         return Err(RuntimeFailure::new(
             FailureCode::StaleSource,
@@ -46,7 +46,7 @@ fn activation(request: &PlanRequest, time: TimeSnapshot) -> Result<ActivationSta
 }
 
 impl<B: Backend> Runner<B> {
-    fn reject(&self, request: PlanRequest, failure: RuntimeFailure) {
+    pub(super) fn reject(&self, request: PlanRequest, failure: RuntimeFailure) {
         let outcome = if failure.code() == FailureCode::Superseded {
             OutcomeKind::Superseded
         } else {
@@ -140,29 +140,7 @@ impl<B: Backend> Runner<B> {
             drop(old.resources);
             self.shared.complete(old.request.request, OutcomeKind::Superseded);
         }
-        match self.core.prepare(request.identity, plan) {
-            Ok(resources) => self.prepared = Some(Candidate { resources, request }),
-            Err(error) => {
-                let pressure = match error {
-                    CoreError::ResourceBudgetExceeded { .. } | CoreError::PreparationBusy => true,
-                    #[cfg(all(windows, feature = "d3d11"))]
-                    CoreError::Backend(crate::runtime::backend::BackendError::SourceCapacity) => true,
-                    _ => false,
-                };
-                let stale = error == CoreError::StaleSource;
-                let code = if stale {
-                    FailureCode::StaleSource
-                } else if pressure {
-                    FailureCode::ResourcePressure
-                } else {
-                    FailureCode::Backend
-                };
-                self.reject(request, RuntimeFailure::new(code, error));
-                if !pressure && !stale {
-                    self.core_fault(error, time);
-                }
-            }
-        }
+        self.admit_compiled(request, plan, time);
     }
 
     pub(super) fn frame(&mut self, time: TimeSnapshot) {

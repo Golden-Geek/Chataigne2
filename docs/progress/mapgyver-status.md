@@ -4,12 +4,42 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** pan/zoom preview continuity verified in shared layout, Svelte navigation and app software checks (M05/6 retained).
-**Next:** return to the existing complete-editor/native acceptance queue; physical presentation and timing remain unqualified by these software checks.
+**Current:** transient editing resource pressure now waits for GPU retirement; bounded latest-edit admission and cancellation/recovery verified in software (M05/6 retained).
+**Next:** return to the retained complete-editor/native acceptance queue; physical memory residency and sustained native timing remain unqualified by these software checks.
 **Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: pan/zoom retains established preview presentation through delayed layout installation, without an unavailable message or a cover over the retained image.
+Last verified capability: rapid edits preserve the active renderer, coalesce pending replacements and install the newest edit once GPU retirement frees its reservation, within the unchanged budget.
+
+**Interactive resource batch:** 2 November13:25 CET, stop14:10 CET. Deliver reliable renderer
+updates during rapid manipulation without transient reserved-resource errors. Owners: Golden
+Video runtime admission/retirement and MapGyver's presentation adapter if required. Hypothesis:
+replacement preparation rejects while a previous generation is still GPU-retained, and the app
+surfaces that temporary overlap as a permanent scene failure. Baseline plus one corrected bounded
+reproducer will establish whether pending completion or genuinely oversized resources cause it.
+Proof: controlled completion/admission tests, fixed-memory and generation bounds, retained-frame
+and newest-edit checks, app checks and ordinary build. Do not increase budgets or hide real
+oversized-scene errors. Preserve independent AGENTS.md work and the open native qualification gates.
+
+**Interactive resource delivery — 2 November:** reproduced the exact rejection path with a
+24-byte replacement,48bytes reserved and a64-byte ceiling;24of those reserved bytes belonged to
+a retiring generation. Golden Video now retains one compiled replacement when that retirement
+can make enough room alongside the active generation. It allocates nothing while waiting and
+retries only when reserved bytes or device identity change. Later publications supersede pending
+metadata, and source/project/deadline/shutdown fences preserve exactly one terminal receipt and
+release unused inputs. Device recovery admits the waiting edit on the new device; old completion
+tokens cannot authorize release. Permanent transition/scene budget failures still reject promptly
+without withdrawing the active frame. No ceiling, completion rule or GPU-generation limit changed.
+MapGyver treats the typed internal waiting state as preparation, rather than an error; no wire
+protocol or authored settings changed. The user could not reproduce the original scene again,
+so this closes the demonstrated transient-overlap defect without asserting its original numbers.
+
+Verification: all121Golden Video tests pass, including7admission cases; the full app suite passes
+262tests with1existing hardware ignore. Golden Video and MapGyver strict all-target Clippy,
+ordinary bundled MapGyver build, root/Golden Core formatting and whitespace checks pass. This is
+controlled completion/accounting evidence, not physical-residency or sustained hardware proof.
+The user-requested software gate closes; M05/6's broader retained gates and fixed phase denominators
+remain unchanged. Independent AGENTS.md edits remain excluded from delivery.
 
 **Navigation preview batch:** 2 November13:12 CET, stop13:57 CET. Deliver continuous previews
 during pan/zoom; owner is Golden Video UI's layout/presentation lifecycle, with native host changes

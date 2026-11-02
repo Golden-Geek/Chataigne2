@@ -102,7 +102,42 @@ fn superseding_cpu_preparation_keeps_every_outcome_but_allocates_only_the_latest
 }
 
 #[test]
-fn backend_padding_and_retiring_generations_remain_charged_when_a_new_plan_is_rejected() {
+fn retiring_generations_delay_replacement_without_rejecting_or_exceeding_the_budget() {
+    let (mut h, first_token, live) = retirement_pressure();
+    let resources = h.runtime().snapshot().resources.unwrap();
+    assert_eq!(resources.bytes_used, 48);
+    assert_eq!(resources.retiring_generations, 1);
+    assert_eq!(h.null.snapshot().live_bytes, 48);
+    let replacement = h.submit(plan(3, 2, 1));
+    h.wait("replacement awaiting retirement", |h| {
+        h.collect();
+        h.runtime().snapshot().waiting_for_resources || h.outcomes.contains_key(&replacement)
+    });
+    assert!(
+        !h.outcomes.contains_key(&replacement),
+        "temporary retirement pressure must not reject the edit: {:?}",
+        h.outcomes.get(&replacement)
+    );
+    let resources = h.runtime().snapshot().resources.unwrap();
+    assert_eq!(resources.active, Some(live));
+    assert_eq!(resources.bytes_used, 48);
+    assert_eq!(h.null.snapshot().created, 2, "waiting admission allocates nothing");
+    assert!(resources.peak_bytes <= 64);
+
+    assert!(h.null.complete_through(first_token));
+    h.wait("replacement prepared after retirement", |h| {
+        h.runtime().snapshot().prepared
+    });
+    assert!(h.runtime().snapshot().resources.unwrap().peak_bytes <= 64);
+    h.advance(40_000_000);
+    let (new_live, _) = h.installed(replacement);
+    h.wait("replacement renders after retirement", |h| {
+        h.runtime().snapshot().frames_submitted >= 3
+    });
+    assert_eq!(h.runtime().snapshot().last_frame.unwrap().identity, new_live.identity);
+}
+
+fn retirement_pressure() -> (Harness, crate::runtime::CompletionToken, GenerationInfo) {
     let mut settings = config();
     settings.resource_limits.max_bytes = 64;
     let mut h = Harness::new(
@@ -122,28 +157,157 @@ fn backend_padding_and_retiring_generations_remain_charged_when_a_new_plan_is_re
     h.advance(20_000_000);
     let (live, _) = h.installed(second);
     h.wait("second submitted use", |h| h.runtime().snapshot().frames_submitted == 2);
-    let resources = h.runtime().snapshot().resources.unwrap();
-    assert_eq!(resources.bytes_used, 48);
-    assert_eq!(resources.retiring_generations, 1);
-    assert_eq!(h.null.snapshot().live_bytes, 48);
-    let rejected = h.submit(plan(3, 2, 1));
-    assert_eq!(rejected_code(h.outcome(rejected)), FailureCode::ResourcePressure);
-    let resources = h.runtime().snapshot().resources.unwrap();
-    assert_eq!(resources.active, Some(live));
-    assert_eq!(resources.bytes_used, 48);
-    assert_eq!(h.null.snapshot().created, 2, "rejected admission allocates nothing");
-    assert!(resources.peak_bytes <= 64);
+    (h, first_token, live)
+}
 
+fn awaiting_retirement(h: &mut Harness, request: RequestId) {
+    h.wait("compiled replacement awaiting retirement", |h| {
+        h.collect();
+        h.runtime().snapshot().waiting_for_resources || h.outcomes.contains_key(&request)
+    });
+    assert!(
+        !h.outcomes.contains_key(&request),
+        "unexpected terminal outcome: {:?}",
+        h.outcomes.get(&request)
+    );
+    assert_eq!(h.null.snapshot().created, 2);
+}
+
+#[test]
+fn pressure_coalesces_new_edits_and_installs_only_the_latest_after_completion() {
+    let (mut h, first_token, original) = retirement_pressure();
+    let mut requests = Vec::new();
+    for value in 3..=10 {
+        let request = h.submit(plan(value, 2, 1));
+        if let Some(previous) = requests.last() {
+            assert!(matches!(h.outcome(*previous).result, OutcomeKind::Superseded));
+        }
+        awaiting_retirement(&mut h, request);
+        h.no_outcome(request, Duration::from_millis(10));
+        assert_eq!(h.runtime().snapshot().resources.unwrap().active, Some(original));
+        assert!(h.runtime().snapshot().resources.unwrap().peak_bytes <= 64);
+        requests.push(request);
+    }
+    let latest = requests.pop().unwrap();
     assert!(h.null.complete_through(first_token));
-    h.wait("retiring generation release", |h| {
-        h.runtime()
-            .snapshot()
-            .resources
-            .is_some_and(|resources| resources.bytes_used == 24)
-    });
+    h.wait("latest resources admitted", |h| h.runtime().snapshot().prepared);
     h.advance(40_000_000);
-    h.wait("prior live plan still rendering after rejection", |h| {
-        h.runtime().snapshot().frames_submitted >= 3
+    let (installed, _) = h.installed(latest);
+    assert_eq!(installed.identity.revision.get(), latest.get());
+    assert_eq!(h.null.snapshot().created, 3);
+    h.collect();
+    assert!(h.outcomes.is_empty(), "each superseded edit has exactly one outcome");
+}
+
+#[test]
+fn unreclaimable_replacement_pressure_rejects_without_withdrawing_the_active_frame() {
+    let (mut h, _, original) = retirement_pressure();
+    for extent in [3, 4] {
+        // 44 bytes cannot coexist with the 24-byte active image, even after retirement.
+        // 72 bytes cannot fit alone. Neither case may wait forever.
+        let request = h.submit(plan(3, extent, 1));
+        assert_eq!(rejected_code(h.outcome(request)), FailureCode::ResourcePressure);
+        assert!(!h.runtime().snapshot().waiting_for_resources);
+        assert_eq!(h.null.snapshot().created, 2);
+        assert_eq!(h.runtime().snapshot().resources.unwrap().active, Some(original));
+        assert!(h.runtime().snapshot().resources.unwrap().peak_bytes <= 64);
+    }
+}
+
+#[test]
+fn waiting_replacement_survives_device_recovery_without_accepting_old_completions() {
+    let (mut h, old_completion, original) = retirement_pressure();
+    let request = h.submit(plan(3, 2, 1));
+    awaiting_retirement(&mut h, request);
+    h.null.lose_device();
+    h.drive("waiting edit installs on the recovered device", |h| {
+        h.runtime().snapshot().resources.is_some_and(|resources| {
+            resources
+                .active
+                .is_some_and(|active| active.identity.revision.get() == request.get())
+        })
     });
-    assert_eq!(h.runtime().snapshot().last_frame.unwrap().identity, live.identity);
+    let (installed, _) = h.installed(request);
+    assert_eq!(installed.device, original.device.next().unwrap());
+    assert!(!h.null.complete_through(old_completion));
+    assert!(!h.runtime().snapshot().waiting_for_resources);
+    assert!(h.runtime().snapshot().resources.unwrap().peak_bytes <= 64);
+    h.collect();
+    assert!(h.outcomes.is_empty(), "recovery preserves one terminal receipt");
+}
+
+#[test]
+fn waiting_admission_honors_source_project_deadline_and_shutdown_fences() {
+    use crate::runtime::{PlanLifetime, PlanSubmission};
+    for action in ["source", "project", "deadline", "close"] {
+        let (mut h, _, _) = retirement_pressure();
+        let source = golden_io::RevisionSource::default();
+        let lifetime = PlanLifetime::default();
+        let released = lifetime.observer();
+        let mut input = PlanSubmission::new(plan(3, 2, 1));
+        input.guards = Arc::from([source.reader().guard_at(0)]);
+        input.lifetime = Some(lifetime);
+        let project = h.runtime().project_epoch();
+        let time = h.runtime().read_time().unwrap();
+        let request = h
+            .runtime_mut()
+            .submit(
+                project,
+                input,
+                PlanActivation::Scheduled(ActivationStamp::new(time.epoch(), time.monotonic())),
+                if action == "deadline" {
+                    LatePolicy::RejectAfter(Duration::from_millis(5))
+                } else {
+                    LatePolicy::Activate
+                },
+            )
+            .unwrap();
+        awaiting_retirement(&mut h, request);
+        let replacement = match action {
+            "source" => {
+                source.advance();
+                h.runtime().wake();
+                None
+            }
+            "project" => Some(h.runtime_mut().replace_project().unwrap()),
+            "deadline" => {
+                h.advance(40_000_000);
+                None
+            }
+            "close" => {
+                h.runtime().close();
+                None
+            }
+            _ => unreachable!(),
+        };
+        let outcome = h.outcome(request);
+        if action == "close" {
+            assert!(matches!(outcome.result, OutcomeKind::Cancelled));
+        } else {
+            assert_eq!(
+                rejected_code(outcome),
+                match action {
+                    "source" => FailureCode::StaleSource,
+                    "project" => FailureCode::StaleProject,
+                    "deadline" => FailureCode::LateActivation,
+                    _ => unreachable!(),
+                }
+            );
+        }
+        h.wait("pending immutable inputs released", |_| released.is_complete());
+        assert_eq!(
+            h.null.snapshot().created,
+            2,
+            "{action} must not allocate the abandoned plan"
+        );
+        let last = h.null.snapshot().last_submitted.unwrap();
+        assert!(h.null.complete_through(last));
+        if let Some((changed, project)) = replacement {
+            assert!(matches!(h.outcome(changed).result, OutcomeKind::ProjectChanged(current) if current == project));
+        }
+        if action == "close" {
+            assert!(h.retirement.wait(DEADLINE));
+            assert_eq!(h.null.snapshot().live_bytes, 0);
+        }
+    }
 }

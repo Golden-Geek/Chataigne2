@@ -537,6 +537,23 @@ impl<B: Backend> RenderCore<B> {
         !self.in_flight.is_empty()
     }
 
+    /// Wait only when GPU retirement can make room without withdrawing the active plan.
+    pub(crate) fn admission_can_wait(&self, error: CoreError) -> bool {
+        let CoreError::ResourceBudgetExceeded { requested, used, limit } = error else {
+            return false;
+        };
+        let retiring: u64 = self
+            .retiring
+            .iter()
+            .map(|generation| generation.prepared.info.bytes)
+            .sum();
+        retiring != 0
+            && used
+                .saturating_sub(retiring)
+                .checked_add(requested)
+                .is_some_and(|bytes| bytes <= limit)
+    }
+
     pub(crate) fn quiesce(&mut self) {
         self.backend.quiesce();
     }

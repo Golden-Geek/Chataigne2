@@ -21,6 +21,9 @@ workbench theme. Native preview apertures remain transparent to the shared deskt
 Pan/zoom keeps the installed preview visible while its replacement layout is prepared; pending
 geometry does not show “Preview unavailable”. Retirement covers protect vacated/newly exposed
 pixels around the retained overlap, and actual capability failures still report unavailable.
+Rapid edits also retain the active renderer while older GPU generations finish: one newest
+replacement waits for reclaimable memory instead of reporting transient resource pressure.
+Scenes that cannot fit alongside the active generation still report the actual budget failure.
 Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
 for every caller, with typed 0–1 bounds in the generic Inspector.
 

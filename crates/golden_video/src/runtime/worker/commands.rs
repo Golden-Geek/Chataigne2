@@ -78,7 +78,11 @@ impl<B: Backend> Runner<B> {
                 .prepared
                 .as_ref()
                 .is_some_and(|candidate| candidate.resources.info().identity.project == retirement.previous);
-            if !preparing && !prepared && !self.core.has_project(retirement.previous) {
+            let admitting = self
+                .admission
+                .as_ref()
+                .is_some_and(|pending| pending.request.identity.project == retirement.previous);
+            if !preparing && !prepared && !admitting && !self.core.has_project(retirement.previous) {
                 self.shared
                     .complete(retirement.request, OutcomeKind::ProjectChanged(retirement.current));
             } else {

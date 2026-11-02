@@ -144,6 +144,7 @@ impl Shared {
                     time,
                     resources: None,
                     preparing: false,
+                    waiting_for_resources: false,
                     latest_desired: false,
                     prepared: false,
                     outstanding: 0,

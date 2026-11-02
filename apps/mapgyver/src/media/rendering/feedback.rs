@@ -115,7 +115,7 @@ impl ChannelRenderer {
             MatrixPreparationStage::Installed
         } else if snapshot.prepared {
             MatrixPreparationStage::Prepared
-        } else if snapshot.preparing {
+        } else if snapshot.preparing || snapshot.waiting_for_resources {
             MatrixPreparationStage::Preparing
         } else {
             MatrixPreparationStage::Published

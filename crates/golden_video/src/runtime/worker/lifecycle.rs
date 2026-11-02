@@ -200,6 +200,9 @@ impl<B: Backend> Runner<B> {
         if let Some(request) = self.preparing.take() {
             self.shared.complete(request.request, OutcomeKind::Cancelled);
         }
+        if let Some(pending) = self.admission.take() {
+            self.shared.complete(pending.request.request, OutcomeKind::Cancelled);
+        }
         if let Some(candidate) = self.prepared.take() {
             drop(candidate.resources);
             self.shared.complete(candidate.request.request, OutcomeKind::Cancelled);
@@ -246,6 +249,7 @@ impl<B: Backend> Runner<B> {
         state.snapshot.resources = Some(resources);
         state.snapshot.state = RuntimeState::Stopped;
         state.snapshot.preparing = false;
+        state.snapshot.waiting_for_resources = false;
         state.snapshot.prepared = false;
         drop(state);
         self.shared.notify();

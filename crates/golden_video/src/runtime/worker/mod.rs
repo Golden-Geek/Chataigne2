@@ -15,6 +15,7 @@ use super::preparation::{self, PreparationJob, PreparationResult};
 use super::shared::{PlanRequest, Shared};
 use super::types::{FailureCode, OutcomeKind, RequestId, RuntimeConfig, RuntimeFailure, RuntimeState};
 
+mod admission;
 mod commands;
 mod lifecycle;
 mod plans;
@@ -42,6 +43,7 @@ struct Runner<B: Backend> {
     preparation_lifetimes: RetirementPool,
     preparing: Option<PlanRequest>,
     prepared: Option<Candidate<B::Resources>>,
+    admission: Option<admission::PendingAdmission>,
     project_retirements: VecDeque<ProjectRetirement>,
     authority: TimeAuthority<Arc<dyn Clock>>,
     cadence: Cadence,
@@ -153,6 +155,7 @@ fn run_backend<B: Backend>(
             preparation_lifetimes: prepare_pool,
             preparing: None,
             prepared: None,
+            admission: None,
             project_retirements: VecDeque::new(),
             authority,
             cadence: Cadence::new(config.frame_rate, time.monotonic()),
@@ -192,6 +195,7 @@ fn run_backend<B: Backend>(
         state.snapshot.failure = Some(failure);
         state.snapshot.state = RuntimeState::Stopped;
         state.snapshot.preparing = false;
+        state.snapshot.waiting_for_resources = false;
         state.snapshot.prepared = false;
         state.snapshot.resources = None;
         state.snapshot.last_frame = None;
@@ -234,6 +238,7 @@ impl<B: Backend> Runner<B> {
                 self.retry_rebuild(time);
                 self.quiesce_old_project();
                 self.validate_prepared(time);
+                self.retry_admission(time);
                 self.preparation_result(time);
                 self.start_preparation(time);
                 if let Some(time) = self.observe_time() {
@@ -279,6 +284,7 @@ impl<B: Backend> Runner<B> {
         let mut state = self.shared.lock();
         state.snapshot.resources = Some(self.core.snapshot());
         state.snapshot.preparing = self.preparing.is_some();
+        state.snapshot.waiting_for_resources = self.admission.is_some();
         state.snapshot.prepared = self.prepared.is_some();
     }
 

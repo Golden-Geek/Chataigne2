@@ -211,6 +211,8 @@ pub struct RuntimeSnapshot {
     pub resources: Option<ResourceSnapshot>,
     /// Whether one CPU preparation is in flight.
     pub preparing: bool,
+    /// A compiled replacement is waiting for GPU-retained generations to release its budget.
+    pub waiting_for_resources: bool,
     /// Whether one latest desired publication is pending.
     pub latest_desired: bool,
     /// Whether one GPU-prepared generation awaits activation/install.

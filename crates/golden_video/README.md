@@ -281,6 +281,16 @@ input disposal. The runtime retains one latest desired plan, one CPU preparation
 candidate, at most two submitted batches and two retiring generations. Request credits bound
 accepted work plus undrained terminal outcomes; a stalled consumer cannot block resource service
 or silently discard admitted results. Project/device/publication identities fence stale work.
+
+When replaced generations still hold GPU reservations, one compiled replacement may wait for
+retirement instead of rejecting a valid edit. No candidate resources are allocated while it waits;
+admission retries only after reserved bytes or device identity change. New publications supersede
+that metadata, and source/project/time/shutdown fences still settle each request exactly once.
+`RuntimeSnapshot::waiting_for_resources` distinguishes this stage from CPU preparation and GPU
+installation. The active frame stays installed. A replacement that cannot coexist with the active
+generation even after all retirement completes still rejects with `ResourcePressure`; ceilings
+and completion requirements remain unchanged.
+
 `PlanSubmission` adds bounded app-neutral `golden_io::RevisionGuard` fences and source-only demand.
 Guards are rechecked before preparation and installation and retained for device reconstruction;
 an invalidated source cannot be resurrected by automatic rebuilding. `submit_plan` remains the
