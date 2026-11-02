@@ -30,6 +30,9 @@ node apps/mapgyver/tests/headless/media.mjs --composition-review
 
 The resulting `target/m06-editor-review/CompositionReview.mapgyver` has a 320×240 Composition
 named **Review Composition**, with two instances of **Review Red** and one of **Review Green**.
+Both source colors have alpha1; instances use Normal blending and opacity1. Green is ordered
+last, so it fully covers Red where they overlap. Source-color alpha and instance opacity are
+separate controls; lowering either intentionally makes the result translucent.
 Its channels need no external media or running sender. The adjacent `review.json` records stable
 identities and the project hash. Each regeneration replaces this test-owned reference project.
 

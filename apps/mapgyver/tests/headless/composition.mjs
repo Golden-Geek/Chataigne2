@@ -12,8 +12,8 @@ export async function verifyComposition({ post, intent, edit }) {
 	const red = await create('SolidColor', 'Review Red');
 	const green = await create('SolidColor', 'Review Green');
 	for (const [reference, rgba] of [
-		[red, [1, 0.04, 0.02, 0.9]],
-		[green, [0.03, 1, 0.1, 0.7]]
+		[red, [1, 0.04, 0.02, 1]],
+		[green, [0.03, 1, 0.1, 1]]
 	]) {
 		const { snapshot } = await edit({ kind: 'InspectChannel', reference });
 		await edit({
@@ -152,6 +152,22 @@ export async function verifyComposition({ post, intent, edit }) {
 	assert.equal((await post('/api/ui/project-new', {})).ok, true);
 	await post('/api/ui/project-load', { path: project });
 	assert.deepEqual(await inspect(root), review);
+	// The manual image/outline baseline must not hide source alpha beneath instance opacity.
+	const source_alpha = {};
+	for (const [name, reference] of [
+		['red', red],
+		['green', green]
+	]) {
+		const { snapshot } = await edit({ kind: 'InspectChannel', reference });
+		assert.equal(snapshot.definition.source.kind, 'SolidColor');
+		source_alpha[name] = snapshot.definition.source.rgba[3];
+		assert.equal(source_alpha[name], 1);
+	}
+	assert(
+		review.instances.every(
+			({ definition }) => definition.opacity === 1 && definition.blend === 'Normal'
+		)
+	);
 	const report = {
 		result: 'pass',
 		scope: 'ordinary headless Composition intents; real editor gestures remain unverified',
@@ -162,6 +178,7 @@ export async function verifyComposition({ post, intent, edit }) {
 		root,
 		red,
 		green,
+		source_alpha,
 		instances,
 		grouped_geometry_samples: samples,
 		grouped_undo_redo_modes: 3,

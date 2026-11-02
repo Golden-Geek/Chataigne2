@@ -2,22 +2,22 @@
 
 ## At a glance
 
-**Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
+**Updated: 2026-11-02 · Overall: `██████████░░░░░░░░░░` 50% · 5/10 phases complete**
 
-**Current:** M05 Screen/Surface native editor acceptance is verified by the user's six manual
-checks. **Active:** M06/4 Composition native image/outline/shape-selection acceptance.
-**Next:** open the freshly regenerated Composition review scene for the small native
-selection/transform/history review. **Blocker:** none for this manual path; display configuration,
+**Current:** M05 editors and M06 Composition native editor acceptance are verified by the user.
+**Active:** M07/3 Matrix Parameter/native-feedback scope.
+**Next:** prepare the current-schema Matrix scene for a small native launch/transition review;
+Matrix/association Parameter conversion remains required. **Blocker:** none for this manual path; display configuration,
 physical output/DPI and retained reset/timing/memory requirements remain open.
-**Usable capability:** continuous native pan/zoom, recoverable free warping, full-source crop
-editing, grouped Undo/Redo, panel restore and focused-output Escape.
-**Last accepted:** M05/6 and M05/7. A brief “preview unavailable” message on restore is explicitly
+**Usable capability:** continuous native Screen/Composition editing, aligned shape selection and
+transforms, full-source cropping, grouped Undo/Redo, panel restore and focused-output Escape.
+**Last accepted:** M06/4, completing M06. A brief “preview unavailable” message on restore is explicitly
 accepted for now; other timing budgets are unchanged.
 
-**Manual acceptance handoff:** 2 November15:42 CET, stop16:27 CET. Record the user's supplied
-observations without rerunning passed input, close only their named editor gates, and prepare
-one current Composition scene for the next native review. No new native experiment or code
-change is needed. Preserve unrelated `mapgyver_icons/` work.
+**Composition acceptance correction:** 2 November15:54 CET, stop16:39 CET. Resolve the user's
+Green-overlap observation using authored source alpha, make the review baseline opaque, and
+record the supplied native checks. Existing headless Save/New/Load proves the corrected fixture.
+Preserve unrelated icon work; do not change renderer blending or rerun passed native input.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -27,26 +27,47 @@ change is needed. Preserve unrelated `mapgyver_icons/` work.
 | [M03 Rendering/channels](#m03-acceptance-items) | Qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Accepted | `████████████████████` 100% | 6/6 |
 | [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Editors accepted; physical gates open | `█████████████░░░░░░░` 63% | 5/8 |
-| [M06 Composition](#m06-acceptance-items) | Active: native editor review | `███████████████░░░░░` 75% | 3/4 |
-| [M07 Matrix](#m07-acceptance-items) | Pending: Parameters and native feedback | `███████████████░░░░░` 75% | 3/4 |
+| [M06 Composition](#m06-acceptance-items) | Accepted | `████████████████████` 100% | 4/4 |
+| [M07 Matrix](#m07-acceptance-items) | Active: Parameters and native feedback | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Pending: Parameters and retained native scope | `███████████████░░░░░` 75% | 3/4 |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md) | Waiting | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
 
 Calculation: each phase counts verified gates over its fixed denominator, rounded to the nearest
-percent. Overall counts complete phases,4/10=40%. M05 gains exactly gates6 and7 (3/8→5/8);
-denominators are unchanged.
+percent. Overall counts complete phases,5/10=50%. M06 gains exactly gate4 (3/4→4/4);
+M05 stays5/8. Denominators are unchanged.
 
 ### Execution board
 
 | State | Gate(s) | Next requirement / return action |
 | --- | --- | --- |
-| Accepted | M04/5; M05/6,7 | Source Parameters and both Screen/Surface editors, including the reported native observations. |
-| Active | M06/4 | Current-schema review scene is ready; obtain native image/outline selection and transform/history observations. |
-| Pending | M07/3 | Matrix/association Parameter conversion and actual native playback feedback. |
+| Accepted | M04/5; M05/6,7; M06/4 | Source Parameters, Screen/Surface editors and Composition native selection/transform/history observations. |
+| Active | M07/3 | Matrix/association Parameter conversion and actual native playback feedback; prepare a current-schema manual scene. |
 | Pending | M08/4 | Application/collection Parameters, then native picker/lifecycle and retained retirement checks. |
 | Blocked | M05/4,5,8 | Report resolution/scaling/layout and available outputs; run the exact concurrent-output, hotplug/DPI and physical presentation cases. |
 | Blocked | M03/4,9 | Recorded reset decision, supported timing/scope decision and concrete ownership correction for the preserved memory failure. |
 | Waiting | M09/1 | All retained M03–M08 feature and qualification acceptance. |
+
+### Manual Composition acceptance — 2 November
+
+The user reports all five native Composition review groups pass: image/outline and overlapping
+shape selection; continuous move/rotate/scale with independent shared instances; grouped history;
+negative/nonuniform scale and off-center pivot alignment; tab hide/reopen. The sole observation
+was translucency of Normal Green at instance opacity1. The fixture authored Green source alpha0.7
+(and Red0.9), so Normal blending correctly retained the background. The user confirms setting
+Review Green fully opaque resolves it. Source alpha and instance opacity remain distinct controls.
+
+This closes M06/4 with its existing caller/browser/project-lifetime evidence: M06 is4/4 and
+overall5/10(50%). [Manual evidence](evidence/mapgyver-m06-manual-editor-acceptance-2026-11-02.json).
+The manual fixture now uses alpha1 for both sources and verifies persisted source alpha plus
+Normal/opacity1 instances after reload. Its ordinary headless flow passes, preserves the scene
+after30geometry samples/3history modes, and exits0. Replacement project SHA256:
+`11900b2257f51882c09f2aa4ea4acb2b26602a0da0d8e76fcf588e2f8ecdb701`.
+No renderer code or blend semantics change. M03/M05 physical/timing/resource gates are retained.
+JavaScript syntax/format and current scene save/load are the relevant changed-fixture checks;
+previous broad Rust/UI proof remains scoped to its recorded revisions.
+The fixture's syntax/Prettier and saved source-alpha checks pass. Both Rust formatters were
+attempted and remain blocked by the unrelated stray `²` in `owner_normalization.rs:14`;
+no Rust or renderer source is changed, and unrelated icons remain untouched.
 
 ### Manual Screen/Surface acceptance — 2 November
 
@@ -67,7 +88,7 @@ No new tests or desktop automation were needed to accept the supplied observatio
 software evidence remains attributed to its recorded revisions. Older dated reports below
 preserve the previous failures and return conditions; this dashboard owns current execution.
 
-**Next review prepared:** the existing ordinary-headless Composition fixture passes and regenerates
+**Earlier Composition review preparation:** the ordinary-headless fixture regenerated
 `target/m06-editor-review/CompositionReview.mapgyver` with current Parameter schemas, a320×240
 canvas, two Red instances and one Green instance. SHA256:
 `93220bd59bda1673936f3765f517bfca8485724410112b75d2c86a112b45fdcc`.
@@ -3506,7 +3527,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | 1   | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below                                                                                                                                                                                                    |
 | 2   | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media.               | Accepted — batch 73 evidence above                                                                                                                                                                                                    |
 | 3   | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output.                                     | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05                                                                                                                |
-| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Active — existing caller/browser/project-lifetime proof retained. User is available; obtain native image/outline/shape-selection and transform/history observations on a freshly generated current-schema Composition scene. |
+| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Accepted — 2 November manual native image/outline/shape-selection, transform/history and panel observations complete the existing browser/caller/project-lifetime scope. The source-alpha observation is resolved by the user. [Evidence](evidence/mapgyver-m06-manual-editor-acceptance-2026-11-02.json). |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -6569,14 +6590,13 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-M05/6 and M05/7 are accepted from the user's six native observations on 2 November together
-with the existing software/browser evidence. Their restore-time transient message is accepted
-for now. Keep only M06/4 Active: prepare a current-schema Composition review scene and request
-native image/outline alignment, shape selection and move/rotate/scale/history observations.
-Do not repeat passing browser or transport preparation as a substitute for that manual result.
-After Composition acceptance, return to Matrix elements/association Parameters and native
-playback feedback, then Application definitions/argument/environment children and native picker/
-lifecycle acceptance. Follow the [complete conversion inventory](../architecture/mapgyver-parameters.md).
+M05/6, M05/7 and M06/4 are accepted from the user's native observations and existing software/
+browser/public-caller proof. Composition is complete. Keep only M07/3 Active: Matrix elements/
+association Parameters and actual native playback feedback. Prepare the current-schema Matrix
+scene while the user is available; its native launch/transition observations can then be retained
+through the required Parameter conversion. Next comes Application definitions/argument/environment
+children and native picker/lifecycle acceptance. Follow the
+[complete conversion inventory](../architecture/mapgyver-parameters.md).
 M05/4,5,8 retain their physical/output/display requirements; M03 and M09 qualification is unchanged.
 
 **Retained qualification queue:**
@@ -6585,19 +6605,19 @@ Continue from batch98's actual elevated-owned-target/token/Ready/Idle/cleanup re
 complete column/shared-process/availability-recovery/New UI check. Keep **M08 gate4** parked.
 The next requirement needs actual native executable-picker and desktop lifecycle observations.
 The last supported activation failed; the user is now available for guided manual input
-(2 November). Select this check after the active Composition review and Matrix requirements.
+(2 November). Select this check after the active Matrix requirements.
 Do not repeat preparation or try new helpers
 to extend the blocked automation chain. Singleton retirement and complete app/mode/recovery/cleanup
 remain open. Non-elevated denial was not exercised; a running elevated target does not verify the
 opposite caller context. No privilege/security/settings change is authorized by this checkpoint.
 No phase switch merely because a checkpoint did not close the gate; record an actual missing
 prerequisite and return trigger if the active work becomes blocked.
-M06 is Active for native imagery/extent/shape selection and M07 returns for native renderer
-feedback. M05 gate7's native full-source preview is accepted. No injection, new automation route or passing-preparation
+M06's native imagery/extent/shape selection is accepted; M07 is Active for its remaining native
+renderer feedback and Parameters. M05 gate7's native full-source preview is accepted. No injection, new automation route or passing-preparation
 rerun substitutes for those observations. All global budgets remain.
 
-M06 and M07 actual-editor observations remain requested/pending against their saved review
-projects; no response is inferred and preparation is not repeated. M08 caller/headless/aggregate
+M06's manual response is accepted and retained; M07 manual observations remain pending against
+a freshly regenerated scene. M08 caller/headless/aggregate
 target/browser-form proof is complete within its recorded scope; native dialog, singleton
 retirement, actual elevation and full-app gaps remain. Passing Matrix native coverage is not rerun.
 

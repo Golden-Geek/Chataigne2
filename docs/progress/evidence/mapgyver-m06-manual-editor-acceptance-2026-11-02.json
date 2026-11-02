@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-02",
+  "evidence_kind": "guided_user_manual_report_and_screenshot",
+  "requested_executable": "target/debug/MapGyver.exe",
+  "reviewed_project_sha256": "93220bd59bda1673936f3765f517bfca8485724410112b75d2c86a112b45fdcc",
+  "checks": [
+    { "scope": "Native shape selection and image/outline alignment, including overlaps", "reported": "All good" },
+    { "scope": "Move, rotate and scale track continuously; shared instances stay independent", "reported": "All good" },
+    { "scope": "One Undo/Redo per complete drag", "reported": "All good" },
+    { "scope": "Nonuniform/negative scale and off-center pivot image/outline alignment", "reported": "All good" },
+    { "scope": "Hide and reopen Composition tab", "reported": "All good" }
+  ],
+  "reported_exception": "Normal Green at full instance opacity still blended with underlying Red.",
+  "diagnosis": "The review fixture authored Green source alpha 0.7 and Red source alpha 0.9. Instance opacity 1 preserves source alpha under Normal source-over blending.",
+  "user_resolution": "ok changed review green to opacity 100% and it's good now",
+  "fixture_correction": "Both review sources now use alpha 1. Saved/reloaded source alpha and instance Normal/opacity1 are checked by the existing headless flow.",
+  "replacement_project_sha256": "11900b2257f51882c09f2aa4ea4acb2b26602a0da0d8e76fcf588e2f8ecdb701",
+  "accepted_gates": ["M06/4"],
+  "basis": "Native observations complete the already accepted caller, browser and project-lifetime editor proof; the source-alpha observation is resolved by the user's confirmation.",
+  "limits": "No renderer code change, physical DPI/pixel/timing measurement, sustained resource qualification or native run of the regenerated replacement file is inferred."
+}
