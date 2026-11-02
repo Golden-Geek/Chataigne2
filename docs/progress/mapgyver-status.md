@@ -4,12 +4,81 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** free Surface warp editing is verified through invalid shapes to upside-down mappings, with red feedback and ordinary history; M05/6 remains Active for retained complete-editor/native scope.
-**Next:** current-build native held navigation/warp review when an interactive desktop exposes the owned app window; retain the recorded physical/display/reset acceptance queue.
-**Blocker:** no software/build blocker; the user closed MapGyver and the ordinary bundled build now passes. Retained native visual/display/reset/timing/memory acceptance
-remains open, including the prior unavailable targetable desktop review window. Current usable
-feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: actual browser pointer drags pass through invalid warps with live red feedback and recover to an upside-down quad, without rejected intents. Native pan/zoom's32GPU pixel frames and98controller samples remain verified. Output Escape's real foreground-key acceptance stays open.
+**Current:** M05 Screen/Surface native editor acceptance is verified by the user's six manual
+checks. **Active:** M06/4 Composition native image/outline/shape-selection acceptance.
+**Next:** open the freshly regenerated Composition review scene for the small native
+selection/transform/history review. **Blocker:** none for this manual path; display configuration,
+physical output/DPI and retained reset/timing/memory requirements remain open.
+**Usable capability:** continuous native pan/zoom, recoverable free warping, full-source crop
+editing, grouped Undo/Redo, panel restore and focused-output Escape.
+**Last accepted:** M05/6 and M05/7. A brief “preview unavailable” message on restore is explicitly
+accepted for now; other timing budgets are unchanged.
+
+**Manual acceptance handoff:** 2 November15:42 CET, stop16:27 CET. Record the user's supplied
+observations without rerunning passed input, close only their named editor gates, and prepare
+one current Composition scene for the next native review. No new native experiment or code
+change is needed. Preserve unrelated `mapgyver_icons/` work.
+
+| Phase | State | Progress | Done / total items |
+| --- | --- | --- | --- |
+| [M00 Baseline/workloads](mapgyver-m00-baseline.md) | Accepted locally | `████████████████████` 100% | 1/1 |
+| [M01 Functional route](#m01-acceptance-items) | Accepted locally | `████████████████████` 100% | 4/4 |
+| [M02 Shared shell](#m02-acceptance-items) | Accepted locally | `████████████████████` 100% | 7/7 |
+| [M03 Rendering/channels](#m03-acceptance-items) | Qualification open | `████████████████░░░░` 78% | 7/9 |
+| [M04 Source media](#m04-acceptance-items) | Accepted | `████████████████████` 100% | 6/6 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Editors accepted; physical gates open | `█████████████░░░░░░░` 63% | 5/8 |
+| [M06 Composition](#m06-acceptance-items) | Active: native editor review | `███████████████░░░░░` 75% | 3/4 |
+| [M07 Matrix](#m07-acceptance-items) | Pending: Parameters and native feedback | `███████████████░░░░░` 75% | 3/4 |
+| [M08 App lifetimes](#m08-acceptance-items) | Pending: Parameters and retained native scope | `███████████████░░░░░` 75% | 3/4 |
+| [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md) | Waiting | `░░░░░░░░░░░░░░░░░░░░` 0% | 0/1 |
+
+Calculation: each phase counts verified gates over its fixed denominator, rounded to the nearest
+percent. Overall counts complete phases,4/10=40%. M05 gains exactly gates6 and7 (3/8→5/8);
+denominators are unchanged.
+
+### Execution board
+
+| State | Gate(s) | Next requirement / return action |
+| --- | --- | --- |
+| Accepted | M04/5; M05/6,7 | Source Parameters and both Screen/Surface editors, including the reported native observations. |
+| Active | M06/4 | Current-schema review scene is ready; obtain native image/outline selection and transform/history observations. |
+| Pending | M07/3 | Matrix/association Parameter conversion and actual native playback feedback. |
+| Pending | M08/4 | Application/collection Parameters, then native picker/lifecycle and retained retirement checks. |
+| Blocked | M05/4,5,8 | Report resolution/scaling/layout and available outputs; run the exact concurrent-output, hotplug/DPI and physical presentation cases. |
+| Blocked | M03/4,9 | Recorded reset decision, supported timing/scope decision and concrete ownership correction for the preserved memory failure. |
+| Waiting | M09/1 | All retained M03–M08 feature and qualification acceptance. |
+
+### Manual Screen/Surface acceptance — 2 November
+
+The user reports **OK for all six guided checks**: native held pan/zoom tracks handles before
+release; free warp crosses invalid shapes and recovers; one drag is one Undo/Redo; Surface Source
+shows the full image with aligned crop handles and a coherent mapped result; tab changes, resize
+and minimize/restore work; focused-output Escape disables only its owning Screen and Undo restores
+it. These observations close the native remainder of M05/6 and M05/7 together with the existing
+software/browser/public-caller proof. Output Escape's ordinary-app behavior is observed; no ignored
+hardware test is represented as executed.
+
+On restore, “preview unavailable” appears briefly before content returns. The user explicitly
+accepts this **for now**. Keep it as a known transient presentation state; this does not revise
+physical alignment, frame-time or input-latency budgets. Display resolution, OS scale, output mode
+and concurrent-output configuration were not reported, so M05/4,5,8 stay open.
+[User-reported evidence](evidence/mapgyver-m05-manual-editor-acceptance-2026-11-02.json).
+No new tests or desktop automation were needed to accept the supplied observations. Prior
+software evidence remains attributed to its recorded revisions. Older dated reports below
+preserve the previous failures and return conditions; this dashboard owns current execution.
+
+**Next review prepared:** the existing ordinary-headless Composition fixture passes and regenerates
+`target/m06-editor-review/CompositionReview.mapgyver` with current Parameter schemas, a320×240
+canvas, two Red instances and one Green instance. SHA256:
+`93220bd59bda1673936f3765f517bfca8485724410112b75d2c86a112b45fdcc`.
+The original scene is restored after30grouped geometry samples and3Undo/Redo modes; host exits0.
+This replaces the obsolete pre-Parameter review file. Native observations remain pending; no
+browser or desktop experiment is added. The user's running app/project is not changed.
+
+Handoff checks: the evidence JSON parses, the regenerated scene matches its recorded SHA256,
+and the documentation diff passes whitespace checks. Root and Golden Core formatting were both
+attempted but blocked by an unrelated stray `²` in `engine/tests/owner_normalization.rs:14`.
+That live file and the unrelated icon work are untouched; this handoff changes documentation only.
 
 **Free warp batch:** 2 November14:57 CET, stop15:42 CET. Deliver unrestricted finite Surface
 quad editing through crossed/concave/degenerate intermediate shapes, red edges and dim red
@@ -271,30 +340,6 @@ corrected acceptance run; no additional probe chain. Sibling Chataigne's broader
 reports1831pass/28fail/14ignore; its affected DMX98 and Spatializer row-batch6 families pass serially
 on that same binary. This supports scheduling sensitivity but is not a clean full-suite baseline.
 
-| Phase                                                                     | State                                                                                          | Progress                    | Done / total items |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------- | ------------------ |
-| [M00 Baseline/workloads](mapgyver-m00-baseline.md)                        | Complete locally                                                                               | `████████████████████` 100% | 1/1                |
-| [M01 Functional route decision](#m01-acceptance-items)                    | Complete locally                                                                               | `████████████████████` 100% | 4/4                |
-| [M02 Multi-app seams/shell](#m02-acceptance-items)                        | Complete locally                                                                               | `████████████████████` 100% | 7/7                |
-| [M03 Rendering/channels](#m03-acceptance-items)                           | Foundations ready; qualification open                                                          | `████████████████░░░░` 78%  | 7/9                |
-| [M04 Source media](#m04-acceptance-items)                                 | Complete: real Parameters and generic source UI verified                                       | `████████████████████` 100% | 6/6                |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items)                     | Active: automation/live crop/drop software verified; complete-editor/native scope retained     | `████████░░░░░░░░░░░░` 38%  | 3/8                |
-| [M06 Composition/editor](#m06-acceptance-items)                           | Instance/canvas Parameters and generic UI verified; native scope retained                      | `███████████████░░░░░` 75%  | 3/4                |
-| [M07 Matrix/editor](#m07-acceptance-items)                                | Matrix/association Parameter conversion and native feedback pending                            | `███████████████░░░░░` 75%  | 3/4                |
-| [M08 App lifetimes](#m08-acceptance-items)                                | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75%  | 3/4                |
-| [M09 App/artifact qualification](../plan/MapGyver_Implementation_Plan.md) | Not started                                                                                    | `░░░░░░░░░░░░░░░░░░░░` 0%   | 0/1                |
-
-### Execution board
-
-| State                         | Gate(s)                                    | Next requirement / return condition                                                                                                             |
-| ----------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accepted                      | M04/5                                      | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6.                             |
-| Active                        | M05/6                                      | Requested software slice passes; return with a supported current-build desktop window for complete typed Screen input/native visual acceptance. |
-| Pending                       | M07/3                                      | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained.                                            |
-| Pending                       | M08/4                                      | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained.                     |
-| Blocked                       | M03/4,9                                    | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure.               |
-| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes.                 |
-| Waiting                       | M09/1                                      | All retained M03–M08 acceptance, then complete-app/artifact qualification.                                                                      |
 
 ### Screen automation and live Inspector delivery — 2 November, 12:50 CET
 
@@ -1012,10 +1057,6 @@ with measured cost and consequences, requiring explicit agreement before any low
   report `failed to activate captured window`. Return when supported activation is available or
   actual manual observations cover the missing editor/fullscreen states. Do not repeat helper
   workarounds. Independent Spout pixels pass; no actual editor/minimize/fullscreen behavior is inferred.
-- **M05 gate7:** batch87 verifies actual Source form/calibration/crop/origin/history and missing
-  source input. Return on native full-source preview observation (selected channel/extent and crop
-  overlay), via concrete restored supported capability or manual evidence. Do not repeat input
-  preparation or count the explicitly unavailable browser preview as a native pass.
 - **M06 gate 4:** caller parity and the ordinary-app review scene are verified. Return on the
   requested six real editor/source-picker, gesture/history, form, ordering, cancellation/panel and
   missing-source observations, or changed supported activation availability. Do not interpret a
@@ -3465,7 +3506,7 @@ the M06 percentage is closed gates / 4. No retained qualification budget or earl
 | 1   | App-owned Composition media/canvas and stable ordered instances; independent source references/transforms, validated authoring, persistence and Undo/Redo; command nodes, script methods, callbacks and snippets use the same backend operations. | Accepted — batch 18 evidence below                                                                                                                                                                                                    |
 | 2   | Dependency correctness across all media types, including Composition/Matrix feedback; direct/indirect cycles reject atomically; source deletion/Undo and large/deep graphs remain coherent without owning/duplicating source media.               | Accepted — batch 73 evidence above                                                                                                                                                                                                    |
 | 3   | Nested compositions render once per demanded output, shared sources retain independent transforms, and canvas resize, opacity/blends/alpha and rotation/pivot/scale are correct in native preview and output.                                     | Accepted — batch 74 production preview-compositor/channel raster evidence; actual UI/presentation stays gate 4 and M05                                                                                                                |
-| 4   | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior.                                                        | Open — caller parity and [complete new-layout input/project lifetime](evidence/mapgyver-m06-workbench-input-2026-11-01.json) retain batch89/95 scope. Actual native imagery/extent-based outline/shape-selection integration remains. |
+| 4 | Registered 2D editor/source picker with selection, drag/rotate/scale, grouped history and UI/script/headless intent parity; real interactive evidence covers the complete editor behavior. | Active — existing caller/browser/project-lifetime proof retained. User is available; obtain native image/outline/shape-selection and transform/history observations on a freshly generated current-schema Composition scene. |
 
 **Product batch 18:** started 2026-10-31 **01:40 UTC**, recorded stop **02:25 UTC**.
 Deliver the Composition authoring/module foundation under MapGyver media: canvas/channel type,
@@ -4119,8 +4160,8 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 3   | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha.                                                                                                                                                                      | Accepted — batch 12 backend/runtime and finite GPU evidence                                                                                                                                                                                                                                |
 | 4   | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize.                                                                                                                                     | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain                                                                                                                                           |
 | 5   | Display catalog/recovery preserves intended identity across hotplug, mixed DPI and negative desktop origins.                                                                                                                                                              | Open — batch 15 implements catalog/exact identity and software loss/error/recovery; actual hotplug and full physical arrangement/DPI qualification remain                                                                                                                                  |
-| 6   | Screen editor/source selection uses backend intents; one drag is one undoable gesture.                                                                                                                                                                                    | Accepted again after redesign — [complete Screen input/history and stable canvas](evidence/mapgyver-m05-workbench-screen-acceptance-2026-11-01.json) preserves batch86's full scope; source/peer preservation, all corners, rejection, Escape and panel lifetime pass.                     |
-| 7   | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior.                                                                                                                                                                 | Open — [complete new-layout Source input](evidence/mapgyver-m05-workbench-source-input-2026-11-01.json) preserves batch87 form/calibration/all crop/origin/rejection/Escape/source-loss/history scope. Prior backend/script proof retained; native full-source preview remains unverified. |
+| 6 | Screen editor/source selection uses backend intents; one drag is one undoable gesture. | Accepted — 2 November guided native checks1–3,5 and existing current Parameter/browser proof; continuous native navigation, recoverable free warp, grouped history and panel lifetime pass. [Evidence](evidence/mapgyver-m05-manual-editor-acceptance-2026-11-02.json). |
+| 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Accepted — 2 November guided native check4 supplies full-source image/crop-overlay/mapped-result observation, completing existing generic Parameter/calibration/history/source-loss/script proof. [Evidence](evidence/mapgyver-m05-manual-editor-acceptance-2026-11-02.json). |
 | 8   | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open                                                                                                                                                                                                                                                                                       |
 
 **Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
@@ -6528,31 +6569,31 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 
 ## Next action
 
-Media checkpoint `f4c727ab` is pushed and verified. Continue M05/6 only: the declared Screen/
-Surface rename permission correction is software-verified. Complete generic Inspector and canvas
-acceptance on that materially corrected candidate. Retain both failed browser attempts and the two-run
-investigation limit; do not repeat the unchanged startup candidate or infer functional coverage.
-Parameter schemas, atomic geometry, history/copy/project lifetime are implemented. Follow the complete conversion inventory
-in [parameter ownership](../architecture/mapgyver-parameters.md); no partial owner closes the full request.
-After this owner, return to Matrix elements/association children, Application definitions and
-argument/environment children, then command/field coverage. M06 retains native image/extent/
-shape-selection requirements. Do not repeat passing source/instance UI checks unchanged or try
-alternate unavailable native helpers. All complete-app/resource/physical qualification remains.
+M05/6 and M05/7 are accepted from the user's six native observations on 2 November together
+with the existing software/browser evidence. Their restore-time transient message is accepted
+for now. Keep only M06/4 Active: prepare a current-schema Composition review scene and request
+native image/outline alignment, shape selection and move/rotate/scale/history observations.
+Do not repeat passing browser or transport preparation as a substitute for that manual result.
+After Composition acceptance, return to Matrix elements/association Parameters and native
+playback feedback, then Application definitions/argument/environment children and native picker/
+lifecycle acceptance. Follow the [complete conversion inventory](../architecture/mapgyver-parameters.md).
+M05/4,5,8 retain their physical/output/display requirements; M03 and M09 qualification is unchanged.
 
 **Retained qualification queue:**
 
 Continue from batch98's actual elevated-owned-target/token/Ready/Idle/cleanup result and batch97's
 complete column/shared-process/availability-recovery/New UI check. Keep **M08 gate4** parked.
 The next requirement needs actual native executable-picker and desktop lifecycle observations.
-The last supported activation failed; return on a concrete supported capability change or guided
-manual input when available; the user confirms native interaction is unavailable for now. Do not repeat preparation or try new helpers
+The last supported activation failed; the user is now available for guided manual input
+(2 November). Select this check after the active Composition review and Matrix requirements.
+Do not repeat preparation or try new helpers
 to extend the blocked automation chain. Singleton retirement and complete app/mode/recovery/cleanup
 remain open. Non-elevated denial was not exercised; a running elevated target does not verify the
 opposite caller context. No privilege/security/settings change is authorized by this checkpoint.
 No phase switch merely because a checkpoint did not close the gate; record an actual missing
 prerequisite and return trigger if the active work becomes blocked.
-M06 returns for native imagery/extent/shape selection, M07 for native renderer feedback and M05
-gate7 for native full-source preview. No injection, new automation route or passing-preparation
+M06 is Active for native imagery/extent/shape selection and M07 returns for native renderer
+feedback. M05 gate7's native full-source preview is accepted. No injection, new automation route or passing-preparation
 rerun substitutes for those observations. All global budgets remain.
 
 M06 and M07 actual-editor observations remain requested/pending against their saved review

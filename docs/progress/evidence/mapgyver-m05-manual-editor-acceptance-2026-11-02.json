@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-02",
+  "evidence_kind": "guided_user_manual_report",
+  "requested_executable": "target/debug/MapGyver.exe",
+  "implementation_revision": "9582c092",
+  "binary_identity": "User followed the current-build checklist; running binary hash was not independently captured.",
+  "checks": [
+    { "id": 1, "scope": "Native held pan/zoom follows image and handles before release", "reported": "OK" },
+    { "id": 2, "scope": "Free warp remains editable through invalid shapes and recovers", "reported": "OK" },
+    { "id": 3, "scope": "One drag is one Undo/Redo operation", "reported": "OK" },
+    { "id": 4, "scope": "Surface Source full image, crop overlay and mapped result agree", "reported": "OK" },
+    { "id": 5, "scope": "Tabs, resize and minimize/restore", "reported": "OK", "observation": "Brief preview unavailable message after restore, then content returns", "accepted_for_now": true },
+    { "id": 6, "scope": "Focused output Escape disables its owning Screen; Undo restores it", "reported": "OK" }
+  ],
+  "accepted_gates": ["M05/6", "M05/7"],
+  "basis": "These native observations complete the already recorded software, browser and public-caller editor proof.",
+  "retained_gates": ["M05/4", "M05/5", "M05/8"],
+  "unreported_configuration": ["display resolution", "Windows scaling", "desktop arrangement", "output mode", "concurrent outputs"],
+  "limits": "No measured restoration duration, physical pixels, DPI/hotplug matrix, timing budgets, sustained resource qualification or ignored hardware-test execution is inferred."
+}

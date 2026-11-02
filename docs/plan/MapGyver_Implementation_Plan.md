@@ -165,6 +165,13 @@ with a concrete return trigger. Time-box expiry alone checkpoints work; it does 
 hopping. Keep the same gate and narrow its next action when useful work remains. A successful
 commit, test count or report never substitutes for closing its original acceptance requirements.
 
+On 2026-11-02, the user's six guided native checks close M05/6 and M05/7 together with the
+existing software/browser evidence. Brief preview unavailability during restore is explicitly
+accepted for now, without changing other timing budgets. M05/4,5,8 retain their physical/output/
+DPI scope. The next single active manual gate is M06/4 native Composition imagery, outlines and
+shape-selection integration, using a newly generated current-schema review project. Matrix and
+Application Parameter conversion and all retained qualification remain required.
+
 After two bounded qualification batches without gate closure, the anti-drift rule can select
 one acceptance batch in an already implemented, dependency-ready phase, with a concrete return
 trigger in the ledger. On 2026-10-31 the prescribed Q01 series and rejected window-sync candidate
@@ -486,8 +493,10 @@ rectangle windows and virtual Spout senders. Add crop/homography/calibration pri
 Screen and Surface Source panels. Normal UI layout remains relative; desktop pixels/texture
 extents use deliberately typed physical units.
 
-**Acceptance:** source crop followed by perspective warp matches a reference pattern; invalid
-quads/crops fail atomically; calibration works with no source and restores routing; overlapping
+**Acceptance:** source crop followed by perspective warp matches a reference pattern; finite
+authored quads remain editable through invalid intermediate shapes with visible feedback, while
+render preparation omits only unrenderable Surface layers and recovers when valid. Invalid crops
+reject atomically; calibration works with no source and restores routing; overlapping
 Surfaces preserve order/alpha; each target mode works; mixed DPI/negative origins/hotplug retain
 intended display identity. Multiple outputs continue when editor panels close or minimize.
 One drag is one undoable gesture. Commands/scripts/callbacks/snippets ship with these modules.
