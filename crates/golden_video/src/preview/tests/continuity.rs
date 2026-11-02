@@ -57,13 +57,13 @@ fn source_swaps_and_unrelated_registration_keep_live_destinations_until_replacem
     a.rect.x = 2.;
     layout(&control, session, 5, vec![a]);
     assert!(
-        !a_guard.is_current(),
-        "old geometry cannot remain visible after movement"
+        a_guard.is_current(),
+        "pan retains the installed frame until its replacement is ready"
     );
 }
 
 #[test]
-fn crop_host_session_and_lease_changes_withdraw_captured_destinations() {
+fn zoom_retains_frames_but_host_session_and_lease_changes_withdraw_captured_destinations() {
     let (control, reader, session) = fixture();
     let mut a = at(0.);
     a.rect.width = 80.;
@@ -74,7 +74,8 @@ fn crop_host_session_and_lease_changes_withdraw_captured_destinations() {
     a.rect.width = 100.;
     layout(&control, session, 2, vec![a.clone()]);
     assert_eq!(initial.views[0].destination, reader.snapshot().views[0].destination);
-    assert!(!before_crop.is_current());
+    assert!(before_crop.is_current());
+    assert!(!reader.mark_installed(initial.generation));
     let before_host = guard(&reader.snapshot(), 0);
     let mut resized = host();
     resized.client_width *= 2;

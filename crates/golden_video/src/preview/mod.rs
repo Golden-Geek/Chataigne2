@@ -127,16 +127,15 @@ impl State {
                     .get(id)
                     .zip(current.get(id))
                     .is_some_and(|((old_index, old), (new_index, new))| {
-                        if !same_destination(old, new) {
-                            return false;
-                        }
+                        // Keep the installed image through pan/zoom preparation. The frontend
+                        // covers retired/newly exposed pixels outside its retained overlap.
                         // A reordered overlap changes which live image owns those pixels.
                         // Independent views may reorder without withdrawing their destinations.
                         !previous.iter().any(|(other, (old_other_index, old_other))| {
                             current.get(other).is_some_and(|(new_other_index, new_other)| {
                                 old_index.cmp(old_other_index) != new_index.cmp(new_other_index)
-                                    && same_destination(old_other, new_other)
-                                    && overlaps(old.destination, old_other.destination)
+                                    && (overlaps(old.destination, old_other.destination)
+                                        || overlaps(new.destination, new_other.destination))
                             })
                         })
                     })
@@ -159,10 +158,6 @@ impl State {
             false
         }
     }
-}
-
-fn same_destination(left: &ResolvedView, right: &ResolvedView) -> bool {
-    left.destination == right.destination && left.source_rect == right.source_rect
 }
 
 fn overlaps(left: UnitRect, right: UnitRect) -> bool {

@@ -4,12 +4,46 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** object-only MapGyver creation catalogs verified; redundant automation node types and manager Script factories removed (M05/6 retained).
-**Next:** return to the existing M05/6 complete-editor/native acceptance queue; no broader gate is closed by this catalog cleanup.
+**Current:** pan/zoom preview continuity verified in shared layout, Svelte navigation and app software checks (M05/6 retained).
+**Next:** return to the existing complete-editor/native acceptance queue; physical presentation and timing remain unqualified by these software checks.
 **Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: manager/folder creation menus expose document objects only; removed automation types reject without document/history changes, while typed and script operations retain parity.
+Last verified capability: pan/zoom retains established preview presentation through delayed layout installation, without an unavailable message or a cover over the retained image.
+
+**Navigation preview batch:** 2 November13:12 CET, stop13:57 CET. Deliver continuous previews
+during pan/zoom; owner is Golden Video UI's layout/presentation lifecycle, with native host changes
+only if the existing retained-frame contract requires them. Hypothesis: geometry comparison drops
+an already presented view and installs its unavailable cover on every camera update, even though
+the session/source remain healthy. Baseline and one corrected continuity scenario will distinguish
+layout-pending state from capability loss. Proof: delayed-install layout tests, actual Svelte
+navigation continuity, relevant UI/type checks and ordinary app build before native verification.
+No renewed display/hardware qualification; preserve independent AGENTS.md changes.
+
+**Navigation continuity delivered — 2 November13:24 CET:** the baseline regression reproduced
+presentation loss on a geometry-only update. Golden Video now keeps per-view presentation guards
+through pan/zoom while the whole-layout guard still rejects obsolete preparation/installation.
+Hide/removal, overlapping painter-order changes, host geometry/session changes, lease expiry and
+close retain their withdrawal rules. Golden Video UI keeps established view identities presented
+and splits retirement coverage around the last-installed/current-clip overlap. Vacated and newly
+exposed pixels stay black; the retained image stays uncovered. Pending initial/reappearing layouts
+use plain black backing, reserving the unavailable label for actual capability/registration failure.
+The64historical-cover bound remains, with at most4rectangles per cover (256DOM masks).
+
+Verification:29Golden Video UI tests pass;9Rust preview tests pass; the full app suite passes262
+with1existing hardware ignore. Shared Svelte check has0errors/0warnings, package formatting,
+Golden Video and app strict all-target Clippy pass, and the ordinary bundled MapGyver build passes.
+The real Svelte `Viewport2D` fixture exercises zoom and Space-drag while native installation is
+delayed, plus source replacement, Inspector churn, clipping, withdrawal, recovery and browser
+fallback. It reports0page errors,0unavailable-message/interior-cover flashes and stable view IDs.
+Fixed CSS mask boxes versus transformed bounds have a measured0.0078125CSS-pixel edge difference;
+the check records that separately within the browser's1/64px layout step. Mathematical coverage
+tests still require exact subtraction; no visible cover is allowed over the retained interior.
+The two-view fixture's mask bound follows its four-piece geometry (8maximum,5observed).
+Native guard/admission and browser metadata evidence do not certify output pixels, scanout or
+physical timing. This user-requested software defect closes; M05/6's broader native/editor gate,
+all fixed acceptance denominators and remaining user requirements stay open. Next deliverable is
+the previously retained editor/native acceptance, without restarting old diagnostic probes.
 
 **Catalog delivery — 2 November, 13:10 CET:** removed `mapgyver_media_command` and
 `mapgyver_screen_command` from app registration, factories, containment and validation, together

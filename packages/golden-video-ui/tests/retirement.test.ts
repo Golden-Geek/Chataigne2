@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { RetirementCovers } from '../retirement';
+import { RetirementCovers, subtractRect } from '../retirement';
 
 describe('preview retirement coverage', () => {
+	it('covers only vacated and newly exposed areas around a retained image', () => {
+		const covered = { x: 0, y: 0, width: 100, height: 80 };
+		const retained = { x: 20, y: 10, width: 60, height: 50 };
+		const pieces = subtractRect(covered, retained);
+		expect(pieces).toHaveLength(4);
+		expect(pieces.reduce((sum, rect) => sum + rect.width * rect.height, 0)).toBe(5000);
+		for (const rect of pieces)
+			expect(
+				rect.x + rect.width <= retained.x ||
+					rect.x >= retained.x + retained.width ||
+					rect.y + rect.height <= retained.y ||
+					rect.y >= retained.y + retained.height
+			).toBe(true);
+		expect(subtractRect(covered, covered)).toEqual([]);
+		expect(subtractRect(covered, { ...retained, x: 200 })).toEqual([covered]);
+		expect(subtractRect(covered)).toEqual([covered]);
+	});
 	it('unions old clipped areas for one view until confirmed replacement', () => {
 		const covers = new RetirementCovers();
 		covers.protect('view', { x: 10, y: 20, width: 30, height: 40 });

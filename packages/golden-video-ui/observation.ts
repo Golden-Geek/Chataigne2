@@ -1,6 +1,7 @@
 import type { PreviewGeometry, PreviewSession, PreviewSessionState } from './session';
 import type { CssRect } from './generated/CssRect';
-import { RetirementCovers } from './retirement';
+import { RetirementCovers, subtractRect } from './retirement';
+import { intersectRect } from './geometry';
 
 const observations = new WeakMap<PreviewSession, LayoutObservation>();
 interface View {
@@ -120,28 +121,46 @@ class LayoutObservation {
 			});
 			document.body.prepend(this.layer);
 		}
-		for (const [id, rect] of entries) {
-			let mask = this.masks.get(id);
-			if (!mask) {
-				mask = document.createElement('div');
-				mask.dataset.nativePreviewRetirement = id;
-				Object.assign(mask.style, {
-					position: 'fixed',
-					pointerEvents: 'none',
-					background: '#000'
-				});
-				this.layer.append(mask);
-				this.masks.set(id, mask);
+		const current = new Set<string>();
+		for (const [viewId, covered] of entries) {
+			const view = this.views.get(viewId);
+			const aperture =
+				view?.nativeRect &&
+				view.latest?.visible &&
+				this.session.state.presentedViews.includes(viewId)
+					? intersectRect(view.nativeRect, view.latest.clip)
+					: undefined;
+			for (const [index, rect] of subtractRect(covered, aperture).entries()) {
+				const id = `${viewId}:${index}`;
+				current.add(id);
+				let mask = this.masks.get(id);
+				if (!mask) {
+					mask = document.createElement('div');
+					mask.dataset.nativePreviewRetirement = id;
+					Object.assign(mask.style, {
+						position: 'fixed',
+						pointerEvents: 'none',
+						background: '#000'
+					});
+					this.layer.append(mask);
+					this.masks.set(id, mask);
+				}
+				const values = {
+					left: `${rect.x}px`,
+					top: `${rect.y}px`,
+					width: `${rect.width}px`,
+					height: `${rect.height}px`
+				};
+				for (const [property, value] of Object.entries(values)) {
+					if (mask.style.getPropertyValue(property) !== value)
+						mask.style.setProperty(property, value);
+				}
 			}
-			const values = {
-				left: `${rect.x}px`,
-				top: `${rect.y}px`,
-				width: `${rect.width}px`,
-				height: `${rect.height}px`
-			};
-			for (const [property, value] of Object.entries(values)) {
-				if (mask.style.getPropertyValue(property) !== value)
-					mask.style.setProperty(property, value);
+		}
+		for (const [id, mask] of this.masks) {
+			if (!current.has(id)) {
+				mask.remove();
+				this.masks.delete(id);
 			}
 		}
 	}

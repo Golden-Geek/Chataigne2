@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { Viewport2D } from 'golden_ui';
 	import { NativePreview, createDesktopPreviewTransport, createPreviewSession } from '../../index';
 	const session = createPreviewSession(createDesktopPreviewTransport());
 	let source = $state('first-screen');
@@ -18,7 +19,9 @@
 <button onclick={() => (inspector = !inspector)}>Toggle Inspector preview</button>
 <main>
 	<section data-continuity-screen>
-		<NativePreview {session} {source} label="Screen preview" />
+		<Viewport2D aspect={16 / 9} identity="continuity" label="Continuity view" native>
+			<NativePreview {session} {source} label="Screen preview" />
+		</Viewport2D>
 	</section>
 	<aside>
 		{#if inspector}<NativePreview {session} source="inspector" label="Inspector preview" />{/if}

@@ -238,7 +238,8 @@ export async function verifyQualification(browser, baseUrl) {
 		await page.getByRole('button', { name: 'Overlay 1', exact: true }).getByText('1: 2').waitFor();
 		const requests = await page.evaluate(() => window.__qualificationRequests);
 		assert.equal(requests.at(-1).kind, 'Disconnect');
-		assert(final.maxRetirementMasks > 0 && final.maxRetirementMasks <= 2);
+		// Two registered views, each with at most four pieces around its retained overlap.
+		assert(final.maxRetirementMasks > 0 && final.maxRetirementMasks <= 8);
 		assert.deepEqual(errors, []);
 
 		const queryPage = await context.newPage();

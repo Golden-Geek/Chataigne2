@@ -233,7 +233,44 @@ describe('window preview session', () => {
 		expect(session.state.presentedViews).toEqual([screen.id]);
 	});
 
-	it.each(['move', 'hide', 'disconnect'] as const)(
+	it('retains an established preview while pan and zoom layouts await native installation', async () => {
+		let installed = true;
+		const endpoint = transport((request) => {
+			if (request.kind === 'Layout' || request.kind === 'Status')
+				return Promise.resolve({
+					kind: 'Applied',
+					revision: request.revision,
+					visible_views: 1,
+					installed
+				});
+		});
+		const session = own(endpoint.value);
+		let current = geometry();
+		const view = session.register('screen', () => current);
+		await session.connect();
+		await flush();
+		installed = false;
+		const presentations: (readonly string[])[] = [];
+		const unsubscribe = session.subscribe((state) => presentations.push(state.presentedViews));
+		for (const x of [10, 30, 5]) {
+			current = {
+				rect: { x, y: 4, width: 40, height: 20 },
+				clip: { x, y: 4, width: 35, height: 20 },
+				visible: true
+			};
+			view.invalidate();
+			await flush();
+			expect(session.state.installed).toBe(false);
+			expect(session.state.presentedViews).toEqual([view.id]);
+		}
+		installed = true;
+		await vi.advanceTimersByTimeAsync(100);
+		expect(session.state.installed).toBe(true);
+		expect(presentations.every((ids) => ids.includes(view.id))).toBe(true);
+		unsubscribe();
+	});
+
+	it.each(['hide', 'disconnect'] as const)(
 		'withdraws retained presentation on %s until it is valid again',
 		async (change) => {
 			let installed = true;
@@ -255,7 +292,7 @@ describe('window preview session', () => {
 			installed = false;
 			if (change === 'disconnect') void session.reconnect();
 			else {
-				current = change === 'move' ? geometry(10) : { ...geometry(), visible: false };
+				current = { ...geometry(), visible: false };
 				view.invalidate();
 			}
 			await flush();

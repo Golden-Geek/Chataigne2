@@ -3,6 +3,7 @@
 	import { emit } from '@tauri-apps/api/event';
 	import { NativePreview, createDesktopPreviewTransport, createPreviewSession } from '../../index';
 	import type { PreviewRequest } from '../../generated/PreviewRequest';
+	import { MAX_RETIREMENT_MASKS } from '../../retirement';
 
 	const desktop = createDesktopPreviewTransport();
 	let latest: PreviewRequest | null = null;
@@ -59,7 +60,7 @@
 				report.maxRetirementMasks,
 				document.querySelectorAll('[data-native-preview-retirement]').length
 			);
-			if (report.maxRetirementMasks > 64) {
+			if (report.maxRetirementMasks > MAX_RETIREMENT_MASKS) {
 				report.phase = 'failed';
 				report.error = 'Retirement mask capacity exceeded';
 			}

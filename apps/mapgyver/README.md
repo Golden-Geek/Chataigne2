@@ -18,6 +18,9 @@ Space + drag or middle drag pans, **F** frames selection, and **Home** fits the 
 The compact view toolbar exposes the same actions. Handles keep their round screen-space
 size at every aspect ratio and zoom. The output area is black; surrounding panels keep the
 workbench theme. Native preview apertures remain transparent to the shared desktop underlay.
+Pan/zoom keeps the installed preview visible while its replacement layout is prepared; pending
+geometry does not show “Preview unavailable”. Retirement covers protect vacated/newly exposed
+pixels around the retained overlap, and actual capability failures still report unavailable.
 Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
 for every caller, with typed 0–1 bounds in the generic Inspector.
 

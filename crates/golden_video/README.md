@@ -48,8 +48,9 @@ The implemented foundations are:
   host geometry conversion and coalesced leased registration. Apps resolve opaque source keys;
   neither app-domain types nor native handles belong in these DTOs.
   Full-layout generations fence stale installation. Separate per-view destination lifetimes
-  keep existing pixels available across source swaps and unrelated registrations until replacement;
-  removal, movement, clipping or overlapping painter-order changes withdraw affected regions.
+  keep existing pixels available across source swaps, pan/zoom and unrelated registrations until
+  replacement. The frontend covers vacated/newly exposed pixels outside the retained overlap;
+  removal or overlapping painter-order changes withdraw affected regions.
   Host geometry, session replacement, lease expiry and close withdraw every destination. Region
   fences are checked by the render worker independently of source admission and other outputs.
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
@@ -383,7 +384,9 @@ projection onto the admitted backing when DXGI stretches a fixed-size window out
 
 [`golden-video-ui`](../../packages/golden-video-ui/README.md) supplies the reusable Svelte component,
 session and transport adapter. It coalesces DOM layout changes, retains one in-flight IPC and the
-latest desired layout, and keeps opaque covers until the latest native installation is confirmed.
+latest desired layout, and keeps opaque covers outside an established preview's retained overlap
+until the latest native installation is confirmed. Navigation does not withdraw an installed frame
+or report capability failure while the replacement geometry is pending.
 Removed views retain bounded opaque retirement masks until an installed clear is acknowledged;
 lease expiry is the fallback after frontend interruption. CSS-pixel placement of measured masks
 is a deliberate geometry exception; product layout remains in relative units. Browser sessions

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MAX_RETIREMENT_MASKS } from '../../retirement';
 	import { onMount, tick } from 'svelte';
 	import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { NativePreview, createDesktopPreviewTransport, createPreviewSession } from '../../index';
@@ -151,7 +152,8 @@
 				report.maxRetirementMasks,
 				document.querySelectorAll('[data-native-preview-retirement]').length
 			);
-			if (report.maxRetirementMasks > 64) void failed('Retirement mask capacity exceeded');
+			if (report.maxRetirementMasks > MAX_RETIREMENT_MASKS)
+				void failed('Retirement mask capacity exceeded');
 		});
 		masks.observe(document.body, { childList: true, subtree: true });
 		void (async () => {

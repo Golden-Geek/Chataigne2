@@ -77,7 +77,10 @@
 	aria-label={label}
 >
 	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
-		<div class="unavailable">Preview unavailable</div>
+		<div class="unavailable">
+			{#if availability === 'unavailable' || availability === 'disposed' || registrationError}Preview
+				unavailable{/if}
+		</div>
 	{/if}
 	{#if children}<div class="overlay">{@render children()}</div>{/if}
 </div>

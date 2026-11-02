@@ -36,7 +36,7 @@ export async function verifyContinuity(browser, baseUrl) {
 		});
 		await page.goto(`${baseUrl}?mode=continuity`);
 		const screen = page.getByLabel('Screen preview', { exact: true });
-		const initialCover = screen.getByText('Preview unavailable', { exact: true });
+		const initialCover = screen.locator('.unavailable');
 		await initialCover.waitFor();
 		assert.equal(
 			await initialCover.evaluate((element) => getComputedStyle(element).backgroundColor),
@@ -54,20 +54,31 @@ export async function verifyContinuity(browser, baseUrl) {
 		);
 		await page.evaluate(() => {
 			window.__continuityFlashes = [];
+			window.__continuityEdgeOverlap = 0;
+			const initial = document
+				.querySelector('[data-continuity-screen] .native-preview')
+				.getBoundingClientRect();
 			new MutationObserver(() => {
-				const screen = document.querySelector('[data-continuity-screen]');
+				const screen = document.querySelector('[data-continuity-screen] .native-preview');
 				if (screen.textContent.includes('Preview unavailable'))
 					window.__continuityFlashes.push('placeholder');
 				const bounds = screen.getBoundingClientRect();
 				for (const mask of document.querySelectorAll('[data-native-preview-retirement]')) {
 					const rect = mask.getBoundingClientRect();
-					if (
-						rect.left < bounds.right &&
-						rect.right > bounds.left &&
-						rect.top < bounds.bottom &&
-						rect.bottom > bounds.top
-					)
-						window.__continuityFlashes.push('retirement mask');
+					const width =
+						Math.min(rect.right, bounds.right, initial.right) -
+						Math.max(rect.left, bounds.left, initial.left);
+					const height =
+						Math.min(rect.bottom, bounds.bottom, initial.bottom) -
+						Math.max(rect.top, bounds.top, initial.top);
+					// Fixed CSS boxes quantize at 1/64px; transformed aperture bounds can sit
+					// halfway between those steps. Record that edge error separately from covers.
+					if (width > 1 / 64 && height > 1 / 64) window.__continuityFlashes.push('retirement mask');
+					else if (width > 0 && height > 0)
+						window.__continuityEdgeOverlap = Math.max(
+							window.__continuityEdgeOverlap,
+							Math.min(width, height)
+						);
 				}
 			}).observe(document.body, { subtree: true, childList: true, attributes: true });
 			window.__continuityInstalled = false;
@@ -80,18 +91,50 @@ export async function verifyContinuity(browser, baseUrl) {
 		);
 		assert.equal(await screen.getAttribute('data-preview-installed'), 'false');
 		assert.equal(await screen.getByText('Preview unavailable').count(), 0);
+		const viewport = page.getByRole('application', { name: 'Continuity view' });
+		const initialRect = await screen.boundingBox();
+		await viewport.getByRole('button', { name: 'Zoom in', exact: true }).click();
+		await page.waitForFunction(
+			(width) =>
+				document.querySelector('[data-continuity-screen] .native-preview').getBoundingClientRect()
+					.width > width,
+			initialRect.width
+		);
+		await viewport.focus();
+		await page.keyboard.down('Space');
+		await page.mouse.move(
+			initialRect.x + initialRect.width / 2,
+			initialRect.y + initialRect.height / 2
+		);
+		await page.mouse.down();
+		await page.mouse.move(
+			initialRect.x + initialRect.width / 2 + 24,
+			initialRect.y + initialRect.height / 2 + 12,
+			{ steps: 8 }
+		);
+		await page.mouse.up();
+		await page.keyboard.up('Space');
+		await page.waitForFunction(
+			(left) =>
+				window.__continuityRequests.filter((request) => request.kind === 'Layout').at(-1)?.views[0]
+					.rect.x !== left,
+			initialRect.x
+		);
+		assert.equal(
+			await screen.locator('.unavailable').count(),
+			0,
+			'navigation retains its presented overlap'
+		);
+		assert.deepEqual(await page.evaluate(() => window.__continuityFlashes), []);
 		await page.evaluate(() => (window.__continuityInstalled = true));
 		await page.waitForFunction(() => document.querySelector('[data-preview-installed="true"]'));
 		await page.evaluate(() => (window.__continuityInstalled = false));
 		await page.getByRole('button', { name: 'Toggle Inspector preview' }).click();
-		await page
-			.getByLabel('Inspector preview', { exact: true })
-			.getByText('Preview unavailable')
-			.waitFor();
+		await page.getByLabel('Inspector preview', { exact: true }).locator('.unavailable').waitFor();
 		assert.equal(
 			await page
 				.getByLabel('Inspector preview', { exact: true })
-				.getByText('Preview unavailable')
+				.locator('.unavailable')
 				.evaluate((element) => getComputedStyle(element).backgroundColor),
 			'rgb(0, 0, 0)'
 		);
@@ -99,7 +142,7 @@ export async function verifyContinuity(browser, baseUrl) {
 		await page.evaluate(() => (window.__continuityInstalled = true));
 		await page
 			.getByLabel('Inspector preview', { exact: true })
-			.getByText('Preview unavailable')
+			.locator('.unavailable')
 			.waitFor({ state: 'detached' });
 		await page.evaluate(() => (window.__continuityInstalled = false));
 		await page.getByRole('button', { name: 'Toggle Inspector preview' }).click();
@@ -131,7 +174,9 @@ export async function verifyContinuity(browser, baseUrl) {
 			blackRetirementCovers: true,
 			sourceSwap: true,
 			inspectorChurn: true,
+			panZoom: true,
 			screenFlashes: result.flashes,
+			edgeOverlapCssPixels: await page.evaluate(() => window.__continuityEdgeOverlap),
 			stableView: true
 		};
 	} finally {

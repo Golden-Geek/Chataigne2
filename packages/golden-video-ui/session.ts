@@ -11,8 +11,8 @@ export interface PreviewSessionState {
 	acknowledgedRevision: number;
 	visibleViews: number;
 	installed: boolean;
-	/** Views whose last installed frame still occupies their current geometry. Source changes
-	 * retain that frame until replacement; this is distinct from latest-layout installation. */
+	/** Visible registrations with an installed frame to retain while source/layout replacements
+	 * are pending. This is distinct from confirmation of the latest layout installation. */
 	presentedViews: readonly string[];
 	error: string | null;
 }
@@ -86,12 +86,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		for (const listener of listeners) listener(state);
 	}
 	function retainPresentation(views: PreviewView[]) {
-		const geometry = (view: PreviewView) =>
-			JSON.stringify({ rect: view.rect, clip: view.clip, visible: view.visible });
-		const presented = new Map(presentedLayout.map((view) => [view.id, geometry(view)]));
-		return views
-			.filter((view) => view.visible && presented.get(view.id) === geometry(view))
-			.map((view) => view.id);
+		const presented = new Set(
+			presentedLayout.filter((view) => view.visible).map((view) => view.id)
+		);
+		return views.filter((view) => view.visible && presented.has(view.id)).map((view) => view.id);
 	}
 	function stopHeartbeat() {
 		if (heartbeat !== null) clearTimeout(heartbeat);
