@@ -110,6 +110,15 @@ export const sendSetParamIntent = async (
 	);
 };
 
+export const sendSetParamComponentIntent = async (
+	node: NodeId,
+	component: number,
+	value: number,
+	behaviour: ParamEventBehaviour,
+	applied?: AppliedIntentObserver
+): Promise<boolean> =>
+	sendUiIntent({ kind: 'setParamComponent', node, component, value, behaviour }, { applied });
+
 export const sendSetTextParamSmartIntent = async (
 	node: NodeId,
 	value: string,

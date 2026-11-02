@@ -6,7 +6,7 @@ use golden_core::{
 };
 use serde_json::Value;
 
-use super::{ScreenManagerNode, ScreenNode, SurfaceNode, protocol::*};
+use super::{ScreenManagerNode, SurfaceNode, protocol::*};
 use crate::app::{AppEngine, AppNode, labels};
 
 pub fn initialize(engine: &mut AppEngine) {
@@ -100,21 +100,24 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         ScreenEdit::CreateScreen { label } => {
             let parent = manager(engine)?;
-            let screen = ScreenNode::from_definition(
-                labels::unique(engine, parent, label, "Screen", &[])?,
-                ScreenDefinition::default(),
-            );
-            let surface = SurfaceNode::from_definition("Surface 1".into(), SurfaceDefinition::default());
-            let id = ScreenId(screen.node_data().meta.uuid);
+            let label = labels::unique(engine, parent, label, "Screen", &[])?;
+            let lookup = |id| engine.nodes.get(id).map(|node| node as &dyn Node);
+            let context = golden_core::node::UserItemCreationContext::new(engine.root, &lookup);
+            let tree = super::creation::tree(&context, label)?;
+            let id = ScreenId(tree.node.node_data().meta.uuid);
             let reference = SurfaceReference {
                 screen: id,
-                surface: SurfaceId(surface.node_data().meta.uuid),
+                surface: SurfaceId(
+                    tree.children
+                        .first()
+                        .ok_or("Screen factory omitted initial Surface")?
+                        .node
+                        .node_data()
+                        .meta
+                        .uuid,
+                ),
             };
-            append(
-                engine,
-                parent,
-                NodeTree::new(screen).with_child(NodeTree::new(surface).as_user_item()),
-            );
+            append(engine, parent, tree);
             ScreenEditResult::ScreenCreated {
                 screen: id,
                 surface: reference,
@@ -138,16 +141,24 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                         && candidate.definition().enabled
                         && matches!(&candidate.definition().target, Some(ScreenTarget::Spout { sender: name, .. }) if name == sender)
                     {
-                        return Err("enabled Screens must have distinct Spout sender names".into());
+                        return Err("enabled Screens must have distinct Shared Texture sender names".into());
                     }
                 }
             }
             let Some(AppNode::Screen(current)) = engine.nodes.get(node) else {
                 unreachable!()
             };
+            let enabled = definition.enabled;
             engine.edits.push(Edit::SetParamsAtomic {
                 values: current.parameter_values(definition),
                 behaviour: ParameterEventBehaviour::Append,
+            });
+            engine.edits.push(Edit::PatchMeta {
+                node,
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                },
             });
             ScreenEditResult::Changed
         }
@@ -360,7 +371,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     && let Some(ScreenTarget::Spout { sender, .. }) = definition.target
                     && !senders.insert(sender)
                 {
-                    return Err("enabled Screens must have distinct Spout sender names".into());
+                    return Err("enabled Screens must have distinct Shared Texture sender names".into());
                 }
                 let mut child = node.node_data().first_child;
                 while let Some(id) = child {

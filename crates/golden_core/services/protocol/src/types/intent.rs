@@ -26,6 +26,17 @@ pub enum UiEditIntent {
         /// Requested coalescing behavior.
         behaviour: ParameterEventBehaviour,
     },
+    /// Changes one vector component without replacing other canonical components.
+    SetParamComponent {
+        /// Target Vec2/Vec3 parameter.
+        node: NodeId,
+        /// Zero-based component index.
+        component: u8,
+        /// New finite component value.
+        value: f64,
+        /// Requested coalescing behavior.
+        behaviour: ParameterEventBehaviour,
+    },
     /// Apply inspector text-entry semantics to a string parameter.
     SetTextParamSmart {
         /// Target parameter node id.

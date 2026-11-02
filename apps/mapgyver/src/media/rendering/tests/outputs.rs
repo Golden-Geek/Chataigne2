@@ -25,6 +25,9 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
     let displays = [DisplayInfo {
         id: "intended".into(),
         name: "Monitor".into(),
+        edid: None,
+        index: 0,
+        primary: false,
         bounds: PhysicalRectangle {
             left: -320,
             top: 20,
@@ -122,6 +125,7 @@ fn output_catalog_rejects_duplicate_names_and_enforces_bounds_before_native_crea
     let channel = create(&mut engine, MediaKind::SolidColor);
     let (first, _) = screen(&mut engine, channel);
     let (second, _) = screen(&mut engine, channel);
+    configure(&mut engine, second, "Different", false);
     configure(&mut engine, first, "Same", true);
     let result = apply_project_intent(
         &mut engine,

@@ -108,6 +108,17 @@ pub trait Node: Send + Any {
         Ok(None)
     }
 
+    /// Derives additional parameter values for the same atomic authored operation.
+    /// This pure, bounded hook sees only the original leaf-prepared proposal and runs once;
+    /// derived writes do not recursively expand. Conflicting explicit/derived values reject.
+    /// History restores the captured complete operation without invoking this hook.
+    fn parameter_companion_changes(
+        &self,
+        _change: &super::ParameterValidationContext<'_>,
+    ) -> Result<Vec<(NodeId, ParamValue)>, String> {
+        Ok(Vec::new())
+    }
+
     #[doc(hidden)]
     fn project_encode_data(&self) -> Result<serde_json::Value, String> {
         Ok(serde_json::Value::Null)

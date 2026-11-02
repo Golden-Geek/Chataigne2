@@ -616,6 +616,7 @@ export interface UiDuplicateDependentUserItem {
 }
 
 export type UiEditIntent =
+	| Extract<RustUiEditIntent, { kind: 'setParamComponent' }>
 	| { kind: 'beginEdit'; client_edit_id: string; label?: string }
 	| { kind: 'endEdit'; client_edit_id: string }
 	| {

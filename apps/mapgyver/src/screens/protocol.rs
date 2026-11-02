@@ -16,7 +16,38 @@ pub const DISPLAY_CATALOG_EVENT: &str = "mapgyver-displays";
 pub struct DisplayInfo {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub edid: Option<String>,
+    /// Current OS GDI display number; zero means unavailable.
+    #[serde(default)]
+    pub index: u32,
+    #[serde(default)]
+    pub primary: bool,
     pub bounds: PhysicalRectangle,
+}
+
+/// Authored destination evidence, retained unchanged while runtime routing recovers elsewhere.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct DisplayIdentityHint {
+    pub identity: String,
+    pub edid: Option<String>,
+    pub name: String,
+    /// Last known OS GDI number, or zero when unknown.
+    pub index: u32,
+    pub bounds: Option<PhysicalRectangle>,
+}
+
+impl From<&DisplayInfo> for DisplayIdentityHint {
+    fn from(display: &DisplayInfo) -> Self {
+        Self {
+            identity: display.id.clone(),
+            edid: display.edid.clone(),
+            name: display.name.clone(),
+            index: display.index,
+            bounds: Some(display.bounds),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -69,12 +100,24 @@ pub enum ScreenTarget {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct ScreenDefinition {
     /// An unconfigured Screen must not create a window or select a sender implicitly.
     pub target: Option<ScreenTarget>,
     pub enabled: bool,
+}
+
+impl Default for ScreenDefinition {
+    fn default() -> Self {
+        Self {
+            target: Some(ScreenTarget::Spout {
+                sender: "Screen".into(),
+                extent: Extent2D::new(1920, 1080).expect("default extent"),
+            }),
+            enabled: true,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
@@ -254,7 +297,7 @@ impl ScreenDefinition {
             }
             Some(ScreenTarget::Spout { sender, extent: size }) => {
                 // Golden's versioned frame counter reserves 16 bytes of the SDK name limit.
-                text(sender, 239, "Spout sender")?;
+                text(sender, 239, "Shared Texture sender")?;
                 extent(*size)?;
             }
             None => {}
@@ -293,6 +336,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     ScreenEdit::export_all(&config)?;
     ScreenEditResult::export_all(&config)?;
     DisplayCatalogSnapshot::export_all(&config)?;
+    DisplayIdentityHint::export_all(&config)?;
     ScreenNativeRequest::export_all(&config)?;
     std::fs::write(
         directory.join("constants.ts"),

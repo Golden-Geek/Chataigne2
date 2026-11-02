@@ -6,6 +6,9 @@ fn display(id: &str) -> DisplayInfo {
     DisplayInfo {
         id: id.into(),
         name: "Monitor".into(),
+        edid: None,
+        index: 0,
+        primary: false,
         bounds: PhysicalRectangle {
             left: -1920,
             top: 0,

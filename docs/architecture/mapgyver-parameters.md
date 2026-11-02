@@ -21,17 +21,17 @@ The [implementation plan](../plan/MapGyver_Implementation_Plan.md#parameter-node
 and [current ledger](../progress/mapgyver-status.md) track acceptance. This inventory is the full
 required scope; a converted owner does not complete the refactor.
 
-| Owner | Required parameter fields | State |
-| --- | --- | --- |
-| Composition instance | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip |
-| Media/channel | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Verified: generic UI, caller parity, history/roundtrip and stable conditional-field identities |
-| Asset | Typed locator kind and project-relative/absolute File paths | Verified: generic File editing, history/roundtrip and invalid-path rejection |
-| Screen | Enabled; target kind, display identity, rectangle origin/extent, Spout name/extent | Software verified: eight typed Parameters, metadata/history/project lifetime; generic UI acceptance pending |
-| Surface | Enabled, source references, crop, four corner positions, opacity and calibration | Software verified: eleven typed Parameters, atomic geometry, full copy/history/project lifetime; generic UI acceptance pending |
-| Matrix row/group | Opacity, blend and enabled; existing node hierarchy/order | Pending |
-| Matrix column/cell | Transition override/curve/duration; application-association child nodes with reference/pre/post; column/source references on cells | Pending |
-| Application | Executable/directory, argument children, environment mode/entry children, window mode, readiness/sender/evidence/timeout, stop deadlines, restart/backoff | Pending |
-| Commands and inspector registrations | Audit remaining input declarations; remove ordinary property forms and opaque authored codecs | Pending |
+| Owner                                | Required parameter fields                                                                                                                                                                            | State                                                                                                                                                               |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composition instance                 | Source media/channel references; position, scale, rotation, pivot; opacity, blend, enabled                                                                                                           | Verified: generic Inspector, history/rejection, complete Parameter copy and project roundtrip                                                                       |
+| Media/channel                        | Media/source/output kind; automatic/fixed size, extent/filter; solid RGBA; Picture asset reference; Spout selector and maximum texture descriptor; Composition/Matrix canvas and transition settings | Verified: generic UI, caller parity, history/roundtrip and stable conditional-field identities                                                                      |
+| Asset                                | Typed locator kind and project-relative/absolute File paths                                                                                                                                          | Verified: generic File editing, history/roundtrip and invalid-path rejection                                                                                        |
+| Screen                               | Node metadata enablement; target kind, display enum, rectangle origin/extent, Shared Texture name/extent and seven hidden recovery hints                                                             | Fourteen typed Parameters; default creation, native metadata handoff, atomic reassignment/history and project lifetime verified in software; native matrix retained |
+| Surface                              | Enabled, source references, crop, four corner positions, opacity and calibration                                                                                                                     | Eleven typed Parameters; generic input, bounded/live crop, atomic geometry, full copy/history and project lifetime verified; native preview retained                |
+| Matrix row/group                     | Opacity, blend and enabled; existing node hierarchy/order                                                                                                                                            | Pending                                                                                                                                                             |
+| Matrix column/cell                   | Transition override/curve/duration; application-association child nodes with reference/pre/post; column/source references on cells                                                                   | Pending                                                                                                                                                             |
+| Application                          | Executable/directory, argument children, environment mode/entry children, window mode, readiness/sender/evidence/timeout, stop deadlines, restart/backoff                                            | Pending                                                                                                                                                             |
+| Commands and inspector registrations | Audit remaining input declarations; remove ordinary property forms and opaque authored codecs                                                                                                        | Pending                                                                                                                                                             |
 
 ## Validation and history
 
@@ -49,12 +49,18 @@ invalid intermediate crop, quad or rectangle states without copying a whole grap
 the complete proposal and treats each batch as a scalar-coalescing boundary. Arbitrary node-defined
 parameter-like setters are excluded because their commit may fail after preparation.
 
-Screens retain target-specific inactive values and field identities. Empty display/sender text
-leaves the selected endpoint visibly unconfigured. Surface source references, crop origin/size,
+Screens retain target-specific inactive values and field identities. Node metadata is their single
+enablement authority. Fresh creation uses a free secondary display or Shared Texture and binds the
+initial Surface to the first enabled Media's first channel. Native catalog changes publish generic
+enum choices through lifetime-fenced worker wakes; they never rewrite desired display hints or
+user history. Retained choice tokens preserve exact Undo/Redo across disconnects. Explicit display
+selection saves typed hints and swaps/replaces occupied peers in one compound Parameter edit.
+Surface source references, crop origin/size,
 corners, opacity, calibration and enabled state use the same typed leaves for canvas gestures and
 generic Inspector editing. Screen and Surface definitions are owned read projections; their opaque
-authored codecs and ordinary custom property forms are removed. Display discovery and structural
-actions remain focused app UI. Parameter folders do not contribute to Surface counts or rendering.
+authored codecs and ordinary custom property forms are removed. Display discovery uses the standard
+enum Inspector; sorting, creation and removal use shared manager/Outliner actions. Parameter folders
+do not contribute to Surface counts or rendering.
 Both domain declarations grant name-edit permission to the shared Inspector, including factories
 and loaded records. Public metadata edits use ordinary Golden history and persistence.
 

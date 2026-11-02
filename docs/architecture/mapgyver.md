@@ -38,20 +38,20 @@ native/editor qualification remain open. Execution belongs to the
 MapGyver owns media authoring, projection mapping, Matrix behavior, and its four specialized
 editors. Golden owns reusable execution and presentation mechanisms.
 
-| Boundary | Responsibility |
-| --- | --- |
-| `apps/mapgyver/src/app/` | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05 |
-| `apps/mapgyver/src/media/` | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06 |
-| `apps/mapgyver/src/screens/` | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes |
-| `apps/mapgyver/src/matrix/` | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
-| `apps/mapgyver/src/applications/` | Shared definitions, logical/rendered aggregate demand, public application driver, independent lifecycle workers, native sender/image readiness and renderer final-use retention. Full parity/qualification remain M08 |
-| `apps/mapgyver/ui/` | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores |
-| `crates/golden_core/runtime/io/` | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver |
-| `crates/golden_video/` | Compiler, bounded worker/null runtime, payload-free plan lifetime observation, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; qualification continues in M03 |
-| `crates/golden_time/` | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy |
-| `crates/golden_assets/` | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners |
-| `packages/golden-video-ui/` | Reusable Svelte preview registration, DOM geometry/clipping, negotiated host transport and installation/retirement covers; no mapping policy |
-| Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence |
+| Boundary                                 | Responsibility                                                                                                                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mapgyver/src/app/`                 | Thin lifecycle/identity/Golden startup; registers media nodes and delegates app operations. New projects include Dashboard and the media authoring container; full manager features remain M04/M05                              |
+| `apps/mapgyver/src/media/`               | Persistent media/channel identity, source/size contracts, atomic backend operations, bounded demanded dependency capture and worker-side channel-plan publication. Expanded media/editor integration continues in M04/M06       |
+| `apps/mapgyver/src/screens/`             | Screen/surface definitions, crop/pin/calibration authoring, output policy, backend intents and integration nodes                                                                                                                |
+| `apps/mapgyver/src/matrix/`              | Sparse Matrix authoring/validation, shared application associations, atomic launch requests, interrupted transition weights and indexed layer/group/final demand. Grid qualification and app runtime integration remain M07/M08 |
+| `apps/mapgyver/src/applications/`        | Shared definitions, logical/rendered aggregate demand, public application driver, independent lifecycle workers, native sender/image readiness and renderer final-use retention. Full parity/qualification remain M08           |
+| `apps/mapgyver/ui/`                      | Svelte 5 Screen, Surface Source, Composition and Matrix editors; app registrations and focused editor stores                                                                                                                    |
+| `crates/golden_core/runtime/io/`         | Generic bounded workers/transports and the public Windows owned-process tree primitive; app definitions, demand and restart/readiness policy remain in MapGyver                                                                 |
+| `crates/golden_video/`                   | Compiler, bounded worker/null runtime, payload-free plan lifetime observation, optional D3D11 compositor and bounded Spout input/window/Spout output mechanisms; qualification continues in M03                                 |
+| `crates/golden_time/`                    | Typed monotonic/show/sample coordinates, rational mappings, authority epochs and activation observations; apps own transport policy                                                                                             |
+| `crates/golden_assets/`                  | Persistent asset references/validated locators and bounded CPU preparation with scope/binding fences and consumer-lifetime leases; app catalogs and media integration remain with their owners                                  |
+| `packages/golden-video-ui/`              | Reusable Svelte preview registration, DOM geometry/clipping, negotiated host transport and installation/retirement covers; no mapping policy                                                                                    |
+| Existing Golden Core hosts and Golden UI | Shared desktop/headless startup, native window integration, workbench, inspectors, history, dialogs, generated transport and persistence                                                                                        |
 
 Media, Screen, Surface and Matrix product nodes never live in `golden_*`. Neither Golden Video
 nor Golden UI imports MapGyver or Chataigne. MapGyver does not import Chataigne modules or its
@@ -124,13 +124,13 @@ The Media Manager contains reusable media definitions. Every media exposes one o
 each channel is a concurrently available video texture with its own extent. Multiple consumers
 of the same channel share its rendered resource, rather than re-rendering that media per surface.
 
-| Media type | Initial behavior | Channel ownership |
-| --- | --- | --- |
-| Solid Color | Authored color/alpha and output size | User-configured channels, with independent settings |
-| Picture | Image assets, worker-side decode and GPU upload | User-configured channels, each with its own picture and size policy |
-| Shared Texture | Receive Spout textures | One configured sender per channel; all channels receive concurrently |
-| Composition | Ordered 2D instances of other media channels | Authored output canvas/channel definitions; one output by default |
-| Matrix | Resolume-style cells, layers, nested groups, transitions and blend modes | Automatically derived channels for layers, groups and final composition |
+| Media type     | Initial behavior                                                         | Channel ownership                                                       |
+| -------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Solid Color    | Authored color/alpha and output size                                     | User-configured channels, with independent settings                     |
+| Picture        | Image assets, worker-side decode and GPU upload                          | User-configured channels, each with its own picture and size policy     |
+| Shared Texture | Receive Spout textures                                                   | One configured sender per channel; all channels receive concurrently    |
+| Composition    | Ordered 2D instances of other media channels                             | Authored output canvas/channel definitions; one output by default       |
+| Matrix         | Resolume-style cells, layers, nested groups, transitions and blend modes | Automatically derived channels for layers, groups and final composition |
 
 Spout channels are independent receivers, **not** alternatives in a fallback list. Selecting a
 sender for one channel never replaces another channel's sender. Sender discovery is runtime
@@ -306,22 +306,36 @@ renderer without a native consumer's demand.
 The Screen Manager supports any number of authored screens, subject to explicit runtime GPU
 and output capacity. Each Screen has an output extent, ordered Surfaces, and one typed target:
 
-| Output target | Coordinate and lifecycle contract |
-| --- | --- |
-| Display fullscreen | Configured display identity, borderless native window, physical display-pixel output, per-monitor DPI correction |
-| Desktop rectangle | Global physical desktop `x/y/width/height`, including negative origins; no assumed global DPI scale |
-| Virtual Spout | Authored sender identity and extent, offscreen rendering with no output window |
+| Output target      | Coordinate and lifecycle contract                                                                                    |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Display fullscreen | Configured display identity, borderless native window, physical display-pixel output, per-monitor DPI correction     |
+| Desktop rectangle  | Global physical desktop `x/y/width/height`, including negative origins; no assumed global DPI scale                  |
+| Shared Texture     | Authored sender identity and extent, offscreen rendering with no output window; currently backed by Spout on Windows |
 
 Host code enumerates displays and manages native window lifecycle; Golden Video presents the
-rendered texture. MapGyver owns which screen targets which endpoint. Preserve the selected
-display across enumeration reorder; a disconnected display becomes unavailable and is retried
-when it returns. Never silently project onto the primary monitor. Validate sender-name
-collisions before activating virtual outputs and report/recover from sender loss or device reset.
+rendered texture. MapGyver owns which screen targets which endpoint. Authored
+`DisplayIdentityHint` values retain the intended path, EDID, friendly name, OS index and physical
+bounds. `screens/display_matching.rs` allocates the active fullscreen cohort one-to-one;
+it maximizes EDID, path, name, position, index and extent agreements in that order before using
+nearest-layout fallback. Strong peer matches are reserved globally rather than being stolen by
+an earlier weak match. Tolerant recovery may use a different monitor while the original is absent;
+unchanged authored evidence reclaims the stronger original when it returns. Equal-quality
+assignments are deterministic and explicitly marked ambiguous, never treated as proof of physical
+identity. Runtime resolution does not rewrite hints or create history. There is no primary-display
+shortcut around cohort matching; insufficient targets remain unavailable and are retried.
+Creation separately reserves disabled authored fullscreen assignments when choosing a free secondary
+display. The catalog handoff rejects stale cohort generations; pending recomputation retains healthy
+per-Screen mappings and capture never activates two fullscreen outputs on the same physical target.
+Hints and native matching remain separate from the visible generic display enum. New Screens use
+node metadata enablement and share one contextual creation factory across every public caller.
+Validate sender-name collisions before activating virtual outputs and report/recover from sender
+loss or device reset.
 
 A Surface references one `(MediaId, ChannelId)` and contains:
 
 - A normalized source crop rectangle in that channel's full image, independent of current
-  resolution. The backend rejects nonfinite, empty or out-of-range crops.
+  resolution. Interactive Parameter/gesture writes clamp to positive contained crops; malformed
+  complete definitions and nonfinite inputs reject before mutation.
 - Four ordered destination corner pins in normalized Screen coordinates. The backend validates
   a finite, convex, nondegenerate quad and computes the projective homography. Use perspective
   sampling, not two independently affine triangles with a visible diagonal seam.
@@ -718,12 +732,12 @@ the boundary between parameter state, command inputs and runtime projections.
 
 Register app panels using Golden UI's public workbench/inspector/outliner hooks:
 
-| Editor | Interaction |
-| --- | --- |
-| Screen | Select/arrange Surfaces, drag four pins over native Screen preview, toggle calibration |
-| Surface Source | Preview the full source channel, edit its crop rectangle |
-| Composition | Arrange, scale, rotate, order and blend media-channel instances |
-| Matrix | Virtualized layer/group/column grid, cell source assignment, launch state, transitions and app/pre/post settings |
+| Editor         | Interaction                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Screen         | Select/arrange Surfaces, drag four pins over native Screen preview, toggle calibration                           |
+| Surface Source | Preview the full source channel, edit its crop rectangle                                                         |
+| Composition    | Arrange, scale, rotate, order and blend media-channel instances                                                  |
+| Matrix         | Virtualized layer/group/column grid, cell source assignment, launch state, transitions and app/pre/post settings |
 
 Keep media catalog, screen state, Matrix state and native preview bindings in focused stores;
 reuse Golden transport/session abstractions. Svelte collects gestures and uses transient visual

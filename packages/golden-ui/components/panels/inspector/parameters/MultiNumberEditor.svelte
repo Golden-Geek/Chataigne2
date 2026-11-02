@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import Slider from '../../../common/Slider.svelte';
 	import { appState } from '../../../../store/workbench.svelte';
-	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
+	import { createUiEditSession, sendSetParamComponentIntent } from '../../../../store/ui-intents';
 	import type { EventTime, UiAck, UiNodeDto, UiRangeConstraint } from '../../../../types';
 	import { compareEventTime } from '../../../../store/session/event-time';
 
@@ -157,11 +157,10 @@
 
 		const nodeId = liveNode.node_id;
 		const candidate = owner;
-		void sendSetParamIntent(
-			nodeId,
-			{ kind: param.value.kind, value: next as [number, number] | [number, number, number] },
-			param.event_behaviour,
-			(acks) => observeApplied(candidate, acks)
+		// The draft is presentation only. Other axes are composed from current
+		// canonical state by the backend, even when their UI projection is delayed.
+		void sendSetParamComponentIntent(nodeId, index, normalized, param.event_behaviour, (acks) =>
+			observeApplied(candidate, acks)
 		);
 	};
 
@@ -273,7 +272,11 @@
 	class:column-layout={layoutMode === 'widget' && widgetLayoutKind === 'column'}>
 	{#if draftValue.length > 0}
 		{#each draftValue as item, index}
-			<div class="single-number-editor">
+			<div
+				class="single-number-editor"
+				class:bounded={showValueFields &&
+					componentMin(index) !== undefined &&
+					componentMax(index) !== undefined}>
 				<div class="slider-wrapper">
 					<Slider
 						value={displayedSliderValue(index)}
@@ -355,6 +358,12 @@
 		gap: 0.25rem;
 		width: 100%;
 		height: 1.2rem;
+	}
+
+	.single-number-editor.bounded {
+		display: grid;
+		grid-template-columns: minmax(2rem, 1fr) var(--gc-number-field-inline-size);
+		min-block-size: 1.2rem;
 	}
 
 	.multi-number-editor.widget-layout .single-number-editor {

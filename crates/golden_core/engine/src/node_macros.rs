@@ -814,6 +814,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn parameter_companion_changes(&self, change: &$crate::node::ParameterValidationContext<'_>) -> Result<Vec<($crate::node::NodeId, $crate::parameter::ParamValue)>, String> {
+                $crate::__dispatch_node_enum!(self, parameter_companion_changes, change; $($variant),*)
+            }
+
+            #[inline(always)]
             fn project_encode_data(&self) -> Result<serde_json::Value, String> {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }

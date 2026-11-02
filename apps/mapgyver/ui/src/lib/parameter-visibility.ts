@@ -35,11 +35,11 @@ function visible(child: UiNodeDto) {
 		);
 	}
 	if (owner.node_type === 'mapgyver.screen') {
-		if (field === 'target_kind' || field === 'render_enabled') return true;
+		if (field === 'target_kind') return true;
 		const target = choice('target_kind');
 		if (target === 'Fullscreen') return field === 'display';
 		if (target === 'Rectangle') return ['left', 'top', 'width', 'height'].includes(field ?? '');
-		if (target === 'Spout') return ['sender', 'width', 'height'].includes(field ?? '');
+		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
 	if (owner.node_type !== 'mapgyver.media.channel') return true;

@@ -38,7 +38,7 @@ pub enum EngineEditError {
         /// Runtime type expected by the engine (`T`).
         expected_engine_node_type: &'static str,
     },
-    /// A `SetParam` edit targeted a node that is not a parameter node.
+    /// A parameter value edit targeted a node that is not a parameter node.
     ParamEditTargetMismatch {
         /// Index of the edit in the drained queue.
         edit_index: usize,
@@ -47,7 +47,7 @@ pub enum EngineEditError {
         /// Runtime type name of the target node.
         node_type: String,
     },
-    /// A `SetParam` edit value failed constraint normalization or validation.
+    /// A parameter value edit failed constraint normalization or validation.
     ParamConstraintViolation {
         /// Index of the edit in the drained queue.
         edit_index: usize,

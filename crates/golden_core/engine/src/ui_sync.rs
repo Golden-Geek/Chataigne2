@@ -139,6 +139,13 @@ impl<T: Node> Engine<T> {
                 );
                 self.finish_ui_apply_now(before_event_time, result)
             }
+            UiEditIntent::SetParamComponent { node, component, value, behaviour } => {
+                if let Some(error) = self.read_only_ui_param_error(node) {
+                    return self.finish_ui_apply_now(before_event_time, Err(error));
+                }
+                let result = self.apply_atomic_ui_edits([Edit::SetParamComponent { node, component, value, behaviour }]);
+                self.finish_ui_apply_now(before_event_time, result)
+            }
             UiEditIntent::SetParamControlState { node, state } => {
                 if let Some(error) = self.read_only_ui_param_error(node) {
                     return self.finish_ui_apply_now(before_event_time, Err(error));

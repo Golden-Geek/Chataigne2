@@ -135,6 +135,11 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut accepted_outputs = std::collections::HashMap::new();
     let mut next_display_scan = Instant::now();
     let mut display_snapshot = crate::screens::protocol::DisplayCatalogSnapshot::default();
+    let mut display_source: Option<crate::screens::catalog_runtime::Source> = None;
+    let mut _display_subscription = None;
+    let mut display_options = crate::screens::catalog_runtime::display_options(&[]);
+    let mut display_published = None;
+    let mut display_retry = Instant::now();
     let mut applications = crate::applications::driver::ApplicationDriver::default();
     let mut application_retry = Instant::now();
     let mut application_error = None;
@@ -284,6 +289,32 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .window
                     .emit(crate::screens::protocol::DISPLAY_CATALOG_EVENT, &snapshot);
                 display_snapshot = snapshot;
+                display_options = crate::screens::catalog_runtime::display_options(&display_snapshot.displays);
+            }
+        }
+        let source_changed = display_source
+            .as_ref()
+            .is_none_or(|source| source.publisher.is_closed() || !source.guard.is_current());
+        if Instant::now() >= display_retry && (source_changed || display_published != Some(display_snapshot.revision)) {
+            let result = (|| -> Result<(), String> {
+                if source_changed {
+                    let source = input
+                        .runtime
+                        .capture_app(crate::screens::catalog_runtime::Source::capture)
+                        .map_err(|error| error.to_string())??;
+                    _display_subscription = Some(source.guard.subscribe(input.notifier.clone()));
+                    display_source = Some(source);
+                }
+                let source = display_source.as_ref().ok_or("display metadata source missing")?;
+                source
+                    .publisher
+                    .publish(source.prepare(display_snapshot.displays.clone().into(), &display_options))?;
+                display_published = Some(display_snapshot.revision);
+                Ok(())
+            })();
+            if let Err(error) = result {
+                eprintln!("[mapgyver-displays] metadata delivery: {error}");
+                display_retry = Instant::now() + Duration::from_secs(1);
             }
         }
         if let Some(revision) = input.discovery.take() {

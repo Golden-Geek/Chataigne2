@@ -40,6 +40,19 @@ impl<'a> ParameterValidationContext<'a> {
         self.proposed = Some(values);
         self
     }
+    /// Reads this phase's proposed value, distinct from current committed state.
+    /// Companion hooks receive only original explicit inputs; normalization and validation
+    /// receive the complete proposal including derived companions.
+    pub fn proposed_value(&self, id: NodeId) -> Option<&'a ParamValue> {
+        if id == self.parameter {
+            return Some(self.value);
+        }
+        self.proposed.and_then(|values| values.get(&id))
+    }
+    /// Whether a parameter belongs to this context's proposal.
+    pub fn is_proposed(&self, id: NodeId) -> bool {
+        self.proposed_value(id).is_some()
+    }
     /// Reads the final normalized value in this write, or its current committed value.
     pub fn parameter_value(&self, id: NodeId) -> Option<ParamValue> {
         if id == self.parameter {

@@ -36,7 +36,7 @@ export interface WorkbenchIntentPipeline {
 	rejectPending(reason: Error): void;
 }
 
-const MAX_SET_PARAM_BATCH_SIZE = 512;
+const MAX_PARAMETER_WRITE_BATCH_SIZE = 512;
 
 export const createWorkbenchIntentPipeline = (
 	options: WorkbenchIntentPipelineOptions
@@ -183,14 +183,14 @@ export const createWorkbenchIntentPipeline = (
 	const findQueuedSetParam = (node: NodeId, snapshotGeneration: number): QueuedIntent | undefined =>
 		queuedSetParamsByGeneration.get(snapshotGeneration)?.get(node);
 
-	const drainLeadingSetParams = (snapshotGeneration: number): QueuedIntent[] => {
+	const drainLeadingParameterWrites = (snapshotGeneration: number): QueuedIntent[] => {
 		const drained: QueuedIntent[] = [];
-		while (drained.length < MAX_SET_PARAM_BATCH_SIZE && hasPending()) {
+		while (drained.length < MAX_PARAMETER_WRITE_BATCH_SIZE && hasPending()) {
 			const next = peekPending();
 			if (
 				!next ||
 				next.snapshotGeneration !== snapshotGeneration ||
-				next.intent.kind !== 'setParam'
+				(next.intent.kind !== 'setParam' && next.intent.kind !== 'setParamComponent')
 			) {
 				break;
 			}
@@ -225,8 +225,8 @@ export const createWorkbenchIntentPipeline = (
 					continue;
 				}
 
-				if (next?.intent.kind === 'setParam') {
-					const batch = drainLeadingSetParams(next.snapshotGeneration);
+				if (next?.intent.kind === 'setParam' || next?.intent.kind === 'setParamComponent') {
+					const batch = drainLeadingParameterWrites(next.snapshotGeneration);
 					if (batch.length === 0) {
 						continue;
 					}
@@ -320,6 +320,25 @@ export const createWorkbenchIntentPipeline = (
 		}
 		return new Promise<void>((resolve, reject) => {
 			const snapshotGeneration = options.getSnapshotGeneration();
+			if (intent.kind === 'setParamComponent') {
+				// A component edit is an ordering boundary for whole-vector coalescing.
+				queuedSetParamsByGeneration.clear();
+				const previous = pending.length > pendingHead ? pending[pending.length - 1] : undefined;
+				if (
+					intent.behaviour === 'Coalesce' &&
+					previous?.snapshotGeneration === snapshotGeneration &&
+					previous.intent.kind === 'setParamComponent' &&
+					previous.intent.behaviour === 'Coalesce' &&
+					previous.intent.node === intent.node &&
+					previous.intent.component === intent.component
+				) {
+					previous.intent = intent;
+					previous.waiters.push({ resolve, reject });
+					if (progress) previous.progressObservers.push(progress);
+					void process();
+					return;
+				}
+			}
 			if (intent.kind === 'setParam') {
 				const queued = findQueuedSetParam(intent.node, snapshotGeneration);
 				if (queued) {

@@ -20,7 +20,10 @@ fn creation_batches_default_surface_and_allocates_stable_backend_labels() {
     assert_eq!(engine.undo_len(), before + 1);
     let snapshot = super::super::inspect(&engine).unwrap();
     assert_eq!(snapshot.screens[0].label, "Screen");
-    assert_eq!(snapshot.screens[0].definition, ScreenDefinition::default());
+    assert!(snapshot.screens[0].definition.enabled);
+    assert!(
+        matches!(&snapshot.screens[0].definition.target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
+    );
     assert_eq!(snapshot.screens[0].surfaces[0].definition, SurfaceDefinition::default());
     assert_eq!(surface.screen, first);
     assert!(engine.undo().unwrap());

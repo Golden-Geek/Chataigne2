@@ -1039,6 +1039,12 @@
 	:global(.parameter-inspector.density-compact .parameter-wrapper:has(.string-editor)) {
 		flex: 1 1 auto;
 	}
+	:global(
+		.parameter-inspector.density-compact
+			.parameter-wrapper:has(.multi-number-editor [role='slider'])
+	) {
+		flex: 1 1 auto;
+	}
 
 	.parameter-inspector.density-compact .control-mode-menu,
 	.parameter-inspector.density-compact .control-mode-placeholder {

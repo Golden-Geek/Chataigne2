@@ -10,12 +10,17 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-use super::scripting;
+use super::{protocol::DisplayInfo, scripting};
 
 pub struct ScreenManagerNode {
     data: NodeData,
     owner: Arc<()>,
     revision: RevisionSource,
+    displays: Arc<[DisplayInfo]>,
+    known_displays: std::collections::HashMap<String, DisplayInfo>,
+    resolved_displays: std::collections::HashMap<super::protocol::ScreenId, super::catalog_runtime::RecoveredDisplay>,
+    allocation_guard: Option<RevisionGuard>,
+    pub(super) catalog_inbox: super::catalog_runtime::CatalogInbox,
 }
 
 impl ScreenManagerNode {
@@ -26,11 +31,52 @@ impl ScreenManagerNode {
             data,
             owner: Arc::new(()),
             revision: RevisionSource::default(),
+            displays: Arc::from([]),
+            known_displays: Default::default(),
+            resolved_displays: Default::default(),
+            allocation_guard: None,
+            catalog_inbox: Default::default(),
         }
     }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
+    }
+    pub fn displays(&self) -> Arc<[DisplayInfo]> {
+        self.displays.clone()
+    }
+    /// Publishes ephemeral native metadata without writing any authored Parameter or history.
+    pub fn set_displays(&mut self, displays: Arc<[DisplayInfo]>) -> bool {
+        self.known_displays
+            .extend(displays.iter().map(|display| (display.id.clone(), display.clone())));
+        if self.displays.as_ref() == displays.as_ref() {
+            return false;
+        }
+        self.displays = displays;
+        true
+    }
+    pub(crate) fn mark_catalog_dirty(&mut self) {
+        self.revision.advance();
+        self.catalog_inbox.invalidate();
+    }
+    pub(crate) fn known_display(&self, identity: &str) -> Option<&DisplayInfo> {
+        self.known_displays.get(identity)
+    }
+    pub(crate) fn has_runtime_allocation(&self) -> bool {
+        self.allocation_guard.is_some()
+    }
+    pub(crate) fn resolved_display(
+        &self,
+        screen: super::protocol::ScreenId,
+        intended: &super::protocol::DisplayIdentityHint,
+    ) -> Option<&DisplayInfo> {
+        self.resolved_displays
+            .get(&screen)
+            .filter(|resolved| &resolved.intended == intended)
+            .map(|resolved| &resolved.display)
+    }
+    pub(crate) fn catalog_publisher(&self) -> Option<super::catalog_runtime::Publisher> {
+        self.catalog_inbox.publisher()
     }
 }
 
@@ -65,9 +111,40 @@ impl Node for ScreenManagerNode {
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.revision.advance();
         self.owner = Arc::new(());
+        self.catalog_inbox = Default::default();
+        self.resolved_displays.clear();
+        self.allocation_guard = None;
+        self.known_displays.clear();
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
-        self.revision.advance();
+        self.mark_catalog_dirty();
+    }
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        if let Err(error) = self.catalog_inbox.register(ctx) {
+            ctx.set_node_warning(self.id(), error);
+        }
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(mut update) = self.catalog_inbox.take() {
+            if !update.guard.is_current() {
+                return;
+            }
+            self.allocation_guard = Some(update.guard.clone());
+            let changed = self.set_displays(update.displays.clone()) || self.resolved_displays != update.resolved;
+            for display in &update.profiles {
+                self.known_displays
+                    .entry(display.id.clone())
+                    .or_insert_with(|| display.clone());
+            }
+            self.resolved_displays = std::mem::take(&mut update.resolved);
+            if changed {
+                self.revision.advance();
+            }
+            update.apply(ctx);
+        }
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         self.revision.advance();
@@ -108,6 +185,17 @@ impl Node for ScreenManagerNode {
             )
         } else {
             self.create_user_item(node_type).map(NodeTree::boxed)
+        }
+    }
+    fn create_user_item_tree_with_context(
+        &self,
+        node_type: &str,
+        context: &golden_core::node::UserItemCreationContext<'_>,
+    ) -> Option<NodeTree> {
+        if node_type == "mapgyver.screen" {
+            super::creation::tree(context, "Screen".into()).ok()
+        } else {
+            self.create_user_item_tree(node_type)
         }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {

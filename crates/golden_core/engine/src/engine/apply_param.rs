@@ -52,7 +52,7 @@ impl<T: Node> Engine<T> {
         Ok(value)
     }
 
-    fn prepare_set_param_leaf(
+    pub(super) fn prepare_set_param_leaf(
         &self,
         edit_index: usize,
         node: NodeId,
@@ -95,7 +95,7 @@ impl<T: Node> Engine<T> {
         Ok(value)
     }
 
-    fn normalize_param_owners(
+    pub(super) fn normalize_param_owners(
         &self,
         edit_index: usize,
         node: NodeId,
@@ -134,7 +134,7 @@ impl<T: Node> Engine<T> {
         Ok((value, normalized_any))
     }
 
-    fn validate_param_owners(
+    pub(super) fn validate_param_owners(
         &self,
         edit_index: usize,
         node: NodeId,
@@ -167,6 +167,46 @@ impl<T: Node> Engine<T> {
     }
 
     /// Applies a parameter value update and returns the captured before/after effect for history.
+    pub(super) fn apply_set_param_component(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        component: u8,
+        value: f64,
+        source: Option<NodeId>,
+    ) -> Result<super::parameter_proposals::ParameterWriteEffects, EngineEditError> {
+        let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
+            edit_index,
+            operation: "SetParamComponent",
+            node,
+        })?;
+        let rejected = |message: &str| EngineEditError::ParamConstraintViolation {
+            edit_index,
+            node,
+            node_type: target.get_type().into(),
+            message: message.into(),
+        };
+        if !value.is_finite() {
+            return Err(rejected("vector component values must be finite"));
+        }
+        let snapshot = target
+            .engine_param_snapshot()
+            .ok_or_else(|| rejected("component target must be a vector parameter"))?;
+        let next = match (snapshot.value, component) {
+            (ParamValue::Vec2(_, y), 0) => ParamValue::Vec2(value, y),
+            (ParamValue::Vec2(x, _), 1) => ParamValue::Vec2(x, value),
+            (ParamValue::Vec3(_, y, z), 0) => ParamValue::Vec3(value, y, z),
+            (ParamValue::Vec3(x, _, z), 1) => ParamValue::Vec3(x, value, z),
+            (ParamValue::Vec3(x, y, _), 2) => ParamValue::Vec3(x, y, value),
+            (ParamValue::Vec2(..) | ParamValue::Vec3(..), _) => {
+                return Err(rejected("vector component index is out of bounds"));
+            }
+            _ => return Err(rejected("component target must be a Vec2 or Vec3 parameter")),
+        };
+        self.apply_parameter_edit(edit_index, node, next, source)
+    }
+
+    /// Applies a complete parameter value update after its leaf/owner preparation.
     pub(crate) fn apply_set_param(
         &mut self,
         edit_index: usize,
@@ -178,7 +218,7 @@ impl<T: Node> Engine<T> {
         self.commit_prepared_param_value(edit_index, node, prepared_value, source)
     }
 
-    fn commit_prepared_param_value(
+    pub(super) fn commit_prepared_param_value(
         &mut self,
         edit_index: usize,
         node: NodeId,
@@ -272,70 +312,6 @@ impl<T: Node> Engine<T> {
             behaviour: ParameterEventBehaviour::Append,
             tick: self.time.tick,
         }))
-    }
-
-    pub(crate) fn apply_set_params_atomic(
-        &mut self,
-        edit_index: usize,
-        values: Vec<(NodeId, ParamValue)>,
-        behaviour: ParameterEventBehaviour,
-        source: Option<NodeId>,
-    ) -> Result<Vec<SetParamEffect>, EngineEditError> {
-        let mut proposed = std::collections::HashMap::with_capacity(values.len());
-        let mut prepared = Vec::with_capacity(values.len());
-        for (node, value) in values {
-            let target = self.nodes.get(node).ok_or(EngineEditError::NodeNotFound {
-                edit_index,
-                operation: "SetParamsAtomic",
-                node,
-            })?;
-            // Concrete Parameter setters accept their prepared value without callbacks.
-            // Arbitrary parameter-like nodes may have fallible setters and cannot provide
-            // this commit guarantee through the generic Node interface.
-            if !target.as_any().is::<crate::parameter::Parameter>() {
-                return Err(EngineEditError::ParamEditTargetMismatch {
-                    edit_index,
-                    node,
-                    node_type: target.get_type().into(),
-                });
-            }
-            let value = self.prepare_set_param_leaf(edit_index, node, value)?;
-            if proposed.insert(node, value.clone()).is_some() {
-                return Err(EngineEditError::ParamConstraintViolation {
-                    edit_index,
-                    node,
-                    node_type: target.get_type().into(),
-                    message: "atomic parameter IDs must be distinct".into(),
-                });
-            }
-            prepared.push((node, value));
-        }
-        // Every owner sees the same complete leaf-prepared proposal, independently of
-        // request ordering. Normalize once, then validate the resulting complete state.
-        let mut normalized = Vec::with_capacity(prepared.len());
-        let mut replacements = Vec::new();
-        for (node, value) in prepared {
-            let (value, changed) = self.normalize_param_owners(edit_index, node, value, Some(&proposed))?;
-            if changed {
-                replacements.push((node, value.clone()));
-            }
-            normalized.push((node, value));
-        }
-        for (node, value) in replacements {
-            proposed.insert(node, value);
-        }
-        let prepared = normalized;
-        for (node, value) in &prepared {
-            self.validate_param_owners(edit_index, *node, value, Some(&proposed))?;
-        }
-        let mut effects = Vec::with_capacity(prepared.len());
-        for (node, value) in prepared {
-            if let Some(mut effect) = self.commit_prepared_param_value(edit_index, node, value, source)? {
-                effect.behaviour = behaviour;
-                effects.push(effect);
-            }
-        }
-        Ok(effects)
     }
 
     /// Applies a live parameter-constraints update and emits value/constraint events as needed.

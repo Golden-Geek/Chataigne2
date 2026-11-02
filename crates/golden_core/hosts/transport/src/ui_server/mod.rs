@@ -232,6 +232,7 @@ fn ui_intent_kind(intent: &UiEditIntent) -> &'static str {
         UiEditIntent::BeginEdit { .. } => "begin_edit",
         UiEditIntent::EndEdit { .. } => "end_edit",
         UiEditIntent::SetParam { .. } => "set_param",
+        UiEditIntent::SetParamComponent { .. } => "set_param_component",
         UiEditIntent::SetTextParamSmart { .. } => "set_text_param_smart",
         UiEditIntent::SetParamControlState { .. } => "set_param_control_state",
         UiEditIntent::SetParamConstraints { .. } => "set_param_constraints",

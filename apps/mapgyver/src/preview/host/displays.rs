@@ -70,6 +70,9 @@ pub(super) fn scan() -> Result<Vec<DisplayInfo>, String> {
             Ok(DisplayInfo {
                 id: display.id,
                 name: display.name,
+                edid: display.edid,
+                index: display.index,
+                primary: display.primary,
                 bounds: crate::screens::protocol::PhysicalRectangle {
                     left: display.bounds.left(),
                     top: display.bounds.top(),

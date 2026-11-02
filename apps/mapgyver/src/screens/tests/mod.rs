@@ -1,10 +1,13 @@
 mod authoring;
+mod catalog_runtime;
 mod commands;
+mod creation;
 mod crop_gestures;
 mod drop_sources;
 mod geometry;
 mod gestures;
 mod parameters;
+mod selection;
 mod typescript;
 
 use super::protocol::*;

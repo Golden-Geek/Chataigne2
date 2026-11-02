@@ -12,6 +12,8 @@ use golden_io::{RevisionGuard, RevisionSource};
 use golden_video::Extent2D;
 
 const MAX_SCREEN_DIMENSION: i32 = 8192;
+mod hints;
+mod selection;
 
 #[node(
     "mapgyver.screen",
@@ -24,14 +26,20 @@ const MAX_SCREEN_DIMENSION: i32 = 8192;
 )]
 #[children(
     folder(parameters, label = "Parameters") {
-        target_kind: Enum = "Unconfigured" (label = "Target", enum_options = crate::parameters::enum_options(&["Unconfigured", "Fullscreen", "Rectangle", "Spout"]));
-        display: String = String::new() (label = "Display identity");
+        target_kind: Enum = "Shared Texture" (label = "Target", enum_options = crate::parameters::enum_options(&["Fullscreen", "Rectangle", "Shared Texture"]));
+        display: Enum = "" (label = "Display");
         left: i32 = 0 (label = "Left", description = "Physical desktop pixels.");
         top: i32 = 0 (label = "Top", description = "Physical desktop pixels.");
         width: i32 = 1920 [1..8192] (label = "Width", description = "Physical output pixels.", constraint_policy = "reject");
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
-        sender: String = String::new() (label = "Sender name");
-        render_enabled: bool = false (label = "Enabled");
+        sender: String = "Screen".to_owned() (label = "Sender name");
+        display_edid: String = String::new() (label = "Display EDID", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_name: String = String::new() (label = "Display name hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_os_index: i32 = 0 [0..2147483647] (label = "Display number hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_left: i32 = 0 (label = "Display left hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_top: i32 = 0 (label = "Display top hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_width: i32 = 0 [0..2147483647] (label = "Display width hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
+        display_height: i32 = 0 [0..2147483647] (label = "Display height hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
     }
 )]
 pub struct ScreenNode {
@@ -44,11 +52,11 @@ impl ScreenNode {
         let mut node = Self::new();
         let permissions = node.node_data().meta.user_permissions.clone();
         node.node_data_mut().meta = NodeMeta::new(label).with_user_permissions(permissions);
-        node.render_enabled = ParameterHandle::new(definition.enabled);
+        node.node_data_mut().meta.enabled = definition.enabled;
         match definition.target {
             Some(ScreenTarget::Fullscreen { display }) => {
                 node.target_kind = ParameterHandle::new(Enum::new("Fullscreen"));
-                node.display = ParameterHandle::new(display);
+                node.display = ParameterHandle::new(Enum::new(display));
             }
             Some(ScreenTarget::Rectangle { bounds }) => {
                 node.target_kind = ParameterHandle::new(Enum::new("Rectangle"));
@@ -58,12 +66,14 @@ impl ScreenNode {
                 node.height = ParameterHandle::new(bounds.extent.height() as i32);
             }
             Some(ScreenTarget::Spout { sender, extent }) => {
-                node.target_kind = ParameterHandle::new(Enum::new("Spout"));
+                node.target_kind = ParameterHandle::new(Enum::new("Shared Texture"));
                 node.sender = ParameterHandle::new(sender);
                 node.width = ParameterHandle::new(extent.width() as i32);
                 node.height = ParameterHandle::new(extent.height() as i32);
             }
-            None => {}
+            None => {
+                node.sender = ParameterHandle::new(String::new());
+            }
         }
         node
     }
@@ -73,10 +83,10 @@ impl ScreenNode {
     }
 
     pub(crate) fn parameter_values(&self, definition: ScreenDefinition) -> Vec<(NodeId, ParamValue)> {
-        let mut values = vec![(self.render_enabled.id(), ParamValue::Bool(definition.enabled))];
+        let mut values = Vec::new();
         let kind = match definition.target {
             Some(ScreenTarget::Fullscreen { display }) => {
-                values.push((self.display.id(), ParamValue::Str(display)));
+                values.push((self.display.id(), ParamValue::Enum(display)));
                 "Fullscreen"
             }
             Some(ScreenTarget::Rectangle { bounds }) => {
@@ -94,9 +104,12 @@ impl ScreenNode {
                     (self.width.id(), ParamValue::Int(extent.width() as i32)),
                     (self.height.id(), ParamValue::Int(extent.height() as i32)),
                 ]);
-                "Spout"
+                "Shared Texture"
             }
-            None => "Unconfigured",
+            None => {
+                values.push((self.sender.id(), ParamValue::Str(String::new())));
+                "Shared Texture"
+            }
         };
         values.push((self.target_kind.id(), ParamValue::Enum(kind.into())));
         values
@@ -107,7 +120,7 @@ impl ScreenNode {
         reader.guard_at(reader.current())
     }
 
-    fn parameter_ids(&self) -> [NodeId; 8] {
+    fn parameter_ids(&self) -> [NodeId; 14] {
         [
             self.target_kind.id(),
             self.display.id(),
@@ -116,7 +129,13 @@ impl ScreenNode {
             self.width.id(),
             self.height.id(),
             self.sender.id(),
-            self.render_enabled.id(),
+            self.display_edid.id(),
+            self.display_name.id(),
+            self.display_os_index.id(),
+            self.display_left.id(),
+            self.display_top.id(),
+            self.display_width.id(),
+            self.display_height.id(),
         ]
     }
 
@@ -129,7 +148,18 @@ impl ScreenNode {
             width: read(&self.width, change),
             height: read(&self.height, change),
             sender: read(&self.sender, change),
-            enabled: read(&self.render_enabled, change),
+            enabled: self.node_data().meta.enabled,
+        }
+    }
+
+    fn catalog_changed(&self, ctx: &mut ProcessCtx) {
+        if let Some(parent) = self.node_data().parent {
+            ctx.call_node_mutation_without_snapshot(parent, |node, _| {
+                if let Some(manager) = node.as_any_mut().downcast_mut::<super::ScreenManagerNode>() {
+                    manager.mark_catalog_dirty();
+                }
+                Ok(())
+            });
         }
     }
 }
@@ -174,13 +204,21 @@ impl Node for ScreenNode {
         self.revision.advance();
     }
 
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, _: bool) {
         self.revision.advance();
+        self.catalog_changed(ctx);
     }
 
-    fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
-        if self.parameter_ids().contains(&parameter) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, old: ParamValue) {
+        self.log_selection_change(parameter, &old);
+        if self.parameter_ids().contains(&parameter) || self.is_display_hint_parameter(parameter) {
             self.revision.advance();
+        }
+        if parameter == self.display.id()
+            || parameter == self.target_kind.id()
+            || self.is_display_hint_parameter(parameter)
+        {
+            self.catalog_changed(ctx);
         }
     }
 
@@ -189,6 +227,7 @@ impl Node for ScreenNode {
     }
 
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        self.validate_display_hint(None)?;
         self.values(None).validate()
     }
 
@@ -197,6 +236,7 @@ impl Node for ScreenNode {
             return Ok(());
         }
         let candidate = self.values(Some(change));
+        self.validate_display_hint(Some(change))?;
         candidate.validate()?;
         let definition = candidate.definition();
         let Some(ScreenTarget::Spout { sender, .. }) = definition.target.filter(|_| definition.enabled) else {
@@ -220,16 +260,23 @@ impl Node for ScreenNode {
             if other.enabled
                 && matches!(other.target, Some(ScreenTarget::Spout { sender: other, .. }) if other == sender)
             {
-                return Err("enabled Screens must have distinct Spout sender names".into());
+                return Err("enabled Screens must have distinct Shared Texture sender names".into());
             }
         }
         Ok(())
+    }
+
+    fn parameter_companion_changes(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Vec<(NodeId, ParamValue)>, String> {
+        self.selection_changes(change)
     }
 }
 
 struct ScreenValues {
     kind: Enum,
-    display: String,
+    display: Enum,
     left: i32,
     top: i32,
     width: i32,
@@ -243,8 +290,8 @@ impl ScreenValues {
         // Empty endpoint text is an authored, visibly unconfigured state. It must
         // not select a primary display or invent a sender during ordinary editing.
         let target = match self.kind.as_str() {
-            "Fullscreen" if !self.display.is_empty() => Some(ScreenTarget::Fullscreen {
-                display: self.display.clone(),
+            "Fullscreen" if !self.display.as_str().is_empty() => Some(ScreenTarget::Fullscreen {
+                display: self.display.as_str().to_owned(),
             }),
             "Rectangle" => Some(ScreenTarget::Rectangle {
                 bounds: PhysicalRectangle {
@@ -253,7 +300,7 @@ impl ScreenValues {
                     extent: projection_extent(self.width, self.height),
                 },
             }),
-            "Spout" if !self.sender.is_empty() => Some(ScreenTarget::Spout {
+            "Shared Texture" if !self.sender.is_empty() => Some(ScreenTarget::Spout {
                 sender: self.sender.clone(),
                 extent: projection_extent(self.width, self.height),
             }),
@@ -266,14 +313,14 @@ impl ScreenValues {
     }
 
     fn validate(&self) -> Result<(), String> {
-        if !["Unconfigured", "Fullscreen", "Rectangle", "Spout"].contains(&self.kind.as_str()) {
+        if !["Fullscreen", "Rectangle", "Shared Texture"].contains(&self.kind.as_str()) {
             return Err("unknown Screen target kind".into());
         }
         if !(1..=MAX_SCREEN_DIMENSION).contains(&self.width) || !(1..=MAX_SCREEN_DIMENSION).contains(&self.height) {
             return Err("screen extent must contain 1..8192 physical pixels per axis".into());
         }
-        validate_endpoint(&self.display, 1024, "display identity")?;
-        validate_endpoint(&self.sender, 239, "Spout sender")?;
+        validate_endpoint(self.display.as_str(), 1024, "display identity")?;
+        validate_endpoint(&self.sender, 239, "Shared Texture sender")?;
         self.definition().validate()
     }
 }

@@ -1,8 +1,6 @@
-use crate::contexts::UserContextValueType;
 use crate::edit::Edit;
 use crate::events::{CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeCreationContext};
-use crate::parameter::ParamValue;
 use std::{
     any::type_name,
     collections::{BTreeMap, HashMap},
@@ -259,28 +257,14 @@ impl<T: Node> Engine<T> {
                             }
                         }
                         Edit::SetParam { node, value, behaviour } => {
-                            match self.apply_set_param(edit_index, node, value, request.param_source)? {
-                                Some(mut effect) => {
-                                    if matches!(effect.old_value, ParamValue::Reference(_))
-                                        || matches!(effect.new_value, ParamValue::Reference(_))
-                                    {
-                                        missing_reference_warning_dirty = true;
-                                    }
-                                    if UserContextValueType::from_param_value(&effect.old_value)
-                                        != UserContextValueType::from_param_value(&effect.new_value)
-                                        && self.node_within_user_context_scope(effect.node)
-                                    {
-                                        user_context_graph_dirty = true;
-                                    }
-                                    if self.queue_user_context_multiplex_resize_for_count(effect.node) {
-                                        user_context_graph_dirty = true;
-                                    }
-                                    effect.behaviour = behaviour;
-                                    effect.tick = self.time.tick;
-                                    (Ok(Some(effect.into())), true)
-                                }
-                                None => (Ok(None), false),
-                            }
+                            let mut effects =
+                                self.apply_parameter_edit(edit_index, node, value, request.param_source)?;
+                            let (references, contexts) = self.parameter_effect_dependencies(effects.values());
+                            missing_reference_warning_dirty |= references;
+                            user_context_graph_dirty |= contexts;
+                            let changed = !effects.values().is_empty();
+                            effects.set_policy(behaviour, self.time.tick);
+                            (Ok(effects.history()), changed)
                         }
                         Edit::SetParamControlState { node, state } => {
                             let effect = self
@@ -289,26 +273,33 @@ impl<T: Node> Engine<T> {
                             let changed = effect.is_some();
                             (Ok(effect.map(Into::into)), changed)
                         }
+                        Edit::SetParamComponent {
+                            node,
+                            component,
+                            value,
+                            behaviour,
+                        } => {
+                            let mut effects = self.apply_set_param_component(
+                                edit_index,
+                                node,
+                                component,
+                                value,
+                                request.param_source,
+                            )?;
+                            let (references, contexts) = self.parameter_effect_dependencies(effects.values());
+                            missing_reference_warning_dirty |= references;
+                            user_context_graph_dirty |= contexts;
+                            let changed = !effects.values().is_empty();
+                            effects.set_policy(behaviour, self.time.tick);
+                            (Ok(effects.history()), changed)
+                        }
                         Edit::SetParamsAtomic { values, behaviour } => {
                             let effects =
                                 self.apply_set_params_atomic(edit_index, values, behaviour, request.param_source)?;
                             let changed = !effects.is_empty();
-                            for effect in &effects {
-                                if matches!(effect.old_value, ParamValue::Reference(_))
-                                    || matches!(effect.new_value, ParamValue::Reference(_))
-                                {
-                                    missing_reference_warning_dirty = true;
-                                }
-                                if UserContextValueType::from_param_value(&effect.old_value)
-                                    != UserContextValueType::from_param_value(&effect.new_value)
-                                    && self.node_within_user_context_scope(effect.node)
-                                {
-                                    user_context_graph_dirty = true;
-                                }
-                                if self.queue_user_context_multiplex_resize_for_count(effect.node) {
-                                    user_context_graph_dirty = true;
-                                }
-                            }
+                            let (references, contexts) = self.parameter_effect_dependencies(&effects);
+                            missing_reference_warning_dirty |= references;
+                            user_context_graph_dirty |= contexts;
                             (Ok(changed.then(|| effects.into())), changed)
                         }
                         Edit::SetParamConstraints { node, constraints } => {
@@ -749,6 +740,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::BeginEditSession { .. } => "BeginEditSession",
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
+        Edit::SetParamComponent { .. } => "SetParamComponent",
         Edit::SetParamsAtomic { .. } => "SetParamsAtomic",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",
         Edit::SetParamEnumOptions { .. } => "SetParamEnumOptions",

@@ -68,6 +68,7 @@ export const userActionLabelForIntent = (intent: UiEditIntent): string | null =>
 		case 'beginEdit':
 		case 'endEdit':
 		case 'setParam':
+		case 'setParamComponent':
 		case 'resizeDashboardWidget':
 		case 'sendNodeEvent':
 			return null;

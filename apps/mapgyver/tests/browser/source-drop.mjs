@@ -87,6 +87,17 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 		await target.waitFor({ state: 'visible' });
 		assert.equal(await source.getAttribute('draggable'), 'true');
 		const transfer = await page.evaluateHandle(() => new DataTransfer());
+		const delivered = await target.evaluateHandle((element) => {
+			const observed = { point: null };
+			element.addEventListener(
+				'drop',
+				(event) => {
+					observed.point = { x: event.clientX, y: event.clientY };
+				},
+				{ once: true, capture: true }
+			);
+			return observed;
+		});
 		try {
 			await source.dispatchEvent('dragstart', { dataTransfer: transfer });
 			const observed = await transfer.evaluate((value) =>
@@ -123,7 +134,9 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 			} else await target.dispatchEvent('dragover', event);
 			await target.dispatchEvent('drop', event);
 			await source.dispatchEvent('dragend', { dataTransfer: transfer });
+			return await delivered.evaluate((observed) => observed.point);
 		} finally {
+			await delivered.dispose();
 			await transfer.dispose();
 		}
 	}
@@ -142,6 +155,7 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 		await panel('Screen Manager')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.click();
+		await page.getByRole('menuitem', { name: 'Screen', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const screenId = snapshot.screens[0].id;
 		const baseline = snapshot;
@@ -245,14 +259,32 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 			assert(bounds);
 			return { x: bounds.x + bounds.width * x, y: bounds.y + bounds.height * y };
 		}
-		await drop(await mediaLabel(solid), compositionDrop, await canvasPoint(0.31, 0.44));
+		const placementBounds = await transform.boundingBox();
+		assert(placementBounds);
+		const intendedPoint = {
+			x: placementBounds.x + placementBounds.width * 0.31,
+			y: placementBounds.y + placementBounds.height * 0.44
+		};
+		const deliveredPoint = await drop(await mediaLabel(solid), compositionDrop, intendedPoint);
+		assert(deliveredPoint);
+		for (const axis of ['x', 'y'])
+			assert(
+				Math.abs(deliveredPoint[axis] - intendedPoint[axis]) < 1,
+				'Drag stays at the intended CSS point'
+			);
 		let scene = await wait(inspect, (value) => value.instances.length === 1);
 		assert.deepEqual(scene.instances[0].definition.source, first);
-		for (const [index, fraction] of [0.31, 0.44].entries())
+		// DragEvent quantizes CSS coordinates. Compare canvas placement to the actual
+		// delivered event through independently measured, transformed SVG bounds.
+		for (const [index, axis, length] of [
+			[0, 'x', 'width'],
+			[1, 'y', 'height']
+		])
 			assert(
 				Math.abs(
 					scene.instances[0].definition.transform.position[index] -
-						fraction * [scene.canvas.width, scene.canvas.height][index]
+						((deliveredPoint[axis] - placementBounds[axis]) / placementBounds[length]) *
+							scene.canvas[length]
 				) < 0.5,
 				'Drop uses transformed canvas coordinates'
 			);

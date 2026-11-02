@@ -32,6 +32,16 @@ MapGyver uses this contract to keep crop rectangles contained while preserving t
 component. Inspector edit sessions read only their selected Screen/Surface projection while held;
 canvas gestures keep exclusive ownership, and request identities fence stale project/session replies.
 
+Vector widgets send a typed component edit. Golden composes that component against the canonical
+Vec2/Vec3 at application time, preserving other axes regardless of client projection delay.
+Owners may return pure companion Parameter writes for coupled authoring operations. Golden gathers
+them once against the complete original proposal, rejects contradictory writes, then normalizes
+and validates the compound change before committing. History captures all changed leaves;
+replay restores exact values without rederiving runtime-dependent companions or normalization,
+while retaining intrinsic leaf/owner validation. MapGyver uses this for display hints and peer
+reassignment. Native display metadata reaches passive nodes through bounded latest-only mailboxes
+and lifetime-fenced NodeWakers, without user history or periodic engine polling.
+
 `golden_engine::app::ProjectLifecycle` supplies pure product metadata: application ID, display
 name, release version, app-data directory and project-file specification. Chataigne and MapGyver
 declare their own identities. Listener and frontend-process policy belongs to the shared
@@ -40,7 +50,7 @@ declare their own identities. Listener and frontend-process policy belongs to th
 workspace default remains Chataigne. MapGyver selects backend port 7011 and development UI port
 5174 without changing process environment variables.
 
-`golden_protocol` owns `UiApplicationInfoDto`, `UiDiscoveryDto` and UI protocol version `0.13.0`;
+`golden_protocol` owns `UiApplicationInfoDto`, `UiDiscoveryDto` and UI protocol version `0.14.0`;
 `golden_codegen_support` generates their TypeScript declarations. The transport exposes
 `/.well-known/golden-ui` with service `golden-ui`, application metadata and the exact protocol
 version. `ApplicationRoot` validates that discovery against the expected product before mounting

@@ -41,6 +41,9 @@ fn displays() -> io::Result<Vec<mapgyver::screens::protocol::DisplayInfo>> {
             Ok(mapgyver::screens::protocol::DisplayInfo {
                 id: display.id,
                 name: display.name,
+                edid: display.edid,
+                index: display.index,
+                primary: display.primary,
                 bounds: mapgyver::screens::protocol::PhysicalRectangle {
                     left: display.bounds.left(),
                     top: display.bounds.top(),

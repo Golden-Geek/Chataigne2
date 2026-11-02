@@ -16,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 
 /// The shared renderer admits eight consumers, with one reserved for the host preview window.
 pub const MAX_SCREEN_OUTPUTS: usize = 7;
+pub const MAX_SCREEN_CATALOG: usize = 128;
 
 #[derive(Clone)]
 pub struct CapturedScreen {
@@ -75,6 +76,9 @@ pub fn capture_outputs(
 ) -> Result<CapturedOutputs, String> {
     let manager = authoring::manager(engine)?;
     let owner = engine.nodes.get(manager).ok_or("Screen Manager is missing")?;
+    let AppNode::ScreenManager(screen_manager) = owner else {
+        unreachable!()
+    };
     let mut child = owner.node_data().first_child;
     let mut screens = Vec::new();
     let mut outputs = Vec::new();
@@ -82,6 +86,7 @@ pub fn capture_outputs(
     let mut names = HashSet::new();
     let mut unavailable = Vec::new();
     let mut preview_extents = HashMap::new();
+    let mut physical_displays = HashSet::new();
     while let Some(id) = child {
         let node = engine.nodes.get(id).ok_or("Screen Manager child is missing")?;
         child = node.node_data().next_sibling;
@@ -92,8 +97,25 @@ pub fn capture_outputs(
         let screen = ScreenId(node.node_data().meta.uuid);
         screens.push(screen);
         guards.push(node.guard());
-        if let Some(ScreenTarget::Fullscreen { display }) = &node.definition().target
-            && let Some(found) = displays.iter().find(|found| found.id == *display)
+        let hint = node.display_hint();
+        let resolved = screen_manager
+            .resolved_display(screen, &hint)
+            .and_then(|resolved| displays.iter().find(|display| *display == resolved));
+        let exact = match &node.definition().target {
+            Some(ScreenTarget::Fullscreen { display }) if !screen_manager.has_runtime_allocation() => {
+                displays.iter().find(|found| {
+                    found.id == *display
+                        && (screen_manager.displays().is_empty()
+                            || super::protocol::DisplayIdentityHint::from(*found) == hint)
+                })
+            }
+            _ => None,
+        };
+        if let Some(bounds) = hint.bounds {
+            preview_extents.insert(screen, bounds.extent);
+        }
+        if let Some(ScreenTarget::Fullscreen { .. }) = &node.definition().target
+            && let Some(found) = resolved.or(exact)
             && found.bounds.extent.width() <= 8192
             && found.bounds.extent.height() <= 8192
         {
@@ -106,7 +128,7 @@ pub fn capture_outputs(
             let target = match target {
                 ScreenTarget::Spout { sender, extent } => {
                     if !names.insert(sender.clone()) {
-                        return Err("duplicate Spout output sender name".into());
+                        return Err("duplicate Shared Texture output sender name".into());
                     }
                     ResolvedTarget::Spout {
                         sender: sender.clone(),
@@ -114,8 +136,8 @@ pub fn capture_outputs(
                     }
                 }
                 ScreenTarget::Rectangle { bounds } => ResolvedTarget::Rectangle(*bounds),
-                ScreenTarget::Fullscreen { display } => {
-                    let Some(found) = displays.iter().find(|found| found.id == *display) else {
+                ScreenTarget::Fullscreen { .. } => {
+                    let Some(found) = resolved.or(exact) else {
                         unavailable.push((
                             screen,
                             "Intended fullscreen display is unavailable; output is inactive".into(),
@@ -129,8 +151,15 @@ pub fn capture_outputs(
                         ));
                         continue;
                     }
+                    if !physical_displays.insert(found.id.clone()) {
+                        unavailable.push((
+                            screen,
+                            "Fullscreen display reassignment is waiting for a current allocation".into(),
+                        ));
+                        continue;
+                    }
                     ResolvedTarget::Fullscreen {
-                        display: display.clone(),
+                        display: found.id.clone(),
                         bounds: found.bounds,
                     }
                 }

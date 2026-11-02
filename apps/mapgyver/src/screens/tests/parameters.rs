@@ -138,7 +138,8 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let surface_node = engine.node_id_by_uuid(surface.surface.0).unwrap();
     let screen_fields = parameters(&engine, screen_node);
     let surface_fields = parameters(&engine, surface_node);
-    assert_eq!(screen_fields.len(), 8);
+    assert_eq!(screen_fields.len(), 14);
+    assert!(!screen_fields.contains_key("parameters/render_enabled"));
     assert_eq!(surface_fields.len(), 11);
     assert!(
         engine
@@ -160,18 +161,8 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     );
 
     let history = engine.undo_len();
-    assert!(
-        set(
-            &mut engine,
-            screen_fields["parameters/target_kind"],
-            ParamValue::Enum("Spout".into())
-        )
-        .success
-    );
-    assert!(
-        screen_definition(&engine, screen).target.is_none(),
-        "empty endpoints stay unconfigured"
-    );
+    assert!(set(&mut engine, screen_fields["parameters/width"], ParamValue::Int(640)).success);
+    assert!(screen_definition(&engine, screen).enabled);
     assert!(
         set(
             &mut engine,
@@ -180,15 +171,22 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
         )
         .success
     );
-    assert!(
-        set(
+    for enabled in [false, true] {
+        let ack = apply_project_intent(
             &mut engine,
-            screen_fields["parameters/render_enabled"],
-            ParamValue::Bool(true)
-        )
-        .success
-    );
-    assert_eq!(engine.undo_len(), history + 3);
+            UiEditIntent::PatchMeta {
+                node: screen_node,
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                }
+                .into(),
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        assert_eq!(screen_definition(&engine, screen).enabled, enabled);
+    }
+    assert_eq!(engine.undo_len(), history + 4);
     assert!(
         matches!(screen_definition(&engine, screen), ScreenDefinition { target: Some(ScreenTarget::Spout { sender, .. }), enabled: true } if sender == "Parameter output")
     );
@@ -232,7 +230,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);
     let loaded_screen_fields = parameters(&loaded, loaded.node_id_by_uuid(screen.0).unwrap());
     let loaded_surface_fields = parameters(&loaded, loaded.node_id_by_uuid(surface.surface.0).unwrap());
-    assert_eq!(loaded_screen_fields.len(), 8);
+    assert_eq!(loaded_screen_fields.len(), 14);
     assert_eq!(loaded_surface_fields.len(), 11);
     // Sparse projects omit unchanged, unreferenced declared leaves. Their schema
     // declarations restore the same parameter configuration with fresh identities.
@@ -251,16 +249,12 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     // exact UUIDs, rather than merely being recreated with equivalent values.
     for (original_id, loaded_id) in [
         (
-            screen_fields["parameters/target_kind"],
-            loaded_screen_fields["parameters/target_kind"],
+            screen_fields["parameters/width"],
+            loaded_screen_fields["parameters/width"],
         ),
         (
             screen_fields["parameters/sender"],
             loaded_screen_fields["parameters/sender"],
-        ),
-        (
-            screen_fields["parameters/render_enabled"],
-            loaded_screen_fields["parameters/render_enabled"],
         ),
         (
             surface_fields["parameters/opacity"],

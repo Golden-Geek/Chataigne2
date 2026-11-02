@@ -4,21 +4,29 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** user-requested editor stability/live crop, consistent outliners and automatic Screen/display behavior (M05/6).
-**Next:** fix lost vector components with backend component edits; finish automatic Screen defaults, display enum, conflict swaps and tolerant recovery.
-**Blocker:** none established for the requested implementation. Retained native visual/display/reset/timing/memory acceptance
+**Current:** user-requested editor/outliner and automatic Screen behavior implemented; software/model and bundled Source/drop verification pass (M05/6 retained).
+**Next:** close the retained complete Screen/native visual and physical reconnect acceptance when a supported desktop window and displays are available.
+**Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
-feature: stable shared camera navigation, contained backend crop, shared manager sorting/creation and source drops.
-Last verified capability: equal-identity geometry changes retain the camera; authored objects use shared Outliner catalogs and moves.
-**Batch:** 2 November, 09:57 CET, stop10:42 CET. Deliver stable Golden-consistent manipulation,
-live contained crop edits and uniform outliner sorting/creation as a reviewable milestone. Owners:
-shared Golden parameter preparation/viewport/tree contracts and MapGyver editing adapters.
-Proof: targeted model/history/camera/tree tests, bundled input after compile success, both app UI
-checks, Clippy and both Rust formatters. Investigation stops10:17 CET, at most two experiments
-including baseline. Hypotheses: equal-ID reactive snapshot replacement homes the camera, generic
-edit groups suppress editor reads, and plain Regular roles bypass curated tree moves/creation.
-Starting checkout is clean at pushed `1c7a09d2`. Remaining requested Screen defaults, enum,
-conflict swapping and identity recovery stay required in the same feature queue; no scope is dropped.
+feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
+Last verified capability: held Inspector samples update crop handles without changing the camera; Screen defaults/recovery and all six source-drop paths pass.
+**Batch:** 2 November, 11:15 CET, stop12:00 CET. Deliver component-safe Inspector edits and
+automatic Screen creation/target selection, including recovery and occupied-display handling.
+Owners: Golden's generic Parameter edit/protocol boundary; MapGyver's Screen model and display
+runtime integration. Proof: stale-component/history/rollback tests, Screen default/enum/swap and
+recovery-model tests, generated protocol drift, app UI checks, strict Clippy, ordinary build and
+the retained bundled Source acceptance after software prerequisites pass. Physical reconnect and
+native visual qualification remain retained gates. Starting checkout is clean at pushed
+`ba33203e`. Source's two observations already selected backend apply-time component composition;
+its11:17 investigation cutoff is not reset and no more projection-timing probes are allowed.
+Screen integration investigation stops11:35 CET (baseline plus at most one corrected experiment);
+use the existing host catalog/EDID evidence and pure recovery tests, not native experiments.
+No user requirement or retained acceptance scope is dropped.
+**Cutoff outcome:** no new product scope after12:00 CET. Finish-only correctness returns repaired
+stale cohort allocation, same-token hint invalidation and the bounded vector slider's collapsed
+track. Scoped CSS could not match a child component's Slider DOM; an explicit bounded-row class
+now supplies a usable track. The required bundled verification is terminal green. These results
+close the named software defects; native/physical and complete-editor gates are not inferred.
 **Post-review correctness return:** the first two bundled flows established the six basic drop
 paths (first stopped on a test-only f32 comparison, second passed). Review then reproduced a
 separate visual-target defect: native-visible objects beyond128 handles would be treated as empty
@@ -67,7 +75,7 @@ on that same binary. This supports scheduling sensitivity but is not a clean ful
 | [M02 Multi-app seams/shell](#m02-acceptance-items)                        | Complete locally                                                                               | `████████████████████` 100% | 7/7                |
 | [M03 Rendering/channels](#m03-acceptance-items)                           | Foundations ready; qualification open                                                          | `████████████████░░░░` 78%  | 7/9                |
 | [M04 Source media](#m04-acceptance-items)                                 | Complete: real Parameters and generic source UI verified                                       | `████████████████████` 100% | 6/6                |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items)                     | Active: source drops verified; native/physical gates retained                                  | `████████░░░░░░░░░░░░` 38%  | 3/8                |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items)                     | Active: automation/live crop/drop software verified; complete-editor/native scope retained     | `████████░░░░░░░░░░░░` 38%  | 3/8                |
 | [M06 Composition/editor](#m06-acceptance-items)                           | Instance/canvas Parameters and generic UI verified; native scope retained                      | `███████████████░░░░░` 75%  | 3/4                |
 | [M07 Matrix/editor](#m07-acceptance-items)                                | Matrix/association Parameter conversion and native feedback pending                            | `███████████████░░░░░` 75%  | 3/4                |
 | [M08 App lifetimes](#m08-acceptance-items)                                | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75%  | 3/4                |
@@ -75,15 +83,67 @@ on that same binary. This supports scheduling sensitivity but is not a clean ful
 
 ### Execution board
 
-| State                         | Gate(s)                                    | Next requirement / return condition                                                                                                                             |
-| ----------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accepted                      | M04/5                                      | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6.                                             |
-| Active                        | M05/6                                      | Finish user-requested manipulation/live crop/outliner consistency, then automatic Screen/display policy and tolerant recovery; retain native visual acceptance. |
-| Pending                       | M07/3                                      | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained.                                                            |
-| Pending                       | M08/4                                      | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained.                                     |
-| Blocked                       | M03/4,9                                    | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure.                               |
-| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes.                                 |
-| Waiting                       | M09/1                                      | All retained M03–M08 acceptance, then complete-app/artifact qualification.                                                                                      |
+| State                         | Gate(s)                                    | Next requirement / return condition                                                                                                             |
+| ----------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accepted                      | M04/5                                      | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6.                             |
+| Active                        | M05/6                                      | Requested software slice passes; return with a supported current-build desktop window for complete typed Screen input/native visual acceptance. |
+| Pending                       | M07/3                                      | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained.                                            |
+| Pending                       | M08/4                                      | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained.                     |
+| Blocked                       | M03/4,9                                    | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure.               |
+| Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes.                 |
+| Waiting                       | M09/1                                      | All retained M03–M08 acceptance, then complete-app/artifact qualification.                                                                      |
+
+### Screen automation and live Inspector delivery — 2 November, 12:50 CET
+
+New Screens are enabled through node metadata and use the next free supported secondary display,
+otherwise a uniquely named Shared Texture output (currently Spout). Generic/catalog, app, command
+and script creation share the contextual backend factory. Their initial Surface binds to the first
+enabled Media's first ordered channel. Target has no Unconfigured choice or separate enabled
+Parameter. Display is a standard detected-display enum; seven hidden typed Parameters retain the
+last explicitly chosen identity evidence. Reassignment swaps occupied peers when possible or
+replaces their output with a unique Shared Texture sender, preserving Surface state and metadata
+enablement. The entire compound edit, including saved hints, is one exact Undo/Redo operation;
+committed reassignment messages use the normal logger.
+
+The native preparation worker performs EDID/path/name/layout/index/extent cohort matching, with
+one-to-one strong-match reservation and deterministic flagged ambiguity. Creation reserves disabled
+assignments; runtime recovery prioritizes active outputs. Latest-only NodeWaker delivery and
+cohort/Parameter guards fence retired projects, obsolete metadata and same-path EDID re-selection.
+Pending allocation cannot activate duplicate physical targets and retains healthy unchanged
+outputs. Native metadata does not rewrite authored hints, serialize transient catalogs or consume
+Undo/Redo. Matching is bounded to the existing32-display/128-Screen admission.
+
+Golden component edits compose against canonical Vec2/Vec3 at APPLY, preserving other axes despite
+projection lag. Pure companion proposals gather once, reject contradictions and commit atomically.
+History restores captured values independently of later runtime catalogs while enforcing intrinsic
+leaf/owner constraints. UI protocol0.14.0 and generated consumers ship together. Bounded vector rows
+retain real drag area, and the shared camera remains unchanged through held Inspector samples.
+
+Verified: MapGyver270pass/1existing ignore, including10 matcher,6 catalog/lifetime/cohort and8
+creation/reassignment cases; focused Core15/15 and UI ordering/barrier5/5; Golden UI223/223. Both
+app Svelte checks report0errors/0warnings; strict app/engine all-target Clippy, Chataigne binary
+compile regression, ordinary bundled build, generated contract drift, Prettier and both Rust
+formatters pass. The prior concurrent Chataigne unit result remains recorded above; no new
+whole-suite pass is claimed. Earlier engine661pass and Graph59pass evidence remains scoped to
+their recorded revisions rather than being represented as fresh broad reruns.
+
+Actual bundled Source input passes in12024ms with0page errors and0crop rejections: all eleven real
+Parameters, precise corner preservation, contained/no-op crop edits, held-slider live SVG/handle
+feedback at120% without camera movement, Escape, source Delete/Undo and exact history. The owned
+host exits0; `target/m05-surface-source-ui.png` is inspected. Retained source-drop regression also
+passes all6paths, source-only replacement and single-step history, with8real payloads, an ignored
+Parameter drag,1deliberate cycle rejection and0page errors. The first run exposed only fractional
+fixture coordinates versus integer DragEvent coordinates at115%; expected placement now uses the
+delivered event and independently measured SVG bounds, retaining the0.5-texel tolerance. The
+corrected run and inspected `target/mapgyver-source-drop-ui.png` pass; its owned host exits0.
+
+Native preview pixels, current desktop flash behavior, real unplug/replug/port permutations and
+the complete Screen/native input matrix remain unverified. No native experiment or alternate
+desktop route ran in this batch. Return with the supported ordinary app window and required
+displays; do not substitute another software replay for those gates. No full acceptance gate
+closes: M05 stays3/8, overall4/10(40%); fixed denominators and all existing return triggers remain.
+Next product verification is that retained current-build desktop/display behavior. The user's
+independent AGENTS.md changes are preserved outside this milestone.
 
 ### Editor/outliner checkpoint — 2 November, 11:10 CET
 

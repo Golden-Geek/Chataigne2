@@ -182,6 +182,9 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
     let wanted = DisplayInfo {
         id: "wanted".into(),
         name: "Same label".into(),
+        edid: None,
+        index: 0,
+        primary: false,
         bounds,
     };
     let other = DisplayInfo {
@@ -292,6 +295,9 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
     let preview_display = DisplayInfo {
         id: "wanted".into(),
         name: "Monitor".into(),
+        edid: None,
+        index: 0,
+        primary: false,
         bounds: PhysicalRectangle {
             left: 2560,
             top: 0,

@@ -140,6 +140,17 @@ pub enum Edit {
         /// Coalescing strategy requested by the parameter/node API.
         behaviour: ParameterEventBehaviour,
     },
+    /// Changes one Vec2/Vec3 component against the canonical value at application time.
+    SetParamComponent {
+        /// Target parameter node id.
+        node: NodeId,
+        /// Zero-based vector component.
+        component: u8,
+        /// Requested finite component value.
+        value: f64,
+        /// Requested event/history coalescing behavior.
+        behaviour: ParameterEventBehaviour,
+    },
     /// Updates built-in Parameter nodes after validating the complete normalized proposal.
     /// Cross-field owner validation and history replay observe one final state. IDs must be distinct.
     SetParamsAtomic {
@@ -421,7 +432,7 @@ impl EditQueue {
                 for index in (0..self.pending.len()).rev() {
                     if matches!(
                         self.pending[index].edit,
-                        Edit::CheckPreconditions { .. } | Edit::SetParamsAtomic { .. }
+                        Edit::CheckPreconditions { .. } | Edit::SetParamsAtomic { .. } | Edit::SetParamComponent { .. }
                     ) {
                         break;
                     }
@@ -437,6 +448,23 @@ impl EditQueue {
                     }
                 }
 
+                self.pending.push(request);
+            }
+            Edit::SetParamComponent {
+                node,
+                component,
+                behaviour: ParameterEventBehaviour::Coalesce,
+                ..
+            } => {
+                // Other components and whole-vector writes are ordering boundaries: owner
+                // normalization can couple axes. Only an adjacent same-axis sample supersedes.
+                if let Some(mut previous) = self.pending.pop_if(|previous| {
+                    previous.param_source == request.param_source && matches!(previous.edit,
+                        Edit::SetParamComponent { node: existing, component: axis, behaviour: ParameterEventBehaviour::Coalesce, .. }
+                        if existing == *node && axis == *component)
+                }) {
+                    request.completions.append(&mut previous.completions);
+                }
                 self.pending.push(request);
             }
             Edit::RemoveNode { node } => {

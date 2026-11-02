@@ -2,7 +2,10 @@
 
 mod authoring;
 mod calibration;
+pub(crate) mod catalog_runtime;
 mod commands;
+pub(crate) mod creation;
+pub mod display_matching;
 mod geometry;
 mod nodes;
 pub mod protocol;

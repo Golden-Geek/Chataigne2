@@ -24,6 +24,7 @@ mod apply_param;
 /// Tree mutation, attachment, and topology validation helpers.
 mod apply_tree;
 mod change_targets;
+mod parameter_proposals;
 pub(crate) mod tree_revisions;
 pub use tree_revisions::{SubtreeRevision, SubtreeStructureRevision};
 /// Unified node-type catalog and blueprint-backed dynamic type helpers.

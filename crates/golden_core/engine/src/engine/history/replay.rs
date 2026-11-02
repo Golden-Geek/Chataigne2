@@ -6,14 +6,11 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.old)?,
             Self::SetParam(step) => {
-                let _ = engine.apply_set_param(0, step.node, step.old_value.clone(), None)?;
+                engine.restore_parameter_history(step.node, step.old_value.clone())?;
             }
             Self::SetParamsAtomic(steps) => {
-                engine.apply_set_params_atomic(
-                    0,
+                engine.restore_atomic_parameter_history(
                     steps.iter().map(|step| (step.node, step.old_value.clone())).collect(),
-                    ParameterEventBehaviour::Append,
-                    None,
                 )?;
             }
             Self::SetParamControlState(step) => {
@@ -109,14 +106,11 @@ impl<T: Node> HistoryStep<T> {
         match self {
             Self::AuthoredNode(step) => engine.restore_authored_node_state(step.node, &step.new)?,
             Self::SetParam(step) => {
-                let _ = engine.apply_set_param(0, step.node, step.new_value.clone(), None)?;
+                engine.restore_parameter_history(step.node, step.new_value.clone())?;
             }
             Self::SetParamsAtomic(steps) => {
-                engine.apply_set_params_atomic(
-                    0,
+                engine.restore_atomic_parameter_history(
                     steps.iter().map(|step| (step.node, step.new_value.clone())).collect(),
-                    ParameterEventBehaviour::Append,
-                    None,
                 )?;
             }
             Self::SetParamControlState(step) => {

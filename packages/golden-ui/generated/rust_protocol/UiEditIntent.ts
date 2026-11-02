@@ -42,6 +42,22 @@ value: ParamValue,
 /**
  * Requested coalescing behavior.
  */
+behaviour: ParameterEventBehaviour, } | { "kind": "setParamComponent",
+/**
+ * Target Vec2/Vec3 parameter.
+ */
+node: NodeId,
+/**
+ * Zero-based component index.
+ */
+component: number,
+/**
+ * New finite component value.
+ */
+value: number,
+/**
+ * Requested coalescing behavior.
+ */
 behaviour: ParameterEventBehaviour, } | { "kind": "setTextParamSmart",
 /**
  * Target parameter node id.

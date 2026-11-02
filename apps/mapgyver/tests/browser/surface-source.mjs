@@ -173,7 +173,15 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		}
 		assert.deepEqual(await screens(), snapshot);
 		await wait(
-			() => controls.parameter('Source media').locator('.reference-editor.link-empty').count(),
+			() =>
+				controls
+					.parameter('Source media')
+					.locator(
+						first.definition.source
+							? '.reference-editor.link-linked'
+							: '.reference-editor.link-empty'
+					)
+					.count(),
 			(count) => count === 1
 		);
 		for (let depth = initialDepth; depth < configuredDepth; depth++) {
@@ -369,7 +377,10 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		const slider = controls.parameter('Crop size').getByRole('slider').nth(0);
 		await slider.scrollIntoViewIfNeeded();
 		const sliderBounds = await slider.boundingBox();
-		assert(sliderBounds && sliderBounds.width > 10 && sliderBounds.height > 0);
+		assert(
+			sliderBounds && sliderBounds.width > 10 && sliderBounds.height > 0,
+			`bounded vector slider must provide a usable drag area: ${JSON.stringify(sliderBounds)}`
+		);
 		await page.mouse.move(
 			sliderBounds.x + sliderBounds.width / 2,
 			sliderBounds.y + sliderBounds.height / 2
