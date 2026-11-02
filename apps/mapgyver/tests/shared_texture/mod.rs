@@ -4,6 +4,8 @@ use golden_io::PayloadPool;
 use golden_video::native::{AdapterId, SourceState, SpoutDiscovery, SpoutProbe};
 use mapgyver::media::rendering::PreparedChannel;
 
+mod variant_resolution;
+
 struct Fixture {
     owned: OwnedRenderer,
     names: [String; 3],
@@ -11,8 +13,10 @@ struct Fixture {
 
 impl Fixture {
     fn new(adapter: AdapterId) -> Self {
+        Self::with_config(adapter, config())
+    }
+    fn with_config(adapter: AdapterId, config: RuntimeConfig) -> Self {
         let names = std::array::from_fn(|index| format!("MapGyverSharedPixels-{}-{index}", uuid::Uuid::new_v4()));
-        let config = config();
         let runtime = VideoRuntime::spawn_d3d11(
             config.clone(),
             D3d11Config {

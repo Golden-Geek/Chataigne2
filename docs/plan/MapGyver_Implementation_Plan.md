@@ -32,6 +32,13 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
    Apply AGENTS.md's product/diagnostic allocation during feature delivery; switch to its
    acceptance-closure rules once completing the implemented revised scope.
 
+After M04/1–2 source ownership/variant acceptance, the next product gate is M04/7 Reference.
+M04/4–6 remain Pending while Reference's authored model, shared rendering, API and UI slices
+advance; return to their retained qualification at the next allocated qualification batch
+after those product deliveries. M04/8 Preview follows Reference. This uses the functional
+dependencies above and preserves every source, interaction, resource and native requirement;
+it does not waive a gate or change qualification budgets.
+
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

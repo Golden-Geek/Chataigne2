@@ -68,5 +68,7 @@ copy and Undo/Redo restore authored configuration without firing commands. Resul
 same committed callback envelope and media result event; rejected executions also set a
 command warning. The revised M04/1 contract is
 [accepted with source/test and bundled workflow evidence](../progress/mapgyver-m04-source-api.md).
-Native variant/resource parity, Reference and Media Preview retain their separate open gates
-in the [status ledger](../progress/mapgyver-status.md).
+Native variant Resolution/sharing is
+[accepted on both hardware adapters](../progress/mapgyver-m04-variants.md). Full native
+lifecycle/resource parity, Reference and Media Preview retain separate open gates in the
+[status ledger](../progress/mapgyver-status.md).

@@ -48,8 +48,9 @@ Verification:
   The harness's `MAPGYVER_TEST_BINARY` override selects that artifact without stopping the
   user's app. This verifies app behavior, not Windows release packaging.
 
-No native experiment ran for this gate. M04/2 retains concurrent native variants, media
-Resolution/sharing and stable resource identity; M04/4 retains the
+No native experiment ran for this source API gate. Subsequent
+[M04/2 acceptance](mapgyver-m04-variants.md) verifies native variants, shared Resolution and
+channel identity on both hardware adapters. M04/4 retains the
 [unfinished Spout metadata/pixel/adapter cases](evidence/mapgyver-spout-metadata-native-2026-11-02.json).
 M04/5 still requires its own complete interaction audit. M04/6 retains missing/relinked/replaced
 Picture behavior, full revised caller/project/resource parity and the broader legacy
