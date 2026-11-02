@@ -17,6 +17,7 @@ pub mod protocol;
 pub mod rendering;
 pub mod resolution;
 mod scripting;
+mod source_node;
 
 pub use assets::{AssetNode, asset};
 pub use authoring::{apply_operation, channel, initialize, validate_project};
@@ -27,6 +28,7 @@ pub use commands::MediaCommandNode;
 pub use folders::MediaFolderNode;
 pub use media_node::MediaNode;
 pub use nodes::MediaManagerNode;
+pub use source_node::resolve_source_node;
 
 #[cfg(test)]
 mod tests;

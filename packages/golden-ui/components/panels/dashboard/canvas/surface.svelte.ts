@@ -6,7 +6,7 @@ import type { DashboardViewContext } from './view-context.svelte';
 import type { GraphState } from '../../../../store/graph.svelte';
 import type { createDashboardInteractionChrome } from './interaction-chrome.svelte';
 import type { createDashboardInteractionGeometry } from './interaction-geometry.svelte';
-import { resolveDashboardDragNode, resolveDashboardDragParameterNode } from '../dashboard-drag';
+import { resolveDragNode, resolveDragParameterNode } from '../../../common/node-drag';
 import { type SurfaceDropPreview, type NonFreeSurfaceFlowRenderItem } from './contracts';
 import {
 	minFreeWidgetWidthRem,
@@ -33,7 +33,11 @@ import {
 	getDashboardNodeWidgetCreationDefaults,
 	type DashboardWidgetCreationPlacement
 } from '../dashboard-actions';
-import { readDashboardDragPayload, type DashboardDragPayload } from '../dashboard-drag';
+import {
+	readNodeDragPayload,
+	type NodeDragPayload,
+	type NodeDragScope
+} from '../../../common/node-drag';
 import {
 	type DashboardGridDirection,
 	getDashboardGridSettings,
@@ -45,6 +49,7 @@ import {
 	type DashboardPlacement
 } from '../dashboard-model';
 interface DashboardSurfaceContext {
+	readonly session: NodeDragScope | null;
 	readonly budget: number;
 	readonly graph: GraphState | null;
 	readonly node: UiNodeDto;
@@ -60,10 +65,10 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	let isPage = $derived(liveNode.node_type === 'dashboard_page');
 	let isLayoutSurface = $derived(isPage || liveNode.node_type === 'dashboard_widget_container');
 	const getGraph = () => context.graph;
-	const resolveDraggedNode = (payload: DashboardDragPayload | null) =>
-		resolveDashboardDragNode(context.graph, payload);
-	const resolveDraggedParameterNode = (payload: DashboardDragPayload | null) =>
-		resolveDashboardDragParameterNode(context.graph, payload);
+	const resolveDraggedNode = (payload: NodeDragPayload | null) =>
+		resolveDragNode(context.graph, payload, context.session);
+	const resolveDraggedParameterNode = (payload: NodeDragPayload | null) =>
+		resolveDragParameterNode(context.graph, payload, context.session);
 	const clearSurfaceInsertionIndicator = () => context.chrome.clearSurfaceInsertionIndicator();
 	const setSurfaceInsertionIndicator = (
 		...args: Parameters<
@@ -228,7 +233,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 		openAccordionNodeIds = nextOpenAccordionNodeIds;
 	});
 
-	const canCreateFromDrop = (payload: DashboardDragPayload | null): boolean => {
+	const canCreateFromDrop = (payload: NodeDragPayload | null): boolean => {
 		if (!editMode) {
 			return false;
 		}
@@ -246,7 +251,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 
 	const buildSurfaceDropPreview = (
 		event: DragEvent,
-		payload: DashboardDragPayload | null
+		payload: NodeDragPayload | null
 	): SurfaceDropPreview | null => {
 		if (!payload) {
 			return null;
@@ -309,7 +314,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	};
 
 	const handleSurfaceDragEnter = (event: DragEvent): void => {
-		const payload = readDashboardDragPayload(event);
+		const payload = readNodeDragPayload(event);
 		if (!canCreateFromDrop(payload)) {
 			clearSurfaceDropState();
 			return;
@@ -335,7 +340,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	};
 
 	const handleSurfaceDragOver = (event: DragEvent): void => {
-		const payload = readDashboardDragPayload(event);
+		const payload = readNodeDragPayload(event);
 		if (!canCreateFromDrop(payload)) {
 			clearSurfaceDropState();
 			return;
@@ -372,7 +377,7 @@ export function createDashboardSurface(context: DashboardSurfaceContext) {
 	};
 
 	const handleSurfaceDrop = async (event: DragEvent): Promise<void> => {
-		const payload = readDashboardDragPayload(event);
+		const payload = readNodeDragPayload(event);
 		if (!currentSurfaceOwnsDragEvent(event)) {
 			clearSurfaceDropState();
 			return;

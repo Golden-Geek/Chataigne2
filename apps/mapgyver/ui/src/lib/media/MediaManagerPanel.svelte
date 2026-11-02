@@ -46,6 +46,8 @@
 			}
 		}}
 		isTreeNode={isMediaTreeNode}
+		nodeSourceDraggable={(node) =>
+			node.node_type === 'mapgyver.media' || node.node_type === 'mapgyver.media.channel'}
 		canRenderNodeChildren={(node) =>
 			node.node_type === 'mapgyver.media' || node.node_type === 'mapgyver.media.folder'}
 		rowSupplementComponent={MediaTreeActions} />

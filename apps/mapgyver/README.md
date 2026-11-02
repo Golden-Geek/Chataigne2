@@ -21,6 +21,14 @@ workbench theme. Native preview apertures remain transparent to the shared deskt
 Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
 for every caller, with typed 0–1 bounds in the generic Inspector.
 
+Drag Media or Channel labels from Media Manager into the editors. Dropping on the Screen editor
+background creates a Surface; dropping on a Surface replaces its source. Composition background
+drops add an instance at the pointer, including after pan/zoom; drops on existing instances replace
+their source. The Surface Source editor also accepts replacement drops. A Media drop uses its first
+ordered channel, chosen by the backend. Replacement preserves geometry and other settings, and each
+drop is one undoable operation. Invalid sources and Composition feedback cycles reject atomically.
+`node apps/mapgyver/tests/headless/media.mjs --source-drop-ui` verifies the bundled tree/editor flow.
+
 The default layout reserves most space for the editor. Existing saved docking layouts are
 retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser

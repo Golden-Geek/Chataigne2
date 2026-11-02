@@ -77,6 +77,22 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
         (scene.owner, CompositionEdit::Inspect),
         (
             scene.owner,
+            CompositionEdit::DropSource {
+                source: scene.sources[1].media.0,
+                instance: Some(first),
+                position: Point { x: 800., y: 600. },
+            },
+        ),
+        (
+            scene.owner,
+            CompositionEdit::DropSource {
+                source: scene.owner.channel.0,
+                instance: Some(first),
+                position: Point { x: 0., y: 0. },
+            },
+        ),
+        (
+            scene.owner,
             CompositionEdit::ConfigureInstance {
                 instance: first,
                 definition: changed,
@@ -173,6 +189,11 @@ fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_
         assert!(authored(&engine).1[0].instances.is_empty());
         let scene = scene();
         for edit in [
+            CompositionEdit::DropSource {
+                source: scene.sources[1].media.0,
+                instance: None,
+                position: Point { x: 320., y: 180. },
+            },
             CompositionEdit::AddInstances {
                 sources: scene.sources.to_vec(),
             },

@@ -137,6 +137,8 @@
 			: null}
 		{#if extent}
 			<polygon
+				data-instance-drop-target={item.reference.instance}
+				data-source-drop-object={item.reference.instance}
 				points={outline(item.definition.transform, extent)
 					.map((point) => `${point.x},${point.y}`)
 					.join(' ')}
@@ -162,6 +164,8 @@
 		{#if selectedExtent && !visible.some((item) => item.reference.instance === instance.reference.instance)}
 			<polygon
 				class="selected"
+				data-instance-drop-target={instance.reference.instance}
+				data-source-drop-object={instance.reference.instance}
 				points={outline(instance.definition.transform, selectedExtent)
 					.map((point) => `${point.x},${point.y}`)
 					.join(' ')}
@@ -179,6 +183,8 @@
 			x={item.definition.transform.position[0] / composition.canvas.width}
 			y={item.definition.transform.position[1] / composition.canvas.height}
 			label={`Move ${item.label}`}
+			data-instance-drop-target={item.reference.instance}
+			data-source-drop-object={item.reference.instance}
 			{disabled}
 			onpointerdown={(event) => down(event, item, 'Translate')} />
 	{/if}
@@ -188,6 +194,8 @@
 		x={handles.pivot.x / composition.canvas.width}
 		y={handles.pivot.y / composition.canvas.height}
 		label={`Move ${instance.label}`}
+		data-instance-drop-target={instance.reference.instance}
+		data-source-drop-object={instance.reference.instance}
 		data-instance-handle="Translate"
 		{disabled}
 		onpointerdown={(event) => down(event, instance!, 'Translate')} />
@@ -195,6 +203,8 @@
 		x={handles.rotate.x / composition.canvas.width}
 		y={handles.rotate.y / composition.canvas.height}
 		label={`Rotate ${instance.label}`}
+		data-instance-drop-target={instance.reference.instance}
+		data-source-drop-object={instance.reference.instance}
 		data-instance-handle="Rotate"
 		{disabled}
 		onpointerdown={(event) => down(event, instance!, 'Rotate')} />
@@ -202,6 +212,8 @@
 		x={handles.scale.x / composition.canvas.width}
 		y={handles.scale.y / composition.canvas.height}
 		label={`Scale ${instance.label}`}
+		data-instance-drop-target={instance.reference.instance}
+		data-source-drop-object={instance.reference.instance}
 		data-instance-handle="Scale"
 		{disabled}
 		onpointerdown={(event) => down(event, instance!, 'Scale')} />

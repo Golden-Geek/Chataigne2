@@ -1,6 +1,7 @@
 mod authoring;
 mod commands;
 mod crop_gestures;
+mod drop_sources;
 mod geometry;
 mod gestures;
 mod parameters;

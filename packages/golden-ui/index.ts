@@ -81,6 +81,16 @@ export {
 export { default as UnknownPanel } from './components/panels/UnknownPanel.svelte';
 export { default as ManagerListPanel } from './components/panels/manager/ManagerListPanel.svelte';
 export { default as IconButton } from './components/common/IconButton.svelte';
+export {
+	beginNodeDrag,
+	beginParameterDrag,
+	readNodeDragPayload,
+	resolveDragNode,
+	resolveDragParameterNode,
+	NODE_DRAG_MIME,
+	type NodeDragScope,
+	type NodeDragPayload
+} from './components/common/node-drag';
 export { default as Viewport2D } from './components/viewport/Viewport2D.svelte';
 export { default as ViewportHandle } from './components/viewport/ViewportHandle.svelte';
 export { pointBounds, type ViewBounds } from './components/viewport/geometry';

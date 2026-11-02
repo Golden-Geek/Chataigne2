@@ -141,18 +141,42 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             engine.edits.push(Edit::RemoveNode { node });
             ScreenEditResult::Changed
         }
-        ScreenEdit::AddSurface { screen, label } => {
-            let parent = screen_id(engine, screen)?;
-            let surface = SurfaceNode::from_definition(
-                labels::unique(engine, parent, label, "Surface", &[])?,
-                SurfaceDefinition::default(),
-            );
-            let reference = SurfaceReference {
-                screen,
-                surface: SurfaceId(surface.node_data().meta.uuid),
-            };
-            append(engine, parent, NodeTree::new(surface));
-            ScreenEditResult::SurfaceCreated { reference }
+        ScreenEdit::AddSurface { screen, label } => add_surface(engine, screen, label, SurfaceDefinition::default())?,
+        ScreenEdit::DropSource {
+            screen,
+            surface,
+            source,
+        } => {
+            let source = crate::media::resolve_source_node(engine, source)?;
+            if let Some(surface) = surface {
+                let reference = SurfaceReference { screen, surface };
+                let node = surface_id(engine, reference)?;
+                let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
+                    unreachable!()
+                };
+                let mut definition = current.definition();
+                definition.source = Some(source);
+                let snapshot = SurfaceSnapshot {
+                    reference,
+                    label: current.node_data().meta.label.clone(),
+                    definition,
+                };
+                engine.edits.push(Edit::SetParamsAtomic {
+                    values: current.source_parameter_values(Some(source)).into(),
+                    behaviour: ParameterEventBehaviour::Append,
+                });
+                ScreenEditResult::SurfaceChanged { snapshot }
+            } else {
+                add_surface(
+                    engine,
+                    screen,
+                    None,
+                    SurfaceDefinition {
+                        source: Some(source),
+                        ..Default::default()
+                    },
+                )?
+            }
         }
         ScreenEdit::ConfigureSurface { reference, definition } => {
             let node = surface_id(engine, reference)?;
@@ -214,6 +238,22 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         engine.edits.push(Edit::EmitCustomEvent { event });
     }
     serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+fn add_surface(
+    engine: &mut AppEngine,
+    screen: ScreenId,
+    label: Option<String>,
+    definition: SurfaceDefinition,
+) -> Result<ScreenEditResult, String> {
+    let parent = screen_id(engine, screen)?;
+    let surface = SurfaceNode::from_definition(labels::unique(engine, parent, label, "Surface", &[])?, definition);
+    let reference = SurfaceReference {
+        screen,
+        surface: SurfaceId(surface.node_data().meta.uuid),
+    };
+    append(engine, parent, NodeTree::new(surface));
+    Ok(ScreenEditResult::SurfaceCreated { reference })
 }
 
 fn reorder(engine: &mut AppEngine, node: NodeId, parent: NodeId, previous: Option<NodeId>) -> Result<(), String> {

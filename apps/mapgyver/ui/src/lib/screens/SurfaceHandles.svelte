@@ -98,6 +98,8 @@
 	onlostpointercapture={cancel}>
 	{#each visible as item (item.reference.surface)}
 		<polygon
+			data-surface-drop-target={item.reference.surface}
+			data-source-drop-object={item.reference.surface}
 			points={item.definition.quad.corners.map((point) => `${point.x},${point.y}`).join(' ')}
 			class:selected={item.reference.surface === selected}
 			class:inactive={!item.definition.enabled}
@@ -123,6 +125,8 @@
 			x={corner.x}
 			y={corner.y}
 			label={`Warp corner ${index + 1}`}
+			data-surface-drop-target={surface.reference.surface}
+			data-source-drop-object={surface.reference.surface}
 			{disabled}
 			onpointerdown={(event) => down(event, surface.reference, index)} />
 	{/each}

@@ -2,7 +2,7 @@ import type { SelectionMode } from '../../../../store/workbench.svelte';
 import type { NodeId, ParamEventBehaviour, UiNodeDto } from '../../../../types';
 import type { CssValueData } from '../../../../css-value';
 import type { DashboardWidgetCreationPlacement } from '../dashboard-actions';
-import type { DashboardDragPayload } from '../dashboard-drag';
+import type { NodeDragPayload } from '../../../common/node-drag';
 import type { DashboardAnchor, DashboardLayoutKind } from '../dashboard-model';
 
 export const widgetMovePreviewEventName = 'gc-dashboard-widget-move-preview';
@@ -23,7 +23,7 @@ export type DashboardPersistedPageViewChangeHandler = (
 
 export type SurfaceDropPreview = {
 	label: string;
-	targetKind: DashboardDragPayload['kind'];
+	targetKind: NodeDragPayload['kind'];
 	placement: DashboardWidgetCreationPlacement;
 	targetIndex: number | null;
 	genericWidgetKind: DashboardGenericPreviewKind | null;

@@ -14,6 +14,14 @@ installation acknowledgement. Defaults preserve the ordinary Golden theme.
   clients, host bridges, generated protocol bindings, and shared styling primitives.
 - `apps/chataigne/ui/` and `apps/mapgyver/ui/` own their routes, product assets and custom panels.
 
+`components/common/node-drag` owns the public node/Parameter drag payload and protected-dragover
+cache. Consumers resolve the payload against the current session/document generation and graph
+using both node ID and UUID before sending app intents; reopening identical saved UUIDs still
+invalidates old drags. `ManagerListPanel.nodeSourceDraggable` enables reference dragging independently
+of structural move permissions; accepting a source drop does not authorize reparenting. Apps own
+source eligibility and backend creation/replacement semantics. Dashboard bindings use the same
+generic drag contract as specialized editors.
+
 Each app wraps its routes in `ApplicationRoot`, declaring its expected application ID and
 development backend port. The root validates the host's generic discovery document, retries
 unavailable hosts and cancels pending work on unmount. It renders children only after app

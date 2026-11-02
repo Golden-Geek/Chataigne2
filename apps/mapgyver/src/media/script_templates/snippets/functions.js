@@ -26,6 +26,11 @@
 // }));
 // Inspect uses edit: { kind: "Inspect" }; DuplicateInstances, ConfigureInstance, RenameInstance,
 // ReorderInstance and RemoveInstance use the returned stable instance identity.
+// Drop a Media or Channel UUID at a canvas position, choosing its source in the backend:
+// local.editMedia("drop", JSON.stringify({kind:"Composition", reference:compositionChannelReference,
+//   edit:{kind:"DropSource", source:sourceNodeUuid, instance:null, position:{x:320,y:180}}}));
+// Set instance to a returned instance ID to replace only its source; its label, transform,
+// opacity, blending and enabled state stay authored exactly. Position is ignored for replacement.
 // EditInstanceGeometry uses { mode: "Translate" | "Rotate" | "Scale", origin, start, point }.
 // Copy origin from the inspected instance transform; start/point are canvas-texel pointer samples.
 // The backend changes only that geometry field and returns InstanceChanged with committed state.

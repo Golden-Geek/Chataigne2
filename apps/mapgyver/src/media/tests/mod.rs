@@ -7,6 +7,7 @@ mod parameters;
 mod picture_import;
 mod resolution;
 mod script;
+mod source_node;
 mod typescript;
 
 use golden_core::app::create_new_project_engine;

@@ -3,5 +3,10 @@ import type { ChannelReference } from "./ChannelReference";
 import type { InstanceDefinition } from "./InstanceDefinition";
 import type { InstanceGeometryEdit } from "./InstanceGeometryEdit";
 import type { InstanceId } from "./InstanceId";
+import type { Point } from "./Point";
 
-export type CompositionEdit = { "kind": "Inspect" } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DuplicateInstances", instances: Array<InstanceId>, } | { "kind": "ConfigureInstance", instance: InstanceId, definition: InstanceDefinition, } | { "kind": "EditInstanceGeometry", instance: InstanceId, edit: InstanceGeometryEdit, } | { "kind": "RenameInstance", instance: InstanceId, label: string, } | { "kind": "ReorderInstance", instance: InstanceId, after: InstanceId | null, } | { "kind": "RemoveInstance", instance: InstanceId, };
+export type CompositionEdit = { "kind": "Inspect" } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DropSource", source: string, instance: InstanceId | null,
+/**
+ * Canvas texels for a new instance; replacement preserves its existing transform.
+ */
+position: Point, } | { "kind": "DuplicateInstances", instances: Array<InstanceId>, } | { "kind": "ConfigureInstance", instance: InstanceId, definition: InstanceDefinition, } | { "kind": "EditInstanceGeometry", instance: InstanceId, edit: InstanceGeometryEdit, } | { "kind": "RenameInstance", instance: InstanceId, label: string, } | { "kind": "ReorderInstance", instance: InstanceId, after: InstanceId | null, } | { "kind": "RemoveInstance", instance: InstanceId, };

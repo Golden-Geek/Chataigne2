@@ -5,6 +5,9 @@
 	import { useScreenAuthoring } from './context.svelte';
 	import ScreenPreview from './ScreenPreview.svelte';
 	import SurfaceSourcePreview from './SurfaceSourcePreview.svelte';
+	import SourceDropZone from '../media/SourceDropZone.svelte';
+	import { useDocumentSelection } from '../selection.svelte';
+	import { pickSurfaceSource } from '../media/source-hit';
 	let {
 		panelId,
 		panelType,
@@ -13,10 +16,22 @@
 		editor
 	}: PanelProps & { panel: PanelState | null; editor: 'screen' | 'source' } = $props();
 	const owner = useScreenAuthoring();
+	const selection = useDocumentSelection();
 	onMount(() => owner.attach());
 	const { view, controller, gestureState, gesture } = owner;
 	const screen = $derived(controller.screen),
 		surface = $derived(controller.surface);
+	function pickDropTarget(event: DragEvent) {
+		const controls = (event.currentTarget as HTMLElement).querySelector(
+			'svg[aria-label="Surface mapping controls"]'
+		);
+		const rect = controls?.getBoundingClientRect();
+		if (!screen || !rect || rect.width <= 0 || rect.height <= 0) return null;
+		return pickSurfaceSource(
+			{ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height },
+			screen.surfaces
+		);
+	}
 	function select(uuid: string) {
 		const session = appState.session;
 		if (!session) return;
@@ -38,7 +53,28 @@
 			disabled={controller.busy || gestureState.active}
 			onclick={() => controller.refresh()} />
 	</div>
-	<div class="editor-canvas">
+	<SourceDropZone
+		class="editor-canvas"
+		data-screen-drop-target={editor === 'screen' ? '' : undefined}
+		addLabel="Add Surface"
+		replaceOnly={editor === 'source' ? surface?.reference.surface : null}
+		hitTest={editor === 'screen' ? pickDropTarget : undefined}
+		disabled={controller.busy ||
+			gestureState.active ||
+			!screen ||
+			(editor === 'source' && !surface)}
+		onsource={async (source, target) => {
+			if (!screen) return;
+			const selectDropped = selection.capture();
+			const result = await controller.edit({
+				kind: 'DropSource',
+				screen: screen.id,
+				surface: target,
+				source
+			});
+			if (result?.kind === 'SurfaceCreated') selectDropped(result.reference.surface);
+			else if (result?.kind === 'SurfaceChanged') selectDropped(result.snapshot.reference.surface);
+		}}>
 		{#if view.error || gestureState.error}<p class="editor-error" role="alert">
 				{view.error || gestureState.error}
 			</p>{/if}
@@ -68,5 +104,5 @@
 		{:else}<p class="editor-empty">
 				Select {editor === 'screen' ? 'a Screen' : 'a Surface'} in Screen Manager.
 			</p>{/if}
-	</div>
+	</SourceDropZone>
 </section>

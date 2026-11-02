@@ -43,6 +43,7 @@
 		initiallyExpandedDepth = 5,
 		allowDragDrop = true,
 		nodeDraggable = null,
+		nodeSourceDraggable = null,
 		onCreateItem = undefined,
 		onSelectNode = undefined,
 		onNodeDragStartData = undefined,
@@ -68,6 +69,8 @@
 		initiallyExpandedDepth?: number;
 		allowDragDrop?: boolean;
 		nodeDraggable?: ((candidate: UiNodeDto) => boolean) | null;
+		/** Enables reference/source drags without granting hierarchy mutation. */
+		nodeSourceDraggable?: ((candidate: UiNodeDto) => boolean) | null;
 		onCreateItem?: (parent: UiNodeDto, item: UiCreatableUserItem) => void | Promise<void>;
 		onSelectNode?: NodeActivation;
 		onNodeDragStartData?: (node: UiNodeDto, event: DragEvent) => void;
@@ -474,6 +477,7 @@
 							{canRenderNodeChildren}
 							rowSupplementComponent={RowSupplementComponent}
 							nodeDraggable={canDragNode}
+							{nodeSourceDraggable}
 							{activeDragNodeId}
 							{dropTarget}
 							{initiallyExpandedDepth}

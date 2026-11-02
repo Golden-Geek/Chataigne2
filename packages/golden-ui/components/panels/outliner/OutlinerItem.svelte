@@ -7,7 +7,7 @@
 	import { slide } from 'svelte/transition';
 	import NodeWarningBadge from '../../common/NodeWarningBadge.svelte';
 	import EnableButton from '../../common/EnableButton.svelte';
-	import { beginDashboardNodeDrag, beginDashboardParameterDrag } from '../dashboard/dashboard-drag';
+	import { beginNodeDrag, beginParameterDrag } from '../../common/node-drag';
 	import Arrow from '../../common/Arrow.svelte';
 	import type { OutlinerDropTarget } from './drag-drop';
 	import { resolveOutlinerRowSupplement } from './outliner-row-registry';
@@ -42,6 +42,7 @@
 		nodeRowVisible = (_candidate: UiNodeDto) => true,
 		nodeSelectable = (_candidate: UiNodeDto) => true,
 		nodeDraggable = (_candidate: UiNodeDto) => false,
+		nodeSourceDraggable = null,
 		activeDragNodeId = null,
 		dropTarget = null,
 		onNodeOpennessChange = null,
@@ -72,6 +73,8 @@
 		nodeRowVisible?: (candidate: UiNodeDto) => boolean;
 		nodeSelectable?: (candidate: UiNodeDto) => boolean;
 		nodeDraggable?: (candidate: UiNodeDto) => boolean;
+		/** Reference dragging is independent of structural move permissions. */
+		nodeSourceDraggable?: ((candidate: UiNodeDto) => boolean) | null;
 		activeDragNodeId?: NodeId | null;
 		dropTarget?: OutlinerDropTarget | null;
 		onNodeOpennessChange?: ((nodeId: NodeId, expanded: boolean) => void) | null;
@@ -318,10 +321,15 @@
 	let showRow = $derived(isRowVisible(node));
 	let rowSelectable = $derived(isSelectable(node));
 	let rowMoveDraggable = $derived(Boolean(node && nodeDraggable(node)));
-	let rowDashboardDraggable = $derived(
-		Boolean(node && isOutlinerMode && mainGraphState?.rootId !== node.node_id)
+	let rowSourceDraggable = $derived(
+		Boolean(
+			node &&
+			(nodeSourceDraggable
+				? nodeSourceDraggable(node)
+				: isOutlinerMode && mainGraphState?.rootId !== node.node_id)
+		)
 	);
-	let rowDraggable = $derived(rowMoveDraggable || rowDashboardDraggable);
+	let rowDraggable = $derived(rowMoveDraggable || rowSourceDraggable);
 	let isCurrentReference = $derived(
 		focusedNodeId !== null && node !== null && node.node_id === focusedNodeId
 	);
@@ -446,9 +454,9 @@
 						disabled={!rowSelectable}
 						ondragstart={(event) => {
 							if (node.data.kind === 'parameter') {
-								beginDashboardParameterDrag(event, node);
+								beginParameterDrag(event, node, session);
 							} else {
-								beginDashboardNodeDrag(event, node);
+								beginNodeDrag(event, node, session);
 							}
 							if (rowMoveDraggable) {
 								onNodeDragStart?.(node, event);
@@ -500,6 +508,7 @@
 						{nodeRowVisible}
 						{nodeSelectable}
 						{nodeDraggable}
+						{nodeSourceDraggable}
 						{activeDragNodeId}
 						{dropTarget}
 						{onNodeOpennessChange}

@@ -4,20 +4,29 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** grey-flash/background correction, removable authored objects and bounded 2D editing implemented; native visual acceptance retained (M05/6).
-**Next:** verify Add Screen/source switching in a targetable ordinary native app window; keep the passed browser input and native pixel evidence.
-**Blocker:** isolated desktop review did not expose a targetable window; no end-to-end no-flash
-claim. Retained native/display/reset/timing/memory acceptance remains open. Current usable
-feature: typed Screen/Surface editing with bounded crop and shared pan/zoom/frame/Home.
-Last delivered capability: removable authored objects and consistent 2D editor navigation.
-**Batch:** 2 November, 08:00 CET, stop08:45 CET. Deliver a consistent, bounded 2D editing workflow
-and removable authored objects. Owners: reusable Golden viewport/preview presentation; MapGyver
-geometry invariants and document permissions. Proof: focused geometry/removal/viewport regression
-checks, MapGyver compile/UI checks and current-build visual verification where available.
-Investigation stops08:20 CET, at most two experiments including baseline. Hypothesis: normalized
-SVG circles stretch with the output ratio, crop intents accept raw pointer positions, and preview
-fallbacks expose grey before new output frames. Reproduction outside those paths changes the fix.
-Pre-existing uncommitted preview continuity/cadence changes are retained as the starting checkout.
+**Current:** Media/Channel source drops into Screen and Composition editors implemented and functionally verified (M05/6).
+**Next:** return to retained native Add Screen/source-switch visual acceptance when an ordinary app window is available; keep the verified drop workflow.
+**Blocker:** none for drag-and-drop. Retained native visual/display/reset/timing/memory acceptance
+remains open, including the prior unavailable targetable desktop review window. Current usable
+feature: typed Screen/Surface editing with bounded crop, shared navigation and source drops.
+Last delivered capability: Media/Channel drops create objects or replace sources in one undoable operation.
+**Batch:** 2 November, 08:36 CET, stop09:21 CET. Deliver tree-to-editor source drops: background
+creates a Surface/instance, existing geometry replaces its source, Media resolves its first ordered
+channel in the backend. Owners: MapGyver source resolution/atomic authoring and editor input;
+Golden owns the generic node drag payload. Proof: backend atomic/history/rejection tests, generated
+protocol checks, real bundled drag input, Svelte/build/Clippy and both formatters.
+Investigation stops08:56 CET, at most two experiments including baseline. Hypothesis: the existing
+Golden node payload can express source identity while new app-owned intents keep creation and
+assignment atomic; a missing public payload contract changes the reusable boundary, not domain policy.
+Starting checkout is clean at pushed `4ba16b06`; prior native visual acceptance remains queued.
+**Post-review correctness return:** the first two bundled flows established the six basic drop
+paths (first stopped on a test-only f32 comparison, second passed). Review then reproduced a
+separate visual-target defect: native-visible objects beyond128 handles would be treated as empty
+space, and an identical project reload could retain a raw drag identity. All-scene presentation
+picking and session/document drag fences correct those defects with focused tests. One final
+acceptance run verified the corrected visual target semantics: actual empty surround versus
+explicit visible handles, instead of dispatching a background event through a covered full quad.
+This is verification of that named correctness fix; no further probes or native routes are added.
 The dashboard and Next action are current; dated delivery entries preserve historical evidence.
 
 | Phase | State | Progress | Done / total items |
@@ -27,7 +36,7 @@ The dashboard and Next action are current; dated delivery entries preserve histo
 | [M02 Multi-app seams/shell](#m02-acceptance-items) | Complete locally | `████████████████████` 100% | 7/7 |
 | [M03 Rendering/channels](#m03-acceptance-items) | Foundations ready; qualification open | `████████████████░░░░` 78% | 7/9 |
 | [M04 Source media](#m04-acceptance-items) | Complete: real Parameters and generic source UI verified | `████████████████████` 100% | 6/6 |
-| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active: Screen/Surface Parameter conversion; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
+| [M05 Screens/Surfaces/editors](#m05-acceptance-items) | Active: source drops verified; native/physical gates retained | `████████░░░░░░░░░░░░` 38% | 3/8 |
 | [M06 Composition/editor](#m06-acceptance-items) | Instance/canvas Parameters and generic UI verified; native scope retained | `███████████████░░░░░` 75% | 3/4 |
 | [M07 Matrix/editor](#m07-acceptance-items) | Matrix/association Parameter conversion and native feedback pending | `███████████████░░░░░` 75% | 3/4 |
 | [M08 App lifetimes](#m08-acceptance-items) | Application/argument/environment Parameter conversion pending; native/retirement gaps retained | `███████████████░░░░░` 75% | 3/4 |
@@ -38,12 +47,38 @@ The dashboard and Next action are current; dated delivery entries preserve histo
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
 | Accepted | M04/5 | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6. |
-| Active | M05/6 | Browser Screen/Source controls, bounded crop, removal and shared navigation pass; finish native Add Screen/source-switch visual acceptance when the ordinary app exposes a targetable window. No further native startup probes in this batch. |
+| Active | M05/6 | Source drops pass backend, bundled editor and large-scene picking checks. Remaining return action: native Add Screen/source-switch visual acceptance in a supported ordinary app window. |
 | Pending | M07/3 | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained. |
 | Pending | M08/4 | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained. |
 | Blocked | M03/4,9 | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure. |
 | Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes. |
 | Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification. |
+
+### Source drop delivery — 2 November, 09:08 CET
+
+Media/Channel labels now drag independently of hierarchy move permissions. Screen background
+drops create a default Surface; Surface drops replace its source, including in Surface Source.
+Composition background drops create an instance at the pointer after pan/zoom, while existing
+instances accept source replacement. Backend source resolution chooses the first ordered channel
+for Media and the exact channel for Channel UUIDs. Both operations are atomic; replacement writes
+only the typed source references, preserving exact authored precision, controls, labels and peers.
+Cycles, stale/wrong identities and invalid positions reject before mutation. DTO generators,
+command/script callers and app-owned snippets include the same operations.
+
+Golden's shared drag contract replaces dashboard-specific ownership. It fences session/document
+generation as well as node ID/UUID, including identical project reloads. Presentation picking
+uses the complete cached scene in reverse paint order, independently of the128-overlay DOM cap;
+no extra graph read or DOM expansion occurs. Explicit visible handles remain valid targets.
+
+Verified: MapGyver240pass/1existing ignore, Golden UI217pass, editor/picking28pass; strict all-target
+Clippy, ordinary build, MapGyver/Chataigne/shared-fixture Svelte checks (0errors/0warnings), generated
+protocol drift tests, Prettier and both Rust formatters pass. Final post-review bundled run passes
+all6drop paths, first/exact-channel routing, source-only replacement, one-step Undo/Redo and pan/zoom
+placement in4084ms. It observes8real tree/Parameter dragstart payloads, ignores a Parameter drop,
+and records exactly1deliberate dependency-cycle rejection and0page errors. Owned host exits0;
+`target/mapgyver-source-drop-ui.png` inspected. Prior attempts and the named correctness return
+are retained above. No native retry or imagery qualification is inferred. No full gate closes:
+M05 stays3/8, overall4/10(40%); denominators and all return triggers remain unchanged.
 
 ### Editor correction checkpoint — 2 November, 08:32 CET
 

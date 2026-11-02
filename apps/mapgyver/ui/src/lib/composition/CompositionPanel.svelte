@@ -7,6 +7,10 @@
 	import { useCompositionAuthoring } from './context.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import CompositionPreview from './CompositionPreview.svelte';
+	import SourceDropZone from '../media/SourceDropZone.svelte';
+	import { pickCompositionSource } from '../media/source-hit';
+	import { usePreview } from '../preview/context.svelte';
+	import { previewKey } from '../preview/identity';
 	let props: PanelProps = $props();
 	export const setPanelState = (_next: PanelState) => {};
 	const owner = useCompositionAuthoring();
@@ -14,6 +18,31 @@
 	const channel = $derived(owner.channel),
 		busy = $derived(owner.busy);
 	const selection = useDocumentSelection();
+	const preview = usePreview();
+	function dropPoint(event: DragEvent) {
+		const composition = view.composition;
+		const canvas = (event.currentTarget as HTMLElement).querySelector(
+			'svg[aria-label="Composition transform controls"]'
+		);
+		const rect = canvas?.getBoundingClientRect();
+		if (!composition || !rect || rect.width <= 0 || rect.height <= 0) return null;
+		return {
+			x: ((event.clientX - rect.left) / rect.width) * composition.canvas.width,
+			y: ((event.clientY - rect.top) / rect.height) * composition.canvas.height
+		};
+	}
+	function pickDropTarget(event: DragEvent) {
+		const point = dropPoint(event),
+			composition = view.composition;
+		return point && composition
+			? pickCompositionSource(
+					point,
+					composition,
+					(reference) =>
+						preview.statuses.get(previewKey({ kind: 'Channel', reference }))?.extent ?? null
+				)
+			: null;
+	}
 	async function duplicate() {
 		if (!view.instance) return;
 		const selectCreated = selection.capture();
@@ -64,7 +93,27 @@
 			disabled={busy || !view.instance}
 			onclick={remove} />
 	</div>
-	<div class="editor-canvas">
+	<SourceDropZone
+		class="editor-canvas"
+		data-composition-drop-target=""
+		addLabel="Add instance"
+		hitTest={pickDropTarget}
+		disabled={busy || gestureState.active || !view.composition}
+		onsource={async (source, target, event) => {
+			const position = dropPoint(event);
+			if (!position) return;
+			const selectDropped = selection.capture();
+			const result = await controller.edit({
+				kind: 'DropSource',
+				source,
+				instance: target,
+				position
+			});
+			if (result?.kind === 'InstancesCreated' && result.instances[0])
+				selectDropped(result.instances[0].instance);
+			else if (result?.kind === 'InstanceChanged')
+				selectDropped(result.snapshot.reference.instance);
+		}}>
 		{#if view.error || gestureState.error}<p class="editor-error" role="alert">
 				{view.error || gestureState.error}
 			</p>{/if}
@@ -84,5 +133,5 @@
 				finish={() => gesture.finish()}
 				stop={() => gesture.stop()} />
 		{:else}<p class="editor-empty">Select a Composition channel in Media Manager.</p>{/if}
-	</div>
+	</SourceDropZone>
 </section>

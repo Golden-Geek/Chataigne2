@@ -118,6 +118,46 @@ pub(crate) fn apply(
                     .collect(),
             )
         }
+        CompositionEdit::DropSource {
+            source,
+            instance: target,
+            position,
+        } => {
+            if !position.x.is_finite() || !position.y.is_finite() {
+                return Err("Composition drop position must be finite canvas coordinates".into());
+            }
+            let source = super::super::resolve_source_node(engine, source)?;
+            dependencies::reject_cycle(engine, reference, &[source])?;
+            if let Some(target) = target {
+                let id = instance(engine, parent, target)?;
+                let AppNode::CompositionInstance(current) = engine.nodes.get(id).unwrap() else {
+                    unreachable!()
+                };
+                let mut definition = current.definition();
+                definition.source = Some(source);
+                let snapshot = InstanceSnapshot {
+                    reference: InstanceReference {
+                        composition: reference,
+                        instance: target,
+                    },
+                    label: current.node_data().meta.label.clone(),
+                    definition,
+                };
+                // Preserve exact authored values, including f64 Parameter precision that
+                // the render-definition projection deliberately narrows to f32.
+                engine.edits.push(Edit::SetParamsAtomic {
+                    values: current.source_parameter_values(source),
+                    behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+                });
+                Ok(MediaEditResult::InstanceChanged { snapshot })
+            } else {
+                let mut definition = InstanceDefinition::for_canvas(canvas);
+                definition.source = Some(source);
+                definition.transform.position = [position.x, position.y];
+                definition.validate()?;
+                append(engine, reference, parent, vec![definition])
+            }
+        }
         CompositionEdit::DuplicateInstances { instances: targets } => {
             if targets.is_empty() || targets.len() > MAX_ADD_BATCH {
                 return Err("duplicate 1..4096 instances per atomic batch".into());

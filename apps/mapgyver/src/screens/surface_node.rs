@@ -63,10 +63,8 @@ impl SurfaceNode {
     }
 
     pub(crate) fn parameter_values(&self, definition: SurfaceDefinition) -> Vec<(NodeId, ParamValue)> {
-        let (media, channel) = source_references(definition.source);
-        vec![
-            (self.source_media.id(), ParamValue::Reference(media)),
-            (self.source_channel.id(), ParamValue::Reference(channel)),
+        let mut values = Vec::from(self.source_parameter_values(definition.source));
+        values.extend([
             (
                 self.crop_origin.id(),
                 vector_value(vector(definition.crop.x, definition.crop.y)),
@@ -97,6 +95,15 @@ impl SurfaceNode {
                 ParamValue::Enum(calibration_name(definition.calibration).into()),
             ),
             (self.render_enabled.id(), ParamValue::Bool(definition.enabled)),
+        ]);
+        values
+    }
+
+    pub(crate) fn source_parameter_values(&self, source: Option<ChannelReference>) -> [(NodeId, ParamValue); 2] {
+        let (media, channel) = source_references(source);
+        [
+            (self.source_media.id(), ParamValue::Reference(media)),
+            (self.source_channel.id(), ParamValue::Reference(channel)),
         ]
     }
 

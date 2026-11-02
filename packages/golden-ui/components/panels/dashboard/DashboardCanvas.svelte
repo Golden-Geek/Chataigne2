@@ -125,6 +125,9 @@
 	});
 	let parentLayoutKind = $derived(getDashboardLayoutKind(graph, parentNode, 'free'));
 	const surfaceState = createDashboardSurface({
+		get session() {
+			return session;
+		},
 		get budget() {
 			return Math.max(0, normalizePresentationBudget(presentationBudget) - (isPage ? 0 : 1));
 		},
@@ -191,6 +194,9 @@
 	const handleWidgetContextMenu = contextMenu.handleWidgetContextMenu;
 
 	const bindingDrop = createDashboardBindingDrop({
+		get session() {
+			return session;
+		},
 		get graph() {
 			return graph;
 		},

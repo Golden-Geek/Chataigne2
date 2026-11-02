@@ -96,6 +96,13 @@ impl InstanceNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    pub(crate) fn source_parameter_values(&self, source: ChannelReference) -> Vec<(NodeId, ParamValue)> {
+        let (media, channel) = source_references(Some(source));
+        vec![
+            (self.source_media.id(), ParamValue::Reference(media)),
+            (self.source_channel.id(), ParamValue::Reference(channel)),
+        ]
+    }
     pub(crate) fn parameter_edits(&self, definition: InstanceDefinition) -> Vec<golden_core::edit::Edit> {
         use golden_core::{edit::Edit, parameter::ParameterEventBehaviour};
         let (media, channel) = source_references(definition.source);

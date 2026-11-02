@@ -138,6 +138,13 @@ pub enum ScreenEdit {
         screen: ScreenId,
         label: Option<String>,
     },
+    /// Resolve a Media/Channel node and atomically create a default Surface or replace its source.
+    DropSource {
+        screen: ScreenId,
+        surface: Option<SurfaceId>,
+        #[ts(type = "string")]
+        source: NodeUuid,
+    },
     ConfigureSurface {
         reference: SurfaceReference,
         definition: SurfaceDefinition,

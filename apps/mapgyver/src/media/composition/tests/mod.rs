@@ -8,6 +8,7 @@ use crate::{
 };
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
+mod drop_source;
 mod geometry;
 mod parameters;
 

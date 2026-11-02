@@ -39,7 +39,7 @@
 	import { fade } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
 	import Self from './ParameterInspector.svelte';
-	import { beginDashboardParameterDrag } from '../dashboard/dashboard-drag';
+	import { beginParameterDrag } from '../../common/node-drag';
 
 	let {
 		node,
@@ -346,7 +346,7 @@
 		if (!param || renamingState.isRenaming) {
 			return;
 		}
-		beginDashboardParameterDrag(event, liveNode);
+		beginParameterDrag(event, liveNode, session);
 	};
 
 	const resetValueInSinglePass = async (): Promise<void> => {

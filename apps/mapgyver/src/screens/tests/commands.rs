@@ -200,6 +200,79 @@ fn hosted_geometry_intent_uses_the_same_crop_validation_result_and_history() {
 }
 
 #[test]
+fn source_drops_share_script_manager_and_command_execution_with_atomic_history() {
+    for through_command in [false, true] {
+        let mut engine = fixture();
+        let (screen, _) = create(&mut engine);
+        let source = super::drop_sources::source(&mut engine);
+        let request = serde_json::to_string(&ScreenEdit::DropSource {
+            screen,
+            surface: None,
+            source: source.media.0,
+        })
+        .unwrap();
+        let trigger = if through_command {
+            script(&mut engine, "function init() { local.listen({level:1}); } function onAppOperationResult(reply) { gc.emit('screen-test-reply', reply); }".into());
+            let command = command(&mut engine);
+            let field = engine
+                .process_tree_snapshot()
+                .find_child_by_decl_id(command, "request")
+                .unwrap();
+            let ack = apply_project_intent(
+                &mut engine,
+                UiEditIntent::SetParam {
+                    node: field,
+                    value: ParamValue::Str(request),
+                    behaviour: ParameterEventBehaviour::Append,
+                },
+            );
+            assert!(ack.success, "{ack:?}");
+            Some(
+                engine
+                    .process_tree_snapshot()
+                    .find_child_by_decl_id(command, "execute")
+                    .unwrap(),
+            )
+        } else {
+            script(
+                &mut engine,
+                format!(
+                    "function init() {{ local.listen({{level:1}}); local.editScreens('drop', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+                ),
+            );
+            None
+        };
+        let original = crate::screens::inspect(&engine).unwrap();
+        let history = engine.undo_len();
+        if let Some(node) = trigger {
+            let ack = apply_project_intent(
+                &mut engine,
+                UiEditIntent::SetParam {
+                    node,
+                    value: ParamValue::Trigger(),
+                    behaviour: ParameterEventBehaviour::Append,
+                },
+            );
+            assert!(ack.success, "{ack:?}");
+        } else {
+            service_script_app_operations(&mut engine).unwrap();
+        }
+        let results = replies(&engine);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0]["status"], "applied");
+        assert_eq!(results[0]["value"]["kind"], "SurfaceCreated");
+        let dropped = crate::screens::inspect(&engine).unwrap();
+        assert_eq!(dropped.screens[0].surfaces.len(), 2);
+        assert_eq!(dropped.screens[0].surfaces[1].definition.source, Some(source));
+        assert_eq!(engine.undo_len(), history + 1);
+        assert!(engine.undo().unwrap());
+        assert_eq!(crate::screens::inspect(&engine).unwrap(), original);
+        assert!(engine.redo().unwrap());
+        assert_eq!(crate::screens::inspect(&engine).unwrap(), dropped);
+    }
+}
+
+#[test]
 fn disabled_removed_or_failed_origin_commands_cannot_execute_queued_work() {
     for mode in ["disable", "remove", "rollback"] {
         let mut engine = fixture();

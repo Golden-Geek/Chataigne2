@@ -90,6 +90,14 @@ pub enum CompositionEdit {
     AddInstances {
         sources: Vec<ChannelReference>,
     },
+    /// Drop an authored Media/Channel node onto the canvas or replace one instance's source.
+    DropSource {
+        #[ts(type = "string")]
+        source: NodeUuid,
+        instance: Option<InstanceId>,
+        /// Canvas texels for a new instance; replacement preserves its existing transform.
+        position: Point,
+    },
     DuplicateInstances {
         instances: Vec<InstanceId>,
     },
