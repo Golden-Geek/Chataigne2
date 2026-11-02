@@ -2,7 +2,9 @@
 
 Golden Video's native harness owns GPU measurements; MapGyver owns authored reference scenes
 and end-to-end product qualification. The desktop host owns WebView/window/DPI observations.
-This contract fixes initial workloads and engineering budgets for M01-M09 before measurements.
+This contract fixes workloads and engineering budgets for M00–M10 before measurements.
+The 2026-11-02 plan merge revises Q03 and adds Q06/software-decode accounting below; existing
+numeric budgets, native GPU-sharing requirements and historical failures remain unchanged.
 Scoped functional evidence and the approved M01 route decision live in the
 [native report](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28);
 no complete workload or original full native gate is qualified by that decision.
@@ -16,11 +18,11 @@ The old eight-item M01 dashboard is replaced by four scoped functional items, no
 passed qualification items. All workload definitions, numerical budgets and reporting rules
 below are unchanged; historical failures and unavailable observations remain authoritative.
 
-| Required evidence | Acceptance owner |
-| --- | --- |
-| Reusable renderer Q01/Q02 CPU/GPU/cadence/frame-age, queue/admission, memory/handles, retirement and recovery | M03; endpoint/source supervision in M04 |
-| Physical output/preview/reference-card accuracy, DPI/input matrix, alignment/visible latency and editor/output independence | M05 |
-| Integrated Q01/Q02 release series, Q03 soak and full product Q05 across implemented features | M09; each feature owner verifies its own recovery before integration |
+| Required evidence                                                                                                           | Acceptance owner                                                     |
+| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Reusable renderer Q01/Q02 CPU/GPU/cadence/frame-age, queue/admission, memory/handles, retirement and recovery               | M03; endpoint/source supervision in M04                              |
+| Physical output/preview/reference-card accuracy, DPI/input matrix, alignment/visible latency and editor/output independence | M05                                                                  |
+| Integrated Q01/Q02 release series, Q03 soak and full product Q05 across implemented features                                | M09; each feature owner verifies its own recovery before integration |
 
 M02 proceeds from the functional decision without treating these continuing requirements as
 passed. Targeted diagnostics remain evidence; explaining SDK/driver internals is not an extra
@@ -48,16 +50,32 @@ Use deterministic color/alpha/checker/numbered-grid cards with visible channel a
 Archive the exact scene/fixture configuration and hashes with each result. Use BGRA8/RGBA8
 sources with declared alpha/color conversion; record actual intermediate formats and bytes.
 
-| ID | Fixed workload | Owner / required phase |
-| --- | --- | --- |
-| Q01 Native feasibility | Two fixture Spout senders at 1920×1080 and 1280×720, each 60 fps, on one named adapter. Composite both into one 1920×1080 native rectangle and one 1920×1080 Spout output. Two independently sized editor previews, initially 640×360 and 480×270 physical pixels, with DOM overlays | M01 functional evidence; M03 renderer budgets, M05 presentation, M09 integrated series; independent producer/consumer processes |
-| Q02 4K feasibility | Q01 with first sender and both outputs at 3840×2160, second sender still 1280×720; keep two previews | Same owners as Q01; same adapter and explicit format/copy accounting |
-| Q03 Complete product | Solid Color, Picture and Shared Texture each have two channels. Composition has two authored channels. Matrix has two layers, one group and eight columns/16 cells, exporting two layer channels, one group and final channel: 12 channels total. Three Screens, one per target mode, two ordered Surfaces each; exercise each channel by routing operations. All four editors available | M09; first at 1920×1080, then first source/channel and every Screen at 3840×2160, others 1280×720 |
-| Q04 Authored scale | 10k, 50k and 100k authored media/channel/surface/Matrix entities, exact node counts also reported. Bound actual demand to 16 active channels and four 1080p outputs; remainder inactive. Single batched detached-tree creation | M03 deterministic admission fixtures, M09 actual-app measurements; inactive authored size is separate from GPU throughput |
-| Q05 Recovery/retirement | Q01/Q03: 100 source resize/restart cycles, 100 output remove/recreate cycles, 100 project replacements, 1000 superseding plan edits, 1000 Matrix launches including interrupted transitions. Two seconds between lifecycle cycles; launch/edit burst at 100 intents/sec | Owning milestone as feature arrives; M09 complete-app run |
+| ID                      | Fixed workload                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Owner / required phase                                                                                                                                                 |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q01 Native feasibility  | Two fixture Spout senders at 1920×1080 and 1280×720, each 60 fps, on one named adapter. Composite both into one 1920×1080 native rectangle and one 1920×1080 Spout output. Two independently sized editor previews, initially 640×360 and 480×270 physical pixels, with DOM overlays                                                                                                                                                                                                                                 | M01 functional evidence; M03 renderer budgets, M05 presentation, M09 integrated series; independent producer/consumer processes                                        |
+| Q02 4K feasibility      | Q01 with first sender and both outputs at 3840×2160, second sender still 1280×720; keep two previews                                                                                                                                                                                                                                                                                                                                                                                                                 | Same owners as Q01; same adapter and explicit format/copy accounting                                                                                                   |
+| Q03 Complete product    | Solid Color, Picture and Shared Texture each have two variants. Composition has one output and owns Reference children for two source media. Matrix has two layers, one group and eight columns/16 populated Cells with owned Reference media, exporting layer/group/final outputs. Video has two file channels on one transport. Three Screens, one per target mode, two ordered Surfaces each; exercise source, Reference, Composition, Matrix and Video routing. Media Preview and all four editors are available | M09; first at 1920×1080, then first source/Video channel and every Screen at 3840×2160, others 1280×720; record actual logical/mirrored/unique rendered channel counts |
+| Q04 Authored scale      | 10k, 50k and 100k authored media/channel/surface/Matrix entities, exact node counts also reported. Bound actual demand to 16 active channels and four 1080p outputs; remainder inactive. Single batched detached-tree creation                                                                                                                                                                                                                                                                                       | M03 deterministic admission fixtures, M09 actual-app measurements; inactive authored size is separate from GPU throughput                                              |
+| Q05 Recovery/retirement | Q01/Q03: 100 source resize/restart cycles, 100 output remove/recreate cycles, 100 project replacements, 1000 superseding plan edits, 1000 Matrix launches including interrupted transitions. Two seconds between lifecycle cycles; launch/edit burst at 100 intents/sec                                                                                                                                                                                                                                              | Owning milestone as feature arrives; M09 complete-app run                                                                                                              |
+| Q06 Video               | Frame-numbered common/performance/extended-codec fixtures, mixed frame rates, exact/superseding seeks, concurrent 1080p/4K files and shared Reference consumers as specified below                                                                                                                                                                                                                                                                                                                                   | M10 per tier; M09 actual bundled integration, Q01/Q02-style sustained sampling for performance claims and inclusion in the Q03 soak/Q05 lifecycle                      |
 
-For Q03 the Matrix cells reference existing media, and Composition references sources without
-feedback. Source assignment fixtures must include each blend mode, cropped/perspective surfaces
+Q03 explicitly replaces the obsolete two-channel Composition and reference-only instance/cell
+fixture. Its owned Reference children mirror existing sources without feedback; they do not add
+independent decoders or source renders. Record actual authored node counts, mirrored channels
+and unique demanded passes rather than retaining the old “12 channels” total. References to the
+single-output Composition must also be exercised. No previous Q03 result qualifies this fixture.
+
+For Q03 and Q06, use frame-numbered Video files with mixed 24/30/60 fps channels and transparent
+fixtures where the codec supports alpha. Q06's fixed concurrency is a 1080p60 plus 4K30 file,
+then two 4K60 files for the performance tier, with independent shared consumers and 60 Hz outputs.
+Qualify H.264/H.265/ProRes, HAP/HAP Alpha/HAP Q and DXV/WebP (including animated WebP) separately;
+record exact container, codec/profile/pixel format, decode route and unsupported variants.
+Test paused-zero/rate/loop, exact timestamp seeks and selected-channel stepping, final-frame hold,
+cold/warm seeks, superseding seeks, file loss/relink, device/project replacement and final-use
+retirement. Define fixture-specific seek correctness/latency criteria before the first run;
+report measured latency distributions without silently inventing a pass threshold.
+
+Source assignment fixtures must include each blend mode, cropped/perspective surfaces
 and transparent edges. Generate pictures once on the fixture/preparation worker. A fixture using
 CPU pixel send/receive can test recovery but cannot qualify Q01/Q02's GPU-sharing route.
 Q04 has distinct generation/admission and steady-state interaction measurements; setup is never
@@ -107,16 +125,16 @@ user-specified product promises. Revision requires a documented rationale before
 preserve earlier failures. Reject unsupported allocations/plans atomically instead of reducing
 scene resolution or switching adapters silently.
 
-| Metric | Q01 / 1080p | Q02 / 4K and Q03 | Q04 scale |
-| --- | --- | --- | --- |
-| Cadence | 60 fps/output; missed 16.667 ms deadlines ≤0.1% after warmup | Same; independent output metrics | Same for four demanded 1080p outputs |
-| GPU critical path | p95 ≤12 ms, p99 ≤16.667 ms | Same | Same |
-| CPU render submission work | p95 ≤4 ms, p99 ≤8 ms, excluding waits | Same | Same; work proportional to demand |
-| App-owned live + retiring texture bytes | ≤512 MiB | ≤1 GiB | ≤2 GiB |
-| GPU admission ceiling | App allocation ceiling and ≤50% measured DXGI local budget, whichever is smaller | Same rule | Same rule |
-| Process private bytes, including owned workers, excluding separate source fixtures/WebView subprocesses | ≤1 GiB | ≤2 GiB | ≤4 GiB at 100k authored entities |
-| Published-but-not-consumed frames | ≤2 per output; coalesce stale preview frames | Same | Same |
-| Input/geometry to visible response | p95 ≤50 ms; settled edge alignment ≤1 physical pixel | Same | p95 ≤100 ms, plus no UI task ≥50 ms during steady interaction |
+| Metric                                                                                                  | Q01 / 1080p                                                                      | Q02 / 4K and Q03                 | Q04 scale                                                     |
+| ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------- | ------------------------------------------------------------- |
+| Cadence                                                                                                 | 60 fps/output; missed 16.667 ms deadlines ≤0.1% after warmup                     | Same; independent output metrics | Same for four demanded 1080p outputs                          |
+| GPU critical path                                                                                       | p95 ≤12 ms, p99 ≤16.667 ms                                                       | Same                             | Same                                                          |
+| CPU render submission work                                                                              | p95 ≤4 ms, p99 ≤8 ms, excluding waits                                            | Same                             | Same; work proportional to demand                             |
+| App-owned live + retiring texture bytes                                                                 | ≤512 MiB                                                                         | ≤1 GiB                           | ≤2 GiB                                                        |
+| GPU admission ceiling                                                                                   | App allocation ceiling and ≤50% measured DXGI local budget, whichever is smaller | Same rule                        | Same rule                                                     |
+| Process private bytes, including owned workers, excluding separate source fixtures/WebView subprocesses | ≤1 GiB                                                                           | ≤2 GiB                           | ≤4 GiB at 100k authored entities                              |
+| Published-but-not-consumed frames                                                                       | ≤2 per output; coalesce stale preview frames                                     | Same                             | Same                                                          |
+| Input/geometry to visible response                                                                      | p95 ≤50 ms; settled edge alignment ≤1 physical pixel                             | Same                             | p95 ≤100 ms, plus no UI task ≥50 ms during steady interaction |
 
 Also report the WebView/fixture process memory separately. For integrated adapters record shared
 segment usage; if a local budget is absent/zero, budget admission stays unqualified until M03
@@ -136,8 +154,27 @@ endpoints retry with capped backoff; record recovery delay and independence of t
 Q04 backend receipt target for a fixed-size edit is p95 ≤50 ms and must not scale linearly with
 inactive authored count. Report batched creation elapsed time and peak memory separately; no
 creation-time pass is inferred from receipt/steady-state results. Every undoable gesture
-produces one history entry. No recurring CPU texture readback/upload is allowed in any native
-passing route; one-time image decode/upload and GPU copies/conversions are measured separately.
+produces one history entry. Spout/native sharing and hardware Video routes permit no recurring
+CPU texture readback/upload. One-time Picture uploads, GPU copies/conversions and explicitly
+software-decoded Video uploads are reported separately under the allowance below.
+
+## Software-decoded Video upload allowance
+
+This allowance applies only to formats/channels actually decoded in software; it does not
+relax Spout/GPU-sharing or hardware-frame residency. Admit at most one upload of each newly
+sampled decoded frame per source channel, shared by all consumers/References. Holding the same
+frame adds no repeated upload. Bound queues by the declared admitted frame-pool capacity and
+charge CPU decode buffers plus GPU upload/live/retiring storage within the existing memory
+ceilings. Declare the concrete pool/queue limits before validation.
+
+For each channel report sampled/uploaded frames, actual plane/stride bytes, pixel conversion,
+bytes per second and peak in-flight bytes. The upload ceiling is the sum of each channel's
+admitted sampled frame rate multiplied by its declared uploaded frame bytes; a higher rate,
+repeated upload to another consumer, unaccounted copy or unbounded queue fails this allowance.
+Compressed HAP payload uploads must likewise report their actual bytes/conversion separately;
+they do not claim hardware-decoder zero-upload behavior. All existing CPU/GPU/frame-age/cadence,
+memory-growth/handles and shutdown targets remain operative. Never hide Video cost by lowering
+the retained Q01/Q02 workload or silently enlarging budgets.
 
 ## Gate outcomes
 

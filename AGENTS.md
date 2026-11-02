@@ -242,6 +242,10 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 
 ## Documentation Rules
 
+- Keep implementation status ledgers as compact current-state pages. Update progress, phase/subphase
+  acceptance, the execution board and one current batch/handoff entry in place. Put necessary detailed
+  results in linked owning reports or evidence artifacts; do not append chronological logs, transcripts
+  or duplicate dashboards to the status page.
 - Implementation status ledgers must start with a compact progress dashboard immediately below
   the title: last-updated date, overall progress bar and percentage, completed/total phases,
   current phase/topic, next action and any blocker. Include one row per phase with its state,
