@@ -1,0 +1,26 @@
+// MapGyver media API. Request ids correlate asynchronous committed/rejected callbacks.
+// Empty labels use backend defaults. IDs are the UUID strings returned in callbacks.
+// Shared Resolution and Sampling belong to media; source settings belong to channels.
+script.setApiVersion(1);
+
+function init() {
+	local.listen({ level: 1 });
+	// local.createMedia("create", "SolidColor", "");
+	// local.importPicture("picture", "images/example.png", false); // false: project-relative
+}
+
+function sourceExamples(mediaId, channelId, assetId) {
+	// Uncomment the operations you need. Each call is its own atomic history step.
+	// local.addChannel("variant", mediaId, "");
+	// local.configureMediaResolution("size", mediaId, true, 1920, 1080);
+	// local.configureMediaResolution("native-size", mediaId, false, 1920, 1080);
+	// local.configureMediaSampling("sampling", mediaId, "Linear"); // or "Nearest"
+	// local.configureSolidColor("color", mediaId, channelId, 1, 0, 0, 1); // straight linear RGBA
+	// local.configurePicture("asset", mediaId, channelId, assetId); // "" clears the asset
+	// local.configureSharedTexture("sender", mediaId, channelId, "Exact sender"); // "" clears
+	// local.inspectChannel("channel", mediaId, channelId);
+	// local.inspectMedia("catalog");
+	// local.editMedia("rename", JSON.stringify({kind: "RenameMedia", media: mediaId, label: "Source"}));
+	// editMedia accepts the complete Rust-owned MediaEdit contract, including folders,
+	// assets, channel reorder/removal, Composition and Matrix operations.
+}

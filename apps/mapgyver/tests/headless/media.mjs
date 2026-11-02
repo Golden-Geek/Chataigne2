@@ -4,6 +4,7 @@
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
 // Add --resolution-ui to verify shared Resolution through the generic Golden Inspector.
 // Add --channels-ui to verify the media-only manager and typed Channels collection.
+// Add --media-script-ui for app-template script creation and named source API callbacks.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
@@ -41,6 +42,7 @@ const withUi = [
 	'--parameter-ui',
 	'--resolution-ui',
 	'--channels-ui',
+	'--media-script-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -303,6 +305,10 @@ try {
 		await verifyChannelsUi({ base, edit, inspectMedia: inspect });
 		const { verifySharedTextureUi } = await import('../browser/shared-texture.mjs');
 		await verifySharedTextureUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--media-script-ui')) {
+		const { verifyMediaScriptUi } = await import('../browser/media-script.mjs');
+		await verifyMediaScriptUi({ base, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

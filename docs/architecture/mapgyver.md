@@ -51,6 +51,10 @@ functions, callbacks and app-owned snippets use the same operations. Structural 
 receive explicit version handling and clear unsupported-record rejection; no compatibility
 shim or silent reinterpretation is planned.
 
+The [source scripting API](mapgyver-source-api.md) provides named source methods and explicit
+Inspector creation of an embedded app-template Golden Script. Its callbacks use the same
+committed results as app intents; typed command-node authoring remains in M04/1's return scope.
+
 ## Media, channels and Reference ownership
 
 Channels are stable **concurrent output variants** within each media's Channels section.

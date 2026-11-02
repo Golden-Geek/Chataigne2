@@ -13,8 +13,87 @@ enum Caller {
     Ui,
     QuickJs,
     HostedQuickJs,
+    NamedQuickJs,
 }
-const CALLERS: [Caller; 3] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs];
+const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs, Caller::NamedQuickJs];
+
+fn named_invocation(operation: &MediaEdit) -> String {
+    let (method, args) = match operation {
+        MediaEdit::CreateMedia { media_kind, label } => (
+            "createMedia",
+            serde_json::json!([media_kind, label.as_deref().unwrap_or("")]),
+        ),
+        MediaEdit::AddChannel { media, label } => {
+            ("addChannel", serde_json::json!([media, label.as_deref().unwrap_or("")]))
+        }
+        MediaEdit::ConfigureMediaSampling { media, filter } => {
+            ("configureMediaSampling", serde_json::json!([media, filter]))
+        }
+        MediaEdit::ConfigureMediaResolution { media, size } => {
+            let (enabled, width, height) = match size {
+                SizePolicy::Automatic => (false, 0, 0),
+                SizePolicy::Fixed { extent } => (true, extent.width(), extent.height()),
+            };
+            (
+                "configureMediaResolution",
+                serde_json::json!([media, enabled, width, height]),
+            )
+        }
+        MediaEdit::ConfigureChannel { reference, source } => match source {
+            ChannelSource::SolidColor { rgba } => (
+                "configureSolidColor",
+                serde_json::json!([reference.media, reference.channel, rgba[0], rgba[1], rgba[2], rgba[3]]),
+            ),
+            ChannelSource::Picture { asset } => (
+                "configurePicture",
+                serde_json::json!([
+                    reference.media,
+                    reference.channel,
+                    asset.map(|asset| asset.get().to_string()).unwrap_or_default()
+                ]),
+            ),
+            ChannelSource::Spout { sender } => (
+                "configureSharedTexture",
+                serde_json::json!([reference.media, reference.channel, sender.as_deref().unwrap_or("")]),
+            ),
+            _ => {
+                return format!(
+                    "local.editMedia('parity', {:?});",
+                    serde_json::to_string(operation).unwrap()
+                );
+            }
+        },
+        MediaEdit::InspectChannel { reference } => (
+            "inspectChannel",
+            serde_json::json!([reference.media, reference.channel]),
+        ),
+        MediaEdit::ImportPicture {
+            locator,
+            target: None,
+            label: None,
+        } => {
+            let (path, absolute) = match locator {
+                AssetLocator::ProjectRelative { path } => (path.as_str(), false),
+                AssetLocator::Absolute { path } => (path.as_str(), true),
+            };
+            ("importPicture", serde_json::json!([path, absolute]))
+        }
+        _ => {
+            return format!(
+                "local.editMedia('parity', {:?});",
+                serde_json::to_string(operation).unwrap()
+            );
+        }
+    };
+    let args = args
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|arg| serde_json::to_string(arg).unwrap())
+        .collect::<Vec<_>>()
+        .join(",");
+    format!("local.{method}('parity',{args});")
+}
 
 fn relative(path: &str) -> AssetLocator {
     AssetLocator::ProjectRelative {
@@ -80,9 +159,11 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
     let request = serde_json::to_string(&operation).unwrap();
     match caller {
         Caller::Ui => {}
-        Caller::QuickJs | Caller::HostedQuickJs => {
+        Caller::QuickJs | Caller::HostedQuickJs | Caller::NamedQuickJs => {
             let invoke = if matches!(caller, Caller::QuickJs) {
                 format!("gc.invokeAppOperation('parity', {MEDIA_NAMESPACE:?}, {MEDIA_OPERATION:?}, {request});")
+            } else if matches!(caller, Caller::NamedQuickJs) {
+                format!("local.listen({{level:1}}); {}", named_invocation(&operation))
             } else {
                 format!("local.listen({{level:1}}); local.editMedia('parity', {request:?});")
             };
@@ -249,6 +330,12 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
                 media: first.media,
                 size: SizePolicy::Automatic,
             },
+            MediaEdit::ConfigureMediaResolution {
+                media: first.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(16385, 1).unwrap(),
+                },
+            },
             MediaEdit::ConfigureChannel {
                 reference: first,
                 source: definition.source,
@@ -281,6 +368,12 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
     cases.push(MediaEdit::ConfigureChannel {
         reference: baseline.references[0][0],
         source: ChannelDefinition::for_media(MediaKind::Picture).source,
+    });
+    cases.push(MediaEdit::ConfigureChannel {
+        reference: baseline.references[1][0],
+        source: ChannelSource::Picture {
+            asset: Some(baseline.asset),
+        },
     });
     cases.push(MediaEdit::RenameChannel {
         reference: ChannelReference {
@@ -350,6 +443,18 @@ fn allocating_channel_and_picture_intents_return_owned_ids_without_changing_othe
         },
         MediaEdit::ImportPicture {
             locator: relative("new-picture.png"),
+            target: None,
+            label: None,
+        },
+        MediaEdit::ImportPicture {
+            locator: AssetLocator::Absolute {
+                path: std::env::temp_dir()
+                    .join("mapgyver-source-api-picture.png")
+                    .to_string_lossy()
+                    .into_owned()
+                    .try_into()
+                    .unwrap(),
+            },
             target: None,
             label: None,
         },

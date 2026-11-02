@@ -14,6 +14,7 @@
 	import SpoutSenderPicker from './SpoutSenderPicker.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
+	import MediaScriptsSection from './MediaScriptsSection.svelte';
 	let {
 		node,
 		defaultHeader,
@@ -164,6 +165,15 @@
 				disabled={busy}
 				submitLabel="Import Picture"
 				submit={(locator) => edit({ kind: 'ImportPicture', locator, target: null, label: null })} />
+			<MediaScriptsSection
+				{node}
+				{defaultChildren}
+				disabled={busy}
+				oncreate={async () => {
+					const select = selection.capture();
+					const result = await edit({ kind: 'CreateScript', label: null });
+					if (result?.kind === 'ScriptCreated') select(result.script);
+				}} />
 		{/if}
 		{#if channel}
 			<ChannelPreview {channel} />

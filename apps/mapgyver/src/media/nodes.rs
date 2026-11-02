@@ -94,6 +94,7 @@ impl Node for MediaManagerNode {
             "mapgyver.media.folder",
             "mapgyver.media.asset",
             "mapgyver.application",
+            "script",
         ]))
     }
 

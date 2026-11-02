@@ -9,6 +9,7 @@ mod picture_import;
 mod resolution;
 mod script;
 mod scripting;
+mod source_api;
 mod source_node;
 mod typescript;
 

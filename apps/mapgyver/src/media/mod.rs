@@ -17,7 +17,9 @@ pub mod picture;
 pub mod protocol;
 pub mod rendering;
 pub mod resolution;
+mod script_templates;
 mod scripting;
+mod source_api;
 mod source_node;
 pub(crate) mod structure;
 

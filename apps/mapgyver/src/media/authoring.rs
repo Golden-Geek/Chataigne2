@@ -121,6 +121,20 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectManager => MediaEditResult::Manager {
             snapshot: super::catalog::inspect(engine)?,
         },
+        MediaEdit::CreateScript { label: requested } => {
+            let parent = manager(engine)?;
+            let node = golden_core::script::ScriptNode::new(
+                label(engine, parent, requested, "Media Script")?,
+                super::script_templates::config(),
+            );
+            let script = node.node_data().meta.uuid;
+            engine.edits.push(Edit::AddUserItemTree {
+                parent,
+                prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+                tree: NodeTree::new(node),
+            });
+            MediaEditResult::ScriptCreated { script }
+        }
         MediaEdit::ImportAsset {
             locator,
             label: requested,

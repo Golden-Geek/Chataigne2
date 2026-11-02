@@ -67,6 +67,8 @@ impl<T: Node> Engine<T> {
 
             target.engine_request_script_reload()?;
         }
+        // Inline event-driven scripts may already be absent from the compiled schedule.
+        self.mark_schedule_dirty();
 
         self.push_ui_custom_event(
             "__transport.resync_required",

@@ -153,6 +153,10 @@ pub enum MediaEdit {
         edit: super::composition::protocol::CompositionEdit,
     },
     InspectManager,
+    /// Creates an app-template source script under Media Manager, outside its object catalog.
+    CreateScript {
+        label: Option<String>,
+    },
     /// Atomically imports an asset and creates Picture media, or assigns an existing Picture channel.
     ImportPicture {
         locator: AssetLocator,
@@ -283,6 +287,10 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ScriptCreated {
+        #[ts(type = "string")]
+        script: NodeUuid,
+    },
     FolderCreated {
         #[ts(type = "string")]
         folder: NodeUuid,
