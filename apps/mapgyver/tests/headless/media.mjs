@@ -14,6 +14,7 @@
 // Add --composition-project-ui for M06 actual New-during-drag and review-upload verification.
 // Add --column-applications-ui for M08 actual column UI and owned-process lifecycle verification.
 // Add --source-drop-ui for real Media/Channel outliner drags into Screen/Composition editors.
+// Add --catalog-ui for object-only manager creation menus.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -40,7 +41,8 @@ const withUi = [
 	'--composition-project-ui',
 	'--column-applications-ui',
 	'--source-drop-ui',
-	'--workbench-ui'
+	'--workbench-ui',
+	'--catalog-ui'
 ].some((flag) => process.argv.includes(flag));
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -295,6 +297,10 @@ try {
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');
 		await verifyWorkbenchUi({ base, post, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--catalog-ui')) {
+		const { verifyCreationCatalogsUi } = await import('../browser/catalogs.mjs');
+		await verifyCreationCatalogsUi({ base });
 	}
 	if (process.argv.includes('--source-drop-ui')) {
 		const { verifySourceDropUi } = await import('../browser/source-drop.mjs');

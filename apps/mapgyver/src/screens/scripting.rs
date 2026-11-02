@@ -1,4 +1,4 @@
-//! Commands and manager methods share the bounded atomic app-operation service.
+//! Manager script methods share the bounded atomic app-operation service with UI clients.
 
 use super::protocol::{SCREEN_NAMESPACE, SCREEN_OPERATION, ScreenEdit};
 use golden_core::{
@@ -6,23 +6,11 @@ use golden_core::{
     node::{NodeId, NodeScriptDescriptor},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
-    script::{APP_OPERATION_RESULT_TOPIC, ScriptAppOperationRequest, ScriptNodeConfig, ScriptSource},
+    script::{APP_OPERATION_RESULT_TOPIC, ScriptAppOperationRequest},
 };
 use std::sync::Arc;
 
 pub const MAX_REQUEST_JSON_BYTES: usize = 64 * 1024;
-
-pub(super) fn template() -> ScriptNodeConfig {
-    ScriptNodeConfig {
-        source: ScriptSource::Inline {
-            text: [
-                include_str!("script_templates/snippets/functions.js"),
-                include_str!("script_templates/snippets/callbacks.js"),
-            ]
-            .join("\n"),
-        },
-    }
-}
 
 pub(super) fn decode(request: &str) -> Result<ScreenEdit, String> {
     if request.len() > MAX_REQUEST_JSON_BYTES {

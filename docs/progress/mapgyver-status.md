@@ -4,12 +4,30 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** user-requested editor/outliner and automatic Screen behavior implemented; software/model and bundled Source/drop verification pass (M05/6 retained).
-**Next:** close the retained complete Screen/native visual and physical reconnect acceptance when a supported desktop window and displays are available.
+**Current:** object-only MapGyver creation catalogs verified; redundant automation node types and manager Script factories removed (M05/6 retained).
+**Next:** return to the existing M05/6 complete-editor/native acceptance queue; no broader gate is closed by this catalog cleanup.
 **Blocker:** no software implementation blocker. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: held Inspector samples update crop handles without changing the camera; Screen defaults/recovery and all six source-drop paths pass.
+Last verified capability: manager/folder creation menus expose document objects only; removed automation types reject without document/history changes, while typed and script operations retain parity.
+
+**Catalog delivery — 2 November, 13:10 CET:** removed `mapgyver_media_command` and
+`mapgyver_screen_command` from app registration, factories, containment and validation, together
+with Media/Screen Script factories and their unused embedded snippets. Real object creation and
+the typed operations, manager script methods, bounded request admission and committed callbacks
+remain. The app owns this policy; Golden's generic Script and command mechanisms are unchanged.
+Tests now live under `tests/scripting`, retaining UI/QuickJS/hosted parity, cancellation, rejection,
+history and reload coverage. Only tests for deleted wrapper/template behavior were removed.
+
+Verification: full MapGyver suite262pass/1existing hardware ignore; strict all-target Clippy and
+ordinary bundled app build pass. Two new backend regressions verify exact catalog labels, factory
+rejection, no history/document mutation and absent type registration. The bundled `--catalog-ui`
+flow verifies Media Manager and Folder menus plus direct Screen creation, with0page errors or
+rejected requests, and its ordinary host source/history/Save/New/Load prerequisites pass. Initial
+browser fixture errors (observer API, untrimmed DOM text and an unrelated menu-dismissal assertion)
+were corrected; no application defect or native qualification is inferred. Root and Golden Core
+formatting pass. This user-requested catalog acceptance closes; all fixed phase denominators and
+M05/6 complete-editor/native requirements remain unchanged. Independent AGENTS.md work is excluded.
 **Batch:** 2 November, 11:15 CET, stop12:00 CET. Deliver component-safe Inspector edits and
 automatic Screen creation/target selection, including recovery and occupied-display handling.
 Owners: Golden's generic Parameter edit/protocol boundary; MapGyver's Screen model and display
@@ -22,6 +40,13 @@ its11:17 investigation cutoff is not reset and no more projection-timing probes 
 Screen integration investigation stops11:35 CET (baseline plus at most one corrected experiment);
 use the existing host catalog/EDID evidence and pure recovery tests, not native experiments.
 No user requirement or retained acceptance scope is dropped.
+**Current batch:** 2 November, 12:59 CET, stop13:44 CET. Deliver object-only creation menus owned
+by MapGyver's backend catalogs. Remove redundant JSON request/trigger command-node types and
+manager Script factories, retaining typed operations and manager scripting APIs. Proof: exact
+catalog/rejection checks, retained script/API parity, full app tests, ordinary build and shared
+menu regression. Investigation hypothesis: unified menus expose previously registered automation
+wrappers; removing their app registration/factories fixes every creation surface without UI filters.
+No Golden policy changes or native experiments are planned. Preserve independent AGENTS.md edits.
 **Cutoff outcome:** no new product scope after12:00 CET. Finish-only correctness returns repaired
 stale cohort allocation, same-token hint invalidation and the bounded vector slider's collapsed
 track. Scoped CSS could not match a child component's Slider DOM; an explicit bounded-row class

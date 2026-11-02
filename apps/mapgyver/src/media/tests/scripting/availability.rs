@@ -2,7 +2,7 @@ use super::*;
 use crate::applications::protocol::*;
 
 #[test]
-fn command_and_hosted_quickjs_availability_use_the_same_committed_request_and_history() {
+fn hosted_quickjs_availability_uses_committed_requests_and_history() {
     let mut engine = fixture();
     let MediaEditResult::ApplicationCreated { application } = apply(
         &mut engine,
@@ -12,8 +12,6 @@ fn command_and_hosted_quickjs_availability_use_the_same_committed_request_and_hi
     ) else {
         panic!()
     };
-    script(&mut engine, "function init(){local.listen({level:1});} function onAppOperationResult(reply){gc.emit('media-method-reply',reply);}".into());
-    let command = command(&mut engine, "Media Operation");
     let request = serde_json::to_string(&MediaEdit::Applications {
         edit: ApplicationEdit::SetEnabled {
             application,
@@ -21,18 +19,13 @@ fn command_and_hosted_quickjs_availability_use_the_same_committed_request_and_hi
         },
     })
     .unwrap();
-    let parameter = engine
-        .process_tree_snapshot()
-        .find_child_by_decl_id(command, "request")
-        .unwrap();
-    engine.edits.push(Edit::SetParam {
-        node: parameter,
-        value: ParamValue::Str(request),
-        behaviour: ParameterEventBehaviour::Append,
-    });
-    engine.apply_edits().unwrap();
+    script(
+        &mut engine,
+        format!(
+            "function init(){{local.listen({{level:1}});local.editMedia('availability-disable',{request:?});}} function onAppOperationResult(reply){{gc.emit('media-method-reply',reply);}}"
+        ),
+    );
     let before = engine.undo_len();
-    call(&mut engine, command, "execute", vec![]);
     service_script_app_operations(&mut engine).unwrap();
     assert_eq!(engine.undo_len(), before + 1);
     assert_eq!(

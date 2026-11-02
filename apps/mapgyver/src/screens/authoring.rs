@@ -356,11 +356,6 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     return Err("Screen Manager must be a root child".into());
                 }
             }
-            AppNode::ScreenCommand(node) => {
-                if node.node_data().parent != Some(manager) {
-                    return Err("screen command is outside its manager".into());
-                }
-            }
             AppNode::Screen(node) => {
                 if node.node_data().parent != Some(manager) {
                     return Err("Screen is outside its manager".into());

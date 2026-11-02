@@ -64,9 +64,9 @@ Selection, requested launch and actual renderer feedback are separate states; on
 observations qualify the grid interaction checks.
 
 Application definitions, availability, column associations and lifecycle policy live under
-`src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS,
-hosted scripts and Media Operation commands share the same application operations and committed
-history. Caller-parity tests compare persistent definitions and associations; runtime revisions,
+`src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS
+and hosted scripts share the same application operations and committed history. Caller-parity
+tests compare persistent definitions and associations; runtime revisions,
 instance identities and lifecycle observations remain ephemeral.
 
 The ordinary headless integration check verifies owned launch/retention/unload, availability,
@@ -145,16 +145,17 @@ does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
 
-Screen Manager owns Screens and ordered Surfaces. Its Add menu offers Screen Operation commands,
-a Create Screen preset and a Screen Script with embedded method/callback snippets. The public
+Screen Manager owns Screens and ordered Surfaces. Its Add menu creates actual Screens, each with
+an initial Surface. Automation wrappers and manager Script factories are not document objects. The public
 `mapgyver.screens.edit` app operation accepts the Rust `ScreenEdit` contract. Hosted scripts use
 `local.editScreens(requestId, requestJson)` and `local.inspectScreens(requestId)`; results arrive
-through `onAppOperationResult` after commit or rejection. Commands also expose `execute()`.
+through `onAppOperationResult` after commit or rejection.
 Creation allocates a Screen and initial full-source/full-screen Surface in one detached subtree
 and Undo step. Rename, reorder, configuration and removal use the same atomic route for every
 caller. Screen and Surface identities survive history and project reload.
 
-Screens start disabled with no target. Authored targets distinguish a stable fullscreen display
+Screens start enabled, choosing the next available secondary display or a Shared Texture output.
+Authored targets distinguish a stable fullscreen display
 identity, a rectangle in signed physical desktop pixels, and an exact virtual Spout sender name
 with texture extent. Surfaces store a media/channel reference, normalized source crop, destination
 quad, opacity, calibration mode and enablement. Invalid extents, crop, crossed/concave/degenerate
@@ -254,27 +255,23 @@ Rust catalog DTO fixture via an absolute `MAPGYVER_DISPLAY_FIXTURE` path. The fi
 all target modes, missing/restored selection and one API-accepted submission per native consumer;
 it does not alter Windows display settings or claim physical hotplug/scanout.
 
-Media Manager's Add menu offers Media Operation commands, creation presets for each source kind,
-and a Media Script with app-owned function/callback snippets. Commands keep a JSON `MediaEdit`
-request and correlation id in ordinary authored parameters; Execute or `command.execute()` runs
-it through the same atomic backend route. The generic command supports the complete operation
-contract, including channel configuration, import/relink, rename, reorder, removal and inspection.
-Presets are serialized from Rust operations rather than separate schemas or default policies.
+Media Manager's Add menu creates folders and real media sources: Solid Color, Picture, Shared
+Texture, Composition and Matrix. Channel configuration, import/relink, rename, reorder, removal
+and inspection use the typed `MediaEdit` operation contract. The redundant JSON request/trigger
+command-node types and branded manager Script factories have been removed from MapGyver.
 
 Hosted scripts expose `local.editMedia(requestId, requestJson)` and
 `local.inspectMedia(requestId)`. Call `local.listen({ level: 1 })` once to receive
-`onAppOperationResult(reply)` for manager methods and its direct commands. Applied replies carry
+`onAppOperationResult(reply)` for manager methods. Applied replies carry
 the committed `MediaEditResult`; rejected operations carry a message and no partial changes.
 Use distinct correlation ids for concurrent requests. Any script can also use Golden's existing
-`gc.invokeAppOperation` route. The ready-to-use snippets live under
-`src/media/script_templates/snippets` and are embedded in the app, including packaged builds.
+`gc.invokeAppOperation` route.
 
 Golden's public `ProcessCtx::enqueue_app_operation` admits node requests under the same bounded
 service, callback completion fences and result/disposal ownership as script requests. Source
 destruction or disablement expires MapGyver's request owner, so Undo cannot resurrect abandoned
-work. Manager and command nodes are passive; no polling or recurring engine work was added.
-Command triggers emit pulses without an empty history entry. One successful structural operation
-is one Undo step, and merely loading a saved command does not execute it.
+work. Managers are passive; no polling or recurring engine work was added. One successful
+structural operation is one Undo step.
 
 On Windows, the ordinary app enables worker-owned native Channel/Screen previews and enabled
 virtual Screen outputs by default, without requiring any preview to initialize the renderer.
@@ -321,14 +318,14 @@ diagnostic executable; it is not the app's rendering implementation.
 
 Run these commands from the workspace root:
 
-| Command | Purpose |
-| --- | --- |
-| `npm run run:mapgyver` | Launch the bundled desktop app. |
-| `npm run watch:mapgyver` | Run the shared development watcher for MapGyver. |
-| `npm run dev:mapgyver` | Start only the frontend development server. |
-| `npm run build:mapgyver` | Build the frontend. |
-| `npm run check:mapgyver` | Check frontend types and Svelte components. |
-| `npm run package:mapgyver` | Build the desktop bundles from MapGyver's app directory. |
+| Command                          | Purpose                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
+| `npm run run:mapgyver`           | Launch the bundled desktop app.                              |
+| `npm run watch:mapgyver`         | Run the shared development watcher for MapGyver.             |
+| `npm run dev:mapgyver`           | Start only the frontend development server.                  |
+| `npm run build:mapgyver`         | Build the frontend.                                          |
+| `npm run check:mapgyver`         | Check frontend types and Svelte components.                  |
+| `npm run package:mapgyver`       | Build the desktop bundles from MapGyver's app directory.     |
 | `npm run package:check:mapgyver` | Compile through the packaging path without creating bundles. |
 
 `cargo run -p MapGyver -- --dev` launches the app with its frontend development

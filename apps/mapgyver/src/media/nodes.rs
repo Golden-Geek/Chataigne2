@@ -4,7 +4,7 @@ use golden_core::events::CustomEvent;
 use golden_core::node::{Node, NodeData, NodeScriptDescriptor, UserContainerRules, UserCreatableItem};
 use golden_core::parameter::ParamValue;
 use golden_core::process_ctx::ProcessCtx;
-use golden_core::script::{ScriptHostPolicy, ScriptNode};
+use golden_core::script::ScriptHostPolicy;
 use golden_io::{RevisionGuard, RevisionSource};
 
 pub struct MediaManagerNode {
@@ -94,29 +94,15 @@ impl Node for MediaManagerNode {
             "mapgyver.media.folder",
             "mapgyver.media.asset",
             "mapgyver.application",
-            super::commands::MEDIA_COMMAND_TYPE,
-            "script",
         ]))
     }
 
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = super::creation::items();
-        items.extend(super::commands::catalog());
-        items.push(UserCreatableItem::new("script", "script", "Media Script"));
-        items
+        super::creation::items()
     }
 
     fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
         super::creation::tree(node_type)
-            .or_else(|| self.create_user_item(node_type).map(golden_core::edit::NodeTree::boxed))
-    }
-
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        match node_type {
-            super::commands::MEDIA_COMMAND_TYPE => Some(Box::new(super::commands::MediaCommandNode::create())),
-            "script" => Some(Box::new(ScriptNode::new("Media Script", super::scripting::template()))),
-            _ => None,
-        }
     }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {

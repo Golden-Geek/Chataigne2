@@ -1,13 +1,13 @@
 mod assets;
 mod authoring;
 mod catalog;
-mod commands;
 mod creation;
 mod folders;
 mod parameters;
 mod picture_import;
 mod resolution;
 mod script;
+mod scripting;
 mod source_node;
 mod typescript;
 

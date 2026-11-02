@@ -376,11 +376,6 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
             AppNode::MediaFolder(_) if !managed.contains(&id) => {
                 return Err("media folder is outside its manager".into());
             }
-            AppNode::MediaCommand(node) => {
-                if node.node_data().parent != Some(manager) {
-                    return Err("media command is outside its manager".into());
-                }
-            }
             AppNode::MediaAsset(node) => {
                 if node.node_data().parent != Some(manager) {
                     return Err("asset is outside its catalog".into());

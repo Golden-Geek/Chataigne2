@@ -148,10 +148,11 @@ authored data instead of cloning the catalog. `mapgyver.media.edit` accepts Rust
 through `ProjectLifecycle::apply_app_operation`; the shared atomic transaction/history boundary
 also serves QuickJS `gc.invokeAppOperation` and headless callers. Creation uses one detached
 media/channel subtree. Labels, initial channel settings and size defaults are backend policy.
-New projects expose the authoring container and M04's controls/commands/script methods/templates.
+New projects expose document objects and the shared Inspector. Manager catalogs create media,
+folders, channels, Screens and Surfaces; they contain no automation wrappers or Script factories.
 The media contract now includes Solid Color, Shared Texture, Picture and Composition authoring;
 Matrix joins with M07. Composition instance editing stays under `media/composition`, using the
-same `mapgyver.media.edit` operation, module commands, hosted methods and committed callbacks.
+same `mapgyver.media.edit` operation, hosted methods and committed callbacks.
 
 `media/protocol.rs` generates TypeScript into the app UI, including Golden Video's canonical
 descriptor/filter types. `media/resolution.rs` keeps source availability separate from resolved
@@ -298,7 +299,7 @@ notifications and coarse one-second missing/IO/capacity retries run through the 
 they do not poll the engine. File-change callbacks can retry one asset without invalidating
 healthy sources. Relocation invalidates the appropriate runtime scopes; source bytes, fingerprints
 and GPU handles remain absent from project/control JSON. Ready-file watching and dedicated manager
-controls/commands/callbacks/snippets remain M04 work. The default workbench still creates no GPU
+controls and callbacks remain M04 work. The default workbench still creates no GPU
 renderer without a native consumer's demand.
 
 ## Screens and surfaces
@@ -470,7 +471,7 @@ executable. Reference lookup returns explicit missing definitions in request ord
 the whole catalog, materializing columns/cells or launching anything.
 
 Availability uses the same `ApplicationEdit::SetEnabled` intent in the Applications panel,
-generic Media Operation command and `local.editMedia` script method. Golden metadata owns the
+typed application operation and `local.editMedia` script method. Golden metadata owns the
 local flag and effective inheritance. Detailed snapshots return `Enabled`, `Disabled` or
 `DisabledByParent`; a locally enabled definition cannot override a disabled ancestor. The app
 authors one ordinary metadata edit, with no-op/history/Undo behavior shared by every caller.

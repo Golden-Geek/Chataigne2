@@ -2,6 +2,7 @@ use golden_core::app::{create_new_project_engine, from_sparse_project_json, to_s
 use golden_core::node::{Folder, Node};
 
 use super::AppNode;
+mod catalogs;
 mod preview_capture;
 mod removal;
 mod structure;

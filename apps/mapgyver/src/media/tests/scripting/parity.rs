@@ -13,9 +13,8 @@ enum Caller {
     Ui,
     QuickJs,
     HostedQuickJs,
-    Command,
 }
-const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs, Caller::Command];
+const CALLERS: [Caller; 3] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs];
 
 fn relative(path: &str) -> AssetLocator {
     AssetLocator::ProjectRelative {
@@ -79,7 +78,6 @@ fn authored(
 /// The observer is installed before measuring history. Only the operation itself earns a step.
 fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<serde_json::Value> {
     let request = serde_json::to_string(&operation).unwrap();
-    let mut execute = None;
     match caller {
         Caller::Ui => {}
         Caller::QuickJs | Caller::HostedQuickJs => {
@@ -95,29 +93,6 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
                 ),
             );
         }
-        Caller::Command => {
-            script(engine, "function init(){local.listen({level:1});} function onAppOperationResult(reply){gc.emit('media-method-reply',reply);}".into());
-            let node = command(engine, "Media Operation");
-            let parameter = engine
-                .process_tree_snapshot()
-                .find_child_by_decl_id(node, "request")
-                .unwrap();
-            let ack = apply_project_intent(
-                engine,
-                UiEditIntent::SetParam {
-                    node: parameter,
-                    value: ParamValue::Str(request),
-                    behaviour: ParameterEventBehaviour::Append,
-                },
-            );
-            assert!(ack.success, "{ack:?}");
-            execute = Some(
-                engine
-                    .process_tree_snapshot()
-                    .find_child_by_decl_id(node, "execute")
-                    .unwrap(),
-            );
-        }
     }
     let before = authored(engine);
     let history = engine.undo_len();
@@ -125,28 +100,10 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
         let ack = invoke(engine, operation);
         ack.success.then(|| ack.result.unwrap().value)
     } else {
-        if let Some(trigger) = execute {
-            let ack = apply_project_intent(
-                engine,
-                UiEditIntent::SetParam {
-                    node: trigger,
-                    value: ParamValue::Trigger(),
-                    behaviour: ParameterEventBehaviour::Append,
-                },
-            );
-            assert!(ack.success, "{ack:?}");
-        }
         service_script_app_operations(engine).unwrap();
         let responses = replies(engine);
         assert_eq!(responses.len(), 1, "{caller:?} must emit one committed callback");
-        assert_eq!(
-            responses[0]["request_id"],
-            if matches!(caller, Caller::Command) {
-                "media-command"
-            } else {
-                "parity"
-            }
-        );
+        assert_eq!(responses[0]["request_id"], "parity");
         if responses[0]["status"] == "applied" {
             Some(responses[0]["value"].clone())
         } else {
@@ -176,11 +133,7 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
         );
     }
     service_script_app_operations(engine).unwrap();
-    assert_eq!(
-        authored(engine),
-        after,
-        "history replay must not requeue the command/script"
-    );
+    assert_eq!(authored(engine), after, "history replay must not requeue the script");
     if !matches!(caller, Caller::Ui) {
         assert_eq!(replies(engine).len(), 1);
     }
@@ -253,7 +206,7 @@ fn loaded(json: &str) -> AppEngine {
 }
 
 #[test]
-fn source_mutations_inspection_and_atomic_rejection_match_ui_quickjs_hosted_and_command_callers() {
+fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers() {
     let baseline = baseline();
     let initial = loaded(&baseline.json);
     let mut cases = vec![

@@ -1,4 +1,4 @@
-//! Media commands and hosted scripts use the same bounded atomic operation route as UI clients.
+//! Manager script methods share the bounded atomic app-operation service with UI clients.
 
 use std::sync::Arc;
 
@@ -7,25 +7,13 @@ use golden_core::{
     node::{NodeId, NodeScriptDescriptor},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
-    script::{APP_OPERATION_RESULT_TOPIC, ScriptAppOperationRequest, ScriptNodeConfig, ScriptSource},
+    script::{APP_OPERATION_RESULT_TOPIC, ScriptAppOperationRequest},
 };
 
 use super::protocol::{MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit};
 
 pub const MEDIA_RESULT_TOPIC: &str = "mapgyver.media.result";
 pub const MAX_REQUEST_JSON_BYTES: usize = 64 * 1024;
-
-pub(super) fn template() -> ScriptNodeConfig {
-    ScriptNodeConfig {
-        source: ScriptSource::Inline {
-            text: [
-                include_str!("script_templates/snippets/functions.js"),
-                include_str!("script_templates/snippets/callbacks.js"),
-            ]
-            .join("\n"),
-        },
-    }
-}
 
 pub(super) fn decode(request: &str) -> Result<MediaEdit, String> {
     if request.len() > MAX_REQUEST_JSON_BYTES {

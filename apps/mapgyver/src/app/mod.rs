@@ -10,13 +10,11 @@ golden_core::define_node_enum!(
         MediaChannel(crate::media::ChannelNode),
         MediaAsset(crate::media::AssetNode),
         Application(crate::applications::ApplicationNode),
-        MediaCommand(crate::media::MediaCommandNode),
         CompositionInstance(crate::media::composition::InstanceNode),
         MatrixElement(crate::matrix::ElementNode),
         ScreenManager(crate::screens::ScreenManagerNode),
         Screen(crate::screens::ScreenNode),
         Surface(crate::screens::SurfaceNode),
-        ScreenCommand(crate::screens::ScreenCommandNode),
     }
 );
 

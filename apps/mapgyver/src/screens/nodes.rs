@@ -6,7 +6,7 @@ use golden_core::{
     node::{Node, NodeData, NodeScriptDescriptor, UserContainerRules, UserCreatableItem},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
-    script::{ScriptHostPolicy, ScriptNode},
+    script::ScriptHostPolicy,
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
@@ -156,17 +156,10 @@ impl Node for ScreenManagerNode {
         Some(ScriptHostPolicy::default_scriptable())
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[
-            super::commands::SCREEN_COMMAND_TYPE,
-            "mapgyver.screen",
-            "script",
-        ]))
+        Some(UserContainerRules::new(&["mapgyver.screen"]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        let mut items = vec![UserCreatableItem::new("mapgyver.screen", "mapgyver.screen", "Screen")];
-        items.extend(super::commands::catalog());
-        items.push(UserCreatableItem::new("script", "script", "Screen Script"));
-        items
+        vec![UserCreatableItem::new("mapgyver.screen", "mapgyver.screen", "Screen")]
     }
     fn create_user_item_tree(&self, node_type: &str) -> Option<NodeTree> {
         if node_type == "mapgyver.screen" {
@@ -184,7 +177,7 @@ impl Node for ScreenManagerNode {
                 ),
             )
         } else {
-            self.create_user_item(node_type).map(NodeTree::boxed)
+            None
         }
     }
     fn create_user_item_tree_with_context(
@@ -196,13 +189,6 @@ impl Node for ScreenManagerNode {
             super::creation::tree(context, "Screen".into()).ok()
         } else {
             self.create_user_item_tree(node_type)
-        }
-    }
-    fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        match node_type {
-            super::commands::SCREEN_COMMAND_TYPE => Some(Box::new(super::ScreenCommandNode::create())),
-            "script" => Some(Box::new(ScriptNode::new("Screen Script", scripting::template()))),
-            _ => None,
         }
     }
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
