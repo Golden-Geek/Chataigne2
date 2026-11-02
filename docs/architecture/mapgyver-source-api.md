@@ -17,10 +17,15 @@ execute changed initialization code.
 `local` refers to Media Manager from these scripts. Each method starts with a nonempty request
 id. UUID arguments come from committed results, not numeric session node IDs. Empty optional
 labels use backend defaults; empty asset/sender strings clear that channel's source setting.
+`Reference` creation returns `ReferenceCreated { media }`, because an unconfigured Reference
+has no output channel. Its [target/output contract](mapgyver-reference-media.md) is distinct
+from physical source-channel authoring. Command records now use schema v2; v1 rejects clearly.
 
 | Method                     | Arguments after request id                                                      |
 | -------------------------- | ------------------------------------------------------------------------------- |
 | `createMedia`              | kind (`SolidColor`, `Picture`, `SharedTexture`, `Composition`, `Matrix`), label |
+| `createReference`          | target media UUID or empty string, label                                      |
+| `configureReference`       | Reference media UUID, target media UUID or empty string                       |
 | `addChannel`               | media UUID, label; backend rejects derived outputs                              |
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
 | `configureMediaSampling`   | media UUID, `Linear` or `Nearest`                                               |
@@ -52,13 +57,13 @@ No repository files are read when an installed app creates the template. The gen
 Composition/Matrix intents; see [the Rust contract](../../apps/mapgyver/src/media/protocol.rs).
 
 The Media Manager Inspector's **Commands** section creates app-owned
-`mapgyver.media.command.v1` children through `CreateCommand`. `InspectCommandCatalog` returns
+`mapgyver.media.command.v2` children through `CreateCommand`. `InspectCommandCatalog` returns
 the Rust-owned catalog; the generator exports each command's visible Parameter fields.
 The section mounts at most 32 commands per page. Commands stay out of object creation menus
 and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
 typed Parameters, including references, enums, file paths, resolution and color.
 
-The 28 command kinds cover source/variant creation, settings, assets, folders, ordering,
+The 30 command kinds cover source/variant and Reference creation, settings, assets, folders, ordering,
 removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
 Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
 `execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's

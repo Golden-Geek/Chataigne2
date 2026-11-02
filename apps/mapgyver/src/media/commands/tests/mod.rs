@@ -109,6 +109,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         for (name, value) in [
             ("label", ParamValue::Str("Program output".into())),
             ("target_folder", reference(folder)),
+            ("reference_target", reference(solid.media.0)),
             ("entry", reference(solid.media.0)),
             ("asset", reference(NodeUuid(asset.get()))),
             ("after_channel", reference(peer.channel.0)),
@@ -123,7 +124,21 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             set(&mut engine, command, name, value);
         }
         if *kind != MediaCommandKind::ImportPicture {
-            set(&mut engine, command, "media", reference(target.media.0));
+            let owner = if *kind == MediaCommandKind::ConfigureReference {
+                let MediaEditResult::ReferenceCreated { media } = apply(
+                    &mut engine,
+                    MediaEdit::CreateReference {
+                        target: None,
+                        label: None,
+                    },
+                ) else {
+                    panic!()
+                };
+                media
+            } else {
+                target.media
+            };
+            set(&mut engine, command, "media", reference(owner.0));
             set(&mut engine, command, "channel", reference(target.channel.0));
         }
         let id = engine.node_id_by_uuid(command).unwrap();

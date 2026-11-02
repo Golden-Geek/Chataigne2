@@ -47,6 +47,9 @@ impl ChannelNode {
             Enum::new(super::media_node::kind_name(definition.media_kind()))
         );
         match definition.source {
+            ChannelSource::Reference { .. } => {
+                unreachable!("Reference outputs are virtual, never authored Channel nodes")
+            }
             ChannelSource::SolidColor { rgba } => {
                 seed!(
                     rgba,
@@ -160,7 +163,7 @@ impl ChannelNode {
                     NodeReference::new(golden_core::node::NodeUuid(id.get()))
                 })),
             )),
-            ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } => {
+            ChannelSource::Reference { .. } | ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } => {
                 return Err("derived outputs have no authored channel settings".into());
             }
             ChannelSource::Spout { sender } => {

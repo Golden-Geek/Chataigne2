@@ -20,6 +20,11 @@ pub(super) fn items() -> Vec<UserCreatableItem> {
         "mapgyver.media.folder",
         "Folder",
     )];
+    items.push(UserCreatableItem::new(
+        super::reference::NODE_TYPE,
+        super::reference::NODE_TYPE,
+        "Reference",
+    ));
     items.extend(
         SOURCES
             .into_iter()
@@ -29,6 +34,9 @@ pub(super) fn items() -> Vec<UserCreatableItem> {
 }
 
 pub(super) fn tree(node_type: &str) -> Option<NodeTree> {
+    if node_type == super::reference::NODE_TYPE {
+        return Some(NodeTree::new(super::ReferenceNode::new()));
+    }
     if node_type == "mapgyver.media.folder" {
         return Some(NodeTree::new(MediaFolderNode::new("Folder".into())));
     }

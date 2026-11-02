@@ -41,6 +41,10 @@ impl CapturedChannel {
             .iter()
             .flatten()
             .filter_map(|instance| instance.source)
+            .chain(self.definition.iter().filter_map(|definition| match definition.source {
+                ChannelSource::Reference { target } => target,
+                _ => None,
+            }))
             .chain(
                 self.matrix
                     .iter()
@@ -51,7 +55,7 @@ impl CapturedChannel {
         self.definition.as_ref().is_some_and(|definition| {
             matches!(
                 definition.source,
-                ChannelSource::Composition { .. } | ChannelSource::Matrix { .. }
+                ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } | ChannelSource::Reference { .. }
             )
         })
     }
@@ -189,6 +193,16 @@ pub(crate) fn capture_channels_with_time(
             .node_id_by_uuid(reference.media.0)
             .and_then(|id| engine.nodes.get(id));
         let definition = match media {
+            Some(AppNode::ReferenceMedia(node))
+                if super::folders::contains_parent(engine, node.node_data().parent, manager_id) =>
+            {
+                guards.push(node.guard());
+                guards.push(manager.membership_guard());
+                Some((
+                    node.definition(engine, reference.channel),
+                    node.node_data().effective_enabled,
+                ))
+            }
             Some(AppNode::Media(media))
                 if super::folders::contains_parent(engine, media.node_data().parent, manager_id) =>
             {
@@ -317,6 +331,16 @@ pub(crate) fn capture_channels_with_time(
                     }
                 }
             }
+        }
+        if enabled
+            && let Some(ChannelDefinition {
+                source: ChannelSource::Reference { target: Some(target) },
+                ..
+            }) = &definition
+            && (seen.contains(target) || seen.len() < limit)
+            && seen.insert(*target)
+        {
+            pending.push_back(*target);
         }
         if enabled
             && let Some(ChannelDefinition {

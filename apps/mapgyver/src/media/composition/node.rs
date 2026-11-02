@@ -16,7 +16,7 @@ pub const INSTANCE_TYPE: &str = "mapgyver.composition.instance";
     folder(parameters, label = "Parameters") {
         source_media: NodeReference = NodeReference::empty() (
             label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v5".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
         );
         source_channel: NodeReference = NodeReference::empty() (
             label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -192,7 +192,7 @@ impl Node for InstanceNode {
             && let Some(source) = self.source_for_validation(change)
             && let Some(owner) = self.node_data().parent
         {
-            crate::parameters::reference_cycle::validate(change, owner, source.channel.0)?;
+            crate::parameters::reference_cycle::validate_channel(change, owner, source)?;
         }
         Ok(())
     }

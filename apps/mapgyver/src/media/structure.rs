@@ -15,6 +15,7 @@ fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
             .is_some_and(|node| matches!(node, AppNode::Media(media) if !media.kind().has_authored_channel_variants())),
         Some(
             AppNode::Media(_)
+            | AppNode::ReferenceMedia(_)
             | AppNode::MediaCommand(_)
             | AppNode::MediaFolder(_)
             | AppNode::MediaAsset(_)
@@ -80,7 +81,7 @@ pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> R
     let old_parent = node.node_data().parent;
     let destination = engine.nodes.get(parent);
     let valid = match node {
-        AppNode::Media(_) | AppNode::MediaFolder(_) => {
+        AppNode::Media(_) | AppNode::ReferenceMedia(_) | AppNode::MediaFolder(_) => {
             let folder = match destination {
                 Some(AppNode::MediaManager(_)) => None,
                 Some(AppNode::MediaFolder(node)) => Some(node.node_data().meta.uuid),

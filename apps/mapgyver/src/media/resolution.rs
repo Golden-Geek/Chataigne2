@@ -22,6 +22,7 @@ impl Default for ChannelDefinition {
 impl ChannelDefinition {
     pub fn for_media(kind: MediaKind) -> Self {
         let source = match kind {
+            MediaKind::Reference => ChannelSource::Reference { target: None },
             MediaKind::Picture => ChannelSource::Picture { asset: None },
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
@@ -43,6 +44,7 @@ impl ChannelDefinition {
 
     pub fn media_kind(&self) -> MediaKind {
         match self.source {
+            ChannelSource::Reference { .. } => MediaKind::Reference,
             ChannelSource::Picture { .. } => MediaKind::Picture,
             ChannelSource::Composition { .. } => MediaKind::Composition,
             ChannelSource::Matrix { .. } => MediaKind::Matrix,
@@ -56,6 +58,7 @@ impl ChannelDefinition {
             validate_extent(extent)?;
         }
         match &self.source {
+            ChannelSource::Reference { .. } => {}
             ChannelSource::Matrix { output } => {
                 if let crate::matrix::protocol::MatrixOutput::Final { definition } = output {
                     definition.validate()?;
@@ -112,6 +115,17 @@ pub struct ChannelResolution {
 pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> Result<ChannelResolution, String> {
     definition.validate()?;
     let (intrinsic, availability) = match &definition.source {
+        ChannelSource::Reference { target } => match observed {
+            SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
+            SourceObservation::Unavailable => (
+                None,
+                if target.is_some() {
+                    ChannelAvailability::Missing
+                } else {
+                    ChannelAvailability::Unconfigured
+                },
+            ),
+        },
         ChannelSource::Matrix { output } => match observed {
             SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
             SourceObservation::Unavailable => (

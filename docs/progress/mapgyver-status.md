@@ -1,10 +1,10 @@
 # MapGyver implementation status
 
-**Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
+**Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M04 Reference media.
-**Next deliverable:** typed target references that mirror target channels/content, share
-rendering/decoder ownership, reject cycles and retain the full M04/7 API/UI/history scope.
+**Next deliverable:** complete Reference mirrored-output presentation/selection and default-drop/
+Alt-copy child-media behavior; retain mixed Matrix, scale and native parity acceptance.
 **Execution:** M04/1–2 accepted; M04/7 is next on `mapgyver`, with one active gate. Source
 qualification M04/4–6 remains in the return queue under the plan's recorded functional order.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
@@ -12,10 +12,11 @@ qualification M04/4–6 remains in the return queue under the plan's recorded fu
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
 Texture authoring, typed source commands and named scripting from the Inspector, source media,
 Screen/Surface editing, Composition and Matrix playback.
-**Last delivered capability:** command execution Undo preserves authored configuration after rapid
-vector-field editing. Golden text fields commit discrete writes; slider gestures retain grouping,
-and delayed edit-session reopens respect cancellation and project lifetime. Source automation's
-defaults, commands, methods/callbacks/snippets, generic editing and history are now accepted.
+**Last delivered capability:** [typed Reference media](../architecture/mapgyver-reference-media.md)
+mirror live target channels without copying channel subtrees or decoder ownership. Automatic
+outputs reuse target textures; optional Resolution adds one shared sampling pass. Manager/Inspector,
+intents, commands and named scripting support creation/configuration with history and reload.
+This is a verified product slice; full Reference acceptance remains open.
 **Last accepted:** [M04/2 native source variants](mapgyver-m04-variants.md): all three source
 kinds on Intel Graphics and NVIDIA RTX 5080, including shared Resolution, three consumers,
 source resize, reorder/history/reload and pixels. Broader native qualification remains open.
@@ -53,7 +54,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/7            | Implement typed Reference targets, target-channel synchronization, mixed Reference/Composition/Matrix cycle rejection, shared rendering/decoders, optional resampling and default-drop/Alt-copy semantics, with full Parameter/API/history/project parity.                                                                |
+| Active   | M04/7            | Typed targets, virtual mirrored channels, shared render plans and API/Inspector/history core implemented and software-verified. Next complete mirrored-output presentation/selection and default-drop/Alt-copy child media; retain stress, full mixed Matrix parity and native sharing/resampling/recovery checks. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
 | Pending  | M04/8            | After Reference working contracts, deliver independent dockable Media Preview instances with selection-follow/lock/channel/grid state and retirement; remove Inspector previews and complete native/bundled acceptance.                                                                                                   |
@@ -81,26 +82,27 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** [M04/2 native variants accepted](mapgyver-m04-variants.md). Six cases
-  cover Solid Color, Picture and Shared Texture on Intel Graphics and NVIDIA RTX 5080: two
-  variants in one media, natural/default canvas and shared forced Resolution, three consumers,
-  source resize/content changes, reorder/Undo/Redo and reload with stable identities and pixels.
-  Reused the existing owned fixture; preserved its original limits and pixel oracle. Exact
-  channel target extents are asserted separately from fixed, bounded consumer readbacks.
-  **Checks:** exact test/producer compilation; 143 media software tests passed; strict native
-  test Clippy passed; final exact test compile passed; one native attempt passed all six cases
-  in 86.86 seconds with 2/255 pixel tolerance, renderer retirement and producer exit. No owned
-  producer remained. Root/Golden formatting and diff checks pass; runtime code is unchanged.
-  Batch 2026-11-02 23:25–2026-11-03 00:10 CET, delivered within cutoff. **Gate change:** M04/2
-  Active → Accepted. **Next product:** M04/7 Reference media, including its full typed target,
-  mirror/synchronization, shared-rendering/decoder, resampling, cycle, API/UI and drop/copy scope.
-  The plan records this functional ordering; M04/4–6 return at the next allocated qualification
-  batch after Reference product slices. Full Spout lifecycle/cross-adapter/RGBA/declared-input
-  capacity and broad caller/Picture/resource parity remain required. The earlier
-  [partial native evidence](evidence/mapgyver-spout-metadata-native-2026-11-02.json) is retained;
-  new M04/2 evidence verifies fixed-resolution resize/content on both adapters without closing
-  M04/4. Preview and all other return gates remain open. **Counts:** 26/57 gates, M04 3/8 (38%),
-  3/11 phases (27% overall); no denominator or production budget changed.
+- **Current milestone:** M04/7 Reference core, owned by MapGyver; started 2026-11-02 23:49 CET,
+  cutoff 2026-11-03 00:34 CET. Dedicated typed Target/Resolution/Sampling node, virtual outputs,
+  shared passthrough/optional resampling and mixed-cycle validation are implemented. Creation
+  and configuration use public intents, typed commands, named scripts/callbacks/snippets and
+  the generic manager/Inspector. Reference owns no decoder or source settings. Command schema
+  advances to v2 for its real Target Parameter; unsupported v1 rejects explicitly.
+  **Checks:** library run: 289 passed, two failures corrected (catalog expectation and original
+  Composition self-reference rejection), one ignored; affected reruns passed. The additional
+  stale-capture guard test passes with all six Reference tests: 292 distinct library tests now
+  have passing evidence, one ignored. Renderer tests prove one source pass for shared automatic
+  References and one additional shared forced-resolution pass. Protocol generation/drift,
+  Svelte check (zero errors/warnings), strict all-target native-feature Clippy and ordinary
+  bundled build passed. Bundled `--reference-ui --media-command-ui --media-script-ui --catalog-ui`
+  passed: real Target picker, Resolution editing, mirrored membership, commands/scripts/catalog,
+  history and Save/New/Load. Final enable/missing-target guard changes passed affected tests
+  and Clippy after that browser run. No native Reference qualification was attempted.
+  **Gate change:** none; M04/7 stays Active. Remaining: complete mirrored-output presentation/
+  selection and stress, default-drop/Alt-copy child-media behavior, full mixed Matrix parity,
+  native sharing/resampling/recovery. Next product deliverable is the mirrored-output and
+  child-media authoring slice. Source qualification M04/4–6 and Preview remain queued.
+  Counts remain 26/57 gates, M04 38%, 3/11 phases (27%); partial implementation earns no gate.
 
 ## Maintenance rule
 

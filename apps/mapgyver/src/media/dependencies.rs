@@ -68,6 +68,17 @@ fn graph(
             }
         }
     }
+    let mut resolver = super::reference::Resolver::new(engine);
+    for (_, node) in engine.nodes.iter() {
+        if let AppNode::ReferenceMedia(node) = node {
+            resolver.leaf(MediaId(node.node_data().meta.uuid))?;
+        }
+    }
+    for sources in result.values_mut() {
+        for source in sources {
+            *source = resolver.canonical(*source)?;
+        }
+    }
     Ok(result)
 }
 
@@ -78,7 +89,11 @@ pub(super) fn reject_cycle(
     sources: &[ChannelReference],
 ) -> Result<(), String> {
     let graph = graph(engine, HashMap::new())?;
-    let mut pending = sources.to_vec();
+    let mut resolver = super::reference::Resolver::new(engine);
+    let mut pending = sources
+        .iter()
+        .map(|source| resolver.canonical(*source))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut seen = HashSet::new();
     while let Some(source) = pending.pop() {
         if source == owner {

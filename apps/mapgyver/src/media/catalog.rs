@@ -10,6 +10,7 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
         return Err("channel choices require 1..128 results and at most 256 search bytes".into());
     }
     let search = query.search.to_lowercase();
+    let mut resolver = super::reference::Resolver::new(engine);
     let mut result = ChannelChoicePage {
         choices: Vec::new(),
         total: 0,
@@ -17,24 +18,15 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
     };
     for id in super::folders::entries(engine)? {
         let node = engine.nodes.get(id).ok_or("missing media child")?;
-        let AppNode::Media(media) = node else {
+        if !matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {
             continue;
-        };
-        let mut child = media.node_data().first_child;
-        while let Some(id) = child {
-            let node = engine.nodes.get(id).ok_or("missing media child")?;
-            child = node.node_data().next_sibling;
-            if crate::parameters::is_parameter_folder(node) {
-                continue;
-            }
-            let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
-                return Err("media child is not a channel".into());
-            };
-            child = channel.node_data().next_sibling;
+        }
+        let media_id = MediaId(node.node_data().meta.uuid);
+        for channel in resolver.channels(media_id)? {
             if matches!(query.scope, ChannelChoiceScope::MatrixFinal) && !channel.is_matrix_final() {
                 continue;
             }
-            let label = format!("{} / {}", media.node_data().meta.label, channel.node_data().meta.label);
+            let label = format!("{} / {}", node.node_data().meta.label, channel.node_data().meta.label);
             if !label.to_lowercase().contains(&search) {
                 continue;
             }
@@ -43,7 +35,7 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
             if position >= query.start && result.choices.len() < usize::from(query.count) {
                 result.choices.push(ChannelChoice {
                     reference: ChannelReference {
-                        media: MediaId(media.node_data().meta.uuid),
+                        media: media_id,
                         channel: ChannelId(channel.node_data().meta.uuid),
                     },
                     label,
@@ -55,6 +47,7 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
 }
 
 pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String> {
+    let mut resolver = super::reference::Resolver::new(engine);
     let mut result = MediaManagerSnapshot {
         media: Vec::new(),
         assets: Vec::new(),
@@ -65,37 +58,32 @@ pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String
             result.assets.push(asset.snapshot());
             continue;
         }
-        let AppNode::Media(media) = node else {
-            continue;
+        let kind = match node {
+            AppNode::Media(media) => media.kind(),
+            AppNode::ReferenceMedia(_) => MediaKind::Reference,
+            _ => continue,
         };
-        let data = media.node_data();
+        let data = node.node_data();
         let media_id = MediaId(data.meta.uuid);
         let mut snapshot = MediaSnapshot {
             id: media_id,
             label: data.meta.label.clone(),
-            media_kind: media.kind(),
+            media_kind: kind,
             channels: Vec::new(),
         };
-        let mut channel = data.first_child;
-        while let Some(id) = channel {
-            let node = engine.nodes.get(id).ok_or("missing media child")?;
-            channel = node.node_data().next_sibling;
-            if crate::parameters::is_parameter_folder(node) {
-                continue;
-            }
-            let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
-                return Err("media children must be channels".into());
-            };
-            let data = node.node_data();
+        for channel in resolver.channels(media_id)? {
+            let data = channel.node_data();
             snapshot.channels.push(ChannelSnapshot {
                 reference: ChannelReference {
                     media: media_id,
                     channel: ChannelId(data.meta.uuid),
                 },
                 label: data.meta.label.clone(),
-                definition: super::authoring::effective_definition(engine, node)?,
+                definition: match node {
+                    AppNode::ReferenceMedia(reference) => reference.definition(engine, ChannelId(data.meta.uuid)),
+                    _ => super::authoring::effective_definition(engine, channel)?,
+                },
             });
-            channel = data.next_sibling;
         }
         result.media.push(snapshot);
     }

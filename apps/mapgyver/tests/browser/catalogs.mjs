@@ -13,7 +13,15 @@ export async function verifyCreationCatalogsUi({ base }) {
 	const rejected = observeRejectedRequests(page, () => 'creation catalogs');
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
 	const panel = (name) => page.locator(`section[aria-label="${name}"]`);
-	const expected = ['Folder', 'Solid Color', 'Picture', 'Shared Texture', 'Composition', 'Matrix'];
+	const expected = [
+		'Folder',
+		'Reference',
+		'Solid Color',
+		'Picture',
+		'Shared Texture',
+		'Composition',
+		'Matrix'
+	];
 	async function mediaMenu() {
 		await panel('Media Manager')
 			.getByRole('button', { name: 'Add child item', exact: true })

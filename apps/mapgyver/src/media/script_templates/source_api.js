@@ -14,6 +14,8 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// Configure the command's typed Parameters in the Inspector, then:
 	// local.executeCommand("run-command", commandId); // or command.execute("run-command")
 	// Uncomment the operations you need. Each call is its own atomic history step.
+	// local.createReference("reference", mediaId, ""); // ReferenceCreated returns media UUID
+	// local.configureReference("retarget", referenceMediaId, mediaId); // empty target clears
 	// local.addChannel("variant", mediaId, "");
 	// local.configureMediaResolution("size", mediaId, true, 1920, 1080);
 	// local.configureMediaResolution("native-size", mediaId, false, 1920, 1080);

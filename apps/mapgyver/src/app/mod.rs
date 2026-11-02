@@ -7,6 +7,7 @@ golden_core::define_node_enum!(
         MediaManager(crate::media::MediaManagerNode),
         MediaFolder(crate::media::MediaFolderNode),
         Media(crate::media::MediaNode),
+        ReferenceMedia(crate::media::ReferenceNode),
         MediaChannel(crate::media::ChannelNode),
         MediaCommand(crate::media::MediaCommandNode),
         MediaAsset(crate::media::AssetNode),

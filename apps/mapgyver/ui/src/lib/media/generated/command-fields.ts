@@ -4,6 +4,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "label"
   ],
+  "ConfigureReference": [
+    "media",
+    "reference_target"
+  ],
   "ConfigureResolution": [
     "media",
     "resolution_enabled",
@@ -24,6 +28,10 @@ export const COMMAND_PARAMETER_FIELDS = {
   "CreateMediaInFolder": [
     "target_folder",
     "media_kind",
+    "label"
+  ],
+  "CreateReference": [
+    "reference_target",
     "label"
   ],
   "CreateScript": [

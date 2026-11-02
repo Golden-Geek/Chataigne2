@@ -15,6 +15,8 @@ macro_rules! command_kinds {
     };
 }
 command_kinds! {
+    CreateReference => "Create Reference", "Media", ["reference_target", "label"];
+    ConfigureReference => "Set Reference Target", "Media", ["media", "reference_target"];
     CreateMedia => "Create Media", "Media", ["media_kind", "label"];
     CreateMediaInFolder => "Create Media in Folder", "Media", ["target_folder", "media_kind", "label"];
     RenameMedia => "Rename Media", "Media", ["media", "label"];

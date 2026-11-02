@@ -54,7 +54,11 @@ impl Node for MediaFolderNode {
         false
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&["mapgyver.media.v5", "mapgyver.media.folder"]))
+        Some(UserContainerRules::new(&[
+            "mapgyver.media.v5",
+            "mapgyver.media.folder",
+            super::reference::NODE_TYPE,
+        ]))
     }
     fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
         super::creation::items()

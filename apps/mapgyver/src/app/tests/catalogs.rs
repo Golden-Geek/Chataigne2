@@ -16,6 +16,7 @@ fn manager_catalogs_expose_document_objects_and_reject_automation_wrappers() {
             media,
             vec![
                 "Folder",
+                "Reference",
                 "Solid Color",
                 "Picture",
                 "Shared Texture",

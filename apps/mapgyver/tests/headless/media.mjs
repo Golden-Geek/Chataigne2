@@ -7,6 +7,7 @@
 // Add --channels-ui to verify the media-only manager and typed Channels collection.
 // Add --media-script-ui for app-template script creation and named source API callbacks.
 // Add --media-command-ui for typed command creation, generic editing and firing/history.
+// Add --reference-ui for Reference creation, generic target/resolution and live mirrored identities.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
@@ -46,6 +47,7 @@ const withUi = [
 	'--channels-ui',
 	'--media-script-ui',
 	'--media-command-ui',
+	'--reference-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -316,6 +318,10 @@ try {
 	if (process.argv.includes('--media-command-ui')) {
 		const { verifyMediaCommandUi } = await import('../browser/media-command.mjs');
 		await verifyMediaCommandUi({ base, edit, intent, post, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--reference-ui')) {
+		const { verifyReferenceUi } = await import('../browser/reference.mjs');
+		await verifyReferenceUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

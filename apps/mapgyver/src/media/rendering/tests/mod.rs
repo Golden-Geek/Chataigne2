@@ -7,6 +7,7 @@ mod pictures;
 mod preview;
 mod preview_admission;
 mod publication;
+mod references;
 mod screens;
 mod solid_color;
 mod transitions;

@@ -16,6 +16,7 @@ mod nodes;
 mod persistence;
 pub mod picture;
 pub mod protocol;
+pub(crate) mod reference;
 pub mod rendering;
 pub mod resolution;
 mod script_templates;
@@ -34,6 +35,7 @@ pub use folders::MediaFolderNode;
 pub use media_node::MediaNode;
 pub use nodes::MediaManagerNode;
 pub(crate) use persistence::validate_project_file;
+pub use reference::ReferenceNode;
 pub use source_node::resolve_source_node;
 
 #[cfg(test)]

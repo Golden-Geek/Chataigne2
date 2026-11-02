@@ -77,7 +77,7 @@ pub(super) fn build(
     submission.guards = capture.guards.clone();
     let mut guards = capture.guards.to_vec();
     let mut image_sources = HashMap::new();
-    let mut prepared_channels = HashMap::new();
+    let mut prepared_channels = HashMap::<ChannelReference, PreparedChannel>::new();
     for route in routes {
         if !seen_outputs.insert(route.output) {
             return Err("output routes must be unique".into());
@@ -168,6 +168,39 @@ pub(super) fn build(
                 .filter(|_| channel.enabled)
                 .map(|definition| &definition.source);
             match source {
+                Some(ChannelSource::Reference { target }) => {
+                    entry.source = None;
+                    let definition = channel.definition.as_ref().unwrap();
+                    resolution = resolution::resolve(definition, SourceObservation::Unavailable)?;
+                    if !rejected.contains(&reference)
+                        && let Some(target) = target.and_then(|target| prepared_channels.get(&target)).copied()
+                    {
+                        resolution = target.resolution;
+                        match definition.size {
+                            crate::media::protocol::SizePolicy::Automatic => {
+                                let prepared = PreparedChannel {
+                                    reference,
+                                    resolution,
+                                    target: target.target,
+                                    source: None,
+                                };
+                                prepared_channels.insert(reference, prepared);
+                                channels.push(prepared);
+                                slot.insert(entry);
+                                continue;
+                            }
+                            crate::media::protocol::SizePolicy::Fixed { extent } => {
+                                resolution.extent = Some(extent);
+                                if resolution.availability == ChannelAvailability::Ready {
+                                    operation = RenderOperation::Sample {
+                                        source: target.target,
+                                        filter: definition.filter,
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
                 Some(source @ ChannelSource::Picture { asset }) => {
                     let value = asset.and_then(|id| pictures.and_then(|pictures| pictures.get(id)));
                     resolution = resolution::resolve(
@@ -418,14 +451,14 @@ pub(super) fn build(
     for route in routes {
         submission.plan.outputs.push(PlanOutput {
             id: route.output,
-            source: entries[&route.channel].target,
+            source: prepared_channels[&route.channel].target,
         });
     }
     let mut screen_entries = HashMap::new();
     let mut screen_extents = HashMap::new();
-    let source_targets = entries
+    let source_targets = channels
         .iter()
-        .map(|(reference, entry)| (*reference, entry.target))
+        .map(|channel| (channel.reference, channel.target))
         .collect();
     for route in screens {
         if route.output.is_some_and(|output| !seen_outputs.insert(output)) {

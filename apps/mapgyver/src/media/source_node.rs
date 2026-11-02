@@ -9,6 +9,17 @@ pub fn resolve_source_node(engine: &AppEngine, source: NodeUuid) -> Result<Chann
     let id = engine.node_id_by_uuid(source).ok_or("source node is missing")?;
     let node = engine.nodes.get(id).ok_or("source node is missing")?;
     let reference = match node {
+        AppNode::ReferenceMedia(_) => {
+            let mut resolver = super::reference::Resolver::new(engine);
+            let channel = resolver
+                .channels(MediaId(source))?
+                .next()
+                .ok_or("Reference target has no channels")?;
+            ChannelReference {
+                media: MediaId(source),
+                channel: ChannelId(channel.node_data().meta.uuid),
+            }
+        }
         AppNode::Media(_) => {
             let media = MediaId(source);
             super::authoring::media(engine, media)?;
@@ -37,6 +48,6 @@ pub fn resolve_source_node(engine: &AppEngine, source: NodeUuid) -> Result<Chann
         }
         _ => return Err("source must be a Media or Channel node".into()),
     };
-    super::authoring::channel_id(engine, reference)?;
+    super::authoring::channel(engine, reference)?;
     Ok(reference)
 }

@@ -276,6 +276,7 @@ pub(super) fn validate_resolution(value: Vec2) -> Result<(), String> {
 }
 pub(super) fn kind_name(kind: MediaKind) -> &'static str {
     match kind {
+        MediaKind::Reference => "Reference",
         MediaKind::Picture => "Picture",
         MediaKind::SolidColor => "SolidColor",
         MediaKind::SharedTexture => "SharedTexture",

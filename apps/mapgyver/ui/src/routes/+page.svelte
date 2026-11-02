@@ -38,6 +38,7 @@
 	for (const type of [
 		'mapgyver.media.manager',
 		'mapgyver.media.v5',
+		'mapgyver.media.reference.v1',
 		'mapgyver.media.channel',
 		'mapgyver.media.asset',
 		'mapgyver.media.folder',

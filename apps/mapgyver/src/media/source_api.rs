@@ -6,6 +6,8 @@ use serde::de::DeserializeOwned;
 use super::protocol::*;
 
 pub(super) const METHODS: &[&str] = &[
+    "createReference",
+    "configureReference",
     "createMedia",
     "addChannel",
     "configureMediaResolution",
@@ -61,12 +63,27 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configurePicture" | "configureSharedTexture" => 3,
         "importPicture" => 2,
         "executeCommand" => 1,
+        "createReference" | "configureReference" => 2,
         _ => return Ok(None),
     };
     if args.len() != count {
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "createReference" => MediaEdit::CreateReference {
+            target: optional_text(args, 0)?
+                .map(|value| uuid::Uuid::parse_str(&value).map(|id| MediaId(golden_core::node::NodeUuid(id))))
+                .transpose()
+                .map_err(|error| error.to_string())?,
+            label: optional_text(args, 1)?,
+        },
+        "configureReference" => MediaEdit::ConfigureReference {
+            media: MediaId(uuid(args, 0)?),
+            target: optional_text(args, 1)?
+                .map(|value| uuid::Uuid::parse_str(&value).map(|id| MediaId(golden_core::node::NodeUuid(id))))
+                .transpose()
+                .map_err(|error| error.to_string())?,
+        },
         "executeCommand" => MediaEdit::ExecuteCommand {
             command: uuid(args, 0)?,
         },

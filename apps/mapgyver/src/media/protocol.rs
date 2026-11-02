@@ -51,6 +51,7 @@ pub enum ChannelMoveDirection {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum MediaKind {
+    Reference,
     Picture,
     SolidColor,
     SharedTexture,
@@ -61,6 +62,7 @@ pub enum MediaKind {
 impl MediaKind {
     pub(crate) fn default_label(self) -> &'static str {
         match self {
+            Self::Reference => "Reference",
             Self::Picture => "Picture",
             Self::SolidColor => "Solid Color",
             Self::SharedTexture => "Shared Texture",
@@ -108,6 +110,9 @@ pub enum SizePolicy {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ChannelSource {
+    Reference {
+        target: Option<ChannelReference>,
+    },
     Matrix {
         output: crate::matrix::protocol::MatrixOutput,
     },
@@ -140,6 +145,14 @@ pub struct ChannelDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    CreateReference {
+        target: Option<MediaId>,
+        label: Option<String>,
+    },
+    ConfigureReference {
+        media: MediaId,
+        target: Option<MediaId>,
+    },
     Applications {
         edit: crate::applications::protocol::ApplicationEdit,
     },
@@ -298,6 +311,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ReferenceCreated {
+        media: MediaId,
+    },
     CommandCatalog {
         commands: Vec<MediaCommandCatalogItem>,
     },

@@ -7,6 +7,9 @@ implementation and verification state belong only to the
 [status page](../progress/mapgyver-status.md). Execute the
 [implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
+The [Reference implementation boundary](mapgyver-reference-media.md) explains typed targets,
+virtual channel identities, shared target rendering and channel-specific cycle validation.
+
 ## Ownership
 
 | Layer                                             | Responsibility                                                                                                                    |

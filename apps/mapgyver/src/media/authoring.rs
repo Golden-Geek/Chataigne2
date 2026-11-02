@@ -44,13 +44,16 @@ pub(crate) fn project_instance(engine: &AppEngine) -> Result<uuid::Uuid, String>
 
 pub(crate) fn media(engine: &AppEngine, media: MediaId) -> Result<(NodeId, MediaKind), String> {
     let id = engine.node_id_by_uuid(media.0).ok_or("media reference is missing")?;
-    let Some(AppNode::Media(node)) = engine.nodes.get(id) else {
-        return Err("reference is not media".into());
+    let node = engine.nodes.get(id).ok_or("media is missing")?;
+    let kind = match node {
+        AppNode::Media(node) => node.kind(),
+        AppNode::ReferenceMedia(_) => MediaKind::Reference,
+        _ => return Err("reference is not media".into()),
     };
     if !super::folders::contains_parent(engine, node.node_data().parent, manager(engine)?) {
         return Err("media is outside its manager".into());
     }
-    Ok((id, node.kind()))
+    Ok((id, kind))
 }
 
 pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Result<NodeId, String> {
@@ -71,6 +74,9 @@ pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Res
 }
 
 pub fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<ChannelSnapshot, String> {
+    if media(engine, reference.media)?.1 == MediaKind::Reference {
+        return super::reference::channel(engine, reference);
+    }
     let id = channel_id(engine, reference)?;
     let AppNode::MediaChannel(node) = engine.nodes.get(id).expect("validated channel") else {
         unreachable!()
@@ -117,6 +123,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     }
     let pending_before = engine.edits.pending.len();
     let result = match edit {
+        MediaEdit::CreateReference { target, label } => {
+            super::reference::create(engine, manager(engine)?, target, label)?
+        }
+        MediaEdit::ConfigureReference { media, target } => {
+            super::reference::configure(engine, media, target)?;
+            MediaEditResult::Changed
+        }
         MediaEdit::Applications { edit } => crate::applications::apply(engine, edit)?,
         MediaEdit::InspectChoices { query } => MediaEditResult::Choices {
             page: super::catalog::choices(engine, query)?,
@@ -249,7 +262,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::MoveEntry { entry, parent } => {
             let node = engine.node_id_by_uuid(entry).ok_or("media entry is missing")?;
             let entry_node = engine.nodes.get(node).ok_or("media entry is missing")?;
-            if !matches!(entry_node, AppNode::Media(_) | AppNode::MediaFolder(_)) {
+            if !matches!(
+                entry_node,
+                AppNode::Media(_) | AppNode::ReferenceMedia(_) | AppNode::MediaFolder(_)
+            ) {
                 return Err("only media and folders can be organized".into());
             }
             let manager = super::folders::parent(engine, None)?;
@@ -299,11 +315,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         MediaEdit::ConfigureMediaSampling { media: owner, filter } => {
             let (id, _) = media(engine, owner)?;
-            let Some(AppNode::Media(media)) = engine.nodes.get(id) else {
-                unreachable!()
+            let parameter = match engine.nodes.get(id) {
+                Some(AppNode::Media(media)) => media.sampling_parameter(),
+                Some(AppNode::ReferenceMedia(media)) => media.sampling_parameter(),
+                _ => unreachable!(),
             };
             engine.edits.push(Edit::SetParam {
-                node: media.sampling_parameter(),
+                node: parameter,
                 value: golden_core::parameter::ParamValue::Enum(super::media_node::filter_name(filter).into()),
                 behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
             });
@@ -476,10 +494,11 @@ pub(crate) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) ->
 
 fn configure_resolution(engine: &mut AppEngine, owner: MediaId, size: SizePolicy) -> Result<(), String> {
     let (id, _) = media(engine, owner)?;
-    let Some(AppNode::Media(media)) = engine.nodes.get(id) else {
-        unreachable!()
+    let parameter = match engine.nodes.get(id) {
+        Some(AppNode::Media(media)) => media.resolution_parameter(),
+        Some(AppNode::ReferenceMedia(media)) => media.resolution_parameter(),
+        _ => unreachable!(),
     };
-    let parameter = media.resolution_parameter();
     if let SizePolicy::Fixed { extent } = size {
         if extent.width() > 16384 || extent.height() > 16384 {
             return Err("Resolution must contain whole pixels in 1..16384 per axis".into());
@@ -508,6 +527,11 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
         .collect::<std::collections::HashSet<_>>();
     for (id, node) in engine.nodes.iter() {
         match node {
+            AppNode::ReferenceMedia(_) => {
+                if !managed.contains(&id) || crate::parameters::has_domain_children(engine, id) {
+                    return Err("Reference belongs in media hierarchy and owns only declared Parameters".into());
+                }
+            }
             AppNode::MediaCommand(node) => {
                 if node.node_data().parent != Some(manager) || crate::parameters::has_domain_children(engine, id) {
                     return Err("commands belong to Media Manager and contain only declared Parameters".into());
@@ -588,6 +612,9 @@ fn create_media(
     media_kind: MediaKind,
     requested: Option<String>,
 ) -> Result<MediaEditResult, String> {
+    if media_kind == MediaKind::Reference {
+        return super::reference::create(engine, parent, None, requested);
+    }
     let (tree, reference) = media_tree(
         label(engine, parent, requested, media_kind.default_label())?,
         ChannelDefinition::for_media(media_kind),

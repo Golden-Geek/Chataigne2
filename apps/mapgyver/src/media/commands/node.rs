@@ -9,7 +9,7 @@ use golden_core::{
 use golden_video::{Extent2D, plan::SampleFilter};
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v1", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v2", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -20,8 +20,10 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v5".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
         );
+        reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
+            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -50,7 +52,7 @@ use std::sync::Arc;
         label: String = "" (label = "Label", description = "Empty uses the backend default when creating objects.");
         media_kind: Enum = "SolidColor" (
             label = "Media kind",
-            enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]),
+            enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix", "Reference"]),
             constraint_policy = "reject"
         );
         resolution_enabled: bool = false (label = "Force resolution");
@@ -127,6 +129,14 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            MediaCommandKind::CreateReference => MediaEdit::CreateReference {
+                target: optional(self.reference_target.get_ref()).map(MediaId),
+                label: requested,
+            },
+            MediaCommandKind::ConfigureReference => MediaEdit::ConfigureReference {
+                media,
+                target: optional(self.reference_target.get_ref()).map(MediaId),
+            },
             MediaCommandKind::CreateMedia => MediaEdit::CreateMedia {
                 media_kind: choice(self.media_kind.get_ref().as_str())?,
                 label: requested,
@@ -272,7 +282,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v1", from_struct)]
+#[node("mapgyver.media.command.v2", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false

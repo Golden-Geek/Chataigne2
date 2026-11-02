@@ -45,8 +45,16 @@ pub(super) fn ordered(
             if channel.enabled && channel.derived() {
                 let extra = usize::from(channel.matrix.as_ref().is_some_and(|matrix| matrix.needs_scratch()));
                 let count = channel.dependencies().count() + extra;
-                match channel.instances.is_some() || channel.matrix.is_some() {
-                    true if count <= budget
+                match channel.instances.is_some()
+                    || channel.matrix.is_some()
+                    || channel.definition.as_ref().is_some_and(|definition| {
+                        matches!(
+                            definition.source,
+                            crate::media::protocol::ChannelSource::Reference { .. }
+                        )
+                    }) {
+                    true if channel.dependencies().all(|source| channels.contains_key(&source))
+                        && count <= budget
                         && channel.instance_guards.len() <= guard_budget
                         && extra <= extra_passes =>
                     {
