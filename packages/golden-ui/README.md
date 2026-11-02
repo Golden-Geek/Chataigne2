@@ -27,6 +27,17 @@ of structural move permissions; accepting a source drop does not authorize repar
 source eligibility and backend creation/replacement semantics. Dashboard bindings use the same
 generic drag contract as specialized editors.
 
+`ManagerListPanel.canCreateNodeChildren` controls child Add/Paste actions in each row's context
+menu, independently of backend container capabilities. A manager can omit editing internal
+children while their Inspector still exposes the same real nodes. Manager background and folder
+creation continue to use the backend catalog. This is presentation policy, not edit authorization.
+The shared node menu delegates Parameter constraint menus/editors to `NodeConstraintMenu`;
+the root menu owns target selection, creation, clipboard and node actions.
+Duplicate eligibility uses the parent's accepted item kinds, so creation aliases do not hide
+copying an existing subtree. The backend still validates each duplicate intent.
+Run `npm run test:browser --workspace golden_ui -- --node-menu` for numeric/enum constraint
+editing and side-panel lifetime checks.
+
 Each app wraps its routes in `ApplicationRoot`, declaring its expected application ID and
 development backend port. The root validates the host's generic discovery document, retries
 unavailable hosts and cancels pending work on unmount. It renders children only after app

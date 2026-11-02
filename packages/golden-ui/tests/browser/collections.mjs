@@ -9,6 +9,7 @@ import { qualifyCatalog } from './catalog.mjs';
 import { qualifyLogs } from './logs.mjs';
 import { qualifyTreeKeyboard } from './tree-keyboard.mjs';
 import { qualifyConstrainedPicker } from './constrained-picker.mjs';
+import { qualifyNodeMenu } from './node-menu.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const repository = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -63,7 +64,11 @@ try {
 				mounted: Number(tree.dataset.mountedRowCount)
 			}))
 		);
-	if (process.argv.includes('--constrained-picker')) {
+	if (process.argv.includes('--node-menu')) {
+		await qualifyNodeMenu(page, emit);
+		assert.deepEqual(errors, []);
+		emit({ kind: 'result', passed: true, errors });
+	} else if (process.argv.includes('--constrained-picker')) {
 		await qualifyConstrainedPicker(page, emit);
 		assert.deepEqual(errors, []);
 		emit({ kind: 'result', passed: true, errors });

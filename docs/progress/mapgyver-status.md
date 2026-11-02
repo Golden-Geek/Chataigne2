@@ -2,18 +2,19 @@
 
 **Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** revised M04 procedural canvas and shared Matrix setting ownership.
-**Next deliverable:** remove channel creation from Media Manager context menus, then complete
-authoritative creation/import defaults and the command/function/callback/snippet API.
+**Current topic:** revised M04 media/variant authoring API completion.
+**Next deliverable:** complete the command/function/callback/snippet API under revised
+media/variant ownership and verify the remaining generic/direct editing and history contracts.
 **Execution:** implementing M04/1 on `mapgyver`; one active gate, delivered in reviewable slices.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
 Texture authoring, source media, Screen/Surface editing, Composition and Matrix playback.
-**Last delivered capability:** procedural canvases use media Resolution, with 1920×1080 when
-disabled; Matrix settings are typed media children with a settings-only API. Placement, document,
-capture and rendering reads use the same owner. Schema v5 rejects unsupported older media.
-Software/browser verification passed; revised native lifecycle acceptance remains open.
+**Last delivered capability:** media rows omit child Add/Paste in the manager while folder and
+Inspector Channels creation remain available. Media duplication is visible and preserves
+independent identities through Undo/Redo; catalog/API/import share backend labels and defaults.
+Shared media settings and procedural canvases remain on schema v5. Software/browser verification
+passed; revised native lifecycle acceptance remains open.
 **Last accepted:** user-reviewed native Screen/Surface, Composition and Matrix playback behavior
 on the prior schema. Remaining revised ownership and native editor acceptance stay open.
 
@@ -48,18 +49,18 @@ or gate was accepted by merging the plan.
 
 Exactly one gate is selected Active. Pending rows are the return queue, not concurrent work.
 
-| State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                    |
-| ------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active  | M04/1            | Shared media settings, procedural canvases, Channels and sender-only authoring are software/browser verified. Finish manager context-menu visibility, authoritative creation/import defaults and complete command/function/callback/snippet API; verify remaining revised generic/direct editing and history contracts. |
-| Pending | M04/2,4–8        | After M04/1, finish revised source/Spout/native checks, including the corrected lifecycle and declared-input capacity cases in the linked evidence; verify generic UI/lifetime, then Reference and Media Preview. M04/3 Picture worker bounds retain acceptance.                                                        |
-| Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                         |
-| Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                        |
-| Pending | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                               |
-| Pending | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                        |
-| Blocked | M03/4            | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                       |
-| Blocked | M03/9            | Original GPU critical-path proof/window timing remain unresolved; private-growth criterion failed. Return with supported bounded-error timing evidence or an explicit scope decision, and a concrete ownership correction for the preserved memory failure. No unchanged benchmark reruns or implicit budget revision.  |
-| Blocked | M05/4,5,8        | Missing physical concurrent-output/hotplug/DPI/presentation coverage. Return with reported display resolution/scaling/layout/available outputs and actual native access; run the exact retained matrix.                                                                                                                 |
-| Waiting | M09/1            | All revised feature and retained qualification gates; then complete Q01–Q06, actual-app statistics and Windows artifact checks.                                                                                                                                                                                         |
+| State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                   |
+| ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Active  | M04/1            | Shared media settings, procedural canvases, Channels, sender-only authoring, manager menus and creation/import defaults are software/browser verified. Finish the complete command/function/callback/snippet API; verify remaining revised generic/direct editing and history contracts.                               |
+| Pending | M04/2,4–8        | After M04/1, finish revised source/Spout/native checks, including the corrected lifecycle and declared-input capacity cases in the linked evidence; verify generic UI/lifetime, then Reference and Media Preview. M04/3 Picture worker bounds retain acceptance.                                                       |
+| Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                        |
+| Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                       |
+| Pending | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                              |
+| Pending | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                       |
+| Blocked | M03/4            | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                      |
+| Blocked | M03/9            | Original GPU critical-path proof/window timing remain unresolved; private-growth criterion failed. Return with supported bounded-error timing evidence or an explicit scope decision, and a concrete ownership correction for the preserved memory failure. No unchanged benchmark reruns or implicit budget revision. |
+| Blocked | M05/4,5,8        | Missing physical concurrent-output/hotplug/DPI/presentation coverage. Return with reported display resolution/scaling/layout/available outputs and actual native access; run the exact retained matrix.                                                                                                                |
+| Waiting | M09/1            | All revised feature and retained qualification gates; then complete Q01–Q06, actual-app statistics and Windows artifact checks.                                                                                                                                                                                        |
 
 ## Evidence and handoff
 
@@ -76,25 +77,30 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/1 procedural/shared settings, owned by MapGyver media Parameters
-  and Composition/Matrix projections. Removed channel canvas, transition and empty-cell settings;
-  procedural canvas extent now projects media Resolution, with 1920×1080 when disabled.
-  Matrix settings are real media Parameter children; `MatrixEdit::Configure` accepts only
-  `MatrixSettings`, and derived output sources reject source-variant configuration. Document,
-  placement, playback, capture and rendering reads share the owning projection. Reference-cycle
-  validation reads output identities independently of canvas state. Schema v5, generated types
-  and callers changed together. Authored transforms retain their values when canvas size changes.
-  **Checks:** 277 Rust tests passed/1 existing ignored, including generated contracts, script
-  parity, generic/API ownership, defaults, exports, history/reload, capture invalidation and
-  bounded/deep graphs; 14 Node controller tests passed; UI check (0 errors/warnings); strict
-  all-target Clippy with `native-qualification`; ordinary executable build; combined bundled
-  procedural/Resolution/Channels/sender/catalog/source workflows; root/Golden and touched-file
-  formatting. The rendering fixture now checks the revised canvas mapping and unchanged
-  authored instances. The package has no npm `test` script; controller tests were run directly
-  with `node --test`. No native experiment or gate closed. Start 2026-11-02 21:17 CET;
-  scope cutoff 22:02 CET, completed within the batch.
-  **Remaining:** manager menus, authoritative creation/import defaults, complete module API,
-  broad legacy browser-workflow port and revised native parity. Shared Texture in `9e37ac5b`
+- **Current milestone:** M04/1 manager creation policy and authoritative defaults. MapGyver's
+  manager uses Golden's public `canCreateNodeChildren` presentation predicate: media rows omit
+  child Add/Paste, folders retain creation, and Inspector Channels retain their backend factory.
+  Catalog, app-intent and Picture-import labels now share the backend media-kind definition.
+  Generic creation and API parity cover all five media kinds, independent identities, detached
+  complete trees, rejection, one-step history and reload. Existing Picture-import atomicity and
+  script parity remain verified. No UI-owned creation defaults were found.
+  The bundled menu check reproduced hidden Duplicate for catalog aliases; Golden now checks
+  accepted item kinds, matching its keyboard/backend contract. The menu was split into focused
+  root/Parameter-constraint components (both under 1000 lines). Its new production browser check
+  also reproduced the existing numeric-input `.trim()` failure; typed number/null drafts now
+  support edited and cleared bounds, enum options and close-without-apply.
+  **Checks:** 278 Rust tests passed/1 existing ignored; 223 Golden UI unit tests; strict all-target
+  Clippy with `native-qualification`; UI and browser-fixture checks (0 errors/warnings); rebuilt
+  executable; production Golden constraint-menu workflow; bundled manager/Channels, media
+  duplicate/Undo/Redo, sender, folder/catalog and headless source Save/New/Load workflows.
+  Root/Golden and touched-file formatting passed. One planned validation cycle, followed by
+  affected reruns for the reproduced menu defects and an Inspector-root fixture selector fix.
+  No native experiment or gate closed. Start 2026-11-02 21:50 CET; cutoff 22:35 CET; delivered
+  within the batch. Reproduce with `cargo test --locked -p MapGyver --lib`,
+  `npm run test:browser --workspace golden_ui -- --node-menu` and
+  `node apps/mapgyver/tests/headless/media.mjs --channels-ui --catalog-ui`.
+  **Remaining:** complete module API, broad legacy browser-workflow port and revised native
+  parity. Shared Texture in `9e37ac5b`
   retains its [partial native evidence and return actions](evidence/mapgyver-spout-metadata-native-2026-11-02.json);
   fixed-output resize, cross-adapter/both-adapter completion, RGBA pixels and declared input
   capacity stay open for native acceptance after M04/1. Reference/Preview and all retained

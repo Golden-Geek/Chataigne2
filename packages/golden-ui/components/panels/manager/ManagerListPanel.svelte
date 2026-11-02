@@ -38,6 +38,7 @@
 		rowSupplementComponent: RowSupplementComponent = null,
 		isTreeNode,
 		canRenderNodeChildren = (_candidate: UiNodeDto) => false,
+		canCreateNodeChildren = (_candidate: UiNodeDto) => true,
 		nodeSearchText = defaultSearchText,
 		extraNodeFilter = null,
 		initiallyExpandedDepth = 5,
@@ -63,6 +64,8 @@
 		rowSupplementComponent?: Component<{ node: UiNodeDto }> | null;
 		isTreeNode: ManagerNodePredicate;
 		canRenderNodeChildren?: ManagerChildrenPredicate;
+		/** Present child Add/Paste only on rows whose children this manager edits. */
+		canCreateNodeChildren?: ManagerChildrenPredicate;
 		nodeSearchText?: ManagerNodeSearchText;
 		/** Additional predicate ANDed with the search-text match, e.g. a category filter. */
 		extraNodeFilter?: ManagerChildrenPredicate | null;
@@ -462,7 +465,13 @@
 				variableHeights={true}
 				scroller={treeElement}>
 				{#snippet item(row)}
-					<div class="manager-virtual-row" style:padding-inline-start={`${row.indent * 0.7}rem`}>
+					{@const rowNode = graphState?.nodesById.get(row.nodeId)}
+					<div
+						class="manager-virtual-row"
+						data-node-context-child-creation={rowNode && !canCreateNodeChildren(rowNode)
+							? 'false'
+							: undefined}
+						style:padding-inline-start={`${row.indent * 0.7}rem`}>
 						<OutlinerItem
 							nodeId={row.nodeId}
 							siblingParentId={row.parentId}

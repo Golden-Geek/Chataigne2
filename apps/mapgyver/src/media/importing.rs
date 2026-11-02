@@ -24,7 +24,13 @@ pub(super) fn picture(
         ChannelDefinition::for_media(MediaKind::Picture)
     };
     let media_label = if target.is_none() {
-        Some(label_with_reserved(engine, parent, label, "Picture", &[])?)
+        Some(label_with_reserved(
+            engine,
+            parent,
+            label,
+            MediaKind::Picture.default_label(),
+            &[],
+        )?)
     } else {
         if label.is_some() {
             return Err("media label is only valid when creating Picture media".into());

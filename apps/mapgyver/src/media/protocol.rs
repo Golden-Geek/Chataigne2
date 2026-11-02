@@ -57,6 +57,16 @@ pub enum MediaKind {
 }
 
 impl MediaKind {
+    pub(crate) fn default_label(self) -> &'static str {
+        match self {
+            Self::Picture => "Picture",
+            Self::SolidColor => "Solid Color",
+            Self::SharedTexture => "Shared Texture",
+            Self::Composition => "Composition",
+            Self::Matrix => "Matrix",
+        }
+    }
+
     pub(crate) fn has_authored_channel_variants(self) -> bool {
         matches!(self, Self::Picture | Self::SolidColor | Self::SharedTexture)
     }

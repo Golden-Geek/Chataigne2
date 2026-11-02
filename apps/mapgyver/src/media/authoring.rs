@@ -540,15 +540,8 @@ fn create_media(
     media_kind: MediaKind,
     requested: Option<String>,
 ) -> Result<MediaEditResult, String> {
-    let fallback = match media_kind {
-        MediaKind::Picture => "Picture",
-        MediaKind::SolidColor => "Solid Color",
-        MediaKind::SharedTexture => "Shared Texture",
-        MediaKind::Composition => "Composition",
-        MediaKind::Matrix => "Matrix",
-    };
     let (tree, reference) = media_tree(
-        label(engine, parent, requested, fallback)?,
+        label(engine, parent, requested, media_kind.default_label())?,
         ChannelDefinition::for_media(media_kind),
     );
     engine.edits.push(Edit::AddUserItemTree {

@@ -31,6 +31,13 @@ export async function verifyCreationCatalogsUi({ base }) {
 		await mediaMenu();
 		await page.getByRole('menuitem', { name: 'Folder', exact: true }).click();
 		await panel('Media Manager').getByRole('button', { name: 'Folder', exact: true }).click();
+		await panel('Media Manager')
+			.getByRole('button', { name: 'Folder', exact: true })
+			.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^Add(?:\s|$)/ }).hover();
+		await page.getByRole('menuitem', { name: 'Solid Color', exact: true }).waitFor();
+		assert.equal(await page.getByRole('menuitem', { name: 'Channel', exact: true }).count(), 0);
+		await page.keyboard.press('Escape');
 		await mediaMenu();
 		await page.getByRole('menuitem', { name: 'Solid Color', exact: true }).click();
 		await tab('Screen Manager').click();

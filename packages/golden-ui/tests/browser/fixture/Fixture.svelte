@@ -15,6 +15,7 @@
 	import { createFixtureSession } from './session';
 	import RowSupplement from './RowSupplement.svelte';
 	import CatalogFixture from './CatalogFixture.svelte';
+	import NodeMenuFixture from './NodeMenuFixture.svelte';
 	import LoggerFixture from './LoggerFixture.svelte';
 	import { qualifyLoggerStore } from './logger-store';
 	import { measureCollectionFlow } from './timing';
@@ -35,7 +36,14 @@
 			panelParams = { ...panelParams, ...next };
 		}
 	};
-	let mode = $state<'trees' | 'variable' | 'catalog' | 'logger'>('trees');
+	let mode = $state<'trees' | 'variable' | 'catalog' | 'logger' | 'node-menu'>('trees');
+	let nodeMenu = $state<ReturnType<typeof NodeMenuFixture>>();
+	export async function setupNodeMenu() {
+		mode = 'node-menu';
+		await tick();
+		nodeMenu!.setup();
+	}
+	export const nodeMenuIntents = () => nodeMenu!.intents();
 	let logger = $state<ReturnType<typeof LoggerFixture>>();
 	export async function setupLogger(size: number, unlimited = false, duplicates = false) {
 		closeNodePickerModal();
@@ -418,6 +426,8 @@
 		<CatalogFixture bind:this={catalog} />
 	{:else if mode === 'logger'}
 		<LoggerFixture bind:this={logger} {panelApi} />
+	{:else if mode === 'node-menu'}
+		<NodeMenuFixture bind:this={nodeMenu} {fixture} />
 	{:else}
 		<div class="variable-scroller" bind:this={variableScroller} tabindex="-1">
 			<VirtualRows

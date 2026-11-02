@@ -6,6 +6,92 @@ use golden_core::{
 };
 
 #[test]
+fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
+    let mut engine = fixture();
+    let manager = crate::media::authoring::manager(&engine).unwrap();
+    for (kind, label) in [
+        (MediaKind::SolidColor, "Solid Color"),
+        (MediaKind::Picture, "Picture"),
+        (MediaKind::SharedTexture, "Shared Texture"),
+        (MediaKind::Composition, "Composition"),
+        (MediaKind::Matrix, "Matrix"),
+    ] {
+        let item = engine
+            .catalog_creatable_items(manager)
+            .into_iter()
+            .find(|item| item.label == label)
+            .unwrap();
+        let history = engine.undo_len();
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::CreateUserItem {
+                parent: manager,
+                node_type: item.node_type,
+                label: None,
+                initial_params: vec![],
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        assert_eq!(engine.undo_len(), history + 1);
+        let catalog = crate::media::catalog::inspect(&engine).unwrap();
+        let generic = catalog.media.iter().find(|media| media.label == label).unwrap();
+        assert_eq!(generic.media_kind, kind);
+        assert_eq!(generic.channels.len(), 1);
+        assert_eq!(generic.channels[0].definition, ChannelDefinition::for_media(kind));
+        let reference = generic.channels[0].reference;
+        let created = create(&mut engine, kind);
+        assert_ne!(created.media, reference.media);
+        assert_ne!(created.channel, reference.channel);
+        assert_eq!(engine.undo_len(), history + 2);
+        let catalog = crate::media::catalog::inspect(&engine).unwrap();
+        let api = catalog.media.iter().find(|media| media.id == created.media).unwrap();
+        assert_ne!(api.label, label);
+        assert_eq!(api.channels[0].definition, generic.channels[0].definition);
+        assert_eq!(api.channels[0].label, generic.channels[0].label);
+        assert!(engine.undo().unwrap());
+        assert!(channel(&engine, created).is_err());
+        assert!(channel(&engine, reference).is_ok());
+        assert!(engine.redo().unwrap());
+        assert_eq!(crate::media::catalog::inspect(&engine).unwrap(), catalog);
+
+        let before = to_sparse_project_json_pretty(&engine).unwrap();
+        let history = engine.undo_len();
+        assert!(
+            !invoke(
+                &mut engine,
+                MediaEdit::CreateMedia {
+                    media_kind: kind,
+                    label: Some("  ".into())
+                }
+            )
+            .success
+        );
+        if !kind.has_authored_channel_variants() {
+            let parent = engine.node_id_by_uuid(created.media.0).unwrap();
+            assert!(engine.catalog_creatable_items(parent).is_empty());
+            let ack = apply_project_intent(
+                &mut engine,
+                UiEditIntent::CreateUserItem {
+                    parent,
+                    node_type: "mapgyver.media.channel".into(),
+                    label: None,
+                    initial_params: vec![],
+                },
+            );
+            assert!(!ack.success, "derived output creation must reject: {ack:?}");
+        }
+        assert_eq!(engine.undo_len(), history);
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    }
+    let before = crate::media::catalog::inspect(&engine).unwrap();
+    let json = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<crate::app::AppNode>(&json).unwrap();
+    loaded.apply_edits().unwrap();
+    crate::media::validate_project(&loaded).unwrap();
+    assert_eq!(crate::media::catalog::inspect(&loaded).unwrap(), before);
+}
+
+#[test]
 fn old_media_schemas_are_rejected_instead_of_reinterpreting_channel_settings() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::SolidColor);

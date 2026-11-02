@@ -37,6 +37,15 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 			await delay(20);
 		}
 	}
+	async function waitMediaCount(count) {
+		const deadline = Date.now() + 5000;
+		while (true) {
+			const snapshot = await inspectMedia();
+			if (snapshot.media.length === count) return snapshot;
+			assert(Date.now() < deadline, `${stage}: expected ${count} media`);
+			await delay(20);
+		}
+	}
 	try {
 		await page.goto(base);
 		await page
@@ -56,6 +65,37 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 			await manager.getByRole('treeitem', { name: 'Channel 1', exact: true }).count(),
 			0
 		);
+		await mediaRow
+			.getByRole('button', { name: 'Channel review', exact: true })
+			.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^Duplicate(?:\s|$)/ }).waitFor();
+		assert.equal(await page.getByRole('menuitem', { name: /^Add(?:\s|$)/ }).count(), 0);
+		assert.equal(await page.getByRole('menuitem', { name: /^Paste(?:\s|$)/ }).count(), 0);
+		const beforeCopy = await inspectMedia();
+		await page.getByRole('menuitem', { name: /^Duplicate(?:\s|$)/ }).click();
+		const duplicated = await waitMediaCount(beforeCopy.media.length + 1);
+		const copiedMedia = duplicated.media.find(
+			(media) => !beforeCopy.media.some((entry) => entry.id === media.id)
+		);
+		assert(copiedMedia);
+		assert.equal(copiedMedia.channels.length, 1);
+		assert.notEqual(copiedMedia.channels[0].reference.channel, first.channel);
+		assert.deepEqual(copiedMedia.channels[0].definition, (await read()).channels[0].definition);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await waitMediaCount(beforeCopy.media.length);
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		assert.deepEqual(
+			(await waitMediaCount(duplicated.media.length)).media.find(
+				(media) => media.id === copiedMedia.id
+			),
+			copiedMedia
+		);
+		await mediaRow.getByRole('button', { name: 'Channel review', exact: true }).click();
+		await channels.locator(':scope > header').click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^Add(?:\s|$)/ }).waitFor();
+		await page.getByRole('menuitem', { name: /^Add(?:\s|$)/ }).hover();
+		await page.getByRole('menuitem', { name: 'Channel', exact: true }).waitFor();
+		await page.keyboard.press('Escape');
 		const entries = channels.locator(
 			':scope > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
 		);
@@ -146,7 +186,7 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'bundled media-only manager, typed Channels add/color/rename/reorder/copy/remove/history, closed Parameter folders, exact reads and 32-entry rendering bound'
+					'bundled media-only manager including context Add/Paste exclusion and Inspector creation retention, typed Channels add/color/rename/reorder/copy/remove/history, closed Parameter folders, exact reads and 32-entry rendering bound'
 			})
 		);
 	} catch (error) {

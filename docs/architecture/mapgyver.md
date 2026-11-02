@@ -41,6 +41,11 @@ operation, including fresh media and the three-by-three Matrix default. Undo gro
 whole gestures, not individual input samples. Copy captures complete Parameter/control subtrees
 with independent node identities.
 
+Media kind labels and source defaults are backend-owned and shared by the generic creation
+catalog, explicit app intents and Picture import. Each creation/import prepares a complete
+detached subtree; the app operation and generic creation routes validate the same ownership
+rules and commit one history step.
+
 Rust owns DTOs and generated TypeScript. UI, transport/headless callers, command nodes, script
 functions, callbacks and app-owned snippets use the same operations. Structural schema changes
 receive explicit version handling and clear unsupported-record rejection; no compatibility
@@ -55,7 +60,9 @@ live on the media; channel fields contain source differences only.
 
 `ChannelsSection` in the app Inspector presents at most 32 actual channel nodes per page,
 using Golden's generic child inspectors and context menu. The Media Manager filters out
-channels and only folder rows carry an inline creation button. Channel snapshots are queried by
+channels and only folder rows carry an inline creation button. Its row context menus use Golden's
+public `canCreateNodeChildren` predicate: folders expose Add/Paste, media rows omit child creation.
+Channels retain their real backend factory and Inspector creation actions. Channel snapshots are queried by
 exact reference when expanded, with session/project fencing; collapsed variants perform
 no inspection reads. Backend `MoveChannel` owns relative ordering, and source-channel
 catalog entries preserve the current media selection when creating a variant. Composition
