@@ -21,7 +21,7 @@ export function providePreview() {
 			let stopped = false;
 			let unlisten: (() => void) | undefined;
 			const unsubscribe = session.subscribe((value) => {
-				state.transparent = value.installed && value.visibleViews > 0;
+				state.transparent = value.presentedViews.length > 0;
 			});
 			if (hasDesktopHost()) {
 				void listen<PreviewStatus[]>(PREVIEW_STATUS_EVENT, (event) => {

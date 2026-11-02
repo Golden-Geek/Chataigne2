@@ -74,8 +74,8 @@ impl ChannelRenderer {
             runtime,
             limits,
             project: None,
-            // Textures 1..=3 belong to this owner's window compositor.
-            next_texture: 3,
+            // The window compositor reserves its own texture identities before channel allocation.
+            next_texture: PreviewLayout::RESERVED_TEXTURES,
             entries: HashMap::new(),
             screen_entries: HashMap::new(),
             desired: None,

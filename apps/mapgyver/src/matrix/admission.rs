@@ -7,6 +7,7 @@ use golden_core::{
     node::{Node, NodeId},
     ui_sync::UiEditIntent,
 };
+use std::collections::{HashMap, HashSet};
 
 fn owned(engine: &AppEngine, mut id: NodeId) -> bool {
     // Engine parent links are acyclic. Matrix membership may be nested beneath a group/layer.
@@ -21,10 +22,43 @@ fn owned(engine: &AppEngine, mut id: NodeId) -> bool {
     }
     false
 }
+
+fn removes_protected_children(engine: &AppEngine, nodes: &[NodeId]) -> bool {
+    let selected = nodes.iter().copied().collect::<HashSet<_>>();
+    let mut ancestors = HashMap::new();
+    nodes.iter().copied().any(|id| {
+        if !owned(engine, id)
+            || matches!(engine.nodes.get(id), Some(AppNode::Media(media)) if media.kind() == MediaKind::Matrix)
+        {
+            return false;
+        }
+        let mut cursor = engine.nodes.get(id).and_then(|node| node.node_data().parent);
+        let mut path = Vec::new();
+        let mut removed_by_ancestor = false;
+        while let Some(parent) = cursor {
+            if selected.contains(&parent) {
+                removed_by_ancestor = true;
+                break;
+            }
+            if let Some(cached) = ancestors.get(&parent) {
+                removed_by_ancestor = *cached;
+                break;
+            }
+            path.push(parent);
+            cursor = engine.nodes.get(parent).and_then(|node| node.node_data().parent);
+        }
+        for parent in path {
+            ancestors.insert(parent, removed_by_ancestor);
+        }
+        !removed_by_ancestor
+    })
+}
+
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
     let protected = match intent {
-        UiEditIntent::RemoveNode { node } => owned(engine, *node),
-        UiEditIntent::RemoveNodes { nodes } => nodes.iter().any(|node| owned(engine, *node)),
+        // Removing the owner removes its paired exports and all Matrix structure together.
+        UiEditIntent::RemoveNode { node } => removes_protected_children(engine, &[*node]),
+        UiEditIntent::RemoveNodes { nodes } => removes_protected_children(engine, nodes),
         UiEditIntent::MoveNode { node, new_parent, .. } => owned(engine, *node) || owned(engine, *new_parent),
         UiEditIntent::DuplicateNode { source, new_parent, .. } => owned(engine, *source) || owned(engine, *new_parent),
         UiEditIntent::DuplicateNodes {

@@ -1,6 +1,36 @@
 use super::*;
 
 #[test]
+fn shared_tree_removes_whole_matrix_owners_but_preserves_paired_child_invariants() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    layers(&mut engine, matrix.media, None, 1);
+    columns(&mut engine, matrix.media, 1);
+    let owner = engine.node_id_by_uuid(matrix.media.0).unwrap();
+    let channel = engine.node_id_by_uuid(matrix.channel.0).unwrap();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    let ack = apply_project_intent(&mut engine, UiEditIntent::RemoveNode { node: channel });
+    assert!(!ack.success);
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    // The shared tree normalizes overlapping parent/child selections to one subtree.
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::RemoveNodes {
+            nodes: vec![channel, owner],
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    assert!(engine.node_id_by_uuid(matrix.media.0).is_none());
+    assert!(engine.node_id_by_uuid(matrix.channel.0).is_none());
+    assert_eq!(engine.undo_len(), history + 1);
+    crate::media::validate_project(&engine).unwrap();
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+}
+
+#[test]
 fn one_atomic_assignment_replaces_edges_without_false_cycles_and_rejects_new_feedback() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);

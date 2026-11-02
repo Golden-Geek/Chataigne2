@@ -13,6 +13,8 @@ impl MediaFolderNode {
     pub(crate) fn new(label: String) -> Self {
         let mut data = NodeData::new(label);
         data.meta.can_be_disabled = false;
+        data.meta.user_permissions.can_edit_name = true;
+        data.meta.user_permissions.can_remove_and_duplicate = true;
         Self {
             data,
             revision: RevisionSource::default(),

@@ -86,6 +86,9 @@ pub(super) fn build(
     let mut references = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
     if let Some(preview) = preview {
         references.extend(preview.references()?);
+        // Desired routing fences pending installation; per-view geometry clocks separately
+        // keep valid pixels in an already active generation visible during replacement.
+        guards.push(preview.layout.guard.clone());
     }
     for route in screens {
         if route.screen.project != capture.project || !route.screen.is_current() {
@@ -114,7 +117,7 @@ pub(super) fn build(
             .filter(|route| screen_ids.insert(route.screen.id))
             .map(|route| route.screen.layer_count())
             .sum::<usize>()
-        + preview.map_or(0, |preview| preview.layout.views.len().saturating_add(2));
+        + preview.map_or(0, super::PreviewLayout::maximum_dependencies);
     let image_guards = capture
         .assets
         .iter()
@@ -135,7 +138,11 @@ pub(super) fn build(
             .max_passes
             .saturating_sub(capture.channels.len())
             .saturating_sub(screen_count)
-            .saturating_sub(if preview.is_some() { 3 } else { 0 }),
+            .saturating_sub(if preview.is_some() {
+                super::PreviewLayout::PASS_COUNT
+            } else {
+                0
+            }),
     )?;
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {

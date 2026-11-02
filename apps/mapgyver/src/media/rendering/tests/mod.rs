@@ -5,6 +5,7 @@ mod matrix;
 mod outputs;
 mod pictures;
 mod preview;
+mod preview_admission;
 mod publication;
 mod screens;
 mod solid_color;

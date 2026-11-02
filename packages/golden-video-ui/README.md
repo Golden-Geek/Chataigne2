@@ -19,8 +19,13 @@ unavailable while app editing remains usable; they do not pretend to stream remo
 The session coalesces geometry at animation-frame boundaries, keeps one IPC request in flight and
 one newest desired layout, and discards replies from replaced/disposed sessions. A one-second
 heartbeat renews the native layout lease. Endpoint failure withdraws availability and reconnects
-with bounded backoff. Every source/geometry change covers the preview holes until the native owner
-confirms installation of the matching latest revision through Layout/Status acknowledgements.
+with bounded backoff. Source changes retain the last installed frame at the same geometry while
+the replacement is prepared. `presentedViews` tracks that continuity separately from `installed`,
+which still requires confirmation of the matching latest revision through Layout/Status replies.
+Changed geometry, hidden/removed views and session failure cover stale preview holes. Adding or
+removing an Inspector preview does not cover an unchanged editor preview.
+Pending/unavailable views and retirement covers use opaque black, matching the output's empty
+area. Installed preview surfaces remain transparent so the native underlay stays visible.
 An acknowledgement proves a native generation/frame observation, not scanout or physical alignment.
 Unchanged installed heartbeat layouts do not flash the covers. Unregister/dispose explicitly
 withdraw presentation; native lease expiry remains the fallback after frontend interruption.

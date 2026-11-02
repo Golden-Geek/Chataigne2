@@ -50,7 +50,7 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		const screenTab = page.getByRole('tab').filter({ hasText: /^Screen Manager$/ });
 		const panel = page.locator('section[aria-label="Surface Source"]');
 		const tree = page.locator('section[aria-label="Screen Manager"]');
-		const properties = page.locator('.properties');
+		const inspector = page.locator('.inspector');
 		const controls = screenParameterControls(page);
 		await screenTab.click();
 		await tree.getByRole('button', { name: 'Add child item', exact: true }).click();
@@ -165,9 +165,9 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			assert.deepEqual(state, parameterHistory.get(depth - 1));
 		}
 		assert.deepEqual(await screens(), snapshot);
-		assert.equal(
-			await controls.parameter('Source media').locator('.reference-editor.link-empty').count(),
-			1
+		await wait(
+			() => controls.parameter('Source media').locator('.reference-editor.link-empty').count(),
+			(count) => count === 1
 		);
 		for (let depth = initialDepth; depth < configuredDepth; depth++) {
 			await redo();
@@ -260,24 +260,56 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			before.screens[0].surfaces[0].definition.crop.height
 		);
 		await roundtrip(before, after, after.screens[0].surfaces[0].definition.crop);
-		stage = 'invalid pointer sample';
+		stage = 'crop stops at source edges';
+		before = await screens();
 		box = await begin(0);
 		await move(box, { x: -0.2, y: -0.2 });
 		await page.mouse.up();
-		await panel.getByRole('alert').waitFor();
+		await ready();
+		const previousCrop = before.screens[0].surfaces[0].definition.crop;
+		const bounded = {
+			x: 0,
+			y: 0,
+			width: previousCrop.x + previousCrop.width,
+			height: previousCrop.y + previousCrop.height
+		};
+		await wait(crop, (value) => near(value, bounded));
 		const errorBounds = await svg.boundingBox();
 		assert(
 			errorBounds &&
 				['x', 'y', 'width', 'height'].every((key) => Math.abs(errorBounds[key] - box[key]) < 0.01),
-			'Showing a rejection cannot shift source coordinates'
+			'Clamping at the source edge cannot shift source coordinates'
 		);
-		await ready();
-		assert.deepEqual(await screens(), after);
+		assert.equal(await panel.getByRole('alert').count(), 0);
+		await roundtrip(before, await screens(), bounded);
 		await undo();
 		await wait(crop, (value) => near(value, before.screens[0].surfaces[0].definition.crop));
-		assert.deepEqual(await screens(), before, 'rejection cannot consume a history step');
-		await redo();
-		await wait(crop, (value) => near(value, after.screens[0].surfaces[0].definition.crop));
+		assert.deepEqual(await screens(), before);
+		for (const [index, point, expected] of [
+			[
+				2,
+				{ x: 1.2, y: 1.2 },
+				{ ...previousCrop, width: 1 - previousCrop.x, height: 1 - previousCrop.y }
+			],
+			[
+				null,
+				{ x: 1.2, y: 1.2 },
+				{ ...previousCrop, x: 1 - previousCrop.width, y: 1 - previousCrop.height }
+			],
+			[null, { x: -0.2, y: -0.2 }, { ...previousCrop, x: 0, y: 0 }]
+		]) {
+			before = await screens();
+			box = await begin(index);
+			await move(box, point, 12);
+			await page.mouse.up();
+			await ready();
+			await wait(crop, (value) => near(value, expected));
+			assert.equal(await panel.getByRole('alert').count(), 0);
+			await roundtrip(before, await screens(), expected);
+			await undo();
+			await wait(crop, (value) => near(value, before.screens[0].surfaces[0].definition.crop));
+			assert.deepEqual(await screens(), before);
+		}
 		stage = 'Escape stops accepted origin drag';
 		before = await screens();
 		box = await begin(null);
@@ -313,7 +345,11 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			.click();
 		const manager = page.locator('section[aria-label="Media Manager"]');
 		await manager.getByRole('button', { name: sourceMedia.label, exact: true }).click();
-		await properties.getByRole('button', { name: 'Delete media', exact: true }).click();
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').innerText(),
+			(value) => value === sourceMedia.label
+		);
+		await inspector.getByRole('button', { name: 'Delete media', exact: true }).click();
 		await wait(inspectMedia, (value) => !value.media.some((entry) => entry.id === sourceMedia.id));
 		await screenTab.click();
 		await tree.getByRole('button', { name: first.label, exact: true }).click();
@@ -342,18 +378,11 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		await ready();
 		assert.deepEqual(await screens(), after);
 		assert.deepEqual(errors, []);
-		assert(rejected.some((item) => item.request?.stage === 'invalid pointer sample'));
 		assert(rejected.some((item) => item.request?.stage === 'invalid crop Parameter'));
 		assert(
 			rejected.every((item) => {
 				const request = item.request;
-				return (
-					(request?.stage === 'invalid pointer sample' &&
-						request.intent?.kind === 'invokeAppOperation' &&
-						request.intent.namespace === 'mapgyver.screens' &&
-						request.intent.payload?.kind === 'EditSurfaceGeometry') ||
-					(request?.stage === 'invalid crop Parameter' && request.intent?.kind === 'setParam')
-				);
+				return request?.stage === 'invalid crop Parameter' && request.intent?.kind === 'setParam';
 			}),
 			'Only the explicit invalid crop cases may reject'
 		);

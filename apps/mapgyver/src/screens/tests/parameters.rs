@@ -5,7 +5,7 @@ use golden_core::{
     edit::Edit,
     engine::ProjectNodeRecord,
     node::{Node, NodeId, NodeReference, NodeUuid},
-    parameter::{ParamValue, ParameterEventBehaviour},
+    parameter::{ParamValue, ParameterEventBehaviour, RangeConstraint},
     process_ctx::ExecutionPhase,
 };
 use std::collections::HashMap;
@@ -270,6 +270,36 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
         let uuid = engine.nodes.get(original_id).unwrap().node_data().meta.uuid;
         assert_eq!(loaded.node_id_by_uuid(uuid), Some(loaded_id));
     }
+}
+
+#[test]
+fn crop_parameters_expose_unit_bounds_and_reject_invalid_authored_rectangles() {
+    let mut engine = fixture();
+    let (_, surface) = create(&mut engine);
+    let root = engine.node_id_by_uuid(surface.surface.0).unwrap();
+    let fields = parameters(&engine, root);
+    let original = definition(&engine, surface);
+    let history = engine.undo_len();
+    for field in ["parameters/crop_origin", "parameters/crop_size"] {
+        let id = fields[field];
+        let snapshot = engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap();
+        assert_eq!(
+            snapshot.constraints.range,
+            RangeConstraint::components(Some(vec![0.0, 0.0]), Some(vec![1.0, 1.0]))
+        );
+        for value in [ParamValue::Vec2(-0.1, 0.5), ParamValue::Vec2(0.5, 1.1)] {
+            assert!(!set(&mut engine, id, value).success);
+            assert_eq!(definition(&engine, surface), original);
+        }
+    }
+    for (field, value) in [
+        ("parameters/crop_origin", ParamValue::Vec2(1.0, 0.0)),
+        ("parameters/crop_size", ParamValue::Vec2(0.0, 1.0)),
+    ] {
+        assert!(!set(&mut engine, fields[field], value).success);
+        assert_eq!(definition(&engine, surface), original);
+    }
+    assert_eq!(engine.undo_len(), history);
 }
 
 #[test]

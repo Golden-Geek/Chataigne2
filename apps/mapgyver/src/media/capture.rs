@@ -128,12 +128,13 @@ impl CapturedChannels {
         Ok(())
     }
     pub fn is_current(&self) -> bool {
-        self.guards.iter().all(RevisionGuard::is_current)
-            && self
-                .channels
-                .iter()
-                .flat_map(|channel| &channel.instance_guards)
-                .all(RevisionGuard::is_current)
+        self.revision_guards().all(RevisionGuard::is_current)
+    }
+
+    pub(crate) fn revision_guards(&self) -> impl Iterator<Item = &RevisionGuard> {
+        self.guards
+            .iter()
+            .chain(self.channels.iter().flat_map(|channel| &channel.instance_guards))
     }
 }
 

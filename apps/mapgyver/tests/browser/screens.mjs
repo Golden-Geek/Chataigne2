@@ -49,6 +49,42 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		const id = snapshot.screens[0].id;
 		const first = snapshot.screens[0].surfaces[0].reference;
 		await controls.fields(['Target', 'Enabled'], wait);
+		await warpTab.click();
+		await editor.locator('.native-preview').waitFor();
+		const backgrounds = await page.evaluate(() => {
+			const app = document.querySelector('.app');
+			const previous = app.style.getPropertyValue('--gc-workbench-background');
+			// Exercise the native underlay's transparent root without claiming native pixels.
+			app.style.setProperty('--gc-workbench-background', 'transparent');
+			const theme = document.createElement('div');
+			theme.style.backgroundColor = 'var(--gc-color-panel)';
+			app.append(theme);
+			try {
+				const background = (element) => getComputedStyle(element).backgroundColor;
+				const manager = document.querySelector('section[aria-label="Screen Manager"]');
+				const editor = document.querySelector('section[aria-label="Screen Warping"]');
+				return {
+					theme: background(theme),
+					root: background(app.querySelector('.gc-main')),
+					manager: background(manager.closest('.dv-groupview')),
+					inspector: background(app.querySelector('.inspector').closest('.dv-groupview')),
+					preview: background(editor.closest('.dv-groupview')),
+					toolbar: background(editor.querySelector('.editor-toolbar'))
+				};
+			} finally {
+				theme.remove();
+				if (previous) app.style.setProperty('--gc-workbench-background', previous);
+				else app.style.removeProperty('--gc-workbench-background');
+			}
+		});
+		assert.equal(backgrounds.root, 'rgba(0, 0, 0, 0)');
+		assert.equal(
+			backgrounds.preview,
+			'rgba(0, 0, 0, 0)',
+			'Native aperture ancestors stay transparent'
+		);
+		for (const area of ['manager', 'inspector', 'toolbar'])
+			assert.equal(backgrounds[area], backgrounds.theme, `${area} retains the opaque panel theme`);
 		await controls.rename(snapshot.screens[0].label, 'UI Screen');
 		await wait(screens, (value) => value.screens[0].label === 'UI Screen');
 		stage = 'generic Screen target Parameters';

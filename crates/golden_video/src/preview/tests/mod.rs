@@ -1,5 +1,6 @@
 use super::*;
 use protocol::{CssRect, PreviewView};
+mod continuity;
 
 fn host() -> HostViewport {
     HostViewport {

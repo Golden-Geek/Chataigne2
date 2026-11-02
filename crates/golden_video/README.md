@@ -47,6 +47,11 @@ The implemented foundations are:
 - `preview/` owns metadata-only session negotiation, full-layout replacement, installation status,
   host geometry conversion and coalesced leased registration. Apps resolve opaque source keys;
   neither app-domain types nor native handles belong in these DTOs.
+  Full-layout generations fence stale installation. Separate per-view destination lifetimes
+  keep existing pixels available across source swaps and unrelated registrations until replacement;
+  removal, movement, clipping or overlapping painter-order changes withdraw affected regions.
+  Host geometry, session replacement, lease expiry and close withdraw every destination. Region
+  fences are checked by the render worker independently of source admission and other outputs.
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.

@@ -41,7 +41,6 @@ export function gizmo(transform: Transform2D, canvas: Extent2D, extent?: Extent2
 			)
 		: null;
 	return {
-		radius: radius / 8,
 		pivot: point(0, 0),
 		rotate: point(0, -radius * 1.8),
 		scale: corner ?? point(radius, radius)

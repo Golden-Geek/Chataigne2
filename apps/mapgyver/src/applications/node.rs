@@ -26,8 +26,11 @@ impl ApplicationNode {
         }
     }
     pub(super) fn new(label: String, definition: ApplicationDefinition) -> Self {
+        let mut data = NodeData::new(label);
+        data.meta.user_permissions.can_edit_name = true;
+        data.meta.user_permissions.can_remove_and_duplicate = true;
         Self {
-            data: NodeData::new(label),
+            data,
             definition,
             revision: Default::default(),
             definition_instance: uuid::Uuid::new_v4(),

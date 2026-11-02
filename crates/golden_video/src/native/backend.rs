@@ -537,7 +537,9 @@ impl Backend for D3d11Backend {
                     pipeline.clear(context, output, LinearColor::TRANSPARENT);
                     if visibility.as_ref().is_none_or(|guard| guard.is_current()) {
                         for region in regions {
-                            pipeline.draw_region(context, &resources.textures[&region.source], output, region);
+                            if region.visibility.as_ref().is_none_or(|guard| guard.is_current()) {
+                                pipeline.draw_region(context, &resources.textures[&region.source], output, region);
+                            }
                         }
                     }
                 }

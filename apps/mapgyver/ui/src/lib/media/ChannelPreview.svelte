@@ -47,7 +47,7 @@
 		display: grid;
 		place-content: center;
 		padding: 1em;
-		background: #202329;
+		background: #000;
 		overflow-wrap: anywhere;
 	}
 </style>

@@ -11,7 +11,15 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-#[node("mapgyver.media.asset", label = "Asset")]
+#[node(
+    "mapgyver.media.asset",
+    label = "Asset",
+    user_permissions = golden_core::node::NodeUserPermissions {
+        can_edit_name: true,
+        can_remove_and_duplicate: true,
+        ..Default::default()
+    }
+)]
 #[children(
     folder(parameters, label = "Parameters") {
         locator_kind: Enum = "Unconfigured" (label = "Location", enum_options = crate::parameters::enum_options(&["Unconfigured", "ProjectRelative", "Absolute"]));
@@ -26,7 +34,8 @@ pub struct AssetNode {
 impl AssetNode {
     pub(super) fn from_locator(label: String, locator: Option<AssetLocator>) -> Self {
         let mut node = Self::new();
-        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label);
+        let permissions = node.node_data().meta.user_permissions.clone();
+        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label).with_user_permissions(permissions);
         match locator {
             Some(AssetLocator::ProjectRelative { path }) => {
                 node.locator_kind = ParameterHandle::new(Enum::new("ProjectRelative"));

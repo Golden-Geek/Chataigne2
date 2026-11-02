@@ -9,7 +9,7 @@ use crate::{
 pub use geometry::HostViewport;
 use golden_io::{RevisionGuard, RevisionSource, WorkerNotifier};
 use protocol::{PREVIEW_PROTOCOL_VERSION, PreviewRejection, PreviewRequest, PreviewResponse};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -47,14 +47,26 @@ pub struct ResolvedView {
 #[derive(Clone, Debug)]
 /// Immutable metadata copied for worker-side render-plan preparation.
 pub struct PreviewSnapshot {
-    /// Coalesced geometry generation, distinct from wire layout revisions and Video generations.
+    /// Coalesced layout generation, distinct from wire revisions and Video generations.
     pub generation: u64,
     /// Visible, nonempty views in submitted layout order.
     pub views: Vec<ResolvedView>,
-    /// Admission fence invalidated when geometry, session ownership or liveness changes.
+    /// Admission fence invalidated when layout routing, geometry, ownership or liveness changes.
     pub guard: RevisionGuard,
+    view_guards: HashMap<Uuid, RevisionGuard>,
 }
 impl PreviewSnapshot {
+    /// Builds a snapshot whose destinations share one visibility lifetime. Controller snapshots
+    /// retain independent destination lifetimes so unrelated layout edits do not clear live views.
+    pub fn new(generation: u64, views: Vec<ResolvedView>, guard: RevisionGuard) -> Self {
+        Self {
+            generation,
+            views,
+            guard,
+            view_guards: HashMap::new(),
+        }
+    }
+
     /// Resolves logical source keys into native-plan inputs outside the UI/engine thread.
     /// Unknown sources are omitted; this does not establish source availability or frame delivery.
     pub fn regions(&self, mut resolve: impl FnMut(&str) -> Option<TextureId>) -> Vec<BlitRegion> {
@@ -66,6 +78,7 @@ impl PreviewSnapshot {
                     destination: view.destination,
                     source_rect: view.source_rect,
                     filter: SampleFilter::Linear,
+                    visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
                 })
             })
             .collect()
@@ -84,11 +97,56 @@ struct State {
     views: Vec<ResolvedView>,
     viewport: Option<HostViewport>,
     revision: RevisionSource,
+    view_revisions: HashMap<Uuid, RevisionSource>,
     installed: Option<u64>,
 }
 impl State {
     fn invalidate(&mut self) {
         self.views.clear();
+        self.view_revisions.clear();
+        self.revision.advance();
+        self.installed = None;
+    }
+    fn replace_views(&mut self, views: Vec<ResolvedView>, viewport: HostViewport) {
+        if self.viewport != Some(viewport) {
+            self.view_revisions.clear();
+        } else {
+            let previous = self
+                .views
+                .iter()
+                .enumerate()
+                .map(|(index, view)| (view.id, (index, view)))
+                .collect::<HashMap<_, _>>();
+            let current = views
+                .iter()
+                .enumerate()
+                .map(|(index, view)| (view.id, (index, view)))
+                .collect::<HashMap<_, _>>();
+            self.view_revisions.retain(|id, _| {
+                previous
+                    .get(id)
+                    .zip(current.get(id))
+                    .is_some_and(|((old_index, old), (new_index, new))| {
+                        if !same_destination(old, new) {
+                            return false;
+                        }
+                        // A reordered overlap changes which live image owns those pixels.
+                        // Independent views may reorder without withdrawing their destinations.
+                        !previous.iter().any(|(other, (old_other_index, old_other))| {
+                            current.get(other).is_some_and(|(new_other_index, new_other)| {
+                                old_index.cmp(old_other_index) != new_index.cmp(new_other_index)
+                                    && same_destination(old_other, new_other)
+                                    && overlaps(old.destination, old_other.destination)
+                            })
+                        })
+                    })
+            });
+        }
+        for view in &views {
+            self.view_revisions.entry(view.id).or_default();
+        }
+        self.views = views;
+        self.viewport = Some(viewport);
         self.revision.advance();
         self.installed = None;
     }
@@ -101,6 +159,17 @@ impl State {
             false
         }
     }
+}
+
+fn same_destination(left: &ResolvedView, right: &ResolvedView) -> bool {
+    left.destination == right.destination && left.source_rect == right.source_rect
+}
+
+fn overlaps(left: UnitRect, right: UnitRect) -> bool {
+    left.x < right.x + right.width
+        && right.x < left.x + left.width
+        && left.y < right.y + right.height
+        && right.y < left.y + left.height
 }
 struct Shared {
     state: Mutex<State>,
@@ -141,6 +210,7 @@ impl PreviewController {
                 views: Vec::new(),
                 viewport: None,
                 revision: RevisionSource::default(),
+                view_revisions: HashMap::new(),
                 installed: None,
             }),
             limits,
@@ -272,10 +342,7 @@ impl PreviewController {
                         match resolved {
                             Ok(views) => {
                                 if state.views != views || state.viewport != Some(viewport) {
-                                    state.views = views;
-                                    state.viewport = Some(viewport);
-                                    state.revision.advance();
-                                    state.installed = None;
+                                    state.replace_views(views, viewport);
                                     changed = true;
                                 }
                                 let current = state.session.as_mut().unwrap();
@@ -349,6 +416,14 @@ impl PreviewReceiver {
             generation: reader.current(),
             views: state.views.clone(),
             guard: reader.guard_at(reader.current()),
+            view_guards: state
+                .view_revisions
+                .iter()
+                .map(|(id, source)| {
+                    let reader = source.reader();
+                    (*id, reader.guard_at(reader.current()))
+                })
+                .collect(),
         }
     }
     /// Next session expiry to service on the preparation worker when no earlier notification fires.

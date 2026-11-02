@@ -63,6 +63,16 @@ visibility, identities and revisions; the host converts CSS to physical coordina
 normalized region geometry maps onto the admitted native backing. Layout acceptance or submitted
 frames do not prove physical alignment, scanout or delivery.
 
+Preview registration survives app selection changes; only gesture overlays reset their local
+pointer lifetime. The frontend distinguishes latest-layout installation from a previously
+presented view at unchanged geometry, retaining the last frame during source replacement and
+leaving unrelated editor views visible during Inspector preview changes. Geometry changes,
+removal and session loss still cover stale underlay regions until native confirmation.
+MapGyver subscribes its captured authored revision guards through Golden IO one-shot wakeups;
+color/warp edits trigger preparation directly instead of waiting for coarse host supervision.
+Superseded captures recapture immediately without publishing transient errors; stable failures
+retain the ordinary recovery backoff.
+
 `golden_time` owns typed time coordinates, checked rational conversion, immutable show mappings
 and authority/discontinuity epochs. Apps own transport policy; specialized schedulers own
 preparation, lateness and once-only effects. `golden_video::runtime` uses that authority with

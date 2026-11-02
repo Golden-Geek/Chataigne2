@@ -57,4 +57,7 @@ pub struct BlitRegion {
     pub source_rect: UnitRect,
     /// Sampling used when source and destination extents differ.
     pub filter: SampleFilter,
+    /// Optional destination lifetime. Withdrawn regions are skipped even while an older
+    /// plan remains active; other regions in the same pass continue to draw.
+    pub visibility: Option<golden_io::RevisionGuard>,
 }

@@ -12,7 +12,15 @@ use golden_core::{
 use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::OnceLock;
 
-#[node("mapgyver.media", label = "Media")]
+#[node(
+    "mapgyver.media",
+    label = "Media",
+    user_permissions = golden_core::node::NodeUserPermissions {
+        can_edit_name: true,
+        can_remove_and_duplicate: true,
+        ..Default::default()
+    }
+)]
 #[children(
     folder(parameters, label = "Parameters") {
         media_kind: Enum = "SolidColor" (label = "Kind", read_only = true, persist_read_only_value = true,
@@ -28,7 +36,8 @@ pub struct MediaNode {
 impl MediaNode {
     pub(crate) fn from_kind(label: String, kind: MediaKind) -> Self {
         let mut node = Self::new();
-        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label);
+        let permissions = node.node_data().meta.user_permissions.clone();
+        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label).with_user_permissions(permissions);
         node.media_kind = ParameterHandle::new(Enum::new(kind_name(kind)));
         node
     }

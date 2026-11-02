@@ -81,6 +81,9 @@ export {
 export { default as UnknownPanel } from './components/panels/UnknownPanel.svelte';
 export { default as ManagerListPanel } from './components/panels/manager/ManagerListPanel.svelte';
 export { default as IconButton } from './components/common/IconButton.svelte';
+export { default as Viewport2D } from './components/viewport/Viewport2D.svelte';
+export { default as ViewportHandle } from './components/viewport/ViewportHandle.svelte';
+export { pointBounds, type ViewBounds } from './components/viewport/geometry';
 export { default as Outliner } from './components/panels/outliner/OutlinerPanel.svelte';
 export { default as OutlinerItem } from './components/panels/outliner/OutlinerItem.svelte';
 export type {

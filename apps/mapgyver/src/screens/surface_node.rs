@@ -14,6 +14,7 @@ use golden_io::{RevisionGuard, RevisionSource};
     label = "Surface",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
+        can_remove_and_duplicate: true,
         ..Default::default()
     }
 )]
@@ -21,8 +22,8 @@ use golden_io::{RevisionGuard, RevisionSource};
     folder(parameters, label = "Parameters") {
         source_media: NodeReference = NodeReference::empty() (label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media".into()]);
         source_channel: NodeReference = NodeReference::empty() (label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
-        crop_origin: Vec2 = Vec2::new(0.0, 0.0) (label = "Crop origin");
-        crop_size: Vec2 = Vec2::new(1.0, 1.0) (label = "Crop size");
+        crop_origin: Vec2 = Vec2::new(0.0, 0.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop origin", constraint_policy = "reject");
+        crop_size: Vec2 = Vec2::new(1.0, 1.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop size", constraint_policy = "reject");
         top_left: Vec2 = Vec2::new(0.0, 0.0) (label = "Top left");
         top_right: Vec2 = Vec2::new(1.0, 0.0) (label = "Top right");
         bottom_right: Vec2 = Vec2::new(1.0, 1.0) (label = "Bottom right");

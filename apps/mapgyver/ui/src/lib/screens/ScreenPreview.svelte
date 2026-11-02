@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { NativePreview } from 'golden_video_ui';
+	import { Viewport2D, pointBounds } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	import { usePreview } from '../preview/context.svelte';
@@ -31,31 +32,43 @@
 	const identity = $derived<PreviewSource>({ kind: 'Screen', screen: screen.id });
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(owner.statuses.get(previewKey(identity)));
-	const extent = $derived(status?.extent);
+	const target = $derived(screen.definition.target);
+	const extent = $derived(
+		target?.kind === 'Rectangle'
+			? target.bounds.extent
+			: target?.kind === 'Spout'
+				? target.extent
+				: status?.extent
+	);
+	const selection = $derived(
+		pointBounds(
+			screen.surfaces.find((surface) => surface.reference.surface === selected)?.definition.quad
+				.corners ?? []
+		)
+	);
 </script>
 
 <section aria-label="Screen preview">
-	<div class="surface" style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}>
+	<Viewport2D
+		aspect={extent ? extent.width / extent.height : 16 / 9}
+		identity={screen.id}
+		{selection}
+		label="Screen view"
+		native>
 		<NativePreview session={owner.session} {source} label={`Preview of ${screen.label}`}>
 			{#if status?.error}<div class="error">{status.error}</div>
 			{:else if status?.message}<div class="message">{status.message}</div>{/if}
-			<SurfaceHandles {screen} {selected} {disabled} {select} {start} {move} {finish} {stop} />
+			{#key screen.id}
+				<SurfaceHandles {screen} {selected} {disabled} {select} {start} {move} {finish} {stop} />
+			{/key}
 		</NativePreview>
-	</div>
+	</Viewport2D>
 </section>
 
 <style>
 	section {
 		height: 100%;
-		display: grid;
-		place-items: center;
 		min-height: 0;
-	}
-	.surface {
-		width: min(100%, calc(100cqh * var(--preview-aspect)));
-		aspect-ratio: var(--preview-aspect);
-		max-height: 100%;
-		background: transparent;
 	}
 	.error {
 		position: absolute;
@@ -63,7 +76,7 @@
 		display: grid;
 		place-content: center;
 		padding: 1em;
-		background: #202329;
+		background: #000;
 		overflow-wrap: anywhere;
 	}
 	.message {

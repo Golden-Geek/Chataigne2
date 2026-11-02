@@ -43,28 +43,28 @@
 				{view.error || gestureState.error}
 			</p>{/if}
 		{#if editor === 'screen' && screen}
-			{#key screen.id}<ScreenPreview
-					{screen}
-					selected={view.selectedSurface}
-					disabled={controller.busy}
-					select={(uuid) => {
-						if (!gestureState.active) {
-							view.selectedSurface = uuid;
-							select(uuid);
-						}
-					}}
-					start={(reference, corner) => gesture.start(reference, { kind: 'QuadCorner', corner })}
-					move={(point) => gesture.move(point)}
-					finish={() => gesture.finish()}
-					stop={() => gesture.stop()} />{/key}
+			<ScreenPreview
+				{screen}
+				selected={view.selectedSurface}
+				disabled={controller.busy}
+				select={(uuid) => {
+					if (!gestureState.active) {
+						view.selectedSurface = uuid;
+						select(uuid);
+					}
+				}}
+				start={(reference, corner) => gesture.start(reference, { kind: 'QuadCorner', corner })}
+				move={(point) => gesture.move(point)}
+				finish={() => gesture.finish()}
+				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
-			{#key surface.reference.surface}<SurfaceSourcePreview
-					{surface}
-					disabled={controller.busy}
-					start={(handle) => gesture.start(surface.reference, handle)}
-					move={(point) => gesture.move(point)}
-					finish={() => gesture.finish()}
-					stop={() => gesture.stop()} />{/key}
+			<SurfaceSourcePreview
+				{surface}
+				disabled={controller.busy}
+				start={(handle) => gesture.start(surface.reference, handle)}
+				move={(point) => gesture.move(point)}
+				finish={() => gesture.finish()}
+				stop={() => gesture.stop()} />
 		{:else}<p class="editor-empty">
 				Select {editor === 'screen' ? 'a Screen' : 'a Surface'} in Screen Manager.
 			</p>{/if}

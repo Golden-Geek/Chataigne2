@@ -69,20 +69,20 @@
 				{view.error || gestureState.error}
 			</p>{/if}
 		{#if channel && view.composition}
-			{#key channel.reference.channel}<CompositionPreview
-					{channel}
-					composition={view.composition}
-					selected={view.instance}
-					disabled={busy}
-					active={gestureState.active}
-					select={(id) => {
-						view.instance = id;
-						if (id) selection.select(id);
-					}}
-					start={(reference, handle) => gesture.start(reference, handle)}
-					move={(point) => gesture.move(point)}
-					finish={() => gesture.finish()}
-					stop={() => gesture.stop()} />{/key}
+			<CompositionPreview
+				{channel}
+				composition={view.composition}
+				selected={view.instance}
+				disabled={busy}
+				active={gestureState.active}
+				select={(id) => {
+					view.instance = id;
+					if (id) selection.select(id);
+				}}
+				start={(reference, handle) => gesture.start(reference, handle)}
+				move={(point) => gesture.move(point)}
+				finish={() => gesture.finish()}
+				stop={() => gesture.stop()} />
 		{:else}<p class="editor-empty">Select a Composition channel in Media Manager.</p>{/if}
 	</div>
 </section>

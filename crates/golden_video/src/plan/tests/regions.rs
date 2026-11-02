@@ -6,6 +6,7 @@ fn region(source: u64) -> BlitRegion {
         destination: UnitRect::FULL,
         source_rect: UnitRect::FULL,
         filter: SampleFilter::Nearest,
+        visibility: None,
     }
 }
 
@@ -191,4 +192,26 @@ fn presentation_visibility_fences_retain_their_clock_but_do_not_change_graph_dem
         panic!()
     };
     assert!(!visibility.is_current());
+}
+
+#[test]
+fn individual_region_visibility_is_retained_without_invalidating_independent_sources() {
+    let source = golden_io::RevisionSource::default();
+    let guard = source.reader().guard_at(0);
+    let mut input = scene(vec![region(1), region(2)]);
+    let without = input.retained_bytes().unwrap();
+    let RenderOperation::Regions { regions, .. } = &mut input.passes[0].operation else {
+        panic!()
+    };
+    regions[0].visibility = Some(guard.clone());
+    assert_eq!(input.retained_bytes().unwrap() - without, guard.retained_heap_bytes());
+    source.advance();
+    let compiled = input.compile(&limits()).unwrap();
+    assert!(compiled.admission_is_current());
+    let RenderOperation::Regions { regions, .. } = &compiled.passes()[0].operation else {
+        panic!()
+    };
+    assert!(!regions[0].visibility.as_ref().unwrap().is_current());
+    assert!(regions[1].visibility.is_none());
+    assert_eq!(compiled.external_textures().len(), 2);
 }

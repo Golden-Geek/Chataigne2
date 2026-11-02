@@ -16,6 +16,20 @@
 	padding: 0.15rem 0.35rem;
 	flex-shrink: 0;
 	border-bottom: 0.0625rem solid var(--gc-panel-border-color, #ffffff12);
+	background: var(--gc-color-panel);
+}
+/* Only groups containing native apertures expose the underlay. Ordinary
+   managers and Inspectors must retain their themed, opaque panel background. */
+.app .dv-groupview:has(.native-preview) {
+	background-color: transparent;
+	box-shadow:
+		inset 0 0 0 0.25rem var(--gc-color-panel),
+		0.05rem 0.05rem 0.6rem rgba(0, 0, 0, 0.6);
+}
+.app .dv-groupview:has(.native-preview) .dv-tabs-and-actions-container,
+.app .dv-groupview:has(.native-preview) .inspector-header,
+.app .dv-groupview:has(.native-preview) .data-inspector {
+	background-color: var(--gc-color-panel);
 }
 .editor-toolbar > span:first-child {
 	margin-right: auto;

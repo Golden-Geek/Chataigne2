@@ -23,6 +23,7 @@
 	let element: HTMLDivElement;
 	let availability = $state<PreviewSessionState['availability']>('idle');
 	let installed = $state(false);
+	let presentedViews = $state<readonly string[]>([]);
 	let registrationError = $state(false);
 	let registration = $state<PreviewRegistration | null>(null);
 
@@ -32,6 +33,7 @@
 		const unsubscribe = owner.subscribe((state) => {
 			availability = state.availability;
 			installed = state.installed;
+			presentedViews = state.presentedViews;
 		});
 		let view: PreviewRegistration;
 		let observation: ReturnType<typeof observePreviewLayout> | undefined;
@@ -74,7 +76,7 @@
 	data-preview-installed={installed}
 	aria-label={label}
 >
-	{#if visible && (availability !== 'available' || !installed || registrationError)}
+	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
 		<div class="unavailable">Preview unavailable</div>
 	{/if}
 	{#if children}<div class="overlay">{@render children()}</div>{/if}
@@ -93,7 +95,7 @@
 		inset: 0;
 		display: grid;
 		place-content: center;
-		background: var(--preview-unavailable-background, #202329);
+		background: var(--preview-unavailable-background, #000);
 		color: var(--preview-unavailable-color, #b7bcc5);
 		font-size: 0.85em;
 	}

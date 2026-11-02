@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { ViewportHandle } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
@@ -114,18 +115,19 @@
 				}
 			}} />
 	{/each}
-	{#if surface}
-		{#each surface.definition.quad.corners as corner, index}
-			<circle
-				cx={corner.x}
-				cy={corner.y}
-				r="0.018"
-				aria-hidden="true"
-				onpointerdown={(event) => down(event, surface.reference, index)} />
-		{/each}
-	{/if}
-	{#if ghost}<circle class="ghost" cx={ghost.x} cy={ghost.y} r="0.012" />{/if}
 </svg>
+
+{#if surface}
+	{#each surface.definition.quad.corners as corner, index}
+		<ViewportHandle
+			x={corner.x}
+			y={corner.y}
+			label={`Warp corner ${index + 1}`}
+			{disabled}
+			onpointerdown={(event) => down(event, surface.reference, index)} />
+	{/each}
+{/if}
+{#if ghost}<ViewportHandle x={ghost.x} y={ghost.y} label="Warp pointer" ghost />{/if}
 
 <style>
 	svg {
@@ -137,33 +139,21 @@
 		touch-action: none;
 		pointer-events: none;
 	}
-	polygon,
-	circle {
+	polygon {
 		pointer-events: all;
 	}
 	polygon {
 		fill: #78aafa08;
 		stroke: #a2b0c5;
-		stroke-width: 0.003;
+		stroke-width: 0.1rem;
+		vector-effect: non-scaling-stroke;
 		cursor: pointer;
 	}
 	polygon.selected {
 		fill: #78aafa12;
 		stroke: #70aaff;
-		stroke-width: 0.005;
 	}
 	polygon.inactive {
-		stroke-dasharray: 0.015 0.01;
-	}
-	circle {
-		fill: #dceaff;
-		stroke: #467bcc;
-		stroke-width: 0.003;
-		cursor: crosshair;
-	}
-	circle.ghost {
-		fill: none;
-		stroke: #ffe19b;
-		pointer-events: none;
+		stroke-dasharray: 0.3rem 0.2rem;
 	}
 </style>

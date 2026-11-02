@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { ViewportHandle } from 'golden_ui';
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';
 	import type { SurfaceHandle } from './surface-gesture';
@@ -30,7 +31,10 @@
 	function point(event: PointerEvent): Point | null {
 		const rect = canvas.getBoundingClientRect();
 		return rect.width > 0 && rect.height > 0
-			? { x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height }
+			? {
+					x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+					y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+				}
 			: null;
 	}
 	function down(event: PointerEvent, handle: SurfaceHandle) {
@@ -107,16 +111,17 @@
 		height={crop.height}
 		aria-hidden="true"
 		onpointerdown={(event) => down(event, { kind: 'CropOrigin' })} />
-	{#each corners as corner, index}
-		<circle
-			cx={corner.x}
-			cy={corner.y}
-			r="0.018"
-			aria-hidden="true"
-			onpointerdown={(event) => down(event, { kind: 'CropCorner', corner: index })} />
-	{/each}
-	{#if ghost}<circle class="ghost" cx={ghost.x} cy={ghost.y} r="0.012" />{/if}
 </svg>
+
+{#each corners as corner, index}
+	<ViewportHandle
+		x={corner.x}
+		y={corner.y}
+		label={`Crop corner ${index + 1}`}
+		{disabled}
+		onpointerdown={(event) => down(event, { kind: 'CropCorner', corner: index })} />
+{/each}
+{#if ghost}<ViewportHandle x={ghost.x} y={ghost.y} label="Crop pointer" ghost />{/if}
 
 <style>
 	svg {
@@ -131,20 +136,9 @@
 	rect {
 		fill: #78aafa12;
 		stroke: #70aaff;
-		stroke-width: 0.004;
+		stroke-width: 0.1rem;
+		vector-effect: non-scaling-stroke;
 		cursor: move;
 		pointer-events: all;
-	}
-	circle {
-		fill: #dceaff;
-		stroke: #467bcc;
-		stroke-width: 0.003;
-		cursor: crosshair;
-		pointer-events: all;
-	}
-	circle.ghost {
-		fill: none;
-		stroke: #ffe19b;
-		pointer-events: none;
 	}
 </style>

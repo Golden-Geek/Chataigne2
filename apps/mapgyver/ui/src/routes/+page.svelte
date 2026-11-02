@@ -109,9 +109,7 @@
 
 <div
 	class="app"
-	style:--gc-workbench-background={preview.state.transparent ? 'transparent' : undefined}
-	style:--gc-dock-panel-background={preview.state.transparent ? 'transparent' : undefined}
-	style:--mapgyver-panel-background={preview.state.transparent ? 'transparent' : undefined}>
+	style:--gc-workbench-background={preview.state.transparent ? 'transparent' : undefined}>
 	<MainWindow
 		application={host.application}
 		{initialPanels}

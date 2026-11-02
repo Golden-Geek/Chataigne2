@@ -30,11 +30,21 @@ fn region(source: u64, destination: UnitRect, source_rect: UnitRect) -> BlitRegi
         destination,
         source_rect,
         filter: SampleFilter::Nearest,
+        visibility: None,
     }
 }
 
 fn scene(image: &PreparedImageFixture, mode: u8, visibility: Option<golden_io::RevisionGuard>) -> CompiledPlan {
-    let regions = match mode {
+    scene_with_region_fence(image, mode, visibility, None)
+}
+
+fn scene_with_region_fence(
+    image: &PreparedImageFixture,
+    mode: u8,
+    visibility: Option<golden_io::RevisionGuard>,
+    region_visibility: Option<golden_io::RevisionGuard>,
+) -> CompiledPlan {
+    let mut regions = match mode {
         0 => vec![
             region(
                 1,
@@ -74,6 +84,9 @@ fn scene(image: &PreparedImageFixture, mode: u8, visibility: Option<golden_io::R
         )],
         _ => Vec::new(),
     };
+    if let Some(region) = regions.first_mut() {
+        region.visibility = region_visibility;
+    }
     RenderPlan {
         external_textures: vec![ExternalTexture {
             id: TextureId::new(1).unwrap(),
@@ -268,7 +281,13 @@ fn hardware_regions_crop_without_stretch_clear_removed_views_and_preserve_an_ind
     let image = prepared_image(descriptor(4, 2), &pixels);
     let retirement = image.retirement();
     let visibility = golden_io::RevisionSource::default();
-    let initial = scene(&image, 0, Some(visibility.reader().guard_at(0)));
+    let region_visibility = golden_io::RevisionSource::default();
+    let initial = scene_with_region_fence(
+        &image,
+        0,
+        Some(visibility.reader().guard_at(0)),
+        Some(region_visibility.reader().guard_at(0)),
+    );
     let single = scene(&image, 1, None);
     let empty = scene(&image, 2, None);
     let mut renderer = Renderer::new(adapter.id, &initial);
@@ -295,6 +314,14 @@ fn hardware_regions_crop_without_stretch_clear_removed_views_and_preserve_an_ind
         ],
     );
     expect(&first[1], &[GREEN; 16]);
+    region_visibility.advance();
+    let one_withdrawn = renderer.frame(&initial);
+    let mut surviving = [TRANSPARENT; 16];
+    for index in [10, 11, 14, 15] {
+        surviving[index] = GREEN;
+    }
+    expect(&one_withdrawn[0], &surviving);
+    expect(&one_withdrawn[1], &[GREEN; 16]);
     visibility.advance();
     assert!(
         initial.admission_is_current(),
@@ -315,7 +342,7 @@ fn hardware_regions_crop_without_stretch_clear_removed_views_and_preserve_an_ind
     let third = renderer.frame(&empty);
     expect(&third[0], &[TRANSPARENT; 16]);
     expect(&third[1], &[GREEN; 16]);
-    assert_eq!(renderer.backend.control.snapshot().accepted_outputs, 8);
+    assert_eq!(renderer.backend.control.snapshot().accepted_outputs, 10);
     drop(renderer);
     drop(initial);
     drop(single);

@@ -18,6 +18,7 @@ const MAX_SCREEN_DIMENSION: i32 = 8192;
     label = "Screen",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
+        can_remove_and_duplicate: true,
         ..Default::default()
     }
 )]

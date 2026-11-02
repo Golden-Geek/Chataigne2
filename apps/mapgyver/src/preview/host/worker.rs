@@ -120,6 +120,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut owner: Option<Owner> = None;
     let mut native: Option<D3d11Control> = None;
     let mut capture: Option<CapturedPreview> = None;
+    let mut _capture_subscriptions = Vec::new();
     let mut published = None;
     let mut installed: Option<(u64, GenerationInfo, Option<CompletionToken>)> = None;
     let mut last_status = Vec::new();
@@ -361,6 +362,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         installed = None;
                         confirmed = None;
                     }
+                    _capture_subscriptions = next.subscribe(input.notifier.clone());
                     capture = Some(next);
                 }
                 if owner.is_none() {
@@ -399,6 +401,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     if targets.assign(&mut next)? != topology {
                         return Err("output topology changed during time binding; recapture required".into());
                     }
+                    _capture_subscriptions = next.subscribe(input.notifier.clone());
                     capture = Some(next);
                     changed = true;
                 }
@@ -570,6 +573,17 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 Ok(())
             })();
             if let Err(error) = result {
+                if !layout.guard.is_current() || capture.as_ref().is_some_and(|capture| !capture.is_current()) {
+                    // A newer edit/layout superseded preparation. Keep the displayed frame and
+                    // recapture immediately instead of exposing a transient error for 500 ms.
+                    // Discard the obsolete metadata so a stable recapture failure cannot keep
+                    // inheriting its stale guard and bypassing the normal recovery backoff.
+                    capture = None;
+                    _capture_subscriptions.clear();
+                    published = None;
+                    retry = Instant::now();
+                    continue;
+                }
                 if last_error.as_ref() != Some(&error) {
                     eprintln!("[mapgyver-presentation] {error}");
                     last_error = Some(error.clone());
@@ -596,8 +610,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 retry = Instant::now() + Duration::from_millis(500);
             }
         }
-        // Coarse worker wake catches authored guard invalidation; the actor is contacted only
-        // when metadata changed. File/GPU/geometry completions also wake this worker directly.
+        // Authored dependency invalidation, file/GPU/geometry completions wake this worker.
+        // The timeout serves coarse supervision, lease expiry and recovery deadlines only.
         let _ = input.signal.recv_timeout(Duration::from_millis(100));
     }
     input.controller.close();

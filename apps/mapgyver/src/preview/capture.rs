@@ -9,7 +9,7 @@ use crate::{
         rendering::{CapturedOutput, ScreenRoute, capture_outputs, capture_screen, membership_guard},
     },
 };
-use golden_io::RevisionGuard;
+use golden_io::{RevisionGuard, RevisionSubscription, WorkerNotifier};
 use std::collections::HashSet;
 
 #[derive(Clone)]
@@ -23,6 +23,16 @@ pub struct CapturedPreview {
 }
 
 impl CapturedPreview {
+    /// Wake preparation when any authored dependency changes; source frames remain GPU-local.
+    pub fn subscribe(&self, notifier: WorkerNotifier) -> Vec<RevisionSubscription> {
+        self.channels
+            .revision_guards()
+            .chain(&self.guards)
+            .chain(self.screens.iter().flat_map(|route| &route.screen.guards))
+            .map(|guard| guard.subscribe(notifier.clone()))
+            .collect()
+    }
+
     #[cfg(all(windows, feature = "native-video"))]
     pub(crate) fn add_revision_guard(&mut self, guard: RevisionGuard) {
         let mut guards = self.channels.guards.to_vec();

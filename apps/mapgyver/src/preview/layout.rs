@@ -16,6 +16,13 @@ pub struct PreviewLayout {
 }
 
 impl PreviewLayout {
+    pub(crate) const RESERVED_TEXTURES: u64 = 5;
+    pub(crate) const PASS_COUNT: usize = 5;
+
+    pub(crate) fn maximum_dependencies(&self) -> usize {
+        self.layout.views.len().saturating_mul(2).saturating_add(3)
+    }
+
     pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
         self.layout
             .views
@@ -49,7 +56,7 @@ impl PreviewLayout {
             output: texture,
             descriptor: self.descriptor,
             operation: RenderOperation::Regions {
-                visibility: Some(self.layout.guard.clone()),
+                visibility: None,
                 regions: self
                     .layout
                     .regions(|source| match serde_json::from_str::<PreviewSource>(source).ok()? {
@@ -69,12 +76,34 @@ impl PreviewLayout {
             },
             operation: RenderOperation::Clear(LinearColor::from_straight(0.0075, 0.0075, 0.0075, 1.).unwrap()),
         });
+        let black = TextureId::new(4).unwrap();
+        let active_areas = TextureId::new(5).unwrap();
+        submission.plan.passes.push(RenderPass {
+            id: PassId::new(4).unwrap(),
+            output: black,
+            descriptor: TextureDescriptor {
+                extent: Extent2D::new(1, 1).unwrap(),
+                ..self.descriptor
+            },
+            operation: RenderOperation::Clear(LinearColor::from_straight(0., 0., 0., 1.).unwrap()),
+        });
+        submission.plan.passes.push(RenderPass {
+            id: PassId::new(5).unwrap(),
+            output: active_areas,
+            descriptor: self.descriptor,
+            // Every registered aperture is black, even when its source is unavailable. Keep
+            // this below the source regions so their alpha composites over black, not the theme.
+            operation: RenderOperation::Regions {
+                visibility: None,
+                regions: self.layout.regions(|_| Some(black)),
+            },
+        });
         submission.plan.passes.push(RenderPass {
             id: PassId::new(3).unwrap(),
             output,
             descriptor: self.descriptor,
             operation: RenderOperation::Composite {
-                layers: [background, texture]
+                layers: [background, active_areas, texture]
                     .into_iter()
                     .map(|source| Layer {
                         source: source.into(),

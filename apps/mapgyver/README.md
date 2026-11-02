@@ -13,6 +13,14 @@ existing media or folders through validated backend intents. Screen Manager show
 their Surfaces. Warping, Surface Source and Composition use separate full-panel canvases; Matrix
 uses a full-panel grid with compact icon actions. Selecting an item never launches it.
 
+The three 2D editors share Golden UI's `Viewport2D`: wheel zoom stays under the pointer,
+Space + drag or middle drag pans, **F** frames selection, and **Home** fits the active area.
+The compact view toolbar exposes the same actions. Handles keep their round screen-space
+size at every aspect ratio and zoom. The output area is black; surrounding panels keep the
+workbench theme. Native preview apertures remain transparent to the shared desktop underlay.
+Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
+for every caller, with typed 0–1 bounds in the generic Inspector.
+
 The default layout reserves most space for the editor. Existing saved docking layouts are
 retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser

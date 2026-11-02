@@ -32,20 +32,20 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
             color_encoding: ColorEncoding::Linear,
             alpha_mode: AlphaMode::Premultiplied,
         },
-        layout: PreviewSnapshot {
-            generation: reader.current(),
-            views: vec![
+        layout: PreviewSnapshot::new(
+            reader.current(),
+            vec![
                 view.clone(),
                 ResolvedView {
                     id: uuid::Uuid::new_v4(),
                     ..view
                 },
             ],
-            guard: reader.guard_at(reader.current()),
-        },
+            reader.guard_at(reader.current()),
+        ),
     };
     let renderer = renderer();
-    let mut next = 3;
+    let mut next = PreviewLayout::RESERVED_TEXTURES;
     let prepared = super::super::plan::build(
         &capture,
         super::super::plan::Targets {
@@ -64,7 +64,7 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
     )
     .unwrap();
     assert_eq!(prepared.channels.len(), 1);
-    assert_eq!(prepared.submission.plan.passes.len(), 4);
+    assert_eq!(prepared.submission.plan.passes.len(), 6);
     assert_eq!(prepared.submission.plan.outputs.len(), 3);
     let pass = prepared
         .submission
@@ -78,10 +78,21 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
     };
     assert_eq!(regions.len(), 2);
     assert_eq!(regions[0].source, regions[1].source);
-    assert!(visibility.as_ref().unwrap().is_current());
-    revision.advance();
-    assert!(!visibility.as_ref().unwrap().is_current());
+    assert!(visibility.is_none());
+    assert!(
+        regions
+            .iter()
+            .all(|region| region.visibility.as_ref().unwrap().is_current())
+    );
     assert!(prepared.submission.guards.iter().all(|guard| guard.is_current()));
+    revision.advance();
+    assert!(
+        regions
+            .iter()
+            .all(|region| !region.visibility.as_ref().unwrap().is_current())
+    );
+    assert!(prepared.submission.guards.iter().any(|guard| !guard.is_current()));
+    assert!(capture.is_current());
     close(renderer);
 }
 
@@ -97,9 +108,9 @@ fn malformed_preview_reference_cannot_publish_a_plan() {
             color_encoding: ColorEncoding::Linear,
             alpha_mode: AlphaMode::Premultiplied,
         },
-        layout: PreviewSnapshot {
-            generation: reader.current(),
-            views: vec![ResolvedView {
+        layout: PreviewSnapshot::new(
+            reader.current(),
+            vec![ResolvedView {
                 id: uuid::Uuid::new_v4(),
                 source: "not a channel reference".into(),
                 destination: UnitRect {
@@ -115,8 +126,8 @@ fn malformed_preview_reference_cannot_publish_a_plan() {
                     height: 1.,
                 },
             }],
-            guard: reader.guard_at(reader.current()),
-        },
+            reader.guard_at(reader.current()),
+        ),
     };
     let engine = engine();
     let mut renderer = renderer();
@@ -182,10 +193,9 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
             color_encoding: ColorEncoding::Linear,
             alpha_mode: AlphaMode::Premultiplied,
         },
-        layout: PreviewSnapshot {
-            generation: 0,
-            guard: reader.guard_at(0),
-            views: sources
+        layout: PreviewSnapshot::new(
+            0,
+            sources
                 .iter()
                 .enumerate()
                 .map(|(index, source)| ResolvedView {
@@ -200,9 +210,11 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
                     source_rect: UnitRect::FULL,
                 })
                 .collect(),
-        },
+            reader.guard_at(0),
+        ),
     };
     let mut renderer = renderer();
+    let mut next = PreviewLayout::RESERVED_TEXTURES;
     let prepared = super::super::plan::build(
         &capture.channels,
         super::super::plan::Targets {
@@ -214,7 +226,7 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
             channels: &HashMap::new(),
             screens: &HashMap::new(),
         },
-        &mut 3,
+        &mut next,
         config().plan_limits,
         &renderer.source_observations(),
         None,
@@ -222,7 +234,7 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
     .unwrap();
     assert_eq!(prepared.channels.len(), 1);
     assert_eq!(prepared.screens.len(), 1);
-    assert_eq!(prepared.submission.plan.passes.len(), 5);
+    assert_eq!(prepared.submission.plan.passes.len(), 7);
     assert_eq!(prepared.submission.plan.outputs.len(), 1);
     let RenderOperation::Regions { regions, .. } = &prepared
         .submission

@@ -48,6 +48,11 @@ window.addEventListener('unhandledrejection', (event) => fail(event.reason));
 // protocol tests must report startup failures instead of waiting silently for a phase event.
 async function start() {
 	// Keep distinct import sites: each fixture must preload its own extracted stylesheet.
+	if (new URLSearchParams(location.search).get('mode') === 'continuity') {
+		const { default: Fixture } = await import('./Continuity.svelte');
+		mount(Fixture, { target: document.getElementById('app')! });
+		return;
+	}
 	if (qualification) {
 		const { default: Fixture } = await import('./Qualification.svelte');
 		mount(Fixture, { target: document.getElementById('app')! });

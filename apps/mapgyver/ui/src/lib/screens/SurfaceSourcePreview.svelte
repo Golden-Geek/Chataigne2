@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { NativePreview } from 'golden_video_ui';
+	import { Viewport2D } from 'golden_ui';
 	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
@@ -32,40 +33,36 @@
 </script>
 
 {#snippet controls()}
-	<CropHandles crop={surface.definition.crop} {disabled} {start} {move} {finish} {stop} />
+	{#key surface.reference.surface + source}
+		<CropHandles crop={surface.definition.crop} {disabled} {start} {move} {finish} {stop} />
+	{/key}
 {/snippet}
 
 <section aria-label="Surface Source preview">
-	<div class="surface" style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}>
+	<Viewport2D
+		aspect={extent ? extent.width / extent.height : 16 / 9}
+		identity={surface.reference.surface}
+		selection={surface.definition.crop}
+		label="Surface source view"
+		native={identity !== null}>
 		{#if identity}
-			{#key source}
-				<NativePreview session={owner.session} {source} label={`Full source for ${surface.label}`}>
-					{#if status?.error || status?.message}<div class="message">
-							{status.error ?? status.message}
-						</div>{/if}
-					{@render controls()}
-				</NativePreview>
-			{/key}
+			<NativePreview session={owner.session} {source} label={`Full source for ${surface.label}`}>
+				{#if status?.error || status?.message}<div class="message">
+						{status.error ?? status.message}
+					</div>{/if}
+				{@render controls()}
+			</NativePreview>
 		{:else}
 			<div class="message">No source assigned. Choose a channel in Surface settings.</div>
 			{@render controls()}
 		{/if}
-	</div>
+	</Viewport2D>
 </section>
 
 <style>
 	section {
 		height: 100%;
-		display: grid;
-		place-items: center;
 		min-height: 0;
-	}
-	.surface {
-		position: relative;
-		width: min(100%, calc(100cqh * var(--preview-aspect)));
-		aspect-ratio: var(--preview-aspect);
-		max-height: 100%;
-		background: transparent;
 	}
 	.message {
 		position: absolute;
@@ -73,7 +70,7 @@
 		display: grid;
 		place-content: center;
 		padding: 1em;
-		background: #202329;
+		background: #000;
 		overflow-wrap: anywhere;
 		pointer-events: none;
 	}

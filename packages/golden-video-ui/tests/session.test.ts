@@ -168,6 +168,124 @@ describe('window preview session', () => {
 		expect(session.state.installed).toBe(true);
 	});
 
+	it('retains the last frame during source replacement without claiming latest installation', async () => {
+		let installed = true;
+		const endpoint = transport((request) => {
+			if (request.kind === 'Layout' || request.kind === 'Status')
+				return Promise.resolve({
+					kind: 'Applied',
+					revision: request.revision,
+					visible_views: 1,
+					installed
+				});
+		});
+		const session = own(endpoint.value);
+		const view = session.register('first-screen', () => geometry());
+		await session.connect();
+		await flush();
+		expect(session.state.presentedViews).toEqual([view.id]);
+		installed = false;
+		const presented: (readonly string[])[] = [];
+		const unsubscribe = session.subscribe((state) => presented.push([...state.presentedViews]));
+		view.update('second-screen');
+		await flush();
+		expect(session.state.installed).toBe(false);
+		expect(session.state.presentedViews).toEqual([view.id]);
+		installed = true;
+		await vi.advanceTimersByTimeAsync(100);
+		await session.whenSettled();
+		unsubscribe();
+		expect(session.state.installed).toBe(true);
+		expect(presented.every((ids) => ids.includes(view.id))).toBe(true);
+	});
+
+	it('preserves an unchanged screen while an Inspector preview is added and removed', async () => {
+		let installed = true;
+		let visibleViews = 0;
+		const endpoint = transport((request) => {
+			if (request.kind === 'Layout')
+				visibleViews = request.views.filter((view) => view.visible).length;
+			if (request.kind === 'Layout' || request.kind === 'Status')
+				return Promise.resolve({
+					kind: 'Applied',
+					revision: request.revision,
+					visible_views: visibleViews,
+					installed
+				});
+		});
+		const session = own(endpoint.value);
+		const screen = session.register('screen', () => geometry());
+		await session.connect();
+		await flush();
+		installed = false;
+		const inspector = session.register('inspector', () => geometry(30));
+		await flush();
+		expect(session.state.installed).toBe(false);
+		expect(session.state.presentedViews).toEqual([screen.id]);
+		installed = true;
+		await vi.advanceTimersByTimeAsync(100);
+		expect(session.state.presentedViews).toEqual([screen.id, inspector.id]);
+		installed = false;
+		inspector.unregister();
+		expect(session.state.presentedViews).toEqual([screen.id]);
+		await flush();
+		expect(session.state.installed).toBe(false);
+		expect(session.state.presentedViews).toEqual([screen.id]);
+	});
+
+	it.each(['move', 'hide', 'disconnect'] as const)(
+		'withdraws retained presentation on %s until it is valid again',
+		async (change) => {
+			let installed = true;
+			const endpoint = transport((request) => {
+				if (request.kind === 'Layout' || request.kind === 'Status')
+					return Promise.resolve({
+						kind: 'Applied',
+						revision: request.revision,
+						visible_views: 1,
+						installed
+					});
+			});
+			const session = own(endpoint.value);
+			let current = geometry();
+			const view = session.register('screen', () => current);
+			await session.connect();
+			await flush();
+			expect(session.state.presentedViews).toEqual([view.id]);
+			installed = false;
+			if (change === 'disconnect') void session.reconnect();
+			else {
+				current = change === 'move' ? geometry(10) : { ...geometry(), visible: false };
+				view.invalidate();
+			}
+			await flush();
+			expect(session.state.presentedViews).toEqual([]);
+		}
+	);
+
+	it('does not retain views the native host has clipped away', async () => {
+		let visible = 1;
+		const endpoint = transport((request) => {
+			if (request.kind === 'Layout' || request.kind === 'Status')
+				return Promise.resolve({
+					kind: 'Applied',
+					revision: request.revision,
+					visible_views: visible,
+					installed: true
+				});
+		});
+		const session = own(endpoint.value);
+		const view = session.register('screen', () => geometry());
+		await session.connect();
+		await flush();
+		expect(session.state.presentedViews).toEqual([view.id]);
+		visible = 0;
+		view.update('offscreen');
+		await flush();
+		expect(session.state.installed).toBe(true);
+		expect(session.state.presentedViews).toEqual([]);
+	});
+
 	it('covers changed geometry until the native owner confirms installation through Status', async () => {
 		let installed = false;
 		const endpoint = transport((request) => {

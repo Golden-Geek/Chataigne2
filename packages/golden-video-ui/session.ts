@@ -11,6 +11,9 @@ export interface PreviewSessionState {
 	acknowledgedRevision: number;
 	visibleViews: number;
 	installed: boolean;
+	/** Views whose last installed frame still occupies their current geometry. Source changes
+	 * retain that frame until replacement; this is distinct from latest-layout installation. */
+	presentedViews: readonly string[];
 	error: string | null;
 }
 export interface PreviewRegistration {
@@ -48,6 +51,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		acknowledgedRevision: 0,
 		visibleViews: 0,
 		installed: false,
+		presentedViews: [],
 		error: null
 	};
 	let generation = 0;
@@ -66,6 +70,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	let statusWanted = false;
 	let statusAttempts = 0;
 	let lastGeometry = '';
+	let lastViews: PreviewView[] = [];
+	let presentedLayout: PreviewView[] = [];
 	let pendingApplied: Extract<PreviewResponse, { kind: 'Applied' }> | null = null;
 	let maximumViews = MAX_VIEWS;
 	const registrations = new Map<string, Registration>();
@@ -78,6 +84,14 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	function update(next: Partial<PreviewSessionState>) {
 		state = { ...state, ...next };
 		for (const listener of listeners) listener(state);
+	}
+	function retainPresentation(views: PreviewView[]) {
+		const geometry = (view: PreviewView) =>
+			JSON.stringify({ rect: view.rect, clip: view.clip, visible: view.visible });
+		const presented = new Map(presentedLayout.map((view) => [view.id, geometry(view)]));
+		return views
+			.filter((view) => view.visible && presented.get(view.id) === geometry(view))
+			.map((view) => view.id);
 	}
 	function stopHeartbeat() {
 		if (heartbeat !== null) clearTimeout(heartbeat);
@@ -135,11 +149,12 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	}
 	function fail(error: string) {
 		pendingApplied = null;
+		presentedLayout = [];
 		if (closing) {
 			closing = false;
 			stopStatus();
 			dirty = false;
-			update({ availability: 'disposed', installed: false, error });
+			update({ availability: 'disposed', installed: false, presentedViews: [], error });
 			return;
 		}
 		if (state.session) cleanupSessions.add(state.session);
@@ -151,6 +166,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			session: null,
 			visibleViews: 0,
 			installed: false,
+			presentedViews: [],
 			error
 		});
 		resolveConnection?.(false);
@@ -172,10 +188,16 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		}));
 	}
 	function acknowledge(response: Extract<PreviewResponse, { kind: 'Applied' }>) {
+		// Host clipping can resolve fewer views than the browser measured. The aggregate reply
+		// cannot identify that subset, so retain presentation only when every visible view agrees.
+		if (response.installed)
+			presentedLayout =
+				response.visible_views === lastViews.filter((view) => view.visible).length ? lastViews : [];
 		update({
 			acknowledgedRevision: response.revision,
 			visibleViews: response.visible_views,
 			installed: response.installed,
+			presentedViews: retainPresentation(lastViews),
 			error: null
 		});
 		if (closing && response.installed && response.visible_views === 0) {
@@ -217,8 +239,9 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						const geometry = JSON.stringify(views);
 						if (geometry !== lastGeometry) {
 							lastGeometry = geometry;
-							update({ installed: false });
+							update({ installed: false, presentedViews: retainPresentation(views) });
 						}
+						lastViews = views;
 						stopStatus();
 						statusAttempts = 0;
 						request = { kind: 'Layout', session: state.session, revision: ++revision, views };
@@ -285,6 +308,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 					retryDelay = 1000;
 					stopReconnect();
 					lastGeometry = '';
+					lastViews = [];
+					presentedLayout = [];
 					pendingApplied = null;
 					update({
 						availability: 'available',
@@ -292,6 +317,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						acknowledgedRevision: 0,
 						visibleViews: 0,
 						installed: false,
+						presentedViews: [],
 						error: null
 					});
 					resolveConnection?.(true);
@@ -340,7 +366,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			frame = null;
 			if (hide) {
 				try {
-					if (JSON.stringify(measure()) === lastGeometry) {
+					const views = measure();
+					if (JSON.stringify(views) === lastGeometry) {
 						if (pendingApplied && pendingApplied.revision === revision && !dirty) {
 							const response = pendingApplied;
 							pendingApplied = null;
@@ -356,7 +383,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						return;
 					}
 					pendingApplied = null;
-					update({ installed: false });
+					update({ installed: false, presentedViews: retainPresentation(views) });
 				} catch (error) {
 					fail(String(error));
 					void pump();
@@ -392,6 +419,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			return connection;
 		}
 		client = newId();
+		presentedLayout = [];
 		connectWanted = true;
 		update({
 			availability: 'connecting',
@@ -399,6 +427,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			acknowledgedRevision: 0,
 			visibleViews: 0,
 			installed: false,
+			presentedViews: [],
 			error: null
 		});
 		connection = new Promise((resolve) => {
@@ -451,7 +480,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						active = false;
 						registrations.delete(registration.id);
 						if (disposed) return;
-						update({ installed: false });
+						update({
+							installed: false,
+							presentedViews: state.presentedViews.filter((id) => id !== registration.id)
+						});
 						invalidate();
 					}
 				}
@@ -472,7 +504,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				registrations.clear();
 				resolveConnection?.(false);
 				resolveConnection = undefined;
-				update({ availability: 'disposed', visibleViews: 0, installed: false });
+				presentedLayout = [];
+				update({ availability: 'disposed', visibleViews: 0, installed: false, presentedViews: [] });
 				void pump();
 			}
 			return whenSettled();

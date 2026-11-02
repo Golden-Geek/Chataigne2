@@ -32,7 +32,7 @@ pub use recovery::ReconnectBackoff;
 pub use retirement::{
     RetirementCapacityError, RetirementError, RetirementMetricsSnapshot, RetirementPermit, RetirementPool,
 };
-pub use revision::{RevisionGuard, RevisionReader, RevisionSource};
+pub use revision::{RevisionGuard, RevisionReader, RevisionSource, RevisionSubscription};
 pub use worker::WorkerTask;
 
 #[cfg(test)]

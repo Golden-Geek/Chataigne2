@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { ViewportHandle } from 'golden_ui';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
@@ -156,13 +157,6 @@
 					}
 				}} />
 		{/if}
-		<circle
-			cx={item.definition.transform.position[0]}
-			cy={item.definition.transform.position[1]}
-			r={Math.min(composition.canvas.width, composition.canvas.height) * 0.008}
-			class="pivot"
-			aria-hidden="true"
-			onpointerdown={(event) => down(event, item, 'Translate')} />
 	{/each}
 	{#if instance && handles}
 		{#if selectedExtent && !visible.some((item) => item.reference.instance === instance.reference.instance)}
@@ -176,35 +170,47 @@
 		{/if}
 		<line x1={handles.pivot.x} y1={handles.pivot.y} x2={handles.rotate.x} y2={handles.rotate.y} />
 		<line x1={handles.pivot.x} y1={handles.pivot.y} x2={handles.scale.x} y2={handles.scale.y} />
-		<circle
-			cx={handles.pivot.x}
-			cy={handles.pivot.y}
-			r={handles.radius * 1.4}
-			class="selected-pivot"
-			aria-hidden="true"
-			onpointerdown={(event) => down(event, instance!, 'Translate')} />
-		<circle
-			cx={handles.rotate.x}
-			cy={handles.rotate.y}
-			r={handles.radius}
-			class="rotate"
-			aria-hidden="true"
-			onpointerdown={(event) => down(event, instance!, 'Rotate')} />
-		<rect
-			x={handles.scale.x - handles.radius}
-			y={handles.scale.y - handles.radius}
-			width={handles.radius * 2}
-			height={handles.radius * 2}
-			class="scale"
-			aria-hidden="true"
-			onpointerdown={(event) => down(event, instance!, 'Scale')} />
 	{/if}
-	{#if ghost}<circle
-			class="ghost"
-			cx={ghost.x}
-			cy={ghost.y}
-			r={Math.min(composition.canvas.width, composition.canvas.height) * 0.006} />{/if}
 </svg>
+
+{#each visible as item (item.reference.instance)}
+	{#if item.reference.instance !== selected}
+		<ViewportHandle
+			x={item.definition.transform.position[0] / composition.canvas.width}
+			y={item.definition.transform.position[1] / composition.canvas.height}
+			label={`Move ${item.label}`}
+			{disabled}
+			onpointerdown={(event) => down(event, item, 'Translate')} />
+	{/if}
+{/each}
+{#if instance && handles}
+	<ViewportHandle
+		x={handles.pivot.x / composition.canvas.width}
+		y={handles.pivot.y / composition.canvas.height}
+		label={`Move ${instance.label}`}
+		data-instance-handle="Translate"
+		{disabled}
+		onpointerdown={(event) => down(event, instance!, 'Translate')} />
+	<ViewportHandle
+		x={handles.rotate.x / composition.canvas.width}
+		y={handles.rotate.y / composition.canvas.height}
+		label={`Rotate ${instance.label}`}
+		data-instance-handle="Rotate"
+		{disabled}
+		onpointerdown={(event) => down(event, instance!, 'Rotate')} />
+	<ViewportHandle
+		x={handles.scale.x / composition.canvas.width}
+		y={handles.scale.y / composition.canvas.height}
+		label={`Scale ${instance.label}`}
+		data-instance-handle="Scale"
+		{disabled}
+		onpointerdown={(event) => down(event, instance!, 'Scale')} />
+{/if}
+{#if ghost}<ViewportHandle
+		x={ghost.x / composition.canvas.width}
+		y={ghost.y / composition.canvas.height}
+		label="Transform pointer"
+		ghost />{/if}
 
 <style>
 	svg {
@@ -216,9 +222,7 @@
 		touch-action: none;
 		pointer-events: none;
 	}
-	polygon,
-	circle,
-	rect {
+	polygon {
 		pointer-events: all;
 	}
 	polygon {
@@ -239,28 +243,5 @@
 		stroke: #70aaff;
 		stroke-width: 0.1rem;
 		vector-effect: non-scaling-stroke;
-	}
-	circle,
-	rect {
-		fill: #dceaff;
-		stroke: #467bcc;
-		stroke-width: 0.1rem;
-		vector-effect: non-scaling-stroke;
-	}
-	.pivot,
-	.selected-pivot {
-		cursor: move;
-	}
-	.rotate {
-		cursor: crosshair;
-		fill: #ffe19b;
-	}
-	.scale {
-		cursor: nwse-resize;
-	}
-	.ghost {
-		fill: none;
-		stroke: #ffe19b;
-		pointer-events: none;
 	}
 </style>

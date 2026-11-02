@@ -54,10 +54,7 @@ class LayoutObservation {
 	measured(id: string, geometry: PreviewGeometry) {
 		const view = this.views.get(id);
 		if (!view) return;
-		if (
-			this.everConnected &&
-			(!this.session.state.installed || JSON.stringify(view.latest) !== JSON.stringify(geometry))
-		) {
+		if (this.everConnected && JSON.stringify(view.latest) !== JSON.stringify(geometry)) {
 			this.protect(view);
 			if (geometry.visible) this.covers.protect(id, geometry.clip);
 		}
@@ -86,9 +83,13 @@ class LayoutObservation {
 			// A Disposed/Disconnected metadata state alone provides no such proof.
 			this.covers.clear();
 			for (const view of this.views.values())
-				view.nativeRect = state.visibleViews && view.latest?.visible ? view.latest.clip : undefined;
+				view.nativeRect =
+					state.presentedViews.includes(view.id) && view.latest?.visible
+						? view.latest.clip
+						: undefined;
 		} else if (this.everConnected) {
-			for (const view of this.views.values()) this.protect(view);
+			for (const view of this.views.values())
+				if (!state.presentedViews.includes(view.id)) this.protect(view);
 		}
 		this.renderCovers();
 		this.finishIfUnused();
@@ -127,7 +128,7 @@ class LayoutObservation {
 				Object.assign(mask.style, {
 					position: 'fixed',
 					pointerEvents: 'none',
-					background: '#202329'
+					background: '#000'
 				});
 				this.layer.append(mask);
 				this.masks.set(id, mask);

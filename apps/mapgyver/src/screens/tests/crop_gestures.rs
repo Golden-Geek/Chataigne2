@@ -77,6 +77,84 @@ fn every_crop_corner_keeps_the_opposite_corner_fixed() {
 }
 
 #[test]
+fn crop_drags_stop_at_source_bounds_and_cannot_cross_the_opposite_corner() {
+    for (corner, point, expected) in [
+        (0, Point { x: -2.0, y: -3.0 }, [0.0, 0.0, 0.8, 0.8]),
+        (1, Point { x: 2.0, y: -3.0 }, [0.2, 0.0, 0.8, 0.8]),
+        (2, Point { x: 2.0, y: 3.0 }, [0.2, 0.2, 0.8, 0.8]),
+        (3, Point { x: -2.0, y: 3.0 }, [0.0, 0.2, 0.8, 0.8]),
+    ] {
+        let (mut engine, reference, original) = authored();
+        let changed = edit(
+            &mut engine,
+            reference,
+            SurfaceGeometryEdit::CropCorner { corner, point },
+        );
+        assert!(changed.crop.is_valid());
+        for (actual, expected) in [changed.crop.x, changed.crop.y, changed.crop.width, changed.crop.height]
+            .into_iter()
+            .zip(expected)
+        {
+            assert!((actual - expected).abs() < 1e-6);
+        }
+        assert_eq!(
+            changed,
+            SurfaceDefinition {
+                crop: changed.crop,
+                ..original
+            }
+        );
+    }
+    for (corner, point) in [
+        (0, Point { x: 2.0, y: 2.0 }),
+        (1, Point { x: -2.0, y: 2.0 }),
+        (2, Point { x: -2.0, y: -2.0 }),
+        (3, Point { x: 2.0, y: -2.0 }),
+    ] {
+        let (mut engine, reference, _) = authored();
+        let changed = edit(
+            &mut engine,
+            reference,
+            SurfaceGeometryEdit::CropCorner { corner, point },
+        );
+        assert!(changed.crop.is_valid());
+        assert!(changed.crop.width < 1e-6 && changed.crop.height < 1e-6);
+    }
+}
+
+#[test]
+fn crop_translation_keeps_size_and_stops_at_each_source_edge() {
+    let (mut engine, reference, original) = authored();
+    for (point, expected) in [
+        (Point { x: -1.0, y: -1.0 }, [0.0, 0.0]),
+        (Point { x: 1.0, y: 1.0 }, [0.4, 0.4]),
+        (Point { x: -1.0, y: 1.0 }, [0.0, 0.4]),
+        (Point { x: 1.0, y: -1.0 }, [0.4, 0.0]),
+    ] {
+        let changed = edit(&mut engine, reference, SurfaceGeometryEdit::CropOrigin { point });
+        assert!(changed.crop.is_valid());
+        assert_eq!(
+            (changed.crop.width, changed.crop.height),
+            (original.crop.width, original.crop.height)
+        );
+        assert!((changed.crop.x - expected[0]).abs() < 1e-6);
+        assert!((changed.crop.y - expected[1]).abs() < 1e-6);
+    }
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    let history = engine.undo_len();
+    let unchanged = edit(
+        &mut engine,
+        reference,
+        SurfaceGeometryEdit::CropOrigin {
+            point: Point { x: -1.0, y: 2.0 },
+        },
+    );
+    assert_eq!(unchanged.crop, UnitRect::FULL);
+    assert_eq!(engine.undo_len(), history);
+}
+
+#[test]
 fn crop_samples_are_atomic_and_one_undo_restores_mapping_source_and_calibration() {
     let (mut engine, reference, original) = authored();
     let history = engine.undo_len();
@@ -118,18 +196,13 @@ fn crop_samples_are_atomic_and_one_undo_restores_mapping_source_and_calibration(
         },
         SurfaceGeometryEdit::CropCorner {
             corner: 0,
-            point: Point { x: -0.1, y: 0.1 },
-        },
-        SurfaceGeometryEdit::CropCorner {
-            corner: 2,
-            point: Point { x: 0.1, y: 0.1 },
-        },
-        SurfaceGeometryEdit::CropCorner {
-            corner: 2,
-            point: Point { x: 1.1, y: 0.8 },
+            point: Point { x: f32::NAN, y: 0.1 },
         },
         SurfaceGeometryEdit::CropOrigin {
-            point: Point { x: 0.9, y: 0.1 },
+            point: Point {
+                x: f32::INFINITY,
+                y: 0.1,
+            },
         },
     ] {
         assert!(!invoke(&mut engine, ScreenEdit::EditSurfaceGeometry { reference, edit }).success);

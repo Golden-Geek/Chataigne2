@@ -223,7 +223,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				);
 			await svg.scrollIntoViewIfNeeded();
 			const rect = await svg.boundingBox();
-			const handle = await svg.locator(selector).boundingBox();
+			const handle = await panel.locator(selector).boundingBox();
 			assert(rect && handle, 'naturally rendered handles need geometry');
 			const point = {
 				x: ((handle.x + handle.width / 2 - rect.x) * 400) / rect.width,
@@ -240,9 +240,9 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				{ steps }
 			);
 		for (const [mode, selector] of [
-			['Translate', 'circle.selected-pivot'],
-			['Rotate', 'circle.rotate'],
-			['Scale', 'rect.scale']
+			['Translate', 'button[data-instance-handle="Translate"]'],
+			['Rotate', 'button[data-instance-handle="Rotate"]'],
+			['Scale', 'button[data-instance-handle="Scale"]']
 		]) {
 			stage = `${mode} grouped gesture`;
 			snapshot = await inspect();
@@ -290,7 +290,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 		}
 		stage = 'Escape and invalid form';
 		snapshot = await inspect();
-		const { rect, point } = await begin('circle.selected-pivot');
+		const { rect, point } = await begin('button[data-instance-handle="Translate"]');
 		await move(rect, { x: point.x + 12, y: point.y + 8 });
 		await wait(current, (value) =>
 			near(value.definition.transform.position, [point.x + 12, point.y + 8], 2)

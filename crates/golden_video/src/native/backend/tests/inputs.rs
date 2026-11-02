@@ -76,6 +76,7 @@ impl Producer {
         self.input.flush().unwrap();
         self.reply();
     }
+    #[cfg(feature = "qualification")]
     pub(super) fn finish(&mut self) {
         self.command("exit");
         assert!(self.child.lock().unwrap().wait().unwrap().success());

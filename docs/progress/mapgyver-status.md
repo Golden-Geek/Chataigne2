@@ -4,14 +4,20 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** M05/6 Screen/Surface Parameter conversion. **Next:** complete generic Inspector/
-canvas acceptance on the corrected rename-permission candidate. **Blocker:** browser acceptance
-remains open after two startup failures; native/display/reset/timing/memory gates are retained.
-**Batch:** 23:40 CET, stop00:25 CET. Baseline `f4c727ab` pushed/verified. Deliver Screen/Surface
-Parameter schemas and generic Inspector with valid whole-quad/crop updates; preserve rejection,
-all callers, history/copy/project lifetime and full-panel gestures. Add one app-neutral atomic
-parameter-write boundary for cross-field invariants. Run focused/current software before at most
-two bundled Screen/Source browser acceptance flows; no native qualification or unrelated tuning.
+**Current:** grey-flash/background correction, removable authored objects and bounded 2D editing implemented; native visual acceptance retained (M05/6).
+**Next:** verify Add Screen/source switching in a targetable ordinary native app window; keep the passed browser input and native pixel evidence.
+**Blocker:** isolated desktop review did not expose a targetable window; no end-to-end no-flash
+claim. Retained native/display/reset/timing/memory acceptance remains open. Current usable
+feature: typed Screen/Surface editing with bounded crop and shared pan/zoom/frame/Home.
+Last delivered capability: removable authored objects and consistent 2D editor navigation.
+**Batch:** 2 November, 08:00 CET, stop08:45 CET. Deliver a consistent, bounded 2D editing workflow
+and removable authored objects. Owners: reusable Golden viewport/preview presentation; MapGyver
+geometry invariants and document permissions. Proof: focused geometry/removal/viewport regression
+checks, MapGyver compile/UI checks and current-build visual verification where available.
+Investigation stops08:20 CET, at most two experiments including baseline. Hypothesis: normalized
+SVG circles stretch with the output ratio, crop intents accept raw pointer positions, and preview
+fallbacks expose grey before new output frames. Reproduction outside those paths changes the fix.
+Pre-existing uncommitted preview continuity/cadence changes are retained as the starting checkout.
 The dashboard and Next action are current; dated delivery entries preserve historical evidence.
 
 | Phase | State | Progress | Done / total items |
@@ -32,12 +38,47 @@ The dashboard and Next action are current; dated delivery entries preserve histo
 | State | Gate(s) | Next requirement / return condition |
 | --- | --- | --- |
 | Accepted | M04/5 | Source/channel/asset Parameters, generic UI, all public callers, history/project lifetime verified. M04 returns6/6. |
-| Active | M05/6 | Parameter model/atomic edits and declared rename permissions verified in software; generic Inspector/canvas acceptance remains open. Two browser attempts are retained, not accepted. |
+| Active | M05/6 | Browser Screen/Source controls, bounded crop, removal and shared navigation pass; finish native Add Screen/source-switch visual acceptance when the ordinary app exposes a targetable window. No further native startup probes in this batch. |
 | Pending | M07/3 | Convert Matrix rows/columns/cells and association children; native feedback return trigger retained. |
 | Pending | M08/4 | Convert Application settings, argument/environment children and generic Inspector; native/retirement requirements retained. |
 | Blocked | M03/4,9 | Explicit reset decision, supported timing evidence/scope decision and a concrete correction for preserved private-memory failure. |
 | Blocked native/physical scope | M05/4,5,7,8; M06/4; M07/3 native remainder | Supported current-build observation/manual input and required display access; do not retry unavailable alternate native routes. |
 | Waiting | M09/1 | All retained M03–M08 acceptance, then complete-app/artifact qualification. |
+
+### Editor correction checkpoint — 2 November, 08:32 CET
+
+Golden UI now owns the shared Screen/Surface/Composition viewport: pointer-anchored wheel zoom,
+Space/middle-button panning, selection framing and Home, with constant round screen-space handles.
+Only native preview apertures expose the underlay; managers, ordinary Inspectors, chrome and the
+viewport surround retain their theme. Native composition paints black behind each preview,
+including unavailable/translucent sources, instead of clearing the whole workbench black.
+Golden Video keeps independent destination fences across source swaps and unrelated view changes;
+geometry, removal, overlap order, host/session changes and expiry still withdraw affected pixels.
+A separate layout admission fence rejects stale pending plans without clearing healthy live views.
+
+Crop Parameters expose 0–1 bounds. Backend gestures clamp finite samples to contained positive
+rectangles and preserve size during origin drags. Shared-tree deletion now works for Screens,
+Surfaces, all Media kinds, assets, folders and Applications; Matrix owner deletion preserves its
+paired-child invariants. Exact history and reload identities are covered.
+
+Verified: MapGyver library232pass/1existing ignore; Golden Video portable117pass and targeted
+continuity3pass; Golden IO revision7pass; editor state/gesture22pass; preview UI28pass. Strict
+MapGyver/Golden Video all-target Clippy and Svelte checks pass (0errors/0warnings). Real bundled
+Screen and Surface Source flows pass with0page errors; their3intent rejections are deliberate
+invalid authored geometry/Parameter cases, not edge drags. Both owned headless hosts exit0.
+Inspected captures: `target/m05-screen-ui.png`, `target/m05-surface-source-ui.png`. The standalone
+viewport browser checks pass all navigation, handle-sizing and pan-capture cases. Preview lifecycle
+browser checks report `screenFlashes: []`, including source swaps and Inspector churn.
+
+After successful native compilation, the explicit D3D11 Regions pixel regression passes: one
+withdrawn region clears while independent regions/output keep their exact pixels, without a new
+plan installation. This is native renderer evidence, not a complete desktop flash recording.
+Desktop review's first launch used an invalid ephemeral bind0; the corrected isolated host listens
+but exposes no targetable window. Its owned PID34836 is stopped; no production profile is touched.
+No additional startup route or native experiment follows. M05 remains3/8; overall4/10(40%);
+no gate closes or denominator changes. Remaining requirement: current-build native editor visual
+confirmation, returning when a supported ordinary app window is available. Matrix/Application
+Parameter conversion and all other qualification return triggers remain queued above.
 
 ### Screen/Surface Parameter checkpoint — 2 November, 00:25 CET
 

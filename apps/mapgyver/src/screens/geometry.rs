@@ -12,40 +12,52 @@ impl SurfaceGeometryEdit {
                     .ok_or("corner index must be 0..3")? = point;
             }
             Self::CropCorner { corner, point } => {
+                if !point.x.is_finite() || !point.y.is_finite() {
+                    return Err("crop positions must be finite".into());
+                }
                 let crop = definition.crop;
                 let right = crop.x + crop.width;
                 let bottom = crop.y + crop.height;
+                // Keep the opposite corner fixed. Adjacent representable coordinates
+                // stop a dragged corner at the other edge without producing a zero extent.
+                let left = point.x.clamp(0.0, right.next_down());
+                let top = point.y.clamp(0.0, bottom.next_down());
+                let right = point.x.clamp(crop.x.next_up().min(1.0), 1.0);
+                let bottom = point.y.clamp(crop.y.next_up().min(1.0), 1.0);
                 definition.crop = match corner {
                     0 => UnitRect {
-                        x: point.x,
-                        y: point.y,
-                        width: right - point.x,
-                        height: bottom - point.y,
+                        x: left,
+                        y: top,
+                        width: crop.x + crop.width - left,
+                        height: crop.y + crop.height - top,
                     },
                     1 => UnitRect {
                         x: crop.x,
-                        y: point.y,
-                        width: point.x - crop.x,
-                        height: bottom - point.y,
+                        y: top,
+                        width: right - crop.x,
+                        height: crop.y + crop.height - top,
                     },
                     2 => UnitRect {
                         x: crop.x,
                         y: crop.y,
-                        width: point.x - crop.x,
-                        height: point.y - crop.y,
+                        width: right - crop.x,
+                        height: bottom - crop.y,
                     },
                     3 => UnitRect {
-                        x: point.x,
+                        x: left,
                         y: crop.y,
-                        width: right - point.x,
-                        height: point.y - crop.y,
+                        width: crop.x + crop.width - left,
+                        height: bottom - crop.y,
                     },
                     _ => return Err("crop corner index must be 0..3".into()),
                 };
             }
             Self::CropOrigin { point } => {
-                definition.crop.x = point.x;
-                definition.crop.y = point.y;
+                if !point.x.is_finite() || !point.y.is_finite() {
+                    return Err("crop positions must be finite".into());
+                }
+                definition.crop.x = point.x.clamp(0.0, 1.0 - definition.crop.width);
+                definition.crop.y = point.y.clamp(0.0, 1.0 - definition.crop.height);
             }
         }
         definition.validate()

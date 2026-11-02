@@ -3,6 +3,7 @@ use golden_core::node::{Folder, Node};
 
 use super::AppNode;
 mod preview_capture;
+mod removal;
 
 #[test]
 fn new_project_contains_the_standard_dashboard_media_and_screen_managers() {

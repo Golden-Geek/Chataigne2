@@ -112,6 +112,7 @@ pub fn plan(
             },
             source_rect: UnitRect::FULL,
             filter: SampleFilter::Linear,
+            visibility: None,
         })
         .collect();
     PlanSubmission::new(RenderPlan {
