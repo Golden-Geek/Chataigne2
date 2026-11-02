@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { appState, IconButton, type UiNodeDto, type NodeInspectorChildFilter } from 'golden_ui';
-	import type { MediaManagerSnapshot } from './generated/MediaManagerSnapshot';
+	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import type { MediaEdit } from './generated/MediaEdit';
 	import { invokeMediaEdit } from './operations';
 	import { MEDIA_NAMESPACE } from './generated/constants';
@@ -13,43 +13,38 @@
 	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
 	import SpoutSenderPicker from './SpoutSenderPicker.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
+	import ChannelsSection from './ChannelsSection.svelte';
 	let {
 		node,
 		defaultHeader,
 		defaultContent,
-		defaultChildren
+		defaultChildren,
+		collapsed = false
 	}: {
 		node: UiNodeDto;
 		defaultHeader?: Snippet;
 		defaultContent?: Snippet<[Snippet?]>;
 		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
+		collapsed?: boolean;
 	} = $props();
 	const selection = useDocumentSelection();
 	const parametersOnly = (child: UiNodeDto) => child.decl_id === 'parameters';
 	const session = $derived(appState.session);
-	let catalog = $state<MediaManagerSnapshot | null>(null),
+	let snapshot = $state<ChannelSnapshot | null>(null),
 		pending = $state(false),
 		error = $state('');
 	let owner = $state.raw<{ session: typeof session; generation: number } | null>(null);
 	let read = 0,
 		disposed = false;
-	const currentCatalog = $derived(
+	const channel = $derived(
 		session?.status === 'connected' &&
 			!session.loading.visible &&
 			owner?.session === session &&
-			owner.generation === session.snapshotGeneration
-			? catalog
+			owner.generation === session.snapshotGeneration &&
+			snapshot?.reference.channel === node.uuid &&
+			!collapsed
+			? snapshot
 			: null
-	);
-	const media = $derived(
-		currentCatalog?.media.find(
-			(media) =>
-				media.id === node.uuid ||
-				media.channels.some((channel) => channel.reference.channel === node.uuid)
-		)
-	);
-	const channel = $derived(
-		media?.channels.find((channel) => channel.reference.channel === node.uuid)
 	);
 	const busy = $derived(
 		pending ||
@@ -60,25 +55,36 @@
 	async function refresh() {
 		const current = session,
 			id = ++read;
-		if (!current || current.status !== 'connected' || current.loading.visible) {
-			catalog = null;
+		if (
+			!current ||
+			current.status !== 'connected' ||
+			current.loading.visible ||
+			collapsed ||
+			node.node_type !== 'mapgyver.media.channel'
+		) {
+			snapshot = null;
 			owner = null;
 			return;
 		}
 		if (current.hasActiveEditSession) return;
+		const parentId = current.graph.state.parentById.get(node.node_id);
+		const parent = parentId == null ? null : current.getNodeData(parentId);
+		if (parent?.node_type !== 'mapgyver.media.v2') return;
+		const reference = { media: parent.uuid, channel: node.uuid };
 		const generation = current.snapshotGeneration;
 		try {
-			const result = await invokeMediaEdit(current, { kind: 'InspectManager' });
+			const result = await invokeMediaEdit(current, { kind: 'InspectChannel', reference });
 			if (
 				disposed ||
 				id !== read ||
 				session !== current ||
 				current.snapshotGeneration !== generation ||
+				node.uuid !== reference.channel ||
 				current.loading.visible
 			)
 				return;
-			if (result.kind === 'Manager') {
-				catalog = result.snapshot;
+			if (result.kind === 'Channel') {
+				snapshot = result.snapshot;
 				owner = { session: current, generation };
 				error = '';
 			}
@@ -124,6 +130,8 @@
 	}
 	$effect(() => {
 		const current = session;
+		void node.uuid;
+		void collapsed;
 		if (current) {
 			void current.currentHistoryStateId;
 			void current.snapshotGeneration;
@@ -146,6 +154,9 @@
 {@render defaultHeader?.()}
 {#snippet content()}
 	{@render defaultChildren?.('', parametersOnly)}
+	{#if node.node_type === 'mapgyver.media.v2'}
+		{#key node.uuid}<ChannelsSection {node} {defaultChildren} />{/key}
+	{/if}
 	<div class="properties">
 		{#if error}<p role="alert">{error}</p>{/if}
 		{#if node.node_type === 'mapgyver.media.manager'}
@@ -154,7 +165,7 @@
 				submitLabel="Import Picture"
 				submit={(locator) => edit({ kind: 'ImportPicture', locator, target: null, label: null })} />
 		{/if}
-		{#if channel && media}
+		{#if channel}
 			<ChannelPreview {channel} />
 			{#if channel.definition.source.kind === 'Picture'}
 				<AssetLocatorForm

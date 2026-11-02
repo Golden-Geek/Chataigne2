@@ -41,6 +41,12 @@ pub struct ChannelReference {
     pub channel: ChannelId,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum ChannelMoveDirection {
+    Earlier,
+    Later,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum MediaKind {
     Picture,
@@ -48,6 +54,12 @@ pub enum MediaKind {
     SharedTexture,
     Composition,
     Matrix,
+}
+
+impl MediaKind {
+    pub(crate) fn has_authored_channel_variants(self) -> bool {
+        matches!(self, Self::Picture | Self::SolidColor | Self::SharedTexture)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
@@ -211,6 +223,10 @@ pub enum MediaEdit {
     ReorderChannel {
         reference: ChannelReference,
         after: Option<ChannelId>,
+    },
+    MoveChannel {
+        reference: ChannelReference,
+        direction: ChannelMoveDirection,
     },
     RemoveChannel {
         reference: ChannelReference,

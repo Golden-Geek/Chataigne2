@@ -2,15 +2,16 @@
 
 **Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** revised M04 media/channel ownership and Resolution.
-**Next deliverable:** finish shared source-setting ownership and the editable Channels section;
-hide channel creation and rows from the Media Manager.
+**Current topic:** revised M04 media/channel ownership and Channels authoring.
+**Next deliverable:** move remaining shared source settings to media Parameters, retain only
+variant differences on Channels, and remove channel creation from manager context menus.
 **Execution:** implementing M04/1 on `mapgyver`; one active gate, delivered in reviewable slices.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
-**Usable now:** shared typed media Resolution through generic Inspector and public operations,
-source media, Screen/Surface editing, Composition and Matrix playback.
-**Last delivered capability:** software-verified shared Resolution across stable channel variants,
-with native source sizing when disabled and atomic history/project behavior.
+**Usable now:** shared typed media Resolution and bounded Channels editing through the generic
+Inspector, source media, Screen/Surface editing, Composition and Matrix playback.
+**Last delivered capability:** software-verified Channels add/edit/rename/reorder/copy/remove
+with history, exact expanded-channel reads and a 32-entry rendering bound. The Media Manager
+hides channel rows and their inline creation buttons; declared Parameter folders reject creation.
 **Last accepted:** user-reviewed native Screen/Surface, Composition and Matrix playback behavior
 on the prior schema. Remaining revised ownership and native editor acceptance stay open.
 
@@ -47,7 +48,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                   |
 | ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active  | M04/1            | Shared Resolution slice is functionally verified. Finish shared source settings, Channels authoring, authoritative creation/import defaults and complete command/function/callback/snippet API; verify all revised generic/direct editing and history contracts.                                                       |
+| Active  | M04/1            | Shared Resolution and Channels authoring slices are functionally verified. Finish shared source settings, manager context-menu visibility, authoritative creation/import defaults and complete command/function/callback/snippet API; verify all revised generic/direct editing and history contracts.                 |
 | Pending | M04/2,4–8        | After M04/1, verify revised source/Spout contracts and generic UI/lifetime; implement Reference, then Media Preview. M04/3 Picture worker bounds retain acceptance.                                                                                                                                                    |
 | Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                        |
 | Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                       |
@@ -73,26 +74,24 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/1 shared Resolution; owner: MapGyver media backend and generic
-  Inspector, with a public Golden project-schema admission hook. Started 2026-11-02
-  18:39 CET; scope cutoff 19:24 CET. Removed channel width/height/size-mode Parameters;
-  media owns one disableable integer Vec2 (default disabled, 1920×1080, bounds 1–16384,
-  unit steps). Generic edits and `ConfigureMediaResolution` project to every channel and
-  invalidate capture guards for pixel and enable-only changes. Versioned media records
-  reject unsupported old schemas before recoverable decoding can skip their contents.
-  **Verified:** `cargo test --locked -p MapGyver --lib --quiet` (271 passed, 1 existing ignored,
-  including generated TypeScript parity); Golden Engine `app::tests` (16 passed, 1 existing
-  ignored); strict all-target Clippy for MapGyver/Golden Engine with `native-qualification`;
-  ordinary MapGyver build; `node apps/mapgyver/tests/headless/media.mjs --resolution-ui`
-  (bundled generic Inspector enable/pixels/Undo/Redo/disable across two variants, three source
-  kinds/six channels, Save/New/Load, failed-schema load preserving the live document, normal
-  host exit); both app UI checks; Chataigne Rust check; touched UI/test/document formatting
-  and both required Rust formatters. Native fixtures compile; no native/hardware acceptance
-  is claimed. **Gate changes:** none; 24/57 gates and 3/11 phases remain accepted. Resolution
-  is a verified slice of M04/1, not closure of the full gate. **Exact remaining scope:** shared
-  source settings and Channels authoring, manager/folder capabilities, complete module API,
-  revised full source UI/script/headless parity (including porting the legacy broad source
-  browser fixtures), and all retained native/Reference/Preview requirements in the return queue.
+- **Current milestone:** M04/1 Channels authoring; owner: MapGyver media Inspector/backend
+  capabilities and Golden declared-Parameter container admission. Delivered actual typed child
+  nodes through the generic Inspector: add/edit/rename/reorder/copy/remove and history, keeping
+  media selection on creation. Render at most 32 channels per page and inspect only expanded
+  channels through exact queries. The manager hides channels and their inline creation buttons.
+  Composition keeps one owned output; derived outputs reject source-variant creation/copy.
+  Params DSL folders explicitly close catalog inheritance; ordinary folders remain open, including
+  across project roundtrip. Started 2026-11-02 19:10 CET, scope cutoff 19:55 CET; the planned
+  validation completed after the cutoff. A regression fixture's duplicate sibling declaration
+  identity was corrected before its final passing run. No native experiment or gate closed.
+  **Checks:** MapGyver 275 passed/1 ignored; Golden folder regressions 2 passed; macro suite
+  passed; strict MapGyver/Golden Clippy, Chataigne Rust/UI and MapGyver UI checks passed;
+  executable build and combined bundled Channels/Resolution/catalog/headless workflows passed;
+  root and Golden formatting passed. Browser coverage includes typed color/history, context
+  operations, 35 channels across two pages and exact reads. Shared Resolution remains in
+  `a6a5ea11`. **Remaining:** shared source-setting ownership, manager context-menu channel
+  creation visibility, complete command/function/callback/snippet API and revised native parity.
+  Reference, Media Preview and all other queued acceptance remain open. Counts stay 24/57.
 
 ## Maintenance rule
 

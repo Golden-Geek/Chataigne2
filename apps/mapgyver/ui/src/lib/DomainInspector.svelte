@@ -10,12 +10,14 @@
 		node,
 		defaultHeader,
 		defaultContent,
-		defaultChildren
+		defaultChildren,
+		collapsed = false
 	}: {
 		node: UiNodeDto;
 		defaultHeader?: Snippet;
 		defaultContent?: Snippet<[Snippet?]>;
 		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
+		collapsed?: boolean;
 	} = $props();
 </script>
 
@@ -26,4 +28,4 @@
 		{defaultChildren} />
 {:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}<MatrixProperties />
 {:else if node.node_type === 'mapgyver.application'}<ApplicationInspector {node} {defaultHeader} />
-{:else}<MediaInspector {node} {defaultHeader} {defaultContent} {defaultChildren} />{/if}
+{:else}<MediaInspector {node} {collapsed} {defaultHeader} {defaultContent} {defaultChildren} />{/if}

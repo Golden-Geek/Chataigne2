@@ -53,6 +53,14 @@ They are hidden from the Media Manager outliner and its creation actions, while 
 typed editable nodes. Persisted media folders organize the actual document. Shared media settings
 live on the media; channel fields contain source differences only.
 
+`ChannelsSection` in the app Inspector presents at most 32 actual channel nodes per page,
+using Golden's generic child inspectors and context menu. The Media Manager filters out
+channels and only folder rows carry an inline creation button. Channel snapshots are queried by
+exact reference when expanded, with session/project fencing; collapsed variants perform
+no inspection reads. Backend `MoveChannel` owns relative ordering, and source-channel
+catalog entries preserve the current media selection when creating a variant. Composition
+has one owned output; its output and Matrix exports do not advertise source-variant creation.
+
 | Media          | Variant/source ownership                                                                 |
 | -------------- | ---------------------------------------------------------------------------------------- |
 | Solid Color    | Per-channel color/alpha                                                                  |

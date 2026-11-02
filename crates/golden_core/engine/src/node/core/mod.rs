@@ -4,6 +4,7 @@ mod builtins;
 mod constants;
 mod creation_context;
 mod events;
+mod folder;
 mod identity;
 mod inbox;
 mod metadata;
@@ -17,12 +18,13 @@ mod via_target;
 pub use authored::NodeAuthoredData;
 pub use behavior::Node;
 pub use builtins::{
-    Folder, UserContextFolder, UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode,
+    UserContextFolder, UserContextMultiplexListNode, UserContextMultiplexNode, UserContextNode,
     user_context_multiplex_list_node_type, user_context_multiplex_list_value_type,
 };
 pub use constants::*;
 pub use creation_context::NodeCreationContext;
 pub use events::{EventPropagation, EventSubscription};
+pub use folder::Folder;
 pub use identity::{DeclId, NodeId, NodeReference, NodeUuid};
 pub use metadata::{
     NodeData, NodeMeta, NodeMetaPatch, NodeScriptDescriptor, NodeWarning, PresentationHint, SemanticsHint,

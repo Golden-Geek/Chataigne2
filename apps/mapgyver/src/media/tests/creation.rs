@@ -41,7 +41,7 @@ fn intrinsic_channel_baselines_are_kind_independent_and_live_catalog_defaults_su
             ChannelDefinition::default()
         );
         references.push(reference);
-        if kind == MediaKind::Matrix {
+        if !kind.has_authored_channel_variants() {
             continue;
         }
         let ack = apply_project_intent(

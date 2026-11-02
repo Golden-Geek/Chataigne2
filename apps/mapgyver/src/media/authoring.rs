@@ -232,8 +232,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             label: requested,
         } => {
             let (parent, kind) = media(engine, owner)?;
-            if kind == MediaKind::Matrix {
-                return Err("Matrix exports are created with their owning layer/group".into());
+            if !kind.has_authored_channel_variants() {
+                return Err("this media derives its output channels; only source media can add variants".into());
             }
             let channel = ChannelNode::from_definition(
                 label(engine, parent, requested, "Channel")?,
@@ -284,6 +284,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             MediaEditResult::Changed
         }
+        MediaEdit::MoveChannel { reference, direction } => {
+            move_channel(engine, reference, direction)?;
+            MediaEditResult::Changed
+        }
         MediaEdit::RemoveChannel { reference } => {
             if media(engine, reference.media)?.1 == MediaKind::Matrix {
                 return Err("remove the Matrix item to remove its export".into());
@@ -326,7 +330,7 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 }
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
-    let paired_export = definition.media_kind() == MediaKind::Matrix;
+    let paired_export = !definition.media_kind().has_authored_channel_variants();
     let media = MediaNode::from_kind(label, definition.media_kind());
     let channel_label = if definition.media_kind() == MediaKind::Matrix {
         "Final"
@@ -369,6 +373,44 @@ pub(super) fn configure_channel(
     for edit in channel.parameter_edits(definition) {
         engine.edits.push(edit);
     }
+    Ok(())
+}
+
+fn move_channel(
+    engine: &mut AppEngine,
+    reference: ChannelReference,
+    direction: ChannelMoveDirection,
+) -> Result<(), String> {
+    let (parent, kind) = media(engine, reference.media)?;
+    if !kind.has_authored_channel_variants() {
+        return Err("derived output channels cannot be reordered".into());
+    }
+    let id = channel_id(engine, reference)?;
+    let node = engine.nodes.get(id).ok_or("channel is missing")?;
+    let mut neighbor = match direction {
+        ChannelMoveDirection::Earlier => node.node_data().prev_sibling,
+        ChannelMoveDirection::Later => node.node_data().next_sibling,
+    };
+    while let Some(id) = neighbor {
+        let node = engine.nodes.get(id).ok_or("media child is missing")?;
+        if matches!(node, AppNode::MediaChannel(_)) {
+            break;
+        }
+        neighbor = match direction {
+            ChannelMoveDirection::Earlier => node.node_data().prev_sibling,
+            ChannelMoveDirection::Later => node.node_data().next_sibling,
+        };
+    }
+    let Some(neighbor) = neighbor else { return Ok(()) };
+    let previous = match direction {
+        ChannelMoveDirection::Earlier => engine.nodes.get(neighbor).unwrap().node_data().prev_sibling,
+        ChannelMoveDirection::Later => Some(neighbor),
+    };
+    engine.edits.push(Edit::MoveNode {
+        node: id,
+        new_parent: parent,
+        new_prev_sibling: previous,
+    });
     Ok(())
 }
 
@@ -443,6 +485,9 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
                 if count == 0 {
                     return Err("media must retain at least one channel".into());
+                }
+                if node.kind() == MediaKind::Composition && count != 1 {
+                    return Err("Composition must expose exactly one output channel".into());
                 }
             }
             AppNode::MediaChannel(node) => {

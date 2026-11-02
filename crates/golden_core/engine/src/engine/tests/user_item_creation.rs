@@ -46,6 +46,57 @@ crate::define_node_enum!(
 );
 
 #[test]
+fn declared_parameter_folders_close_catalog_inheritance_without_closing_ordinary_folders() {
+    for declaration in ["parameters", "parameters/nested"] {
+        let mut engine = Engine::<LiveCreationNode>::new(LiveCreationFactory::new().into());
+        let open = Folder::new("Parameters");
+        let open_uuid = open.node_data().meta.uuid;
+        let mut closed = Folder::new_schema_owned("Declared parameters");
+        closed.node_data_mut().meta.decl_id = crate::node::DeclId(declaration.into());
+        let closed_uuid = closed.node_data().meta.uuid;
+        let descendant = Folder::new("Nested");
+        let descendant_uuid = descendant.node_data().meta.uuid;
+        engine.edits.push(crate::edit::Edit::AddNodeTree {
+            parent: engine.root,
+            prev_sibling: None,
+            tree: NodeTree::new(open).with_child(NodeTree::new(closed).with_child(NodeTree::new(descendant))),
+        });
+        engine.apply_edits().unwrap();
+        let open = engine.node_id_by_uuid(open_uuid).unwrap();
+        let closed = engine.node_id_by_uuid(closed_uuid).unwrap();
+        let descendant = engine.node_id_by_uuid(descendant_uuid).unwrap();
+        assert_eq!(engine.catalog_creatable_items(open).len(), 1);
+        for parent in [closed, descendant] {
+            assert!(engine.catalog_creatable_items(parent).is_empty());
+            let before = engine.nodes.len();
+            assert!(
+                engine
+                    .queue_catalog_create(parent, "live_creation_item", None, None)
+                    .is_err()
+            );
+            let ack = engine.apply_ui_intent(UiEditIntent::CreateUserItem {
+                parent,
+                node_type: "live_creation_item".into(),
+                label: None,
+                initial_params: vec![],
+            });
+            assert!(!ack.success, "{ack:?}");
+            assert_eq!(engine.nodes.len(), before);
+        }
+        let project = engine.to_project_file_with(Node::project_encode_data).unwrap();
+        let loaded = Engine::<LiveCreationNode>::from_project_file_with(
+            project,
+            <LiveCreationNode as crate::app::ProjectNode>::project_decode_node,
+        )
+        .unwrap();
+        let restored_closed = loaded.node_id_by_uuid(closed_uuid).unwrap();
+        let restored_open = loaded.node_id_by_uuid(open_uuid).unwrap();
+        assert!(loaded.catalog_creatable_items(restored_closed).is_empty());
+        assert_eq!(loaded.catalog_creatable_items(restored_open).len(), 1);
+    }
+}
+
+#[test]
 fn live_user_item_creation_reads_bounded_current_nodes_and_decode_factory_stays_intrinsic() {
     for prepared_ui in [false, true] {
         let root: LiveCreationNode = LiveCreationFactory::new().into();

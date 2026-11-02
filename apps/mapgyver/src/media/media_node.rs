@@ -117,7 +117,7 @@ impl Node for MediaNode {
         node_type: &str,
         _context: &golden_core::node::UserItemCreationContext<'_>,
     ) -> Option<golden_core::edit::NodeTree> {
-        if node_type == "mapgyver.media.channel" && self.kind() != MediaKind::Matrix {
+        if node_type == "mapgyver.media.channel" && self.kind().has_authored_channel_variants() {
             Some(golden_core::edit::NodeTree::new(ChannelNode::from_definition(
                 "Channel".into(),
                 ChannelDefinition::for_media(self.kind()),
@@ -127,14 +127,13 @@ impl Node for MediaNode {
         }
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        if self.kind() == MediaKind::Matrix {
+        if !self.kind().has_authored_channel_variants() {
             Vec::new()
         } else {
-            vec![UserCreatableItem::new(
-                "mapgyver.media.channel",
-                "mapgyver.media.channel",
-                "Channel",
-            )]
+            vec![
+                UserCreatableItem::new("mapgyver.media.channel", "mapgyver.media.channel", "Channel")
+                    .with_select_when_created(false),
+            ]
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {

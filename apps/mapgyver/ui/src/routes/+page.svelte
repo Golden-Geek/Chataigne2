@@ -21,6 +21,7 @@
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import { registerParameterVisibility } from '../lib/parameter-visibility';
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
+	import { registerChannelContextMenu } from '../lib/media/context-menu';
 	import '../lib/workbench.css';
 	import { treeIcons } from '../lib/icons/tree';
 	import { provideDocumentSelection } from '../lib/selection.svelte';
@@ -32,6 +33,7 @@
 	provideMatrixAuthoring();
 	registerParameterVisibility();
 	registerMatrixContextMenu();
+	registerChannelContextMenu();
 	onMount(() => preview.mount());
 	for (const type of [
 		'mapgyver.media.manager',

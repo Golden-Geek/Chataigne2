@@ -28,6 +28,12 @@ matchers, built-in node types, and user item kinds. Use a named matcher when an 
 inspector for one declared container whose runtime node type remains generic, such as a `folder`;
 keep both the predicate and component registration in the app layer.
 
+Container capabilities also own creation admission. Params DSL folders use
+`Folder::new_schema_owned` to explicitly accept no user items, so they expose no inherited
+Add catalog and reject the same operation through scripts or transport. Ordinary folders
+continue to inherit their owning container's catalog. Do not hide an invalid Add action only
+in the UI while leaving backend creation open.
+
 Chataigne module editors use the app-owned descriptor registry in
 `module-editor-registry.ts`. Add the descriptor to `module-editor-setup.ts`; the same descriptor
 then drives the module-inspector action, stable per-module panel identity, title, icon, and

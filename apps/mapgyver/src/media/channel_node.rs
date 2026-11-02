@@ -16,7 +16,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, plan::SampleFilter};
 use std::sync::OnceLock;
 
-#[node("mapgyver.media.channel", label = "Channel")]
+#[node("mapgyver.media.channel", label = "Channel", collapsed = true)]
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
@@ -48,7 +48,8 @@ pub struct ChannelNode {
 impl ChannelNode {
     pub(crate) fn from_definition(label: String, definition: ChannelDefinition) -> Self {
         let mut node = Self::new();
-        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label);
+        let presentation = node.node_data().meta.presentation.clone();
+        node.node_data_mut().meta = golden_core::node::NodeMeta::new(label).with_presentation(presentation);
         macro_rules! seed {
             ($field:ident, $value:expr) => {
                 node.$field = ParameterHandle::new($value);

@@ -12,9 +12,7 @@ fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
             .node_data()
             .parent
             .and_then(|parent| engine.nodes.get(parent))
-            .is_some_and(
-                |node| matches!(node, AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Matrix),
-            ),
+            .is_some_and(|node| matches!(node, AppNode::Media(media) if !media.kind().has_authored_channel_variants())),
         Some(
             AppNode::Media(_)
             | AppNode::MediaFolder(_)
@@ -50,8 +48,28 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
         UiEditIntent::MoveNode { node, new_parent, .. } => validate_move(engine, *node, *new_parent),
         UiEditIntent::RemoveNode { node } => validate_removals(engine, &[*node]),
         UiEditIntent::RemoveNodes { nodes } => validate_removals(engine, nodes),
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => validate_channel_copy(engine, *source, *new_parent),
+        UiEditIntent::DuplicateNodes { nodes, .. } => {
+            for node in nodes {
+                validate_channel_copy(engine, node.source, node.new_parent)?;
+            }
+            Ok(())
+        }
         _ => Ok(()),
     }
+}
+
+fn validate_channel_copy(engine: &AppEngine, source: NodeId, parent: NodeId) -> Result<(), String> {
+    let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(source) else {
+        return Ok(());
+    };
+    let Some(AppNode::Media(owner)) = channel.node_data().parent.and_then(|id| engine.nodes.get(id)) else {
+        return Err("channel owner is missing".into());
+    };
+    if !owner.kind().has_authored_channel_variants() || owner.node_data().id != parent {
+        return Err("only source channel variants may be copied within their media".into());
+    }
+    Ok(())
 }
 
 pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> Result<(), String> {

@@ -4561,7 +4561,7 @@ fn materialize_children_tokens(
                                 )
                             });
                             if !__golden_folder_already_exists && !__golden_folder_already_pending {
-                                let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                                let mut __folder_node = golden_core::node::Folder::new_schema_owned(#label_lit);
                                 golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
                                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                                 #set_description
@@ -4583,7 +4583,7 @@ fn materialize_children_tokens(
                                 .and_then(|__golden_snapshot| __golden_snapshot.find_child(#parent_expr, #decl_id_lit))
                                 .is_some();
                             if !__golden_folder_already_exists {
-                                let mut __folder_node = golden_core::node::Folder::new(#label_lit);
+                                let mut __folder_node = golden_core::node::Folder::new_schema_owned(#label_lit);
                                 golden_core::node::Node::node_data_mut(&mut __folder_node).meta.decl_id =
                                     golden_core::node::DeclId(::std::string::String::from(#decl_id_lit));
                                 #set_description

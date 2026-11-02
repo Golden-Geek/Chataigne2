@@ -3,6 +3,7 @@
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
 // Add --resolution-ui to verify shared Resolution through the generic Golden Inspector.
+// Add --channels-ui to verify the media-only manager and typed Channels collection.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
@@ -39,6 +40,7 @@ const withUi = [
 	'--composition-ui',
 	'--parameter-ui',
 	'--resolution-ui',
+	'--channels-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -298,6 +300,10 @@ try {
 	if (process.argv.includes('--resolution-ui')) {
 		const { verifyMediaResolutionUi } = await import('../browser/media-resolution.mjs');
 		await verifyMediaResolutionUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--channels-ui')) {
+		const { verifyChannelsUi } = await import('../browser/channels.mjs');
+		await verifyChannelsUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

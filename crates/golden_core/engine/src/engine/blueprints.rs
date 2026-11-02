@@ -277,7 +277,7 @@ impl<T: Node> Engine<T> {
         let mut cursor = Some(parent);
         while let Some(node_id) = cursor {
             let node = self.nodes.get(node_id)?;
-            if node.get_type() != FOLDER_NODE_TYPE {
+            if node.get_type() != FOLDER_NODE_TYPE || node.user_container_rules().is_some() {
                 return Some(node_id);
             }
             cursor = node.node_data().parent;

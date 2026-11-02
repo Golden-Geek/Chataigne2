@@ -262,6 +262,14 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
                 reference: first,
                 after: Some(second.channel),
             },
+            MediaEdit::MoveChannel {
+                reference: first,
+                direction: ChannelMoveDirection::Earlier,
+            },
+            MediaEdit::MoveChannel {
+                reference: first,
+                direction: ChannelMoveDirection::Later,
+            },
             MediaEdit::RemoveChannel { reference: first },
             MediaEdit::RemoveMedia { media: first.media },
             MediaEdit::InspectChannel { reference: first },

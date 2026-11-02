@@ -1,6 +1,7 @@
 mod assets;
 mod authoring;
 mod catalog;
+mod channels;
 mod creation;
 mod folders;
 mod parameters;
