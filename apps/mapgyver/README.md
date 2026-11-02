@@ -190,9 +190,15 @@ sharing each Screen pass across same-sized consumers. Surface edits invalidate c
 runtime texture identities remain stable. Source deletion keeps an explicit transparent channel
 placeholder and Undo restores it. Initial Surface resampling is linear.
 
-Golden owns checked inverse homographies and GPU sampling; authoring uses these same validation
-primitives before mutation. Source crop precedes perspective mapping, with mirrored/off-screen
-quads supported. Finite native reference patterns cover crop/warp and alpha/backdrop preservation.
+Golden owns checked inverse homographies and GPU sampling. MapGyver authoring accepts all finite
+quad corners, including crossed, concave, collapsed and unstable intermediate shapes, so handles
+can pass freely through them to reach mirrored/upside-down mappings. Crop containment and finite
+coordinates remain required. The backend projects mapping validity to the editor, which displays
+invalid shapes with red edges and a dim red fill. Unrenderable Surface layers are omitted without
+failing their Screen or healthy peers; rendering resumes automatically once the mapping is valid.
+Invalid authored shapes persist and participate in ordinary Undo/Redo. Source crop precedes
+perspective mapping, with mirrored/off-screen quads supported. Finite native reference patterns
+cover crop/warp and alpha/backdrop preservation.
 The Screen Manager now previews these composed textures through the same native session as
 Channel previews, including while its authored output is disabled. Screen rectangle/Spout extents
 define preview resolution; fullscreen targets use their intended display's current extent even
@@ -205,6 +211,11 @@ bundled Screen selection/source controls, all four corner handles, invalid geome
 panel/history behavior. It correlates UI input with read-only backend state and writes
 `target/m05-screen-ui.png`. Browser preview remains explicitly unavailable; native physical
 presentation, OS capture, DPI/alignment and latency retain their own qualification.
+
+`node apps/mapgyver/tests/headless/media.mjs --free-warp-ui` is the focused current-workbench
+check for held invalid-shape input, live red feedback, recovery to an upside-down mapping and
+per-gesture Undo/Redo. It checks real pointer input against backend snapshots and writes
+`target/free-warp-ui.png`; it does not assert native pixels.
 
 `node apps/mapgyver/tests/headless/media.mjs --surface-source-ui` verifies actual Source forms,
 all crop handles/origin, calibration choices, rejection, Escape, source loss and grouped history.

@@ -57,7 +57,16 @@ fn corner_samples_preserve_other_fields_and_undo_redo_as_one_gesture() {
         assert_eq!(definition(&engine, reference), expected);
     }
     let final_state = definition(&engine, reference);
-    for (corner, point) in [(4, Point { x: 0.2, y: 0.2 }), (0, final_state.quad.corners[2])] {
+    for (corner, point) in [
+        (4, Point { x: 0.2, y: 0.2 }),
+        (
+            0,
+            Point {
+                x: f32::INFINITY,
+                y: 0.0,
+            },
+        ),
+    ] {
         let ack = invoke(
             &mut engine,
             ScreenEdit::EditSurfaceGeometry {

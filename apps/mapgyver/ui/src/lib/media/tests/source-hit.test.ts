@@ -19,6 +19,7 @@ function quad(left = 0, top = 0, width = 1, height = 1): [Point, Point, Point, P
 }
 function surface(id: string, corners = quad()): SurfaceSnapshot {
 	return {
+		mapping_valid: true,
 		reference: { screen: 'screen', surface: id },
 		label: id,
 		definition: {

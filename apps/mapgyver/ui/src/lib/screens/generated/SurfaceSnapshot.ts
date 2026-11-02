@@ -2,4 +2,8 @@
 import type { SurfaceDefinition } from "./SurfaceDefinition";
 import type { SurfaceReference } from "./SurfaceReference";
 
-export type SurfaceSnapshot = { reference: SurfaceReference, label: string, definition: SurfaceDefinition, };
+export type SurfaceSnapshot = { reference: SurfaceReference, label: string, definition: SurfaceDefinition,
+/**
+ * Presentation status only; invalid intermediate warps remain authored and editable.
+ */
+mapping_valid: boolean, };

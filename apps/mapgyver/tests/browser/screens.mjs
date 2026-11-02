@@ -228,23 +228,29 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		stage = 'invalid mapping';
 		rect = await begin();
 		await move(rect, { x: 1.1, y: 1.1 });
+		await wait(corner, (point) => near(point, { x: 1.1, y: 1.1 }));
+		await svg.locator('polygon.invalid').waitFor();
+		assert.equal(await editor.getByRole('alert').count(), 0);
 		await page.mouse.up();
-		await editor.getByRole('alert').waitFor();
 		const errorBounds = await svg.boundingBox();
 		assert(
 			['x', 'y', 'width', 'height'].every((key) => Math.abs(errorBounds[key] - rect[key]) < 0.01),
-			'Showing a rejection cannot shift mapping geometry'
+			'Invalid-shape feedback cannot shift mapping geometry'
 		);
 		await ready();
+		const invalid = await screens();
+		assert.equal(invalid.screens[0].surfaces[0].mapping_valid, false);
+		await undo();
+		await wait(corner, (point) => near(point, { x: 0.18, y: 0.16 }));
 		assert.deepEqual(
 			await screens(),
 			dragged,
-			'an invalid corner cannot replace the last valid mapping'
+			'invalid shapes are ordinary undoable authored edits'
 		);
-		await undo();
-		await wait(corner, (point) => near(point, { x: 0, y: 0 }));
-		assert.deepEqual(await screens(), before, 'rejection cannot consume an authored history step');
 		await redo();
+		await wait(corner, (point) => near(point, { x: 1.1, y: 1.1 }));
+		assert.deepEqual(await screens(), invalid);
+		await undo();
 		await wait(corner, (point) => near(point, { x: 0.18, y: 0.16 }));
 		stage = 'Escape ends accepted drag';
 		rect = await begin();
@@ -323,24 +329,14 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			'Screen editing cannot mutate its shared source media'
 		);
 		assert.deepEqual(errors, []);
-		assert(rejected.length > 0, 'Invalid geometry reaches backend rejection');
-		assert(
-			rejected.every(
-				(item) =>
-					item.request?.stage === 'invalid mapping' &&
-					item.request.intent?.kind === 'invokeAppOperation' &&
-					item.request.intent.namespace === 'mapgyver.screens' &&
-					item.request.intent.payload?.kind === 'EditSurfaceGeometry'
-			),
-			'Only the explicit invalid geometry case may reject'
-		);
+		assert.deepEqual(rejected, [], 'Finite intermediate warp shapes never reject');
 		await svg.scrollIntoViewIfNeeded();
 		await page.screenshot({ path: 'target/m05-screen-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'actual bundled Screen selection/source/drag/rejection/Escape/history input; physical preview/capture/DPI remain unverified',
+					'actual bundled Screen selection/source/free warp/Escape/history input; physical preview/capture/DPI remain unverified',
 				browser: browser.version(),
 				screen: id,
 				surface: first,
@@ -348,7 +344,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 				source: source.reference,
 				final_quad: completed.screens[0].surfaces[0].definition.quad,
 				page_errors: errors.length,
-				expected_geometry_rejections: rejected.length,
+				geometry_rejections: rejected.length,
 				screenshot: 'target/m05-screen-ui.png'
 			})
 		);

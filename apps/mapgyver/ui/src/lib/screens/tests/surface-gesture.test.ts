@@ -76,6 +76,7 @@ function fixture(handle: SurfaceHandle = { kind: 'QuadCorner', corner: 0 }) {
 	};
 }
 const snapshot = (x: number): SurfaceSnapshot => ({
+	mapping_valid: true,
 	reference,
 	label: 'Surface',
 	definition: {

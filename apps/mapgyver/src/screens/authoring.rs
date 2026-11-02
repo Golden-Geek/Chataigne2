@@ -81,11 +81,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 unreachable!()
             };
             ScreenEditResult::Surface {
-                snapshot: SurfaceSnapshot {
-                    reference,
-                    label: node.node_data().meta.label.clone(),
-                    definition: node.definition(),
-                },
+                snapshot: SurfaceSnapshot::new(reference, node.node_data().meta.label.clone(), node.definition()),
             }
         }
         ScreenEdit::InspectScreen { screen } => {
@@ -220,11 +216,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 };
                 let mut definition = current.definition();
                 definition.source = Some(source);
-                let snapshot = SurfaceSnapshot {
-                    reference,
-                    label: current.node_data().meta.label.clone(),
-                    definition,
-                };
+                let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition);
                 engine.edits.push(Edit::SetParamsAtomic {
                     values: current.source_parameter_values(Some(source)).into(),
                     behaviour: ParameterEventBehaviour::Append,
@@ -271,11 +263,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             };
             let mut definition = current.definition();
             edit.apply(&mut definition)?;
-            let snapshot = SurfaceSnapshot {
-                reference,
-                label: current.node_data().meta.label.clone(),
-                definition: definition.clone(),
-            };
+            let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition.clone());
             engine.edits.push(Edit::SetParamsAtomic {
                 values: current.parameter_values(definition),
                 behaviour: ParameterEventBehaviour::Append,
@@ -351,14 +339,14 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
                 let AppNode::Surface(node) = child else {
                     return Err("Screen children must be Surfaces".into());
                 };
-                surfaces.push(SurfaceSnapshot {
-                    reference: SurfaceReference {
+                surfaces.push(SurfaceSnapshot::new(
+                    SurfaceReference {
                         screen: owner,
                         surface: SurfaceId(node.node_data().meta.uuid),
                     },
-                    label: node.node_data().meta.label.clone(),
-                    definition: node.definition(),
-                });
+                    node.node_data().meta.label.clone(),
+                    node.definition(),
+                ));
             }
             screens.push(ScreenSnapshot {
                 id: owner,

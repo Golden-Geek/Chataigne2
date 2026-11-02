@@ -378,7 +378,14 @@ fn inspector_crop_samples_remain_contained_and_one_undo_restores_the_complete_su
         },
         original
     );
-    assert!(!set(&mut engine, fields["parameters/top_left"], ParamValue::Vec2(1.0, 1.0)).success);
+    assert!(
+        !set(
+            &mut engine,
+            fields["parameters/top_left"],
+            ParamValue::Vec2(f64::INFINITY, 1.0)
+        )
+        .success
+    );
     assert!(
         !set(
             &mut engine,
@@ -405,9 +412,8 @@ fn atomic_mapping_uses_the_complete_quad_and_crop_and_undo_restores_the_complete
     let original = definition(&engine, surface);
     let history = engine.undo_len();
 
-    // The first corner of a valid 180-degree rotation coincides with the old
-    // opposite corner. The full proposal must not validate that intermediate quad.
-    assert!(!set(&mut engine, fields["parameters/top_left"], ParamValue::Vec2(1.0, 1.0)).success);
+    // Atomic edits retain their single history entry; individual invalid intermediate
+    // shapes are covered separately by the free-warp gesture tests.
     assert!(
         set(
             &mut engine,
@@ -464,7 +470,7 @@ fn atomic_mapping_uses_the_complete_quad_and_crop_and_undo_restores_the_complete
             &mut engine,
             vec![
                 (fields["parameters/opacity"], ParamValue::Float(0.5)),
-                (fields["parameters/top_left"], ParamValue::Vec2(0.0, 0.0)),
+                (fields["parameters/top_left"], ParamValue::Vec2(f64::INFINITY, 0.0)),
             ]
         )
         .is_err()
@@ -472,6 +478,46 @@ fn atomic_mapping_uses_the_complete_quad_and_crop_and_undo_restores_the_complete
     assert_eq!(definition(&engine, surface), rotated);
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+}
+
+#[test]
+fn inspector_corner_parameters_accept_invalid_intermediate_shapes_and_recover() {
+    let mut engine = fixture();
+    let (_, surface) = create(&mut engine);
+    let root = engine.node_id_by_uuid(surface.surface.0).unwrap();
+    let fields = parameters(&engine, root);
+    let original = definition(&engine, surface);
+    let history = engine.undo_len();
+    super::gestures::session(&mut engine, true);
+    for (index, (field, value)) in [
+        ("parameters/top_left", (1.0, 1.0)),
+        ("parameters/top_right", (0.0, 1.0)),
+        ("parameters/bottom_right", (0.0, 0.0)),
+        ("parameters/bottom_left", (1.0, 0.0)),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert!(set(&mut engine, fields[field], ParamValue::Vec2(value.0, value.1)).success);
+        let ScreenEditResult::Surface { snapshot } =
+            apply(&mut engine, ScreenEdit::InspectSurface { reference: surface })
+        else {
+            panic!()
+        };
+        assert_eq!(snapshot.mapping_valid, index == 3);
+        assert_eq!(
+            snapshot.definition.quad.corners[index],
+            Point {
+                x: value.0 as f32,
+                y: value.1 as f32
+            }
+        );
+    }
+    super::gestures::session(&mut engine, false);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    dispatch(&mut engine);
+    assert_eq!(definition(&engine, surface), original);
 }
 
 #[test]

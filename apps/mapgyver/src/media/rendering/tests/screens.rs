@@ -69,6 +69,78 @@ fn screen_routes(engine: &AppEngine, screen: ScreenId) -> Vec<ScreenRoute> {
 }
 
 #[test]
+fn impossible_warp_omits_only_its_layer_then_resumes_with_the_authored_mapping() {
+    let mut engine = engine();
+    let channel = create(&mut engine, MediaKind::SolidColor);
+    let (screen, reference) = screen(&mut engine, channel);
+    let ScreenEditResult::SurfaceCreated { reference: peer } =
+        screen_edit(&mut engine, ScreenEdit::AddSurface { screen, label: None })
+    else {
+        panic!()
+    };
+    screen_edit(
+        &mut engine,
+        ScreenEdit::ConfigureSurface {
+            reference: peer,
+            definition: SurfaceDefinition {
+                calibration: Calibration::Grid,
+                ..Default::default()
+            },
+        },
+    );
+    let source = TextureId::new(99).unwrap();
+    let sources = HashMap::from([(channel, source)]);
+    let normal = Quad::default().corners;
+    for quad in [
+        Quad {
+            corners: [normal[0], normal[2], normal[1], normal[3]],
+        },
+        Quad {
+            corners: [normal[0], normal[1], Point { x: 0.2, y: 0.2 }, normal[3]],
+        },
+        Quad {
+            corners: [normal[0]; 4],
+        },
+    ] {
+        screen_edit(
+            &mut engine,
+            ScreenEdit::ConfigureSurface {
+                reference,
+                definition: SurfaceDefinition {
+                    source: Some(channel),
+                    quad,
+                    ..Default::default()
+                },
+            },
+        );
+        let layers = capture_screen(&engine, screen, 8).unwrap().layers(&sources).unwrap();
+        assert_eq!(layers.len(), 1, "invalid warp cannot fail the Screen or its peer");
+        assert!(matches!(layers[0].source, LayerSource::Pattern(_)));
+    }
+    let quad = Quad {
+        corners: [normal[2], normal[3], normal[0], normal[1]],
+    };
+    screen_edit(
+        &mut engine,
+        ScreenEdit::ConfigureSurface {
+            reference,
+            definition: SurfaceDefinition {
+                source: Some(channel),
+                quad,
+                ..Default::default()
+            },
+        },
+    );
+    let layers = capture_screen(&engine, screen, 8).unwrap().layers(&sources).unwrap();
+    assert_eq!(layers.len(), 2);
+    assert_eq!(layers[0].source.texture(), Some(source));
+    assert_eq!(
+        layers[0].mapping.unwrap().source_coordinate(Point { x: 0.75, y: 0.75 }),
+        Some([0.25, 0.25])
+    );
+}
+
+#[test]
 fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
     let mut engine = engine();
     let reference = create(&mut engine, MediaKind::SolidColor);

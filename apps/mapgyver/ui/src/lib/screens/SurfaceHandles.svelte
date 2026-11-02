@@ -103,9 +103,10 @@
 			points={item.definition.quad.corners.map((point) => `${point.x},${point.y}`).join(' ')}
 			class:selected={item.reference.surface === selected}
 			class:inactive={!item.definition.enabled}
+			class:invalid={!item.mapping_valid}
 			role="button"
 			tabindex={disabled ? -1 : 0}
-			aria-label={`Select ${item.label}`}
+			aria-label={`Select ${item.label}${item.mapping_valid ? '' : ' (invalid warp shape)'}`}
 			aria-disabled={disabled}
 			onclick={() => {
 				if (!disabled) select(item.reference.surface);
@@ -159,5 +160,9 @@
 	}
 	polygon.inactive {
 		stroke-dasharray: 0.3rem 0.2rem;
+	}
+	polygon.invalid {
+		fill: #a51d2c55;
+		stroke: #ff5364;
 	}
 </style>

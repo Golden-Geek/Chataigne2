@@ -136,7 +136,7 @@ fn invalid_edits_leave_project_and_history_untouched() {
     let mut crop = SurfaceDefinition::default();
     crop.crop.width = 2.0;
     let mut quad = SurfaceDefinition::default();
-    quad.quad.corners.swap(0, 1);
+    quad.quad.corners[0].x = f32::INFINITY;
     let alpha = SurfaceDefinition {
         opacity: -0.1,
         ..Default::default()

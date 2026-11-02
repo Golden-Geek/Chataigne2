@@ -15,6 +15,7 @@
 // Add --column-applications-ui for M08 actual column UI and owned-process lifecycle verification.
 // Add --source-drop-ui for real Media/Channel outliner drags into Screen/Composition editors.
 // Add --catalog-ui for object-only manager creation menus.
+// Add --free-warp-ui for held invalid-shape editing and upside-down recovery.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -42,7 +43,8 @@ const withUi = [
 	'--column-applications-ui',
 	'--source-drop-ui',
 	'--workbench-ui',
-	'--catalog-ui'
+	'--catalog-ui',
+	'--free-warp-ui'
 ].some((flag) => process.argv.includes(flag));
 const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-media-parity-'));
 const shutdown = path.join(directory, 'host.stop');
@@ -257,6 +259,10 @@ try {
 	if (process.argv.includes('--screen-ui')) {
 		const { verifyScreenUi } = await import('../browser/screens.mjs');
 		await verifyScreenUi({ base, post, media: await inspect(), inspectMedia: inspect });
+	}
+	if (process.argv.includes('--free-warp-ui')) {
+		const { verifyFreeWarpUi } = await import('../browser/free-warp.mjs');
+		await verifyFreeWarpUi({ base, post });
 	}
 	if (process.argv.includes('--surface-source-ui')) {
 		const { verifySurfaceSourceUi } = await import('../browser/surface-source.mjs');

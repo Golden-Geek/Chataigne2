@@ -221,15 +221,22 @@ impl CapturedScreen {
         }
         let mut layers = Vec::with_capacity(self.surfaces.len());
         for surface in self.surfaces.iter().filter(|surface| surface.enabled) {
-            let (source, crop) = if let Some(pattern) = super::calibration::pattern(surface.calibration) {
+            // A freely edited quad can temporarily have no finite homography. Keep the
+            // authored state and healthy peer layers; never publish an unsafe GPU mapping.
+            let crop = if surface.calibration == Calibration::Off {
+                surface.crop
+            } else {
+                UnitRect::FULL
+            };
+            let Ok(mapping) = ProjectiveMapping::new(crop, surface.quad) else {
+                continue;
+            };
+            let source = if let Some(pattern) = super::calibration::pattern(surface.calibration) {
                 // Calibration covers the complete authored quad; the saved source crop is retained.
-                (LayerSource::Pattern(pattern), UnitRect::FULL)
+                LayerSource::Pattern(pattern)
             } else {
                 let Some(source) = surface.source else { continue };
-                (
-                    (*channels.get(&source).ok_or("Surface source was not captured")?).into(),
-                    surface.crop,
-                )
+                (*channels.get(&source).ok_or("Surface source was not captured")?).into()
             };
             layers.push(Layer {
                 source,
@@ -237,7 +244,7 @@ impl CapturedScreen {
                 opacity_envelope: None,
                 blend: BlendMode::Normal,
                 filter: SampleFilter::Linear,
-                mapping: Some(ProjectiveMapping::new(crop, surface.quad).map_err(|error| error.to_string())?),
+                mapping: Some(mapping),
             });
         }
         Ok(layers)

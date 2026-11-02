@@ -246,6 +246,20 @@ pub struct SurfaceSnapshot {
     pub reference: SurfaceReference,
     pub label: String,
     pub definition: SurfaceDefinition,
+    /// Presentation status only; invalid intermediate warps remain authored and editable.
+    pub mapping_valid: bool,
+}
+
+impl SurfaceSnapshot {
+    pub(super) fn new(reference: SurfaceReference, label: String, definition: SurfaceDefinition) -> Self {
+        let mapping_valid = golden_video::plan::ProjectiveMapping::new(definition.crop, definition.quad).is_ok();
+        Self {
+            reference,
+            label,
+            definition,
+            mapping_valid,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -315,7 +329,19 @@ impl ScreenDefinition {
 
 impl SurfaceDefinition {
     pub fn validate(&self) -> Result<(), String> {
-        golden_video::plan::ProjectiveMapping::new(self.crop, self.quad).map_err(|error| error.to_string())?;
+        if !self.crop.is_valid() {
+            return Err("surface crop must have positive extents contained in 0..1".into());
+        }
+        // Authored corners must survive crossed, concave and collapsed intermediate states.
+        // Executable homographies are checked separately at the rendering boundary.
+        if self
+            .quad
+            .corners
+            .iter()
+            .any(|point| !point.x.is_finite() || !point.y.is_finite())
+        {
+            return Err("surface corner positions must be finite".into());
+        }
         if !self.opacity.is_finite() || !(0.0..=1.0).contains(&self.opacity) {
             return Err("surface opacity must be finite and in 0..1".into());
         }

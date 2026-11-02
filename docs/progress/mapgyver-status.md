@@ -4,12 +4,50 @@
 
 **Updated: 2026-11-02 · Overall: `████████░░░░░░░░░░░░` 40% · 4/10 phases complete**
 
-**Current:** live pan/zoom placement is implemented and verified by changing GPU pixels; M05/6 remains Active for current-build editor/native acceptance.
-**Next:** after the user saves/closes the running MapGyver window, rebuild the ordinary bundled app and review held navigation in that build.
-**Blocker:** Windows locks `target/debug/MapGyver.exe` while the user's MapGyver process50812 is running; ordinary app rebuild failed with OS error5. Save/close was requested; do not terminate an unsaved project. Retained native visual/display/reset/timing/memory acceptance
+**Current:** free Surface warp editing is verified through invalid shapes to upside-down mappings, with red feedback and ordinary history; M05/6 remains Active for retained complete-editor/native scope.
+**Next:** current-build native held navigation/warp review when an interactive desktop exposes the owned app window; retain the recorded physical/display/reset acceptance queue.
+**Blocker:** no software/build blocker; the user closed MapGyver and the ordinary bundled build now passes. Retained native visual/display/reset/timing/memory acceptance
 remains open, including the prior unavailable targetable desktop review window. Current usable
 feature: stable shared navigation, bounded/live crop, sortable managers and automatic source-bound Screens with atomic display reassignment and tolerant recovery.
-Last verified capability: live native placement follows sustained pan/zoom without resource-plan replacement;32GPU pixel frames and98controller samples pass. Output Escape's software checks remain verified; real foreground-key acceptance stays open.
+Last verified capability: actual browser pointer drags pass through invalid warps with live red feedback and recover to an upside-down quad, without rejected intents. Native pan/zoom's32GPU pixel frames and98controller samples remain verified. Output Escape's real foreground-key acceptance stays open.
+
+**Free warp batch:** 2 November14:57 CET, stop15:42 CET. Deliver unrestricted finite Surface
+quad editing through crossed/concave/degenerate intermediate shapes, red edges and dim red
+content while invalid, then normal rendering for a valid upside-down quad. Owners: MapGyver
+authored Surface Parameters and editor presentation; Golden Video keeps strict executable
+mapping validation. Hypothesis: authored edits incorrectly demand a renderable homography on
+every sample. Baseline plus one corrected regression suite will verify public edits, live
+gesture progression, persistence/history and invalid-render isolation. Preserve the independent
+AGENTS.md edit and prior native/build return gates; do not retry desktop-focus routes.
+
+**Free warp delivered — 2 November15:08 CET:** MapGyver's authored Surface validation now
+requires finite corners and a contained positive crop, independently of whether the quad admits
+a stable homography. Handle edits, generic Inspector parameters, scripts/operations and saved
+projects accept crossed, concave, collapsed and numerically unstable intermediate states. The
+backend computes `SurfaceSnapshot.mapping_valid`; Rust regenerated its TypeScript declaration.
+Every inspection/edit reply uses the same snapshot constructor. The editor shows invalid quads
+with red edges and a dim red fill, keeping every corner available. Render preparation omits
+only an unrenderable Surface layer and resumes it when valid; Golden's strict GPU mapping
+contract is unchanged. Healthy peers keep their layers. Source/crop/opacity stay authored,
+and invalid shapes participate in normal save/load and grouped Undo/Redo.
+
+Verification: full MapGyver library suite268pass/1existing hardware ignore, including handle and
+Inspector sequences through collapsed/crossed shapes to a180-degree rotation, sampled source
+coordinates after recovery, invalid-state project round trips, history and peer-layer isolation.
+Generated-contract drift passes in that suite. UI22tests pass; Svelte reports0errors/0warnings;
+strict app all-target Clippy, ordinary bundled app build, root/Golden Core formatting and changed
+file formatting pass. The finite ordinary-host browser check
+`node apps/mapgyver/tests/headless/media.mjs --free-warp-ui` passes real held pointer input,
+backend state before release, computed red stroke/fill, upside-down recovery and4gesture
+Undo/Redo with0rejected intents and0page errors. Inspected
+`target/free-warp-ui-invalid.png`; final state is in`target/free-warp-ui.png`. The isolated host
+exits normally. Browser presentation has no native capability; this is not native imagery proof.
+
+The requested free-editing behavior closes in software and browser input. M05/6 remains Active,
+phase counts stay4/10(40%) and no native/physical gate is inferred. The prior executable-lock
+blocker is cleared and the pan/zoom correction is included in the rebuilt app; its retained
+current-build native visual review and output-Escape focus check remain queued for supported
+desktop access. Preserve independent AGENTS.md edits and do not retry unavailable focus routes.
 
 **Continuous rendering correction:** 2 November14:18 CET, stop15:03 CET. Deliver visible progress
 through a held gesture, not merely absence of an unavailable label. Owners: Golden Video preview

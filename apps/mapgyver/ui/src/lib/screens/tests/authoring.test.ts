@@ -27,6 +27,7 @@ const catalog = (...screens: ScreenSnapshot[]): ScreenEditResult => ({
 });
 const media = async () => ({ media: [], assets: [] });
 const surface = (width = 1): SurfaceSnapshot => ({
+	mapping_valid: true,
 	reference: { screen: 'current', surface: 'surface' },
 	label: 'Surface',
 	definition: {
