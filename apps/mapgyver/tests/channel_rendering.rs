@@ -182,7 +182,13 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, sender: &str) 
         sender: Some(sender.into()),
         maximum: descriptor(4, 4),
     };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
 }
 fn routes(references: [ChannelReference; 2]) -> Vec<ChannelRoute> {
     references

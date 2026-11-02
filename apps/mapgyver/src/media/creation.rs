@@ -27,7 +27,7 @@ pub(super) fn items() -> Vec<UserCreatableItem> {
     items.extend(
         SOURCES
             .into_iter()
-            .map(|(node_type, label, _)| UserCreatableItem::new(node_type, "mapgyver.media.v2", label)),
+            .map(|(node_type, label, _)| UserCreatableItem::new(node_type, "mapgyver.media.v3", label)),
     );
     items
 }

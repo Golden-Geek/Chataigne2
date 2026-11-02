@@ -15,14 +15,10 @@ export async function verifyComposition({ post, intent, edit }) {
 		[red, [1, 0.04, 0.02, 1]],
 		[green, [0.03, 1, 0.1, 1]]
 	]) {
-		const { snapshot } = await edit({ kind: 'InspectChannel', reference });
 		await edit({
 			kind: 'ConfigureChannel',
 			reference,
-			definition: {
-				...snapshot.definition,
-				source: { kind: 'SolidColor', rgba }
-			}
+			source: { kind: 'SolidColor', rgba }
 		});
 		await edit({
 			kind: 'ConfigureMediaResolution',
@@ -31,14 +27,10 @@ export async function verifyComposition({ post, intent, edit }) {
 		});
 	}
 	const root = await create('Composition', 'Review Composition');
-	const { snapshot: channel } = await edit({ kind: 'InspectChannel', reference: root });
 	await edit({
 		kind: 'ConfigureChannel',
 		reference: root,
-		definition: {
-			...channel.definition,
-			source: { kind: 'Composition', canvas: { width: 320, height: 240 } }
-		}
+		source: { kind: 'Composition', canvas: { width: 320, height: 240 } }
 	});
 	const { instances } = await operation(root, { kind: 'AddInstances', sources: [red, red, green] });
 	const initial = await inspect(root);

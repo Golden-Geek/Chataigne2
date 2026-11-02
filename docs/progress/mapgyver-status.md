@@ -2,16 +2,16 @@
 
 **Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** revised M04 media/channel ownership and Channels authoring.
-**Next deliverable:** move remaining shared source settings to media Parameters, retain only
-variant differences on Channels, and remove channel creation from manager context menus.
+**Current topic:** revised M04 shared media settings and source-only channel edits.
+**Next deliverable:** remove remaining channel-owned procedural canvas and Shared Texture
+metadata settings, retain only variant differences, then complete manager menus and module API.
 **Execution:** implementing M04/1 on `mapgyver`; one active gate, delivered in reviewable slices.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
-**Usable now:** shared typed media Resolution and bounded Channels editing through the generic
-Inspector, source media, Screen/Surface editing, Composition and Matrix playback.
-**Last delivered capability:** software-verified Channels add/edit/rename/reorder/copy/remove
-with history, exact expanded-channel reads and a 32-entry rendering bound. The Media Manager
-hides channel rows and their inline creation buttons; declared Parameter folders reject creation.
+**Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
+the generic Inspector, source media, Screen/Surface editing, Composition and Matrix playback.
+**Last delivered capability:** media-owned Sampling across existing/new variants, generic/API/
+script editing, history/reload and capture invalidation. Channel edits accept source settings;
+runtime size/filter projections are read-only. The v3 schema rejects unsupported older media.
 **Last accepted:** user-reviewed native Screen/Surface, Composition and Matrix playback behavior
 on the prior schema. Remaining revised ownership and native editor acceptance stay open.
 
@@ -48,7 +48,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                   |
 | ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active  | M04/1            | Shared Resolution and Channels authoring slices are functionally verified. Finish shared source settings, manager context-menu visibility, authoritative creation/import defaults and complete command/function/callback/snippet API; verify all revised generic/direct editing and history contracts.                 |
+| Active  | M04/1            | Shared Resolution/Sampling and Channels authoring are functionally verified. Finish procedural/source ownership, manager context-menu visibility, authoritative creation/import defaults and complete command/function/callback/snippet API; verify all revised generic/direct editing and history contracts.          |
 | Pending | M04/2,4–8        | After M04/1, verify revised source/Spout contracts and generic UI/lifetime; implement Reference, then Media Preview. M04/3 Picture worker bounds retain acceptance.                                                                                                                                                    |
 | Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                        |
 | Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                       |
@@ -74,24 +74,25 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/1 Channels authoring; owner: MapGyver media Inspector/backend
-  capabilities and Golden declared-Parameter container admission. Delivered actual typed child
-  nodes through the generic Inspector: add/edit/rename/reorder/copy/remove and history, keeping
-  media selection on creation. Render at most 32 channels per page and inspect only expanded
-  channels through exact queries. The manager hides channels and their inline creation buttons.
-  Composition keeps one owned output; derived outputs reject source-variant creation/copy.
-  Params DSL folders explicitly close catalog inheritance; ordinary folders remain open, including
-  across project roundtrip. Started 2026-11-02 19:10 CET, scope cutoff 19:55 CET; the planned
-  validation completed after the cutoff. A regression fixture's duplicate sibling declaration
-  identity was corrected before its final passing run. No native experiment or gate closed.
-  **Checks:** MapGyver 275 passed/1 ignored; Golden folder regressions 2 passed; macro suite
-  passed; strict MapGyver/Golden Clippy, Chataigne Rust/UI and MapGyver UI checks passed;
-  executable build and combined bundled Channels/Resolution/catalog/headless workflows passed;
-  root and Golden formatting passed. Browser coverage includes typed color/history, context
-  operations, 35 channels across two pages and exact reads. Shared Resolution remains in
-  `a6a5ea11`. **Remaining:** shared source-setting ownership, manager context-menu channel
-  creation visibility, complete command/function/callback/snippet API and revised native parity.
-  Reference, Media Preview and all other queued acceptance remain open. Counts stay 24/57.
+- **Current milestone:** M04/1 shared Sampling; owner: MapGyver media Parameters, public edit
+  API and generic Inspector. One media-owned Enum now projects its filter to every variant;
+  channel-authored Sampling was removed. `ConfigureMediaSampling` edits that same Parameter;
+  `ConfigureChannel` accepts source settings only. Generated contracts, Rust/UI/native-fixture
+  callers and headless fixtures changed together. Media schema `mapgyver.media.v3` rejects
+  old sizing/sampling schemas before project replacement. Started 2026-11-02 20:23 CET;
+  scope cutoff 21:08 CET, completed within the batch. The Picture-import test fixture retained
+  its asset-copy setup after separating shared Sampling from variant edits. **Checks:** 276
+  MapGyver tests passed/1 existing ignored (generated parity, all source caller parity, generic
+  ownership, invalid-value rollback, stable variants/new-channel inheritance, history/reload
+  and capture invalidation); strict all-target Clippy with `native-qualification`; MapGyver UI
+  check (0 errors/warnings); ordinary executable build; combined bundled Sampling/Resolution,
+  Channels and manager-catalog workflows plus source Save/New/Load and atomic rejection;
+  root/Golden formatting and touched UI/test/doc formatting. No native experiment or gate
+  closure. Channels authoring remains in `151ca682`; Resolution in `a6a5ea11`.
+  **Remaining:** procedural canvas/shared source ownership, discovered Shared Texture metadata,
+  manager context-menu channel-creation visibility, complete command/function/callback/snippet
+  API and revised full source/browser/native parity (including porting the legacy broad source
+  browser fixtures). Reference/Preview and the return queue remain required. Counts stay 24/57.
 
 ## Maintenance rule
 

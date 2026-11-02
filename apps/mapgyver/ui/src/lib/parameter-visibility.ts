@@ -43,7 +43,7 @@ function visible(child: UiNodeDto) {
 		return false;
 	}
 	if (owner.node_type !== 'mapgyver.media.channel') return true;
-	if (['source_kind', 'filter'].includes(field ?? '')) return true;
+	if (field === 'source_kind') return true;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Picture') return field === 'asset';

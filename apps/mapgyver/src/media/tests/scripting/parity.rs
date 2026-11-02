@@ -184,7 +184,13 @@ fn baseline() -> Baseline {
                 }
                 _ => {}
             }
-            apply(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+            apply(
+                &mut engine,
+                MediaEdit::ConfigureChannel {
+                    reference,
+                    source: definition.source,
+                },
+            );
         }
         apply(
             &mut engine,
@@ -228,7 +234,6 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
     ];
     for [first, second] in baseline.references {
         let mut definition = channel(&initial, first).unwrap().definition;
-        definition.filter = golden_video::plan::SampleFilter::Nearest;
         match &mut definition.source {
             ChannelSource::SolidColor { rgba } => *rgba = [0.75, 0.25, 0.5, 0.25],
             ChannelSource::Picture { asset } => *asset = None,
@@ -236,6 +241,10 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             _ => unreachable!(),
         }
         cases.extend([
+            MediaEdit::ConfigureMediaSampling {
+                media: first.media,
+                filter: golden_video::plan::SampleFilter::Nearest,
+            },
             MediaEdit::ConfigureMediaResolution {
                 media: first.media,
                 size: SizePolicy::Fixed {
@@ -248,7 +257,7 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             },
             MediaEdit::ConfigureChannel {
                 reference: first,
-                definition,
+                source: definition.source,
             },
             MediaEdit::RenameMedia {
                 media: first.media,
@@ -277,7 +286,7 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
     }
     cases.push(MediaEdit::ConfigureChannel {
         reference: baseline.references[0][0],
-        definition: ChannelDefinition::for_media(MediaKind::Picture),
+        source: ChannelDefinition::for_media(MediaKind::Picture).source,
     });
     cases.push(MediaEdit::RenameChannel {
         reference: ChannelReference {

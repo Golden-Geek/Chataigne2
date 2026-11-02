@@ -241,7 +241,7 @@ fn resizing_the_canvas_preserves_instances_and_new_centered_positions_survive_re
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference: composition,
-            definition: channel.clone(),
+            source: channel.source.clone(),
         },
     );
     add(&mut engine, composition, vec![source]);
@@ -259,7 +259,7 @@ fn resizing_the_canvas_preserves_instances_and_new_centered_positions_survive_re
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference: composition,
-            definition: channel,
+            source: channel.source,
         },
     );
     add(&mut engine, composition, vec![source]);

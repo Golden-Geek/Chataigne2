@@ -9,6 +9,6 @@ export type ChannelDefinition = { source: ChannelSource,
  */
 size: SizePolicy,
 /**
- * Full-image stretch is the initial fit policy; filter choice is explicit.
+ * Effective projection of the owning media Sampling, never channel-authored state.
  */
 filter: SampleFilter, };

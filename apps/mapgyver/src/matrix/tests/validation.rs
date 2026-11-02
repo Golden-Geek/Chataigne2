@@ -278,7 +278,7 @@ fn ownership_batch_and_export_invariants_reject_before_mutation() {
             &mut engine,
             MediaEdit::ConfigureChannel {
                 reference: a,
-                definition
+                source: definition.source
             }
         )
         .success

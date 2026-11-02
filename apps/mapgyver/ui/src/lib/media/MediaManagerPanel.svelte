@@ -29,7 +29,7 @@
 			appState.session.loading.visible ||
 			appState.session.hasActiveEditSession}
 		isTreeNode={isMediaTreeNode}
-		nodeSourceDraggable={(node) => node.node_type === 'mapgyver.media.v2'}
+		nodeSourceDraggable={(node) => node.node_type === 'mapgyver.media.v3'}
 		canRenderNodeChildren={(node) => node.node_type === 'mapgyver.media.folder'}
 		rowSupplementComponent={MediaTreeActions} />
 </section>

@@ -59,7 +59,13 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             extent: Extent2D::new(2, 2).unwrap(),
         };
         definition.source = ChannelSource::SolidColor { rgba };
-        edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureChannel {
+                reference,
+                source: definition.source,
+            },
+        );
         edit(
             &mut engine,
             MediaEdit::ConfigureMediaResolution {
@@ -384,7 +390,13 @@ fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_
                 canvas: Extent2D::new(extent, extent).unwrap(),
             };
         }
-        edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureChannel {
+                reference,
+                source: definition.source,
+            },
+        );
         edit(
             &mut engine,
             MediaEdit::ConfigureMediaResolution {
@@ -628,7 +640,13 @@ fn import(engine: &mut AppEngine, path: &str) -> AssetId {
 fn configure(engine: &mut AppEngine, reference: ChannelReference, asset: AssetId) {
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = ChannelSource::Picture { asset: Some(asset) };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
 }
 
 fn routes(references: [ChannelReference; 2]) -> Vec<ChannelRoute> {

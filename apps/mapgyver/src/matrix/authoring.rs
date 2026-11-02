@@ -121,7 +121,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             let Some(AppNode::MediaChannel(node)) = engine.nodes.get(document.root) else {
                 unreachable!()
             };
-            for edit in node.parameter_edits(channel) {
+            for edit in node.parameter_edits(channel.source) {
                 engine.edits.push(edit);
             }
         }

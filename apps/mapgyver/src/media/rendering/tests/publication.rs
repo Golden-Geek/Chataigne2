@@ -262,7 +262,7 @@ fn automatic_spout_warms_without_inventing_an_extent_and_changed_selector_gets_a
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference,
-            definition: definition.clone(),
+            source: definition.source.clone(),
         },
     );
     let mut renderer = renderer();
@@ -277,7 +277,13 @@ fn automatic_spout_warms_without_inventing_an_extent_and_changed_selector_gets_a
         panic!()
     };
     *sender = Some("B".into());
-    edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
     let stale = renderer.desired.as_ref().unwrap().capture.clone();
     assert!(!stale.is_current());
     assert!(renderer.publish(stale, routes(reference)).is_err());

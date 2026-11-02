@@ -53,10 +53,11 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let media = engine.node_id_by_uuid(reference.media.0).unwrap();
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
         let media_fields = parameters(&engine, media);
-        assert_eq!(media_fields.len(), 2);
+        assert_eq!(media_fields.len(), 3);
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
-        assert_eq!(fields.len(), 17, "{fields:?}");
+        assert_eq!(fields.len(), 16, "{fields:?}");
+        assert!(!fields.contains_key("parameters/filter"));
         assert!(engine.nodes.get(root).unwrap().project_encode_data().unwrap().is_null());
         assert!(
             engine
@@ -125,7 +126,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
     }
     // Actual generic writes remain viable after load, with identical identities.
     let first = snapshot.media[0].channels[0].reference;
-    let root = loaded.node_id_by_uuid(first.channel.0).unwrap();
+    let root = loaded.node_id_by_uuid(first.media.0).unwrap();
     let field = parameters(&loaded, root)["parameters/filter"];
     assert!(set(&mut loaded, field, ParamValue::Enum("Nearest".into())).success);
     assert_eq!(
@@ -262,20 +263,127 @@ fn resolution_generic_edits_toggle_all_variants_and_reject_invalid_pixels_atomic
         ParamValue::Vec2(640.0, 360.0)
     );
     assert_eq!(channel(&loaded, second).unwrap().definition.size, SizePolicy::Automatic);
-    let mut definition = channel(&loaded, second).unwrap().definition;
-    definition.size = fixed;
     let before = to_sparse_project_json_pretty(&loaded).unwrap();
     assert!(
-        !invoke(
-            &mut loaded,
-            MediaEdit::ConfigureChannel {
-                reference: second,
-                definition
-            }
-        )
-        .success
+        serde_json::from_value::<MediaEdit>(serde_json::json!({
+        "kind": "ConfigureChannel", "reference": second,
+            "definition": {"source": {"kind": "Picture", "asset": null}, "size": fixed, "filter": "Linear"}
+        }))
+        .is_err()
     );
     assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), before);
+}
+
+#[test]
+fn sampling_is_media_owned_across_variants_history_capture_and_reload() {
+    use golden_video::plan::SampleFilter;
+    let mut engine = fixture();
+    let unrelated = create(&mut engine, MediaKind::SolidColor);
+    for kind in [
+        MediaKind::SolidColor,
+        MediaKind::Picture,
+        MediaKind::SharedTexture,
+        MediaKind::Composition,
+        MediaKind::Matrix,
+    ] {
+        let first = create(&mut engine, kind);
+        let mut references = vec![first];
+        if kind.has_authored_channel_variants() {
+            let MediaEditResult::Created { reference } = apply(
+                &mut engine,
+                MediaEdit::AddChannel {
+                    media: first.media,
+                    label: None,
+                },
+            ) else {
+                panic!()
+            };
+            references.push(reference);
+        }
+        let media = engine.node_id_by_uuid(first.media.0).unwrap();
+        let filter = parameters(&engine, media)["parameters/filter"];
+        let parameter_uuid = engine.nodes.get(filter).unwrap().node_data().meta.uuid;
+        let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
+        let history = engine.undo_len();
+        assert!(set(&mut engine, filter, ParamValue::Enum("Nearest".into())).success);
+        assert_eq!(engine.undo_len(), history + 1);
+        assert!(!captured.is_current());
+        for reference in &references {
+            assert_eq!(
+                channel(&engine, *reference).unwrap().definition.filter,
+                SampleFilter::Nearest
+            );
+            let id = engine.node_id_by_uuid(reference.channel.0).unwrap();
+            assert!(!parameters(&engine, id).contains_key("parameters/filter"));
+        }
+        assert_eq!(
+            channel(&engine, unrelated).unwrap().definition.filter,
+            SampleFilter::Linear
+        );
+        assert!(engine.undo().unwrap());
+        for reference in &references {
+            assert_eq!(
+                channel(&engine, *reference).unwrap().definition.filter,
+                SampleFilter::Linear
+            );
+        }
+        assert!(engine.redo().unwrap());
+        let saved = to_sparse_project_json_pretty(&engine).unwrap();
+        let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+        let restored = loaded.node_id_by_uuid(parameter_uuid).unwrap();
+        assert_eq!(
+            loaded
+                .nodes
+                .get(restored)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value,
+            ParamValue::Enum("Nearest".into())
+        );
+        let captured = crate::media::capture_channels(&loaded, &references, 16).unwrap();
+        apply(
+            &mut loaded,
+            MediaEdit::ConfigureMediaSampling {
+                media: first.media,
+                filter: SampleFilter::Linear,
+            },
+        );
+        assert!(!captured.is_current());
+        for reference in &references {
+            assert_eq!(
+                channel(&loaded, *reference).unwrap().definition.filter,
+                SampleFilter::Linear
+            );
+        }
+        let before = to_sparse_project_json_pretty(&loaded).unwrap();
+        let history = loaded.undo_len();
+        assert!(!set(&mut loaded, restored, ParamValue::Enum("Cubic".into())).success);
+        assert_eq!(loaded.undo_len(), history);
+        assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), before);
+        if kind.has_authored_channel_variants() {
+            apply(
+                &mut loaded,
+                MediaEdit::ConfigureMediaSampling {
+                    media: first.media,
+                    filter: SampleFilter::Nearest,
+                },
+            );
+            let MediaEditResult::Created { reference } = apply(
+                &mut loaded,
+                MediaEdit::AddChannel {
+                    media: first.media,
+                    label: None,
+                },
+            ) else {
+                panic!()
+            };
+            assert_eq!(
+                channel(&loaded, reference).unwrap().definition.filter,
+                SampleFilter::Nearest
+            );
+        }
+    }
 }
 
 #[test]
@@ -291,6 +399,8 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     ] {
         assert_invalid_record(&resolution_engine, resolution, value);
     }
+    let filter = parameters(&resolution_engine, media)["parameters/filter"];
+    assert_invalid_record(&resolution_engine, filter, serde_json::json!("Cubic"));
     for (name, value) in [
         ("parameters/canvas_width", serde_json::json!(-1)),
         ("parameters/source_kind", serde_json::json!("unknown")),

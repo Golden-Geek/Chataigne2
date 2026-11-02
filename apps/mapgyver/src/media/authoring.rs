@@ -250,8 +250,20 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             MediaEditResult::Created { reference }
         }
-        MediaEdit::ConfigureChannel { reference, definition } => {
-            configure_channel(engine, reference, definition)?;
+        MediaEdit::ConfigureChannel { reference, source } => {
+            configure_channel(engine, reference, source)?;
+            MediaEditResult::Changed
+        }
+        MediaEdit::ConfigureMediaSampling { media: owner, filter } => {
+            let (id, _) = media(engine, owner)?;
+            let Some(AppNode::Media(media)) = engine.nodes.get(id) else {
+                unreachable!()
+            };
+            engine.edits.push(Edit::SetParam {
+                node: media.sampling_parameter(),
+                value: golden_core::parameter::ParamValue::Enum(super::media_node::filter_name(filter).into()),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            });
             MediaEditResult::Changed
         }
         MediaEdit::ConfigureMediaResolution { media: owner, size } => {
@@ -331,7 +343,7 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
     let paired_export = !definition.media_kind().has_authored_channel_variants();
-    let media = MediaNode::from_kind(label, definition.media_kind());
+    let media = MediaNode::from_definition(label, &definition);
     let channel_label = if definition.media_kind() == MediaKind::Matrix {
         "Final"
     } else {
@@ -350,16 +362,17 @@ pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeT
 pub(super) fn configure_channel(
     engine: &mut AppEngine,
     reference: ChannelReference,
-    definition: ChannelDefinition,
+    source: ChannelSource,
 ) -> Result<(), String> {
     let id = channel_id(engine, reference)?;
     let (_, kind) = media(engine, reference.media)?;
+    let definition = ChannelDefinition {
+        source,
+        ..ChannelDefinition::default()
+    };
     definition.validate()?;
     if definition.media_kind() != kind {
         return Err("channel source does not match its media kind".into());
-    }
-    if definition.size != channel(engine, reference)?.definition.size {
-        return Err("Resolution belongs to media; use ConfigureMediaResolution".into());
     }
     if kind == MediaKind::Matrix {
         let current = channel(engine, reference)?;
@@ -370,7 +383,7 @@ pub(super) fn configure_channel(
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
         unreachable!()
     };
-    for edit in channel.parameter_edits(definition) {
+    for edit in channel.parameter_edits(definition.source) {
         engine.edits.push(edit);
     }
     Ok(())
@@ -420,6 +433,7 @@ pub(super) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) ->
     };
     let mut definition = channel.definition();
     definition.size = media.size_policy(engine);
+    definition.filter = media.sampling();
     Ok(definition)
 }
 

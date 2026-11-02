@@ -43,7 +43,13 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, size: SizePoli
     );
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = ChannelSource::SolidColor { rgba };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
 }
 
 struct OwnedRenderer(Option<ChannelRenderer>);

@@ -10,10 +10,11 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
+use golden_video::plan::SampleFilter;
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v2",
+    "mapgyver.media.v3",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -28,6 +29,7 @@ use std::sync::OnceLock;
         resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
+        filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
     }
 )]
 pub struct MediaNode {
@@ -49,6 +51,20 @@ impl MediaNode {
     }
     pub(crate) fn resolution_parameter(&self) -> golden_core::node::NodeId {
         self.resolution.id()
+    }
+    pub(super) fn from_definition(label: String, definition: &ChannelDefinition) -> Self {
+        let mut node = Self::from_kind(label, definition.media_kind());
+        node.filter = ParameterHandle::new(Enum::new(filter_name(definition.filter)));
+        node
+    }
+    pub(crate) fn sampling_parameter(&self) -> golden_core::node::NodeId {
+        self.filter.id()
+    }
+    pub(crate) fn sampling(&self) -> SampleFilter {
+        match self.filter.get_ref().as_str() {
+            "Nearest" => SampleFilter::Nearest,
+            _ => SampleFilter::Linear,
+        }
     }
     pub(crate) fn size_policy(&self, engine: &crate::app::AppEngine) -> super::protocol::SizePolicy {
         if engine
@@ -79,7 +95,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v2", from_struct)]
+#[node("mapgyver.media.v3", from_struct)]
 impl Node for MediaNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
@@ -150,6 +166,9 @@ impl Node for MediaNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         validate_resolution(self.resolution.get())?;
+        if !["Linear", "Nearest"].contains(&self.filter.get_ref().as_str()) {
+            return Err("unknown media sampling filter".into());
+        }
         if !["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]
             .contains(&self.media_kind.get_ref().as_str())
         {
@@ -169,6 +188,12 @@ impl Node for MediaNode {
             return Err("Media kind is immutable; create another media node".into());
         }
         Ok(())
+    }
+}
+pub(super) fn filter_name(filter: SampleFilter) -> &'static str {
+    match filter {
+        SampleFilter::Linear => "Linear",
+        SampleFilter::Nearest => "Nearest",
     }
 }
 fn validate_resolution(value: Vec2) -> Result<(), String> {

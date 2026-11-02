@@ -109,7 +109,7 @@ fn asset_removal_relink_and_undo_fence_captures_even_when_history_retains_the_no
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference,
-            definition: definition.clone(),
+            source: definition.source.clone(),
         },
     );
     let captured = capture_channels(&engine, &[reference], 16).unwrap();

@@ -158,7 +158,8 @@ export class CompositionAuthoringController<S extends Connection> {
 	}
 	configure(definition: ChannelDefinition) {
 		const reference = this.state.selected;
-		if (reference) return this.mutate({ kind: 'ConfigureChannel', reference, definition });
+		if (reference)
+			return this.mutate({ kind: 'ConfigureChannel', reference, source: definition.source });
 	}
 	setInteracting(active: boolean) {
 		this.state.interacting = active;

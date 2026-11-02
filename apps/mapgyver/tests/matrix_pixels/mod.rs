@@ -64,7 +64,13 @@ fn color(engine: &mut AppEngine, rgba: [f32; 4]) -> ChannelReference {
     let size = SizePolicy::Fixed {
         extent: Extent2D::new(1, 1).unwrap(),
     };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
     edit(
         engine,
         MediaEdit::ConfigureMediaResolution {

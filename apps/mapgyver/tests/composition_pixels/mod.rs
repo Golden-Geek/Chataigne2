@@ -2,7 +2,7 @@ use golden_core::{application::apply_project_intent, ui_sync::UiEditIntent};
 use golden_video::{Extent2D, plan::SampleFilter};
 use mapgyver::{
     app::{AppEngine, AppNode},
-    media::{channel, composition::protocol::*, protocol::*},
+    media::{composition::protocol::*, protocol::*},
 };
 use std::time::Duration;
 
@@ -40,10 +40,14 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, source: Channe
             size,
         },
     );
-    let mut definition = channel(engine, reference).unwrap().definition;
-    definition.source = source;
-    definition.filter = SampleFilter::Nearest;
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureMediaSampling {
+            media: reference.media,
+            filter: SampleFilter::Nearest,
+        },
+    );
+    edit(engine, MediaEdit::ConfigureChannel { reference, source });
 }
 fn transform(position: [f32; 2], scale: [f32; 2], rotation: f32, pivot: [f32; 2]) -> Transform2D {
     Transform2D {

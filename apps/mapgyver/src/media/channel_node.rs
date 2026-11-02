@@ -1,4 +1,4 @@
-//! All channel source/output settings are real Parameters. DTOs project their values.
+//! Variant settings are real Parameters; media-owned settings join them only in runtime projections.
 use super::protocol::{ChannelDefinition, ChannelSource, SizePolicy};
 use crate::matrix::protocol::{
     EmptyCellPolicy, GroupId, LayerId, MatrixDefinition, MatrixOutput, TransitionCurve, TransitionDefinition,
@@ -21,7 +21,6 @@ use std::sync::OnceLock;
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
-        filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.asset".into()]);
         sender: String = String::new() (label = "Spout sender");
@@ -58,13 +57,6 @@ impl ChannelNode {
         seed!(
             source_kind,
             Enum::new(super::media_node::kind_name(definition.media_kind()))
-        );
-        seed!(
-            filter,
-            Enum::new(match definition.filter {
-                SampleFilter::Linear => "Linear",
-                SampleFilter::Nearest => "Nearest",
-            })
         );
         match definition.source {
             ChannelSource::SolidColor { rgba } => {
@@ -196,25 +188,12 @@ impl ChannelNode {
         ChannelDefinition {
             source,
             size: SizePolicy::Automatic,
-            filter: if self.filter.get_ref().as_str() == "Nearest" {
-                SampleFilter::Nearest
-            } else {
-                SampleFilter::Linear
-            },
+            filter: SampleFilter::Linear,
         }
     }
-    pub(crate) fn parameter_edits(&self, definition: ChannelDefinition) -> Vec<Edit> {
-        let mut values = vec![(
-            self.filter.id(),
-            ParamValue::Enum(
-                match definition.filter {
-                    SampleFilter::Linear => "Linear",
-                    SampleFilter::Nearest => "Nearest",
-                }
-                .into(),
-            ),
-        )];
-        match definition.source {
+    pub(crate) fn parameter_edits(&self, source: ChannelSource) -> Vec<Edit> {
+        let mut values = Vec::new();
+        match source {
             ChannelSource::SolidColor { rgba } => values.push((
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
@@ -345,7 +324,6 @@ impl Node for ChannelNode {
     fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if [
             self.source_kind.id(),
-            self.filter.id(),
             self.rgba.id(),
             self.asset.id(),
             self.sender.id(),
@@ -428,7 +406,6 @@ impl Node for ChannelNode {
                 self.source_kind.get_ref().as_str(),
                 &["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"][..],
             ),
-            (self.filter.get_ref().as_str(), &["Linear", "Nearest"][..]),
             (self.output_kind.get_ref().as_str(), &["Final", "Layer", "Group"][..]),
             (self.pixel_format.get_ref().as_str(), &["Bgra8Unorm", "Rgba8Unorm"][..]),
             (self.color_encoding.get_ref().as_str(), &["Srgb", "Linear"][..]),

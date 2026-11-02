@@ -165,7 +165,8 @@ try {
 				size: { kind: 'Automatic' },
 				filter: 'Nearest'
 			};
-			await edit({ kind: 'ConfigureChannel', reference, definition });
+			await edit({ kind: 'ConfigureMediaSampling', media: reference.media, filter: 'Nearest' });
+			await edit({ kind: 'ConfigureChannel', reference, source });
 			assert.deepEqual((await channel(reference)).definition, definition);
 		}
 		await edit({ kind: 'ConfigureMediaResolution', media: first.media, size: fixed });
@@ -216,7 +217,7 @@ try {
 	const rejected = await request({
 		kind: 'ConfigureChannel',
 		reference: solid.first,
-		definition: (await channel(picture.first)).definition
+		source: (await channel(picture.first)).definition.source
 	});
 	assert.equal(rejected.success, false);
 	assert.deepEqual(await inspect(), beforeRejection);
@@ -226,7 +227,7 @@ try {
 	await edit({
 		kind: 'ConfigureChannel',
 		reference: shared.first,
-		definition: { ...current.definition, source: { ...current.definition.source, sender: null } }
+		source: { ...current.definition.source, sender: null }
 	});
 	assert.equal((await channel(shared.first)).definition.source.sender, null);
 	assert.deepEqual(await channel(shared.second), peer);
@@ -242,7 +243,7 @@ try {
 	const unsupported = path.join(directory, 'unsupported-media-schema.mapgyver');
 	await writeFile(
 		unsupported,
-		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v2', 'mapgyver.media')
+		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v3', 'mapgyver.media')
 	);
 	await assert.rejects(
 		() => post('/api/ui/project-load', { path: unsupported }),

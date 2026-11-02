@@ -14,14 +14,10 @@ export async function verifyMatrix({ post, intent, edit }) {
 		['Matrix Blue', [0, 0, 1, 1]]
 	]) {
 		const reference = await create('SolidColor', label);
-		const { snapshot } = await edit({ kind: 'InspectChannel', reference });
 		await edit({
 			kind: 'ConfigureChannel',
 			reference,
-			definition: {
-				...snapshot.definition,
-				source: { kind: 'SolidColor', rgba }
-			}
+			source: { kind: 'SolidColor', rgba }
 		});
 		await edit({
 			kind: 'ConfigureMediaResolution',

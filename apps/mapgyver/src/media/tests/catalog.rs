@@ -41,7 +41,7 @@ fn catalog_inspection_is_read_only_and_retains_channel_order_across_history_and_
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference: second,
-            definition: definition.clone(),
+            source: definition.source.clone(),
         },
     );
     let before = to_sparse_project_json_pretty(&engine).unwrap();

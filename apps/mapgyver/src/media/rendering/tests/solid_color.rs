@@ -26,7 +26,13 @@ fn solid_color_channels_keep_backend_extents_linear_alpha_and_one_production_per
     for (index, reference) in [first, second].into_iter().enumerate() {
         let mut definition = channel(&engine, reference).unwrap().definition;
         definition.source = ChannelSource::SolidColor { rgba: colors[index] };
-        edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureChannel {
+                reference,
+                source: definition.source,
+            },
+        );
     }
     let probe = renderer();
     let observations = probe.source_observations();

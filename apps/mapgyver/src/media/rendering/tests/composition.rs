@@ -9,7 +9,13 @@ fn composition(engine: &mut AppEngine, width: u32, height: u32) -> ChannelRefere
     definition.source = ChannelSource::Composition {
         canvas: Extent2D::new(width, height).unwrap(),
     };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
     reference
 }
 fn add(engine: &mut AppEngine, reference: ChannelReference, sources: Vec<ChannelReference>) -> Vec<InstanceReference> {
@@ -243,7 +249,7 @@ fn pending_spout_dependencies_warm_without_drawing_and_disabled_instances_withdr
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference: source,
-            definition,
+            source: definition.source,
         },
     );
     let composition = composition(&mut engine, 8, 8);

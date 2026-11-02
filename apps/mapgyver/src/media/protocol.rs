@@ -122,7 +122,7 @@ pub struct ChannelDefinition {
     pub source: ChannelSource,
     /// Effective projection of the owning media Resolution, never channel-authored state.
     pub size: SizePolicy,
-    /// Full-image stretch is the initial fit policy; filter choice is explicit.
+    /// Effective projection of the owning media Sampling, never channel-authored state.
     pub filter: SampleFilter,
 }
 
@@ -205,12 +205,16 @@ pub enum MediaEdit {
     },
     ConfigureChannel {
         reference: ChannelReference,
-        definition: ChannelDefinition,
+        source: ChannelSource,
     },
     /// Shared output sizing; channel definitions project this setting and cannot change it.
     ConfigureMediaResolution {
         media: MediaId,
         size: SizePolicy,
+    },
+    ConfigureMediaSampling {
+        media: MediaId,
+        filter: SampleFilter,
     },
     RenameMedia {
         media: MediaId,

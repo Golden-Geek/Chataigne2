@@ -39,7 +39,7 @@ pub(super) fn picture(
     let previous = engine.nodes.get(parent).and_then(|node| node.node_data().last_child);
     let (tree, reference) = if let Some(reference) = target {
         // Validate and queue the source change before queuing any catalog insertion.
-        configure_channel(engine, reference, definition)?;
+        configure_channel(engine, reference, definition.source)?;
         (None, reference)
     } else {
         let (tree, reference) = media_tree(media_label.expect("new media label"), definition);

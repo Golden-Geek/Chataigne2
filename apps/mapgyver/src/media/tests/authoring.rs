@@ -109,7 +109,7 @@ fn invalid_source_kind_wrong_owner_and_last_channel_removal_are_atomic() {
     let invalid = [
         MediaEdit::ConfigureChannel {
             reference: solid,
-            definition: ChannelDefinition::for_media(MediaKind::SharedTexture),
+            source: ChannelDefinition::for_media(MediaKind::SharedTexture).source,
         },
         MediaEdit::InspectChannel {
             reference: ChannelReference {
@@ -147,7 +147,7 @@ fn source_configuration_is_authored_but_observation_and_resources_are_not() {
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference,
-            definition: definition.clone(),
+            source: definition.source.clone(),
         },
     );
     let json = to_sparse_project_json_pretty(&engine).unwrap();

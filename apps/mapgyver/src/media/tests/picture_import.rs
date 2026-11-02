@@ -89,16 +89,22 @@ fn import_into_one_channel_preserves_output_settings_and_relink_keeps_shared_ass
             size,
         },
     );
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureMediaSampling {
+            media: first.media,
+            filter: SampleFilter::Nearest,
+        },
+    );
     let first_definition = channel(&engine, first).unwrap().definition;
-    let mut definition = first_definition.clone();
-    definition.filter = SampleFilter::Nearest;
     apply(
         &mut engine,
         MediaEdit::ConfigureChannel {
             reference: second,
-            definition: definition.clone(),
+            source: first_definition.source.clone(),
         },
     );
+    let definition = channel(&engine, second).unwrap().definition;
     let before = engine.undo_len();
     let (assigned, replacement) = import(&mut engine, Some(second), "replacement.png");
     assert_eq!(assigned, second);

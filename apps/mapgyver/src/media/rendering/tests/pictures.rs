@@ -26,7 +26,13 @@ fn import(engine: &mut AppEngine, path: &str) -> AssetId {
 fn select(engine: &mut AppEngine, reference: ChannelReference, asset: AssetId) {
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = ChannelSource::Picture { asset: Some(asset) };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: definition.source,
+        },
+    );
 }
 
 fn png(root: &Path, name: &str, width: u32, height: u32, rgba: [u8; 4]) {
