@@ -4,7 +4,7 @@
 	let { node }: { node: UiNodeDto } = $props();
 </script>
 
-{#if node.node_type === 'mapgyver.media.folder' || node.node_type === 'mapgyver.media'}
+{#if node.node_type === 'mapgyver.media.folder' || node.node_type === 'mapgyver.media.v2'}
 	<NodeAddButton
 		{node}
 		disabled={appState.session?.status !== 'connected' ||

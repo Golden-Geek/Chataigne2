@@ -12,6 +12,14 @@ The project document, version, and JSON codec are defined in `golden_persistence
 `engine/transaction.rs` owns publication/runtime checkpoints for atomic edit operations. None of
 these engine adapters owns the file format or native path-selection workflow.
 
+Applications can reject unsupported authored schemas through
+`ProjectLifecycle::validate_project_file`. The shared project loader calls this pure hook on
+the decoded document before sparse expansion or recoverable node decoding. A rejection fails
+that file load, including the recovery decoder, so app schema errors cannot become skipped
+subtrees and partial projects. The default accepts the document; node-codec recovery behavior
+otherwise stays unchanged. File recovery may still select a separately validated backup and
+report the primary failure.
+
 Multi-root duplicate actions prepare each detached subtree before mutation, then insert the
 whole batch under one rollback checkpoint. Loaded-node attached/init/ready callbacks replay in
 creation-context groups, so a paste does not rebuild a full process-tree snapshot for each root.

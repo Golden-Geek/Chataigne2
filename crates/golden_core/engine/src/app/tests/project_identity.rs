@@ -9,6 +9,30 @@ impl ProjectLifecycle for FirstApplicationNode {
     fn application_id() -> &'static str {
         "first-application"
     }
+    fn validate_project_file(project: &crate::engine::ProjectFile) -> Result<(), String> {
+        if project.root.meta.label.as_deref() == Some("Unsupported schema") {
+            Err("unsupported authored schema".into())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+#[test]
+fn application_schema_rejection_precedes_unknown_node_recovery() {
+    let engine = Engine::<FirstApplicationNode>::new(Folder::new("Unsupported schema").into());
+    let mut wire: serde_json::Value = serde_json::from_str(&to_sparse_project_json_pretty(&engine).unwrap()).unwrap();
+    wire["root"]["type"] = "unregistered.node.codec".into();
+    let source = wire.to_string();
+    let regular = from_sparse_project_json::<FirstApplicationNode>(&source).err().unwrap();
+    let recovering = crate::app::from_sparse_project_json_with_ui_state_recovering::<FirstApplicationNode>(&source)
+        .err()
+        .unwrap();
+    for error in [regular, recovering] {
+        assert!(
+            matches!(error, ProjectPersistenceError::Codec { message, .. } if message == "unsupported authored schema")
+        );
+    }
 }
 
 define_node_enum!(

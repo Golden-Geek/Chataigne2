@@ -66,6 +66,12 @@ live on the media; channel fields contain source differences only.
 Every media has a disableable integer-constrained Vec2 **Resolution**, in pixels, default
 disabled, bounds 1–16384 per axis and unit steps. Disabled uses each source's native size;
 procedural canvases default to 1920×1080. Enabled forces every channel to that extent.
+The shared-Resolution document uses node type `mapgyver.media.v2`. Projects containing the
+old `mapgyver.media` type are rejected as unsupported; no per-channel sizing is silently
+reinterpreted. `ChannelDefinition.size` is a runtime/read projection. Change Resolution
+through its generic Parameter (including enabled state) or `ConfigureMediaResolution`;
+`ConfigureChannel` cannot change shared sizing. Media revision guards invalidate captures
+for pixel changes and enable-only edits without walking or rebuilding all channel subtrees.
 Shared Texture no longer persists format, encoding, alpha mode or maximum dimensions.
 Internal device/allocation limits still reject unsupported resources and supervise recovery.
 

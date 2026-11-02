@@ -52,9 +52,11 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let reference = create(&mut engine, kind);
         let media = engine.node_id_by_uuid(reference.media.0).unwrap();
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
-        assert_eq!(parameters(&engine, media).len(), 1);
+        let media_fields = parameters(&engine, media);
+        assert_eq!(media_fields.len(), 2);
+        let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
-        assert_eq!(fields.len(), 20, "{fields:?}");
+        assert_eq!(fields.len(), 17, "{fields:?}");
         assert!(engine.nodes.get(root).unwrap().project_encode_data().unwrap().is_null());
         assert!(
             engine
@@ -66,13 +68,21 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
                 .is_null()
         );
         let history = engine.undo_len();
-        // Resolution is authored independently of whether Fixed is currently visible.
-        assert!(set(&mut engine, fields["parameters/width"], ParamValue::Int(640)).success);
+        // Disabled Resolution retains its authored pixels independently of source-native sizing.
+        assert!(set(&mut engine, resolution, ParamValue::Vec2(640.0, 1080.0)).success);
+        assert_eq!(
+            channel(&engine, reference).unwrap().definition.size,
+            SizePolicy::Automatic
+        );
         assert!(
-            set(
+            invoke(
                 &mut engine,
-                fields["parameters/size_mode"],
-                ParamValue::Enum("Fixed".into())
+                MediaEdit::ConfigureMediaResolution {
+                    media: reference.media,
+                    size: SizePolicy::Fixed {
+                        extent: golden_video::Extent2D::new(640, 1080).unwrap()
+                    }
+                }
             )
             .success
         );
@@ -93,7 +103,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let saved = to_sparse_project_json_pretty(&engine).unwrap();
         let undo = engine.undo_len();
         for (node, value) in [
-            (fields["parameters/width"], ParamValue::Int(0)),
+            (resolution, ParamValue::Vec2(0.0, 1080.0)),
             (fields["parameters/source_kind"], ParamValue::Enum("Picture".into())),
         ] {
             if kind == MediaKind::Picture && node == fields["parameters/source_kind"] {
@@ -165,9 +175,123 @@ fn asset_locator_parameters_relink_and_reject_traversal_with_history_and_roundtr
 }
 
 #[test]
+fn resolution_generic_edits_toggle_all_variants_and_reject_invalid_pixels_atomically() {
+    let mut engine = fixture();
+    let first = create(&mut engine, MediaKind::Picture);
+    let MediaEditResult::Created { reference: second } = apply(
+        &mut engine,
+        MediaEdit::AddChannel {
+            media: first.media,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let root = engine.node_id_by_uuid(first.media.0).unwrap();
+    let resolution = parameters(&engine, root)["parameters/resolution"];
+    let parameter_uuid = engine.nodes.get(resolution).unwrap().node_data().meta.uuid;
+    let node = engine.nodes.get(resolution).unwrap();
+    assert!(!node.node_data().meta.enabled);
+    assert!(node.node_data().meta.can_be_disabled);
+    assert_eq!(node.engine_param_snapshot().unwrap().constraints.step, Some(1.0));
+    let captured = crate::media::capture_channels(&engine, &[first, second], 4).unwrap();
+    assert!(set(&mut engine, resolution, ParamValue::Vec2(640.0, 360.0)).success);
+    assert!(!captured.is_current());
+    assert_eq!(channel(&engine, first).unwrap().definition.size, SizePolicy::Automatic);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for value in [
+        ParamValue::Vec2(0.0, 1.0),
+        ParamValue::Vec2(1.0, 16385.0),
+        ParamValue::Vec2(1.5, 2.0),
+        ParamValue::Vec2(f64::NAN, 2.0),
+        ParamValue::Vec2(2.0, f64::INFINITY),
+        ParamValue::Str("640x360".into()),
+    ] {
+        assert!(!set(&mut engine, resolution, value).success);
+        assert_eq!(engine.undo_len(), history);
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    }
+    let captured = crate::media::capture_channels(&engine, &[first, second], 4).unwrap();
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::PatchMeta {
+            node: resolution,
+            patch: golden_core::ui_sync::NodeMetaPatch {
+                enabled: Some(true),
+                ..Default::default()
+            },
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    assert!(!captured.is_current(), "An enable-only edit must wake rendering");
+    let fixed = SizePolicy::Fixed {
+        extent: golden_video::Extent2D::new(640, 360).unwrap(),
+    };
+    for reference in [first, second] {
+        assert_eq!(channel(&engine, reference).unwrap().definition.size, fixed);
+    }
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(channel(&engine, first).unwrap().definition.size, SizePolicy::Automatic);
+    assert!(engine.redo().unwrap());
+    let encoded = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
+    let loaded_resolution = loaded.node_id_by_uuid(parameter_uuid).unwrap();
+    for reference in [first, second] {
+        assert_eq!(
+            channel(&loaded, reference).unwrap(),
+            channel(&engine, reference).unwrap()
+        );
+    }
+    apply(
+        &mut loaded,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size: SizePolicy::Automatic,
+        },
+    );
+    assert_eq!(
+        loaded
+            .nodes
+            .get(loaded_resolution)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Vec2(640.0, 360.0)
+    );
+    assert_eq!(channel(&loaded, second).unwrap().definition.size, SizePolicy::Automatic);
+    let mut definition = channel(&loaded, second).unwrap().definition;
+    definition.size = fixed;
+    let before = to_sparse_project_json_pretty(&loaded).unwrap();
+    assert!(
+        !invoke(
+            &mut loaded,
+            MediaEdit::ConfigureChannel {
+                reference: second,
+                definition
+            }
+        )
+        .success
+    );
+    assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), before);
+}
+
+#[test]
 fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
+    let mut resolution_engine = fixture();
+    let reference = create(&mut resolution_engine, MediaKind::SolidColor);
+    let media = resolution_engine.node_id_by_uuid(reference.media.0).unwrap();
+    let resolution = parameters(&resolution_engine, media)["parameters/resolution"];
+    for value in [
+        serde_json::json!([0, 1080]),
+        serde_json::json!([16385, 1080]),
+        serde_json::json!([1920.5, 1080]),
+    ] {
+        assert_invalid_record(&resolution_engine, resolution, value);
+    }
     for (name, value) in [
-        ("parameters/width", serde_json::json!(0)),
         ("parameters/canvas_width", serde_json::json!(-1)),
         ("parameters/source_kind", serde_json::json!("unknown")),
     ] {

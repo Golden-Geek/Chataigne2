@@ -2,6 +2,7 @@
 // Build: cargo build --locked -p MapGyver --bin MapGyver
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
 // Add --ui-reload to verify the bundled Reload Picture control in the same isolated host.
+// Add --resolution-ui to verify shared Resolution through the generic Golden Inspector.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
@@ -19,7 +20,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -37,6 +38,7 @@ const withUi = [
 	'--surface-source-ui',
 	'--composition-ui',
 	'--parameter-ui',
+	'--resolution-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -158,12 +160,15 @@ try {
 			const definition = {
 				...before.definition,
 				source,
-				size: index === 0 ? { kind: 'Automatic' } : fixed,
+				size: { kind: 'Automatic' },
 				filter: 'Nearest'
 			};
 			await edit({ kind: 'ConfigureChannel', reference, definition });
 			assert.deepEqual((await channel(reference)).definition, definition);
 		}
+		await edit({ kind: 'ConfigureMediaResolution', media: first.media, size: fixed });
+		for (const reference of [first, second])
+			assert.deepEqual((await channel(reference)).definition.size, fixed);
 		const peer = await channel(second);
 		await edit({ kind: 'RenameMedia', media: first.media, label: `${kind} Renamed` });
 		await edit({ kind: 'RenameChannel', reference: first, label: `${kind} A` });
@@ -232,6 +237,16 @@ try {
 	assert.equal(path.basename(reloaded.path), 'sources.mapgyver');
 	assert.equal(reloaded.recovery ?? null, null);
 	assert.deepEqual(await inspect(), saved);
+	const unsupported = path.join(directory, 'unsupported-media-schema.mapgyver');
+	await writeFile(
+		unsupported,
+		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v2', 'mapgyver.media')
+	);
+	await assert.rejects(
+		() => post('/api/ui/project-load', { path: unsupported }),
+		/Unsupported MapGyver media schema/
+	);
+	assert.deepEqual(await inspect(), saved, 'Rejected schema load must preserve the live project');
 	for (const source of sources) {
 		for (const reference of [source.first, source.second])
 			assert.deepEqual((await channel(reference)).reference, reference);
@@ -279,6 +294,10 @@ try {
 	if (process.argv.includes('--parameter-ui')) {
 		const { verifyParameterUi } = await import('../browser/parameters.mjs');
 		await verifyParameterUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--resolution-ui')) {
+		const { verifyMediaResolutionUi } = await import('../browser/media-resolution.mjs');
+		await verifyMediaResolutionUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

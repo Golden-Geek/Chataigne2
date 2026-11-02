@@ -6,6 +6,22 @@ use golden_core::{
 };
 
 #[test]
+fn old_media_schema_is_rejected_instead_of_reinterpreting_per_channel_resolution() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::SolidColor);
+    let json = to_sparse_project_json_pretty(&engine).unwrap();
+    assert!(json.contains("mapgyver.media.v2"));
+    let old = json.replace("mapgyver.media.v2", "mapgyver.media");
+    let error = from_sparse_project_json::<crate::app::AppNode>(&old)
+        .err()
+        .expect("old media schema must not load")
+        .to_string();
+    assert!(error.contains("mapgyver.media"), "{error}");
+    assert!(error.contains("Unsupported MapGyver media schema"), "{error}");
+    assert!(channel(&engine, reference).is_ok());
+}
+
+#[test]
 fn intrinsic_channel_baselines_are_kind_independent_and_live_catalog_defaults_survive_ordered_reload() {
     let mut engine = fixture();
     let mut references = Vec::new();

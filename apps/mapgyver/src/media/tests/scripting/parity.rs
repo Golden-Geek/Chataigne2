@@ -184,13 +184,17 @@ fn baseline() -> Baseline {
                 }
                 _ => {}
             }
-            if index == 1 {
-                definition.size = SizePolicy::Fixed {
-                    extent: Extent2D::new(7, 3).unwrap(),
-                };
-            }
             apply(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
         }
+        apply(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: first.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(7, 3).unwrap(),
+                },
+            },
+        );
         [first, second]
     });
     Baseline {
@@ -224,9 +228,6 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
     ];
     for [first, second] in baseline.references {
         let mut definition = channel(&initial, first).unwrap().definition;
-        definition.size = SizePolicy::Fixed {
-            extent: Extent2D::new(17, 9).unwrap(),
-        };
         definition.filter = golden_video::plan::SampleFilter::Nearest;
         match &mut definition.source {
             ChannelSource::SolidColor { rgba } => *rgba = [0.75, 0.25, 0.5, 0.25],
@@ -235,6 +236,16 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             _ => unreachable!(),
         }
         cases.extend([
+            MediaEdit::ConfigureMediaResolution {
+                media: first.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(17, 9).unwrap(),
+                },
+            },
+            MediaEdit::ConfigureMediaResolution {
+                media: first.media,
+                size: SizePolicy::Automatic,
+            },
             MediaEdit::ConfigureChannel {
                 reference: first,
                 definition,
@@ -349,10 +360,9 @@ fn allocating_channel_and_picture_intents_return_owned_ids_without_changing_othe
                     assert_eq!(reference.media, *media);
                     let original = before.media.iter().find(|entry| entry.id == *media).unwrap();
                     assert!(!original.channels.iter().any(|entry| entry.reference == reference));
-                    assert_eq!(
-                        channel(&engine, reference).unwrap().definition,
-                        ChannelDefinition::for_media(original.media_kind)
-                    );
+                    let mut expected = ChannelDefinition::for_media(original.media_kind);
+                    expected.size = original.channels[0].definition.size;
+                    assert_eq!(channel(&engine, reference).unwrap().definition, expected);
                     assert_eq!(
                         after
                             .media
@@ -434,7 +444,9 @@ fn all_source_definitions_and_shared_asset_references_survive_project_and_histor
     for [first, second] in baseline.references {
         assert_eq!(
             channel(&restored, first).unwrap().definition.size,
-            SizePolicy::Automatic
+            SizePolicy::Fixed {
+                extent: Extent2D::new(7, 3).unwrap()
+            }
         );
         assert_eq!(
             channel(&restored, second).unwrap().definition.size,

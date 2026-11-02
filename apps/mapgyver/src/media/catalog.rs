@@ -100,7 +100,7 @@ pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String
                     channel: ChannelId(data.meta.uuid),
                 },
                 label: data.meta.label.clone(),
-                definition: node.definition().clone(),
+                definition: super::authoring::effective_definition(engine, node)?,
             });
             channel = data.next_sibling;
         }

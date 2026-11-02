@@ -9,7 +9,7 @@ import channel from './channel.svg';
 export const treeIcons: NodeIconSet = {
 	nodeTypes: {
 		'mapgyver.media.folder': folder,
-		'mapgyver.media': media,
+		'mapgyver.media.v2': media,
 		'mapgyver.media.channel': channel,
 		'mapgyver.screen': screen,
 		'mapgyver.surface': surface,

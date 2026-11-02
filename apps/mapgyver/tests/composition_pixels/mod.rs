@@ -33,9 +33,15 @@ fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
     reference
 }
 fn configure(engine: &mut AppEngine, reference: ChannelReference, source: ChannelSource, size: SizePolicy) {
+    edit(
+        engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size,
+        },
+    );
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = source;
-    definition.size = size;
     definition.filter = SampleFilter::Nearest;
     edit(engine, MediaEdit::ConfigureChannel { reference, definition });
 }

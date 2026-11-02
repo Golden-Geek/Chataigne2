@@ -211,7 +211,10 @@ pub(crate) fn capture_channels_with_time(
                             return Err("channel kind differs from owner".into());
                         }
                         guards.push(channel.guard());
-                        Some((channel.definition().clone(), channel.node_data().effective_enabled))
+                        Some((
+                            super::authoring::effective_definition(engine, channel)?,
+                            channel.node_data().effective_enabled,
+                        ))
                     }
                     _ => None,
                 }

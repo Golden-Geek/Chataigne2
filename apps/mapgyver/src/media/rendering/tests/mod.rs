@@ -79,11 +79,16 @@ pub(super) fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReferenc
     reference
 }
 fn resize(engine: &mut AppEngine, reference: ChannelReference, width: u32) {
-    let mut definition = channel(engine, reference).unwrap().definition;
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(width, 2).unwrap(),
     };
-    edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size,
+        },
+    );
 }
 pub(super) fn routes(reference: ChannelReference) -> Vec<ChannelRoute> {
     vec![

@@ -6,8 +6,7 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
 
 This is the single execution entrypoint. The [updated proposal](MapGyver%20Updated%20Plan.md)
 is merged here as of **2026-11-02** and takes precedence over conflicting earlier requirements.
-The current request prepares these documents only; implementation resumes with the user's
-subsequent goal. Planning awards no acceptance.
+Implementation is active under the user's MapGyver goal. Planning awards no acceptance.
 
 ## Entry, order and delivery
 

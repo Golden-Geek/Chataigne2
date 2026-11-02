@@ -12,7 +12,7 @@ export function registerMatrixContextMenu() {
 			),
 		items: ({ node, graphState, session, closeMenu }) => {
 			let owner = node;
-			while (owner.node_type !== 'mapgyver.media') {
+			while (owner.node_type !== 'mapgyver.media.v2') {
 				const parent = graphState?.parentById.get(owner.node_id);
 				const next = parent == null ? null : graphState?.nodesById.get(parent);
 				if (!next) return [];

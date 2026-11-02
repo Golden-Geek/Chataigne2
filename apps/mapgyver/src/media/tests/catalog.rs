@@ -23,10 +23,17 @@ fn catalog_inspection_is_read_only_and_retains_channel_order_across_history_and_
     ) else {
         panic!("created result")
     };
-    let mut definition = crate::media::channel(&engine, second).unwrap().definition;
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(640, 360).unwrap(),
     };
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size,
+        },
+    );
+    let mut definition = crate::media::channel(&engine, second).unwrap().definition;
     definition.source = ChannelSource::SolidColor {
         rgba: [0.2, 0.4, 0.6, 0.5],
     };

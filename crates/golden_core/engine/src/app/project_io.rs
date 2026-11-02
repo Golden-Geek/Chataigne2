@@ -110,6 +110,10 @@ where
 {
     let parse_started = std::time::Instant::now();
     let project = golden_persistence::decode_application_project_document(json, T::application_id())?.project;
+    T::validate_project_file(&project).map_err(|message| ProjectPersistenceError::Codec {
+        node_type: project.root.node_type.clone(),
+        message,
+    })?;
     let parse_elapsed = parse_started.elapsed();
     let ui_state = project.ui_state.clone();
     let expand_started = std::time::Instant::now();

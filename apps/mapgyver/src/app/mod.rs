@@ -23,6 +23,10 @@ pub type AppEngine = golden_core::engine::Engine<AppNode>;
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
 impl ProjectLifecycle for AppNode {
+    fn validate_project_file(project: &golden_core::engine::ProjectFile) -> Result<(), String> {
+        crate::media::validate_project_file(project)
+    }
+
     fn project_lifecycle_limits() -> golden_core::engine::LifecycleLimits {
         // The admitted 100k-instance document now has real declared parameter children.
         // Bound generated expansion explicitly; keep Golden's shared runaway-pass limit.

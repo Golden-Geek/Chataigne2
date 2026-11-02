@@ -21,9 +21,6 @@ use std::sync::OnceLock;
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
-        size_mode: Enum = "Automatic" (label = "Size", enum_options = crate::parameters::enum_options(&["Automatic", "Fixed"]));
-        width: i32 = 1920 [1..16384] (label = "Output width", constraint_policy = "reject");
-        height: i32 = 1080 [1..16384] (label = "Output height", constraint_policy = "reject");
         filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.asset".into()]);
@@ -68,11 +65,6 @@ impl ChannelNode {
                 SampleFilter::Nearest => "Nearest",
             })
         );
-        if let SizePolicy::Fixed { extent } = definition.size {
-            seed!(size_mode, Enum::new("Fixed"));
-            seed!(width, extent.width() as i32);
-            seed!(height, extent.height() as i32);
-        }
         match definition.source {
             ChannelSource::SolidColor { rgba } => {
                 seed!(
@@ -202,13 +194,7 @@ impl ChannelNode {
         };
         ChannelDefinition {
             source,
-            size: if self.size_mode.get_ref().as_str() == "Fixed" {
-                SizePolicy::Fixed {
-                    extent: extent(self.width.get(), self.height.get()),
-                }
-            } else {
-                SizePolicy::Automatic
-            },
+            size: SizePolicy::Automatic,
             filter: if self.filter.get_ref().as_str() == "Nearest" {
                 SampleFilter::Nearest
             } else {
@@ -217,35 +203,16 @@ impl ChannelNode {
         }
     }
     pub(crate) fn parameter_edits(&self, definition: ChannelDefinition) -> Vec<Edit> {
-        let mut values = vec![
-            (
-                self.size_mode.id(),
-                ParamValue::Enum(
-                    if matches!(definition.size, SizePolicy::Fixed { .. }) {
-                        "Fixed"
-                    } else {
-                        "Automatic"
-                    }
-                    .into(),
-                ),
+        let mut values = vec![(
+            self.filter.id(),
+            ParamValue::Enum(
+                match definition.filter {
+                    SampleFilter::Linear => "Linear",
+                    SampleFilter::Nearest => "Nearest",
+                }
+                .into(),
             ),
-            (
-                self.filter.id(),
-                ParamValue::Enum(
-                    match definition.filter {
-                        SampleFilter::Linear => "Linear",
-                        SampleFilter::Nearest => "Nearest",
-                    }
-                    .into(),
-                ),
-            ),
-        ];
-        if let SizePolicy::Fixed { extent } = definition.size {
-            values.extend([
-                (self.width.id(), ParamValue::Int(extent.width() as i32)),
-                (self.height.id(), ParamValue::Int(extent.height() as i32)),
-            ]);
-        }
+        )];
         match definition.source {
             ChannelSource::SolidColor { rgba } => values.push((
                 self.rgba.id(),
@@ -377,9 +344,6 @@ impl Node for ChannelNode {
     fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if [
             self.source_kind.id(),
-            self.size_mode.id(),
-            self.width.id(),
-            self.height.id(),
             self.filter.id(),
             self.rgba.id(),
             self.asset.id(),
@@ -449,8 +413,6 @@ impl Node for ChannelNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         for value in [
-            self.width.get(),
-            self.height.get(),
             self.maximum_width.get(),
             self.maximum_height.get(),
             self.canvas_width.get(),
@@ -465,7 +427,6 @@ impl Node for ChannelNode {
                 self.source_kind.get_ref().as_str(),
                 &["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"][..],
             ),
-            (self.size_mode.get_ref().as_str(), &["Automatic", "Fixed"][..]),
             (self.filter.get_ref().as_str(), &["Linear", "Nearest"][..]),
             (self.output_kind.get_ref().as_str(), &["Final", "Layer", "Group"][..]),
             (self.pixel_format.get_ref().as_str(), &["Bgra8Unorm", "Rgba8Unorm"][..]),

@@ -12,6 +12,7 @@ pub(crate) mod folders;
 mod importing;
 mod media_node;
 mod nodes;
+mod persistence;
 pub mod picture;
 pub mod protocol;
 pub mod rendering;
@@ -28,6 +29,7 @@ pub use channel_node::ChannelNode;
 pub use folders::MediaFolderNode;
 pub use media_node::MediaNode;
 pub use nodes::MediaManagerNode;
+pub(crate) use persistence::validate_project_file;
 pub use source_node::resolve_source_node;
 
 #[cfg(test)]

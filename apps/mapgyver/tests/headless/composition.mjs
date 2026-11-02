@@ -21,9 +21,13 @@ export async function verifyComposition({ post, intent, edit }) {
 			reference,
 			definition: {
 				...snapshot.definition,
-				source: { kind: 'SolidColor', rgba },
-				size: { kind: 'Fixed', extent: { width: 20, height: 16 } }
+				source: { kind: 'SolidColor', rgba }
 			}
+		});
+		await edit({
+			kind: 'ConfigureMediaResolution',
+			media: reference.media,
+			size: { kind: 'Fixed', extent: { width: 20, height: 16 } }
 		});
 	}
 	const root = await create('Composition', 'Review Composition');

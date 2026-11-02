@@ -6,14 +6,14 @@ use super::{
 use golden_core::{
     node,
     node::{Node, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem},
-    parameter::{Enum, ParamValue},
+    parameter::{Enum, ParamValue, Vec2},
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media",
+    "mapgyver.media.v2",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -25,6 +25,9 @@ use std::sync::OnceLock;
     folder(parameters, label = "Parameters") {
         media_kind: Enum = "SolidColor" (label = "Kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
+        resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
+            label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
+            enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
     }
 )]
 pub struct MediaNode {
@@ -44,6 +47,27 @@ impl MediaNode {
     pub(crate) fn kind(&self) -> MediaKind {
         parse_kind(self.media_kind.get_ref().as_str())
     }
+    pub(crate) fn resolution_parameter(&self) -> golden_core::node::NodeId {
+        self.resolution.id()
+    }
+    pub(crate) fn size_policy(&self, engine: &crate::app::AppEngine) -> super::protocol::SizePolicy {
+        if engine
+            .nodes
+            .get(self.resolution.id())
+            .is_some_and(|node| node.node_data().meta.enabled)
+        {
+            let value = self.resolution.get();
+            super::protocol::SizePolicy::Fixed {
+                extent: golden_video::Extent2D::new(value.x as u32, value.y as u32)
+                    .unwrap_or_else(|_| super::resolution::default_canvas()),
+            }
+        } else {
+            super::protocol::SizePolicy::Automatic
+        }
+    }
+    pub(crate) fn invalidate(&self) {
+        self.membership.advance();
+    }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.membership.reader();
         reader.guard_at(reader.current())
@@ -55,8 +79,21 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media", from_struct)]
+#[node("mapgyver.media.v2", from_struct)]
 impl Node for MediaNode {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        ctx.add_event_listener_subtree(self.id(), self.id(), 2);
+    }
+    fn on_meta_changed(
+        &mut self,
+        _: &mut ProcessCtx,
+        node: golden_core::node::NodeId,
+        patch: golden_core::node::NodeMetaPatch,
+    ) {
+        if node == self.resolution.id() && patch.enabled.is_some() {
+            self.invalidate();
+        }
+    }
     fn needs_update(&self) -> bool {
         false
     }
@@ -113,6 +150,7 @@ impl Node for MediaNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        validate_resolution(self.resolution.get())?;
         if !["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]
             .contains(&self.media_kind.get_ref().as_str())
         {
@@ -121,12 +159,27 @@ impl Node for MediaNode {
         Ok(())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if change.parameter == self.resolution.id() {
+            let ParamValue::Vec2(x, y) = change.value else {
+                return Err("Resolution must be a Vec2 in pixels".into());
+            };
+            validate_resolution(Vec2::new(*x, *y))?;
+        }
         if change.parameter == self.media_kind.id() && change.value != &ParamValue::Enum(kind_name(self.kind()).into())
         {
             return Err("Media kind is immutable; create another media node".into());
         }
         Ok(())
     }
+}
+fn validate_resolution(value: Vec2) -> Result<(), String> {
+    if [value.x, value.y]
+        .iter()
+        .any(|axis| !axis.is_finite() || !(1.0..=16384.0).contains(axis) || axis.fract() != 0.0)
+    {
+        return Err("Resolution must contain whole pixels in 1..16384 per axis".into());
+    }
+    Ok(())
 }
 pub(super) fn kind_name(kind: MediaKind) -> &'static str {
     match kind {

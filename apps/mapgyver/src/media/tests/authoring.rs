@@ -27,23 +27,22 @@ fn backend_defaults_and_multi_channel_edits_use_one_history_step_each() {
     assert_eq!(first.media, second.media);
     assert_ne!(first.channel, second.channel);
     let original = channel(&engine, second).unwrap();
-    let mut definition = original.definition.clone();
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(320, 240).unwrap(),
     };
     apply(
         &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: second,
-            definition: definition.clone(),
+        MediaEdit::ConfigureMediaResolution {
+            media: second.media,
+            size,
         },
     );
-    assert_eq!(channel(&engine, second).unwrap().definition, definition);
-    assert_eq!(channel(&engine, first).unwrap().definition.size, SizePolicy::Automatic);
+    assert_eq!(channel(&engine, second).unwrap().definition.size, size);
+    assert_eq!(channel(&engine, first).unwrap().definition.size, size);
     assert!(engine.undo().unwrap());
     assert_eq!(channel(&engine, second).unwrap(), original);
     assert!(engine.redo().unwrap());
-    assert_eq!(channel(&engine, second).unwrap().definition, definition);
+    assert_eq!(channel(&engine, second).unwrap().definition.size, size);
 }
 
 #[test]

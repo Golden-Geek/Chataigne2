@@ -55,11 +55,18 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             panic!()
         };
         let mut definition = channel(&engine, reference).unwrap().definition;
-        definition.size = SizePolicy::Fixed {
+        let size = SizePolicy::Fixed {
             extent: Extent2D::new(2, 2).unwrap(),
         };
         definition.source = ChannelSource::SolidColor { rgba };
         edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: reference.media,
+                size,
+            },
+        );
         sources.push(reference);
     }
     let MediaEditResult::Created { reference: matrix } = edit(
@@ -369,7 +376,7 @@ fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_
             panic!()
         };
         let mut definition = channel(&engine, reference).unwrap().definition;
-        definition.size = SizePolicy::Fixed {
+        let size = SizePolicy::Fixed {
             extent: Extent2D::new(extent, extent).unwrap(),
         };
         if kind == MediaKind::Composition {
@@ -378,6 +385,13 @@ fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_
             };
         }
         edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: reference.media,
+                size,
+            },
+        );
         references.push(reference);
     }
     edit(

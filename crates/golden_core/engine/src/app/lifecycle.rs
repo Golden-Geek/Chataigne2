@@ -21,6 +21,12 @@ pub trait ProjectNode: Node {
 
 /// App-controlled lifecycle hooks for engine recreation and new-project setup.
 pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
+    /// Validates app-owned document schemas before sparse expansion or recoverable decoding.
+    /// Rejections are fatal even during recovery; this pure hook must not modify records.
+    fn validate_project_file(_project: &crate::engine::ProjectFile) -> Result<(), String> {
+        Ok(())
+    }
+
     /// Bounded declared-child expansion allowed during new-project and project-load setup.
     fn project_lifecycle_limits() -> crate::engine::LifecycleLimits {
         crate::engine::LifecycleLimits::default()

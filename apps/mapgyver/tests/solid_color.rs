@@ -34,8 +34,14 @@ fn edit(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
 }
 
 fn configure(engine: &mut AppEngine, reference: ChannelReference, size: SizePolicy, rgba: [f32; 4]) {
+    edit(
+        engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size,
+        },
+    );
     let mut definition = channel(engine, reference).unwrap().definition;
-    definition.size = size;
     definition.source = ChannelSource::SolidColor { rgba };
     edit(engine, MediaEdit::ConfigureChannel { reference, definition });
 }
@@ -281,15 +287,15 @@ fn authored_solid_color_channels_qualify_pixels_sizing_sharing_and_recreation_on
         };
         let MediaEditResult::Created { reference: second } = edit(
             &mut engine,
-            MediaEdit::AddChannel {
-                media: first.media,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::SolidColor,
                 label: None,
             },
         ) else {
             panic!()
         };
         let references = [first, second];
-        assert_eq!(first.media, second.media);
+        assert_ne!(first.media, second.media);
         let automatic = mapgyver::media::resolution::default_canvas();
         let fixed = Extent2D::new(7, 3).unwrap();
         let initial = [[0.25, 0.5, 0.75, 0.5], [0.75, 0.5, 0.25, 0.25]];

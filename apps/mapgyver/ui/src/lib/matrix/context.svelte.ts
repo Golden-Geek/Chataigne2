@@ -97,14 +97,14 @@ export function provideMatrixAuthoring() {
 		const graph = current?.graph.state;
 		if (!node || !graph) return;
 		let media: UiNodeDto | undefined = node;
-		while (media && media.node_type !== 'mapgyver.media') {
+		while (media && media.node_type !== 'mapgyver.media.v2') {
 			const parent = graph.parentById.get(media.node_id);
 			media = parent === undefined ? undefined : graph.nodesById.get(parent);
 		}
 		const choices = matrices.page;
 		untrack(() => {
 			if (
-				media?.node_type === 'mapgyver.media' &&
+				media?.node_type === 'mapgyver.media.v2' &&
 				choices?.choices.some((choice) => choice.reference.media === media.uuid)
 			) {
 				if (view.media !== media.uuid) controller.selectMedia(media.uuid);

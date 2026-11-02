@@ -74,26 +74,17 @@ fn production_preview_budget_admits_a_4k_picture_shared_by_differently_sized_cha
     let mut engine = engine();
     let asset = import(&mut engine, "large.png");
     let first = create(&mut engine, MediaKind::Picture);
-    let MediaEditResult::Created { reference: second } = edit(
-        &mut engine,
-        MediaEdit::AddChannel {
-            media: first.media,
-            label: None,
-        },
-    ) else {
-        panic!()
-    };
+    let second = create(&mut engine, MediaKind::Picture);
     select(&mut engine, first, asset);
     select(&mut engine, second, asset);
-    let mut definition = channel(&engine, second).unwrap().definition;
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(640, 360).unwrap(),
     };
     edit(
         &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: second,
-            definition,
+        MediaEdit::ConfigureMediaResolution {
+            media: second.media,
+            size,
         },
     );
     let config = crate::preview::host::config::configuration(None);
@@ -167,6 +158,63 @@ fn two_routes(references: [ChannelReference; 2]) -> Vec<ChannelRoute> {
             channel,
         })
         .collect()
+}
+
+#[test]
+fn picture_variants_keep_native_extents_and_share_media_resolution_through_disable_and_undo() {
+    let root = tempfile::tempdir().unwrap();
+    png(root.path(), "small.png", 2, 3, [255, 0, 0, 255]);
+    png(root.path(), "wide.png", 5, 4, [0, 255, 0, 255]);
+    let mut engine = engine();
+    let first = create(&mut engine, MediaKind::Picture);
+    let MediaEditResult::Created { reference: second } = edit(
+        &mut engine,
+        MediaEdit::AddChannel {
+            media: first.media,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    for (reference, path) in [(first, "small.png"), (second, "wide.png")] {
+        let asset = import(&mut engine, path);
+        select(&mut engine, reference, asset);
+    }
+    let mut renderer = picture_renderer(root.path());
+    publish(&mut renderer, &engine, [first, second]);
+    settled(&mut renderer, [ready(2, 3), ready(5, 4)]);
+    let sources = [first, second].map(|reference| channel(&engine, reference).unwrap().definition.source);
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(7, 6).unwrap(),
+            },
+        },
+    );
+    publish(&mut renderer, &engine, [first, second]);
+    settled(&mut renderer, [ready(7, 6); 2]);
+    assert_eq!(
+        [first, second].map(|reference| channel(&engine, reference).unwrap().definition.source),
+        sources
+    );
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size: SizePolicy::Automatic,
+        },
+    );
+    publish(&mut renderer, &engine, [first, second]);
+    settled(&mut renderer, [ready(2, 3), ready(5, 4)]);
+    assert!(engine.undo().unwrap());
+    engine
+        .dispatch_inbox(golden_core::process_ctx::ExecutionPhase::EndOfTickStabilization)
+        .unwrap();
+    publish(&mut renderer, &engine, [first, second]);
+    settled(&mut renderer, [ready(7, 6); 2]);
+    finish(renderer);
 }
 
 fn publish(renderer: &mut ChannelRenderer, engine: &AppEngine, references: [ChannelReference; 2]) {
@@ -278,7 +326,7 @@ fn independent_picture_channels_resolve_share_resize_undo_relink_and_reload_with
 
     resize(&mut engine, second, 5);
     publish(&mut renderer, &engine, references);
-    settled(&mut renderer, [ready(2, 2), ready(5, 2)]);
+    settled(&mut renderer, [ready(5, 2); 2]);
     assert_eq!(renderer.channels()[1].target, original[1].target);
     assert!(engine.undo().unwrap());
     png(project.path(), "replacement.png", 4, 3, [0, 255, 0, 255]);

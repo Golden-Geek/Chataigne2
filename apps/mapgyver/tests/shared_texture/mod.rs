@@ -248,8 +248,8 @@ fn authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch()
         };
         let MediaEditResult::Created { reference: second } = edit(
             &mut engine,
-            MediaEdit::AddChannel {
-                media: first.media,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::SharedTexture,
                 label: None,
             },
         ) else {
@@ -258,15 +258,14 @@ fn authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch()
         let references = [first, second];
         configure(&mut engine, first, &names[0]);
         configure(&mut engine, second, &names[1]);
-        let mut definition = channel(&engine, second).unwrap().definition;
-        definition.size = SizePolicy::Fixed {
+        let size = SizePolicy::Fixed {
             extent: Extent2D::new(3, 2).unwrap(),
         };
         edit(
             &mut engine,
-            MediaEdit::ConfigureChannel {
-                reference: second,
-                definition,
+            MediaEdit::ConfigureMediaResolution {
+                media: second.media,
+                size,
             },
         );
         let mut fixture = Fixture::new(adapter.id);

@@ -79,11 +79,18 @@ fn import_into_one_channel_preserves_output_settings_and_relink_keeps_shared_ass
     ) else {
         panic!()
     };
-    let first_definition = channel(&engine, first).unwrap().definition;
-    let mut definition = first_definition.clone();
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(320, 240).unwrap(),
     };
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size,
+        },
+    );
+    let first_definition = channel(&engine, first).unwrap().definition;
+    let mut definition = first_definition.clone();
     definition.filter = SampleFilter::Nearest;
     apply(
         &mut engine,

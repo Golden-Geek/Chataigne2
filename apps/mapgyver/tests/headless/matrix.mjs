@@ -20,9 +20,13 @@ export async function verifyMatrix({ post, intent, edit }) {
 			reference,
 			definition: {
 				...snapshot.definition,
-				source: { kind: 'SolidColor', rgba },
-				size: { kind: 'Fixed', extent: { width: 32, height: 24 } }
+				source: { kind: 'SolidColor', rgba }
 			}
+		});
+		await edit({
+			kind: 'ConfigureMediaResolution',
+			media: reference.media,
+			size: { kind: 'Fixed', extent: { width: 32, height: 24 } }
 		});
 		sources.push(reference);
 	}

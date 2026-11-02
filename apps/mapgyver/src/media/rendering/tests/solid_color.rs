@@ -15,13 +15,17 @@ fn solid_color_channels_keep_backend_extents_linear_alpha_and_one_production_per
         panic!()
     };
     let colors = [[0.25, 0.5, 0.75, 0.5], [0.75, 0.5, 0.25, 0.25]];
-    let extents = [crate::media::resolution::default_canvas(), Extent2D::new(7, 3).unwrap()];
+    let extents = [Extent2D::new(7, 3).unwrap(); 2];
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: first.media,
+            size: SizePolicy::Fixed { extent: extents[0] },
+        },
+    );
     for (index, reference) in [first, second].into_iter().enumerate() {
         let mut definition = channel(&engine, reference).unwrap().definition;
         definition.source = ChannelSource::SolidColor { rgba: colors[index] };
-        if index == 1 {
-            definition.size = SizePolicy::Fixed { extent: extents[1] };
-        }
         edit(&mut engine, MediaEdit::ConfigureChannel { reference, definition });
     }
     let probe = renderer();

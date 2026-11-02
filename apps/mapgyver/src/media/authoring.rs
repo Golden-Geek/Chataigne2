@@ -78,7 +78,7 @@ pub fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<Channe
     Ok(ChannelSnapshot {
         reference,
         label: node.node_data().meta.label.clone(),
-        definition: node.definition().clone(),
+        definition: effective_definition(engine, node)?,
     })
 }
 
@@ -254,6 +254,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             configure_channel(engine, reference, definition)?;
             MediaEditResult::Changed
         }
+        MediaEdit::ConfigureMediaResolution { media: owner, size } => {
+            configure_resolution(engine, owner, size)?;
+            MediaEditResult::Changed
+        }
         MediaEdit::RenameMedia { media: owner, label } => {
             let (id, _) = media(engine, owner)?;
             rename(engine, id, label)?;
@@ -350,6 +354,9 @@ pub(super) fn configure_channel(
     if definition.media_kind() != kind {
         return Err("channel source does not match its media kind".into());
     }
+    if definition.size != channel(engine, reference)?.definition.size {
+        return Err("Resolution belongs to media; use ConfigureMediaResolution".into());
+    }
     if kind == MediaKind::Matrix {
         let current = channel(engine, reference)?;
         if current.definition.source != definition.source {
@@ -362,6 +369,41 @@ pub(super) fn configure_channel(
     for edit in channel.parameter_edits(definition) {
         engine.edits.push(edit);
     }
+    Ok(())
+}
+
+pub(super) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) -> Result<ChannelDefinition, String> {
+    let Some(AppNode::Media(media)) = channel.node_data().parent.and_then(|id| engine.nodes.get(id)) else {
+        return Err("channel owner is not media".into());
+    };
+    let mut definition = channel.definition();
+    definition.size = media.size_policy(engine);
+    Ok(definition)
+}
+
+fn configure_resolution(engine: &mut AppEngine, owner: MediaId, size: SizePolicy) -> Result<(), String> {
+    let (id, _) = media(engine, owner)?;
+    let Some(AppNode::Media(media)) = engine.nodes.get(id) else {
+        unreachable!()
+    };
+    let parameter = media.resolution_parameter();
+    if let SizePolicy::Fixed { extent } = size {
+        if extent.width() > 16384 || extent.height() > 16384 {
+            return Err("Resolution must contain whole pixels in 1..16384 per axis".into());
+        }
+        engine.edits.push(Edit::SetParam {
+            node: parameter,
+            value: golden_core::parameter::ParamValue::Vec2(extent.width().into(), extent.height().into()),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+        });
+    }
+    engine.edits.push(Edit::PatchMeta {
+        node: parameter,
+        patch: golden_core::node::NodeMetaPatch {
+            enabled: Some(matches!(size, SizePolicy::Fixed { .. })),
+            ..Default::default()
+        },
+    });
     Ok(())
 }
 

@@ -3,7 +3,11 @@ import type { ChannelSource } from "./ChannelSource";
 import type { SampleFilter } from "./SampleFilter";
 import type { SizePolicy } from "./SizePolicy";
 
-export type ChannelDefinition = { source: ChannelSource, size: SizePolicy,
+export type ChannelDefinition = { source: ChannelSource,
+/**
+ * Effective projection of the owning media Resolution, never channel-authored state.
+ */
+size: SizePolicy,
 /**
  * Full-image stretch is the initial fit policy; filter choice is explicit.
  */

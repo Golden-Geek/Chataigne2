@@ -303,8 +303,8 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         };
         let MediaEditResult::Created { reference: second } = edit(
             &mut engine,
-            MediaEdit::AddChannel {
-                media: first.media,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::Picture,
                 label: None,
             },
         ) else {
@@ -312,15 +312,14 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         };
         configure(&mut engine, first, first_asset);
         configure(&mut engine, second, second_asset);
-        let mut definition = channel(&engine, second).unwrap().definition;
-        definition.size = SizePolicy::Fixed {
+        let size = SizePolicy::Fixed {
             extent: Extent2D::new(3, 2).unwrap(),
         };
         edit(
             &mut engine,
-            MediaEdit::ConfigureChannel {
-                reference: second,
-                definition,
+            MediaEdit::ConfigureMediaResolution {
+                media: second.media,
+                size,
             },
         );
         let references = [first, second];

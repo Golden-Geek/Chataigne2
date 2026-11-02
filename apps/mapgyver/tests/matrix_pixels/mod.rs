@@ -61,10 +61,17 @@ fn color(engine: &mut AppEngine, rgba: [f32; 4]) -> ChannelReference {
     let reference = create(engine, MediaKind::SolidColor);
     let mut definition = channel(engine, reference).unwrap().definition;
     definition.source = ChannelSource::SolidColor { rgba };
-    definition.size = SizePolicy::Fixed {
+    let size = SizePolicy::Fixed {
         extent: Extent2D::new(1, 1).unwrap(),
     };
     edit(engine, MediaEdit::ConfigureChannel { reference, definition });
+    edit(
+        engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size,
+        },
+    );
     reference
 }
 fn launch(engine: &mut AppEngine, root: ChannelReference, column: ColumnId, mode: LaunchMode) {
