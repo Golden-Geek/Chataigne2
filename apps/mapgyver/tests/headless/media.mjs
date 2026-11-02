@@ -237,7 +237,7 @@ try {
 	const unsupported = path.join(directory, 'unsupported-media-schema.mapgyver');
 	await writeFile(
 		unsupported,
-		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v4', 'mapgyver.media')
+		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v5', 'mapgyver.media')
 	);
 	await assert.rejects(
 		() => post('/api/ui/project-load', { path: unsupported }),
@@ -295,6 +295,8 @@ try {
 	if (process.argv.includes('--resolution-ui')) {
 		const { verifyMediaResolutionUi } = await import('../browser/media-resolution.mjs');
 		await verifyMediaResolutionUi({ base, edit, inspectMedia: inspect });
+		const { verifyProceduralMediaUi } = await import('../browser/procedural-media.mjs');
+		await verifyProceduralMediaUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--channels-ui')) {
 		const { verifyChannelsUi } = await import('../browser/channels.mjs');

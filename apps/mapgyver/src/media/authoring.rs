@@ -64,7 +64,7 @@ pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Res
     if node.node_data().parent != Some(parent) {
         return Err("channel belongs to another media".into());
     }
-    if node.definition().media_kind() != kind {
+    if node.kind() != kind {
         return Err("channel source does not match its media kind".into());
     }
     Ok(id)
@@ -374,16 +374,13 @@ pub(super) fn configure_channel(
     if definition.media_kind() != kind {
         return Err("channel source does not match its media kind".into());
     }
-    if kind == MediaKind::Matrix {
-        let current = channel(engine, reference)?;
-        if current.definition.source != definition.source {
-            return Err("use Matrix operations to configure document/output ownership".into());
-        }
+    if !kind.has_authored_channel_variants() {
+        return Err("derived output sources are read projections; edit media Resolution or Matrix settings".into());
     }
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
         unreachable!()
     };
-    for edit in channel.parameter_edits(definition.source) {
+    for edit in channel.parameter_edits(definition.source)? {
         engine.edits.push(edit);
     }
     Ok(())
@@ -427,14 +424,11 @@ fn move_channel(
     Ok(())
 }
 
-pub(super) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) -> Result<ChannelDefinition, String> {
+pub(crate) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) -> Result<ChannelDefinition, String> {
     let Some(AppNode::Media(media)) = channel.node_data().parent.and_then(|id| engine.nodes.get(id)) else {
         return Err("channel owner is not media".into());
     };
-    let mut definition = channel.definition();
-    definition.size = media.size_policy(engine);
-    definition.filter = media.sampling();
-    Ok(definition)
+    Ok(channel.definition(media, engine))
 }
 
 fn configure_resolution(engine: &mut AppEngine, owner: MediaId, size: SizePolicy) -> Result<(), String> {
@@ -505,7 +499,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
             }
             AppNode::MediaChannel(node) => {
-                node.definition().validate()?;
+                effective_definition(engine, node)?.validate()?;
                 let parent = node
                     .node_data()
                     .parent
@@ -514,25 +508,23 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 let AppNode::Media(parent) = parent else {
                     return Err("channel owner is not media".into());
                 };
-                if parent.kind() != node.definition().media_kind() {
+                if parent.kind() != node.kind() {
                     return Err("channel source does not match its media kind".into());
                 }
-                if !matches!(
-                    node.definition().source,
-                    ChannelSource::Composition { .. }
-                        | ChannelSource::Matrix {
-                            output: crate::matrix::protocol::MatrixOutput::Final { .. }
-                        }
-                ) && crate::parameters::has_domain_children(engine, id)
+                if node.kind() != MediaKind::Composition
+                    && !node.is_matrix_final()
+                    && crate::parameters::has_domain_children(engine, id)
                 {
                     return Err("only Composition channels may own instances".into());
                 }
             }
             AppNode::CompositionInstance(node) => {
                 node.definition().validate()?;
-                if !node.node_data().parent.and_then(|id| engine.nodes.get(id)).is_some_and(|node| {
-                    matches!(node, AppNode::MediaChannel(channel) if matches!(channel.definition().source, ChannelSource::Composition { .. }))
-                }) { return Err("instance is outside a Composition channel".into()); }
+                if !node.node_data().parent.and_then(|id| engine.nodes.get(id)).is_some_and(
+                    |node| matches!(node, AppNode::MediaChannel(channel) if channel.kind() == MediaKind::Composition),
+                ) {
+                    return Err("instance is outside a Composition channel".into());
+                }
             }
             _ => {}
         }

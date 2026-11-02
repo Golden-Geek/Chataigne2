@@ -74,13 +74,19 @@ has one owned output; its output and Matrix exports do not advertise source-vari
 Every media has a disableable integer-constrained Vec2 **Resolution**, in pixels, default
 disabled, bounds 1–16384 per axis and unit steps. Disabled uses each source's native size;
 procedural canvases default to 1920×1080. Enabled forces every channel to that extent.
-The shared-Resolution/Sampling document uses node type `mapgyver.media.v4`. Projects containing
+The shared-Resolution/Sampling document uses node type `mapgyver.media.v5`. Projects containing
 older media types are rejected as unsupported; per-channel sizing or sampling is never silently
 reinterpreted. `ChannelDefinition.size` and `.filter` are runtime/read projections. Change Resolution
 through its generic Parameter (including enabled state) or `ConfigureMediaResolution`;
 change shared Sampling through its generic Enum Parameter or `ConfigureMediaSampling`.
 `ConfigureChannel` accepts only source settings. Media revision guards invalidate captures
 for pixel changes and enable-only edits without walking or rebuilding all channel subtrees.
+Procedural Composition/Matrix canvases project this same Resolution, falling back to 1920×1080
+when disabled. They have no channel canvas Parameters. Matrix transition/empty-cell settings
+also belong to media Parameters; `MatrixEdit::Configure` accepts only `MatrixSettings`, while
+`MatrixDefinition.canvas` is a read projection. Document reads, placement, playback and rendering
+use the owning media projection. Derived output sources cannot be configured as source variants.
+Changing procedural Resolution updates canvas coordinate extents and preserves authored transform values.
 Shared Texture no longer persists format, encoding, alpha mode or maximum dimensions.
 Only the exact sender selector belongs to its channel Parameters. Golden discovers supported
 BGRA/RGBA byte storage at the native receiver. Classic Spout does not carry independent

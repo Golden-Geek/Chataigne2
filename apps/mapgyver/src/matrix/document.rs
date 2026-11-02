@@ -48,7 +48,8 @@ impl Document {
             let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
                 return Err("Matrix children must be channels".into());
             };
-            let ChannelSource::Matrix { output } = &node.definition().source else {
+            let ChannelSource::Matrix { output } = &crate::media::authoring::effective_definition(engine, node)?.source
+            else {
                 return Err("Matrix channel kind mismatch".into());
             };
             let reference = ChannelReference {

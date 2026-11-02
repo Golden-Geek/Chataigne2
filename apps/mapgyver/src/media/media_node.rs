@@ -3,6 +3,7 @@ use super::{
     ChannelNode,
     protocol::{ChannelDefinition, MediaKind},
 };
+use crate::matrix::protocol::{EmptyCellPolicy, MatrixSettings, TransitionCurve, TransitionDefinition};
 use golden_core::{
     node,
     node::{Node, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem},
@@ -14,7 +15,7 @@ use golden_video::plan::SampleFilter;
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v4",
+    "mapgyver.media.v5",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -30,6 +31,9 @@ use std::sync::OnceLock;
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
         filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
+        empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
+        transition_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration", step = 1.0, description = "Milliseconds.", constraint_policy = "reject");
+        transition_curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
     }
 )]
 pub struct MediaNode {
@@ -55,6 +59,13 @@ impl MediaNode {
     pub(super) fn from_definition(label: String, definition: &ChannelDefinition) -> Self {
         let mut node = Self::from_kind(label, definition.media_kind());
         node.filter = ParameterHandle::new(Enum::new(filter_name(definition.filter)));
+        if let super::protocol::ChannelSource::Matrix {
+            output: crate::matrix::protocol::MatrixOutput::Final { definition },
+        } = &definition.source
+        {
+            node.transition_ms = ParameterHandle::new(f64::from(definition.transition.duration_ms));
+            node.transition_curve = ParameterHandle::new(Enum::new(curve_name(definition.transition.curve)));
+        }
         node
     }
     pub(crate) fn sampling_parameter(&self) -> golden_core::node::NodeId {
@@ -65,6 +76,50 @@ impl MediaNode {
             "Nearest" => SampleFilter::Nearest,
             _ => SampleFilter::Linear,
         }
+    }
+    pub(crate) fn matrix_settings(&self) -> MatrixSettings {
+        MatrixSettings {
+            empty_cell: match self.empty_cell.get_ref().as_str() {
+                "Transparent" => EmptyCellPolicy::Transparent,
+                _ => EmptyCellPolicy::default(),
+            },
+            transition: TransitionDefinition {
+                duration_ms: self.transition_ms.get() as u32,
+                curve: if self.transition_curve.get_ref().as_str() == "SmoothStep" {
+                    TransitionCurve::SmoothStep
+                } else {
+                    TransitionCurve::Linear
+                },
+            },
+        }
+    }
+    pub(crate) fn matrix_setting_edits(&self, settings: MatrixSettings) -> Vec<golden_core::edit::Edit> {
+        [
+            (
+                self.empty_cell.id(),
+                ParamValue::Enum(
+                    match settings.empty_cell {
+                        EmptyCellPolicy::Transparent => "Transparent",
+                    }
+                    .into(),
+                ),
+            ),
+            (
+                self.transition_ms.id(),
+                ParamValue::Float(settings.transition.duration_ms.into()),
+            ),
+            (
+                self.transition_curve.id(),
+                ParamValue::Enum(curve_name(settings.transition.curve).into()),
+            ),
+        ]
+        .into_iter()
+        .map(|(node, value)| golden_core::edit::Edit::SetParam {
+            node,
+            value,
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+        })
+        .collect()
     }
     pub(crate) fn size_policy(&self, engine: &crate::app::AppEngine) -> super::protocol::SizePolicy {
         if engine
@@ -95,7 +150,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v4", from_struct)]
+#[node("mapgyver.media.v5", from_struct)]
 impl Node for MediaNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
@@ -166,6 +221,14 @@ impl Node for MediaNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         validate_resolution(self.resolution.get())?;
+        if self.empty_cell.get_ref().as_str() != "Transparent"
+            || !["Linear", "SmoothStep"].contains(&self.transition_curve.get_ref().as_str())
+            || !self.transition_ms.get().is_finite()
+            || !(0.0..=f64::from(u32::MAX)).contains(&self.transition_ms.get())
+            || self.transition_ms.get().fract() != 0.0
+        {
+            return Err("invalid shared Matrix settings".into());
+        }
         if !["Linear", "Nearest"].contains(&self.filter.get_ref().as_str()) {
             return Err("unknown media sampling filter".into());
         }
@@ -194,6 +257,12 @@ pub(super) fn filter_name(filter: SampleFilter) -> &'static str {
     match filter {
         SampleFilter::Linear => "Linear",
         SampleFilter::Nearest => "Nearest",
+    }
+}
+fn curve_name(curve: TransitionCurve) -> &'static str {
+    match curve {
+        TransitionCurve::Linear => "Linear",
+        TransitionCurve::SmoothStep => "SmoothStep",
     }
 }
 fn validate_resolution(value: Vec2) -> Result<(), String> {

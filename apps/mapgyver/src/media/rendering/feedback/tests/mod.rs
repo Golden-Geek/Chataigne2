@@ -11,13 +11,19 @@ fn fixture() -> (AppEngine, ChannelReference, Vec<ColumnId>) {
     let matrix = create(&mut engine, MediaKind::Matrix);
     edit(
         &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: golden_video::Extent2D::new(4, 2).unwrap(),
+            },
+        },
+    );
+    edit(
+        &mut engine,
         MediaEdit::Matrix {
             media: matrix.media,
             edit: MatrixEdit::Configure {
-                definition: MatrixDefinition {
-                    canvas: golden_video::Extent2D::new(4, 2).unwrap(),
-                    ..Default::default()
-                },
+                settings: MatrixSettings { ..Default::default() },
             },
         },
     );

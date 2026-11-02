@@ -27,6 +27,11 @@ export async function verifyMatrix({ post, intent, edit }) {
 		sources.push(reference);
 	}
 	const root = await create('Matrix', 'Review Matrix');
+	await edit({
+		kind: 'ConfigureMediaResolution',
+		media: root.media,
+		size: { kind: 'Fixed', extent: { width: 320, height: 240 } }
+	});
 	const matrix = (value) => edit({ kind: 'Matrix', media: root.media, edit: value });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
 	const playback = async () => (await matrix({ kind: 'InspectPlayback' })).snapshot;
@@ -34,8 +39,7 @@ export async function verifyMatrix({ post, intent, edit }) {
 	const window = async () => (await matrix({ kind: 'InspectViewport', viewport })).snapshot;
 	await matrix({
 		kind: 'Configure',
-		definition: {
-			canvas: { width: 320, height: 240 },
+		settings: {
 			empty_cell: 'Transparent',
 			transition: { duration_ms: 500, curve: 'SmoothStep' }
 		}

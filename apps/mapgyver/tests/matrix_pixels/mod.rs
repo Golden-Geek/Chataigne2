@@ -118,12 +118,20 @@ impl Scene {
         let green = color(engine, [0.0, 1.0, 0.0, 0.75]);
         let blue = color(engine, [0.0, 0.0, 1.0, 0.25]);
         let root = create(engine, MediaKind::Matrix);
+        edit(
+            engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: root.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(32, 24).unwrap(),
+                },
+            },
+        );
         matrix(
             engine,
             root.media,
             MatrixEdit::Configure {
-                definition: MatrixDefinition {
-                    canvas: Extent2D::new(32, 24).unwrap(),
+                settings: MatrixSettings {
                     transition: TransitionDefinition {
                         duration_ms: 4000,
                         curve: TransitionCurve::Linear,

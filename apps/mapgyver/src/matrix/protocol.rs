@@ -43,9 +43,16 @@ impl Default for TransitionDefinition {
         }
     }
 }
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(default, deny_unknown_fields)]
+pub struct MatrixSettings {
+    pub empty_cell: EmptyCellPolicy,
+    pub transition: TransitionDefinition,
+}
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct MatrixDefinition {
+    /// Read projection of the owning media Resolution, with the procedural default when disabled.
     pub canvas: Extent2D,
     pub empty_cell: EmptyCellPolicy,
     pub transition: TransitionDefinition,
@@ -60,6 +67,12 @@ impl Default for MatrixDefinition {
     }
 }
 impl MatrixDefinition {
+    pub fn settings(&self) -> MatrixSettings {
+        MatrixSettings {
+            empty_cell: self.empty_cell,
+            transition: self.transition,
+        }
+    }
     pub fn validate(&self) -> Result<(), String> {
         if self.canvas.width() > crate::media::resolution::MAX_CHANNEL_DIMENSION
             || self.canvas.height() > crate::media::resolution::MAX_CHANNEL_DIMENSION
@@ -253,7 +266,7 @@ pub enum MatrixEdit {
     ClearPlayback,
     Inspect,
     Configure {
-        definition: MatrixDefinition,
+        settings: MatrixSettings,
     },
     AddLayers {
         parent: Option<GroupId>,

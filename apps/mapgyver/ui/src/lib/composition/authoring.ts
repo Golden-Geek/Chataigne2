@@ -1,6 +1,5 @@
 import { channelKey } from '../media/identity.ts';
 import type { ChannelReference } from '../media/generated/ChannelReference';
-import type { ChannelDefinition } from '../media/generated/ChannelDefinition';
 import type { CompositionEdit } from '../media/generated/CompositionEdit';
 import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 import type { InstanceId } from '../media/generated/InstanceId';
@@ -155,11 +154,6 @@ export class CompositionAuthoringController<S extends Connection> {
 	edit(edit: CompositionEdit) {
 		const reference = this.state.selected;
 		if (reference) return this.mutate({ kind: 'Composition', reference, edit });
-	}
-	configure(definition: ChannelDefinition) {
-		const reference = this.state.selected;
-		if (reference)
-			return this.mutate({ kind: 'ConfigureChannel', reference, source: definition.source });
 	}
 	setInteracting(active: boolean) {
 		this.state.interacting = active;

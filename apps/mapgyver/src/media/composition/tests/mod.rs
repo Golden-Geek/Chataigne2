@@ -233,15 +233,13 @@ fn resizing_the_canvas_preserves_instances_and_new_centered_positions_survive_re
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);
     let composition = create(&mut engine, MediaKind::Composition);
-    let mut channel = crate::media::channel(&engine, composition).unwrap().definition;
-    channel.source = ChannelSource::Composition {
-        canvas: golden_video::Extent2D::new(640, 480).unwrap(),
-    };
     apply(
         &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: composition,
-            source: channel.source.clone(),
+        MediaEdit::ConfigureMediaResolution {
+            media: composition.media,
+            size: crate::media::protocol::SizePolicy::Fixed {
+                extent: golden_video::Extent2D::new(640, 480).unwrap(),
+            },
         },
     );
     add(&mut engine, composition, vec![source]);
@@ -252,14 +250,13 @@ fn resizing_the_canvas_preserves_instances_and_new_centered_positions_survive_re
             .position,
         [320.0, 240.0]
     );
-    channel.source = ChannelSource::Composition {
-        canvas: golden_video::Extent2D::new(1280, 720).unwrap(),
-    };
     apply(
         &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: composition,
-            source: channel.source,
+        MediaEdit::ConfigureMediaResolution {
+            media: composition.media,
+            size: crate::media::protocol::SizePolicy::Fixed {
+                extent: golden_video::Extent2D::new(1280, 720).unwrap(),
+            },
         },
     );
     add(&mut engine, composition, vec![source]);

@@ -102,8 +102,11 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
     let cases = vec![
         MatrixEdit::Inspect,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(64, 48).unwrap(),
+            settings: MatrixSettings {
+                transition: TransitionDefinition {
+                    duration_ms: 750,
+                    curve: TransitionCurve::SmoothStep,
+                },
                 ..Default::default()
             },
         },

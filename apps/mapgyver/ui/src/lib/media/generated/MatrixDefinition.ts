@@ -3,4 +3,8 @@ import type { EmptyCellPolicy } from "./EmptyCellPolicy";
 import type { Extent2D } from "./Extent2D";
 import type { TransitionDefinition } from "./TransitionDefinition";
 
-export type MatrixDefinition = { canvas: Extent2D, empty_cell: EmptyCellPolicy, transition: TransitionDefinition, };
+export type MatrixDefinition = {
+/**
+ * Read projection of the owning media Resolution, with the procedural default when disabled.
+ */
+canvas: Extent2D, empty_cell: EmptyCellPolicy, transition: TransitionDefinition, };

@@ -190,6 +190,16 @@ fn document_item_and_column_settings_rename_move_and_export_ids_survive_reload()
     let export = before.items.iter().find(|item| item.id == items[0]).unwrap().channel;
     let mut definition = before.definition;
     definition.canvas = golden_video::Extent2D::new(800, 600).unwrap();
+    let ack = invoke(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: definition.canvas,
+            },
+        },
+    );
+    assert!(ack.success, "{ack:?}");
     definition.transition = TransitionDefinition {
         duration_ms: 450,
         curve: TransitionCurve::SmoothStep,
@@ -198,7 +208,7 @@ fn document_item_and_column_settings_rename_move_and_export_ids_survive_reload()
         &mut engine,
         matrix.media,
         MatrixEdit::Configure {
-            definition: definition.clone(),
+            settings: definition.settings(),
         },
     );
     edit(

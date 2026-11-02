@@ -48,14 +48,20 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
     let source = create(&mut engine, MediaKind::SolidColor);
     resize(&mut engine, source, 4);
     let matrix = create(&mut engine, MediaKind::Matrix);
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(4, 2).unwrap(),
+            },
+        },
+    );
     matrix_edit(
         &mut engine,
         matrix.media,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(4, 2).unwrap(),
-                ..Default::default()
-            },
+            settings: MatrixSettings { ..Default::default() },
         },
     );
     let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(

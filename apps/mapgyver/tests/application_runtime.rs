@@ -408,6 +408,15 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     ) else {
         panic!()
     };
+    media(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size: mapgyver::media::protocol::SizePolicy::Fixed {
+                extent: Extent2D::new(2, 2).unwrap(),
+            },
+        },
+    );
     let matrix = |engine: &mut AppEngine, edit| {
         media(
             engine,
@@ -420,10 +429,7 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     matrix(
         &mut engine,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(2, 2).unwrap(),
-                ..Default::default()
-            },
+            settings: MatrixSettings { ..Default::default() },
         },
     );
     let MediaEditResult::MatrixCreated { columns, .. } = matrix(&mut engine, MatrixEdit::AddColumns { count: 3 })

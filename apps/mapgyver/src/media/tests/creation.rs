@@ -10,14 +10,15 @@ fn old_media_schemas_are_rejected_instead_of_reinterpreting_channel_settings() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::SolidColor);
     let json = to_sparse_project_json_pretty(&engine).unwrap();
-    assert!(json.contains("mapgyver.media.v4"));
+    assert!(json.contains("mapgyver.media.v5"));
     for old_type in [
         "mapgyver.media",
         "mapgyver.media.v2",
         "mapgyver.media.v3",
+        "mapgyver.media.v4",
         "mapgyver.media.v999",
     ] {
-        let old = json.replace("mapgyver.media.v4", old_type);
+        let old = json.replace("mapgyver.media.v5", old_type);
         let error = from_sparse_project_json::<crate::app::AppNode>(&old)
             .err()
             .expect("old media schema must not load")
@@ -44,8 +45,8 @@ fn intrinsic_channel_baselines_are_kind_independent_and_live_catalog_defaults_su
         let owner = engine.nodes.get(parent).unwrap();
         let baseline = owner.create_user_item("mapgyver.media.channel").unwrap();
         assert_eq!(
-            baseline.as_any().downcast_ref::<ChannelNode>().unwrap().definition(),
-            ChannelDefinition::default()
+            baseline.as_any().downcast_ref::<ChannelNode>().unwrap().kind(),
+            MediaKind::SolidColor
         );
         references.push(reference);
         if !kind.has_authored_channel_variants() {

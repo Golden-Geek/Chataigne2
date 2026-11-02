@@ -84,6 +84,15 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
     ) else {
         panic!()
     };
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(2, 2).unwrap(),
+            },
+        },
+    );
     let matrix_edit = |engine: &mut AppEngine, operation| {
         edit(
             engine,
@@ -96,8 +105,7 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
     matrix_edit(
         &mut engine,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(2, 2).unwrap(),
+            settings: MatrixSettings {
                 transition: TransitionDefinition {
                     duration_ms: 500,
                     curve: TransitionCurve::SmoothStep,

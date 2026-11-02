@@ -251,7 +251,7 @@ pub(super) fn launch(
     };
     let ChannelSource::Matrix {
         output: MatrixOutput::Final { definition },
-    } = &root.definition().source
+    } = &crate::media::authoring::effective_definition(engine, root)?.source
     else {
         return Err("column is outside its Matrix Final channel".into());
     };
@@ -325,12 +325,7 @@ pub(crate) fn root(engine: &AppEngine, media: MediaId) -> Result<golden_core::no
     }
     for child in super::document::children(engine, id)? {
         if let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(child)
-            && matches!(
-                channel.definition().source,
-                ChannelSource::Matrix {
-                    output: MatrixOutput::Final { .. }
-                }
-            )
+            && channel.is_matrix_final()
         {
             node.cache_matrix_root(channel.node_data().meta.uuid);
             return Ok(child);

@@ -1,6 +1,6 @@
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::{ChannelId, ChannelReference, ChannelSource, MediaId},
+    media::protocol::{ChannelId, ChannelReference, MediaId},
 };
 use golden_core::node::Node;
 use std::collections::{HashMap, HashSet};
@@ -24,7 +24,7 @@ fn authored_graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<Ch
         let AppNode::MediaChannel(node) = node else {
             continue;
         };
-        if !matches!(node.definition().source, ChannelSource::Composition { .. }) {
+        if node.kind() != super::protocol::MediaKind::Composition {
             continue;
         }
         let Some(AppNode::Media(media)) = node.node_data().parent.and_then(|id| engine.nodes.get(id)) else {

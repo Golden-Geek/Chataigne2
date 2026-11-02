@@ -42,24 +42,22 @@ function visible(child: UiNodeDto) {
 		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
+	if (owner.node_type === 'mapgyver.media.v5') {
+		return (
+			!['empty_cell', 'transition_ms', 'transition_curve'].includes(field ?? '') ||
+			choice('media_kind') === 'Matrix'
+		);
+	}
 	if (owner.node_type !== 'mapgyver.media.channel') return true;
 	if (field === 'source_kind') return true;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Picture') return field === 'asset';
 	if (source === 'SharedTexture') return field === 'sender';
-	if (source === 'Composition') return ['canvas_width', 'canvas_height'].includes(field ?? '');
+	if (source === 'Composition') return false;
 	if (source === 'Matrix') {
 		if (field === 'output_kind') return true;
-		return choice('output_kind') === 'Final'
-			? [
-					'canvas_width',
-					'canvas_height',
-					'empty_cell',
-					'transition_ms',
-					'transition_curve'
-				].includes(field ?? '')
-			: field === 'output_item';
+		return choice('output_kind') !== 'Final' && field === 'output_item';
 	}
 	return false;
 }

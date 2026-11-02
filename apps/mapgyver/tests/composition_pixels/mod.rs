@@ -33,6 +33,10 @@ fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
     reference
 }
 fn configure(engine: &mut AppEngine, reference: ChannelReference, source: ChannelSource, size: SizePolicy) {
+    let size = match source {
+        ChannelSource::Composition { canvas } => SizePolicy::Fixed { extent: canvas },
+        _ => size,
+    };
     edit(
         engine,
         MediaEdit::ConfigureMediaResolution {
@@ -47,7 +51,9 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, source: Channe
             filter: SampleFilter::Nearest,
         },
     );
-    edit(engine, MediaEdit::ConfigureChannel { reference, source });
+    if !matches!(source, ChannelSource::Composition { .. }) {
+        edit(engine, MediaEdit::ConfigureChannel { reference, source });
+    }
 }
 fn transform(position: [f32; 2], scale: [f32; 2], rotation: f32, pivot: [f32; 2]) -> Transform2D {
     Transform2D {

@@ -207,7 +207,7 @@ pub(crate) fn capture_channels_with_time(
                     Some(AppNode::MediaChannel(channel))
                         if channel.node_data().parent == Some(media.node_data().id) =>
                     {
-                        if channel.definition().media_kind() != media.kind() {
+                        if channel.kind() != media.kind() {
                             return Err("channel kind differs from owner".into());
                         }
                         guards.push(channel.guard());

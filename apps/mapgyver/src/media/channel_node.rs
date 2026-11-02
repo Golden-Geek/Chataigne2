@@ -1,8 +1,6 @@
 //! Variant settings are real Parameters; media-owned settings join them only in runtime projections.
 use super::protocol::{ChannelDefinition, ChannelSource, SizePolicy};
-use crate::matrix::protocol::{
-    EmptyCellPolicy, GroupId, LayerId, MatrixDefinition, MatrixOutput, TransitionCurve, TransitionDefinition,
-};
+use crate::matrix::protocol::{GroupId, LayerId, MatrixDefinition, MatrixOutput};
 use golden_core::{
     edit::Edit,
     node,
@@ -13,7 +11,7 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
-use golden_video::{Extent2D, plan::SampleFilter};
+
 use std::sync::OnceLock;
 
 #[node("mapgyver.media.channel", label = "Channel", collapsed = true)]
@@ -24,13 +22,8 @@ use std::sync::OnceLock;
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.asset".into()]);
         sender: String = String::new() (label = "Spout sender");
-        canvas_width: i32 = 1920 [1..16384] (label = "Canvas width", constraint_policy = "reject");
-        canvas_height: i32 = 1080 [1..16384] (label = "Canvas height", constraint_policy = "reject");
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer".into(), "mapgyver.matrix.group".into()]);
-        empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
-        transition_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration", step = 1.0, description = "Milliseconds.", constraint_policy = "reject");
-        transition_curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
     }
 )]
 pub struct ChannelNode {
@@ -68,19 +61,12 @@ impl ChannelNode {
                     ))
                 );
             }
-            ChannelSource::Composition { canvas } => {
-                seed!(canvas_width, canvas.width() as i32);
-                seed!(canvas_height, canvas.height() as i32);
-            }
+            ChannelSource::Composition { .. } => {}
             ChannelSource::Spout { sender } => {
                 seed!(sender, sender.unwrap_or_default());
             }
             ChannelSource::Matrix { output } => match output {
-                MatrixOutput::Final { definition } => {
-                    seed!(canvas_width, definition.canvas.width() as i32);
-                    seed!(canvas_height, definition.canvas.height() as i32);
-                    seed!(transition_ms, f64::from(definition.transition.duration_ms));
-                    seed!(transition_curve, Enum::new(curve_name(definition.transition.curve)));
+                MatrixOutput::Final { .. } => {
                     let _ = node.matrix_playback.set(Default::default());
                 }
                 MatrixOutput::Layer { layer } => {
@@ -95,15 +81,39 @@ impl ChannelNode {
         }
         node
     }
-    pub(crate) fn definition(&self) -> ChannelDefinition {
+    pub(crate) fn kind(&self) -> super::protocol::MediaKind {
+        super::media_node::parse_kind(self.source_kind.get_ref().as_str())
+    }
+    pub(crate) fn is_matrix_final(&self) -> bool {
+        self.kind() == super::protocol::MediaKind::Matrix && self.output_kind.get_ref().as_str() == "Final"
+    }
+    pub(crate) fn matrix_item(&self) -> Option<crate::matrix::protocol::MatrixItemId> {
+        if self.kind() != super::protocol::MediaKind::Matrix {
+            return None;
+        }
+        match self.output_kind.get_ref().as_str() {
+            "Layer" => Some(crate::matrix::protocol::MatrixItemId::Layer {
+                id: LayerId(self.output_item.get_ref().uuid),
+            }),
+            "Group" => Some(crate::matrix::protocol::MatrixItemId::Group {
+                id: GroupId(self.output_item.get_ref().uuid),
+            }),
+            _ => None,
+        }
+    }
+    pub(crate) fn definition(&self, media: &super::MediaNode, engine: &crate::app::AppEngine) -> ChannelDefinition {
+        let size = media.size_policy(engine);
+        let canvas = match size {
+            SizePolicy::Automatic => super::resolution::default_canvas(),
+            SizePolicy::Fixed { extent } => extent,
+        };
+        let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
             "Picture" => ChannelSource::Picture {
                 asset: (!self.asset.get_ref().uuid.0.is_nil())
                     .then(|| golden_assets::AssetId::from_uuid(self.asset.get_ref().uuid.0)),
             },
-            "Composition" => ChannelSource::Composition {
-                canvas: extent(self.canvas_width.get(), self.canvas_height.get()),
-            },
+            "Composition" => ChannelSource::Composition { canvas },
             "SharedTexture" => ChannelSource::Spout {
                 sender: (!self.sender.get_ref().is_empty()).then(|| self.sender.get_ref().clone()),
             },
@@ -117,16 +127,9 @@ impl ChannelNode {
                     },
                     _ => MatrixOutput::Final {
                         definition: MatrixDefinition {
-                            canvas: extent(self.canvas_width.get(), self.canvas_height.get()),
-                            empty_cell: EmptyCellPolicy::Transparent,
-                            transition: TransitionDefinition {
-                                duration_ms: self.transition_ms.get() as u32,
-                                curve: if self.transition_curve.get_ref().as_str() == "SmoothStep" {
-                                    TransitionCurve::SmoothStep
-                                } else {
-                                    TransitionCurve::Linear
-                                },
-                            },
+                            canvas,
+                            empty_cell: settings.empty_cell,
+                            transition: settings.transition,
                         },
                     },
                 },
@@ -140,11 +143,11 @@ impl ChannelNode {
         };
         ChannelDefinition {
             source,
-            size: SizePolicy::Automatic,
-            filter: SampleFilter::Linear,
+            size,
+            filter: media.sampling(),
         }
     }
-    pub(crate) fn parameter_edits(&self, source: ChannelSource) -> Vec<Edit> {
+    pub(crate) fn parameter_edits(&self, source: ChannelSource) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
             ChannelSource::SolidColor { rgba } => values.push((
@@ -157,43 +160,21 @@ impl ChannelNode {
                     NodeReference::new(golden_core::node::NodeUuid(id.get()))
                 })),
             )),
-            ChannelSource::Composition { canvas } => values.extend([
-                (self.canvas_width.id(), ParamValue::Int(canvas.width() as i32)),
-                (self.canvas_height.id(), ParamValue::Int(canvas.height() as i32)),
-            ]),
+            ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } => {
+                return Err("derived outputs have no authored channel settings".into());
+            }
             ChannelSource::Spout { sender } => {
                 values.push((self.sender.id(), ParamValue::Str(sender.unwrap_or_default())))
             }
-            ChannelSource::Matrix {
-                output: MatrixOutput::Final { definition },
-            } => values.extend([
-                (
-                    self.canvas_width.id(),
-                    ParamValue::Int(definition.canvas.width() as i32),
-                ),
-                (
-                    self.canvas_height.id(),
-                    ParamValue::Int(definition.canvas.height() as i32),
-                ),
-                (
-                    self.transition_ms.id(),
-                    ParamValue::Float(definition.transition.duration_ms.into()),
-                ),
-                (
-                    self.transition_curve.id(),
-                    ParamValue::Enum(curve_name(definition.transition.curve).into()),
-                ),
-            ]),
-            ChannelSource::Matrix { .. } => {}
         }
-        values
+        Ok(values
             .into_iter()
             .map(|(node, value)| Edit::SetParam {
                 node,
                 value,
                 behaviour: ParameterEventBehaviour::Append,
             })
-            .collect()
+            .collect())
     }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
@@ -244,13 +225,8 @@ impl Node for ChannelNode {
             self.rgba.id(),
             self.asset.id(),
             self.sender.id(),
-            self.canvas_width.id(),
-            self.canvas_height.id(),
             self.output_kind.id(),
             self.output_item.id(),
-            self.empty_cell.id(),
-            self.transition_ms.id(),
-            self.transition_curve.id(),
         ]
         .contains(&parameter)
         {
@@ -278,7 +254,7 @@ impl Node for ChannelNode {
         ]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        if matches!(self.definition().source, ChannelSource::Composition { .. }) {
+        if self.kind() == super::protocol::MediaKind::Composition {
             vec![UserCreatableItem::new(
                 super::composition::INSTANCE_TYPE,
                 super::composition::INSTANCE_TYPE,
@@ -289,46 +265,51 @@ impl Node for ChannelNode {
         }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        match self.definition().source {
-            ChannelSource::Matrix {
-                output: MatrixOutput::Final { .. },
-            } => crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>),
-            ChannelSource::Composition { .. } if node_type == super::composition::INSTANCE_TYPE => Some(Box::new(
-                super::composition::InstanceNode::from_definition("Instance".into(), Default::default()),
-            )),
-            _ => None,
+        if self.is_matrix_final() {
+            crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
+        } else if self.kind() == super::protocol::MediaKind::Composition
+            && node_type == super::composition::INSTANCE_TYPE
+        {
+            Some(Box::new(super::composition::InstanceNode::from_definition(
+                "Instance".into(),
+                Default::default(),
+            )))
+        } else {
+            None
         }
     }
+
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
-        for value in [self.canvas_width.get(), self.canvas_height.get()] {
-            if !(1..=16384).contains(&value) {
-                return Err("channel dimensions must contain 1..16384 texels".into());
-            }
-        }
         for (value, allowed) in [
             (
                 self.source_kind.get_ref().as_str(),
                 &["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"][..],
             ),
             (self.output_kind.get_ref().as_str(), &["Final", "Layer", "Group"][..]),
-            (self.empty_cell.get_ref().as_str(), &["Transparent"][..]),
-            (self.transition_curve.get_ref().as_str(), &["Linear", "SmoothStep"][..]),
         ] {
             if !allowed.contains(&value) {
                 return Err(format!("unknown channel setting '{value}'"));
             }
         }
-        if !self.transition_ms.get().is_finite()
-            || !(0.0..=f64::from(u32::MAX)).contains(&self.transition_ms.get())
-            || self.transition_ms.get().fract() != 0.0
-        {
-            return Err("transition duration must be a whole number of milliseconds in the u32 range".into());
+        if self.kind() == super::protocol::MediaKind::SolidColor {
+            let color = self.rgba.get();
+            golden_video::LinearColor::from_straight(
+                color.red as f32,
+                color.green as f32,
+                color.blue as f32,
+                color.alpha as f32,
+            )
+            .map_err(|error| error.to_string())?;
         }
-        self.definition().validate()
+        if self.sender.get_ref().len() > 255 || self.sender.get_ref().contains('\0') {
+            return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
+        }
+        Ok(())
     }
+
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
         for (id, current) in [
             (
@@ -356,15 +337,4 @@ impl Node for ChannelNode {
         }
         Ok(())
     }
-}
-fn curve_name(curve: TransitionCurve) -> &'static str {
-    match curve {
-        TransitionCurve::Linear => "Linear",
-        TransitionCurve::SmoothStep => "SmoothStep",
-    }
-}
-fn extent(width: i32, height: i32) -> Extent2D {
-    // Detached malformed records can be inspected during lifecycle binding before
-    // candidate validation rejects them. Never panic while projecting that candidate.
-    Extent2D::new(width as u32, height as u32).unwrap_or_else(|_| super::resolution::default_canvas())
 }

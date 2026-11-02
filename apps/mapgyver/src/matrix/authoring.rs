@@ -112,16 +112,11 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                 snapshot: document.snapshot,
             });
         }
-        MatrixEdit::Configure { definition } => {
-            definition.validate()?;
-            let mut channel = crate::media::channel(engine, document.snapshot.final_channel)?.definition;
-            channel.source = ChannelSource::Matrix {
-                output: MatrixOutput::Final { definition },
-            };
-            let Some(AppNode::MediaChannel(node)) = engine.nodes.get(document.root) else {
+        MatrixEdit::Configure { settings } => {
+            let Some(AppNode::Media(node)) = engine.nodes.get(document.media) else {
                 unreachable!()
             };
-            for edit in node.parameter_edits(channel.source) {
+            for edit in node.matrix_setting_edits(settings) {
                 engine.edits.push(edit);
             }
         }

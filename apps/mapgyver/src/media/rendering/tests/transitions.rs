@@ -41,12 +41,20 @@ fn fixture() -> (
         })
         .collect::<Vec<_>>();
     let matrix = create(&mut engine, MediaKind::Matrix);
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(4, 2).unwrap(),
+            },
+        },
+    );
     matrix_edit(
         &mut engine,
         matrix.media,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(4, 2).unwrap(),
+            settings: MatrixSettings {
                 transition: TransitionDefinition {
                     duration_ms: 1000,
                     curve: TransitionCurve::Linear,

@@ -88,8 +88,8 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
         tree: forest,
     });
     engine.apply_edits().unwrap();
-    // Media(3 parameters + folder), channel(11 parameters + folder), and two full instances.
-    assert_eq!(engine.nodes.len(), before_nodes + 18 + DEPTH * 40);
+    // Media/channel each have six Parameters plus their folder; two full instances per branch.
+    assert_eq!(engine.nodes.len(), before_nodes + 16 + DEPTH * 38);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

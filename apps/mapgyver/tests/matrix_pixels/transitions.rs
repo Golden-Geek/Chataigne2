@@ -53,12 +53,20 @@ pub(super) fn check(adapter: AdapterId) {
     engine.apply_edits().unwrap();
     let sources = [[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]].map(|c| color(&mut engine, c));
     let root = create(&mut engine, MediaKind::Matrix);
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: root.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(32, 24).unwrap(),
+            },
+        },
+    );
     matrix(
         &mut engine,
         root.media,
         MatrixEdit::Configure {
-            definition: MatrixDefinition {
-                canvas: Extent2D::new(32, 24).unwrap(),
+            settings: MatrixSettings {
                 transition: TransitionDefinition {
                     duration_ms: 6000,
                     curve: TransitionCurve::Linear,

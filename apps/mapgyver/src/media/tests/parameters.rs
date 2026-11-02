@@ -53,16 +53,21 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let media = engine.node_id_by_uuid(reference.media.0).unwrap();
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
         let media_fields = parameters(&engine, media);
-        assert_eq!(media_fields.len(), 3);
+        assert_eq!(media_fields.len(), 6);
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
-        assert_eq!(fields.len(), 11, "{fields:?}");
+        assert_eq!(fields.len(), 6, "{fields:?}");
         for removed in [
             "maximum_width",
             "maximum_height",
             "pixel_format",
             "color_encoding",
             "alpha_mode",
+            "canvas_width",
+            "canvas_height",
+            "empty_cell",
+            "transition_ms",
+            "transition_curve",
         ] {
             assert!(!fields.contains_key(&format!("parameters/{removed}")));
         }
@@ -396,6 +401,174 @@ fn sampling_is_media_owned_across_variants_history_capture_and_reload() {
 }
 
 #[test]
+fn procedural_resolution_and_matrix_settings_have_one_media_owner_through_history_and_reload() {
+    use crate::matrix::protocol::*;
+    for kind in [MediaKind::Composition, MediaKind::Matrix] {
+        let mut engine = fixture();
+        let reference = create(&mut engine, kind);
+        let media = engine.node_id_by_uuid(reference.media.0).unwrap();
+        let fields = parameters(&engine, media);
+        let resolution = fields["parameters/resolution"];
+        let mut references = vec![reference];
+        if kind == MediaKind::Matrix {
+            apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: reference.media,
+                    edit: MatrixEdit::AddLayers { parent: None, count: 1 },
+                },
+            );
+            let MediaEditResult::Matrix { snapshot } = apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: reference.media,
+                    edit: MatrixEdit::Inspect,
+                },
+            ) else {
+                panic!()
+            };
+            references.extend(snapshot.items.iter().map(|item| item.channel));
+        }
+        let canvas = |engine: &AppEngine| match channel(engine, reference).unwrap().definition.source {
+            ChannelSource::Composition { canvas } => canvas,
+            ChannelSource::Matrix {
+                output: MatrixOutput::Final { definition },
+            } => definition.canvas,
+            _ => panic!(),
+        };
+        assert_eq!(canvas(&engine), crate::media::resolution::default_canvas());
+        assert!(set(&mut engine, resolution, ParamValue::Vec2(800.0, 600.0)).success);
+        assert_eq!(canvas(&engine), crate::media::resolution::default_canvas());
+        let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
+        let history = engine.undo_len();
+        let extent = golden_video::Extent2D::new(640, 360).unwrap();
+        apply(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: reference.media,
+                size: SizePolicy::Fixed { extent },
+            },
+        );
+        assert!(!captured.is_current());
+        assert_eq!(engine.undo_len(), history + 1);
+        assert_eq!(canvas(&engine), extent);
+        for reference in &references {
+            assert_eq!(
+                channel(&engine, *reference).unwrap().definition.size,
+                SizePolicy::Fixed { extent }
+            );
+            let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
+            let channel_fields = parameters(&engine, root);
+            for name in [
+                "canvas_width",
+                "canvas_height",
+                "transition_ms",
+                "transition_curve",
+                "empty_cell",
+            ] {
+                assert!(!channel_fields.contains_key(&format!("parameters/{name}")));
+            }
+        }
+        if kind == MediaKind::Matrix {
+            let MediaEditResult::Matrix { snapshot } = apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: reference.media,
+                    edit: MatrixEdit::Inspect,
+                },
+            ) else {
+                panic!()
+            };
+            assert_eq!(snapshot.definition.canvas, extent);
+        }
+        assert!(engine.undo().unwrap());
+        assert_eq!(canvas(&engine), crate::media::resolution::default_canvas());
+        assert!(engine.redo().unwrap());
+        assert_eq!(canvas(&engine), extent);
+        if kind == MediaKind::Matrix {
+            let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
+            let settings = MatrixSettings {
+                transition: TransitionDefinition {
+                    duration_ms: 750,
+                    curve: TransitionCurve::SmoothStep,
+                },
+                ..Default::default()
+            };
+            apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: reference.media,
+                    edit: MatrixEdit::Configure {
+                        settings: settings.clone(),
+                    },
+                },
+            );
+            assert!(!captured.is_current());
+            let MediaEditResult::Matrix { snapshot } = apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: reference.media,
+                    edit: MatrixEdit::Inspect,
+                },
+            ) else {
+                panic!()
+            };
+            assert_eq!(snapshot.definition.settings(), settings);
+            assert_eq!(snapshot.definition.canvas, extent);
+            assert!(engine.undo().unwrap());
+            assert_eq!(
+                engine
+                    .nodes
+                    .get(fields["parameters/transition_ms"])
+                    .unwrap()
+                    .engine_param_snapshot()
+                    .unwrap()
+                    .value,
+                ParamValue::Float(250.0)
+            );
+            assert!(engine.redo().unwrap());
+            let before = to_sparse_project_json_pretty(&engine).unwrap();
+            let history = engine.undo_len();
+            assert!(!set(&mut engine, fields["parameters/transition_ms"], ParamValue::Float(0.5)).success);
+            assert!(
+                !set(
+                    &mut engine,
+                    fields["parameters/transition_curve"],
+                    ParamValue::Enum("Unknown".into())
+                )
+                .success
+            );
+            assert_eq!(engine.undo_len(), history);
+            assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+            assert!(
+                serde_json::from_value::<MatrixSettings>(serde_json::json!({ "canvas": { "width": 1, "height": 1 } }))
+                    .is_err()
+            );
+        }
+        let saved = to_sparse_project_json_pretty(&engine).unwrap();
+        let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+        for reference in &references {
+            assert_eq!(
+                channel(&loaded, *reference).unwrap(),
+                channel(&engine, *reference).unwrap()
+            );
+        }
+        apply(
+            &mut loaded,
+            MediaEdit::ConfigureMediaResolution {
+                media: reference.media,
+                size: SizePolicy::Automatic,
+            },
+        );
+        assert_eq!(canvas(&loaded), crate::media::resolution::default_canvas());
+        let before = to_sparse_project_json_pretty(&loaded).unwrap();
+        let source = channel(&loaded, reference).unwrap().definition.source;
+        assert!(!invoke(&mut loaded, MediaEdit::ConfigureChannel { reference, source }).success);
+        assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), before);
+    }
+}
+
+#[test]
 fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     let mut resolution_engine = fixture();
     let reference = create(&mut resolution_engine, MediaKind::SolidColor);
@@ -410,10 +583,8 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     }
     let filter = parameters(&resolution_engine, media)["parameters/filter"];
     assert_invalid_record(&resolution_engine, filter, serde_json::json!("Cubic"));
-    for (name, value) in [
-        ("parameters/canvas_width", serde_json::json!(-1)),
-        ("parameters/source_kind", serde_json::json!("unknown")),
-    ] {
+    {
+        let (name, value) = ("parameters/source_kind", serde_json::json!("unknown"));
         let mut engine = fixture();
         let reference = create(&mut engine, MediaKind::Composition);
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();

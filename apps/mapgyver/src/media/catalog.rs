@@ -31,14 +31,7 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
                 return Err("media child is not a channel".into());
             };
             child = channel.node_data().next_sibling;
-            if matches!(query.scope, ChannelChoiceScope::MatrixFinal)
-                && !matches!(
-                    channel.definition().source,
-                    ChannelSource::Matrix {
-                        output: crate::matrix::protocol::MatrixOutput::Final { .. }
-                    }
-                )
-            {
+            if matches!(query.scope, ChannelChoiceScope::MatrixFinal) && !channel.is_matrix_final() {
                 continue;
             }
             let label = format!("{} / {}", media.node_data().meta.label, channel.node_data().meta.label);

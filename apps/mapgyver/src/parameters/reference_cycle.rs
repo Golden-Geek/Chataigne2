@@ -2,9 +2,9 @@
 use crate::{
     matrix::{
         node::ElementNode,
-        protocol::{ElementDefinition, MatrixOutput},
+        protocol::{ElementDefinition, MatrixItemId},
     },
-    media::{ChannelNode, composition::InstanceNode, protocol::ChannelSource},
+    media::{ChannelNode, composition::InstanceNode, protocol::MediaKind},
 };
 use golden_core::node::{NodeId, NodeUuid, ParameterValidationContext};
 use std::collections::HashSet;
@@ -26,8 +26,8 @@ pub(crate) fn validate(change: &ParameterValidationContext<'_>, owner: NodeId, s
         let Some(channel) = node.as_any().downcast_ref::<ChannelNode>() else {
             continue;
         };
-        match &channel.definition().source {
-            ChannelSource::Composition { .. } => {
+        match channel.kind() {
+            MediaKind::Composition => {
                 for child in children(change, id) {
                     if let Some(instance) = change
                         .node(child)
@@ -38,29 +38,24 @@ pub(crate) fn validate(change: &ParameterValidationContext<'_>, owner: NodeId, s
                     }
                 }
             }
-            ChannelSource::Matrix { output } => {
-                let root = match output {
-                    MatrixOutput::Final { .. } => Some(id),
-                    _ => node.node_data().parent.and_then(|parent| {
+            MediaKind::Matrix => {
+                let output = channel.matrix_item();
+                let root = if channel.is_matrix_final() {
+                    Some(id)
+                } else {
+                    node.node_data().parent.and_then(|parent| {
                         children(change, parent).into_iter().find(|child| {
                             change
                                 .node(*child)
                                 .and_then(|node| node.as_any().downcast_ref::<ChannelNode>())
-                                .is_some_and(|node| {
-                                    matches!(
-                                        node.definition().source,
-                                        ChannelSource::Matrix {
-                                            output: MatrixOutput::Final { .. }
-                                        }
-                                    )
-                                })
+                                .is_some_and(ChannelNode::is_matrix_final)
                         })
-                    }),
+                    })
                 };
                 let rows = match output {
-                    MatrixOutput::Final { .. } => root.map(|root| children(change, root)).unwrap_or_default(),
-                    MatrixOutput::Layer { layer } => change.resolve(layer.0).into_iter().collect(),
-                    MatrixOutput::Group { group } => change.resolve(group.0).into_iter().collect(),
+                    None => root.map(|root| children(change, root)).unwrap_or_default(),
+                    Some(MatrixItemId::Layer { id }) => change.resolve(id.0).into_iter().collect(),
+                    Some(MatrixItemId::Group { id }) => change.resolve(id.0).into_iter().collect(),
                 };
                 matrix_sources(change, rows, &mut pending);
                 if let Some(control) = root

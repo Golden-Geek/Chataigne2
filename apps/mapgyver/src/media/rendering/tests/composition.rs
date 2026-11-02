@@ -5,15 +5,13 @@ use golden_video::plan::{LayerSource, Point, RenderOperation};
 
 fn composition(engine: &mut AppEngine, width: u32, height: u32) -> ChannelReference {
     let reference = create(engine, MediaKind::Composition);
-    let mut definition = channel(engine, reference).unwrap().definition;
-    definition.source = ChannelSource::Composition {
-        canvas: Extent2D::new(width, height).unwrap(),
-    };
     edit(
         engine,
-        MediaEdit::ConfigureChannel {
-            reference,
-            source: definition.source,
+        MediaEdit::ConfigureMediaResolution {
+            media: reference.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(width, height).unwrap(),
+            },
         },
     );
     reference
@@ -210,12 +208,13 @@ fn content_membership_enable_and_source_undo_invalidate_nested_captures() {
 }
 
 #[test]
-fn fixed_resolution_retains_logical_canvas_mapping_and_source_capture_is_bounded() {
+fn media_resolution_updates_canvas_mapping_preserves_authored_instances_and_keeps_capture_bounded() {
     let mut engine = engine();
     let leaf = create(&mut engine, MediaKind::SolidColor);
     resize(&mut engine, leaf, 4);
     let composition = composition(&mut engine, 8, 8);
     add(&mut engine, composition, vec![leaf]);
+    let authored = inspect(&mut engine, composition).instances;
     let prepared = prepare(&engine, composition);
     let RenderOperation::Composite { layers: before } = &prepared.submission.plan.passes.last().unwrap().operation
     else {
@@ -229,7 +228,14 @@ fn fixed_resolution_retains_logical_canvas_mapping_and_source_capture_is_bounded
     let RenderOperation::Composite { layers } = &pass.operation else {
         panic!()
     };
-    assert_eq!(layers[0].mapping, mapping);
+    assert_ne!(layers[0].mapping, mapping);
+    assert_eq!(
+        layers[0].mapping.unwrap().inverse_rows(),
+        [[4.0, 0.0, -0.5, 0.0], [0.0, 1.0, -1.5, 0.0], [0.0, 0.0, 1.0, 0.0]]
+    );
+    let document = inspect(&mut engine, composition);
+    assert_eq!(document.canvas, Extent2D::new(16, 2).unwrap());
+    assert_eq!(document.instances, authored);
     let bounded = capture_channels(&engine, &[composition], 1).unwrap();
     assert_eq!(bounded.channels.len(), 1);
     assert!(bounded.channels[0].instances.is_none());

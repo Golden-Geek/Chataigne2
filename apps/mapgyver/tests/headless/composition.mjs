@@ -28,9 +28,9 @@ export async function verifyComposition({ post, intent, edit }) {
 	}
 	const root = await create('Composition', 'Review Composition');
 	await edit({
-		kind: 'ConfigureChannel',
-		reference: root,
-		source: { kind: 'Composition', canvas: { width: 320, height: 240 } }
+		kind: 'ConfigureMediaResolution',
+		media: root.media,
+		size: { kind: 'Fixed', extent: { width: 320, height: 240 } }
 	});
 	const { instances } = await operation(root, { kind: 'AddInstances', sources: [red, red, green] });
 	const initial = await inspect(root);
