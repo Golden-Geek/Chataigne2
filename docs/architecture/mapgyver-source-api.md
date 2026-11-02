@@ -1,4 +1,4 @@
-# MapGyver source scripting
+# MapGyver source automation
 
 MapGyver owns source methods and script snippets under `apps/mapgyver/src/media`.
 Golden owns the script runtime, method dispatch, bounded app-operation queue, history and
@@ -29,6 +29,7 @@ labels use backend defaults; empty asset/sender strings clear that channel's sou
 | `configureSharedTexture`   | media UUID, channel UUID, exact sender or empty string                          |
 | `inspectChannel`           | media UUID, channel UUID                                                        |
 | `importPicture`            | path, absolute boolean; otherwise a validated project-relative locator          |
+| `executeCommand`           | configured command UUID                                                         |
 | `inspectMedia`             | no further arguments                                                            |
 | `editMedia`                | JSON serialization of the complete typed `MediaEdit` intent                     |
 
@@ -49,5 +50,21 @@ The embedded `script_templates/source_api.js` and `callbacks.js` document runnab
 No repository files are read when an installed app creates the template. The generic
 `editMedia` surface retains folders, asset management, ordering/removal and specialized
 Composition/Matrix intents; see [the Rust contract](../../apps/mapgyver/src/media/protocol.rs).
-Typed command-node authoring remains an open M04/1 requirement in the
+
+The Media Manager Inspector's **Commands** section creates app-owned
+`mapgyver.media.command.v1` children through `CreateCommand`. `InspectCommandCatalog` returns
+the Rust-owned catalog; the generator exports each command's visible Parameter fields.
+The section mounts at most 32 commands per page. Commands stay out of object creation menus
+and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
+typed Parameters, including references, enums, file paths, resolution and color.
+
+The 28 command kinds cover source/variant creation, settings, assets, folders, ordering,
+removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
+Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
+`execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's
+Trigger/method captures configuration before entering the bounded operation queue; commands have
+no update polling. Disable/removal invalidates pending command-owned requests. Reload,
+copy and Undo/Redo restore authored configuration without firing commands. Results use the
+same committed callback envelope and media result event; rejected executions also set a
+command warning. The complete revised M04/1 acceptance audit remains in the
 [status ledger](../progress/mapgyver-status.md).

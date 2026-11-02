@@ -1,5 +1,6 @@
 /** Presentation only: keep ordinary widgets and expose the fields relevant to this owner. */
 import { appState, registerNodeInspectorMatcher, type UiNodeDto } from 'golden_ui';
+import { COMMAND_PARAMETER_FIELDS } from './media/generated/command-fields';
 
 function parent(node: UiNodeDto) {
 	const session = appState.session;
@@ -33,6 +34,15 @@ function visible(child: UiNodeDto) {
 						? 'absolute_path'
 						: '')
 		);
+	}
+	if (owner.node_type === 'mapgyver.media.command.v1') {
+		if (field === 'command_kind' || field === 'trigger') return true;
+		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;
+		const fields: readonly string[] = COMMAND_PARAMETER_FIELDS[key] ?? [];
+		if (!fields.includes(field ?? '')) return false;
+		if (field === 'project_path') return choice('locator_kind') === 'ProjectRelative';
+		if (field === 'absolute_path') return choice('locator_kind') === 'Absolute';
+		return true;
 	}
 	if (owner.node_type === 'mapgyver.screen') {
 		if (field === 'target_kind') return true;

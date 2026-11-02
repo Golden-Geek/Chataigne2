@@ -15,6 +15,7 @@ fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
             .is_some_and(|node| matches!(node, AppNode::Media(media) if !media.kind().has_authored_channel_variants())),
         Some(
             AppNode::Media(_)
+            | AppNode::MediaCommand(_)
             | AppNode::MediaFolder(_)
             | AppNode::MediaAsset(_)
             | AppNode::Application(_)
@@ -89,6 +90,7 @@ pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> R
         }
         AppNode::MediaChannel(_) | AppNode::CompositionInstance(_) => old_parent == Some(parent),
         AppNode::MediaAsset(_) | AppNode::Application(_) => parent == super::authoring::manager(engine)?,
+        AppNode::MediaCommand(_) => parent == super::authoring::manager(engine)?,
         AppNode::Screen(_) => {
             matches!(destination, Some(AppNode::ScreenManager(node)) if node.node_data().parent == Some(engine.root))
         }

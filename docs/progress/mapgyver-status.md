@@ -2,19 +2,20 @@
 
 **Updated: 2026-11-02 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** revised M04 typed command authoring and final source API audit.
-**Next deliverable:** implement typed source command nodes using the existing media intents,
-then verify the remaining M04/1 API, generic/direct editing and history contracts.
+**Current topic:** revised M04 final source API acceptance audit.
+**Next deliverable:** finish M04/1 acceptance against the delivered defaults, commands,
+methods/callbacks/snippets, generic/direct editing and history contracts.
 **Execution:** implementing M04/1 on `mapgyver`; one active gate, delivered in reviewable slices.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
-Texture authoring, named source scripting from the Inspector, source media, Screen/Surface
+Texture authoring, typed source commands and named scripting from the Inspector, source media, Screen/Surface
 editing, Composition and Matrix playback.
-**Last delivered capability:** Add Media Script installs app-owned snippets in a real Golden
-Script and opens the standard editor. Named methods share the media intents and committed
-callbacks. Passive scripts reload correctly through the shared scheduler. Source API parity,
-template/history/reload and actual bundled editing are verified; typed commands remain open.
+**Last delivered capability:** 28 typed source command kinds in a bounded Inspector collection,
+using ordinary Golden Parameters and the existing media intents. Trigger, command node method,
+manager script method and explicit intent execution are wired; passive creation/configuration,
+captured settings, lifetime cancellation, callbacks, history/copy/reload and bundled editing are
+verified. The final M04/1 acceptance audit remains open.
 **Last accepted:** user-reviewed native Screen/Surface, Composition and Matrix playback behavior
 on the prior schema. Remaining revised ownership and native editor acceptance stay open.
 
@@ -51,7 +52,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State   | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                   |
 | ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active  | M04/1            | Shared media settings, procedural canvases, Channels, sender-only authoring, manager menus, creation/import defaults and source methods/templates/callbacks are software/browser verified. Finish typed source command nodes and the final revised API, generic/direct editing and history audit.                      |
+| Active  | M04/1            | Shared settings, canvases, Channels, sender-only authoring, manager menus, defaults, source methods/templates/callbacks and typed commands are software/browser verified. Finish the final revised API, generic/direct editing and history acceptance audit against the existing evidence.                             |
 | Pending | M04/2,4–8        | After M04/1, finish revised source/Spout/native checks, including the corrected lifecycle and declared-input capacity cases in the linked evidence; verify generic UI/lifetime, then Reference and Media Preview. M04/3 Picture worker bounds retain acceptance.                                                       |
 | Pending | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                        |
 | Pending | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels.                                                                                                                                                       |
@@ -77,36 +78,24 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/1 usable source scripting, owned by MapGyver media. Nine named
-  methods translate typed arguments into existing intents for creation, variants, shared
-  Resolution/Sampling, source color/asset/sender, channel inspection and Picture import.
-  Generic `editMedia` retains the full intent surface. `CreateScript` installs embedded app-owned
-  [API/callback snippets](../architecture/mapgyver-source-api.md) as a real Golden Script in
-  one history step. The manager Inspector lists at most 32 scripts per page, selects committed
-  creation through the shared selection guard, and opens Golden's code editor. Manager object
-  catalogs remain unchanged. Templates are passive and require no installed repository files.
-  The bundled save/reload workflow reproduced a Golden scheduler defect: requesting reload did
-  not reschedule an already passive inline script. The shared UI reload boundary now invalidates
-  its compiled schedule; a focused engine regression and the actual host verify the correction.
-  **Checks:** 281 MapGyver tests passed/1 existing ignored, including four-caller source parity,
-  relative/absolute import, asset assignment, domain rejection, committed creation callbacks,
-  stable script identity/history/reload and generated contracts; 2 Golden runtime recovery/reload
-  regressions passed; strict all-target Golden Engine/MapGyver Clippy with native qualification;
-  MapGyver/Chataigne UI checks (0 errors/warnings); rebuilt executable; bundled script creation,
-  selection, template, Undo/Redo, actual keyboard source save/explicit reload and callback-created
-  17×9 media; manager catalogs and headless source Save/New/Load. Root/Golden and touched-file
-  formatting passed. Reproduce with `cargo test --locked -p MapGyver --lib`,
-  `cargo test --locked -p golden_engine --lib script::tests::runtime_recovery` and
-  `node apps/mapgyver/tests/headless/media.mjs --media-script-ui --catalog-ui`.
-  One planned validation cycle followed by affected fixes for public identity accessors, fixture
-  history/input waits and the reproduced reload defect. No native experiment or gate closed.
-  Start 2026-11-02 22:05 CET; cutoff 22:50 CET; delivered within the batch.
-  **Remaining:** typed source command nodes, final M04/1 API audit, broad legacy browser-workflow
-  port and revised native parity. Shared Texture retains its
-  [partial native evidence and return actions](evidence/mapgyver-spout-metadata-native-2026-11-02.json):
-  fixed-output resize, cross-adapter/both-adapter completion, RGBA pixels and declared input
-  capacity remain open after M04/1. Reference/Preview and all retained return-queue requirements
-  remain required. Counts stay 24/57; 3/11 phases, 27% overall.
+- **Current handoff:** M04/1 typed source commands, owned by MapGyver media, delivered within
+  the 2026-11-02 22:43–23:28 CET batch. The 28 real Parameter command kinds use a backend-owned
+  catalog and generated field metadata; a 32-item Inspector page keeps object catalogs unchanged.
+  Trigger/node method capture typed source intents, with bounded requests, disable/removal
+  cancellation, committed callbacks, manager script execution and app snippet examples.
+  [Source automation ownership/API](../architecture/mapgyver-source-api.md) documents the boundary.
+  **Checks:** full MapGyver library run: 284 passed, one callback-test observation failure,
+  one existing ignored; after observing the transient callback through a real listening script,
+  all four affected command tests passed. All 28 projections, atomic history, reload/copy and
+  cancellation are covered. Generated types, strict all-target/native-qualification Clippy,
+  UI check (zero errors/warnings), ordinary bundled binary and bundled command/script/catalog
+  workflows passed; the ordinary headless source/history/Save/New/Load check also passed.
+  Root and Golden Core formatting applied. No native experiment; no acceptance gate closed.
+  **Exact next action:** finish M04/1's final API/defaults/generic/direct editing/history audit
+  against existing evidence, close only that gate if complete, then resume revised M04/2.
+  All retained native/Reference/Preview and return-queue requirements remain required.
+  Shared Texture retains [partial native evidence](evidence/mapgyver-spout-metadata-native-2026-11-02.json).
+  Counts remain 24/57; 3/11 phases, 27% overall until a complete gate is verified.
 
 ## Maintenance rule
 

@@ -15,6 +15,7 @@ pub(super) const METHODS: &[&str] = &[
     "configureSharedTexture",
     "inspectChannel",
     "importPicture",
+    "executeCommand",
 ];
 
 fn text(args: &[ParamValue], index: usize) -> Result<&str, String> {
@@ -59,12 +60,16 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configureSolidColor" => 6,
         "configurePicture" | "configureSharedTexture" => 3,
         "importPicture" => 2,
+        "executeCommand" => 1,
         _ => return Ok(None),
     };
     if args.len() != count {
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "executeCommand" => MediaEdit::ExecuteCommand {
+            command: uuid(args, 0)?,
+        },
         "createMedia" => MediaEdit::CreateMedia {
             media_kind: choice(args, 0)?,
             label: optional_text(args, 1)?,

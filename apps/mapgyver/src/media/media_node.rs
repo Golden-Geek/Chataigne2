@@ -265,7 +265,7 @@ fn curve_name(curve: TransitionCurve) -> &'static str {
         TransitionCurve::SmoothStep => "SmoothStep",
     }
 }
-fn validate_resolution(value: Vec2) -> Result<(), String> {
+pub(super) fn validate_resolution(value: Vec2) -> Result<(), String> {
     if [value.x, value.y]
         .iter()
         .any(|axis| !axis.is_finite() || !(1.0..=16384.0).contains(axis) || axis.fract() != 0.0)

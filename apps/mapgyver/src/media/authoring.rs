@@ -91,6 +91,14 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported media operation".into());
     }
     let edit: MediaEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    if let MediaEdit::ExecuteCommand { command } = edit {
+        let operation = super::commands::operation(engine, command)?;
+        return apply_operation(
+            engine,
+            MEDIA_OPERATION,
+            serde_json::to_value(operation).map_err(|error| error.to_string())?,
+        );
+    }
     if let MediaEdit::Applications {
         edit: operation @ crate::applications::protocol::ApplicationEdit::DispatchCallbacks { .. },
     } = edit
@@ -121,6 +129,27 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectManager => MediaEditResult::Manager {
             snapshot: super::catalog::inspect(engine)?,
         },
+        MediaEdit::InspectCommandCatalog => MediaEditResult::CommandCatalog {
+            commands: super::commands::catalog(),
+        },
+        MediaEdit::CreateCommand {
+            command_kind,
+            label: requested,
+        } => {
+            let parent = manager(engine)?;
+            let node = super::commands::MediaCommandNode::from_kind(
+                label(engine, parent, requested, command_kind.label())?,
+                command_kind,
+            );
+            let command = node.node_data().meta.uuid;
+            engine.edits.push(Edit::AddUserItemTree {
+                parent,
+                prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+                tree: NodeTree::new(node),
+            });
+            MediaEditResult::CommandCreated { command }
+        }
+        MediaEdit::ExecuteCommand { .. } => unreachable!("command was projected above"),
         MediaEdit::CreateScript { label: requested } => {
             let parent = manager(engine)?;
             let node = golden_core::script::ScriptNode::new(
@@ -479,6 +508,11 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
         .collect::<std::collections::HashSet<_>>();
     for (id, node) in engine.nodes.iter() {
         match node {
+            AppNode::MediaCommand(node) => {
+                if node.node_data().parent != Some(manager) || crate::parameters::has_domain_children(engine, id) {
+                    return Err("commands belong to Media Manager and contain only declared Parameters".into());
+                }
+            }
             AppNode::MediaFolder(_) if !managed.contains(&id) => {
                 return Err("media folder is outside its manager".into());
             }

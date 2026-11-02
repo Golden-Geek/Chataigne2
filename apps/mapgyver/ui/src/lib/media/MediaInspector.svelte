@@ -15,6 +15,7 @@
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
 	import MediaScriptsSection from './MediaScriptsSection.svelte';
+	import MediaCommandsSection from './MediaCommandsSection.svelte';
 	let {
 		node,
 		defaultHeader,
@@ -161,6 +162,7 @@
 	<div class="properties">
 		{#if error}<p role="alert">{error}</p>{/if}
 		{#if node.node_type === 'mapgyver.media.manager'}
+			<MediaCommandsSection {node} {defaultChildren} disabled={busy} />
 			<AssetLocatorForm
 				disabled={busy}
 				submitLabel="Import Picture"

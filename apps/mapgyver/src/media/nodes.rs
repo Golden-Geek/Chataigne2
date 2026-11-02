@@ -95,6 +95,7 @@ impl Node for MediaManagerNode {
             "mapgyver.media.asset",
             "mapgyver.application",
             "script",
+            super::commands::NODE_TYPE,
         ]))
     }
 
