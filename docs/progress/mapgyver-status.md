@@ -6,7 +6,7 @@
 
 **Current:** M05 editors and M06 Composition native editor acceptance are verified by the user.
 **Active:** M07/3 Matrix Parameter/native-feedback scope.
-**Next:** prepare the current-schema Matrix scene for a small native launch/transition review;
+**Next:** open the prepared current-schema Matrix scene for a small native launch/transition review;
 Matrix/association Parameter conversion remains required. **Blocker:** none for this manual path; display configuration,
 physical output/DPI and retained reset/timing/memory requirements remain open.
 **Usable capability:** continuous native Screen/Composition editing, aligned shape selection and
@@ -18,6 +18,12 @@ accepted for now; other timing budgets are unchanged.
 Green-overlap observation using authored source alpha, make the review baseline opaque, and
 record the supplied native checks. Existing headless Save/New/Load proves the corrected fixture.
 Preserve unrelated icon work; do not change renderer blending or rerun passed native input.
+
+**Matrix manual handoff:** 2 November16:00 CET, stop16:45 CET. M06 acceptance is pushed in
+`958afc7f`. Prepare only the existing Matrix review fixture and its precise native playback
+checklist while the user is available. The backend/grid/preview own the behavior; the observation
+must distinguish selection, requested playback and actual rendered output. No renderer code or
+native probe is added; Matrix/association Parameter conversion remains open in the same gate.
 
 | Phase | State | Progress | Done / total items |
 | --- | --- | --- | --- |
@@ -41,11 +47,23 @@ M05 stays5/8. Denominators are unchanged.
 | State | Gate(s) | Next requirement / return action |
 | --- | --- | --- |
 | Accepted | M04/5; M05/6,7; M06/4 | Source Parameters, Screen/Surface editors and Composition native selection/transform/history observations. |
-| Active | M07/3 | Matrix/association Parameter conversion and actual native playback feedback; prepare a current-schema manual scene. |
+| Active | M07/3 | Matrix/association Parameter conversion and actual native playback feedback; current-schema manual scene is ready. |
 | Pending | M08/4 | Application/collection Parameters, then native picker/lifecycle and retained retirement checks. |
 | Blocked | M05/4,5,8 | Report resolution/scaling/layout and available outputs; run the exact concurrent-output, hotplug/DPI and physical presentation cases. |
 | Blocked | M03/4,9 | Recorded reset decision, supported timing/scope decision and concrete ownership correction for the preserved memory failure. |
 | Waiting | M09/1 | All retained M03–M08 feature and qualification acceptance. |
+
+### Matrix native review prepared — 2 November
+
+The existing ordinary-headless Matrix flow passes and regenerates
+`target/m07-editor-review/MatrixReview.mapgyver`, SHA256
+`0d3db45d42b49289212a12642685b5918d1d172fe40ff72a1c9ac20d1c88f1a8`.
+It restores the initially unlaunched320×240 scene after7history operations, with one group,
+two layers, three columns and five populated cells; the owned host exits0. Source alpha is1;
+Upper layer opacity0.5 and group opacity0.8 intentionally make both first columns the same mixed
+color. Blue differs and is the visible transition reference. The manual checklist states this
+explicitly. Native launch/submission/preview feedback remains unverified. This preparation does
+not close M07/3 or its required Matrix/association Parameter conversion; M07 stays3/4.
 
 ### Manual Composition acceptance — 2 November
 

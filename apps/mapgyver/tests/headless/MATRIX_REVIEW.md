@@ -42,6 +42,11 @@ MapGyver` if needed), then **File → Open**
 columns and five source assignments. It starts **unlaunched**; the preview is initially empty.
 Sources are local Solid Colors. The adjacent `review.json` records stable IDs and the file hash.
 
+Source colors have alpha1. The Upper layer is intentionally at50% opacity and Review Group
+at80%. Thus both two-layer columns settle to the same Red/Green mixture; Blue is distinct.
+Use Blue versus either mixed column to judge visible transitions. This is authored layer/group
+opacity, independent of source alpha. Selecting a column alone must not launch it.
+
 Report each group as pass/fail/unavailable; reopen the reference file to reset changes.
 
 1. **Selection versus playback:** select rows, column labels and cells, including keyboard
