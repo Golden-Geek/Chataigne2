@@ -1,0 +1,82 @@
+{
+	"date": "2026-11-04",
+	"gate": "M08/4",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m08-control.exe",
+		"sha256": "15E200A47A359834DADFC2BABE73D2B5437D8AD6622F32510E05756786D6FF52"
+	},
+	"elevation_fixture": {
+		"path": "target/debug/application_elevation_required_fixture.exe",
+		"sha256": "54C1F87CBE94C58B27136BF90DD991129594F8ED7CFBE681D2BD5FD283FA06AA",
+		"embedded_manifest_verified": "requireAdministrator",
+		"caller_elevated": false
+	},
+	"native_picker": {
+		"result": "pass",
+		"app_pid": 37184,
+		"operator": "Computer Use @oai/sky over actual Windows Open dialogs; CDP prepares and verifies the owned app",
+		"column_owner": "cd5b02c8-ddf6-41a2-b553-90e9b5012ae0",
+		"cell_owner": "d7a7617d-9253-4262-a5ca-6eff0a219850",
+		"selected": "target/debug/application_process_fixture.exe",
+		"each_owner": [
+			"typed file committed",
+			"conditional controls appeared",
+			"toolbar Undo/Redo passed",
+			"native Cancel preserved full snapshot/revision"
+		],
+		"process_launched_by_selection": false,
+		"page_errors": [],
+		"rejected_requests": [],
+		"normal_host_exit": 0
+	},
+	"target_outcomes": {
+		"result": "partial",
+		"singleton": {
+			"external_pid": 35756,
+			"duplicate_exit": 17,
+			"adopted": false,
+			"retirement": "RetirementUnverified"
+		},
+		"launcher": {
+			"root": 21056,
+			"child": 19844,
+			"exit_code": 0,
+			"both_absent": true,
+			"retirement": "Idle"
+		},
+		"breakaway": { "pid": 35692, "error": 5, "escaped_child": false, "retirement": "Idle" },
+		"missing_image_error": 2,
+		"invalid_image_error": 216,
+		"unsupported_cmd_atomic_rejection": true,
+		"complete_retirement_verified": false,
+		"elevation_required": {
+			"error": 740,
+			"launch": "3a6448b5-e21b-4dad-8931-24eddbb16eb1",
+			"failures": 1,
+			"process_id": null,
+			"target_main_executed": false,
+			"elevation_requested": false,
+			"retirement": "Idle"
+		},
+		"running_elevated_process_verified": false,
+		"normal_host_exit": 0,
+		"combined_host_elapsed_ms": 3764
+	},
+	"experiments": [
+		"Baseline failed: strict Idle retirement timed out on singleton duplicate RetirementUnverified",
+		"Final observation: all target cases completed; singleton complete-retirement requirement remains open"
+	],
+	"logs": [
+		"target/m08-target-outcomes-baseline.log",
+		"target/m08-target-outcomes-observed.log",
+		"target/m08-native-picker.log"
+	],
+	"remaining": [
+		"Reproduced singleton complete-retirement barrier",
+		"Ordinary-app full script/callback/command lifecycle",
+		"Current project/shutdown/recovery route",
+		"Running elevated target and retained access/retirement cases"
+	]
+}

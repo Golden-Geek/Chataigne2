@@ -37,10 +37,7 @@ export async function verifyElevationRequired({
 		label: 'Elevation denial'
 	});
 	const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
-	const { application } = await applications({
-		kind: 'Create',
-		label: 'Elevation-required target'
-	});
+	const application = columns[0];
 	const { snapshot } = await applications({ kind: 'Inspect', application });
 	await applications({
 		kind: 'Configure',
@@ -56,11 +53,7 @@ export async function verifyElevationRequired({
 		}
 	});
 	const authored = (await applications({ kind: 'Inspect', application })).snapshot;
-	await matrix(reference.media, {
-		kind: 'ConfigureColumn',
-		column: columns[0],
-		definition: { transition: null, applications: [{ application, pre: 0, post: 0 }] }
-	});
+	let runtime;
 	async function observe(phase) {
 		const deadline = Date.now() + 5000;
 		while (true) {
@@ -68,8 +61,13 @@ export async function verifyElevationRequired({
 			assert.equal(snapshot.supervision.host, 'Headless');
 			assert.equal(snapshot.supervision.demand.kind, 'Running');
 			assert.equal(snapshot.callbacks.fault, null);
-			const status = snapshot.applications.find((entry) => entry.application === application);
+			const status = snapshot.applications.find(
+				(entry) =>
+					entry.runtime === runtime ||
+					entry.consumers.some((consumer) => consumer.application === application)
+			);
 			if (status) {
+				runtime = status.runtime;
 				assert.notEqual(status.process_id, externalPid, 'external process must not be adopted');
 				if (!callerElevated) {
 					assert.equal(status.process_id, null, 'non-elevated caller must not start target');

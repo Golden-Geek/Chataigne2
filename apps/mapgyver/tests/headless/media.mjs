@@ -1,4 +1,4 @@
-// M04 source intent parity through the ordinary host. No GPU or process fixtures.
+// Source intent parity through the ordinary host. Native process fixtures require explicit flags.
 // Build: cargo build --locked -p MapGyver --bin MapGyver
 // MAPGYVER_TEST_BINARY can select an isolated or packaged executable instead of target/debug.
 // Run from the repository root: node apps/mapgyver/tests/headless/media.mjs
@@ -32,6 +32,8 @@
 // Add --source-drop-ui for real Media/Channel outliner drags into Screen/Composition editors.
 // Add --catalog-ui for object-only manager creation menus.
 // Add --free-warp-ui for held invalid-shape editing and upside-down recovery.
+// Add --application-target-outcomes for actual owned singleton/launcher/breakaway/invalid-image cases.
+// Add --application-elevation-required after application_process/prepare-elevation.ps1.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -454,6 +456,66 @@ try {
 	if (process.argv.includes('--source-drop-ui')) {
 		const { verifySourceDropUi } = await import('../browser/source-drop.mjs');
 		await verifySourceDropUi({ base, post, edit, inspectMedia: inspect });
+	}
+	if (
+		process.argv.includes('--application-target-outcomes') ||
+		process.argv.includes('--application-elevation-required')
+	) {
+		const applications = (value) => edit({ kind: 'Applications', edit: value });
+		const matrix = (media, value) => edit({ kind: 'Matrix', media, edit: value });
+		const alive = (pid) => {
+			try {
+				process.kill(pid, 0);
+				return true;
+			} catch (error) {
+				if (error.code === 'ESRCH') return false;
+				throw error;
+			}
+		};
+		const fixture = path.resolve('target/debug/application_process_fixture.exe');
+		const external = spawn(fixture, [], { windowsHide: true, stdio: 'ignore' });
+		const externalExit = once(external, 'close');
+		try {
+			if (process.argv.includes('--application-target-outcomes')) {
+				const { verifyTargetOutcomes } = await import('./outcomes.mjs');
+				const targetOutcomes = await verifyTargetOutcomes({
+					applications,
+					matrix,
+					edit,
+					fixture,
+					alive
+				});
+				console.log(
+					JSON.stringify({
+						result: targetOutcomes.complete_retirement_verified ? 'pass' : 'partial',
+						target_outcomes: targetOutcomes
+					})
+				);
+			}
+			if (process.argv.includes('--application-elevation-required')) {
+				const { verifyElevationRequired } = await import('./elevation.mjs');
+				console.log(
+					JSON.stringify({
+						result: 'pass',
+						elevation: await verifyElevationRequired({
+							applications,
+							matrix,
+							edit,
+							directory,
+							alive,
+							externalPid: external.pid
+						})
+					})
+				);
+			}
+			assert(
+				alive(external.pid),
+				'same-executable external fixture survives every owned operation'
+			);
+		} finally {
+			if (external.exitCode === null) external.kill();
+			await externalExit;
+		}
 	}
 	console.log(
 		JSON.stringify({

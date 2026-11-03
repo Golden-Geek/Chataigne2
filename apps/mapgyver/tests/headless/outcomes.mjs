@@ -13,6 +13,7 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 	let singleton;
 	let singletonExit;
 	const results = {};
+	const runtimes = new Map();
 	async function json(report) {
 		const deadline = Date.now() + 5000;
 		while (true) {
@@ -31,8 +32,13 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 			const { snapshot } = await applications({ kind: 'InspectRuntime' });
 			assert.equal(snapshot.callbacks.fault, null);
 			assert.equal(snapshot.supervision.demand.kind, 'Running');
-			const status = snapshot.applications.find((entry) => entry.application === application);
+			const status = snapshot.applications.find(
+				(entry) =>
+					entry.runtime === runtimes.get(application) ||
+					entry.consumers.some((consumer) => consumer.application === application)
+			);
 			if (status) {
+				runtimes.set(application, status.runtime);
 				assert.notEqual(
 					status.process_id,
 					singleton?.pid,
@@ -52,14 +58,19 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 			media_kind: 'Matrix',
 			label: 'Target outcomes'
 		});
-		const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
 		async function target(
 			label,
 			argumentsValue,
 			readiness = { kind: 'ProcessStarted' },
 			executable = fixture
 		) {
-			const { application } = await applications({ kind: 'Create', label });
+			const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
+			const application = columns[0];
+			await matrix(reference.media, {
+				kind: 'RenameColumn',
+				column: application,
+				label
+			});
 			const { snapshot } = await applications({ kind: 'Inspect', application });
 			const definition = {
 				...snapshot.definition,
@@ -70,12 +81,7 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 				restart: { ...snapshot.definition.restart, enabled: false }
 			};
 			await applications({ kind: 'Configure', application, definition });
-			await matrix(reference.media, {
-				kind: 'ConfigureColumn',
-				column: columns[0],
-				definition: { transition: null, applications: [{ application, pre: 0, post: 0 }] }
-			});
-			await matrix(reference.media, { kind: 'LaunchColumn', column: columns[0], mode: 'Cut' });
+			await matrix(reference.media, { kind: 'LaunchColumn', column: application, mode: 'Cut' });
 			return { application, definition };
 		}
 		async function unload(application) {
@@ -83,7 +89,12 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 			const status = await observe(application, (status) =>
 				['Idle', 'RetirementUnverified'].includes(status.phase)
 			);
-			// An explicit observation gap is not complete retirement; retain it in the result.
+			// Report an unresolved ownership barrier explicitly; it does not pass complete retirement.
+			if (status.phase === 'Idle') assert.equal(status.process_id, null);
+			else {
+				assert(status.process_id, 'unverified retirement keeps the owned identity');
+				assert.equal(status.next_action_ms, null);
+			}
 			if (status.process_id !== null) assert(!alive(status.process_id));
 			if (singleton)
 				assert.equal(singleton.exitCode, null, 'owned unload must preserve the singleton');
