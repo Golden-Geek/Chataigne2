@@ -1,0 +1,39 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Shared smooth navigation implemented and functionally verified; full Screen interaction gate remains Active",
+	"ownership": {
+		"Golden UI": "Viewport2D and zoom-motion own one bounded frame animation, accumulated targets, anchor-preserving camera interpolation and cancellation. WorkbenchSession exposes backend projectGeneration separately from snapshotGeneration.",
+		"MapGyver": "Screen, Surface Source and Composition supply document identity plus the backend project lifetime. Domain operations and native lease owners are unchanged."
+	},
+	"checks": {
+		"npm test --workspace golden_ui": { "passed": 232, "failed": 0, "files": 44 },
+		"npm exec --workspace golden_ui -- vitest run components/viewport/tests": {
+			"passed": 7,
+			"failed": 0
+		},
+		"node packages/golden-ui/components/viewport/tests/browser/run.mjs": "passed intermediate frames, stable pointer anchor, rapid retargeting through unit tests, round constant handles, Home/framing/pan/keyboard, reduced motion, live snapshots, outside pointer release and cancellation on document replacement",
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace chataigne-ui": "0 errors, 0 warnings after the public session API change",
+		"npm run test:browser --workspace golden_video_ui": "passed lifecycle, scale-3 qualification/recovery and continuity fixture; no Screen flashes or retirement-mask overlap",
+		"cargo build --locked -p MapGyver --bin MapGyver": "exit 0 with ordinary bundled frontend; no stub UI",
+		"node apps/mapgyver/tests/headless/media.mjs --navigation-ui": "exit 0; Screen, Surface Source and Composition each expose 9 intermediate sampled frames, retain pointer anchors and share image/overlay DOM geometry. Pointer input freezes motion, Screen/Surface definitions remain unchanged and same-UUID New/Load resets camera.",
+		"node apps/mapgyver/tests/headless/media.mjs --free-warp-ui": "exit 0; held invalid quad, red overlay, upside-down recovery and history remain functional",
+		"node apps/mapgyver/tests/browser/native-navigation.mjs": "exit 0; actual bundled WebView2, all three editors each expose 38 intermediate sampled frames, stable anchors, shared image/overlay DOM geometry, cancelled edit motion and same-UUID project replacement. Native views install before/after motion; app exits normally 0."
+	},
+	"invariants": [
+		"One displayed camera drives native geometry, overlays and hit testing; there is no independent CSS transition.",
+		"At most one animation frame is pending, and no frame remains after completion, cancellation or disposal.",
+		"Requested zoom accumulates while retargeting from the displayed camera without an immediate jump; zoom limits remain 0.05..64.",
+		"Pan/domain pointer input freezes motion. Pointer release outside the viewport clears the navigation guard. Home, framing, real size changes, project identity changes and disposal cancel pending animation.",
+		"Equal-size snapshot receipts preserve motion/camera. Backend project generation distinguishes replacement of the same document UUID from ordinary full-snapshot refreshes.",
+		"Reduced-motion preference applies the same bounded target immediately. No authored setting or engine/frame polling is added."
+	],
+	"scope_limits": [
+		"CSS DOM image/overlay geometry was compared within one CSS pixel during sampled animation. This is not proof of native underlay physical-pixel/DPI accuracy or input latency; the full M05/8 physical matrix remains open.",
+		"Native input uses real wheel/toolbar actions; the app fixture also dispatches a pointer-down cancellation check. Actual Surface/handle selection, keyboard repeat grouping, Alt translation and backend Fill/Fit remain required before M05/6 acceptance.",
+		"No Rust runtime or protocol DTO changed; existing Rust and generated-contract results remain applicable."
+	],
+	"next": "Keep M05/6 Active. Deliver Surface/shared Inspector selection, background deselection, selected/hover handles and editor-local handle selection, then grouped 1/10-output-pixel keyboard edits, Alt translation and backend Fill/Fit with actual pointer/keyboard/native validation.",
+	"gate_changes": "None. 28/57 accepted gates, M04 5/8 (63%), M05 3/10 (30%), fully accepted phases 3/11 (27%)."
+}

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { NativePreview } from 'golden_video_ui';
-	import { Viewport2D } from 'golden_ui';
+	import { appState, Viewport2D } from 'golden_ui';
 	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
@@ -41,7 +41,7 @@
 <section aria-label="Surface Source preview">
 	<Viewport2D
 		aspect={extent ? extent.width / extent.height : 16 / 9}
-		identity={surface.reference.surface}
+		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 		selection={surface.definition.crop}
 		label="Surface source view"
 		native={identity !== null}>

@@ -52,6 +52,8 @@ export interface WorkbenchSession {
 	readonly runtimeStats: UiRuntimeStats | null;
 	/** Monotonic count of full snapshots applied by this session. */
 	readonly snapshotGeneration: number;
+	/** Backend project lifetime; unchanged by an ordinary full-snapshot refresh. */
+	readonly projectGeneration: number | null;
 	/** Monotonic signal emitted after a project graph transition barrier releases. */
 	readonly graphTransitionRevision: number;
 	readonly engineLowFrequencyHz: number;

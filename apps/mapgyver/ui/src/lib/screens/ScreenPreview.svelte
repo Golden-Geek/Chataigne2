@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { NativePreview } from 'golden_video_ui';
-	import { Viewport2D, pointBounds } from 'golden_ui';
+	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	import { usePreview } from '../preview/context.svelte';
@@ -51,7 +51,7 @@
 <section aria-label="Screen preview">
 	<Viewport2D
 		aspect={extent ? extent.width / extent.height : 16 / 9}
-		identity={screen.id}
+		identity={`${appState.session?.projectGeneration ?? 0}:${screen.id}`}
 		{selection}
 		label="Screen view"
 		native>

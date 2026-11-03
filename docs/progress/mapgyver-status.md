@@ -3,21 +3,22 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M05/6 shared smooth navigation and Screen interaction.
-**Next deliverable:** reusable pointer-anchored animated zoom for Screen, Surface Source and
-Composition, then selected/hovered handles, grouped keyboard movement and backend Fill/Fit.
+**Next deliverable:** Screen Surface/shared Inspector and background selection, selected/hovered
+handles and editor-local handle selection; then grouped keyboard movement and backend Fill/Fit.
 **Execution:** M04/1–3,7–8 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next delivery:** none known. Retained source/device/timing/memory/display gates remain below.
-**Usable now:** simultaneous independent Media Preview panels with follow/lock, channel choice,
+**Usable now:** shared smooth anchored zoom in Screen, Surface Source and Composition;
+simultaneous independent Media Preview panels with follow/lock, channel choice,
 paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Independent Media Preview](../architecture/mapgyver-media-preview.md):
-eight side-by-side native views, persisted independent locks/channel/grid, real transport
-reconnect, layout reload and New/Load fencing pass. A persistent receiver records 273 frames
-under one sender handle without absence/errors; full output pixels stay correct through closing
-every preview, editing the source without previews and project reload.
+**Last delivered capability:** [Shared smooth navigation](evidence/mapgyver-smooth-navigation-2026-11-03.json):
+all three bundled/native editors animate around a stable pointer anchor and share image/overlay
+DOM geometry. Pan/edit/Home/frame/resize/project/disposal cancel obsolete motion. Reduced motion
+snaps to the same target, ordinary equal-size snapshots preserve it, and same-UUID reload resets
+the old camera through Golden's public backend project-generation identity.
 **Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
 including its complete original functional contract. M04/7 Reference remains accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -56,7 +57,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | Deliver reusable smooth pointer-anchored zoom across Screen/Surface Source/Composition, then Screen selection/hover handles, grouped 1/10-pixel keyboard edits, Alt translation and backend Fill/Fit. Verify actual pointer/keyboard and native alignment; retain M05/8 physical matrix. |
+| Active   | M05/6            | Shared smooth zoom is delivered and bundled/native interaction passes. Finish Screen Surface/shared Inspector and background selection, selected/hover handles, local handle selection, grouped 1/10-pixel keyboard edits, Alt translation and backend Fill/Fit. Verify actual pointer/keyboard and native alignment; retain M05/8 physical matrix. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
@@ -85,22 +86,22 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M04/8 simultaneous native panels and independent-output acceptance,
-  started 2026-11-03 05:40 CET; cutoff 06:25 CET. Existing native editor/receiver/pixel roles
-  prove eight side-by-side views, independent saved lock/channel/grid, actual socket reconnect,
-  layout reload, final preview close and project New/Load lock recovery. Exact Screen/Spout
-  pixels pass at eight lifecycle checkpoints, including red after all previews close, green
-  after a source edit without previews and saved red after reload. One continuous receiver
-  records **273 frames, 0 absent, 0 failed receives, 0 mismatches/overflow**, one sender handle.
-  Both app and receiver exit normally 0; no admission limits change.
-  **Checks:** prerequisite ordinary bundled/native-qualification binaries compile; final
-  software and native continuity flows pass with no page errors/rejected requests. Reuse
-  unchanged product-slice Rust/UI/lifecycle checks. [Requirement audit, results and exact limits](evidence/mapgyver-media-preview-native-2026-11-03.json).
-  **Gate closed: M04/8.** Cadence/GPU/memory/device/physical qualification remains in its
-  existing gates; the observed receive gap is not a new budget. Legacy `--matrix-ui` still
-  awaits M07 modernization of its obsolete Channel name assertion.
-  Counts: **28/57 gates, M04 5/8 (63%), 3/11 phases (27%)**. Next selected gate is M05/6;
-  begin its reusable smooth-zoom product slice only after this acceptance milestone is pushed.
+- **Current handoff:** M05/6 reusable smooth navigation, started 2026-11-03 05:53 CET;
+  cutoff 06:38 CET. Golden owns one frame-driven anchored camera and its lifecycle; MapGyver
+  supplies backend project-generation identities for Screen, Surface Source and Composition.
+  Implemented accumulated zoom targets, reduced motion and safe pan/edit/Home/frame/resize/
+  replacement/disposal cancellation. Ordinary equal-size snapshots preserve the camera;
+  pointer release outside the viewport leaves navigation usable.
+  **Verified:** 232 Golden UI tests (including 7 focused geometry/motion tests), viewport real-
+  input browser suite, MapGyver/Chataigne UI checks with zero diagnostics, native UI lifecycle/
+  continuity fixtures, ordinary bundled build, three-editor navigation and retained free-warp
+  input/history regression. Actual native WebView2 observes 38 intermediate samples per editor,
+  stable anchors, image/overlay DOM geometry and same-UUID New/Load camera reset; host exit 0.
+  [Evidence and precise limits](evidence/mapgyver-smooth-navigation-2026-11-03.json).
+  **Gate changes:** none; M05/6 alone remains Active. Next deliver Surface/shared Inspector and
+  background selection, selected/hover/local handles, then grouped 1/10-pixel keyboard edits,
+  Alt translation and backend Fill/Fit. Physical-pixel/DPI/latency qualification stays M05/8.
+  Counts remain **28/57 gates, M04 5/8 (63%), M05 3/10 (30%), 3/11 phases (27%)**.
 
 ## Maintenance rule
 

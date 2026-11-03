@@ -74,11 +74,7 @@ import {
 import { createWorkbenchSelectionStore } from './session/selection.svelte';
 import { createWorkbenchWarningStore } from './session/warnings.svelte';
 import { createWorkbenchCommandSuite } from './session/commands.svelte';
-import type {
-	FooterHoverInfo,
-	WorkbenchToast,
-	WorkbenchToastLevel
-} from './session/types';
+import type { FooterHoverInfo, WorkbenchToast, WorkbenchToastLevel } from './session/types';
 export type {
 	FooterHoverInfo,
 	NodeWarningRecord,
@@ -173,7 +169,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	let mountedCleanup: (() => void) | null = null;
 	let hasLoadedSnapshot = false;
 	let snapshotGeneration = $state(0);
-	let projectGeneration: number | null = null;
+	let projectGeneration = $state<number | null>(null);
 	let connectionState: UiTransportConnectionState = 'connecting';
 	let engineHz = $state<number | null>(null);
 	let runtimeStats = $state<UiRuntimeStats | null>(null);
@@ -812,6 +808,9 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		},
 		get snapshotGeneration(): number {
 			return snapshotGeneration;
+		},
+		get projectGeneration(): number | null {
+			return projectGeneration;
 		},
 		get graphTransitionRevision(): number {
 			return projectGraphTransitions.revision;

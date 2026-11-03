@@ -164,6 +164,9 @@ Surfaces preserve alpha.
 Screen, Surface Source and Composition share Golden viewport navigation. Zoom animates toward
 the requested scale with a stable pointer anchor; native imagery, overlays and hit testing share
 the same transform. Disposal/document replacement cancels obsolete animation.
+The implementation lives in Golden UI's [Viewport2D](../../packages/golden-ui/components/viewport/README.md)
+and its bounded animation owner. App previews include the public backend `projectGeneration`
+in their document identity; a full-snapshot refresh of the same project does not reframe it.
 
 Screen clicks select the actual Surface for shared Inspector; background clicks clear Surface/
 handle selection. Handles show only for selected/hovered Surfaces. Individual handle selection

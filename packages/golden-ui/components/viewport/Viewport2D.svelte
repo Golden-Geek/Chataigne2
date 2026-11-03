@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { untrack, type Snippet } from 'svelte';
+	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { cameraZoomFactor } from 'golden_graph_ui/camera-geometry';
 	import IconButton from '../common/IconButton.svelte';
 	import homeIcon from '../../style/icons/viewport/home.svg';
 	import frameIcon from '../../style/icons/viewport/frame.svg';
 	import zoomInIcon from '../../style/icons/viewport/zoom-in.svg';
 	import zoomOutIcon from '../../style/icons/viewport/zoom-out.svg';
-	import { fitSize, frameBounds, zoomAt, type ViewBounds, type ViewCamera } from './geometry';
+	import { fitSize, frameBounds, type ViewBounds, type ViewCamera } from './geometry';
+	import { createZoomMotion } from './zoom-motion';
 	let {
 		aspect,
 		identity,
@@ -28,10 +29,20 @@
 		height = $state(0);
 	let camera = $state<ViewCamera>({ zoom: 1, pan: { x: 0, y: 0 } });
 	let space = $state(false);
+	let pressed = $state<number | null>(null);
+	const motion = createZoomMotion(
+		() => camera,
+		(next) => {
+			camera = next;
+		}
+	);
 	let appliedIdentity: string | undefined;
+	let appliedSize = { width: 0, height: 0 };
 	let drag = $state<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
 	const size = $derived(fitSize(width, height, aspect));
 	function home() {
+		motion.cancel();
+		release();
 		camera = { zoom: 1, pan: { x: 0, y: 0 } };
 	}
 	$effect(() => {
@@ -43,9 +54,12 @@
 		untrack(home);
 	});
 	function zoom(factor: number, x = 0, y = 0) {
-		camera = zoomAt(camera, camera.zoom * factor, { x, y });
+		if (pressed !== null) return;
+		motion.zoom(factor, { x, y }, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 	}
 	function frame() {
+		motion.cancel();
+		release();
 		if (!selection) return home();
 		const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 		const next = frameBounds(selection, size, { width, height }, 3 * rem);
@@ -62,6 +76,8 @@
 	}
 	function down(event: PointerEvent) {
 		if (isControl(event.target)) return;
+		motion.cancel();
+		pressed ??= event.pointerId;
 		element.focus({ preventScroll: true });
 		if (drag || !(event.button === 1 || (event.button === 0 && space))) return;
 		event.preventDefault();
@@ -76,6 +92,7 @@
 		element.setPointerCapture(event.pointerId);
 	}
 	function release(event?: PointerEvent) {
+		if (!event || event.pointerId === pressed) pressed = null;
 		if (!drag || (event && event.pointerId !== drag.id)) return;
 		const id = drag.id;
 		drag = null;
@@ -84,6 +101,7 @@
 	function keydown(event: KeyboardEvent) {
 		if (
 			event.defaultPrevented ||
+			pressed !== null ||
 			isEditable(event.target) ||
 			event.ctrlKey ||
 			event.metaKey ||
@@ -102,14 +120,27 @@
 		event.preventDefault();
 		event.stopPropagation();
 	}
+	$effect(() => {
+		const next = size;
+		if (next.width === appliedSize.width && next.height === appliedSize.height) return;
+		appliedSize = next;
+		untrack(motion.cancel);
+	});
+	onDestroy(() => {
+		motion.dispose();
+		release();
+	});
 </script>
 
 <svelte:window
+	onpointerup={release}
+	onpointercancel={release}
 	onkeyup={(event) => {
 		if (event.code === 'Space') space = false;
 	}}
 	onblur={() => {
 		space = false;
+		motion.cancel();
 		release();
 	}} />
 
@@ -142,8 +173,9 @@
 		if (space || drag) event.preventDefault();
 	}}
 	onwheel={(event) => {
-		if (isControl(event.target) || drag) return;
+		if (isControl(event.target)) return;
 		event.preventDefault();
+		if (pressed !== null) return;
 		element.focus({ preventScroll: true });
 		const rect = element.getBoundingClientRect();
 		zoom(
@@ -169,7 +201,7 @@
 			label="Zoom out"
 			title="Zoom out (-)"
 			onclick={() => zoom(1 / 1.2)} />
-		<output aria-label="View zoom">{Math.round(camera.zoom * 100)}%</output>
+		<output aria-label="View zoom" data-zoom={camera.zoom}>{Math.round(camera.zoom * 100)}%</output>
 		<IconButton icon={zoomInIcon} label="Zoom in" title="Zoom in (+)" onclick={() => zoom(1.2)} />
 		<IconButton
 			icon={frameIcon}

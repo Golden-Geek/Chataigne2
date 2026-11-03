@@ -30,6 +30,14 @@ try {
 	const handle = page.getByRole('button', { name: 'Test handle' });
 	const selection = page.getByLabel('Test selection');
 	const zoom = view.getByLabel('View zoom');
+	const atZoom = (value) =>
+		page.waitForFunction(
+			(value) =>
+				Math.abs(
+					Number(document.querySelector('output[aria-label="View zoom"]').dataset.zoom) - value
+				) < 1e-9,
+			value
+		);
 	const box = async (locator) => {
 		const value = await locator.boundingBox();
 		assert(value);
@@ -53,9 +61,37 @@ try {
 	);
 	const originalHandle = await roundHandle();
 	const anchor = { x: initial.x + initial.width * 0.4, y: initial.y + initial.height * 0.45 };
+	await page.evaluate(() => {
+		window.__zoomSamples = [];
+		const until = performance.now() + 500;
+		function sample() {
+			const rect = document.querySelector('.active-zone').getBoundingClientRect();
+			window.__zoomSamples.push({
+				zoom: Number(document.querySelector('output[aria-label="View zoom"]').dataset.zoom),
+				x: rect.x + rect.width * 0.4,
+				y: rect.y + rect.height * 0.45
+			});
+			if (performance.now() < until) requestAnimationFrame(sample);
+		}
+		requestAnimationFrame(sample);
+	});
 	await page.mouse.move(anchor.x, anchor.y);
 	await page.mouse.wheel(0, -100);
 	await zoom.getByText('115%').waitFor();
+	await atZoom(Math.exp(0.14));
+	const samples = await page.evaluate(() => window.__zoomSamples);
+	assert(
+		new Set(
+			samples
+				.filter((sample) => sample.zoom > 1 && sample.zoom < Math.exp(0.14))
+				.map((sample) => sample.zoom)
+		).size >= 2,
+		'wheel produces intermediate animation frames'
+	);
+	for (const sample of samples) {
+		near(sample.x, anchor.x, 'animated anchor X');
+		near(sample.y, anchor.y, 'animated anchor Y');
+	}
 	const zoomed = await box(active);
 	near(zoomed.x + zoomed.width * 0.4, anchor.x, 'wheel anchor X');
 	near(zoomed.y + zoomed.height * 0.45, anchor.y, 'wheel anchor Y');
@@ -70,6 +106,7 @@ try {
 	await view.focus();
 	await page.keyboard.press('Home');
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	near((await box(active)).x, initial.x, 'Home resets pan');
 	const handlePosition = await box(handle);
 	await page.keyboard.down('Space');
@@ -96,6 +133,7 @@ try {
 	near((await box(active)).y, panned.y + 20, 'middle pan Y');
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await zoom.getByText('120%').waitFor();
+	await atZoom(1.2);
 	const beforeEdit = await box(active);
 	await handle.click();
 	assert.equal(await page.getByLabel('Domain edit starts').textContent(), '1');
@@ -108,6 +146,7 @@ try {
 	await view.focus();
 	await page.keyboard.press('f');
 	await zoom.getByText('400%').waitFor();
+	await atZoom(4);
 	const framed = await box(selection);
 	const stageBounds = await box(stage);
 	near(framed.x + framed.width / 2, stageBounds.x + stageBounds.width / 2, 'F centers selection X');
@@ -119,39 +158,59 @@ try {
 	await roundHandle(originalHandle);
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await zoom.getByText('120%').waitFor();
+	await atZoom(1.2);
 	await view.getByRole('button', { name: 'Zoom out', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	await page.keyboard.press('f');
 	await zoom.getByText('400%').waitFor();
+	await atZoom(4);
 	await view.getByRole('button', { name: 'Frame selection', exact: true }).click();
 	await zoom.getByText('400%').waitFor();
+	await atZoom(4);
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	assert.equal(await view.getByRole('button', { name: 'Pan view', exact: true }).count(), 0);
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await zoom.getByText('120%').waitFor();
+	await atZoom(1.2);
 	await page.keyboard.press('+');
 	await zoom.getByText('144%').waitFor();
+	await atZoom(1.44);
 	await page.keyboard.press('-');
 	await zoom.getByText('120%').waitFor();
+	await atZoom(1.2);
 	await page.keyboard.press('h');
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await page.keyboard.press('Home');
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	const zoomIn = view.getByRole('button', { name: 'Zoom in', exact: true });
 	assert.equal(await zoomIn.getAttribute('title'), 'Zoom in (+)');
 	await zoomIn.focus();
 	await page.keyboard.press('Space');
 	await zoom.getByText('120%').waitFor();
+	await atZoom(1.2);
 	assert.equal(await view.evaluate((element) => element.classList.contains('panning')), false);
 	await page.keyboard.press('h');
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	await page.getByRole('button', { name: 'Change document', exact: true }).click();
 	await zoom.getByText('100%').waitFor();
+	await atZoom(1);
+	await page.waitForTimeout(200);
+	assert.equal(
+		await zoom.getAttribute('data-zoom'),
+		'1',
+		'document replacement cancels pending animation'
+	);
 	await page.getByRole('button', { name: 'Resize view', exact: true }).click();
 	await page.waitForFunction(
 		() => document.querySelector('main').getBoundingClientRect().width === 512
@@ -164,12 +223,30 @@ try {
 		await active.evaluate((element) => getComputedStyle(element).backgroundColor),
 		'rgba(0, 0, 0, 0)'
 	);
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	assert.equal(await zoom.getAttribute('data-zoom'), '1.2');
+	await page.emulateMedia({ reducedMotion: 'no-preference' });
+	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	const released = await box(active);
+	await page.mouse.move(released.x + released.width / 2, released.y + released.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(5, 5);
+	await page.mouse.up();
+	await page.mouse.move(released.x + released.width / 2, released.y + released.height / 2);
+	await page.mouse.wheel(0, -100);
+	await page.getByRole('button', { name: 'Update geometry snapshot', exact: true }).click();
+	await atZoom(Math.exp(0.14));
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			blackActiveArea: true,
 			roundConstantHandles: true,
 			anchoredWheelZoom: true,
+			smoothIntermediateFrames: true,
+			animationCancelledOnDocumentReplacement: true,
+			reducedMotion: true,
+			outsidePointerReleaseAndLiveSnapshot: true,
 			spacePan: true,
 			middlePan: true,
 			home: true,

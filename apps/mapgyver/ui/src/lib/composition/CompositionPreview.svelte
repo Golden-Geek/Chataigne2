@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Viewport2D, pointBounds } from 'golden_ui';
+	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 	import type { InstanceId } from '../media/generated/InstanceId';
@@ -65,7 +65,7 @@
 
 <Viewport2D
 	aspect={composition.canvas.width / composition.canvas.height}
-	identity={channel.reference.channel}
+	identity={`${appState.session?.projectGeneration ?? 0}:${channel.reference.channel}`}
 	{selection}
 	label="Composition view"
 	native>
