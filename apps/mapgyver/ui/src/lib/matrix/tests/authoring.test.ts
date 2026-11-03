@@ -39,8 +39,7 @@ function snapshot(media: string, row = 0): MediaEditResult {
 							kind: 'Final',
 							definition: {
 								canvas: { width: 4, height: 2 },
-								empty_cell: 'Transparent',
-								transition: { duration_ms: 250, curve: 'Linear' }
+								empty_cell: 'Transparent'
 							}
 						}
 					},

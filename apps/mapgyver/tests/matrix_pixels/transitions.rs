@@ -66,13 +66,7 @@ pub(super) fn check(adapter: AdapterId) {
         &mut engine,
         root.media,
         MatrixEdit::Configure {
-            settings: MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 6000,
-                    curve: TransitionCurve::Linear,
-                },
-                ..Default::default()
-            },
+            settings: MatrixSettings::default(),
         },
     );
     let MediaEditResult::MatrixCreated { items, .. } = matrix(
@@ -103,6 +97,23 @@ pub(super) fn check(adapter: AdapterId) {
     };
     matrix(&mut engine, root.media, MatrixEdit::AddColumns { count: 3 });
     let snapshot = inspect(&mut engine, root.media);
+    matrix(
+        &mut engine,
+        root.media,
+        MatrixEdit::ConfigureLayer {
+            layer,
+            settings: LayerSettings {
+                duration_ms: 6000,
+                ..snapshot
+                    .items
+                    .iter()
+                    .find(|item| item.id == MatrixItemId::Layer { id: layer })
+                    .unwrap()
+                    .layer
+                    .unwrap()
+            },
+        },
+    );
     let columns = snapshot.columns.iter().map(|c| c.id).collect::<Vec<_>>();
     matrix(
         &mut engine,

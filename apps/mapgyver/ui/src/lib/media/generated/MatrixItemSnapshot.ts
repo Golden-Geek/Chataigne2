@@ -2,6 +2,7 @@
 import type { ChannelReference } from "./ChannelReference";
 import type { CompositeSettings } from "./CompositeSettings";
 import type { GroupId } from "./GroupId";
+import type { LayerSettings } from "./LayerSettings";
 import type { MatrixItemId } from "./MatrixItemId";
 
-export type MatrixItemSnapshot = { id: MatrixItemId, parent: GroupId | null, label: string, settings: CompositeSettings, channel: ChannelReference, };
+export type MatrixItemSnapshot = { id: MatrixItemId, parent: GroupId | null, label: string, settings: CompositeSettings, layer: LayerSettings | null, channel: ChannelReference, };

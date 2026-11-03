@@ -91,14 +91,22 @@ show; it never changes settings or runtime policy. Empty File values represent u
 locators, so shared extension constraints permit clearing them; chosen paths retain extension
 validation and app-owned absolute executable validation.
 
-Matrix Layer v2 and Group v2 now declare opacity, blend and render enablement as real Parameters.
+Matrix Layer v3 and Group v2 declare opacity, blend and render enablement as real Parameters.
 Their immutable kind comes from the persisted node type; `ElementDefinition` and row snapshots
 only project these values. `ConfigureItem` uses one `SetParamsAtomic` proposal, sharing validation,
 invalidation and exact Undo with direct generic edits. Forest copying preserves the declared
 Parameter/control tree with fresh identities. Unsupported row schemas and non-null opaque row
 data reject before recoverable decoding. Ordinary blending controls use the generic Inspector;
-the old custom blending form and opaque row codec are removed. Layer position/canvas/duration,
+the old custom blending form and opaque row codec are removed. Layer-only position, integer
+canvas size and transition duration are also declared Parameters. `ConfigureLayer` writes them
+atomically; Group nodes do not materialize them. Layer v2 and obsolete Matrix-wide transition
+Parameter records reject before recoverable decoding; there is no compatibility migration.
 Cell transforms and the full Matrix model/default/grid conversion remain in M07.
+
+Layer position is the top-left in its parent canvas's pixels. Its own canvas clips children at
+their native size; optional Media Resolution resamples the exported texture without changing
+the authored logical placement. Render preparation builds the mapping off the engine thread.
+Final/Group capture reads the current Media canvas rather than caching a stale Resolution.
 
 Cell v2 and Column v2 declare this subtree directly and own their application identities. The public
 `ApplicationId` equals the persistent consumer UUID; the default settings child's internal UUID
@@ -141,8 +149,8 @@ The generic Inspector presents the selected consumer's actual configuration stat
 consumer count. Runtime identities and native observations are not project data.
 
 `LaunchCell` changes one Layer's ephemeral request without changing the Column anchor. Cell
-transition override Parameters take precedence over the Column override and current Matrix
-fallback; conversion to the required typed Layer duration remains M07 work. Disabled Cells skip
+transition override Parameters take precedence over the Column override and typed Layer
+duration. There is no authored Matrix-wide fallback. Disabled Cells skip
 individual activation and preserve the previous Layer request during Column launches. Empty
 enabled addresses transition toward transparency without creating authored Cell nodes.
 
@@ -153,6 +161,11 @@ The original 32-way Column interruption limit remains, and independent Layers us
 functional changes do not waive those budgets. Immutable Layer maps/stamps and captured app arrays
 avoid copying whole-Matrix binding state for each Layer. A separate authored-policy cache keeps
 logical/headless control independent of render-index construction.
+
+The modal Layer duration supplies the shared mix, with deterministic shortest-duration ties.
+Only active source/app Layers and retained consumers need sparse exceptional requests, bounded
+by the existing 4,096 binding limit. Admission checks the completed request's actual timed mixes;
+a zero-duration cut cannot hide a timed Layer from its unchanged 32-contributor limit.
 
 Logical capture includes every committed Layer request, including a Column-origin request held
 by a disabled destination. Such a hold keeps that Cell and its originating Column control;

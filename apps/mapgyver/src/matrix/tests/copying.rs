@@ -217,10 +217,17 @@ fn document_item_and_column_settings_rename_move_and_export_ids_survive_reload()
         },
     );
     assert!(ack.success, "{ack:?}");
-    definition.transition = TransitionDefinition {
-        duration_ms: 450,
-        curve: TransitionCurve::SmoothStep,
-    };
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureLayer {
+            layer: layer(items[0]),
+            settings: LayerSettings {
+                duration_ms: 450,
+                ..Default::default()
+            },
+        },
+    );
     edit(
         &mut engine,
         matrix.media,

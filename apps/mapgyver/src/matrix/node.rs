@@ -4,12 +4,12 @@ use golden_core::{
     edit::Edit,
     node,
     node::{Node, NodeId, ParameterHandle, ParameterValidationContext, UserContainerRules},
-    parameter::{Enum, ParamValue, ParameterEventBehaviour},
+    parameter::{Enum, ParamValue, ParameterEventBehaviour, Vec2},
     process_ctx::ProcessCtx,
 };
 use std::sync::OnceLock;
 
-pub const LAYER_TYPE: &str = "mapgyver.matrix.layer.v2";
+pub const LAYER_TYPE: &str = "mapgyver.matrix.layer.v3";
 pub const GROUP_TYPE: &str = "mapgyver.matrix.group.v2";
 pub use super::cell_node::CELL_TYPE;
 pub use super::column_node::COLUMN_TYPE;
@@ -27,6 +27,11 @@ enum Kind {
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     blend: Enum = "Normal" (label = "Blend", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
     render_enabled: bool = true (label = "Render enabled");
+    position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", dependency = |node: &Self| node.is_layer());
+    canvas_size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
+        label = "Canvas size", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
+    duration_ms: f64 = 250.0 [0.0..4294967295.0] (
+        label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
 })]
 pub struct ElementNode {
     #[state(default = Kind::Layer)]
@@ -35,6 +40,77 @@ pub struct ElementNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ElementNode {
+    fn is_layer(&self) -> bool {
+        matches!(self.kind, Kind::Layer)
+    }
+    pub(crate) fn with_layer_settings(mut self, settings: LayerSettings) -> Self {
+        self.position = ParameterHandle::new(Vec2::new(
+            f64::from(settings.position[0]),
+            f64::from(settings.position[1]),
+        ));
+        self.canvas_size = ParameterHandle::new(Vec2::new(
+            f64::from(settings.size.width()),
+            f64::from(settings.size.height()),
+        ));
+        self.duration_ms = ParameterHandle::new(f64::from(settings.duration_ms));
+        self
+    }
+    pub(crate) fn layer_settings(&self) -> Result<Option<LayerSettings>, String> {
+        if !self.is_layer() {
+            return Ok(None);
+        }
+        self.validate_spatial(None)?;
+        let position = self.position.get();
+        let size = self.canvas_size.get();
+        Ok(Some(LayerSettings {
+            position: [position.x as f32, position.y as f32],
+            size: golden_video::Extent2D::new(size.x as u32, size.y as u32).map_err(|error| error.to_string())?,
+            duration_ms: self.duration_ms.get() as u32,
+        }))
+    }
+    pub(super) fn spatial_edit(&self, settings: LayerSettings) -> Edit {
+        Edit::SetParamsAtomic {
+            values: vec![
+                (
+                    self.position.id(),
+                    ParamValue::Vec2(f64::from(settings.position[0]), f64::from(settings.position[1])),
+                ),
+                (
+                    self.canvas_size.id(),
+                    ParamValue::Vec2(f64::from(settings.size.width()), f64::from(settings.size.height())),
+                ),
+                (
+                    self.duration_ms.id(),
+                    ParamValue::Float(f64::from(settings.duration_ms)),
+                ),
+            ],
+            behaviour: ParameterEventBehaviour::Append,
+        }
+    }
+    fn validate_spatial(&self, change: Option<&ParameterValidationContext<'_>>) -> Result<(), String> {
+        if !self.is_layer() {
+            return Ok(());
+        }
+        let vector =
+            |handle: &ParameterHandle<Vec2>| match change.and_then(|change| change.parameter_value(handle.id())) {
+                Some(ParamValue::Vec2(x, y)) => Vec2::new(x, y),
+                _ => handle.get(),
+            };
+        let position = vector(&self.position);
+        let size = vector(&self.canvas_size);
+        let duration = match change.and_then(|change| change.parameter_value(self.duration_ms.id())) {
+            Some(ParamValue::Float(value)) => value,
+            _ => self.duration_ms.get(),
+        };
+        if ![position.x as f32, position.y as f32].into_iter().all(f32::is_finite)
+            || ![size.x, size.y]
+                .into_iter()
+                .all(|value| value.is_finite() && value.fract() == 0.0 && (1.0..=16384.0).contains(&value))
+        {
+            return Err("Layer position must be finite and canvas size must be whole pixels in 1..16384".into());
+        }
+        super::column_node::validate(duration, "Linear")
+    }
     pub(crate) fn from_definition(label: String, definition: ElementDefinition) -> Self {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
@@ -85,6 +161,7 @@ impl ElementNode {
         }
     }
     fn validate(&self, change: Option<&ParameterValidationContext<'_>>) -> Result<(), String> {
+        self.validate_spatial(change)?;
         let opacity = match change.and_then(|change| change.parameter_value(self.opacity.id())) {
             Some(ParamValue::Float(value)) => value,
             _ => self.opacity.get(),

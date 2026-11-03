@@ -160,17 +160,17 @@ fn disabled_column_cell_holds_previous_layer_content_until_an_enabled_launch() {
         assert_eq!(actual.inputs[0].source == old, !enabled);
     }
 }
-fn time() -> TimeSnapshot {
+pub(super) fn time() -> TimeSnapshot {
     TimeAuthority::new(Clock, ShowPosition::from_nanos(0), PlaybackRate::NORMAL)
         .unwrap()
         .sample()
         .unwrap()
 }
-fn at(time: TimeSnapshot, millis: u64) -> TimeSnapshot {
+pub(super) fn at(time: TimeSnapshot, millis: u64) -> TimeSnapshot {
     time.at_monotonic(MonotonicTime::from_nanos(millis * 1_000_000))
         .unwrap()
 }
-fn capture(
+pub(super) fn capture(
     engine: &AppEngine,
     media: MediaId,
     row: LayerId,

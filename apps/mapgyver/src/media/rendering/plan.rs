@@ -275,37 +275,44 @@ pub(super) fn build(
                             color_encoding: ColorEncoding::Linear,
                             alpha_mode: AlphaMode::Premultiplied,
                         };
-                        let mut layers = super::derived::matrix_layers(channel, definition.filter, &prepared_channels);
-                        if matrix.opacity < 1.0 && layers.len() > 1 {
-                            let scratch = match entry.scratch {
-                                Some(scratch) => scratch,
-                                None => allocate(next)?,
-                            };
-                            entry.scratch = Some(scratch);
-                            submission.plan.passes.push(RenderPass {
-                                id: PassId::new(scratch.get()).unwrap(),
-                                output: scratch,
-                                descriptor,
-                                operation: RenderOperation::Composite { layers },
-                            });
-                            layers = vec![golden_video::plan::Layer {
-                                source: scratch.into(),
-                                opacity_envelope: None,
-                                opacity: golden_video::Opacity::new(matrix.opacity)
-                                    .map_err(|error| error.to_string())?,
-                                blend: golden_video::plan::BlendMode::Normal,
-                                filter: definition.filter,
-                                mapping: None,
-                            }];
+                        if let Ok(mut layers) =
+                            super::derived::matrix_layers(channel, definition.filter, &prepared_channels)
+                        {
+                            if matrix.opacity < 1.0 && layers.len() > 1 {
+                                let scratch = match entry.scratch {
+                                    Some(scratch) => scratch,
+                                    None => allocate(next)?,
+                                };
+                                entry.scratch = Some(scratch);
+                                submission.plan.passes.push(RenderPass {
+                                    id: PassId::new(scratch.get()).unwrap(),
+                                    output: scratch,
+                                    descriptor,
+                                    operation: RenderOperation::Composite { layers },
+                                });
+                                layers = vec![golden_video::plan::Layer {
+                                    source: scratch.into(),
+                                    opacity_envelope: None,
+                                    opacity: golden_video::Opacity::new(matrix.opacity)
+                                        .map_err(|error| error.to_string())?,
+                                    blend: golden_video::plan::BlendMode::Normal,
+                                    filter: definition.filter,
+                                    mapping: None,
+                                }];
+                            } else {
+                                entry.scratch = None;
+                                if let Some(layer) = layers.first_mut() {
+                                    layer.opacity = golden_video::Opacity::new(matrix.opacity)
+                                        .map_err(|error| error.to_string())?;
+                                }
+                            }
+                            operation = RenderOperation::Composite { layers };
+                            resolution = resolution::resolve(definition, SourceObservation::Available(descriptor))?;
                         } else {
                             entry.scratch = None;
-                            if let Some(layer) = layers.first_mut() {
-                                layer.opacity =
-                                    golden_video::Opacity::new(matrix.opacity).map_err(|error| error.to_string())?;
-                            }
+                            resolution.availability = ChannelAvailability::Incompatible;
+                            rejected.insert(reference);
                         }
-                        operation = RenderOperation::Composite { layers };
-                        resolution = resolution::resolve(definition, SourceObservation::Available(descriptor))?;
                     }
                 }
                 Some(ChannelSource::Composition { canvas }) => {

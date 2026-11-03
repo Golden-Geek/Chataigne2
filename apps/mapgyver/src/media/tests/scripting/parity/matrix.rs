@@ -223,12 +223,11 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
     };
     let cases = vec![
         MatrixEdit::Inspect,
-        MatrixEdit::Configure {
-            settings: MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 750,
-                    curve: TransitionCurve::SmoothStep,
-                },
+        MatrixEdit::ConfigureLayer {
+            layer: id,
+            settings: LayerSettings {
+                position: [12.0, -9.5],
+                duration_ms: 750,
                 ..Default::default()
             },
         },
@@ -412,11 +411,7 @@ fn matrix_launch_and_clear_are_ephemeral_committed_callbacks_for_every_caller() 
             assert!(snapshot.launch_id.is_some());
             assert_eq!(
                 snapshot.transition.duration_ms,
-                if matches!(mode, LaunchMode::Cut) {
-                    0
-                } else {
-                    scene.snapshot.definition.transition.duration_ms
-                }
+                if matches!(mode, LaunchMode::Cut) { 0 } else { 250 }
             );
         }
         let mut engine = loaded(&scene.document);

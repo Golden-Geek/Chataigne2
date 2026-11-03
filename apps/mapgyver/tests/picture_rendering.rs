@@ -105,13 +105,7 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
     matrix_edit(
         &mut engine,
         MatrixEdit::Configure {
-            settings: MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 500,
-                    curve: TransitionCurve::SmoothStep,
-                },
-                ..Default::default()
-            },
+            settings: MatrixSettings::default(),
         },
     );
     let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
@@ -159,6 +153,20 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             }
         })
         .collect::<Vec<_>>();
+    for column in &snapshot.columns {
+        matrix_edit(
+            &mut engine,
+            MatrixEdit::ConfigureColumn {
+                column: column.id,
+                definition: ColumnDefinition {
+                    transition: Some(TransitionDefinition {
+                        duration_ms: 500,
+                        curve: TransitionCurve::SmoothStep,
+                    }),
+                },
+            },
+        );
+    }
     matrix_edit(
         &mut engine,
         MatrixEdit::SetCells {

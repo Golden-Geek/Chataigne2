@@ -7,7 +7,7 @@ and history. The accepted M08 configuration/demand boundary remains a dependency
 ## Typed Layer/Group blending — 2026-11-03
 
 `ElementNode` now declares real opacity, blend and render-enabled Parameters. The persisted
-`mapgyver.matrix.layer.v2` / `mapgyver.matrix.group.v2` type selects an immutable kind; no
+`mapgyver.matrix.layer.v3` / `mapgyver.matrix.group.v2` type selects an immutable kind; no
 definition DTO is stored in node data. Existing definitions, bounded selected-row reads,
 render-index captures and render plans project the Parameters. Runtime invalidation still uses
 the owning Matrix binding, without tree snapshots or per-frame authoring work.
@@ -55,9 +55,39 @@ row/control runs pass without adding retry behavior. The older comprehensive Mat
 blending section now follows generic controls; its remaining legacy workflow must be reconciled
 and fully qualified under M07/3–4 before claiming full grid acceptance.
 
+## Layer position, canvas and duration — 2026-11-03
+
+Layer v3 adds typed position, integer canvas size and whole-millisecond transition duration.
+Backend creation takes the current Matrix canvas; Group nodes have no spatial controls.
+Atomic ConfigureLayer and generic edits share validation, history, copy and project values.
+Old Layer schemas and obsolete Matrix-wide transition records reject explicitly. Generated
+Rust/TypeScript contracts and all current consumers use the new ownership.
+
+Render preparation preserves native child size, clips to the Layer canvas and places that
+logical canvas in its parent. Media Resolution can independently resample the exported texture.
+A reproduced stale parent-canvas cache was removed, so Resolution edits immediately affect
+mapping. Cell override → Column override → Layer duration now controls independent deadlines.
+Shared/modal timing and sparse bounded exceptions preserve the existing binding/interruption
+limits and retained process demand. Admission checks actual timed Layer requests before staging.
+
+[Layer receipt](evidence/mapgyver-m07-layer-settings-2026-11-03.json): **378 library tests pass**,
+two retained exclusions, in **197.56 seconds**. The strengthened interruption-admission case
+also passes separately. Strict all-target/native Clippy, generated contracts, Svelte (0/0),
+26 UI tests and both formatters pass. Twelve Windows process regressions pass, one retained
+exclusion. Actual bundled Inspector position/canvas/duration, per-field Undo/Redo, Group absence
+and offscreen editing pass. Cell/Column controls retain their separate regression receipt.
+
+The new native Layer position/canvas/resize/Undo case passes on Intel Graphics and NVIDIA
+GeForce RTX 5080 Laptop GPU: **18 complete 32×24 images**, zero nominal or residual pixel error,
+with existing resource-retirement assertions. This proves the spatial slice, not full M07/4.
+The baseline failed because its new one-route fixture had only two payload slots for the
+three-reservation readback path. Using the existing two-route fixture preserves all caps and
+checks both outputs plus preview. The only repaired native rerun passed. A browser checkbox
+action raced history updates; waiting for the displayed prior state fixed the test without
+changing product behavior. No gate or qualification budget is changed.
+
 ## Remaining M07/1 contract
 
-- Typed Layer position, canvas size and transition duration, including their runtime projection.
 - Typed Cell relative position, opacity and enabled behavior, with no Cell size; preserve actual
   child-media size, optional transition/app controls and sparse empty addresses.
 - New Matrix 3×3 defaults through backend-owned batched structure creation; complete typed

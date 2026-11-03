@@ -132,6 +132,7 @@ impl Document {
                 parent,
                 label: node.node_data().meta.label.clone(),
                 settings,
+                layer: node.layer_settings()?,
                 channel,
             });
             match item {

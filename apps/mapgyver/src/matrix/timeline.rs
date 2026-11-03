@@ -212,13 +212,34 @@ impl Timeline {
         self.bindings.retain_frame(&self.frame);
         self.applications.retain(&self.frame);
     }
-    pub fn accepts(&self, column: ColumnId, version: u64) -> bool {
-        self.frame.accepts(column, version, false)
-            && self
-                .frame
-                .layers
-                .values()
-                .all(|frame| frame.accepts(column, version, false))
+    pub fn accepts_request(&self, request: &MatrixPlaybackSnapshot, version: u64) -> bool {
+        let Some(column) = request.desired_column else {
+            return true;
+        };
+        if request.transition.duration_ms != 0 && !self.frame.accepts(column, version, false) {
+            return false;
+        }
+        let layers = request
+            .layers
+            .iter()
+            .map(|request| (request.layer, request))
+            .collect::<HashMap<_, _>>();
+        for (layer, frame) in self.frame.layers.iter() {
+            if !layers.contains_key(layer)
+                && request.transition.duration_ms != 0
+                && !frame.accepts(column, version, false)
+            {
+                return false;
+            }
+        }
+        request.layers.iter().all(|request| {
+            let frame = self.frame.layer(request.layer);
+            request.transition.duration_ms == 0
+                || frame.target == request.launch_id
+                || request
+                    .column
+                    .is_none_or(|column| frame.accepts(column, version, request.individual))
+        })
     }
     pub fn accepts_cell(&self, layer: LayerId, column: ColumnId, version: u64) -> bool {
         self.frame.layer(layer).accepts(column, version, true)

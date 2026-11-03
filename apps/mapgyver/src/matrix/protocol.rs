@@ -47,7 +47,6 @@ impl Default for TransitionDefinition {
 #[serde(default, deny_unknown_fields)]
 pub struct MatrixSettings {
     pub empty_cell: EmptyCellPolicy,
-    pub transition: TransitionDefinition,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
@@ -55,14 +54,12 @@ pub struct MatrixDefinition {
     /// Read projection of the owning media Resolution, with the procedural default when disabled.
     pub canvas: Extent2D,
     pub empty_cell: EmptyCellPolicy,
-    pub transition: TransitionDefinition,
 }
 impl Default for MatrixDefinition {
     fn default() -> Self {
         Self {
             canvas: crate::media::resolution::default_canvas(),
             empty_cell: EmptyCellPolicy::Transparent,
-            transition: TransitionDefinition::default(),
         }
     }
 }
@@ -70,7 +67,6 @@ impl MatrixDefinition {
     pub fn settings(&self) -> MatrixSettings {
         MatrixSettings {
             empty_cell: self.empty_cell,
-            transition: self.transition,
         }
     }
     pub fn validate(&self) -> Result<(), String> {
@@ -139,7 +135,43 @@ pub struct MatrixItemSnapshot {
     pub parent: Option<GroupId>,
     pub label: String,
     pub settings: CompositeSettings,
+    pub layer: Option<LayerSettings>,
     pub channel: ChannelReference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[serde(default, deny_unknown_fields)]
+pub struct LayerSettings {
+    /// Top-left position in the parent canvas, in pixels.
+    pub position: [f32; 2],
+    pub size: Extent2D,
+    pub duration_ms: u32,
+}
+impl Default for LayerSettings {
+    fn default() -> Self {
+        Self {
+            position: [0.0; 2],
+            size: crate::media::resolution::default_canvas(),
+            duration_ms: 250,
+        }
+    }
+}
+impl LayerSettings {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.position.into_iter().all(f32::is_finite)
+            || self.size.width() > crate::media::resolution::MAX_CHANNEL_DIMENSION
+            || self.size.height() > crate::media::resolution::MAX_CHANNEL_DIMENSION
+        {
+            return Err("Layer position must be finite and canvas size must be in 1..16384".into());
+        }
+        Ok(())
+    }
+    pub(crate) fn transition(self) -> TransitionDefinition {
+        TransitionDefinition {
+            duration_ms: self.duration_ms,
+            curve: TransitionCurve::Linear,
+        }
+    }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ColumnSnapshot {
@@ -297,6 +329,10 @@ pub enum MatrixEdit {
     ConfigureItem {
         item: MatrixItemId,
         settings: CompositeSettings,
+    },
+    ConfigureLayer {
+        layer: LayerId,
+        settings: LayerSettings,
     },
     RenameItem {
         item: MatrixItemId,

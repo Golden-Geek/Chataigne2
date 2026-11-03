@@ -73,7 +73,13 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 				} else if (field === 'blend') {
 					await parameter('Blend').locator('select').selectOption(value);
 				} else {
-					await parameter('Render enabled').locator('input[type=checkbox]').setChecked(value);
+					const checkbox = parameter('Render enabled').locator('input[type=checkbox]');
+					await wait(
+						() => checkbox.isChecked(),
+						(checked) =>
+							checked === before.items.find((row) => row.id.id === item.id).settings.enabled
+					);
+					await checkbox.setChecked(value);
 				}
 				const after = await wait(
 					inspect,
@@ -89,6 +95,34 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 				await wait(inspect, (state) => isDeepStrictEqual(state, before));
 				await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 				await wait(inspect, (state) => isDeepStrictEqual(state, after));
+			}
+			if (item.kind === 'Layer') {
+				for (const [label, component, value, field] of [
+					['Position', 0, 2.5, 'position'],
+					['Position', 1, -3, 'position'],
+					['Canvas size', 0, 8, 'size'],
+					['Canvas size', 1, 4, 'size'],
+					['Transition duration (ms)', 0, 900, 'duration_ms']
+				]) {
+					const before = await inspect();
+					const input = parameter(label).locator('input.number-field').nth(component);
+					await input.fill(String(value));
+					await input.press('Tab');
+					const after = await wait(inspect, (state) => {
+						const layer = state.items.find((row) => row.id.id === item.id).layer;
+						return field === 'position'
+							? layer.position[component] === value
+							: field === 'size'
+								? layer.size[component === 0 ? 'width' : 'height'] === value
+								: layer.duration_ms === value;
+					});
+					await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+					await wait(inspect, (state) => isDeepStrictEqual(state, before));
+					await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+					await wait(inspect, (state) => isDeepStrictEqual(state, after));
+				}
+			} else {
+				assert.equal(await parameter('Canvas size').count(), 0);
 			}
 		}
 		await matrix({ kind: 'AddLayers', parent: null, count: 256 });
@@ -120,7 +154,7 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Typed Layer/Group generic opacity/all blends/render enabling; exact per-field Undo/Redo; offscreen Inspector edits; no playback side effects',
+					'Typed Layer/Group generic blending/enabling; Layer position/canvas/duration; Group has no spatial controls; exact per-field Undo/Redo; offscreen Inspector edits; no playback side effects',
 				browser: browser.version()
 			})
 		);

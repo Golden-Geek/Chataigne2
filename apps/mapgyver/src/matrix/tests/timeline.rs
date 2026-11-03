@@ -109,12 +109,30 @@ fn interrupted_mix_admission_is_fixed_and_cut_or_completion_recovers_without_his
     let mut last = None;
     for index in 1..MAX_MIX_COLUMNS {
         let request = desired(column(), 1000);
-        assert!(timeline.accepts(request.desired_column.unwrap(), 0));
+        assert!(timeline.accepts_request(&request, 0));
         frame(&mut timeline, &request, Some(at(time, index as u64)), 0).unwrap();
         last = Some(request);
     }
     let overflow = desired(column(), 1000);
-    assert!(!timeline.accepts(overflow.desired_column.unwrap(), 0));
+    assert!(!timeline.accepts_request(&overflow, 0));
+    let mut layer_overflow = overflow.clone();
+    layer_overflow.transition.duration_ms = 0;
+    layer_overflow.layers = vec![LayerPlaybackRequest {
+        layer: LayerId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
+        column: overflow.desired_column,
+        launch_id: overflow.launch_id,
+        transition: overflow.transition,
+        individual: false,
+    }]
+    .into();
+    assert!(
+        !timeline.accepts_request(&layer_overflow, 0),
+        "a cut base cannot bypass a timed Layer's admission"
+    );
+    std::sync::Arc::make_mut(&mut layer_overflow.layers)[0]
+        .transition
+        .duration_ms = 0;
+    assert!(timeline.accepts_request(&layer_overflow, 0));
     assert!(frame(&mut timeline, &overflow, Some(at(time, 40)), 0).is_err());
     assert_eq!(
         frame(&mut timeline, last.as_ref().unwrap(), Some(at(time, 40)), 0)
@@ -125,7 +143,7 @@ fn interrupted_mix_admission_is_fixed_and_cut_or_completion_recovers_without_his
         MAX_MIX_COLUMNS
     );
     timeline.settle(at(time, 2000));
-    assert!(timeline.accepts(overflow.desired_column.unwrap(), 0));
+    assert!(timeline.accepts_request(&overflow, 0));
     frame(&mut timeline, &overflow, Some(at(time, 2000)), 0).unwrap();
     let cut = desired(column(), 0);
     let frame = frame(&mut timeline, &cut, None, 0).unwrap().unwrap();

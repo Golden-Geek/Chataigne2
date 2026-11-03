@@ -2,6 +2,125 @@ use super::*;
 use crate::matrix::protocol::*;
 use golden_video::plan::{BlendMode, LayerSource, RenderOperation};
 
+#[test]
+fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolution_override() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, source, 4);
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddLayers { parent: None, count: 1 },
+    ) else {
+        panic!()
+    };
+    let MatrixItemId::Layer { id: row } = items[0] else {
+        panic!()
+    };
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 1 })
+    else {
+        panic!()
+    };
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureLayer {
+            layer: row,
+            settings: LayerSettings {
+                position: [2.0, 1.0],
+                size: Extent2D::new(8, 4).unwrap(),
+                ..Default::default()
+            },
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::DropSource {
+            layer: row,
+            column: columns[0],
+            source: source.media.0,
+            copy: false,
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::LaunchColumn {
+            column: columns[0],
+            mode: LaunchMode::Cut,
+        },
+    );
+    let layer = inspect(&mut engine, matrix.media).items[0].channel;
+    let first = prepare(&engine, &[matrix, layer]);
+    assert_eq!(
+        first
+            .channels
+            .iter()
+            .find(|channel| channel.reference == layer)
+            .unwrap()
+            .resolution
+            .extent,
+        Some(Extent2D::new(8, 4).unwrap())
+    );
+    let pass = first
+        .submission
+        .plan
+        .passes
+        .iter()
+        .find(|pass| pass.output == first.entries[&layer].target)
+        .unwrap();
+    let RenderOperation::Composite { layers } = &pass.operation else {
+        panic!()
+    };
+    let mapping = layers[0].mapping.as_ref().unwrap();
+    assert_eq!(
+        mapping.source_coordinate(golden_video::plan::Point { x: 0.25, y: 0.25 }),
+        Some([0.5, 0.5])
+    );
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: matrix.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(16, 8).unwrap(),
+            },
+        },
+    );
+    let scaled = prepare(&engine, &[matrix, layer]);
+    assert_eq!(
+        scaled
+            .channels
+            .iter()
+            .find(|channel| channel.reference == layer)
+            .unwrap()
+            .resolution
+            .extent,
+        Some(Extent2D::new(16, 8).unwrap())
+    );
+    let pass = scaled
+        .submission
+        .plan
+        .passes
+        .iter()
+        .find(|pass| pass.output == scaled.entries[&matrix].target)
+        .unwrap();
+    let RenderOperation::Composite { layers } = &pass.operation else {
+        panic!()
+    };
+    let mapping = layers[0].mapping.as_ref().unwrap();
+    assert_eq!(
+        mapping.source_coordinate(golden_video::plan::Point { x: 0.375, y: 0.375 }),
+        Some([0.5, 0.5])
+    );
+    assert_eq!(
+        mapping.source_coordinate(golden_video::plan::Point { x: 0.0, y: 0.0 }),
+        None
+    );
+}
+
 fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {
     edit(engine, MediaEdit::Matrix { media, edit: operation })
 }

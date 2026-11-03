@@ -10,6 +10,7 @@ pub(crate) struct RenderItem {
     pub channel: ChannelReference,
     pub parent: Option<GroupId>,
     pub settings: CompositeSettings,
+    pub layer: Option<LayerSettings>,
     pub enabled: bool,
     pub order: usize,
     pub end: usize,
@@ -18,7 +19,6 @@ pub(crate) struct RenderIndex {
     pub cell_apps: HashMap<(LayerId, ColumnId), crate::applications::protocol::ApplicationId>,
     pub column_apps: HashMap<ColumnId, crate::applications::protocol::ApplicationId>,
     pub columns: Vec<crate::applications::demand::DemandColumn>,
-    pub canvas: golden_video::Extent2D,
     pub items: HashMap<MatrixItemId, RenderItem>,
     pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
 }
@@ -52,6 +52,7 @@ impl RenderIndex {
                     channel: item.channel,
                     parent: item.parent,
                     settings: item.settings.clone(),
+                    layer: item.layer,
                     enabled: node.node_data().effective_enabled,
                     order,
                     end: order + 1,
@@ -129,7 +130,6 @@ impl RenderIndex {
             cell_apps,
             column_apps,
             columns,
-            canvas: document.snapshot.definition.canvas,
             items,
             cells,
         })

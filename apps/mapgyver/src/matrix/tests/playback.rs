@@ -57,6 +57,7 @@ fn current(engine: &mut AppEngine, media: MediaId) -> MatrixPlaybackSnapshot {
 fn cut_bursts_and_configured_launches_are_ephemeral_without_authored_history() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
+    layers(&mut engine, matrix.media, None, 1);
     let columns = columns(&mut engine, matrix.media, 2);
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();

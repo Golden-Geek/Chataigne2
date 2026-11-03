@@ -160,6 +160,7 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
             parent: row.parent,
             label: node.node_data().meta.label.clone(),
             settings,
+            layer: node.layer_settings()?,
             channel: row.channel,
         },
         depth: row.depth,

@@ -53,19 +53,6 @@ pub(super) fn fixture() -> (
     matrix_edit(
         &mut engine,
         matrix.media,
-        MatrixEdit::Configure {
-            settings: MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 1000,
-                    curve: TransitionCurve::Linear,
-                },
-                ..Default::default()
-            },
-        },
-    );
-    matrix_edit(
-        &mut engine,
-        matrix.media,
         MatrixEdit::AddLayers { parent: None, count: 1 },
     );
     matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 4 });
@@ -76,6 +63,17 @@ pub(super) fn fixture() -> (
     let MatrixItemId::Layer { id } = snapshot.items[0].id else {
         panic!()
     };
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureLayer {
+            layer: id,
+            settings: LayerSettings {
+                duration_ms: 1000,
+                ..snapshot.items[0].layer.unwrap()
+            },
+        },
+    );
     let columns = snapshot.columns.iter().map(|column| column.id).collect::<Vec<_>>();
     matrix_edit(
         &mut engine,

@@ -45,7 +45,7 @@
 		'mapgyver.media.folder',
 		'mapgyver.screen',
 		'mapgyver.surface',
-		'mapgyver.matrix.layer.v2',
+		'mapgyver.matrix.layer.v3',
 		'mapgyver.matrix.group.v2',
 		'mapgyver.app_control.v1'
 	])

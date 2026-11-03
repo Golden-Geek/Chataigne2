@@ -59,6 +59,9 @@ pub(crate) struct Applications {
     cached: HashMap<Option<LayerId>, CapturedApplications>,
 }
 impl Applications {
+    pub fn layers(&self) -> impl Iterator<Item = LayerId> + '_ {
+        self.clips.keys().filter_map(|(_, layer)| *layer)
+    }
     pub fn retain(&mut self, frame: &Frame) {
         self.clips.retain(|(id, layer), _| match layer {
             Some(layer) => frame.layer(*layer).clips.iter().any(|entry| entry.clip.id == *id),
@@ -126,7 +129,12 @@ impl Applications {
                 observe(entry, Some(layer));
             }
         } else {
-            for entry in &frame.clips {
+            for entry in frame
+                .clips
+                .iter()
+                .chain(frame.layers.values().flat_map(|frame| frame.clips.iter()))
+                .filter(|entry| !entry.clip.individual)
+            {
                 observe(entry, None);
             }
             for layer in layers {
@@ -146,7 +154,12 @@ impl Applications {
                     reason: DemandReason::Preparation,
                 });
             }
-            for entry in &frame.clips {
+            for entry in frame
+                .clips
+                .iter()
+                .chain(frame.layers.values().flat_map(|frame| frame.clips.iter()))
+                .filter(|entry| !entry.clip.individual)
+            {
                 cursors.push(DemandCursor {
                     scope: entry.clip.id,
                     column: entry.clip.column,
@@ -157,6 +170,8 @@ impl Applications {
                     },
                 });
             }
+            cursors.sort_by_key(|cursor| (cursor.scope, cursor.reason));
+            cursors.dedup_by_key(|cursor| (cursor.scope, cursor.reason));
         }
         let demand = resolve(
             &[],

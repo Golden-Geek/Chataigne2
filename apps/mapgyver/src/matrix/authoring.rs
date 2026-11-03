@@ -156,7 +156,11 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                     ElementDefinition::Layer {
                         settings: CompositeSettings::default(),
                     },
-                );
+                )
+                .with_layer_settings(LayerSettings {
+                    size: document.snapshot.definition.canvas,
+                    ..Default::default()
+                });
                 let item = item_id(&node);
                 created.push(item);
                 let (channel, _) = export(media, item, format!("{label} output"));
@@ -226,6 +230,15 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                 unreachable!()
             };
             engine.edits.push(node.configuration_edit(settings));
+        }
+        MatrixEdit::ConfigureLayer { layer, settings } => {
+            settings.validate()?;
+            let Some(AppNode::MatrixElement(node)) =
+                engine.nodes.get(document.item(MatrixItemId::Layer { id: layer })?)
+            else {
+                unreachable!()
+            };
+            engine.edits.push(node.spatial_edit(settings));
         }
         MatrixEdit::RenameItem { item, label } => labels::rename(engine, document.item(item)?, label)?,
         MatrixEdit::MoveItem { item, parent, after } => {

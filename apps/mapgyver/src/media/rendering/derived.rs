@@ -170,7 +170,7 @@ pub(super) fn matrix_layers(
     channel: &CapturedChannel,
     filter: SampleFilter,
     prepared: &HashMap<ChannelReference, PreparedChannel>,
-) -> Vec<Layer> {
+) -> Result<Vec<Layer>, String> {
     channel
         .matrix
         .as_ref()
@@ -179,14 +179,36 @@ pub(super) fn matrix_layers(
         .iter()
         .filter_map(|input| {
             let source = prepared.get(&input.source)?;
-            (source.resolution.availability == ChannelAvailability::Ready).then(|| Layer {
+            if source.resolution.availability != ChannelAvailability::Ready {
+                return None;
+            }
+            let mapping = input
+                .placement
+                .map(|placement| {
+                    let extent = placement
+                        .size
+                        .or(source.resolution.extent)
+                        .ok_or("ready Matrix source has no extent")?;
+                    let canvas = channel.matrix.as_ref().unwrap().canvas;
+                    let [x, y] = placement.position.map(f64::from);
+                    let width = f64::from(extent.width());
+                    let height = f64::from(extent.height());
+                    let corners =
+                        [[x, y], [x + width, y], [x + width, y + height], [x, y + height]].map(|[x, y]| Point {
+                            x: (x / f64::from(canvas.width())) as f32,
+                            y: (y / f64::from(canvas.height())) as f32,
+                        });
+                    ProjectiveMapping::new(UnitRect::FULL, Quad { corners }).map_err(|error| error.to_string())
+                })
+                .transpose();
+            Some(mapping.map(|mapping| Layer {
                 source: source.target.into(),
                 opacity: Opacity::OPAQUE,
                 opacity_envelope: input.weight,
                 blend: input.blend,
                 filter,
-                mapping: None,
-            })
+                mapping,
+            }))
         })
         .collect()
 }

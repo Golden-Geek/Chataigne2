@@ -11,7 +11,10 @@ pub(crate) struct Configuration {
     pub cell_nodes: HashMap<(LayerId, ColumnId), NodeId>,
     pub disabled: HashMap<ColumnId, Vec<LayerId>>,
     pub overrides: HashMap<ColumnId, HashMap<LayerId, TransitionDefinition>>,
-    pub transitions: HashMap<ColumnId, TransitionDefinition>,
+    pub transitions: HashMap<ColumnId, Option<TransitionDefinition>>,
+    pub layer_base: TransitionDefinition,
+    pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
+    pub transition_layers: HashSet<LayerId>,
     pub cell_apps: HashMap<(LayerId, ColumnId), crate::applications::protocol::ApplicationId>,
     pub column_apps: HashMap<ColumnId, crate::applications::protocol::ApplicationId>,
 }
@@ -55,7 +58,39 @@ pub(crate) fn index(
             cell_apps.insert((cell.layer, cell.definition.column), cell.definition.application);
         }
     }
+    let mut durations = HashMap::<u32, usize>::new();
+    for layer in document.snapshot.items.iter().filter_map(|item| item.layer) {
+        *durations.entry(layer.duration_ms).or_default() += 1;
+    }
+    let layer_base = TransitionDefinition {
+        duration_ms: durations
+            .into_iter()
+            .max_by_key(|(duration, count)| (*count, std::cmp::Reverse(*duration)))
+            .map_or(250, |(duration, _)| duration),
+        curve: TransitionCurve::Linear,
+    };
+    let layer_overrides = document
+        .snapshot
+        .items
+        .iter()
+        .filter_map(|item| match (item.id, item.layer) {
+            (MatrixItemId::Layer { id }, Some(layer)) if layer.transition() != layer_base => {
+                Some((id, layer.transition()))
+            }
+            _ => None,
+        })
+        .collect();
+    let transition_layers = document
+        .snapshot
+        .cells
+        .iter()
+        .filter(|cell| cell.media.is_some() || cell_apps.contains_key(&(cell.layer, cell.definition.column)))
+        .map(|cell| cell.layer)
+        .collect();
     let index = Arc::new(Configuration {
+        transition_layers,
+        layer_base,
+        layer_overrides,
         layers: document
             .snapshot
             .items
@@ -83,15 +118,7 @@ pub(crate) fn index(
             .snapshot
             .columns
             .iter()
-            .map(|column| {
-                (
-                    column.id,
-                    column
-                        .definition
-                        .transition
-                        .unwrap_or(document.snapshot.definition.transition),
-                )
-            })
+            .map(|column| (column.id, column.definition.transition))
             .collect(),
     });
     control.cache_configuration(index.clone());

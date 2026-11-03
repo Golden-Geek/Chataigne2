@@ -16,6 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod layer_geometry;
 mod transitions;
 
 fn edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
@@ -131,13 +132,7 @@ impl Scene {
             engine,
             root.media,
             MatrixEdit::Configure {
-                settings: MatrixSettings {
-                    transition: TransitionDefinition {
-                        duration_ms: 4000,
-                        curve: TransitionCurve::Linear,
-                    },
-                    ..Default::default()
-                },
+                settings: MatrixSettings::default(),
             },
         );
         let MediaEditResult::MatrixCreated { items, .. } = matrix(
@@ -169,6 +164,21 @@ impl Scene {
         };
         matrix(engine, root.media, MatrixEdit::AddColumns { count: 3 });
         let snapshot = inspect(engine, root.media);
+        for item in &snapshot.items {
+            if let MatrixItemId::Layer { id } = item.id {
+                matrix(
+                    engine,
+                    root.media,
+                    MatrixEdit::ConfigureLayer {
+                        layer: id,
+                        settings: LayerSettings {
+                            duration_ms: 4000,
+                            ..item.layer.unwrap()
+                        },
+                    },
+                );
+            }
+        }
         let columns = snapshot.columns.iter().map(|c| c.id).collect::<Vec<_>>();
         let group_channel = snapshot.items.iter().find(|item| item.id == group).unwrap().channel;
         let first_channel = snapshot.items.iter().find(|item| item.id == layers[0]).unwrap().channel;

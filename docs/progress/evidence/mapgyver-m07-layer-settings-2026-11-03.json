@@ -1,0 +1,136 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/1",
+  "gate_change": "None; remains Active",
+  "batch": {
+    "start_utc": "18:59",
+    "cutoff_utc": "19:44",
+    "deliverable": "Typed Layer position/canvas/duration with public atomic configuration, generic Inspector and actual rendering/playback",
+    "owners": [
+      "apps/mapgyver/src/matrix",
+      "apps/mapgyver/src/media/rendering"
+    ]
+  },
+  "implemented": [
+    "Layer v3 real position Vec2, integer canvas Vec2 and whole-millisecond duration Parameters; Group v2 has no spatial controls",
+    "Creation inherits backend Matrix canvas; ConfigureLayer uses SetParamsAtomic",
+    "Native-sized child content clipped to logical Layer canvas; logical Layer placement survives exported Media Resolution resampling",
+    "Live parent Media canvas replaces stale render-index canvas cache",
+    "Cell override > Column override > Layer duration; modal shared timing, bounded sparse active exceptions and actual timed-request admission",
+    "Removed authored Matrix-wide transition Parameters/DTO fields and updated generated consumers; obsolete global transition records and old Layer schemas reject"
+  ],
+  "checks": {
+    "library": {
+      "command": "cargo test --locked -p MapGyver --lib",
+      "log": "target/m07-layer-model-tests-current.log",
+      "passed": 378,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 197.56
+    },
+    "admission": {
+      "command": "cargo test --locked -p MapGyver --lib matrix::tests::timeline::interrupted_mix_admission",
+      "passed": 1,
+      "log": "target/m07-layer-model-admission.log"
+    },
+    "lint": {
+      "command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+      "exit": 0,
+      "log": "target/m07-layer-model-clippy-receipt.log"
+    },
+    "contracts": {
+      "generators": [
+        "Media",
+        "Preview"
+      ],
+      "result": "compiled and regenerated against Rust DTOs; current schema compiled through library/UI/isolated builds",
+      "logs": [
+        "target/m07-layer-model-generate.log",
+        "target/m07-layer-model-preview-generate.log"
+      ]
+    },
+    "svelte": {
+      "errors": 0,
+      "warnings": 0,
+      "log": "target/m07-layer-model-ui-check-final.log"
+    },
+    "ui": {
+      "passed": 26,
+      "log": "target/m07-layer-model-ui-tests.log"
+    },
+    "windows": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "seconds": 1.18,
+      "log": "target/m07-layer-model-process.log"
+    },
+    "browser": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-parameters-ui",
+      "result": "pass",
+      "scope": "Generic Layer/Group blending/enabling; Layer position/canvas/duration; exact per-field Undo/Redo; no Group spatial controls; 258-row offscreen Inspector; no launch; source/history/Save-New-Load regression",
+      "log": "target/m07-layer-model-browser-final.log"
+    },
+    "controls": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+      "result": "pass",
+      "scope": "Column/Cell generic Inspector, normalized process sharing, independent activation/markers, disabled destination holds PID, actual Unload",
+      "log": "target/m07-layer-model-controls.log"
+    },
+    "native": {
+      "command": "target/debug/deps/matrix_rendering-codex-layer.exe --ignored --nocapture native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adapter",
+      "passed": 1,
+      "seconds": 15.16,
+      "adapters": [
+        "Intel(R) Graphics",
+        "NVIDIA GeForce RTX 5080 Laptop GPU"
+      ],
+      "stages": [
+        "Position and native source extent",
+        "Layer canvas resize",
+        "Undo"
+      ],
+      "images": 18,
+      "extent": [
+        32,
+        24
+      ],
+      "maximum_nominal_error": 0,
+      "maximum_residual_error": 0,
+      "retirement": "Existing Fixture Drop asserts zero live allocations, created == released, empty outputs/sources",
+      "log": "target/m07-layer-model-native-final.log"
+    },
+    "format": {
+      "commands": [
+        "cargo fmt --all",
+        "cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+        "npx prettier --write apps/mapgyver/tests/browser/matrix-parameters.mjs"
+      ],
+      "exit": 0
+    }
+  },
+  "repairs": [
+    "Pure geometry test reproduced stale parent Resolution cache; capture now reads live canvas",
+    "First native attempt used a one-route fixture with two payload slots, insufficient for receiver/staging/CPU readback. Repaired rerun uses existing two-route Fixture (unchanged caps/tolerance) and verifies both outputs plus preview",
+    "Browser enabled checkbox raced Undo/Redo presentation; wait for displayed prior state before acting, with no product retry/shim"
+  ],
+  "binaries": {
+    "app_sha256": "7EEF22F72CD6C1E9AB5B5BCFDCF364CF0799EFE7EDA46D12B027240604808C69",
+    "matrix_native_sha256": "0700DF8D99B6AA0368F6CD4A0771BFD2B01A7A9871E580AC45E115567DEE54EE",
+    "process_sha256": "7901AFD21C655B96A334A00DBF2B5F60F83A5D60B80F346265D14DA85775D31F"
+  },
+  "remaining": [
+    "M07/1 typed Cell position/opacity/enabled, no Cell size; backend 3x3 defaults; complete model acceptance",
+    "M07/2 complete playback; M07/3 revised grid; M07/4 complete native/scale/memory/timing matrix",
+    "M08/3-4 and retained physical/timing/final qualification unchanged"
+  ],
+  "counts": {
+    "gates": 42,
+    "total_gates": 57,
+    "gate_percent": 74,
+    "phases": 5,
+    "total_phases": 11,
+    "phase_percent": 45
+  },
+  "limits": "No full M07 gate accepted; no budget or denominator changes. Earlier native Matrix fixture updates compile but full broad native suite was not run here. Pre-revision stash remains un-restored; unrelated user docs/icons preserved."
+}

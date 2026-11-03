@@ -8,7 +8,7 @@ export function registerMatrixContextMenu() {
 	registerNodeContextMenuContributor('mapgyver.matrix-removal', {
 		match: ({ node }) =>
 			[
-				'mapgyver.matrix.layer.v2',
+				'mapgyver.matrix.layer.v3',
 				'mapgyver.matrix.group.v2',
 				'mapgyver.matrix.column.v2'
 			].includes(node.node_type),
@@ -28,7 +28,7 @@ export function registerMatrixContextMenu() {
 					: {
 							kind: 'RemoveItem',
 							item: {
-								kind: node.node_type === 'mapgyver.matrix.layer.v2' ? 'Layer' : 'Group',
+								kind: node.node_type === 'mapgyver.matrix.layer.v3' ? 'Layer' : 'Group',
 								id: node.uuid
 							}
 						};

@@ -12,6 +12,13 @@ pub(crate) struct MatrixInput {
     pub source: ChannelReference,
     pub blend: golden_video::plan::BlendMode,
     pub weight: Option<golden_video::plan::OpacityEnvelope>,
+    pub placement: Option<MatrixPlacement>,
+}
+#[derive(Clone, Copy)]
+pub(crate) struct MatrixPlacement {
+    pub position: [f32; 2],
+    /// Layer canvases keep their logical size even when output Resolution resamples them.
+    pub size: Option<golden_video::Extent2D>,
 }
 #[derive(Clone)]
 pub(crate) struct CapturedMatrix {
@@ -129,7 +136,10 @@ pub(crate) fn capture(
                     transitioning: until.is_some(),
                     layers: frame.stamps.clone(),
                 },
-                canvas: index.canvas,
+                canvas: match media.size_policy(engine) {
+                    crate::media::protocol::SizePolicy::Fixed { extent } => extent,
+                    crate::media::protocol::SizePolicy::Automatic => crate::media::resolution::default_canvas(),
+                },
                 opacity: 1.0,
                 inputs: vec![],
                 until: until.map(|interval| interval.envelope(0.0, 1.0)),
@@ -152,6 +162,9 @@ pub(crate) fn capture(
                     return Err("Matrix export identity mismatch".into());
                 }
                 captured.opacity = entry.settings.opacity;
+                if let Some(layer) = entry.layer {
+                    captured.canvas = layer.size;
+                }
                 if !entry.enabled || !entry.settings.enabled || entry.settings.opacity == 0.0 {
                     return Ok(Some(captured));
                 }
@@ -187,6 +200,10 @@ pub(crate) fn capture(
                         source,
                         blend: golden_video::plan::BlendMode::Add,
                         weight: local.interval.map(|interval| interval.envelope(from, to)),
+                        placement: Some(MatrixPlacement {
+                            position: [0.0; 2],
+                            size: None,
+                        }),
                     });
                 }
             } else {
@@ -277,6 +294,10 @@ pub(crate) fn capture(
                             source: entry.channel,
                             blend: entry.settings.blend,
                             weight: None,
+                            placement: entry.layer.map(|layer| MatrixPlacement {
+                                position: layer.position,
+                                size: Some(layer.size),
+                            }),
                         });
                     }
                 }

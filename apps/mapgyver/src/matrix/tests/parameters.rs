@@ -248,7 +248,9 @@ fn typed_nested_row_copy_remaps_parameter_identities_and_old_row_schemas_reject_
     let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
     assert_eq!(inspect(&mut loaded, matrix.media), after);
     for schema in [crate::matrix::node::LAYER_TYPE, crate::matrix::node::GROUP_TYPE] {
-        assert!(from_sparse_project_json::<AppNode>(&saved.replace(schema, schema.trim_end_matches(".v2"))).is_err());
+        assert!(
+            from_sparse_project_json::<AppNode>(&saved.replace(schema, schema.rsplit_once('.').unwrap().0)).is_err()
+        );
         let mut file = engine.to_project_file_with(Node::project_encode_data).unwrap();
         let mut pending = vec![&mut file.root];
         let mut changed = false;

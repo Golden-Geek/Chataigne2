@@ -13,6 +13,7 @@ mod applications;
 mod bindings;
 mod cell_playback;
 mod copying;
+mod layer_settings;
 mod owned_media;
 mod parameters;
 mod playback;

@@ -168,7 +168,7 @@
 			{/key}
 		{/if}
 		{#if selectedColumn && view.media && definition}
-			{#key JSON.stringify([selectedColumn, definition.transition])}
+			{#key JSON.stringify(selectedColumn)}
 				<ColumnForm column={selectedColumn} disabled={busy} />
 			{/key}
 		{/if}

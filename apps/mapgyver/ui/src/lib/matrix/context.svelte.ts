@@ -110,12 +110,12 @@ export function provideMatrixAuthoring() {
 				if (view.media !== media.uuid) controller.selectMedia(media.uuid);
 			}
 			if (
-				node.node_type === 'mapgyver.matrix.layer.v2' ||
+				node.node_type === 'mapgyver.matrix.layer.v3' ||
 				node.node_type === 'mapgyver.matrix.group.v2'
 			)
 				controller.select(
 					{
-						kind: node.node_type === 'mapgyver.matrix.layer.v2' ? 'Layer' : 'Group',
+						kind: node.node_type === 'mapgyver.matrix.layer.v3' ? 'Layer' : 'Group',
 						id: node.uuid
 					},
 					view.selected?.column ?? null

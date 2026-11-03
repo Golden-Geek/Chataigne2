@@ -52,10 +52,11 @@ typed Layer/Group/Cell model and 3×3 defaults on this shared boundary. M07 play
 and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
 dependencies above without waiving physical/timing gates or changing qualification budgets.
 
-[Typed Layer/Group blending](../progress/mapgyver-m07-model.md) now uses real Parameters and
-the generic Inspector, with atomic Configure/history/copy/project behavior. This is partial
-M07/1 delivery: Layer position/canvas/duration, Cell transforms/enabling and 3×3 defaults remain
-required before model acceptance; full grid/playback/native/scale gates remain unchanged.
+[Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
+the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,
+canvas and duration now drive actual rendering and per-Layer playback; native position/resize/
+Undo passes on both GPUs. This is partial M07/1 delivery: Cell transforms/enabling and 3×3
+defaults remain required before model acceptance; full grid/playback/native/scale gates remain unchanged.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
 containment before Reference/Preview acceptance. Reuse that ownership/copy/drop foundation.

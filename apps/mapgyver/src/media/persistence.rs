@@ -4,6 +4,14 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if record.meta.decl_id.as_ref().is_some_and(|id| {
+            matches!(
+                id.0.as_str(),
+                "parameters/transition_ms" | "parameters/transition_curve"
+            )
+        }) {
+            return Err("Matrix-wide transition settings are unsupported; duration belongs to each Layer".into());
+        }
         for (prefix, current) in [
             ("mapgyver.matrix.layer", crate::matrix::node::LAYER_TYPE),
             ("mapgyver.matrix.group", crate::matrix::node::GROUP_TYPE),

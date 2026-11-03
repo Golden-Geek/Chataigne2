@@ -194,13 +194,19 @@ impl PlaybackControl {
             None => edges,
         }
     }
-    fn admits(&self, column: ColumnId) -> bool {
+    fn admits(&self, request: &MatrixPlaybackSnapshot) -> bool {
         self.0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
             .timeline
-            .accepts(column, self.0.authored.reader().current())
+            .accepts_request(request, self.0.authored.reader().current())
+    }
+    fn retained_layers(&self) -> std::collections::HashSet<LayerId> {
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        let mut layers = state.timeline.bindings.layers();
+        layers.extend(state.timeline.applications.layers());
+        layers
     }
     pub fn snapshot(&self) -> MatrixPlaybackSnapshot {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
@@ -294,7 +300,7 @@ pub(super) fn launch(
         return Err("Matrix Final channel is missing".into());
     };
     let ChannelSource::Matrix {
-        output: MatrixOutput::Final { definition },
+        output: MatrixOutput::Final { .. },
     } = &crate::media::authoring::effective_definition(engine, root)?.source
     else {
         return Err("column is outside its Matrix Final channel".into());
@@ -305,18 +311,15 @@ pub(super) fn launch(
     if owner.node_data().meta.uuid != media.0 {
         return Err("column belongs to another Matrix".into());
     }
-    let transition = column_definition.transition.unwrap_or(definition.transition);
     let control = root
         .matrix_playback()
         .ok_or("Matrix playback owner is missing")?
         .clone();
-    if mode == LaunchMode::Configured && transition.duration_ms != 0 && !control.admits(column) {
-        return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
-    }
     let index = super::configuration::index(engine, media, &control)?;
+    let transition = column_definition.transition.unwrap_or(index.layer_base);
     let previous = control.snapshot();
     let launch = uuid::Uuid::new_v4();
-    let mut layers = Vec::new();
+    let mut layers = std::collections::HashMap::new();
     let previous_layers = previous
         .layers
         .iter()
@@ -331,7 +334,8 @@ pub(super) fn launch(
         .collect::<std::collections::HashSet<_>>();
     if let Some(disabled) = index.disabled.get(&column) {
         for layer in disabled {
-            layers.push(
+            layers.insert(
+                *layer,
                 previous_layers
                     .get(layer)
                     .map(|request| (*request).clone())
@@ -345,24 +349,53 @@ pub(super) fn launch(
             );
         }
     }
-    for (layer, transition) in index.overrides.get(&column).into_iter().flatten() {
-        if !disabled_layers.contains(layer) {
-            layers.push(LayerPlaybackRequest {
-                layer: *layer,
-                column: Some(column),
-                launch_id: Some(launch),
-                transition: selected_transition(*transition, mode),
-                individual: false,
-            });
+    if column_definition.transition.is_none() && mode == LaunchMode::Configured {
+        let mut active = control.retained_layers();
+        active.extend(index.transition_layers.iter().copied());
+        for layer in active {
+            if !disabled_layers.contains(&layer)
+                && let Some(transition) = index.layer_overrides.get(&layer)
+            {
+                layers.insert(
+                    layer,
+                    LayerPlaybackRequest {
+                        layer,
+                        column: Some(column),
+                        launch_id: Some(launch),
+                        transition: *transition,
+                        individual: false,
+                    },
+                );
+            }
         }
     }
+    for (layer, transition) in index.overrides.get(&column).into_iter().flatten() {
+        if !disabled_layers.contains(layer) {
+            layers.insert(
+                *layer,
+                LayerPlaybackRequest {
+                    layer: *layer,
+                    column: Some(column),
+                    launch_id: Some(launch),
+                    transition: selected_transition(*transition, mode),
+                    individual: false,
+                },
+            );
+        }
+    }
+    // An unused base mix must not extend old Column leases beyond the actual Layer fades.
+    let base_used = layers.len() < index.layers.len();
+    if layers.len() > super::bindings::MAX_BINDINGS {
+        return Err("Matrix launch exceeds 4096 active Layer requests".into());
+    }
+    let mut layers = layers.into_values().collect::<Vec<_>>();
     layers.sort_by_key(|request| request.layer.0.0);
     let desired = MatrixPlaybackSnapshot {
         request_id: Some(launch),
         layers: layers.into(),
         desired_column: Some(column),
         launch_id: Some(launch),
-        transition: if mode == LaunchMode::Cut {
+        transition: if mode == LaunchMode::Cut || !base_used {
             TransitionDefinition {
                 duration_ms: 0,
                 ..transition
@@ -371,6 +404,9 @@ pub(super) fn launch(
             transition
         },
     };
+    if !control.admits(&desired) {
+        return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
+    }
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
@@ -402,10 +438,11 @@ pub(super) fn launch_cell(
     if !index.layers.contains(&layer) {
         return Err("Layer belongs to another Matrix or is missing".into());
     }
-    let fallback = *index
+    let fallback = index
         .transitions
         .get(&column)
-        .ok_or("Column belongs to another Matrix or is missing")?;
+        .ok_or("Column belongs to another Matrix or is missing")?
+        .unwrap_or_else(|| index.layer_overrides.get(&layer).copied().unwrap_or(index.layer_base));
     if index
         .cell_nodes
         .get(&(layer, column))

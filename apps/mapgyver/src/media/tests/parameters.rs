@@ -53,7 +53,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let media = engine.node_id_by_uuid(reference.media.0).unwrap();
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
         let media_fields = parameters(&engine, media);
-        assert_eq!(media_fields.len(), 6);
+        assert_eq!(media_fields.len(), 4);
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
         assert_eq!(fields.len(), 6, "{fields:?}");
@@ -66,8 +66,6 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
             "canvas_width",
             "canvas_height",
             "empty_cell",
-            "transition_ms",
-            "transition_curve",
         ] {
             assert!(!fields.contains_key(&format!("parameters/{removed}")));
         }
@@ -459,13 +457,7 @@ fn procedural_resolution_and_matrix_settings_have_one_media_owner_through_histor
             );
             let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
             let channel_fields = parameters(&engine, root);
-            for name in [
-                "canvas_width",
-                "canvas_height",
-                "transition_ms",
-                "transition_curve",
-                "empty_cell",
-            ] {
+            for name in ["canvas_width", "canvas_height", "empty_cell"] {
                 assert!(!channel_fields.contains_key(&format!("parameters/{name}")));
             }
         }
@@ -486,64 +478,14 @@ fn procedural_resolution_and_matrix_settings_have_one_media_owner_through_histor
         assert!(engine.redo().unwrap());
         assert_eq!(canvas(&engine), extent);
         if kind == MediaKind::Matrix {
-            let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
-            let settings = MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 750,
-                    curve: TransitionCurve::SmoothStep,
-                },
-                ..Default::default()
-            };
-            apply(
-                &mut engine,
-                MediaEdit::Matrix {
-                    media: reference.media,
-                    edit: MatrixEdit::Configure {
-                        settings: settings.clone(),
-                    },
-                },
-            );
-            assert!(!captured.is_current());
-            let MediaEditResult::Matrix { snapshot } = apply(
-                &mut engine,
-                MediaEdit::Matrix {
-                    media: reference.media,
-                    edit: MatrixEdit::Inspect,
-                },
-            ) else {
-                panic!()
-            };
-            assert_eq!(snapshot.definition.settings(), settings);
-            assert_eq!(snapshot.definition.canvas, extent);
-            assert!(engine.undo().unwrap());
-            assert_eq!(
-                engine
-                    .nodes
-                    .get(fields["parameters/transition_ms"])
-                    .unwrap()
-                    .engine_param_snapshot()
-                    .unwrap()
-                    .value,
-                ParamValue::Float(250.0)
-            );
-            assert!(engine.redo().unwrap());
-            let before = to_sparse_project_json_pretty(&engine).unwrap();
-            let history = engine.undo_len();
-            assert!(!set(&mut engine, fields["parameters/transition_ms"], ParamValue::Float(0.5)).success);
-            assert!(
-                !set(
-                    &mut engine,
-                    fields["parameters/transition_curve"],
-                    ParamValue::Enum("Unknown".into())
-                )
-                .success
-            );
-            assert_eq!(engine.undo_len(), history);
-            assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
-            assert!(
-                serde_json::from_value::<MatrixSettings>(serde_json::json!({ "canvas": { "width": 1, "height": 1 } }))
-                    .is_err()
-            );
+            assert!(!fields.contains_key("parameters/transition_ms"));
+            assert!(!fields.contains_key("parameters/transition_curve"));
+            for obsolete in [
+                serde_json::json!({ "transition": { "duration_ms": 750, "curve": "SmoothStep" } }),
+                serde_json::json!({ "canvas": { "width": 1, "height": 1 } }),
+            ] {
+                assert!(serde_json::from_value::<MatrixSettings>(obsolete).is_err());
+            }
         }
         let saved = to_sparse_project_json_pretty(&engine).unwrap();
         let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();

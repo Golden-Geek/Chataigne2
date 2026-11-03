@@ -273,13 +273,11 @@ fn retired_nested_matrix_finishes_its_envelope_without_authored_nodes_or_control
     matrix_edit(
         &mut engine,
         template.media,
-        MatrixEdit::Configure {
-            settings: MatrixSettings {
-                transition: TransitionDefinition {
-                    duration_ms: 1000,
-                    curve: TransitionCurve::Linear,
-                },
-                ..Default::default()
+        MatrixEdit::ConfigureLayer {
+            layer: nested_row,
+            settings: LayerSettings {
+                duration_ms: 1000,
+                ..snapshot.items[0].layer.unwrap()
             },
         },
     );

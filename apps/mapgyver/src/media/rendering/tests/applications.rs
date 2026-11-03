@@ -146,6 +146,7 @@ fn rendering_app_bound_columns_requires_the_matching_admitted_lifecycle_owner() 
 fn interrupted_application_fades_keep_removed_outgoing_references_until_transition_settlement() {
     let mut engine = engine();
     let matrix = create(&mut engine, MediaKind::Matrix);
+    matrix_edit(&mut engine, matrix, MatrixEdit::AddLayers { parent: None, count: 1 });
     let MediaEditResult::MatrixCreated { columns, .. } =
         matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 3 })
     else {
