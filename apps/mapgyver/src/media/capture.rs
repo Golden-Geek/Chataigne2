@@ -7,7 +7,7 @@ use crate::app::{AppEngine, AppNode};
 use golden_core::model::NodeUuid;
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -16,6 +16,8 @@ pub struct CapturedChannels {
     pub(crate) guards: Arc<[RevisionGuard]>,
     pub(super) channels: Vec<CapturedChannel>,
     pub(super) assets: Vec<CapturedAsset>,
+    sources: Arc<super::retention::RuntimeSources>,
+    source_guard: RevisionGuard,
 }
 
 #[derive(Clone)]
@@ -29,6 +31,8 @@ pub(super) struct CapturedChannel {
     pub reference: ChannelReference,
     pub definition: Option<ChannelDefinition>,
     pub enabled: bool,
+    /// Only actual Cell-owned media may outlive removal; external target deletion stays missing.
+    pub owned: bool,
     /// Admitted active Composition instances; None for leaves or rejected instance admission.
     pub instances: Option<Vec<InstanceDefinition>>,
     pub instance_guards: Vec<RevisionGuard>,
@@ -101,43 +105,21 @@ impl CapturedChannels {
     }
     pub(crate) fn settle_transitions(&mut self, time: golden_time::TimeSnapshot) -> Result<(), String> {
         for matrix in self.channels.iter_mut().filter_map(|channel| channel.matrix.as_mut()) {
-            if matrix.until.is_some_and(|until| until.finished(time)) {
-                matrix.control.settle(time);
-                let availability = matrix
-                    .applications
-                    .demand
-                    .iter()
-                    .map(|entry| (entry.application, entry.availability))
-                    .collect::<std::collections::HashMap<_, _>>();
-                matrix.applications = matrix.control.capture_applications(time)?;
-                for entry in &mut matrix.applications.demand {
-                    if let Some(available) = availability.get(&entry.application) {
-                        entry.availability = *available;
-                    }
-                }
-                matrix
-                    .inputs
-                    .retain(|input| input.weight.is_none_or(|weight| weight.target().get() > 0.0));
-                for input in &mut matrix.inputs {
-                    input.weight = None;
-                }
-                matrix.until = None;
-                matrix.observation.transitioning = false;
-                matrix
-                    .observation
-                    .columns
-                    .retain(|column| Some(*column) == matrix.observation.playback.desired_column);
-            }
+            matrix.settle(time)?;
         }
+        self.sources.prune();
+        self.source_guard = self.sources.guard();
         Ok(())
     }
     pub fn is_current(&self) -> bool {
         self.revision_guards().all(RevisionGuard::is_current)
     }
 
+    pub(crate) fn base_guards(&self) -> impl Iterator<Item = &RevisionGuard> {
+        std::iter::once(&self.source_guard).chain(self.guards.iter())
+    }
     pub(crate) fn revision_guards(&self) -> impl Iterator<Item = &RevisionGuard> {
-        self.guards
-            .iter()
+        self.base_guards()
             .chain(self.channels.iter().flat_map(|channel| &channel.instance_guards))
     }
 }
@@ -174,14 +156,14 @@ pub(crate) fn capture_channels_with_time(
         unreachable!()
     };
     let mut guards = vec![manager.project_guard()];
-    let mut retired = HashMap::new();
-    let mut retired_matrices = HashSet::new();
-    let mut reference_owners = HashMap::<ChannelReference, Vec<crate::matrix::playback::PlaybackControl>>::new();
+    let sources = &manager.sources;
+    let retired = sources.snapshot();
     let mut seen = HashSet::new();
     let mut channels = Vec::new();
     let mut assets = Vec::new();
     let mut seen_assets = HashSet::<AssetId>::new();
     let mut guarded_matrices = HashSet::new();
+    let mut retained_matrices = HashSet::new();
     let mut guarded_media = HashSet::new();
     let mut pending = std::collections::VecDeque::new();
     for &reference in references {
@@ -195,6 +177,10 @@ pub(crate) fn capture_channels_with_time(
         let media = engine
             .node_id_by_uuid(reference.media.0)
             .and_then(|id| engine.nodes.get(id));
+        let frozen = media
+            .is_none()
+            .then(|| retired.get(&reference).filter(|channel| channel.owned))
+            .flatten();
         let definition = match media {
             Some(AppNode::ReferenceMedia(node))
                 if super::folders::contains_parent(engine, node.node_data().parent, manager_id) =>
@@ -238,33 +224,26 @@ pub(crate) fn capture_channels_with_time(
             }
             _ => {
                 guards.push(manager.membership_guard());
-                retired.get(&reference).cloned()
+                frozen.and_then(|channel| {
+                    channel
+                        .definition
+                        .clone()
+                        .map(|definition| (definition, channel.enabled))
+                })
             }
         };
-        if let Some((definition, enabled)) = &definition
-            && let ChannelSource::Reference { target } = definition.source
-            && let Some(owners) = reference_owners.get(&reference).cloned()
-        {
-            for owner in &owners {
-                owner.cache_reference(reference, definition.clone(), *enabled);
-            }
-            if let Some(target) = target {
-                let target_owners = reference_owners.entry(target).or_default();
-                for owner in owners {
-                    if !target_owners.iter().any(|existing| existing.same_owner(&owner)) {
-                        target_owners.push(owner);
-                    }
-                }
-            }
-        }
         let (definition, enabled) = match definition {
             Some((definition, enabled)) => (Some(definition), enabled),
             None => (None, false),
         };
-        let mut instances = None;
+        let mut instances = frozen.and_then(|channel| channel.instances.clone());
         let mut instance_guards = Vec::new();
-        let mut matrix = None;
-        if enabled
+        let mut matrix = frozen.and_then(|channel| channel.matrix.clone());
+        if let (Some(matrix), Some(time)) = (&mut matrix, time) {
+            matrix.settle(time)?;
+        }
+        if frozen.is_none()
+            && enabled
             && definition
                 .as_ref()
                 .is_some_and(|definition| matches!(definition.source, ChannelSource::Composition { .. }))
@@ -329,7 +308,8 @@ pub(crate) fn capture_channels_with_time(
                 instances = Some(active);
             }
         }
-        if enabled
+        if frozen.is_none()
+            && enabled
             && let Some(ChannelDefinition {
                 source: ChannelSource::Matrix { output },
                 ..
@@ -353,16 +333,51 @@ pub(crate) fn capture_channels_with_time(
                 matrix = None;
             }
             if let Some(matrix) = &matrix {
-                if retired_matrices.insert(reference.media) {
-                    retired.extend(matrix.control.cached_references());
+                if retained_matrices.insert(reference.media)
+                    && let Some(control) = &matrix.control
+                {
+                    control.bind_sources(sources, reference.media)?;
                 }
                 for source in matrix.inputs.iter().map(|input| input.source) {
-                    let owners = reference_owners.entry(source).or_default();
-                    if !owners.iter().any(|owner| owner.same_owner(&matrix.control)) {
-                        owners.push(matrix.control.clone());
-                    }
                     if seen.insert(source) {
                         pending.push_back(source);
+                    }
+                }
+            }
+        }
+        if frozen.is_some() {
+            let elements = instances
+                .as_ref()
+                .map_or(0, Vec::len)
+                .saturating_add(matrix.as_ref().map_or(0, |matrix| matrix.inputs.len()));
+            if elements > instance_budget {
+                instances = None;
+                matrix = None;
+            } else {
+                instance_budget -= elements;
+            }
+            let dependencies = instances
+                .iter()
+                .flatten()
+                .filter_map(|instance| instance.source)
+                .chain(
+                    matrix
+                        .iter()
+                        .flat_map(|matrix| matrix.inputs.iter().map(|input| input.source)),
+                )
+                .collect::<Vec<_>>();
+            let additions = dependencies
+                .iter()
+                .filter(|source| !seen.contains(source))
+                .copied()
+                .collect::<HashSet<_>>();
+            if seen.len().saturating_add(additions.len()) > limit {
+                instances = None;
+                matrix = None;
+            } else {
+                for dependency in dependencies {
+                    if seen.insert(dependency) {
+                        pending.push_back(dependency);
                     }
                 }
             }
@@ -402,7 +417,17 @@ pub(crate) fn capture_channels_with_time(
                 _ => guards.push(manager.membership_guard()),
             }
         }
+        let mut ancestor = media.and_then(|node| node.node_data().parent);
+        let mut owned = frozen.is_some();
+        while let Some(node) = ancestor.and_then(|id| engine.nodes.get(id)) {
+            if matches!(node, AppNode::MatrixCell(_)) {
+                owned = true;
+                break;
+            }
+            ancestor = node.node_data().parent;
+        }
         channels.push(CapturedChannel {
+            owned,
             reference,
             definition,
             enabled,
@@ -411,7 +436,10 @@ pub(crate) fn capture_channels_with_time(
             matrix,
         });
     }
+    sources.update(&channels)?;
     let mut captured = CapturedChannels {
+        source_guard: sources.guard(),
+        sources: sources.clone(),
         project: manager.instance,
         guards: Arc::from(guards),
         channels,

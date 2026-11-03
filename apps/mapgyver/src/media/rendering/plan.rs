@@ -62,22 +62,7 @@ pub(super) fn build(
         .iter()
         .map(|channel| (channel.reference, channel))
         .collect::<HashMap<_, _>>();
-    // Automatic References share their producer texture and consume no render pass.
-    let channel_passes = capture
-        .channels
-        .iter()
-        .filter(|channel| {
-            let Some(definition) = channel.definition.as_ref().filter(|_| channel.enabled) else {
-                return true;
-            };
-            if let (ChannelSource::Reference { target: Some(target) }, crate::media::protocol::SizePolicy::Automatic) =
-                (&definition.source, &definition.size)
-            {
-                return *target == channel.reference || !captured.contains_key(target);
-            }
-            true
-        })
-        .count();
+    let channel_passes = super::derived::base_passes(capture);
     if routes
         .len()
         .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
@@ -90,8 +75,7 @@ pub(super) fn build(
     let mut entries = HashMap::new();
     let mut channels = Vec::new();
     let mut submission = PlanSubmission::new(RenderPlan::default());
-    submission.guards = capture.guards.clone();
-    let mut guards = capture.guards.to_vec();
+    let mut guards = capture.base_guards().cloned().collect::<Vec<_>>();
     let mut image_sources = HashMap::new();
     let mut prepared_channels = HashMap::<ChannelReference, PreparedChannel>::new();
     for route in routes {

@@ -112,6 +112,13 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		await wait(inspect, (value) => value.cells.length === 1);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(inspect, (value) => value.cells.length === 2);
+		await panel
+			.getByRole('button', { name: `Launch ${initial.columns[0].label}`, exact: true })
+			.click();
+		await wait(
+			async () => (await operation({ kind: 'InspectPlayback' })).snapshot,
+			(value) => value.desired_column === initial.columns[0].id
+		);
 		await drop(0, true);
 		const replaced = await wait(
 			inspect,
@@ -148,7 +155,7 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Matrix default Reference/Alt-copy drops, typed Cell Inspector, independent variants, replacement Undo/Redo and project roundtrip'
+					'Matrix default Reference/Alt-copy drops, typed Cell Inspector, independent variants, launched-cell replacement Undo/Redo and project roundtrip'
 			})
 		);
 	} finally {

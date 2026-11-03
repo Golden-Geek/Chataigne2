@@ -3,9 +3,7 @@ use super::projection::RenderIndex;
 use super::protocol::*;
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::{
-        ChannelDefinition, ChannelReference, ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId,
-    },
+    media::protocol::{ChannelReference, ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId},
 };
 use golden_core::{
     edit::{Edit, EditCompletion, EditCompletionStatus},
@@ -13,7 +11,6 @@ use golden_core::{
     node::Node,
 };
 use golden_io::{RevisionGuard, RevisionSource};
-use std::collections::{HashMap, HashSet};
 use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
@@ -24,6 +21,7 @@ pub(crate) struct PlaybackControl(Arc<Control>);
 #[derive(Default)]
 struct Control {
     state: Mutex<State>,
+    sources: OnceLock<Arc<crate::media::retention::RuntimeSources>>,
     revision: RevisionSource,
     // Runtime launches must not change the authoring epoch used by clip binding admission.
     authored: RevisionSource,
@@ -34,9 +32,9 @@ struct Control {
 }
 #[derive(Default)]
 struct State {
-    references: HashMap<ChannelReference, (ChannelDefinition, bool)>,
     current: MatrixPlaybackSnapshot,
-    pending: Option<(MatrixPlaybackSnapshot, EditCompletion)>,
+    version: u64,
+    pending: Option<(MatrixPlaybackSnapshot, EditCompletion, u64)>,
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
     view: Option<(u64, Arc<super::view::ViewIndex>)>,
@@ -46,6 +44,19 @@ struct State {
 #[derive(Clone)]
 pub(crate) struct RuntimeBinding(Weak<Control>);
 impl RuntimeBinding {
+    pub(crate) fn sources(&self) -> Option<Vec<ChannelReference>> {
+        let control = self.0.upgrade()?;
+        let state = control.state.lock().expect("Matrix playback lock poisoned");
+        Some(
+            state
+                .timeline
+                .bindings
+                .edges()
+                .into_iter()
+                .map(|(_, source)| source)
+                .collect(),
+        )
+    }
     pub fn invalidate_applications(&self) {
         if let Some(control) = self.0.upgrade() {
             PlaybackControl(control).invalidate_applications();
@@ -149,99 +160,33 @@ impl PlaybackControl {
     ) -> Result<Option<T>, String> {
         let desired = self.snapshot();
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        let Some(frame) = state
-            .timeline
-            .frame(&desired, time, self.0.authored.reader().current())?
-        else {
+        let version = state.version;
+        let Some(frame) = state.timeline.frame(&desired, time, version)? else {
             return Ok(None);
         };
-        let result = capture(&mut state.timeline, &frame, &desired).map(Some);
-        let mut keep = HashSet::new();
-        for (_, source) in state.timeline.bindings.edges() {
-            let mut next = source;
-            while keep.insert(next) {
-                let Some((
-                    ChannelDefinition {
-                        source: ChannelSource::Reference { target: Some(target) },
-                        ..
-                    },
-                    _,
-                )) = state.references.get(&next)
-                else {
-                    break;
-                };
-                next = *target;
-            }
-        }
-        state.references.retain(|key, _| keep.contains(key));
-        result
+        capture(&mut state.timeline, &frame, &desired).map(Some)
     }
-    pub(crate) fn same_owner(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+    pub(crate) fn bind_sources(
+        &self,
+        sources: &Arc<crate::media::retention::RuntimeSources>,
+        media: MediaId,
+    ) -> Result<(), String> {
+        let _ = self.0.sources.set(sources.clone());
+        sources.register(media, self.binding())
     }
-    // Runtime-only alias definitions survive authored removal without retaining an old index.
-    pub(crate) fn cached_references(&self) -> HashMap<ChannelReference, (ChannelDefinition, bool)> {
-        self.0
+    pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
+        let edges = self
+            .0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
-            .references
-            .clone()
-    }
-    pub(crate) fn cache_reference(&self, key: ChannelReference, definition: ChannelDefinition, enabled: bool) {
-        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        if state.references.len() < super::bindings::MAX_BINDINGS || state.references.contains_key(&key) {
-            state.references.insert(key, (definition, enabled));
-        }
-    }
-    pub(crate) fn retains_media(&self, media: MediaId) -> bool {
-        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        state.timeline.bindings.edges().into_iter().any(|(_, mut source)| {
-            let mut seen = HashSet::new();
-            while seen.insert(source) {
-                if source.media == media {
-                    return true;
-                }
-                let Some((
-                    ChannelDefinition {
-                        source: ChannelSource::Reference { target: Some(target) },
-                        ..
-                    },
-                    _,
-                )) = state.references.get(&source)
-                else {
-                    break;
-                };
-                source = *target;
-            }
-            false
-        })
-    }
-    pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
-        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        state
             .timeline
             .bindings
-            .edges()
-            .into_iter()
-            .map(|(owner, mut source)| {
-                let mut seen = HashSet::new();
-                while seen.insert(source) {
-                    let Some((
-                        ChannelDefinition {
-                            source: ChannelSource::Reference { target: Some(target) },
-                            ..
-                        },
-                        _,
-                    )) = state.references.get(&source)
-                    else {
-                        break;
-                    };
-                    source = *target;
-                }
-                (owner, source)
-            })
-            .collect()
+            .edges();
+        match self.0.sources.get() {
+            Some(sources) => sources.edges(edges),
+            None => edges,
+        }
     }
     fn admits(&self, column: ColumnId) -> bool {
         self.0
@@ -253,10 +198,12 @@ impl PlaybackControl {
     }
     pub fn snapshot(&self) -> MatrixPlaybackSnapshot {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        if let Some((_, receipt)) = &state.pending {
+        if let Some((_, receipt, _)) = &state.pending {
             match receipt.status() {
                 EditCompletionStatus::Applied => {
-                    state.current = state.pending.take().unwrap().0;
+                    let (desired, _, version) = state.pending.take().unwrap();
+                    state.current = desired;
+                    state.version = version;
                     self.0.revision.advance();
                 }
                 EditCompletionStatus::Failed => {
@@ -270,7 +217,8 @@ impl PlaybackControl {
     pub fn stage(&self, desired: MatrixPlaybackSnapshot, receipt: EditCompletion) {
         // Preserve an earlier committed request even when the next request later fails.
         self.snapshot();
-        self.0.state.lock().expect("Matrix playback lock poisoned").pending = Some((desired, receipt));
+        self.0.state.lock().expect("Matrix playback lock poisoned").pending =
+            Some((desired, receipt, self.authoring_revision()));
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
         self.notify_applications();
@@ -281,6 +229,9 @@ impl PlaybackControl {
     }
     pub fn clear(&self) {
         *self.0.state.lock().expect("Matrix playback lock poisoned") = State::default();
+        if let Some(sources) = self.0.sources.get() {
+            sources.prune();
+        }
         self.0.dirty.store(true, Ordering::Release);
         self.0.revision.advance();
         self.invalidate_applications();

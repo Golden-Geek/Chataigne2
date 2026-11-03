@@ -284,9 +284,6 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::RemoveItem { item } => {
             let node = document.item(item)?;
             let subtree = descendants(engine, node)?;
-            for id in &subtree {
-                super::cells::reject_removal(engine, *id)?;
-            }
             for (item, id) in &document.items {
                 if subtree.contains(id) {
                     engine.edits.push(Edit::RemoveNode {
@@ -329,7 +326,6 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             let node = document.column(column)?;
             for ((_, owner), cell) in &document.cells {
                 if *owner == column {
-                    super::cells::reject_removal(engine, *cell)?;
                     engine.edits.push(Edit::RemoveNode { node: *cell });
                 }
             }

@@ -14,18 +14,18 @@ impl golden_time::Clock for Clock {
         Ok(MonotonicTime::from_nanos(self.0.load(Ordering::Relaxed)))
     }
 }
-fn at(anchor: TimeSnapshot, millis: u64) -> TimeSnapshot {
+pub(super) fn at(anchor: TimeSnapshot, millis: u64) -> TimeSnapshot {
     anchor
         .at_monotonic(MonotonicTime::from_nanos(millis * 1_000_000))
         .unwrap()
 }
-fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {
+pub(super) fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {
     edit(engine, MediaEdit::Matrix { media, edit: operation })
 }
-fn launch(engine: &mut AppEngine, media: MediaId, column: ColumnId, mode: LaunchMode) {
+pub(super) fn launch(engine: &mut AppEngine, media: MediaId, column: ColumnId, mode: LaunchMode) {
     matrix_edit(engine, media, MatrixEdit::LaunchColumn { column, mode });
 }
-fn fixture() -> (
+pub(super) fn fixture() -> (
     AppEngine,
     ChannelReference,
     Vec<ChannelReference>,
@@ -94,7 +94,7 @@ fn fixture() -> (
     );
     (engine, matrix, sources, layer, columns)
 }
-fn prepared(
+pub(super) fn prepared(
     capture: &CapturedChannels,
     matrix: ChannelReference,
     owner: &ChannelRenderer,
@@ -117,7 +117,7 @@ fn prepared(
     )
     .unwrap()
 }
-fn layers(prepared: &super::super::plan::Prepared, reference: ChannelReference) -> &[Layer] {
+pub(super) fn layers(prepared: &super::super::plan::Prepared, reference: ChannelReference) -> &[Layer] {
     let pass = prepared
         .submission
         .plan
@@ -194,7 +194,8 @@ fn matrix_fades_share_sources_preserve_interrupted_weights_and_withdraw_outgoing
 
 #[test]
 fn renderer_refresh_publishes_once_at_fade_completion_without_per_frame_plan_churn() {
-    let (mut engine, matrix, sources, _, columns) = fixture();
+    let (mut engine, matrix, sources, layer, columns) = fixture();
+    let old = super::retention::drop_copy(&mut engine, matrix, layer, columns[0], sources[0]);
     let clock = Arc::new(Clock::default());
     let config = config();
     let mut owner = ChannelRenderer::new(
@@ -218,6 +219,14 @@ fn renderer_refresh_publishes_once_at_fade_completion_without_per_frame_plan_chu
             routes(matrix),
         )
         .unwrap();
+    edit(&mut engine, MediaEdit::RemoveMedia { media: old.media });
+    owner
+        .publish(
+            capture_channels_at(&engine, &[matrix], 16, time).unwrap(),
+            routes(matrix),
+        )
+        .unwrap();
+    let cached = Arc::downgrade(super::retention::registry(&engine).snapshot().get(&old).unwrap());
     let publication = owner.latest_request();
     for millis in [0, 100, 500, 999] {
         clock.0.store(millis * 1_000_000, Ordering::Relaxed);
@@ -226,7 +235,9 @@ fn renderer_refresh_publishes_once_at_fade_completion_without_per_frame_plan_chu
     }
     clock.0.store(1_000_000_000, Ordering::Relaxed);
     assert!(owner.refresh().unwrap().is_some());
-    assert!(!owner.channels().iter().any(|channel| channel.reference == sources[0]));
+    assert!(!owner.channels().iter().any(|channel| channel.reference == old));
+    assert!(!super::retention::registry(&engine).snapshot().contains_key(&old));
+    assert!(cached.upgrade().is_none());
     assert!(owner.channels().iter().any(|channel| channel.reference == sources[1]));
     assert!(owner.refresh().unwrap().is_none());
     close(owner);
@@ -341,7 +352,7 @@ fn assign(
         },
     );
 }
-fn time() -> TimeSnapshot {
+pub(super) fn time() -> TimeSnapshot {
     TimeAuthority::new(Clock::default(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL)
         .unwrap()
         .sample()

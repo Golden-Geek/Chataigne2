@@ -417,3 +417,66 @@ fn missing_picture_recovery_replacement_and_project_relocation_keep_the_healthy_
     );
     finish(renderer);
 }
+
+#[test]
+fn removed_playing_picture_copy_keeps_its_prepared_lease_until_cut_and_renderer_retirement() {
+    use super::transitions::{fixture, launch};
+    use crate::{matrix::protocol::LaunchMode, media::capture_channels_at};
+    let project = tempfile::tempdir().unwrap();
+    png(project.path(), "owned.png", 2, 2, [255, 0, 0, 255]);
+    let (mut engine, matrix, _, layer, columns) = fixture();
+    let source = create(&mut engine, MediaKind::Picture);
+    let asset = import(&mut engine, "owned.png");
+    select(&mut engine, source, asset);
+    let old = super::retention::drop_copy(&mut engine, matrix, layer, columns[0], source);
+    let mut renderer = picture_renderer(project.path());
+    launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
+    let time = renderer.read_time().unwrap();
+    renderer
+        .publish(
+            capture_channels_at(&engine, &[matrix], 32, time).unwrap(),
+            routes(matrix),
+        )
+        .unwrap();
+    wait(|| {
+        renderer.refresh().unwrap();
+        let mut outcomes = Vec::new();
+        renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+        renderer
+            .channels()
+            .iter()
+            .any(|channel| channel.reference == old && channel.resolution.availability == ChannelAvailability::Ready)
+    });
+    let fingerprint = renderer.pictures.as_ref().unwrap().get(asset).unwrap().fingerprint();
+    edit(&mut engine, MediaEdit::RemoveMedia { media: old.media });
+    let time = renderer.read_time().unwrap();
+    let request = renderer
+        .publish(
+            capture_channels_at(&engine, &[matrix], 32, time).unwrap(),
+            routes(matrix),
+        )
+        .unwrap();
+    installed(&renderer, request);
+    assert_eq!(
+        renderer.pictures.as_ref().unwrap().get(asset).unwrap().fingerprint(),
+        fingerprint
+    );
+    assert!(
+        renderer
+            .channels()
+            .iter()
+            .any(|channel| channel.reference == old && channel.resolution.availability == ChannelAvailability::Ready)
+    );
+    launch(&mut engine, matrix.media, columns[1], LaunchMode::Cut);
+    let time = renderer.read_time().unwrap();
+    let request = renderer
+        .publish(
+            capture_channels_at(&engine, &[matrix], 32, time).unwrap(),
+            routes(matrix),
+        )
+        .unwrap();
+    installed(&renderer, request);
+    assert!(renderer.pictures.as_ref().unwrap().get(asset).is_none());
+    assert!(!renderer.channels().iter().any(|channel| channel.reference == old));
+    finish(renderer);
+}

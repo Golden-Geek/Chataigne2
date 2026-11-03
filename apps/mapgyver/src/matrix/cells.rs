@@ -7,49 +7,16 @@ use golden_core::{
     app::ProjectNode,
     edit::{Edit, NodeTree, UserItemTreeInsertion},
     engine::ProjectImportSpec,
-    node::{Node, NodeId, NodeReference},
+    node::{Node, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 use std::collections::{HashMap, HashSet};
 
-pub(crate) fn reject_removal(engine: &AppEngine, cell: NodeId) -> Result<(), String> {
-    let Some(AppNode::MatrixCell(node)) = engine.nodes.get(cell) else {
-        return Ok(());
+fn binding(engine: &AppEngine, document: &Document) -> super::playback::RuntimeBinding {
+    let AppNode::MediaChannel(node) = engine.nodes.get(document.root).unwrap() else {
+        unreachable!()
     };
-    let Some(content) = node.content(engine)? else {
-        return Ok(());
-    };
-    let media = engine.nodes.get(content).unwrap().node_data().meta.uuid;
-    let mut parent = node.node_data().parent;
-    while let Some(id) = parent {
-        let owner = engine.nodes.get(id).ok_or("Matrix owner is missing")?;
-        if let AppNode::MediaChannel(channel) = owner
-            && let Some(control) = channel.matrix_playback()
-        {
-            if control.snapshot().desired_column == Some(node.column()) || control.retains_media(MediaId(media)) {
-                if matches!(engine.nodes.get(content), Some(AppNode::ReferenceMedia(_)))
-                    && node
-                        .definition(engine)?
-                        .source
-                        .is_some_and(|key| control.cached_references().contains_key(&key))
-                {
-                    return Ok(());
-                }
-                return Err("Cell media is still in use; unload the Matrix before replacement/removal (owned-media retirement is pending)".into());
-            }
-            return Ok(());
-        }
-        parent = owner.node_data().parent;
-    }
-    Err("Cell has no Matrix owner".into())
-}
-pub(crate) fn reject_content_removal(engine: &AppEngine, content: NodeId) -> Result<(), String> {
-    if let Some(parent) = engine.nodes.get(content).and_then(|node| node.node_data().parent)
-        && matches!(engine.nodes.get(parent), Some(AppNode::MatrixCell(_)))
-    {
-        reject_removal(engine, parent)?;
-    }
-    Ok(())
+    node.matrix_playback().unwrap().binding()
 }
 
 pub(super) fn assign(
@@ -84,7 +51,7 @@ pub(super) fn assign(
             if unchanged {
                 continue;
             }
-            reject_removal(engine, *id)?;
+            node.bind_runtime(binding(engine, document));
         } else {
             additions += 1;
         }
@@ -140,6 +107,7 @@ pub(super) fn assign(
             }
         } else {
             let node = CellNode::from_address("Cell".into(), column, source.map(|source| source.channel));
+            node.bind_runtime(binding(engine, document));
             let mut tree = NodeTree::new(node);
             if let Some(content) = content {
                 tree = tree.with_child(NodeTree::new(content).as_user_item());
@@ -180,11 +148,11 @@ pub(super) fn drop_source(
         engine.apply_edits().map_err(|e| e.to_string())?;
     } else {
         let cell = if let Some(id) = document.cells.get(&(layer, column)) {
-            reject_removal(engine, *id)?;
             *id
         } else {
             document.admit(1)?;
             let node = CellNode::from_address("Cell".into(), column, None);
+            node.bind_runtime(binding(engine, document));
             let uuid = node.node_data().meta.uuid;
             engine.edits.push(Edit::AddUserItemTree {
                 parent: document.item(MatrixItemId::Layer { id: layer })?,
@@ -197,6 +165,7 @@ pub(super) fn drop_source(
         let AppNode::MatrixCell(node) = engine.nodes.get(cell).unwrap() else {
             unreachable!()
         };
+        node.bind_runtime(binding(engine, document));
         let old = node.content(engine)?;
         let output_parameter = node.output_parameter();
         let source_id = engine

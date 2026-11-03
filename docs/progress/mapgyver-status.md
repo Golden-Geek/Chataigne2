@@ -3,8 +3,8 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M04 Reference media.
-**Next deliverable:** finish physical/copied Cell media retirement through final render use;
-then missing/unconfigured Reference source-drop parity, mixed Matrix and native acceptance.
+**Next deliverable:** missing/unconfigured Reference source-drop parity, then mixed Matrix,
+end-to-end scale and native sharing/resampling/recovery acceptance.
 **Execution:** M04/1–2 accepted; M04/7 continues on `mapgyver`, with one active gate. Source
 qualification M04/4–6 remains in the return queue under the plan's recorded functional order.
 **Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
@@ -15,10 +15,10 @@ Screen/Surface editing, Composition and Matrix playback, paged Reference output 
 actual Composition media children with typed Placement, and typed Matrix Cells with Reference/
 Alt-copy drops and independent source copies.
 **Last delivered capability:** [Matrix-owned media](../architecture/mapgyver-owned-media.md):
-typed Cell v1 Column/Output Parameters, actual Reference/copied child media, full subtree
-duplication/remapping, grid drops, generic Cell Inspector, commands/named scripting and history/
-reload. Admitted outgoing References retain their source through fades/removal. In-use physical
-copies and uncaptured References still require Unload before replacement/removal.
+playing Cell media can be replaced/removed without Unload. A shared bounded producer registry
+preserves outgoing physical/Reference/Composition/nested Matrix content, feedback edges and
+Picture leases through final use. Typed Cells, actual child media, grid drops, subtree copying,
+generic Inspector, named/command callers and history/reload remain available.
 Full Reference acceptance remains open.
 **Last accepted:** [M04/2 native source variants](mapgyver-m04-variants.md): all three source
 kinds on Intel Graphics and NVIDIA RTX 5080, including shared Resolution, three consumers,
@@ -57,7 +57,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/7            | Reference core, paged Inspector and actual Composition/Matrix child-media drops delivered as bounded slices. Next finish physical/copied Cell media retirement and uncaptured Reference replacement; then missing/unconfigured Reference source-drop parity. Full mixed Matrix, end-to-end scale and native sharing/resampling/recovery remain open. |
+| Active   | M04/7            | Reference core, paged Inspector and actual Composition/Matrix child-media drops delivered as bounded slices. Physical/copied media retirement is software-verified; next finish missing/unconfigured Reference source-drop parity. Full mixed Matrix, end-to-end scale and native sharing/resampling/recovery remain open. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
 | Pending  | M04/8            | After Reference working contracts, deliver independent dockable Media Preview instances with selection-follow/lock/channel/grid state and retirement; remove Inspector previews and complete native/bundled acceptance.                                                                                                   |
@@ -85,28 +85,29 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/7 Matrix-owned media, owned by MapGyver matrix/media.
-  Batch 2026-11-03 01:20–02:05 CET; implementation/checkpoint finished within its cutoff.
-  Delivered typed Cell v1 Column/Output Parameters, actual Reference/copied child media,
-  default/Alt grid drops, generic Cell Inspector selection, full-subtree Group/Column copying,
-  command schema v4 (33 kinds), named `dropMatrixMedia` and committed callback parity.
-  Admitted Reference definitions retain outgoing fades after replacement/clear/column removal;
-  feedback checks retain those edges and prune aliases at final clip use. Automatic aliases
-  share render-pass credits without increasing budgets. Replacement history restores the old
-  subtree before its Output to preserve validation through Undo/Redo.
-  **Checks:** 304 library tests passed, one existing ignored (includes generated drift, command
-  catalog and all four caller paths); strict all-target/native-qualification Clippy, root and
-  Golden formatting, zero-error/warning Svelte check, ordinary bundled build, and combined
-  `--matrix-owned-media-ui --owned-media-ui` passed. Browser proof includes real drags,
-  independent variants, typed Inspector, replacement Undo/Redo and Save/New/Load; the isolated
-  headless host exited 0. [Owning evidence/limits](../architecture/mapgyver-owned-media.md).
+- **Current milestone:** M04/7 owned Cell media retirement, owned by MapGyver media/matrix runtime.
+  Batch 2026-11-03 01:59–02:44 CET; implementation/checkpoint is within the recorded cutoff.
+  Removed the temporary Unload requirement for playing owned media replacement/removal.
+  The shared project producer graph retains physical/Reference/Composition/nested Matrix
+  dependencies; frozen nested envelopes settle without keeping live controls or old authored
+  indexes. External target removal stays missing. Launch receipts capture authoring epochs,
+  so uncaptured launches never acquire later replacements without explicit relaunch.
+  Separate 4096 channel/placement-input/consumer bounds preserve the previously admitted graph
+  on overflow; media-keyed consumer registration avoids repeated owner-list scans. Runtime
+  dependency validation includes retired owned graphs and final-use metadata pruning.
+  **Checks:** 311 library tests passed, one existing ignored, including generated-contract
+  drift, caller/command parity, physical/derived/Picture retirement, overflow atomicity and
+  refresh-only final-use pruning. All 56 affected rendering tests passed after the final capture
+  deduplication. Strict all-target/native-qualification Clippy, both workspace formatters and
+  the ordinary bundled build passed. Combined `--matrix-owned-media-ui --owned-media-ui` passed,
+  including launched-cell replacement, Undo/Redo and Save/New/Load; the host exited 0. [Owning architecture/evidence](../architecture/mapgyver-owned-media.md)
+  describes conservative nested app references and the remaining native scope.
   **Gate change:** none; M04/7 remains the only Active gate. Counts stay 26/57 gates, M04 3/8
-  (38%), 3/11 phases (27%). No native experiment or release qualification was claimed.
-  **Exact remaining requirement / next deliverable:** replace the temporary Unload requirement
-  for in-use physical/copied media and uncaptured References with runtime-owner retention through
-  final render use. Then finish missing/unconfigured source-drop parity, mixed Matrix behavior,
-  end-to-end scale and native sharing/resampling/recovery. Layer/Group/Column typed settings,
-  revised editor/trigger semantics and app controls remain required under M07/M08.
+  (38%), 3/11 phases (27%). Native resource/display/timing acceptance remains separate.
+  **Exact next deliverable:** missing/unconfigured Reference drops into Composition/Matrix;
+  then full mixed Matrix behavior, end-to-end scale and native sharing/resampling/recovery.
+  Layer/Group/Column typed settings, revised editor/trigger semantics and app-control configuration
+  remain required under M07/M08.
 
 ## Maintenance rule
 

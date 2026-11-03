@@ -24,9 +24,40 @@ pub(crate) struct CapturedMatrix {
     pub opacity: f32,
     pub inputs: Vec<MatrixInput>,
     pub until: Option<golden_video::plan::OpacityEnvelope>,
-    pub control: super::playback::PlaybackControl,
+    pub control: Option<super::playback::PlaybackControl>,
 }
 impl CapturedMatrix {
+    pub fn settle(&mut self, time: golden_time::TimeSnapshot) -> Result<(), String> {
+        if self.until.is_none_or(|until| !until.finished(time)) {
+            return Ok(());
+        }
+        if let Some(control) = &self.control {
+            control.settle(time);
+            let availability = self
+                .applications
+                .demand
+                .iter()
+                .map(|entry| (entry.application, entry.availability))
+                .collect::<HashMap<_, _>>();
+            self.applications = control.capture_applications(time)?;
+            for entry in &mut self.applications.demand {
+                if let Some(available) = availability.get(&entry.application) {
+                    entry.availability = *available;
+                }
+            }
+        }
+        self.inputs
+            .retain(|input| input.weight.is_none_or(|weight| weight.target().get() > 0.0));
+        for input in &mut self.inputs {
+            input.weight = None;
+        }
+        self.until = None;
+        self.observation.transitioning = false;
+        self.observation
+            .columns
+            .retain(|column| Some(*column) == self.observation.playback.desired_column);
+        Ok(())
+    }
     pub fn needs_scratch(&self) -> bool {
         self.opacity < 1.0 && self.inputs.len() > 1
     }
@@ -90,7 +121,7 @@ pub(crate) fn capture(
                 opacity: 1.0,
                 inputs: vec![],
                 until: frame.interval.map(|interval| interval.envelope(0.0, 1.0)),
-                control: control.clone(),
+                control: Some(control.clone()),
             };
             let item = match output {
                 MatrixOutput::Final { .. } => {

@@ -240,7 +240,7 @@ impl ChannelRenderer {
                 &demanded,
                 self.limits.max_dependencies,
                 self.limits.max_dependencies,
-                self.limits.max_passes.saturating_sub(capture.channels.len()),
+                self.limits.max_passes.saturating_sub(derived::base_passes(&capture)),
             )?
             .0;
             pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;

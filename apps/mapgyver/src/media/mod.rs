@@ -19,6 +19,7 @@ pub mod protocol;
 pub(crate) mod reference;
 pub mod rendering;
 pub mod resolution;
+pub(crate) mod retention;
 mod script_templates;
 mod scripting;
 mod source_api;

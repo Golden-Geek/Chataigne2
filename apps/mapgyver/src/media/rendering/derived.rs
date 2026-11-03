@@ -3,11 +3,36 @@ use super::PreparedChannel;
 use crate::media::resolution::ChannelAvailability;
 use crate::media::{
     capture::{CapturedChannel, CapturedChannels},
-    protocol::ChannelReference,
+    protocol::{ChannelReference, ChannelSource, SizePolicy},
 };
 use golden_video::plan::{Layer, Point, ProjectiveMapping, Quad, SampleFilter, UnitRect};
 use golden_video::{Extent2D, Opacity};
 use std::collections::{HashMap, HashSet};
+
+/// Conservative leaf/pass allowance shared by rendering and Picture preparation.
+pub(super) fn base_passes(capture: &CapturedChannels) -> usize {
+    let references = capture
+        .channels
+        .iter()
+        .map(|channel| channel.reference)
+        .collect::<HashSet<_>>();
+    // Automatic References share their producer texture and consume no render pass.
+    capture
+        .channels
+        .iter()
+        .filter(|channel| {
+            let Some(definition) = channel.definition.as_ref().filter(|_| channel.enabled) else {
+                return true;
+            };
+            if let (ChannelSource::Reference { target: Some(target) }, SizePolicy::Automatic) =
+                (&definition.source, &definition.size)
+            {
+                return *target == channel.reference || !references.contains(target);
+            }
+            true
+        })
+        .count()
+}
 
 pub(super) fn ordered(
     capture: &CapturedChannels,
