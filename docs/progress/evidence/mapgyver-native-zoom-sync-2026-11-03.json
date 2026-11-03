@@ -1,0 +1,30 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Active: reproduced moving-frame image/DOM-overlay mismatch; native capture is available",
+	"baseline": {
+		"fixture": "native-alignment.mjs target/mapgyver-screen-zoom-20261103-0925 --zoom",
+		"native_samples": 24,
+		"max_edge_offset_change_px": 5,
+		"settled_edge_offset_change_px": 0,
+		"moving_sample_ms": 171.485,
+		"moving_edges": [535, 974, 538.5, 970.5, 378, 707, 380.5, 704.5],
+		"result": "Same-frame native red content extends beyond the blue outline during smooth zoom. The unchanged verifier fails its <=1-pixel relative-edge-change assertion. Settled geometry agrees."
+	},
+	"candidate": {
+		"hypothesis": "The extra RAF used to measure DOM mutations causes the discrepancy; coalescing measurement in a microtask should fix it without changing one-IPC/latest-layout ownership.",
+		"software_prerequisites": "Candidate preview unit tests 30 pass, browser lifecycle/scale-3/recovery/continuity pass, MapGyver UI check 0 errors/0 warnings, ordinary bundled isolated executable build exit 0 before native execution.",
+		"fixture": "native-alignment.mjs target/mapgyver-screen-zoom-microtask-20261103-0930 --zoom",
+		"native_samples": 24,
+		"max_edge_offset_change_px": 6,
+		"settled_edge_offset_change_px": 0,
+		"moving_sample_ms": 176.481,
+		"moving_edges": [534, 975, 538.5, 970.5, 377, 708, 380.5, 704.5],
+		"result": "Hypothesis does not resolve the native mismatch. Candidate and its implementation-mirroring test were removed; no production scheduling change is retained."
+	},
+	"decision": "Two native experiments are complete; do not add a third timing probe or repeat unchanged captures. Separate DOM/native presentation needs a coherent presentation solution. Next product slice is rendering editor outline/handle presentation with the native image's placement/frame, through app-neutral Golden contracts and app-owned overlay contributions; input and lifecycle semantics remain required.",
+	"source_scope_correction": "M05/7's full bundled/native input, crop, calibration, history, source-loss and read-fencing proof remains valid. Its uniform full-source outer edge can be clipped by the DOM aperture, so it does not independently prove internal image motion. Reopen that gate Pending; restore acceptance only after a source image with an internal landmark follows its crop outline during motion. Do not count the prior border-only pass as complete alignment proof.",
+	"cleanup": "Both native fixtures exited normally 0 after their verifiers completed/failed. No native test app or capture worker remains. Local PNGs and detailed traces remain under the named target directories; no large archive or diagnostic framework is added.",
+	"current_binary_note": "The last local codex-review executable includes the rejected microtask candidate and is not a current-checkout acceptance binary. Rebuild normally before the next native run. The source and repository retain the pre-candidate scheduler.",
+	"gate_changes": "M05/6 stays sole Active gate. M05/7 Accepted -> Pending after evidence audit; M05 returns to 4/10 (40%), accepted gates 29/57 (51%), phases 3/11 (27%). M05/10 remains Accepted. Every original requirement and budget remains unchanged."
+}

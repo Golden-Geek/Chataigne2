@@ -2,17 +2,17 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Verified gates: `█████░░░░░` 53% · 30/57 accepted** (phase completion above remains 3/11).
+**Verified gates: `█████░░░░░` 51% · 29/57 accepted** (phase completion above remains 3/11).
 
-**Current topic:** M05/7 Surface Source accepted; native desktop capture restored.
-**Next deliverable:** close M05/6 Screen same-frame native zoom alignment with the working
-owned-foreground capture route, then M05/9 visible output-bounds updates.
-**Execution:** M04/1–3,7–8 and M05/7,10 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
+**Current topic:** M05/6 moving-frame alignment defect; native desktop capture restored.
+**Next deliverable:** make native editor image and outline/handle presentation share a coherent
+frame/placement contract. Retain native hit-testing and lifecycle semantics, then M05/9 output bounds.
+**Execution:** M04/1–3,7–8 and M05/10 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
-**Blocker for next product:** none known. Visible desktop-region capture includes native image
-and SVG pixels; the unavailable helper/black PrintWindow method no longer blocks alignment checks.
-**Usable now:** native Source crop/mapping/calibration, held Inspector feedback, selection/history
-and sampled image/outline zoom alignment; immutable background reads keep loaded controls usable;
+**Current defect:** moving native image and DOM outline differ by 5–6 physical pixels; settled
+geometry agrees. Capture works. The next action is a presentation fix, not more capture research.
+**Usable now:** native Source crop/mapping/calibration, held Inspector feedback and selection/history;
+immutable background reads keep loaded controls usable; native zoom alignment remains unaccepted;
 responsive Screen target/resolution/per-output FPS and Surface source-media tree
 supplements; actual submitted FPS, selected GPU, CPU submit time and tracked renderer allocations
 in the shared workbench footer, with coarse observations and automatic stream recovery;
@@ -29,12 +29,11 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered and accepted:** [M05/7 Surface Source](evidence/mapgyver-source-native-2026-11-03.json):
-complete bundled/native input/history/source-loss checklist, immutable read/gesture isolation,
-late creation-selection fencing and same-frame native red/SVG-blue zoom observations. Twenty-four
-native captures include an intermediate image width; maximum edge-offset change is 0.5 physical
-pixels, with 38 intermediate DOM frames. Full physical/DPI/latency qualification remains open.
-M05/10 workbench status and M04/7–8 remain accepted.
+**Last delivered capability:** [Source editing/read isolation](evidence/mapgyver-source-native-2026-11-03.json),
+including the complete bundled/native input/history/source-loss checklist and usable desktop capture.
+[Pixel audit](evidence/mapgyver-native-zoom-sync-2026-11-03.json) reopens Source alignment because
+the uniform image border can be clipped by the DOM aperture. Last accepted remains M05/10
+workbench status; M04/7–8 remain accepted. No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
 | Phase                                                                                                                                                | State                           | Progress          | Gates | Subphase progression                                                                  |
@@ -44,7 +43,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m02-acceptance-items"></a>[M02 Shared shell](mapgyver-m02-shell.md)                                                                           | Accepted                        | `██████████` 100% | 7/7   | Build/identity/discovery/tools/host/isolation 7/7                                     |
 | <a id="m03-acceptance-items"></a>[M03 Rendering](mapgyver-m03-render-foundations.md)                                                                 | Blocked                         | `████████░░` 78%  | 7/9   | Foundations 7/7; recovery 0/1; qualification 0/1                                      |
 | <a id="m04-acceptance-items"></a>[M04 Media](../plan/MapGyver_Implementation_Plan.md#m04--deliver-source-variants-reference-media-and-media-preview) | Pending source qualification    | `██████░░░░` 63%  | 5/8   | Sources 3/6; Reference 1/1; Preview 1/1                                               |
-| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Active; physical gates retained | `█████░░░░░` 50%  | 5/10  | Authoring/warp/calibration 3/3; editors 1/2; physical 0/3; bounds/workbench stats 1/2 |
+| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Active; physical gates retained | `████░░░░░░` 40%  | 4/10  | Authoring/warp/calibration 3/3; editors 0/2; physical 0/3; bounds/workbench stats 1/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Pending                         | `░░░░░░░░░░` 0%   | 0/5   | Child model 0/1; dependencies 0/1; native output 0/1; transforms 0/1; panels 0/1      |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Pending                         | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; config/demand 0/1; runtime 0/1; app acceptance 0/1                |
@@ -53,7 +52,8 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **30/57 accepted gates**; denominators are unchanged. M05/7 closes in this delivery.
+There are **29/57 accepted gates**; denominators are unchanged. M05/7 image-motion proof is
+reopened for an internal landmark; its input/history/read-fencing evidence is retained.
 The additional gate-progress bar uses accepted gates / 57, rounded; it does not replace or
 inflate the unchanged phase-completion calculation above.
 Partial work, planning and unavailable checks earn no gate.
@@ -73,8 +73,8 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | Native capture access is restored. Apply the same bounded same-frame red-image/blue-outline zoom verifier to the Screen editor and reconcile its retained selection, keyboard, Alt-drag and Fill/Fit receipts; then accept the complete Screen functional gate. |
-| Accepted | M05/7            | [Complete Source contract](evidence/mapgyver-source-native-2026-11-03.json): native/bundled Inspector/crop/history/lifetime and actual sampled native-image/SVG zoom alignment; reads preserve active gestures and redo. |
+| Active   | M05/6            | [Moving-frame defect reproduced](evidence/mapgyver-native-zoom-sync-2026-11-03.json); two experiments exhausted. Implement coherent native image/editor-overlay presentation and preserve hit testing/lifecycle; rebuild before native verification. No more scheduling probes. |
+| Pending  | M05/7            | Native/bundled Inspector/crop/history/lifetime and read/gesture fixes pass. Reopen moving-image proof: the prior uniform full-image border can be clipped by the DOM aperture. After the shared M05/6 scheduling fix, verify an internal source-image landmark against the crop outline, then restore acceptance. |
 | Accepted | M05/10           | [Complete outliner/footer contract](evidence/mapgyver-workbench-status-2026-11-03.json): bounded responsive target/resolution/source rows, actual individual output FPS and public shared footer with native values and recovery. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
@@ -105,16 +105,16 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/7 Accepted, 08:45–09:23 CET (cutoff 09:30).
-  [Complete evidence and limits](evidence/mapgyver-source-native-2026-11-03.json): backend 337 pass,
-  strict Clippy, Golden UI 233 pass, 28 focused UI tests, both apps' clean UI checks, current
-  bundled/native Source interaction and same-frame moving image/outline captures pass. All owned
-  fixtures exit 0. The root fixes make reads immutable/background and keep controls usable during
-  refresh; late creation responses preserve newer user selection.
-  Capture investigation ends with a working route: owned foreground desktop region succeeds;
-  per-window PrintWindow remains black. No further capture variants are needed. M05/6 alone is
-  Active: reuse the verifier on Screen, reconcile functional receipts, then deliver M05/9 bounds.
-  M05 is 5/10 (50%), gates 30/57 (53%), phases 3/11 (27%). No physical/timing gate is waived.
+- **Current handoff:** M05/6 pixel audit, 09:25–10:08 CET (cutoff 10:10).
+  [Baseline and failed candidate](evidence/mapgyver-native-zoom-sync-2026-11-03.json): 5-pixel
+  moving discrepancy; microtask scheduling candidate still fails at 6 pixels and was removed.
+  Native capture works; both owned fixtures exited 0. Two-experiment allowance is exhausted.
+  No new gate closed. Source input/history/read fixes in pushed `f1b45516` remain usable, but
+  M05/7 is Pending for an internal-landmark motion proof. Counts: M05 4/10 (40%), 29/57 gates
+  (51%), 3/11 phases (27%). Next product action stays M05/6: coherent native image/overlay
+  rendering and hit testing. Current local review binary contains the rejected candidate;
+  rebuild before native validation. User now prioritizes unattended Codex capacity recovery;
+  preserve this state while resolving that automation prerequisite, then resume this gate.
 
 ## Maintenance rule
 

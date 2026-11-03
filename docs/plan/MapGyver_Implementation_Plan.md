@@ -53,11 +53,12 @@ larger authored counts, UI, memory and output requirements remain required in th
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 
 M05/10 is [accepted](../progress/evidence/mapgyver-workbench-status-2026-11-03.json): responsive
-bounded Screen/Surface row supplements and native runtime footer are verified. M05/7 is also
-[accepted](../progress/evidence/mapgyver-source-native-2026-11-03.json), including actual Source
-image/outline captures during smooth zoom. A verified owned-foreground desktop capture route
+bounded Screen/Surface row supplements and native runtime footer are verified. M05/7's
+[input/history evidence](../progress/evidence/mapgyver-source-native-2026-11-03.json) remains valid,
+but its image-motion acceptance is reopened for an internal landmark after the
+[native pixel audit](../progress/evidence/mapgyver-native-zoom-sync-2026-11-03.json). A verified owned-foreground desktop capture route
 restores native pixels despite the unavailable helper/black PrintWindow method. Return to
-M05/6 Screen alignment closure next, then M05/9 stable output bounds. This is execution order
+M05/6 coherent image/overlay presentation next, then restore M05/7 and deliver M05/9 output bounds. This is execution order
 within M05 only; every original physical matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the
