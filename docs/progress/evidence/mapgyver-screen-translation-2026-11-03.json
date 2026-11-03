@@ -1,0 +1,43 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Alt-drag translation implemented and functionally verified; full gate remains Active",
+	"ownership": {
+		"MapGyver backend": "QuadTranslation computes the current displacement from a starting quad/pointer, validates the cloned candidate and atomically writes the four typed corner Parameters through the existing geometry operation. Repeated/coalesced samples cannot accumulate drift; no target, source, crop or display policy is calculated in UI.",
+		"MapGyver UI": "Surface body/corner Alt-drag captures the visual baseline and pointer hint, selects the actual Surface and reuses the existing exclusive one-in-flight/one-latest gesture. A rem-based threshold keeps clicks/jitter out of history. The gesture mode is fixed at pointer down, including releasing Alt mid-drag. Escape, blur, lost capture, selection loss and disposal stop the pointer owner. ScreenPreview's unified start port also retains keyboard movement.",
+		"Golden": "No Golden source changes; existing viewport navigation, native transform and bounded gesture mechanisms are reused."
+	},
+	"checks": {
+		"cargo run --locked -p MapGyver --bin generate_screen_protocol -- apps/mapgyver/ui/src/lib/screens/generated": "exit 0; public generator with GC_SKIP_UI_BUILD=1 for that process only; generated SurfaceGeometryEdit updated with consumers",
+		"cargo test --locked -p MapGyver --lib": {
+			"passed": 325,
+			"failed": 0,
+			"ignored": 2,
+			"generated_contract_match": true
+		},
+		"cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings": "exit 0",
+		"node --experimental-strip-types --test apps/mapgyver/ui/src/lib/screens/tests/surface-keyboard.test.ts apps/mapgyver/ui/src/lib/screens/tests/surface-gesture.test.ts apps/mapgyver/ui/src/lib/screens/tests/authoring.test.ts": {
+			"passed": 21,
+			"failed": 0
+		},
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace chataigne-ui": "0 errors, 0 warnings",
+		"cargo build --locked -p MapGyver --bin MapGyver": "exit 0 with ordinary bundled frontend",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-translation-ui": "exit 0; Alt body selection/translation, corner translation at zoom, equal displacement of all four corners, unchanged crop/source/opacity/calibration/enabling, one Undo, Alt released mid-drag, ordinary body/jitter/Space+Alt pan isolation, Escape and New while held; no page errors or rejected intents; owned host normal exit 0",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-keyboard-ui --screen-selection-ui --free-warp-ui": "exit 0; retained 100-key/Shift/chord/Undo/focus/New, selection/Inspector/background/two-panel/pointer Undo and invalid-warp/red-overlay/upside-down recovery flows; owned host normal exit 0",
+		"node apps/mapgyver/tests/browser/native-navigation.mjs --translation": "exit 0; same actual bundled WebView2 body/corner/zoom/history/cancel/New flow with native preview installed; no page errors or rejected intents; owned app normal exit 0",
+		"formatting": "root and golden_core cargo fmt, touched authored UI/test Prettier and git diff --check pass"
+	},
+	"backend_cases": [
+		"Skewed valid and crossed invalid quads retain their complete shape through forward/reverse/offscreen displacement samples in one Undo/Redo gesture.",
+		"Source reference, crop, opacity, enabling and calibration are unchanged; public Save/Load reproduces exact translated geometry and passes project validation.",
+		"Overflow and non-finite inputs reject without project or history mutation. Hosted manager.editScreens uses identical atomic geometry and one-step history."
+	],
+	"test_correction": "The first bundled flow started its final gesture after backend Undo but before the WebSocket projection restored the visible quad, capturing that previous visual baseline. Undo helpers now wait for actual polygon geometry as well as backend history and editor readiness before beginning the next independent interaction; the corrected bundled and native flows pass.",
+	"limits": "Native tests assert installed-preview interaction and backend geometry/history. The zoomed corner/overlay check is DOM geometry within one CSS pixel, not independent native pixel readback or physical/DPI/latency qualification. Blur/lost-capture/disposal use the existing cancellation path; actual input here exercises Escape and New. Both ignored backend tests and retained source/device/timing/memory/display gates remain open in their owning scopes.",
+	"remaining": [
+		"Backend Fill Screen and source-aspect-preserving Fit to Screen with complete caller/history parity.",
+		"Remaining M05/6 pointer/keyboard/native smooth-zoom alignment acceptance; M05/8 retains its physical-pixel/DPI/latency matrix."
+	],
+	"gate_changes": "None. M05/6 alone stays Active; 28/57 accepted gates, M04 5/8 (63%), M05 3/10 (30%), fully accepted phases 3/11 (27%)."
+}

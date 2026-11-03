@@ -8,6 +8,14 @@ impl SurfaceGeometryEdit {
         extent: Option<golden_video::Extent2D>,
     ) -> Result<(), String> {
         match self {
+            Self::QuadTranslation { quad, origin, point } => {
+                let dx = point.x - origin.x;
+                let dy = point.y - origin.y;
+                definition.quad.corners = quad.corners.map(|corner| super::protocol::Point {
+                    x: corner.x + dx,
+                    y: corner.y + dy,
+                });
+            }
             Self::QuadCornerPixels { corner, origin, pixels } => {
                 let extent = extent.ok_or("output pixel extent is unavailable")?;
                 let point = definition

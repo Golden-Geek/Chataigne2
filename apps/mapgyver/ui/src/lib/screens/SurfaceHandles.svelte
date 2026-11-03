@@ -5,6 +5,8 @@
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
+	import type { SurfaceHandle } from './surface-gesture';
+	type WarpHandle = Extract<SurfaceHandle, { kind: 'QuadCorner' | 'QuadTranslation' }>;
 	let {
 		screen,
 		selected,
@@ -23,7 +25,7 @@
 		pickCorner(surface: SurfaceId, corner: number): void;
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
-		start(reference: SurfaceReference, corner: number): boolean;
+		start(reference: SurfaceReference, handle: WarpHandle): boolean;
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
@@ -32,7 +34,7 @@
 	let pointer = $state.raw<{
 		id: number;
 		reference: SurfaceReference;
-		corner: number;
+		handle: WarpHandle;
 		x: number;
 		y: number;
 		threshold: number;
@@ -56,16 +58,34 @@
 			y: (event.clientY - rect.top) / rect.height
 		};
 	}
-	function down(event: PointerEvent, reference: SurfaceReference, corner: number) {
-		if (disabled || event.button !== 0 || pointer !== null) return;
+	function down(event: PointerEvent, reference: SurfaceReference, corner: number | null) {
+		if (disabled || event.button !== 0 || pointer !== null || (!event.altKey && corner === null))
+			return;
+		const origin = point(event);
+		const surface = screen.surfaces.find((item) => item.reference.surface === reference.surface);
+		if (!origin || !surface) return;
+		let handle: WarpHandle;
+		if (event.altKey)
+			handle = {
+				kind: 'QuadTranslation',
+				origin,
+				quad: {
+					corners: surface.definition.quad.corners.map((point) => ({
+						...point
+					})) as typeof surface.definition.quad.corners
+				}
+			};
+		else if (corner !== null) handle = { kind: 'QuadCorner', corner };
+		else return;
 		event.preventDefault();
 		event.stopPropagation();
-		pickCorner(reference.surface, corner);
-		// Selecting a corner must not open an authored edit until the pointer actually drags.
+		if (corner === null) select(reference.surface);
+		else pickCorner(reference.surface, corner);
+		// Selection must not open an authored edit until the pointer actually drags.
 		pointer = {
 			id: event.pointerId,
 			reference,
-			corner,
+			handle,
 			x: event.clientX,
 			y: event.clientY,
 			threshold:
@@ -79,7 +99,7 @@
 		if (!active || event.pointerId !== active.id) return;
 		if (!active.editing) {
 			if (Math.hypot(event.clientX - active.x, event.clientY - active.y) < active.threshold) return;
-			if (!start(active.reference, active.corner)) {
+			if (!start(active.reference, active.handle)) {
 				cancel();
 				return;
 			}
@@ -126,6 +146,7 @@
 </script>
 
 <svelte:window
+	onblur={cancel}
 	onkeydown={(event) => {
 		if (event.key === 'Escape' && pointer !== null) {
 			event.preventDefault();
@@ -161,6 +182,7 @@
 			tabindex={disabled ? -1 : 0}
 			aria-label={`Select ${item.label}${item.mapping_valid ? '' : ' (invalid warp shape)'}`}
 			aria-disabled={disabled}
+			onpointerdown={(event) => down(event, item.reference, null)}
 			onpointerenter={() => {
 				hovered = item.reference.surface;
 			}}
@@ -175,7 +197,7 @@
 					event.stopPropagation();
 					select(item.reference.surface);
 				}
-			}} />
+			}}><title>Alt-drag to move Surface</title></polygon>
 	{/each}
 </svg>
 
@@ -186,6 +208,7 @@
 				x={corner.x}
 				y={corner.y}
 				label={`Warp corner ${index + 1}`}
+				title="Drag corner; Alt-drag to move Surface"
 				selected={item.reference.surface === selected && index === selectedCorner}
 				data-surface-drop-target={item.reference.surface}
 				data-source-drop-object={item.reference.surface}

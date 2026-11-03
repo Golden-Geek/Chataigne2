@@ -84,9 +84,7 @@
 				selected={view.selectedSurface}
 				disabled={controller.busy}
 				select={selectSurface}
-				start={(reference, corner) => gesture.start(reference, { kind: 'QuadCorner', corner })}
-				startPixels={(reference, corner, origin) =>
-					gesture.start(reference, { kind: 'QuadCornerPixels', corner, origin })}
+				start={(reference, handle) => gesture.start(reference, handle)}
 				pixelsActive={gesture.pixelsActive}
 				move={(point) => gesture.move(point)}
 				finish={() => gesture.finish()}

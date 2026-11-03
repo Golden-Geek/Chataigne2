@@ -3,6 +3,7 @@ import { openNativeEditor } from './native-editor.mjs';
 import { verifyViewportNavigation } from './viewport-navigation.mjs';
 import { verifyScreenSelection } from './screen-selection.mjs';
 import { verifyScreenKeyboard } from './screen-keyboard.mjs';
+import { verifyScreenTranslation } from './screen-translation.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -22,11 +23,13 @@ try {
 		return value;
 	}
 	token = (await post('/api/ui/session', {})).token;
-	const flow = process.argv.includes('--keyboard')
-		? verifyScreenKeyboard
-		: process.argv.includes('--selection')
-			? verifyScreenSelection
-			: verifyViewportNavigation;
+	const flow = process.argv.includes('--translation')
+		? verifyScreenTranslation
+		: process.argv.includes('--keyboard')
+			? verifyScreenKeyboard
+			: process.argv.includes('--selection')
+				? verifyScreenSelection
+				: verifyViewportNavigation;
 	await flow({
 		base: native.base,
 		page: native.page,

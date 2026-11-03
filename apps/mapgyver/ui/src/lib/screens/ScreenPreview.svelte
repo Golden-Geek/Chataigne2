@@ -11,13 +11,13 @@
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
 	import { SurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
+	import type { SurfaceHandle } from './surface-gesture';
 	let {
 		screen,
 		selected,
 		disabled,
 		select,
 		start,
-		startPixels,
 		pixelsActive,
 		move,
 		finish,
@@ -27,8 +27,7 @@
 		selected: SurfaceId | null;
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
-		start(reference: SurfaceReference, corner: number): boolean;
-		startPixels(reference: SurfaceReference, corner: number, origin: Point): boolean;
+		start(reference: SurfaceReference, handle: SurfaceHandle): boolean;
 		pixelsActive: boolean;
 		move(point: Point): void;
 		finish(): void;
@@ -46,7 +45,13 @@
 			: null;
 	});
 	const keyboard = new SurfaceKeyboard({
-		start: (target) => !disabled && startPixels(target.reference, target.corner, target.origin),
+		start: (target) =>
+			!disabled &&
+			start(target.reference, {
+				kind: 'QuadCornerPixels',
+				corner: target.corner,
+				origin: target.origin
+			}),
 		move: (pixels) => move(pixels),
 		finish: () => {
 			if (pixelsActive) finish();

@@ -227,6 +227,12 @@ pub enum ScreenEdit {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SurfaceGeometryEdit {
+    /// Translate a starting quad by the current pointer displacement, without accumulating samples.
+    QuadTranslation {
+        quad: Quad,
+        origin: Point,
+        point: Point,
+    },
     /// Cumulative output-pixel input from an explicit starting corner coordinate.
     /// Coalescing newer samples does not lose repeated keys; viewport pixels are never used.
     QuadCornerPixels {

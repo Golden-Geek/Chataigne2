@@ -187,6 +187,13 @@ display identity resolution in `screens/target.rs`; unavailable targets reject m
 guessing another display. Zoom never enters the conversion. Releasing all arrows or losing
 focus flushes one Undo group; selection/project/ownership loss discards unsent input.
 
+Alt-drag from a Surface body or corner captures the starting quad and normalized pointer in
+the app gesture. `QuadTranslation` calculates all four corners atomically in the backend from
+that baseline and the latest pointer, so coalescing cannot accumulate drift. The UI does not
+translate authored geometry. Pointer cancellation closes the existing gesture and discards
+unsent input; completed edits retain ordinary history. Finite invalid and offscreen quads
+remain editable with the same shape, source, crop and other Surface settings.
+
 Surface Source uses the full uncropped source preview with independent crop overlays and the
 same typed authoring/history. Source loss preserves routing; it never substitutes another channel.
 

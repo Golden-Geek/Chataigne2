@@ -211,10 +211,11 @@ test('a rejected BeginEdit surfaces the error and releases local gesture state',
 	assert.match(f.state.error, /begin refused/);
 });
 
-test('crop resize and origin handles use the same exclusive bounded gesture', async () => {
+test('crop and quad translation handles use the same exclusive bounded gesture', async () => {
 	for (const handle of [
 		{ kind: 'CropCorner', corner: 2 },
-		{ kind: 'CropOrigin' }
+		{ kind: 'CropOrigin' },
+		{ kind: 'QuadTranslation', origin: { x: 0.5, y: 0.5 }, quad: snapshot(0).definition.quad }
 	] satisfies SurfaceHandle[]) {
 		const f = fixture(handle);
 		assert(f.start());

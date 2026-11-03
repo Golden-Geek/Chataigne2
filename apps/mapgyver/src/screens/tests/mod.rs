@@ -11,6 +11,7 @@ mod parameters;
 mod pixel_gestures;
 mod scripting;
 mod selection;
+mod translation;
 mod typescript;
 
 use super::protocol::*;

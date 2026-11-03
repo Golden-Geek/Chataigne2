@@ -48,7 +48,9 @@ export function provideScreenAuthoring() {
 	const gesture = new SurfaceGesture<WorkbenchSession>(() => session, gestureState, {
 		group: (current, handle) =>
 			createUiEditSession(
-				handle.kind === 'QuadCorner' || handle.kind === 'QuadCornerPixels'
+				handle.kind === 'QuadCorner' ||
+					handle.kind === 'QuadCornerPixels' ||
+					handle.kind === 'QuadTranslation'
 					? 'Warp Surface'
 					: 'Crop Surface',
 				'surface-geometry',

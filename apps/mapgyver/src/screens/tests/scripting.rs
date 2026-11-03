@@ -173,6 +173,40 @@ fn hosted_pixel_geometry_uses_backend_extent_and_one_history_step() {
 }
 
 #[test]
+fn hosted_quad_translation_uses_the_same_atomic_geometry_and_history() {
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    let original = definition(&engine, reference);
+    let request = serde_json::to_string(&ScreenEdit::EditSurfaceGeometry {
+        reference,
+        edit: SurfaceGeometryEdit::QuadTranslation {
+            quad: original.quad,
+            origin: Point { x: 0.5, y: 0.5 },
+            point: Point { x: 0.25, y: 0.625 },
+        },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            "function init() {{ local.listen({{level:1}}); local.editScreens('translate', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    assert_eq!(replies(&engine)[0]["status"], "applied");
+    let mut expected = original.clone();
+    expected.quad.corners = original.quad.corners.map(|corner| Point {
+        x: corner.x - 0.25,
+        y: corner.y + 0.125,
+    });
+    assert_eq!(definition(&engine, reference), expected);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(definition(&engine, reference), original);
+}
+
+#[test]
 fn source_drops_use_hosted_manager_methods_with_atomic_history() {
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);
