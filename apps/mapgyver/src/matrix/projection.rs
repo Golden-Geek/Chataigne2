@@ -91,7 +91,10 @@ impl RenderIndex {
             .snapshot
             .columns
             .iter()
-            .map(crate::applications::demand::DemandColumn::from)
+            .map(|column| crate::applications::demand::DemandColumn {
+                id: column.id,
+                bindings: Vec::new(),
+            })
             .collect::<Vec<_>>();
         super::cell_applications::append(engine, document, control, &mut columns)?;
         Ok(Self {

@@ -16,6 +16,7 @@ golden_core::define_node_enum!(
         ApplicationEnvironment(crate::applications::EnvironmentNode),
         CompositionPlacement(crate::media::composition::PlacementNode),
         MatrixElement(crate::matrix::ElementNode),
+        MatrixColumn(crate::matrix::ColumnNode),
         MatrixCell(crate::matrix::CellNode),
         ScreenManager(crate::screens::ScreenManagerNode),
         Screen(crate::screens::ScreenNode),

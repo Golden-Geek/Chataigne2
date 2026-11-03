@@ -11,6 +11,39 @@ use golden_core::{
 };
 use std::collections::HashMap;
 
+pub(super) fn configure_column(
+    engine: &mut AppEngine,
+    document: &Document,
+    column: ColumnId,
+    definition: ApplicationDefinition,
+    pre: u16,
+    post: u16,
+) -> Result<crate::media::protocol::MediaEditResult, String> {
+    definition.validate()?;
+    let Some(AppNode::MediaChannel(root)) = engine.nodes.get(document.root) else {
+        unreachable!()
+    };
+    let control = root.matrix_playback().ok_or("Matrix playback is missing")?;
+    let Some(AppNode::MatrixColumn(owner)) = engine.nodes.get(document.column(column)?) else {
+        unreachable!()
+    };
+    owner.bind_runtime(control.binding());
+    let settings = owner
+        .application_node()
+        .ok_or("Column app-control settings are missing")?;
+    let Some(AppNode::Application(node)) = engine.nodes.get(settings) else {
+        return Err("Column app-control type is invalid".into());
+    };
+    bind(node, control);
+    let distances = node.distance_values(pre, post);
+    crate::applications::configure_node(engine, settings, definition)?;
+    engine.edits.push(Edit::SetParamsAtomic {
+        values: distances.into(),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    Ok(crate::media::protocol::MediaEditResult::Changed)
+}
+
 pub(super) fn configure(
     engine: &mut AppEngine,
     document: &Document,
@@ -108,6 +141,29 @@ pub(super) fn append(
         .map(|(index, column)| (column.id, index))
         .collect::<HashMap<_, _>>();
     let mut count = 0;
+    for column in &document.snapshot.columns {
+        let Some(AppNode::MatrixColumn(owner)) = engine.nodes.get(document.columns[&column.id]) else {
+            unreachable!()
+        };
+        owner.bind_runtime(control.binding());
+        let Some(node) = crate::applications::control_node(engine, column.application) else {
+            return Err("Column app control is missing".into());
+        };
+        bind(node, control);
+        if !node.configured() || !node.node_data().effective_enabled {
+            continue;
+        }
+        count += 1;
+        if count > DemandLimits::default().applications {
+            return Err("Matrix app-control binding capacity exceeded".into());
+        }
+        let (pre, post) = node.distances();
+        columns[positions[&column.id]].bindings.push(DemandBinding {
+            application: column.application,
+            pre,
+            post,
+        });
+    }
     for cell in &document.snapshot.cells {
         let Some(AppNode::MatrixCell(owner)) = engine.nodes.get(document.cells[&(cell.layer, cell.definition.column)])
         else {

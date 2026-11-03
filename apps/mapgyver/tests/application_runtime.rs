@@ -31,17 +31,62 @@ fn edit(engine: &mut AppEngine, edit: ApplicationEdit) -> MediaEditResult {
     assert!(ack.success, "{ack:?}");
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
+fn media_edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
+    let ack = apply_project_intent(
+        engine,
+        UiEditIntent::InvokeAppOperation {
+            namespace: MEDIA_NAMESPACE.into(),
+            operation: MEDIA_OPERATION.into(),
+            payload: serde_json::to_value(operation).unwrap(),
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    serde_json::from_value(ack.result.unwrap().value).unwrap()
+}
+fn remove_application(engine: &mut AppEngine, application: ApplicationId) {
+    use golden_core::node::Node;
+    let owner = engine
+        .nodes
+        .get(engine.node_id_by_uuid(application.0).unwrap())
+        .unwrap();
+    let root = engine.nodes.get(owner.node_data().parent.unwrap()).unwrap();
+    let media = engine.nodes.get(root.node_data().parent.unwrap()).unwrap();
+    let media = mapgyver::media::protocol::MediaId(media.node_data().meta.uuid);
+    media_edit(
+        engine,
+        MediaEdit::Matrix {
+            media,
+            edit: mapgyver::matrix::protocol::MatrixEdit::RemoveColumn {
+                column: mapgyver::matrix::protocol::ColumnId(application.0),
+            },
+        },
+    );
+}
 fn fixture(readiness: ApplicationReadiness) -> (AppEngine, ApplicationId) {
     fixture_arguments(readiness, Vec::new())
 }
 fn fixture_arguments(readiness: ApplicationReadiness, arguments: Vec<String>) -> (AppEngine, ApplicationId) {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
-    let MediaEditResult::ApplicationCreated { application } =
-        edit(&mut engine, ApplicationEdit::Create { label: None })
-    else {
+    let MediaEditResult::Created { reference } = media_edit(
+        &mut engine,
+        MediaEdit::CreateMedia {
+            media_kind: mapgyver::media::protocol::MediaKind::Matrix,
+            label: None,
+        },
+    ) else {
         panic!()
     };
+    let MediaEditResult::MatrixCreated { columns, .. } = media_edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: reference.media,
+            edit: mapgyver::matrix::protocol::MatrixEdit::AddColumns { count: 1 },
+        },
+    ) else {
+        panic!()
+    };
+    let application = ApplicationId(columns[0].0);
     edit(
         &mut engine,
         ApplicationEdit::Configure {
@@ -231,7 +276,7 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
     };
     assert_eq!(snapshot.applications[0].launch, first.launch);
     assert_eq!(engine.undo_len(), history);
-    edit(&mut engine, ApplicationEdit::Remove { application });
+    remove_application(&mut engine, application);
     runtime
         .reconcile(&engine, &demand(application, &[DemandReason::FinalUse]))
         .unwrap();
@@ -437,18 +482,16 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     else {
         panic!()
     };
+    let definition = mapgyver::applications::inspect(&engine, application)
+        .unwrap()
+        .definition;
     matrix(
         &mut engine,
-        MatrixEdit::ConfigureColumn {
+        MatrixEdit::ConfigureColumnApplication {
             column: columns[2],
-            definition: ColumnDefinition {
-                applications: vec![ColumnApplication {
-                    application,
-                    pre: 1,
-                    post: 1,
-                }],
-                ..Default::default()
-            },
+            definition,
+            pre: 1,
+            post: 1,
         },
     );
     let mut runtime = ApplicationRuntime::start(&engine, None).unwrap();
@@ -567,7 +610,7 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
 }
 
 #[test]
-fn project_wide_driver_starts_and_unloads_shared_timed_column_demand_with_no_renderer_or_clock() {
+fn project_wide_driver_keeps_column_process_across_neighbor_and_exact_demand_without_renderer_or_clock() {
     use mapgyver::{applications::driver::ApplicationDriver, matrix::protocol::*};
     fn matrix_edit(
         engine: &mut AppEngine,
@@ -613,16 +656,11 @@ fn project_wide_driver_starts_and_unloads_shared_timed_column_demand_with_no_ren
         matrix_edit(
             engine,
             reference.media,
-            MatrixEdit::ConfigureColumn {
+            MatrixEdit::ConfigureColumnApplication {
                 column: columns[2],
-                definition: ColumnDefinition {
-                    applications: vec![ColumnApplication {
-                        application,
-                        pre: 1,
-                        post: 1,
-                    }],
-                    ..Default::default()
-                },
+                definition: mapgyver::applications::inspect(engine, application).unwrap().definition,
+                pre: 1,
+                post: 1,
             },
         );
         (reference.media, columns)
@@ -645,7 +683,6 @@ fn project_wide_driver_starts_and_unloads_shared_timed_column_demand_with_no_ren
     }
     let (mut engine, application) = fixture(ApplicationReadiness::ProcessStarted);
     let (first, columns) = matrix(&mut engine, application);
-    let (second, other) = matrix(&mut engine, application);
     let history = engine.undo_len();
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
     let mut driver = ApplicationDriver::default();
@@ -667,19 +704,17 @@ fn project_wide_driver_starts_and_unloads_shared_timed_column_demand_with_no_ren
     assert!(!driver.needs_service());
     matrix_edit(
         &mut engine,
-        second,
+        first,
         MatrixEdit::LaunchColumn {
-            column: other[2],
+            column: columns[2],
             mode: LaunchMode::Configured,
         },
     );
     service(&mut driver, &engine);
-    matrix_edit(&mut engine, first, MatrixEdit::ClearPlayback);
-    service(&mut driver, &engine);
     std::thread::sleep(Duration::from_millis(80));
     assert_eq!(phase(&driver, ApplicationPhase::Ready).process_id, original.process_id);
     assert_eq!(driver.snapshot().unwrap().applications.len(), 1);
-    matrix_edit(&mut engine, second, MatrixEdit::ClearPlayback);
+    matrix_edit(&mut engine, first, MatrixEdit::ClearPlayback);
     service(&mut driver, &engine);
     phase(&driver, ApplicationPhase::Idle);
     assert_eq!(engine.undo_len(), history);

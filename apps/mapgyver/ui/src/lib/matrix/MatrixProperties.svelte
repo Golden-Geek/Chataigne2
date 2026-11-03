@@ -169,13 +169,7 @@
 		{/if}
 		{#if selectedColumn && view.media && definition}
 			{#key JSON.stringify([selectedColumn, definition.transition])}
-				<ColumnForm
-					column={selectedColumn}
-					transition={definition.transition}
-					media={view.media}
-					{session}
-					disabled={busy}
-					edit={(value) => owner.edit(value)} />
+				<ColumnForm column={selectedColumn} disabled={busy} />
 			{/key}
 		{/if}
 		<RuntimeFeedback snapshot={matrixWindow} {observation} />

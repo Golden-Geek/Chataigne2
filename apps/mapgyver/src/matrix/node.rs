@@ -9,8 +9,8 @@ use std::any::Any;
 use std::sync::OnceLock;
 pub const LAYER_TYPE: &str = "mapgyver.matrix.layer";
 pub const GROUP_TYPE: &str = "mapgyver.matrix.group";
-pub const COLUMN_TYPE: &str = "mapgyver.matrix.column";
 pub use super::cell_node::CELL_TYPE;
+pub use super::column_node::COLUMN_TYPE;
 pub struct ElementNode {
     data: NodeData,
     definition: ElementDefinition,
@@ -36,18 +36,14 @@ impl ElementNode {
         self.revision.advance();
         if let Some(binding) = self.runtime.get() {
             binding.invalidate();
-            if matches!(self.definition, ElementDefinition::Column { .. }) {
-                binding.invalidate_applications();
-            }
         }
     }
     pub(crate) fn set_definition(&mut self, definition: ElementDefinition) -> Result<(), String> {
         if std::mem::discriminant(&definition) != std::mem::discriminant(&self.definition) {
             return Err("Matrix element kind cannot change".into());
         }
-        if let ElementDefinition::Layer { settings } | ElementDefinition::Group { settings } = &definition {
-            settings.validate()?;
-        }
+        let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = &definition;
+        settings.validate()?;
         if self.definition != definition {
             self.invalidate();
             self.definition = definition;
@@ -62,9 +58,6 @@ fn canonical(node_type: &str) -> Option<ElementDefinition> {
         },
         GROUP_TYPE => ElementDefinition::Group {
             settings: CompositeSettings::default(),
-        },
-        COLUMN_TYPE => ElementDefinition::Column {
-            definition: ColumnDefinition::default(),
         },
         _ => return None,
     })
@@ -95,14 +88,12 @@ impl Node for ElementNode {
         match self.definition {
             ElementDefinition::Layer { .. } => LAYER_TYPE,
             ElementDefinition::Group { .. } => GROUP_TYPE,
-            ElementDefinition::Column { .. } => COLUMN_TYPE,
         }
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         match self.definition {
             ElementDefinition::Group { .. } => Some(UserContainerRules::new(&[GROUP_TYPE, LAYER_TYPE])),
             ElementDefinition::Layer { .. } => Some(UserContainerRules::new(&[CELL_TYPE])),
-            _ => None,
         }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
@@ -125,7 +116,6 @@ impl Node for ElementNode {
             ElementDefinition::Layer { settings } | ElementDefinition::Group { settings } => {
                 serde_json::to_value(settings)
             }
-            ElementDefinition::Column { definition } => serde_json::to_value(definition),
         }
         .map_err(|error| error.to_string())
     }
@@ -141,9 +131,6 @@ impl Node for ElementNode {
             ElementDefinition::Group { .. } => ElementDefinition::Group {
                 settings: serde_json::from_value(data.clone()).map_err(|error| error.to_string())?,
             },
-            ElementDefinition::Column { .. } => ElementDefinition::Column {
-                definition: serde_json::from_value(data.clone()).map_err(|error| error.to_string())?,
-            },
         };
         self.set_definition(definition)
     }
@@ -151,9 +138,7 @@ impl Node for ElementNode {
         create(node_type)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
-        if let ElementDefinition::Layer { settings } | ElementDefinition::Group { settings } = &self.definition {
-            settings.validate()?;
-        }
-        Ok(())
+        let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = &self.definition;
+        settings.validate()
     }
 }

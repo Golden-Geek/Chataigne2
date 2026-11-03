@@ -224,7 +224,6 @@ fn matrix_sources(
         };
         match element.definition() {
             ElementDefinition::Layer { .. } | ElementDefinition::Group { .. } => rows.extend(children(change, id)),
-            ElementDefinition::Column { .. } => {}
         }
     }
     Ok(())

@@ -90,6 +90,7 @@ pub(crate) fn capture(
             for id in &document.elements {
                 match engine.nodes.get(*id) {
                     Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
+                    Some(AppNode::MatrixColumn(node)) => node.bind_runtime(control.binding()),
                     Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
                     _ => unreachable!(),
                 }

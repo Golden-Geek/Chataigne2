@@ -181,13 +181,20 @@ fn matrix_authored_intents_use_hosted_methods_and_committed_callbacks() {
 }
 
 #[test]
-fn hosted_application_creation_and_inspection_return_committed_identities_without_launching() {
+fn hosted_owned_application_configuration_and_inspection_return_committed_identities_without_launching() {
     use crate::applications::protocol::*;
     let mut engine = fixture();
     script(&mut engine, "function init() { local.listen({level:1}); } function onAppOperationResult(reply) { gc.emit('media-method-reply', reply); }".into());
     let manager = manager(&engine).unwrap();
+    let application = crate::applications::tests::create(&mut engine);
     let request = serde_json::to_string(&MediaEdit::Applications {
-        edit: ApplicationEdit::Create { label: None },
+        edit: ApplicationEdit::Configure {
+            application,
+            definition: ApplicationDefinition {
+                arguments: vec!["authored only".into()],
+                ..Default::default()
+            },
+        },
     })
     .unwrap();
     let before = engine.undo_len();
@@ -201,11 +208,7 @@ fn hosted_application_creation_and_inspection_return_committed_identities_withou
     let first = replies(&engine);
     assert_eq!(first.len(), 1);
     assert_eq!(first[0]["status"], "applied");
-    let MediaEditResult::ApplicationCreated { application } =
-        serde_json::from_value(first[0]["value"].clone()).unwrap()
-    else {
-        panic!()
-    };
+    assert_eq!(first[0]["value"]["kind"], "Changed");
     assert!(
         crate::applications::inspect(&engine, application)
             .unwrap()

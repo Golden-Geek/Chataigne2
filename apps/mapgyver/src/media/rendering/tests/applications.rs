@@ -4,16 +4,21 @@ use crate::{
     matrix::protocol::*,
 };
 
-fn app(engine: &mut AppEngine) -> ApplicationId {
-    let MediaEditResult::ApplicationCreated { application } = edit(
+fn configure(engine: &mut AppEngine, matrix: ChannelReference, column: ColumnId, pre: u16, post: u16) -> ApplicationId {
+    matrix_edit(
         engine,
-        MediaEdit::Applications {
-            edit: ApplicationEdit::Create { label: None },
+        matrix,
+        MatrixEdit::ConfigureColumnApplication {
+            column,
+            definition: ApplicationDefinition {
+                executable: Some("C:\\mapgyver-fixture-missing\\never.exe".into()),
+                ..Default::default()
+            },
+            pre,
+            post,
         },
-    ) else {
-        panic!()
-    };
-    application
+    );
+    ApplicationId(column.0)
 }
 fn matrix_edit(engine: &mut AppEngine, reference: ChannelReference, operation: MatrixEdit) -> MediaEditResult {
     edit(
@@ -28,28 +33,13 @@ fn matrix_edit(engine: &mut AppEngine, reference: ChannelReference, operation: M
 #[test]
 fn committed_column_capture_resolves_neighbors_and_keeps_active_bindings_through_removal() {
     let mut engine = engine();
-    let application = app(&mut engine);
     let matrix = create(&mut engine, MediaKind::Matrix);
     let MediaEditResult::MatrixCreated { columns, .. } =
         matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 5 })
     else {
         panic!()
     };
-    matrix_edit(
-        &mut engine,
-        matrix,
-        MatrixEdit::ConfigureColumn {
-            column: columns[2],
-            definition: ColumnDefinition {
-                applications: vec![ColumnApplication {
-                    application,
-                    pre: 1,
-                    post: 1,
-                }],
-                ..Default::default()
-            },
-        },
-    );
+    let application = configure(&mut engine, matrix, columns[2], 1, 1);
     for (index, expected) in [(0, false), (1, true), (4, false), (2, true)] {
         matrix_edit(
             &mut engine,
@@ -64,7 +54,7 @@ fn committed_column_capture_resolves_neighbors_and_keeps_active_bindings_through
         if index == 1 {
             assert_eq!(
                 capture.application_demand()[0].availability,
-                crate::applications::demand::DefinitionAvailability::Unconfigured
+                crate::applications::demand::DefinitionAvailability::Configured
             );
             assert!(
                 capture.plan_applications().is_empty(),
@@ -83,16 +73,7 @@ fn committed_column_capture_resolves_neighbors_and_keeps_active_bindings_through
     let retained = capture_channels(&engine, &[matrix], 8).unwrap();
     assert_eq!(retained.plan_applications(), vec![application]);
     assert!(retained.application_demand()[0].reasons.contains(&DemandReason::Active));
-    edit(
-        &mut engine,
-        MediaEdit::Applications {
-            edit: ApplicationEdit::Remove { application },
-        },
-    );
-    assert!(
-        !retained.is_current(),
-        "definition removal fences pending capture before OS resume"
-    );
+    assert!(retained.is_current());
     let missing = capture_channels(&engine, &[matrix], 8).unwrap();
     assert_eq!(missing.plan_applications(), vec![application]);
     matrix_edit(
@@ -114,28 +95,13 @@ fn committed_column_capture_resolves_neighbors_and_keeps_active_bindings_through
 #[test]
 fn rendering_app_bound_columns_requires_the_matching_admitted_lifecycle_owner() {
     let mut engine = engine();
-    let application = app(&mut engine);
     let matrix = create(&mut engine, MediaKind::Matrix);
     let MediaEditResult::MatrixCreated { columns, .. } =
         matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 1 })
     else {
         panic!()
     };
-    matrix_edit(
-        &mut engine,
-        matrix,
-        MatrixEdit::ConfigureColumn {
-            column: columns[0],
-            definition: ColumnDefinition {
-                applications: vec![ColumnApplication {
-                    application,
-                    pre: 0,
-                    post: 0,
-                }],
-                ..Default::default()
-            },
-        },
-    );
+    configure(&mut engine, matrix, columns[0], 0, 0);
     matrix_edit(
         &mut engine,
         matrix,
@@ -179,30 +145,16 @@ fn rendering_app_bound_columns_requires_the_matching_admitted_lifecycle_owner() 
 #[test]
 fn interrupted_application_fades_keep_removed_outgoing_references_until_transition_settlement() {
     let mut engine = engine();
-    let apps = [app(&mut engine), app(&mut engine), app(&mut engine)];
     let matrix = create(&mut engine, MediaKind::Matrix);
     let MediaEditResult::MatrixCreated { columns, .. } =
         matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 3 })
     else {
         panic!()
     };
-    for (column, application) in columns.iter().zip(apps) {
-        matrix_edit(
-            &mut engine,
-            matrix,
-            MatrixEdit::ConfigureColumn {
-                column: *column,
-                definition: ColumnDefinition {
-                    applications: vec![ColumnApplication {
-                        application,
-                        pre: 0,
-                        post: 0,
-                    }],
-                    ..Default::default()
-                },
-            },
-        );
-    }
+    let apps = columns
+        .iter()
+        .map(|column| configure(&mut engine, matrix, *column, 0, 0))
+        .collect::<Vec<_>>();
     let owner = renderer();
     let anchor = owner.read_time().unwrap();
     let at = |millis| {
@@ -247,12 +199,6 @@ fn interrupted_application_fades_keep_removed_outgoing_references_until_transiti
     );
     crate::media::capture_channels_at(&engine, &[matrix], 8, at(200)).unwrap();
     matrix_edit(&mut engine, matrix, MatrixEdit::RemoveColumn { column: columns[0] });
-    edit(
-        &mut engine,
-        MediaEdit::Applications {
-            edit: ApplicationEdit::Remove { application: apps[0] },
-        },
-    );
     let interrupted = crate::media::capture_channels_at(&engine, &[matrix], 8, at(250)).unwrap();
     assert_eq!(interrupted.plan_applications().len(), 3);
     for application in &apps[..2] {

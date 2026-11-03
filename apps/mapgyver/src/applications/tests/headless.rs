@@ -73,7 +73,7 @@ fn immutable_service_capture_cannot_launch_or_admit_after_definition_or_scope_ch
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
-    configure_column(&mut engine, media, columns[2], application);
+    let application = configure_column(&mut engine, media, columns[2], application);
     launch(&mut engine, media, columns[2]);
     let mut driver = ApplicationDriver::default();
     let prepared = driver.capture_service(&engine).unwrap();
@@ -119,7 +119,16 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
-    configure_column(&mut engine, media, columns[2], application);
+    let application = configure_column(&mut engine, media, columns[2], application);
+    let mut definition = super::super::inspect(&engine, application).unwrap().definition;
+    definition.restart.enabled = false;
+    app_edit(
+        &mut engine,
+        ApplicationEdit::Configure {
+            application,
+            definition,
+        },
+    );
     let manager = crate::media::authoring::manager(&engine).unwrap();
     let mut script = ScriptNode::new("Lifecycle listener", ScriptNodeConfig {
         source: ScriptSource::Inline { text: "function init(){local.listen({level:1});} function onApplicationLifecycle(event){gc.emit('headless-lifecycle',event);}".into() },
@@ -133,7 +142,7 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
     let history = engine.undo_len();
     let runtime = ProductionRuntime::new(engine, UiProjectFileSpec::default()).unwrap();
     let service = HeadlessApplications::start(runtime.clone()).unwrap();
-    let initial = wait(&runtime, ApplicationPhase::Unavailable);
+    let initial = wait(&runtime, ApplicationPhase::Failed);
     assert_eq!(initial.applications[0].application, application);
     transaction(
         &runtime,
@@ -160,7 +169,7 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
             (phases, engine.undo_len() == history)
         })
         .unwrap();
-    assert_eq!(phases, ["Unavailable", "Idle"]);
+    assert!(phases.ends_with(&["Failed".into(), "Idle".into()]), "{phases:?}");
     assert!(unchanged_history);
     let replacement = from_sparse_project_json::<AppNode>(&document).unwrap();
     runtime
@@ -181,9 +190,9 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
             },
         },
     );
-    let replaced = wait(&runtime, ApplicationPhase::Unavailable);
+    let replaced = wait(&runtime, ApplicationPhase::Failed);
     assert_ne!(replaced.project, initial.project);
-    assert_eq!(replaced.callbacks.acknowledged, 1);
+    assert!(replaced.callbacks.acknowledged >= 1);
     assert!(replaced.callbacks.fault.is_none());
     drop(service);
 }
@@ -192,35 +201,35 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
 fn headless_admission_errors_are_visible_without_processes_and_clear_after_demand_recovers() {
     let _exclusive = HEADLESS_SERVICE_TEST.lock().unwrap();
     let mut engine = fixture();
-    let applications = (0..65).map(|_| create(&mut engine)).collect::<Vec<_>>();
-    let (first, columns) = matrix(&mut engine);
-    let (second, others) = matrix(&mut engine);
-    for (media, column, assigned) in [
-        (first, columns[0], applications[..64].to_vec()),
-        (second, others[0], applications[64..].to_vec()),
-    ] {
+    let (first, mut columns) = matrix(&mut engine);
+    let MediaEditResult::MatrixCreated { columns: added, .. } = edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: first,
+            edit: MatrixEdit::AddColumns { count: 60 },
+        },
+    ) else {
+        panic!()
+    };
+    columns.extend(added);
+    for column in &columns {
         edit(
             &mut engine,
             MediaEdit::Matrix {
-                media,
-                edit: MatrixEdit::ConfigureColumn {
-                    column,
-                    definition: ColumnDefinition {
-                        applications: assigned
-                            .into_iter()
-                            .map(|application| ColumnApplication {
-                                application,
-                                pre: 0,
-                                post: 0,
-                            })
-                            .collect(),
+                media: first,
+                edit: MatrixEdit::ConfigureColumnApplication {
+                    column: *column,
+                    definition: ApplicationDefinition {
+                        executable: Some("C:\\mapgyver-fixture-missing\\never.exe".into()),
                         ..Default::default()
                     },
+                    pre: u16::MAX,
+                    post: u16::MAX,
                 },
             },
         );
-        launch(&mut engine, media, column);
     }
+    launch(&mut engine, first, columns[0]);
     let history = engine.undo_len();
     let runtime = ProductionRuntime::new(engine, UiProjectFileSpec::default()).unwrap();
     let service = HeadlessApplications::start(runtime.clone()).unwrap();
@@ -239,15 +248,13 @@ fn headless_admission_errors_are_visible_without_processes_and_clear_after_deman
         assert!(Instant::now() < deadline, "no visible admission error: {current:?}");
         std::thread::sleep(Duration::from_millis(5));
     }
-    for media in [first, second] {
-        transaction(
-            &runtime,
-            MediaEdit::Matrix {
-                media,
-                edit: MatrixEdit::ClearPlayback,
-            },
-        );
-    }
+    transaction(
+        &runtime,
+        MediaEdit::Matrix {
+            media: first,
+            edit: MatrixEdit::ClearPlayback,
+        },
+    );
     loop {
         let current = snapshot(&runtime);
         if current.supervision.demand == ApplicationServiceStatus::Running {

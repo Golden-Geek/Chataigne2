@@ -1,7 +1,7 @@
 //! Pure set reconciliation. Runtime owners provide committed cursors and retained final-use holds.
 //! Computing a set cannot launch/stop a process, change selection, or display a preloaded column.
 use super::protocol::*;
-use crate::matrix::protocol::{ColumnId, ColumnSnapshot};
+use crate::matrix::protocol::ColumnId;
 use std::collections::{BTreeSet, HashMap};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -39,23 +39,6 @@ pub struct DemandColumn {
     pub id: ColumnId,
     pub bindings: Vec<DemandBinding>,
 }
-impl From<&ColumnSnapshot> for DemandColumn {
-    fn from(column: &ColumnSnapshot) -> Self {
-        Self {
-            id: column.id,
-            bindings: column
-                .definition
-                .applications
-                .iter()
-                .map(|binding| DemandBinding {
-                    application: binding.application,
-                    pre: binding.pre,
-                    post: binding.post,
-                })
-                .collect(),
-        }
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DefinitionAvailability {
@@ -63,6 +46,11 @@ pub enum DefinitionAvailability {
     Unconfigured,
     Disabled,
     Missing,
+}
+#[derive(Clone, Debug)]
+pub struct DefinitionState {
+    pub application: ApplicationId,
+    pub availability: DefinitionAvailability,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApplicationDemand {
@@ -104,7 +92,7 @@ fn add(
 /// Whole next demand set, reconciled atomically by the lifecycle owner. Direct holds remain present
 /// after authored deletion/disable; unavailable definitions can retain an existing owner, not start one.
 pub fn resolve(
-    catalog: &[ApplicationSummary],
+    catalog: &[DefinitionState],
     matrices: &[MatrixDemand<'_>],
     limits: DemandLimits,
 ) -> Result<Vec<ApplicationDemand>, String> {
@@ -186,7 +174,7 @@ pub fn resolve(
     }
     let mut definitions = HashMap::new();
     for entry in catalog {
-        if definitions.insert(entry.id, entry).is_some() {
+        if definitions.insert(entry.application, entry).is_some() {
             return Err("application catalog has duplicate identities".into());
         }
     }
@@ -195,9 +183,7 @@ pub fn resolve(
         .map(|(application, reasons)| {
             let availability = match definitions.get(&application) {
                 None => DefinitionAvailability::Missing,
-                Some(definition) if !definition.enabled => DefinitionAvailability::Disabled,
-                Some(definition) if !definition.configured => DefinitionAvailability::Unconfigured,
-                Some(_) => DefinitionAvailability::Configured,
+                Some(definition) => definition.availability,
             };
             ApplicationDemand {
                 application,

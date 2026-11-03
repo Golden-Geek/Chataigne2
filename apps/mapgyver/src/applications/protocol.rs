@@ -131,13 +131,6 @@ impl ApplicationDefinition {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct ColumnApplication {
-    pub application: ApplicationId,
-    pub pre: u16,
-    pub post: u16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ApplicationEnablement {
     Enabled,
     Disabled,
@@ -155,26 +148,6 @@ pub struct ApplicationSnapshot {
     pub definition_instance: uuid::Uuid,
     pub definition: ApplicationDefinition,
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct ApplicationSummary {
-    pub id: ApplicationId,
-    pub label: String,
-    pub enabled: bool,
-    pub configured: bool,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct ApplicationReference {
-    pub application: ApplicationId,
-    /// None means the saved reference has no definition in this project's catalog.
-    pub summary: Option<ApplicationSummary>,
-}
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
-pub struct ApplicationPage {
-    pub applications: Vec<ApplicationSummary>,
-    pub total: u32,
-    pub start: u32,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ApplicationPhase {
     Idle,
@@ -274,41 +247,16 @@ pub struct ApplicationCallbackTicket {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
-    SetEnabled {
-        application: ApplicationId,
-        enabled: bool,
-    },
     DispatchCallbacks {
         ticket: ApplicationCallbackTicket,
     },
     InspectCallbacks {},
-    InspectReferences {
-        applications: Vec<ApplicationId>,
-    },
     InspectRuntime {},
-    Create {
-        label: Option<String>,
-    },
     Configure {
         application: ApplicationId,
         definition: ApplicationDefinition,
     },
-    Rename {
-        application: ApplicationId,
-        label: String,
-    },
-    Remove {
-        application: ApplicationId,
-    },
-    Duplicate {
-        application: ApplicationId,
-    },
     Inspect {
         application: ApplicationId,
-    },
-    InspectCatalog {
-        search: String,
-        start: u32,
-        count: u16,
     },
 }

@@ -1,68 +1,37 @@
 use super::*;
-use golden_core::node::Node;
-
 #[test]
-fn inspection_after_deletion_reports_absence_without_authoring_and_recovers_through_history() {
+fn inspection_after_owner_deletion_reports_absence_without_authoring_and_recovers_with_history() {
     let mut engine = fixture();
     let application = create(&mut engine);
-    let MediaEditResult::Application { snapshot: original } =
-        app_edit(&mut engine, ApplicationEdit::Inspect { application })
-    else {
-        panic!()
-    };
-    app_edit(&mut engine, ApplicationEdit::Remove { application });
+    let before = super::super::inspect(&engine, application).unwrap();
+    remove(&mut engine, application);
     let document = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     assert!(
-        matches!(app_edit(&mut engine, ApplicationEdit::Inspect { application }),
-        MediaEditResult::ApplicationMissing { application: missing } if missing == application)
+        matches!(app_edit(&mut engine, ApplicationEdit::Inspect { application }), MediaEditResult::ApplicationMissing { application: missing } if missing == application)
     );
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), document);
-    for edit in [
-        ApplicationEdit::Rename {
-            application,
-            label: "Missing".into(),
-        },
-        ApplicationEdit::Remove { application },
-        ApplicationEdit::SetEnabled {
-            application,
-            enabled: false,
-        },
-        ApplicationEdit::Configure {
-            application,
-            definition: original.definition.clone(),
-        },
-    ] {
-        assert!(!invoke(&mut engine, MediaEdit::Applications { edit }).success);
-        assert_eq!(engine.undo_len(), history);
-        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), document);
-    }
-    assert!(engine.undo().unwrap());
-    let MediaEditResult::Application { snapshot: restored } =
-        app_edit(&mut engine, ApplicationEdit::Inspect { application })
-    else {
-        panic!()
-    };
-    assert_eq!(restored.id, original.id);
-    assert_eq!(restored.definition, original.definition);
-    assert!(engine.redo().unwrap());
-    assert!(matches!(
-        app_edit(&mut engine, ApplicationEdit::Inspect { application }),
-        MediaEditResult::ApplicationMissing { .. }
-    ));
-
-    let manager = crate::media::authoring::manager(&engine).unwrap();
-    let wrong_type = ApplicationId(engine.nodes.get(manager).unwrap().node_data().meta.uuid);
     assert!(
         !invoke(
             &mut engine,
             MediaEdit::Applications {
-                edit: ApplicationEdit::Inspect {
-                    application: wrong_type
+                edit: ApplicationEdit::Configure {
+                    application,
+                    definition: before.definition.clone()
                 }
             }
         )
         .success
     );
+    assert!(engine.undo().unwrap());
+    let restored = super::super::inspect(&engine, application).unwrap();
+    assert_eq!(restored.id, before.id);
+    assert_eq!(restored.definition, before.definition);
+    assert_eq!(restored.definition_instance, before.definition_instance);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    assert_eq!(super::super::inspect(&loaded, application).unwrap().id, application);
+    assert!(engine.redo().unwrap());
+    assert!(super::super::inspect(&engine, application).is_err());
 }

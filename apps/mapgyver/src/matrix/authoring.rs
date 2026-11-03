@@ -54,7 +54,6 @@ pub(super) fn item_id(node: &ElementNode) -> MatrixItemId {
         ElementDefinition::Group { .. } => MatrixItemId::Group {
             id: GroupId(node.node_data().meta.uuid),
         },
-        _ => unreachable!(),
     }
 }
 fn parent_depth(engine: &AppEngine, document: &Document, parent: NodeId) -> usize {
@@ -222,12 +221,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                         break candidate;
                     }
                 };
-                let node = ElementNode::new(
-                    label,
-                    ElementDefinition::Column {
-                        definition: ColumnDefinition::default(),
-                    },
-                );
+                let node = super::ColumnNode::from_definition(label, ColumnDefinition::default());
                 columns.push(ColumnId(node.node_data().meta.uuid));
                 items.push(UserItemTreeInsertion::new(document.root, NodeTree::new(node)));
             }
@@ -308,20 +302,17 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::DuplicateItem { item } => return super::copying::item(engine, &document, item),
         MatrixEdit::RenameColumn { column, label } => labels::rename(engine, document.column(column)?, label)?,
         MatrixEdit::ConfigureColumn { column, definition } => {
-            let previous = &document
-                .snapshot
-                .columns
-                .iter()
-                .find(|entry| entry.id == column)
-                .ok_or("Matrix column is missing")?
-                .definition;
-            crate::applications::validate_associations(engine, &previous.applications, &definition.applications)?;
-            mutate(
-                engine,
-                document.column(column)?,
-                ElementDefinition::Column { definition },
-            );
+            let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(document.column(column)?) else {
+                unreachable!()
+            };
+            engine.edits.push(node.configuration_edit(definition));
         }
+        MatrixEdit::ConfigureColumnApplication {
+            column,
+            definition,
+            pre,
+            post,
+        } => return super::cell_applications::configure_column(engine, &document, column, definition, pre, post),
         MatrixEdit::ReorderColumn { column, after } => {
             let node = document.column(column)?;
             let previous = after.map(|id| document.column(id)).transpose()?;

@@ -14,14 +14,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-#[node(
-    "mapgyver.app_control.v1", label = "App control",
-    user_permissions = golden_core::node::NodeUserPermissions {
-        can_edit_name: true,
-        can_remove_and_duplicate: true,
-        ..Default::default()
-    }
-)]
+#[node("mapgyver.app_control.v1", label = "App control", can_be_disabled = false)]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
     app_file: File = File::default() (
         label = "App file", file_allowed_extensions = vec!["exe".into()]
@@ -100,19 +93,6 @@ impl AppControlNode {
         node.maximum_ms = ParameterHandle::new(f64::from(definition.restart.maximum_ms));
         node
     }
-    pub(super) fn tree(label: String, definition: ApplicationDefinition, enabled: bool) -> NodeTree {
-        let mut node = Self::from_definition(&definition);
-        node.node_data_mut().meta.label = label;
-        node.node_data_mut().meta.enabled = enabled;
-        let mut tree = NodeTree::new(node);
-        for value in definition.arguments {
-            tree = tree.with_child(NodeTree::new(super::ArgumentNode::from_value(value)).as_user_item());
-        }
-        for (name, value) in definition.environment.into_iter().flatten() {
-            tree = tree.with_child(NodeTree::new(super::EnvironmentNode::from_entry(name, value)).as_user_item());
-        }
-        tree
-    }
     pub(crate) fn configured(&self) -> bool {
         !self.app_file.get_ref().as_str().is_empty()
     }
@@ -130,6 +110,7 @@ impl AppControlNode {
         let owner = self.node_data().parent.and_then(|id| engine.nodes.get(id));
         let id = match owner {
             Some(crate::app::AppNode::MatrixCell(cell)) => cell.node_data().meta.uuid,
+            Some(crate::app::AppNode::MatrixColumn(column)) => column.node_data().meta.uuid,
             _ => self.node_data().meta.uuid,
         };
         Ok(ApplicationSnapshot {

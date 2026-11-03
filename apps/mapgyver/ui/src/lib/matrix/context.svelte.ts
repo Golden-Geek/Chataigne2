@@ -114,7 +114,7 @@ export function provideMatrixAuthoring() {
 					{ kind: node.node_type === 'mapgyver.matrix.layer' ? 'Layer' : 'Group', id: node.uuid },
 					view.selected?.column ?? null
 				);
-			else if (node.node_type === 'mapgyver.matrix.column')
+			else if (node.node_type === 'mapgyver.matrix.column.v2')
 				controller.select(view.selected?.item ?? null, node.uuid);
 		});
 	});

@@ -1,6 +1,5 @@
 use super::*;
 use crate::{
-    applications::protocol::ApplicationEdit,
     media::{composition::protocol::CompositionEdit, protocol::*},
     screens::protocol::{SCREEN_NAMESPACE, SCREEN_OPERATION, ScreenEdit, ScreenEditResult},
 };
@@ -31,8 +30,20 @@ fn remove_and_restore(engine: &mut super::super::AppEngine, uuid: NodeUuid) {
     );
     let before = to_sparse_project_json_pretty(engine).unwrap();
     let history = engine.undo_len();
-    let ack = apply_project_intent(engine, UiEditIntent::RemoveNode { node: id });
-    assert!(ack.success, "{ack:?}");
+    if matches!(node, AppNode::MatrixColumn(_)) {
+        let (media, column) =
+            crate::applications::tests::owner(engine, crate::applications::protocol::ApplicationId(uuid));
+        media_edit(
+            engine,
+            MediaEdit::Matrix {
+                media,
+                edit: crate::matrix::protocol::MatrixEdit::RemoveColumn { column },
+            },
+        );
+    } else {
+        let ack = apply_project_intent(engine, UiEditIntent::RemoveNode { node: id });
+        assert!(ack.success, "{ack:?}");
+    }
     assert!(engine.node_id_by_uuid(uuid).is_none());
     assert_eq!(engine.undo_len(), history + 1);
     validate_engine_project_candidate(engine).unwrap();
@@ -96,14 +107,7 @@ fn every_authored_object_kind_can_be_deleted_from_the_shared_tree_with_history_a
         panic!()
     };
     objects.push(NodeUuid(asset.get()));
-    let MediaEditResult::ApplicationCreated { application } = media_edit(
-        &mut engine,
-        MediaEdit::Applications {
-            edit: ApplicationEdit::Create { label: None },
-        },
-    ) else {
-        panic!()
-    };
+    let application = crate::applications::tests::create(&mut engine);
     objects.push(application.0);
     let MediaEditResult::InstancesCreated { instances } = media_edit(
         &mut engine,

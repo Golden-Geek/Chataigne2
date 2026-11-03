@@ -114,10 +114,9 @@ impl CompositeSettings {
     }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ColumnDefinition {
     pub transition: Option<TransitionDefinition>,
-    pub applications: Vec<crate::applications::protocol::ColumnApplication>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CellDefinition {
@@ -132,7 +131,6 @@ pub struct CellDefinition {
 pub enum ElementDefinition {
     Layer { settings: CompositeSettings },
     Group { settings: CompositeSettings },
-    Column { definition: ColumnDefinition },
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct MatrixItemSnapshot {
@@ -147,6 +145,7 @@ pub struct ColumnSnapshot {
     pub id: ColumnId,
     pub label: String,
     pub definition: ColumnDefinition,
+    pub application: crate::applications::protocol::ApplicationId,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CellSnapshot {
@@ -331,6 +330,12 @@ pub enum MatrixEdit {
     },
     ConfigureCellApplication {
         layer: LayerId,
+        column: ColumnId,
+        definition: crate::applications::protocol::ApplicationDefinition,
+        pre: u16,
+        post: u16,
+    },
+    ConfigureColumnApplication {
         column: ColumnId,
         definition: crate::applications::protocol::ApplicationDefinition,
         pre: u16,

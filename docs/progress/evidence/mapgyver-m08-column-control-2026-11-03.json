@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "scope": "Column-owned typed transition/app control and removal of standalone Applications/associations; full gate remains Active",
+  "software": {
+    "command": "cargo test --locked -p MapGyver --lib",
+    "passed": 359,
+    "failed": 0,
+    "ignored": 2,
+    "duration_seconds": 85.99,
+    "count_change": "368 to 359: obsolete standalone catalog/association CRUD tests removed or consolidated into owner-based history/project/copy, inherited enablement, stale capture, four-caller configuration/rejection and removed-contract cases; no gate denominator changes",
+    "strict_clippy": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings: pass",
+    "svelte": "0 errors, 0 warnings",
+    "ui_tests": "26 application/Matrix tests passed",
+    "protocol": "Exact Rust-generated TypeScript equality passes; removed DTOs are deleted by the generator",
+    "format": "Both Cargo formatters, touched authored UI/browser Prettier and diff whitespace checks pass",
+    "coverage": "Column typed transition/control, owner IDs, independent Column/Cell copies, history/project replay, clamped ranges, logical inherited disablement, stale admission, active/outgoing/final renderer retention, missing reads, raw old API/schema/standalone-record rejection and four existing public caller modes"
+  },
+  "native": {
+    "prerequisites": "Inspected successful library suite, strict library/all-native-test Clippy and isolated app build before execution",
+    "binary": "target/debug/deps/application_runtime-codex-column.exe",
+    "sha256": "6C0AC311EC63E8160CA3BF33AB38FDC0F9EACE81C1ADC5293356FE14FBFAFEA5",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 1,
+    "duration_seconds": 1.16,
+    "coverage": "Real consumer-owned process launch, neighbor/exact same-PID demand, Cell launch without media, equivalent keys, stale readiness, backoff/unload, removed owner and project/final-render completion retirement",
+    "build_limit": "Cargo integration-target commands linked the test artifact but returned failure publishing the separately built target/debug/MapGyver.exe because the user's open app locks it. This is not reported as a passing Cargo --no-run command. Native/all-test strict compilation and the isolated app build passed; the newly linked test executable listed all nine cases and then passed its eight default cases. The user app was not closed.",
+    "exclusion": "Pinned-descendant fixture qualification remains under M08/4; hardware-only qualification cases were not run"
+  },
+  "bundled_ui": {
+    "binary": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "A9D8868C6EDDC5E31C134151969FFA58587999973612049D12F46B1B7F433403",
+    "build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review: pass",
+    "browser": "149.0.7827.55",
+    "column": "--column-applications-ui: pass; actual generic File/pre/post/transition edits, exact Undo/Redo, no Applications panel, actual UI neighbor/exact same PID and launch UUID, completed range retirement",
+    "cell": "--cell-application-ui: pass on the same binary; sparse actual Cell action, generic File/pre/post/Argument, hidden inactive fields, Undo/Redo and no authoring launch",
+    "page_errors": 0,
+    "rejected_intents": 0,
+    "source_regression": "Ordinary headless source intent/history/Save-New-Load parity passed in both hosts",
+    "screenshots": ["target/m08-column-applications-ui.png", "target/m08-cell-applications-ui.png"],
+    "corrected_fixture": "Initial Column UI check incorrectly expected runtime demand reasons in ApplicationRuntimeStatus. The generated DTO has no such field; the corrected fixture observes committed playback, actual process/launch IDs and completed retirement. No product code changed for this fixture correction."
+  },
+  "logs": "target/m08-column-{lib-final,clippy-final,ui-check,ui-tests,format-check,contract,native-isolated-build,native,app-build,bundled,bundled-final}.log",
+  "remaining": "Cross-consumer normalized-key sharing across Columns/Cells/Matrices; independent direct Cell activation and the complete revised disabled-render/outgoing/final-use matrix. M08/3-4 retain native picker, dedicated commands/named script methods/snippets, target outcomes and access/retirement qualification.",
+  "acceptance_awarded": 0
+}

@@ -6,7 +6,7 @@ use golden_core::{
 };
 
 fn root(engine: &AppEngine, application: ApplicationId) -> NodeId {
-    engine.node_id_by_uuid(application.0).unwrap()
+    crate::applications::control_node(engine, application).unwrap().id()
 }
 fn parameter(engine: &AppEngine, owner: NodeId, name: &str) -> NodeId {
     let folder = engine
@@ -308,11 +308,32 @@ fn generic_entry_creation_and_collection_limits_use_the_same_backend_ownership_c
 #[test]
 fn obsolete_application_records_are_rejected_before_recoverable_decode_can_drop_settings() {
     let mut engine = fixture();
-    create(&mut engine);
+    let application = create(&mut engine);
+    app_edit(
+        &mut engine,
+        ApplicationEdit::Configure {
+            application,
+            definition: ApplicationDefinition {
+                arguments: vec!["persist settings".into()],
+                ..Default::default()
+            },
+        },
+    );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     assert!(saved.contains("mapgyver.app_control.v1"));
     let obsolete = saved.replace("mapgyver.app_control.v1", "mapgyver.application");
     assert!(from_sparse_project_json::<AppNode>(&obsolete).is_err());
+    let mut project: golden_core::engine::ProjectFile = serde_json::from_str(&saved).unwrap();
+    let mut pending = vec![&project.root];
+    let standalone = loop {
+        let record = pending.pop().unwrap();
+        if record.node_type == "mapgyver.app_control.v1" {
+            break record.clone();
+        }
+        pending.extend(&record.children);
+    };
+    project.root.children.push(standalone);
+    assert!(crate::media::validate_project_file(&project).is_err());
 }
 
 #[test]
@@ -346,67 +367,6 @@ fn aggregate_size_validation_observes_the_final_atomic_entry_proposal() {
     assert_eq!(children(&engine, application), ids);
     assert_eq!(
         crate::applications::inspect(&engine, application).unwrap().definition,
-        definition
-    );
-}
-
-#[test]
-fn generic_duplication_copies_typed_children_with_fresh_identities_and_one_history_step() {
-    let mut engine = fixture();
-    let application = create(&mut engine);
-    let definition = ApplicationDefinition {
-        arguments: vec!["literal & value".into()],
-        environment: Some(vec![("EXACT".into(), "value".into())]),
-        window: ApplicationWindow::Normal,
-        ..Default::default()
-    };
-    app_edit(
-        &mut engine,
-        ApplicationEdit::Configure {
-            application,
-            definition: definition.clone(),
-        },
-    );
-    let source = root(&engine, application);
-    let parent = engine.nodes.get(source).unwrap().node_data().parent.unwrap();
-    let history = engine.undo_len();
-    let ack = apply_project_intent(
-        &mut engine,
-        UiEditIntent::DuplicateNode {
-            source,
-            new_parent: parent,
-            new_prev_sibling: Some(source),
-            initial_params: vec![],
-        },
-    );
-    assert!(ack.success, "{ack:?}");
-    assert_eq!(engine.undo_len(), history + 1);
-    let copy = engine
-        .nodes
-        .iter()
-        .find_map(|(_, node)| match node {
-            AppNode::Application(node) if node.node_data().meta.uuid != application.0 => {
-                Some(ApplicationId(node.node_data().meta.uuid))
-            }
-            _ => None,
-        })
-        .unwrap();
-    assert_eq!(
-        crate::applications::inspect(&engine, copy).unwrap().definition,
-        definition
-    );
-    let original = children(&engine, application)
-        .into_iter()
-        .map(|id| engine.nodes.get(id).unwrap().node_data().meta.uuid)
-        .collect::<Vec<_>>();
-    for id in children(&engine, copy) {
-        assert!(!original.contains(&engine.nodes.get(id).unwrap().node_data().meta.uuid));
-    }
-    assert!(engine.undo().unwrap());
-    assert!(crate::applications::inspect(&engine, copy).is_err());
-    assert!(engine.redo().unwrap());
-    assert_eq!(
-        crate::applications::inspect(&engine, copy).unwrap().definition,
         definition
     );
 }

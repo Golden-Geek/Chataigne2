@@ -19,7 +19,7 @@ fn committed_timed_column_preloads_without_video_time_renderer_or_history_change
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
-    configure_column(&mut engine, media, columns[2], application);
+    let _application = configure_column(&mut engine, media, columns[2], application);
     let idle = capture_logical_applications(&engine).unwrap();
     assert!(idle.demand.is_empty());
     let history = engine.undo_len();
@@ -28,7 +28,7 @@ fn committed_timed_column_preloads_without_video_time_renderer_or_history_change
     assert!(!idle.is_current());
     let preload = capture_logical_applications(&engine).unwrap();
     assert_eq!(preload.demand.len(), 1);
-    assert_eq!(preload.demand[0].application, application);
+    assert_eq!(preload.demand[0].application, _application);
     assert_eq!(
         preload.demand[0].reasons,
         [DemandReason::Neighbor].into_iter().collect()
@@ -65,22 +65,34 @@ fn committed_timed_column_preloads_without_video_time_renderer_or_history_change
 }
 
 #[test]
-fn shared_matrices_union_scopes_and_reorder_remove_and_undo_reconcile_column_distances() {
+fn independent_matrices_keep_consumer_scopes_and_reorder_remove_and_undo_reconcile_column_distances() {
     let mut engine = fixture();
     let application = create(&mut engine);
     let (first, columns) = matrix(&mut engine);
     let (second, others) = matrix(&mut engine);
-    configure_column(&mut engine, first, columns[2], application);
-    configure_column(&mut engine, second, others[2], application);
+    let first_app = configure_column(&mut engine, first, columns[2], application);
+    let second_app = configure_column(&mut engine, second, others[2], application);
     launch(&mut engine, first, columns[1]);
     launch(&mut engine, second, others[2]);
     let shared = capture_logical_applications(&engine).unwrap();
-    assert_eq!(shared.demand.len(), 1);
+    assert_eq!(shared.demand.len(), 2);
     assert_eq!(
-        shared.demand[0].reasons,
-        [DemandReason::Neighbor, DemandReason::Preparation]
-            .into_iter()
-            .collect()
+        shared
+            .demand
+            .iter()
+            .find(|d| d.application == first_app)
+            .unwrap()
+            .reasons,
+        [DemandReason::Neighbor].into_iter().collect()
+    );
+    assert_eq!(
+        shared
+            .demand
+            .iter()
+            .find(|d| d.application == second_app)
+            .unwrap()
+            .reasons,
+        [DemandReason::Preparation].into_iter().collect()
     );
     launch(&mut engine, second, others[4]);
     edit(
@@ -112,7 +124,7 @@ fn cell_authoring_does_not_invalidate_logical_column_capture_or_create_render_in
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
-    configure_column(&mut engine, media, columns[2], application);
+    let _application = configure_column(&mut engine, media, columns[2], application);
     let MediaEditResult::MatrixCreated { items, .. } = edit(
         &mut engine,
         MediaEdit::Matrix {
@@ -158,10 +170,13 @@ fn cell_authoring_does_not_invalidate_logical_column_capture_or_create_render_in
         root.matrix_playback().unwrap().cached().is_none(),
         "logical capture must not build a render/cell index"
     );
-    app_edit(&mut engine, ApplicationEdit::Remove { application });
+    remove(&mut engine, _application);
     assert!(!capture.is_current());
     let missing = capture_logical_applications(&engine).unwrap();
-    assert_eq!(missing.demand[0].availability, DefinitionAvailability::Missing);
+    assert!(
+        missing.demand.is_empty(),
+        "removed idle owner has no dangling association"
+    );
 }
 
 #[test]
@@ -184,7 +199,7 @@ fn unloaded_or_discarded_playback_never_creates_authored_history_or_a_phantom_sc
     let mut engine = fixture();
     let application = create(&mut engine);
     let (media, columns) = matrix(&mut engine);
-    configure_column(&mut engine, media, columns[2], application);
+    let _application = configure_column(&mut engine, media, columns[2], application);
     launch(&mut engine, media, columns[2]);
     let history = engine.undo_len();
     let authored = to_sparse_project_json_pretty(&engine).unwrap();

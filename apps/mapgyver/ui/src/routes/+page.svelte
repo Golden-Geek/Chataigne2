@@ -17,7 +17,6 @@
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
 	import CompositionPanel from '../lib/composition/CompositionPanel.svelte';
 	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
-	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import VideoRuntimeFooter from '../lib/runtime/VideoRuntimeFooter.svelte';
 	import { provideVideoStatus } from '../lib/runtime/context.svelte';
@@ -48,7 +47,6 @@
 		'mapgyver.surface',
 		'mapgyver.matrix.layer',
 		'mapgyver.matrix.group',
-		'mapgyver.matrix.column',
 		'mapgyver.app_control.v1'
 	])
 		registerNodeInspector(type, { component: DomainInspector });
@@ -59,8 +57,7 @@
 		screenWarp: { title: 'Screen Warping', component: ScreenWarpPanel },
 		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
 		composition: { title: 'Composition', component: CompositionPanel },
-		matrix: { title: 'Matrix', component: MatrixPanel },
-		applications: { title: 'Applications', component: ApplicationPanel }
+		matrix: { title: 'Matrix', component: MatrixPanel }
 	};
 	const initialPanels: PanelSpawnRequest[] = [
 		{
@@ -72,12 +69,6 @@
 		{
 			panelId: 'screen-manager',
 			panelType: 'screenManager',
-			required: true,
-			position: { referencePanelId: 'media-manager', direction: 'within' }
-		},
-		{
-			panelId: 'applications',
-			panelType: 'applications',
 			required: true,
 			position: { referencePanelId: 'media-manager', direction: 'within' }
 		},

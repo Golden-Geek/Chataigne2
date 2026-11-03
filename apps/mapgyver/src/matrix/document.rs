@@ -91,24 +91,26 @@ impl Document {
             exports: HashMap::new(),
         };
         for id in &roots {
-            if let Some(AppNode::MatrixElement(node)) = engine.nodes.get(*id)
-                && let ElementDefinition::Column { definition } = node.definition()
-            {
-                if node.node_data().first_child.is_some() {
-                    return Err("Matrix column cannot own children".into());
-                }
+            if let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(*id) {
                 let column = ColumnId(node.node_data().meta.uuid);
                 document.columns.insert(column, *id);
                 document.elements.insert(*id);
                 document.snapshot.columns.push(ColumnSnapshot {
                     id: column,
                     label: node.node_data().meta.label.clone(),
-                    definition: definition.clone(),
+                    definition: node.definition(),
+                    application: crate::applications::protocol::ApplicationId(column.0),
                 });
             }
         }
         let mut pending = roots.into_iter().rev().map(|id| (id, None, 0usize)).collect::<Vec<_>>();
         while let Some((id, parent, depth)) = pending.pop() {
+            if matches!(engine.nodes.get(id), Some(AppNode::MatrixColumn(_))) {
+                if parent.is_some() {
+                    return Err("Columns belong directly to Matrix Final".into());
+                }
+                continue;
+            }
             if depth >= MAX_DEPTH {
                 return Err("Matrix groups exceed depth 32".into());
             }
@@ -117,10 +119,8 @@ impl Document {
             };
             let uuid = node.node_data().meta.uuid;
             let (item, settings) = match node.definition() {
-                ElementDefinition::Column { .. } if parent.is_none() => continue,
                 ElementDefinition::Layer { settings } => (MatrixItemId::Layer { id: LayerId(uuid) }, settings),
                 ElementDefinition::Group { settings } => (MatrixItemId::Group { id: GroupId(uuid) }, settings),
-                _ => return Err("only groups and layers belong in Matrix groups".into()),
             };
             settings.validate()?;
             document.elements.insert(id);
@@ -213,7 +213,11 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
         }
     }
     for (id, node) in engine.nodes.iter() {
-        if matches!(node, AppNode::MatrixElement(_) | AppNode::MatrixCell(_)) && !owned.contains(&id) {
+        if matches!(
+            node,
+            AppNode::MatrixElement(_) | AppNode::MatrixColumn(_) | AppNode::MatrixCell(_)
+        ) && !owned.contains(&id)
+        {
             return Err("Matrix element is outside a Matrix document".into());
         }
     }

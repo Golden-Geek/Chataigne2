@@ -7,6 +7,7 @@ pub(crate) mod capture;
 mod cell_applications;
 pub(crate) mod cell_node;
 pub(crate) mod cells;
+pub(crate) mod column_node;
 mod copying;
 pub(crate) mod document;
 pub(crate) mod node;
@@ -19,6 +20,7 @@ pub(crate) use admission::validate_ui_intent;
 pub(crate) use applications::capture_application_columns;
 pub(crate) use authoring::apply;
 pub use cell_node::CellNode;
+pub use column_node::ColumnNode;
 pub(crate) use document::{inspect, validate_project};
 pub use node::ElementNode;
 #[cfg(test)]

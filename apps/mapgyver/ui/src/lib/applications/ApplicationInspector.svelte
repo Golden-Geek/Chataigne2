@@ -7,7 +7,6 @@
 		type NodeInspectorChildFilter
 	} from 'golden_ui';
 	import { ApplicationController, applicationState } from './authoring';
-	import { catalogState } from './catalog';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
 	import { ApplicationRuntimeReader, runtimeState } from './runtime';
@@ -28,7 +27,10 @@
 	const application = $derived.by(() => {
 		const parentId = session?.graph.state.parentById.get(node.node_id);
 		const parent = parentId == null ? null : session?.getNodeData(parentId);
-		return parent?.node_type === 'mapgyver.matrix.cell.v2' ? parent.uuid : node.uuid;
+		return parent?.node_type === 'mapgyver.matrix.cell.v2' ||
+			parent?.node_type === 'mapgyver.matrix.column.v2'
+			? parent.uuid
+			: node.uuid;
 	});
 	const configured = $derived.by(() => {
 		const folder = node.children
@@ -43,12 +45,10 @@
 			!!file.data.param.value.value
 		);
 	});
-	const view = $state(applicationState()),
-		catalog = $state(catalogState());
+	const view = $state(applicationState());
 	const controller = new ApplicationController<WorkbenchSession>(
 		() => session,
 		view,
-		catalog,
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy);
@@ -106,7 +106,6 @@
 			<summary>Runtime</summary><RuntimeStatus
 				snapshot={runtime.snapshot}
 				selected={view.snapshot}
-				catalog={catalog.page}
 				live={runtime.live}
 				loading={runtime.loading}
 				error={runtime.error || runtime.transportError}

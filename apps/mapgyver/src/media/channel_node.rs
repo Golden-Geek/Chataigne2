@@ -265,6 +265,9 @@ impl Node for ChannelNode {
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         if self.is_matrix_final() {
+            if node_type == crate::matrix::column_node::COLUMN_TYPE {
+                return Some(Box::new(crate::matrix::ColumnNode::new()));
+            }
             crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
         } else {
             None

@@ -100,11 +100,13 @@ export async function verifyCellApplicationsUi({ base, edit }) {
 		await wait(application, (value) => value.definition.arguments[0] === '');
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(application, (value) => value.definition.arguments[0] === 'literal & value');
-		const catalog = await edit({
-			kind: 'Applications',
-			edit: { kind: 'InspectCatalog', search: '', start: 0, count: 128 }
-		});
-		assert.equal(catalog.page.total, 0, 'Cell settings are not standalone definitions');
+		assert.equal(
+			await page
+				.getByRole('tab')
+				.filter({ hasText: /^Applications$/ })
+				.count(),
+			0
+		);
 		const runtime = (await edit({ kind: 'Applications', edit: { kind: 'InspectRuntime' } }))
 			.snapshot;
 		assert(

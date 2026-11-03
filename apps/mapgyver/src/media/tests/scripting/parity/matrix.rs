@@ -217,7 +217,6 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
                     duration_ms: 125,
                     curve: TransitionCurve::SmoothStep,
                 }),
-                applications: vec![],
             },
         },
         MatrixEdit::ReorderColumn {

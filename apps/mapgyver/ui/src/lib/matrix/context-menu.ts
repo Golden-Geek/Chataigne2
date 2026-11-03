@@ -7,7 +7,7 @@ import type { MatrixEdit } from '../media/generated/MatrixEdit';
 export function registerMatrixContextMenu() {
 	registerNodeContextMenuContributor('mapgyver.matrix-removal', {
 		match: ({ node }) =>
-			['mapgyver.matrix.layer', 'mapgyver.matrix.group', 'mapgyver.matrix.column'].includes(
+			['mapgyver.matrix.layer', 'mapgyver.matrix.group', 'mapgyver.matrix.column.v2'].includes(
 				node.node_type
 			),
 		items: ({ node, graphState, session, closeMenu }) => {
@@ -21,7 +21,7 @@ export function registerMatrixContextMenu() {
 			const media = owner.uuid;
 			const generation = session?.snapshotGeneration;
 			const edit: MatrixEdit =
-				node.node_type === 'mapgyver.matrix.column'
+				node.node_type === 'mapgyver.matrix.column.v2'
 					? { kind: 'RemoveColumn', column: node.uuid }
 					: {
 							kind: 'RemoveItem',

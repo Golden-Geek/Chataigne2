@@ -4,7 +4,8 @@
 verified: equivalent launch definitions preserve the existing owned process rather than
 triggering a stop/restart. The typed settings milestone below is also verified. Neither
 milestone alone accepts the full configuration/demand gate. Cell ownership is verified below;
-Column integration and the complete aggregate-demand contract remain required.
+Column ownership/standalone removal is the current milestone. The complete aggregate-demand
+contract remains required.
 
 ## Ownership and behavior
 
@@ -153,10 +154,54 @@ removal, cross-consumer normalized-key sharing, independent Cell triggering and 
 transition/final-use behavior remain in the same active gate. Native picker/complete contextual
 CRUD, app-owned command/snippet coverage and retained access/retirement cases remain M08/3–4.
 
+## Column-owned configuration and standalone removal — 2026-11-03
+
+The app-owned `ColumnNode` declares `mapgyver.matrix.column.v2`, with a real app-control
+child and typed transition override, whole-millisecond duration (0..u32::MAX) and curve.
+Its public application identity is the persistent Column UUID, matching Cell ownership.
+`ConfigureColumnApplication` authors settings and integer pre/post in one transaction;
+`ConfigureColumn` edits only transition Parameters. Column/cell config uses one demand
+projection, including empty media-free addresses and logical headless playback.
+
+The standalone Applications panel, catalog, creation/rename/remove/duplicate/enable operations,
+association picker/list and their generated DTOs are removed. Current read/configuration
+operations resolve only Column/Cell owner identities. Declared settings cannot be detached,
+duplicated separately or separately disabled; copying/removing the consumer owns their lifetime.
+Project admission rejects old opaque Column and standalone app-control records before Golden's
+recoverable codec can omit them. This deliberately breaks the retired document/API contract.
+
+The Matrix contextual action selects the actual Column in the shared generic Inspector.
+Ordinary File, integer distances and transition widgets replace the custom association form.
+The four existing public caller modes retain configuration/read/rejection/history coverage.
+Obsolete catalog/association-specific tests are replaced with intrinsic-owner cases, including
+copy/project/history, inherited disablement, stale capture fencing and read-only absence.
+[Verification receipt](evidence/mapgyver-m08-column-control-2026-11-03.json): **359 library
+tests pass**, two retained qualification exclusions; strict library/all-native-test Clippy,
+Rust-generated contract equality, Svelte (zero errors/warnings), 26 app/Matrix UI tests and
+formatting pass. The count changes from 368 because retired catalog/association tests are
+removed or consolidated into current owner cases; acceptance denominators do not change.
+
+The isolated bundled app passes actual Column File/pre/post/transition editing, exact Undo/Redo,
+no Applications panel, UI neighbor/exact launch with the same PID/launch UUID and completed
+retirement outside its range. The Cell generic Inspector fixture passes on that same binary.
+Both have zero browser errors/rejected intents, and ordinary source/history/Save-New-Load parity
+passes. The first Column fixture incorrectly assumed demand reasons were in the runtime DTO;
+using committed playback and the generated actual status contract corrected only the fixture.
+
+The freshly linked Windows process suite passes **8 tests**, zero failures, one retained
+pinned-descendant exclusion, in **1.16 seconds**, after inspected software/strict compile and
+isolated app-build success. Cargo integration build commands also attempt to publish the normal
+app binary, which Windows refuses while the user's app is open. Those commands are recorded as
+failed publishing attempts, not successful `--no-run` checks; the linked test artifact, strict
+all-native-target compilation and successful isolated app build are recorded separately.
+
+This milestone does not implement cross-consumer normalized-key deduplication. The former
+native two-Matrix/same-standalone-ID fixture becomes a Column neighbor/exact activation fixture;
+runtime tests still cover multiple reasons for one consumer. Cross-consumer/cross-Matrix sharing
+is explicitly unaccepted until the next implementation slice supplies it.
+
 ## Exact remaining M08/2 requirement
 
-Embed the verified typed subtree into Column App file and conditional controls, and remove
-the standalone Applications/catalog association workflow.
 Aggregate identical normalized keys across consumers, Cells, Columns and Matrices without
 transient process restarts. Preserve the verified clamped/non-wrapping Cell ranges while adding
 direct activation and complete outgoing/final-use retention through jumps,

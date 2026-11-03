@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplicationController, applicationState } from '../authoring.ts';
-import { catalogState } from '../catalog.ts';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
 import type { ApplicationSnapshot } from '../../media/generated/ApplicationSnapshot';
 
@@ -40,11 +39,8 @@ test('a read queued before deletion clears held Inspector data on authoritative 
 	const controller = new ApplicationController(
 		() => session,
 		state,
-		catalogState(),
 		async (_, edit) => {
 			assert.equal(edit.kind, 'Applications');
-			if (edit.edit.kind === 'InspectCatalog')
-				return { kind: 'Applications', page: { applications: [], total: 0, start: 0 } };
 			assert.equal(edit.edit.kind, 'Inspect', 'inspection never authors or launches');
 			if (pending)
 				return new Promise<MediaEditResult>((resolve) => {
@@ -84,7 +80,6 @@ test('late absence cannot clear another selection and a mismatched identity is r
 	const controller = new ApplicationController(
 		() => session,
 		state,
-		catalogState(),
 		async () => new Promise<MediaEditResult>((resolve) => replies.push(resolve))
 	);
 	controller.select('old');

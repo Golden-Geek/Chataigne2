@@ -6,6 +6,78 @@ use golden_core::{
     ui_sync::NodeMetaPatch,
 };
 
+#[test]
+fn column_owns_typed_transition_and_control_through_copy_history_and_project_replay() {
+    let mut engine = fixture();
+    let (media, _, columns) = scene(&mut engine);
+    let column = columns[2];
+    let application = ApplicationId(column.0);
+    let history = engine.undo_len();
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureColumnApplication {
+            column,
+            definition: definition(),
+            pre: 1,
+            post: 2,
+        },
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    let transition = ColumnDefinition {
+        transition: Some(TransitionDefinition {
+            duration_ms: u32::MAX,
+            curve: TransitionCurve::SmoothStep,
+        }),
+    };
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureColumn {
+            column,
+            definition: transition.clone(),
+        },
+    );
+    let before_copy = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    edit(&mut engine, media, MatrixEdit::DuplicateColumn { column });
+    assert_eq!(engine.undo_len(), history + 1);
+    let state = crate::matrix::inspect(&engine, media).unwrap();
+    let copy = state.columns.iter().find(|c| !columns.contains(&c.id)).unwrap();
+    assert_ne!(copy.application, application);
+    assert_eq!(copy.application.0, copy.id.0);
+    assert_eq!(copy.definition, transition);
+    assert_eq!(
+        crate::applications::inspect(&engine, copy.application)
+            .unwrap()
+            .definition,
+        definition()
+    );
+    let pre = parameter(&engine, copy.application, "pre");
+    let AppNode::Parameter(pre) = engine.nodes.get(pre).unwrap() else {
+        panic!()
+    };
+    assert_eq!(pre.value, ParamValue::Int(1));
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    assert_eq!(crate::matrix::inspect(&loaded, media).unwrap(), state);
+    assert_eq!(
+        crate::applications::inspect(&loaded, copy.application)
+            .unwrap()
+            .definition,
+        definition()
+    );
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before_copy);
+    assert!(engine.redo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    assert!(
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.column.v2", "mapgyver.matrix.column"))
+            .is_err()
+    );
+    crate::media::validate_project(&engine).unwrap();
+}
+
 fn scene(engine: &mut AppEngine) -> (MediaId, LayerId, Vec<ColumnId>) {
     let matrix = create(engine, MediaKind::Matrix).media;
     let row = layer(layers(engine, matrix, None, 1)[0]);
@@ -39,6 +111,7 @@ fn configure(engine: &mut AppEngine, media: MediaId, layer: LayerId, column: Col
 fn parameter(engine: &AppEngine, owner: ApplicationId, field: &str) -> NodeId {
     let owner = match engine.nodes.get(engine.node_id_by_uuid(owner.0).unwrap()).unwrap() {
         AppNode::MatrixCell(node) => node.application_node().unwrap(),
+        AppNode::MatrixColumn(node) => node.application_node().unwrap(),
         _ => panic!(),
     };
     let folder = engine
@@ -213,19 +286,21 @@ fn embedded_settings_reject_standalone_crud_and_invalid_parameters_without_autho
     let (_, application) = configure(&mut engine, media, row, columns[2]);
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
-    for edit in [
-        ApplicationEdit::Remove { application },
-        ApplicationEdit::Duplicate { application },
-        ApplicationEdit::Rename {
-            application,
-            label: "Invalid".into(),
-        },
-        ApplicationEdit::SetEnabled {
-            application,
-            enabled: false,
-        },
+    for kind in [
+        "Create",
+        "Remove",
+        "Duplicate",
+        "Rename",
+        "SetEnabled",
+        "InspectCatalog",
+        "InspectReferences",
     ] {
-        assert!(!invoke(&mut engine, MediaEdit::Applications { edit }).success);
+        assert!(
+            serde_json::from_value::<ApplicationEdit>(
+                serde_json::json!({"kind":kind,"application":application,"label":"Invalid","enabled":false})
+            )
+            .is_err()
+        );
     }
     let pre = parameter(&engine, application, "pre");
     for value in [-1, 65536] {

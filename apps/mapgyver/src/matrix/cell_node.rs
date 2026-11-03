@@ -19,7 +19,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v2";
 #[node("mapgyver.matrix.cell.v2", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
-        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column".into()]);
+        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
 }

@@ -2,8 +2,24 @@
 use golden_core::engine::ProjectFile;
 
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
-    let mut pending = vec![&project.root];
-    while let Some(record) = pending.pop() {
+    let mut pending = vec![(&project.root, None)];
+    while let Some((record, parent_type)) = pending.pop() {
+        if record.node_type == "mapgyver.app_control.v1"
+            && !matches!(
+                parent_type,
+                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.cell.v2")
+            )
+        {
+            return Err("Standalone app-control records are unsupported; settings require a Column or Cell".into());
+        }
+        if record.node_type.starts_with("mapgyver.matrix.column")
+            && record.node_type != crate::matrix::column_node::COLUMN_TYPE
+        {
+            return Err(format!(
+                "Unsupported Matrix Column schema '{}': typed Column v2 is required",
+                record.node_type
+            ));
+        }
         if record.node_type == "mapgyver.application"
             || (record.node_type.starts_with("mapgyver.app_control")
                 && ![
@@ -57,7 +73,12 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
                 record.node_type
             ));
         }
-        pending.extend(&record.children);
+        pending.extend(
+            record
+                .children
+                .iter()
+                .map(|child| (child, Some(record.node_type.as_str()))),
+        );
     }
     Ok(())
 }

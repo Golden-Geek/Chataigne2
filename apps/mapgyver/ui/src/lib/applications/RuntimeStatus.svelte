@@ -1,12 +1,10 @@
 <script lang="ts">
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import type { ApplicationSnapshot } from '../media/generated/ApplicationSnapshot';
-	import type { ApplicationPage } from '../media/generated/ApplicationPage';
 	import { configurationLabel, serviceLabel } from './runtime-presentation';
 	let {
 		snapshot,
 		selected,
-		catalog,
 		live,
 		loading,
 		error,
@@ -15,7 +13,6 @@
 	}: {
 		snapshot: ApplicationRuntimeSnapshot | null;
 		selected: ApplicationSnapshot | null;
-		catalog: ApplicationPage | null;
 		live: boolean;
 		loading: boolean;
 		error: string;
@@ -53,7 +50,7 @@
 		{#each snapshot.applications as application (application.application)}
 			<article aria-label={`Runtime ${application.application}`}>
 				<strong
-					>{catalog?.applications.find((entry) => entry.id === application.application)?.label ??
+					>{(selected?.id === application.application ? selected.label : null) ??
 						application.application}</strong>
 				<dl>
 					<dt>Phase</dt>

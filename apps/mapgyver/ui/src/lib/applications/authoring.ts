@@ -1,7 +1,8 @@
-import type { ApplicationEdit } from '../media/generated/ApplicationEdit';
 import type { ApplicationSnapshot } from '../media/generated/ApplicationSnapshot';
 import { ReadQueue } from '../requests/read-queue.ts';
-import { ApplicationCatalog, type CatalogState, type Invoke } from './catalog.ts';
+import type { MediaEdit } from '../media/generated/MediaEdit';
+import type { MediaEditResult } from '../media/generated/MediaEditResult';
+export type Invoke<S> = (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
 import type { Connection } from '../requests/connection';
 
 export interface ApplicationState {
@@ -23,24 +24,16 @@ export const applicationState = (): ApplicationState => ({
 	missing: false
 });
 export class ApplicationController<S extends Connection> {
-	readonly catalog: ApplicationCatalog<S>;
 	private reads = new ReadQueue();
 	private disposed = false;
-	private mutation = 0;
 	private context: { session: S; generation: number } | null = null;
 	private session: () => S | null;
 	readonly state: ApplicationState;
 	private invoke: Invoke<S>;
-	constructor(
-		session: () => S | null,
-		state: ApplicationState,
-		catalog: CatalogState,
-		invoke: Invoke<S>
-	) {
+	constructor(session: () => S | null, state: ApplicationState, invoke: Invoke<S>) {
 		this.session = session;
 		this.state = state;
 		this.invoke = invoke;
-		this.catalog = new ApplicationCatalog(session, catalog, invoke);
 	}
 	get busy() {
 		const s = this.session();
@@ -77,7 +70,6 @@ export class ApplicationController<S extends Connection> {
 			this.context = { session, generation: session.snapshotGeneration };
 		}
 		if (session.hasActiveEditSession) return;
-		this.catalog.refresh();
 		this.refresh();
 	}
 	select(application: string | null) {
@@ -142,53 +134,13 @@ export class ApplicationController<S extends Connection> {
 			}
 		);
 	}
-	async edit(edit: ApplicationEdit) {
-		const session = this.session(),
-			selected = this.state.selected;
-		if (!session || this.busy) return;
-		const generation = session.snapshotGeneration,
-			mutation = ++this.mutation;
-		this.reads.invalidate();
-		this.state.pending = true;
-		this.state.error = '';
-		try {
-			const result = await this.invoke(session, { kind: 'Applications', edit });
-			if (
-				mutation !== this.mutation ||
-				!this.current(session, generation) ||
-				this.state.selected !== selected
-			)
-				return;
-			if (result.kind === 'ApplicationCreated') this.select(result.application);
-			else if (edit.kind === 'Remove' && edit.application === selected) this.select(null);
-			return result;
-		} catch (error) {
-			if (
-				mutation === this.mutation &&
-				this.current(session, generation) &&
-				this.state.selected === selected
-			)
-				this.state.error = String(error);
-		} finally {
-			if (mutation === this.mutation) {
-				this.state.pending = false;
-				if (this.current(session, generation)) {
-					this.catalog.refresh();
-					this.refresh();
-				}
-			}
-		}
-	}
 	private reset() {
-		++this.mutation;
 		this.reads.invalidate();
-		this.catalog.reset();
 		Object.assign(this.state, applicationState());
 		this.context = null;
 	}
 	dispose() {
 		this.disposed = true;
 		this.reset();
-		this.catalog.dispose();
 	}
 }

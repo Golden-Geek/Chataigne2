@@ -2,21 +2,18 @@ use super::*;
 fn id() -> ApplicationId {
     ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4()))
 }
-fn columns(count: usize) -> Vec<ColumnSnapshot> {
+fn columns(count: usize) -> Vec<DemandColumn> {
     (0..count)
-        .map(|i| ColumnSnapshot {
+        .map(|_| DemandColumn {
             id: ColumnId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
-            label: format!("Column {}", i + 1),
-            definition: Default::default(),
+            bindings: Vec::new(),
         })
         .collect()
 }
-fn summary(id: ApplicationId) -> ApplicationSummary {
-    ApplicationSummary {
-        id,
-        label: "Shared app".into(),
-        enabled: true,
-        configured: true,
+fn summary(id: ApplicationId) -> DefinitionState {
+    DefinitionState {
+        application: id,
+        availability: DefinitionAvailability::Configured,
     }
 }
 fn cursor(column: ColumnId, reason: DemandReason) -> DemandCursor {
@@ -27,16 +24,15 @@ fn cursor(column: ColumnId, reason: DemandReason) -> DemandCursor {
     }
 }
 fn demand(
-    catalog: &[ApplicationSummary],
-    columns: &[ColumnSnapshot],
+    catalog: &[DefinitionState],
+    columns: &[DemandColumn],
     cursors: &[DemandCursor],
     holds: &[DemandHold],
 ) -> Vec<ApplicationDemand> {
-    let columns = columns.iter().map(DemandColumn::from).collect::<Vec<_>>();
     resolve(
         catalog,
         &[MatrixDemand {
-            columns: &columns,
+            columns,
             cursors,
             holds,
         }],
@@ -50,7 +46,7 @@ fn column_three_pre_and_post_one_clamp_without_wrap_and_direct_jumps_only_resolv
     let app = id();
     let catalog = [summary(app)];
     let mut columns = columns(5);
-    columns[2].definition.applications.push(ColumnApplication {
+    columns[2].bindings.push(DemandBinding {
         application: app,
         pre: 1,
         post: 1,
@@ -83,7 +79,7 @@ fn column_three_pre_and_post_one_clamp_without_wrap_and_direct_jumps_only_resolv
         overlap[0].reasons,
         [DemandReason::Neighbor, DemandReason::Active].into_iter().collect()
     );
-    columns[2].definition.applications[0].pre = u16::MAX;
+    columns[2].bindings[0].pre = u16::MAX;
     assert_eq!(
         demand(
             &catalog,
@@ -108,7 +104,7 @@ fn shared_scopes_and_detached_final_use_holds_preserve_one_atomic_demand_through
     let catalog = [summary(app)];
     let mut columns = columns(5);
     for column in &mut columns {
-        column.definition.applications.push(ColumnApplication {
+        column.bindings.push(DemandBinding {
             application: app,
             pre: 0,
             post: 0,
@@ -134,7 +130,7 @@ fn shared_scopes_and_detached_final_use_holds_preserve_one_atomic_demand_through
     let missing = demand(&[], &columns, &[], &retained);
     assert_eq!(missing[0].availability, DefinitionAvailability::Missing);
     let mut disabled = summary(app);
-    disabled.enabled = false;
+    disabled.availability = DefinitionAvailability::Disabled;
     assert_eq!(
         demand(&[disabled], &columns, &[], &retained)[0].availability,
         DefinitionAvailability::Disabled
@@ -147,14 +143,13 @@ fn admitted_large_sparse_columns_and_invalid_input_bounds_do_not_materialize_cel
     let app = id();
     let catalog = [summary(app)];
     let mut columns = columns(10_000);
-    columns[9999].definition.applications.push(ColumnApplication {
+    columns[9999].bindings.push(DemandBinding {
         application: app,
         pre: 1,
         post: 0,
     });
     let active = [cursor(columns[9998].id, DemandReason::Active)];
     assert_eq!(demand(&catalog, &columns, &active, &[]).len(), 1);
-    let columns = columns.iter().map(DemandColumn::from).collect::<Vec<_>>();
     assert!(
         resolve(
             &catalog,

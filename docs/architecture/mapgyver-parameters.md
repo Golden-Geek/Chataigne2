@@ -91,13 +91,17 @@ show; it never changes settings or runtime policy. Empty File values represent u
 locators, so shared extension constraints permit clearing them; chosen paths retain extension
 validation and app-owned absolute executable validation.
 
-Cell v2 declares this subtree directly and owns its application identity. The public
-`ApplicationId` equals the persistent Cell UUID; the default settings child's internal UUID
+Cell v2 and Column v2 declare this subtree directly and own their application identities. The public
+`ApplicationId` equals the persistent consumer UUID; the default settings child's internal UUID
 may be omitted by sparse persistence and must not escape as a consumer identity. `EnsureCell`
 materializes an empty address using backend defaults; `ConfigureCellApplication` configures it
 in one authoring/history transaction. Ordinary app-control reads/configuration resolve through
-that Cell owner. Standalone CRUD cannot remove, duplicate, rename or disable its declared slot.
-Cell and Column copy operations retain their normal fresh-identity semantics.
+that Column or Cell owner. There is no standalone Application catalog, creation API or
+association list. Settings follow owner copy/removal and cannot be detached or separately
+disabled. Old standalone records and opaque Column schemas reject before recoverable decoding.
+Cell and Column copy operations retain their normal fresh-identity semantics. Column v2 also
+declares transition override, whole-millisecond duration and curve Parameters; `ColumnDefinition`
+is their projection. The generic Inspector owns ordinary editing of both subtrees.
 
 Typed pre/post distances stay outside the process runtime key. Matrix projects configured Cell
 controls into the same plain demand input used by Column consumers, regardless of media content
@@ -107,5 +111,5 @@ demand when configured settings activate, change or clear; default unconfigured 
 and source-only Cell edits do not cause application rescans. Live clip retention accumulates
 newly observed Cell controls through that clip's lifetime.
 
-Column embedding, standalone-workflow removal, normalized-key shared ownership and the complete
-direct-Cell/outgoing/final-use acceptance remain tracked in M08/2.
+Normalized-key shared ownership and the complete direct-Cell/outgoing/final-use acceptance
+remain tracked in M08/2; Column embedding and standalone-workflow removal are implemented.

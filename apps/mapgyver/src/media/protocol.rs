@@ -404,14 +404,8 @@ pub enum MediaEditResult {
     ApplicationCallbacks {
         state: crate::applications::protocol::ApplicationCallbackState,
     },
-    ApplicationReferences {
-        references: Vec<crate::applications::protocol::ApplicationReference>,
-    },
     ApplicationRuntime {
         snapshot: crate::applications::protocol::ApplicationRuntimeSnapshot,
-    },
-    ApplicationCreated {
-        application: crate::applications::protocol::ApplicationId,
     },
     Application {
         snapshot: crate::applications::protocol::ApplicationSnapshot,
@@ -419,9 +413,6 @@ pub enum MediaEditResult {
     /// A query can arrive after deletion even when its caller's selection was valid.
     ApplicationMissing {
         application: crate::applications::protocol::ApplicationId,
-    },
-    Applications {
-        page: crate::applications::protocol::ApplicationPage,
     },
     MatrixTargets {
         page: crate::matrix::protocol::MatrixTargetPage,

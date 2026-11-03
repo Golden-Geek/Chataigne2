@@ -74,6 +74,7 @@ fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
         for id in &document.elements {
             match engine.nodes.get(*id) {
                 Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
+                Some(AppNode::MatrixColumn(node)) => node.bind_runtime(control.binding()),
                 Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
                 _ => unreachable!(),
             }
@@ -109,7 +110,7 @@ pub(super) fn targets(engine: &AppEngine, media: MediaId, query: MatrixTargetQue
         let mut next = Some(node);
         while let Some(id) = next {
             let current = engine.nodes.get(id).ok_or("Matrix target changed")?;
-            if !matches!(current, AppNode::MatrixElement(_)) {
+            if !matches!(current, AppNode::MatrixElement(_) | AppNode::MatrixColumn(_)) {
                 break;
             }
             labels.push(current.node_data().meta.label.as_str());
@@ -152,9 +153,7 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
     let Some(AppNode::MatrixElement(node)) = engine.nodes.get(row.node) else {
         return Err("Matrix row changed".into());
     };
-    let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = node.definition() else {
-        return Err("Matrix row type changed".into());
-    };
+    let (ElementDefinition::Layer { settings } | ElementDefinition::Group { settings }) = node.definition();
     Ok(MatrixViewRow {
         item: MatrixItemSnapshot {
             id: row.id,
@@ -168,16 +167,14 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
 }
 
 fn column_snapshot(engine: &AppEngine, id: ColumnId, node_id: NodeId) -> Result<ColumnSnapshot, String> {
-    let Some(AppNode::MatrixElement(node)) = engine.nodes.get(node_id) else {
+    let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(node_id) else {
         return Err("Matrix column changed".into());
-    };
-    let ElementDefinition::Column { definition } = node.definition() else {
-        return Err("Matrix column type changed".into());
     };
     Ok(ColumnSnapshot {
         id,
         label: node.node_data().meta.label.clone(),
-        definition: definition.clone(),
+        definition: node.definition(),
+        application: crate::applications::protocol::ApplicationId(id.0),
     })
 }
 

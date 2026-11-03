@@ -28,7 +28,7 @@ pub(crate) fn capture_application_columns(
         return Err("logical Matrix column capacity exceeded".into());
     }
     for id in document.columns.values() {
-        if let Some(crate::app::AppNode::MatrixElement(node)) = engine.nodes.get(*id) {
+        if let Some(crate::app::AppNode::MatrixColumn(node)) = engine.nodes.get(*id) {
             node.bind_runtime(control.binding());
         }
     }
@@ -36,7 +36,10 @@ pub(crate) fn capture_application_columns(
         .snapshot
         .columns
         .iter()
-        .map(DemandColumn::from)
+        .map(|column| DemandColumn {
+            id: column.id,
+            bindings: Vec::new(),
+        })
         .collect::<Vec<_>>();
     super::cell_applications::append(engine, &document, control, &mut columns)?;
     let columns: Arc<[DemandColumn]> = columns.into();
