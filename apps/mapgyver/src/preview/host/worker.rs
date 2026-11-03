@@ -163,8 +163,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut _capture_subscriptions = Vec::new();
     let mut published = None;
     let mut installed: Option<(u64, GenerationInfo, Option<CompletionToken>)> = None;
-    let mut last_status = Vec::new();
-    let mut last_status_generation = None;
+    let mut observation_events = super::observations::Observations::default();
     let mut confirmed = None;
     let mut retry = Instant::now();
     let mut discovery = None;
@@ -472,6 +471,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                             next.channels.guards.clone(),
                         )?;
                         published = Some(layout.routing_generation);
+                        observation_events.publish(layout.generation, vec![], |statuses| {
+                            input
+                                .window
+                                .emit(PREVIEW_STATUS_EVENT, statuses)
+                                .map_err(|error| error.to_string())
+                        })?;
                         return Ok(());
                     }
                     let (created, control) = create(
@@ -666,14 +671,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 }
                 // A newly registered/reconnected preview needs the current snapshot even when
                 // output metadata is unchanged; frame progression alone still emits nothing.
-                if statuses != last_status || last_status_generation != Some(layout.generation) {
+                observation_events.publish(layout.generation, statuses, |statuses| {
                     input
                         .window
-                        .emit(PREVIEW_STATUS_EVENT, &statuses)
-                        .map_err(|e| e.to_string())?;
-                    last_status = statuses;
-                    last_status_generation = Some(layout.generation);
-                }
+                        .emit(PREVIEW_STATUS_EVENT, statuses)
+                        .map_err(|error| error.to_string())
+                })?;
                 last_error = None;
                 Ok(())
             })();
@@ -706,11 +709,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         message: None,
                     })
                     .collect::<Vec<_>>();
-                if statuses != last_status || last_status_generation != Some(layout.generation) {
-                    let _ = input.window.emit(PREVIEW_STATUS_EVENT, &statuses);
-                    last_status = statuses;
-                    last_status_generation = Some(layout.generation);
-                }
+                let _ = observation_events.publish(layout.generation, statuses, |statuses| {
+                    input
+                        .window
+                        .emit(PREVIEW_STATUS_EVENT, statuses)
+                        .map_err(|error| error.to_string())
+                });
                 published = None;
                 retry = Instant::now() + Duration::from_millis(500);
             }
@@ -747,6 +751,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     }
     input.controller.close();
     drop(owner);
+    let _ = observation_events.publish(input.receiver.snapshot().generation, vec![], |statuses| {
+        input
+            .window
+            .emit(PREVIEW_STATUS_EVENT, statuses)
+            .map_err(|error| error.to_string())
+    });
     let stopped = crate::preview::protocol::VideoRuntimeStatus {
         sequence: input.status.read().sequence.saturating_add(1),
         state: crate::preview::protocol::VideoRuntimeState::Stopped,

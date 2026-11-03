@@ -71,3 +71,33 @@ source replacement/rejection, pending lifetime and cross-window virtualization; 
 current native playback feedback before M07/3 acceptance. The old ordinary-form fixtures retain
 their uncovered requirements until replaced by equivalent current checks. All original budgets
 and requirements remain in force.
+
+The bounded native feedback batch (21:20–22:05 UTC) used its baseline and one repaired run.
+Actual WebView2 input with a 96×64 Spout Screen consumer reaches installed/steady Matrix
+submissions, distinct selection/requested/submitted state, independent Cell/Layer requests,
+an interrupted mix and steady completion with unchanged authored state. The renderer is the
+actual Intel adapter. The first run also exposes header status text overflowing the first Cell
+at 125% scaling; the repaired header uses compact accessible markers and an independent selected
+label outline. Its bounds checks and `target/m07-native-grid-feedback.png` visual inspection pass.
+The runtime Inspector check explicitly selects a Matrix row after editing a populated Cell's
+media. No native pixels or physical timing are inferred from these observations.
+
+**Native feedback acceptance remains open:** the second run fails final-consumer retirement.
+The footer becomes `Video idle`, while old installed/submitted Matrix observations remain.
+Inspection identifies the ownerless/empty-topology early return in the host worker: it never
+publishes an empty preview-status set. The implementation now shares successful/error/idle/
+shutdown publication through `host/observations.rs`; delivery errors do not cache an unseen
+clear, and a new preview generation republishes its current snapshot. Two regression tests
+cover retirement, reconnect, deduplication and failed-clear retry. Full software results and the
+remaining native return trigger are recorded in the owning receipt/status page. No further
+native variants are added to this batch. The narrower generic Inspector layout also needs
+review in the remaining complete-grid audit.
+
+Return trigger: after the new host publisher's complete software and strict-lint prerequisites
+pass, rebuild the isolated app and run the same native flow to confirm retirement clearing.
+The two recorded native runs predate this newly implemented idle publication path; neither is
+claimed as post-fix acceptance. **392 library tests pass** (130.70 seconds, zero failures/two
+retained exclusions), including both new publication regressions and generated equality. Strict
+all-target native/process Clippy passes. Svelte remains 0 errors/warnings and all 29 UI tests
+pass; the bundled square-grid/context/rename/offscreen regression passes before the host-only
+idle change. [Current native/software receipt](evidence/mapgyver-m07-native-feedback-2026-11-03.json).

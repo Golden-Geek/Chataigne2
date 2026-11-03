@@ -99,6 +99,15 @@ in the backend before applying the existing validated move operations. Empty dro
 current position preserve history; hierarchy/dependency/depth validation stays shared by all
 callers. The UI only sends the pointer's target/side and displays a drop marker.
 
+Column headers distinguish the selected label (focus outline), requested Column (hollow marker)
+and renderer-submitted mix (filled marker), with accessible names/tooltips. These compact markers
+fit inside the header at mixed desktop scaling. Native observation delivery lives in
+`src/preview/host/observations.rs`: live/error/idle/shutdown use one deduplicated publication
+path. Retiring the final renderer owner publishes an empty set; failed event delivery stays
+retryable. `node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-feedback` exercises
+actual WebView2 Column/Cell input and Screen-consumer retirement. Its post-fix retirement
+confirmation remains required in the [grid evidence](../../docs/progress/mapgyver-m07-grid.md).
+
 Application definitions, availability, column associations and lifecycle policy live under
 `src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS
 and hosted scripts share the same application operations and committed history. Caller-parity

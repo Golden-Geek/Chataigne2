@@ -10,6 +10,7 @@ import { verifyScreenDetails } from './screen-details.mjs';
 import { verifySurfaceSourceUi } from './surface-source.mjs';
 import { verifyCompositionHandles } from './composition-handles.mjs';
 import { verifyCompositionUi } from './composition.mjs';
+import { verifyMatrixFeedback } from './matrix-feedback.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -31,6 +32,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--matrix-feedback', verifyMatrixFeedback],
 			['--composition-panels', verifyCompositionUi],
 			['--composition', verifyCompositionHandles],
 			[

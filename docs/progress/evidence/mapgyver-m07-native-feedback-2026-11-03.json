@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/3",
+  "decision": "Active; native retirement defect fixed in software, post-fix native confirmation pending",
+  "batch": { "start_utc": "21:20", "cutoff_utc": "22:05", "native_runs_used": 2 },
+  "native_route": "Actual bundled WebView2 input, Intel GPU, 96x64 Spout Screen consumer",
+  "observed_before_idle_fix": [
+    "Real installed/steady submitted Column plan",
+    "Selection distinct from requested/submitted state",
+    "Independent Cell request and Layer state with unchanged Column anchor",
+    "Actual interrupted submitted mix and steady completion",
+    "Runtime input preserves authored document",
+    "Compact native header marker bounds pass at 125% scaling"
+  ],
+  "native_failure": {
+    "log": "target/m07-native-feedback-fixed.log",
+    "binary_sha256": "838AFA22EE693E8C44B239F3A68D54D1978D5FECD164C1C089DB88A72FE2EAC0",
+    "stage": "retire actual renderer consumer",
+    "actual": "Video idle footer; stale installed/submitted Matrix observations remain",
+    "cause": "Ownerless empty-topology early return never publishes an empty preview-status set",
+    "page_errors": [],
+    "rejected_requests": []
+  },
+  "implementation": "Shared successful/error/idle/shutdown observation publication; final owner retirement clears the set; failed delivery stays retryable; reconnect generation republishes",
+  "software": {
+    "rust_library": { "passed": 392, "failed": 0, "ignored": 2, "seconds": 130.70, "log": "target/m07-feedback-idle-tests-fixed.log" },
+    "strict_native_all_target_clippy": "pass; target/m07-feedback-idle-clippy.log",
+    "generated_contracts": "pass in full library suite",
+    "svelte": "0 errors, 0 warnings; target/m07-feedback-ui-check.log",
+    "ui_tests": "29 pass; target/m07-feedback-ui-tests.log",
+    "browser_grid_regression": "pass before host-only idle fix; target/m07-feedback-grid-regression.log"
+  },
+  "return_trigger": "New host publisher software and strict checks pass; rebuild the isolated app, then run the same native flow to verify retirement clearing",
+  "other_remaining": ["Complete revised grid/project/source/keyboard/lifetime audit", "Cross-window virtualized dragging", "Narrow generic Inspector layout review"],
+  "gate_changes": "None; M07/3 Active, 44/57 accepted gates, 5/11 accepted phases",
+  "qualification_limits": "No post-idle-fix native pass, native pixels, physical timing or full M07/3 acceptance claimed"
+}

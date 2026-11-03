@@ -279,17 +279,27 @@
 						select={() => selectColumn(column)}
 						rename={async (label) =>
 							Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
-					<IconButton
-						{disabled}
-						icon={playIcon}
-						label={`Launch ${column.label}`}
-						onclick={() => launch(column.id)} />
-					{#if snapshot.playback.desired_column === column.id}<small title="Requested column"
-							>Requested</small
-						>{/if}
-					{#if observation?.submitted?.columns.includes(column.id)}<small
-							title="Renderer submitted this mix">Submitted mix</small
-						>{/if}
+					<div class="column-state">
+						<IconButton
+							{disabled}
+							icon={playIcon}
+							label={`Launch ${column.label}`}
+							onclick={() => launch(column.id)} />
+						{#if snapshot.playback.desired_column === column.id}
+							<span
+								class="request-marker"
+								role="img"
+								aria-label="Requested column"
+								title="Requested column"></span>
+						{/if}
+						{#if observation?.submitted?.columns.includes(column.id)}
+							<span
+								class="submit-marker"
+								role="img"
+								aria-label="Renderer submitted this mix"
+								title="Renderer submitted this mix"></span>
+						{/if}
+					</div>
 				</div>
 			{/each}
 		</div>
@@ -429,6 +439,23 @@
 		align-items: center;
 		gap: 0.2rem;
 		flex-wrap: wrap;
+	}
+	.column-state {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.request-marker,
+	.submit-marker {
+		width: 0.35rem;
+		height: 0.35rem;
+		border: 0.08rem solid var(--gc-color-focus);
+		border-radius: 50%;
+		flex: none;
+	}
+	.submit-marker {
+		background: var(--gc-color-node-enabled);
+		border-color: var(--gc-color-node-enabled);
 	}
 	.heading :global(button) {
 		max-width: 100%;

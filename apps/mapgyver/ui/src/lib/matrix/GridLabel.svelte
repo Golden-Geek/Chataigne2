@@ -81,4 +81,8 @@
 	button {
 		text-align: left;
 	}
+	button[aria-pressed='true'] {
+		box-shadow: inset 0 0 0 0.08rem var(--gc-color-focus);
+		background: color-mix(in srgb, var(--gc-color-focus) 15%, transparent);
+	}
 </style>
