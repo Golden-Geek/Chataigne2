@@ -122,5 +122,7 @@ Verification for the Matrix ownership/retirement foundation (2026-11-03):
 - Automatic Reference aliases no longer consume render-pass admission credits; the retained
   five-pass bounded Matrix test still rejects the extra group scratch pass without raising budgets.
 
-No native experiment ran. These software checks do not close M04/7 or qualify native media
-retirement, the revised Matrix editor or native resource use.
+These software checks do not close M04/7 or qualify the revised Matrix editor or native
+resource use. [Later native attempts](../progress/evidence/mapgyver-reference-native-2026-11-03.json)
+complete Intel Solid Color/Picture and Shared Texture through playing-copy removal, but final
+Shared Texture Unload/receiver retirement and NVIDIA coverage remain unverified.

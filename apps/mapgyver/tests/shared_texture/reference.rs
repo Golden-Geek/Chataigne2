@@ -58,6 +58,14 @@ fn settle(
     references: [ChannelReference; 2],
     expected: [(ChannelAvailability, Option<Extent2D>); 2],
 ) {
+    settle_with_input(fixture, references, expected, None);
+}
+fn settle_with_input(
+    fixture: &mut Fixture,
+    references: [ChannelReference; 2],
+    expected: [(ChannelAvailability, Option<Extent2D>); 2],
+    ready_input: Option<ChannelReference>,
+) {
     let mut installed = None;
     let mut accepted = None;
     wait("Reference mixed installed outputs", || {
@@ -87,7 +95,14 @@ fn settle(
                 .find(|channel| channel.reference == reference)
                 .is_some_and(|channel| (channel.resolution.availability, channel.resolution.extent) == expected)
         });
+        // A procedural Matrix canvas is ready while a newly copied input is still connecting.
+        let input_ready = ready_input.is_none_or(|reference| {
+            live.channels().iter().any(|channel| {
+                channel.reference == reference && channel.resolution.availability == ChannelAvailability::Ready
+            })
+        });
         if resolved
+            && input_ready
             && let Some((request, identity)) = installed
             && Some(request) == live.latest_request()
             && let Some(frame) = live.snapshot().last_frame
@@ -114,9 +129,26 @@ fn target(fixture: &mut Fixture, reference: ChannelReference) -> golden_video::T
         .unwrap()
         .target
 }
-fn subscription_count(fixture: &mut Fixture, expected: usize) {
+fn source_entry_count(fixture: &mut Fixture, expected: usize) {
     wait("Reference native source retirement", || {
-        fixture.live().native_control().unwrap().sources().len() == expected
+        // Idle bindings are evicted on preparation after old generations release their demand.
+        // Drive the production notification path while waiting, rather than only reading metadata.
+        let live = fixture.live();
+        if let Err(error) = live.refresh() {
+            assert!(error.contains("source observations"), "{error}");
+        }
+        let mut outcomes = Vec::new();
+        live.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+        for outcome in outcomes {
+            if let OutcomeKind::Rejected(error) = outcome.result {
+                assert_eq!(
+                    error.code(),
+                    golden_video::runtime::FailureCode::StaleSource,
+                    "{error:?}"
+                );
+            }
+        }
+        live.native_control().unwrap().sources().len() == expected
     });
 }
 
@@ -248,7 +280,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             settle(&mut fixture, [a, b], [natural; 2]);
             assert_eq!(target(&mut fixture, source), target(&mut fixture, a));
             assert_eq!(target(&mut fixture, source), target(&mut fixture, b));
-            subscription_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
+            source_entry_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
             fixture.pixels(adapter.id, [expected; 2], &format!("{kind:?}/automatic"));
             edit(
                 &mut engine,
@@ -262,7 +294,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             publish(&mut fixture, &engine, [a, b]);
             settle(&mut fixture, [a, b], [natural, available(3, 2)]);
             assert_ne!(target(&mut fixture, a), target(&mut fixture, b));
-            subscription_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
+            source_entry_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
             fixture.pixels(adapter.id, [expected; 2], &format!("{kind:?}/resampled"));
             let composition = create(&mut engine, MediaKind::Composition);
             let MediaEditResult::InstancesCreated { instances } = edit(
@@ -336,7 +368,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             );
             publish(&mut fixture, &engine, [matrix, b]);
             settle(&mut fixture, [matrix, b], [available(4, 4), available(3, 2)]);
-            subscription_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
+            source_entry_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
             fixture.pixels(adapter.id, [expected; 2], &format!("{kind:?}/mixed"));
             let saved = to_sparse_project_json_pretty(&engine).unwrap();
             let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
@@ -379,6 +411,24 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             ) else {
                 panic!()
             };
+            let MediaEditResult::Channels { page } = edit(
+                &mut loaded,
+                MediaEdit::InspectChannels {
+                    query: MediaChannelsQuery {
+                        media: copy,
+                        start: 0,
+                        count: 1,
+                    },
+                },
+            ) else {
+                panic!()
+            };
+            let copied = &page.channels[0];
+            assert_ne!(copied.reference.channel, source.channel);
+            assert_eq!(
+                copied.definition.source,
+                mapgyver::media::channel(&loaded, source).unwrap().definition.source
+            );
             matrix_edit(
                 &mut loaded,
                 matrix.media,
@@ -388,7 +438,12 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
                 },
             );
             publish(&mut fixture, &loaded, [matrix, b]);
-            settle(&mut fixture, [matrix, b], [available(4, 4), available(3, 2)]);
+            settle_with_input(
+                &mut fixture,
+                [matrix, b],
+                [available(4, 4), available(3, 2)],
+                Some(copied.reference),
+            );
             fixture.pixels(adapter.id, [expected; 2], &format!("{kind:?}/independent-copy"));
             edit(&mut loaded, MediaEdit::RemoveMedia { media: copy });
             publish(&mut fixture, &loaded, [matrix, b]);
@@ -397,7 +452,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             matrix_edit(&mut loaded, matrix.media, MatrixEdit::ClearPlayback);
             publish(&mut fixture, &loaded, [matrix, b]);
             settle(&mut fixture, [matrix, b], [available(4, 4), available(3, 2)]);
-            subscription_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
+            source_entry_count(&mut fixture, usize::from(kind == MediaKind::SharedTexture));
             fixture.pixels(
                 adapter.id,
                 [[0, 0, 0, 0], expected],

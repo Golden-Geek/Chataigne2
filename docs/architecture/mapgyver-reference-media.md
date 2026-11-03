@@ -66,7 +66,11 @@ Reference core, paged output presentation, [Composition/Matrix-owned Reference/c
 and missing/unconfigured source-drop parity are software/bundled-verified. Full mixed/end-to-end
 scale and native sharing/resampling/recovery remain open. The existing native fixture now includes
 all three source kinds on both hardware adapters, nested Composition/Matrix, missing-target Undo,
-reload and copied-source final-use retirement; it compiles but has not run.
+reload and copied-source final-use retirement. [Native attempts](../progress/evidence/mapgyver-reference-native-2026-11-03.json)
+complete the Intel Solid Color/Picture cases, including Picture alpha, and Shared Texture
+through independent-copy removal while playing. Shared Texture final Unload/receiver retirement
+timed out; NVIDIA cases were not reached. The corrected fixture pumps renderer notifications
+while checking source-cache retirement, but that final correction is not hardware-verified.
 
 The [authored scale fixture and observed runs](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
 cover up to 10k actual References and 512 producer variants. Pages and demanded capture stay

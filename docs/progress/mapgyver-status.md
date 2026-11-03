@@ -3,12 +3,13 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M04 Reference read/edit scale acceptance.
-**Next deliverable:** mixed native Reference sharing, resampling, recovery and copied-source
-retirement on both hardware adapters, then finish M04/7 before Media Preview.
+**Next deliverable:** native Shared Texture Unload/final-use retirement, then all three source
+kinds on NVIDIA; finish M04/7 before Media Preview.
 **Execution:** M04/1–2 accepted; M04/7 continues on `mapgyver`, with one active gate. Source
 qualification M04/4–6 remains in the return queue under the plan's recorded functional order.
-**Blocker for next delivery:** none known; the Reference backend read/edit/capture prerequisite
-passes. Mixed/native and full end-to-end qualification remain open, alongside retained blockers.
+**Blocker for acceptance:** native Shared Texture final Unload/source retirement remains
+unverified after a fixture timeout; NVIDIA cases were not reached. The corrected wait now drives
+renderer notifications and needs its acceptance run. Backend receipt checks pass; other debt remains.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
 Texture authoring, typed source commands and named scripting from the Inspector, source media,
@@ -57,7 +58,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/7            | Immutable pages and fixed Target edits pass the unchanged isolated fixture at 10k References: read 0.102 ms/edit 22.6 ms p95. [Earlier failures and passing correction](evidence/mapgyver-reference-scale-2026-11-03.json) retained. Next compile/run the mixed native fixture after verified software success. Full mixed/native and end-to-end qualification remain open. |
+| Active   | M04/7            | Backend receipt prerequisite passes at 10k (read 0.102/edit 22.6 ms p95). [Native attempts](evidence/mapgyver-reference-native-2026-11-03.json) pass Intel Solid Color/Picture and Shared Texture through owned-copy removal, then time out on final source entry retirement. The compiled/linted fixture now pumps refresh/outcomes; run it to finish Unload and NVIDIA coverage. Full mixed/end-to-end qualification remains open. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
 | Pending  | M04/8            | After Reference working contracts, deliver independent dockable Media Preview instances with selection-follow/lock/channel/grid state and retirement; remove Inspector previews and complete native/bundled acceptance.                                                                                                   |
@@ -85,24 +86,28 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current batch/handoff:** M04/7 fixed-edit receipts; Golden owns immutable graph-event
-  payloads and atomic checkpoint retention. Start 2026-11-03 04:10 CET; cutoff 04:55 CET.
-  Delivered shared graph transactions across routing, replay and checkpoints. Public generated
-  UI DTOs and wire shape are unchanged; clone/serialization and rollback payload-identity
-  regressions pass, including active history groups.
-  Golden engine **672 passed, 3 ignored**; MapGyver **317 passed, 2 ignored**; strict all-target
-  Clippy with native qualification, bundled build and Reference/source/project browser workflow
-  passed. The owned headless host exited normally. Both workspace formatters ran.
-  One isolated unchanged scale correction run after all prerequisite processes ended passed:
-  1k/5k/10k read p95 **0.116/0.091/0.102 ms**, edit p95 **2.28/9.75/22.60 ms**.
-  At 10k: 54,111 actual nodes, 5.12M virtual channels, 10,726-byte pages and 16 captured records.
-  [Evidence](evidence/mapgyver-reference-scale-2026-11-03.json) preserves the earlier 71.0 ms
-  isolated failure. This closes the Reference backend receipt prerequisite only; whole-app
-  inactive-count scaling/UI/memory/output Q04 qualification remains required.
-  **Next action:** compile and run the prepared mixed native Reference fixture on both adapters;
-  software prerequisites now pass. Native sharing/resampling/loss/Undo/reload/owned-retirement
-  and full end-to-end qualification remain open. No complete gate closed: **26/57 gates,
-  M04 3/8 (38%), 3/11 phases (27%)**; M04/7 alone remains Active.
+- **Current batch/handoff:** M04/7 mixed native Reference acceptance; MapGyver capture/routing
+  and Golden Video own runtime behavior, the native fixture owns notification servicing.
+  Start 2026-11-03 04:28 CET; cutoff 05:13 CET. Two native attempts exhausted this batch's
+  allowance. [Exact results and limits](evidence/mapgyver-reference-native-2026-11-03.json).
+  Golden 672/MapGyver 317 tests, strict lint, exact native/producer compilation and unchanged
+  isolated backend scale passed before hardware. All four bundled Reference/default/Alt/Cell/
+  Placement/missing/auto-pinned/history/project workflows passed again, with normal host exit.
+  Intel Solid Color and Picture (alpha 128) complete every fixture stage. Shared Texture passes
+  sharing/resampling, nested Composition/Matrix, reload, actual source deletion/Undo and,
+  after adding a copied-input Ready guard, independent-copy creation and playing-copy removal.
+  The corrected run then times out checking source entries after Unload; NVIDIA is untested.
+  Source inspection shows idle/cache eviction requires later plan preparation after old demands
+  retire. The fixture's count-only wait omitted the production refresh/outcome path; it now
+  drives that path without relaxing count/deadline assertions. Strict selected-target Clippy
+  and exact native compilation pass. **That final correction has not run on hardware.**
+  Catalog count alone does not prove an SDK/native allocation leak.
+  **Return action:** execute the compiled/linted corrected fixture to verify Shared Texture
+  Unload/final-use retirement and all three kinds on NVIDIA. No more hardware probes in this batch.
+  Process inventory after terminal failures contains no owned producer/test processes.
+  Pushed `d05af117` retains the usable receipt improvement: at 10k References, read/edit p95
+  0.102/22.6 ms. Full native/end-to-end and whole-app Q04 remain required. No complete gate
+  closed: **26/57 gates, M04 3/8 (38%), 3/11 phases (27%)**; M04/7 alone remains Active.
 
 ## Maintenance rule
 

@@ -173,16 +173,17 @@
   "correction": "Atomic checkpoints retain the existing 256-shard ParameterValueStore instead of rebuilding all parameter snapshots. Full correctness/lint suites pass. Remaining original-node/event/dirty-state checkpoint cloning is unchanged.",
   "native": {
     "fixture": "apps/mapgyver/tests/shared_texture/reference.rs",
-    "run": false,
-    "reason": "The Reference-path software scale prerequisite now passes. Build and execute the prepared native fixture next; no native claim from software alone.",
-    "intended_cases": "Solid Color/Picture/Shared Texture on both hardware adapters, automatic sharing, forced resampling, Composition/Matrix, reload, deletion/Undo, copied-source final-use retirement"
+    "run": true,
+    "accepted": false,
+    "evidence": "mapgyver-reference-native-2026-11-03.json",
+    "reason": "Two native attempts complete Intel Solid Color/Picture and Shared Texture through removed-copy playback. Final Unload/source-cache retirement and all NVIDIA cases remain unverified; corrected notification-pumping wait is compiled but unexecuted."
   },
   "limits": [
     "Earlier timing comparisons were contended. Immutable-query dispatch alone failed fixed edits in isolation; shared graph payloads pass the unchanged fixture in isolation. Prior failures are preserved.",
     "No UI/native throughput, whole-app Q04, memory, device-removal or final qualification acceptance",
     "The prior batch exhausted its two contended attempts. The next product slice changed query dispatch and ran the same fixture once in isolation; no budget or fixture requirement changed."
   ],
-  "next_action": "Compile and execute the mixed native Reference fixture on both hardware adapters after terminal software success. The passing backend fixture is not whole-app Q04: broader authored counts, whole-app inactive-count scaling, UI latency, memory and output qualification remain open.",
+  "next_action": "Verify the corrected native Unload/final-use retirement wait, then complete NVIDIA's three-source matrix. Backend scale remains passed; full end-to-end and whole-app Q04 requirements remain open.",
   "query_implementation": "ProjectLifecycle::query_app_operation receives an immutable Engine after pending edits settle. MapGyver routes InspectChannels and typed Inspect Channels commands through it; actor/headless/script result, rejection and admission semantics are unchanged.",
   "checks": {
     "golden_engine": {

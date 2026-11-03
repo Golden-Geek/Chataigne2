@@ -1,0 +1,146 @@
+{
+  "date": "2026-11-03",
+  "gate": "M04/7",
+  "status": "Open; native retirement and NVIDIA coverage unverified",
+  "baseline_commit": "d05af1178161e03be58185340a1051a457373ecd",
+  "fixture": "apps/mapgyver/tests/shared_texture/reference.rs",
+  "test": "shared_texture::reference::references_share_native_production_through_composition_matrix_and_owned_retirement",
+  "scope": "Functional production native channels through Reference/Composition/Matrix; tiny bounded pixel probes, not throughput, memory, cadence or whole-app Q04 qualification",
+  "prerequisites": {
+    "golden_engine": {
+      "passed": 672,
+      "ignored": 3
+    },
+    "mapgyver": {
+      "passed": 317,
+      "ignored": 2
+    },
+    "lint": "All-target golden_engine/MapGyver with native qualification and -D warnings passed",
+    "compile": "Exact native channel_rendering and native_source_fixture compiled to terminal success before hardware",
+    "software_scale": "Unchanged isolated fixture passed: 10k Reference read/edit p95 0.1023/22.601 ms; 54111 actual nodes; 16 captured records",
+    "browser": "All four bundled Reference/owned-media/Matrix-owned-media/unavailable-reference workflows plus ordinary headless source/history/Save-New-Load passed; host exited normally"
+  },
+  "runs": [
+    {
+      "label": "Baseline",
+      "terminal": "failed",
+      "duration_seconds": 10.68,
+      "adapter": {
+        "description": "Intel(R) Graphics",
+        "low": 89313,
+        "high": 0
+      },
+      "complete_source_cases": [
+        "SolidColor",
+        "Picture"
+      ],
+      "shared_texture_passed_through": [
+        "automatic",
+        "resampled",
+        "mixed",
+        "reload",
+        "missing",
+        "recovered"
+      ],
+      "failure": {
+        "stage": "SharedTexture/independent-copy/output 0",
+        "actual_rgba": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "expected_rgba": [
+          255,
+          0,
+          0,
+          255
+        ]
+      },
+      "finding": "Matrix canvas Ready does not imply a newly copied native input has connected. The fixture stopped its refresh loop too early."
+    },
+    {
+      "label": "Copied-input readiness correction",
+      "terminal": "failed",
+      "duration_seconds": 19.36,
+      "adapter": {
+        "description": "Intel(R) Graphics",
+        "low": 89313,
+        "high": 0
+      },
+      "complete_source_cases": [
+        "SolidColor",
+        "Picture"
+      ],
+      "shared_texture_passed_through": [
+        "automatic",
+        "resampled",
+        "mixed",
+        "reload",
+        "missing",
+        "recovered",
+        "independent-copy",
+        "owned-retained"
+      ],
+      "failure": {
+        "stage": "SharedTexture/owned-final-use native source entry count",
+        "expected_entries": 1,
+        "observed_entries": "Not recorded; expected count was not observed before the existing 8-second deadline"
+      },
+      "finding": "Authored copied Source and independent channel identity assertions passed. Waiting for copied input Ready fixed its black-frame failure. The retirement count loop did not service the renderer refresh/outcome path."
+    }
+  ],
+  "verified_cases": {
+    "complete": [
+      "Intel SolidColor",
+      "Intel Picture with alpha 128"
+    ],
+    "partial": [
+      "Intel SharedTexture through copied-source removal while playing"
+    ],
+    "not_reached": [
+      "Intel SharedTexture final Unload/retirement pixels",
+      "NVIDIA SolidColor",
+      "NVIDIA Picture",
+      "NVIDIA SharedTexture"
+    ]
+  },
+  "verified_behavior": {
+    "outputs": 3,
+    "output_extents": [
+      [
+        2,
+        2
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "source_extents": "Solid Color 4x4; Picture/Shared Texture 2x2; forced Reference 3x2; Composition/Matrix 4x4",
+    "rgba_tolerance_per_channel": 2,
+    "automatic_aliases": "Prepared target TextureId equals producer; one source catalog entry for Shared Texture, zero for Solid Color/Picture",
+    "resampling": "Forced Reference target differs without another producer entry",
+    "mixed": "Reference chain -> Composition -> launched Matrix plus independent forced Reference",
+    "recovery": "Actual authored source deletion clears outputs; Undo restores content; sparse project reload passes",
+    "owned_retention": "Independent copy configuration/identity passes, and content remains after removing a playing copy. Final Shared Texture receiver/cache retirement is not accepted."
+  },
+  "pending_fixture_correction": {
+    "change": "Drive ChannelRenderer.refresh and drain outcomes in the native source entry count wait, matching production worker-notification servicing. Keep the exact count assertion and existing deadline.",
+    "source_evidence": [
+      "apps/mapgyver/src/media/rendering/mod.rs: ChannelRenderer.refresh republishes changed source observations",
+      "crates/golden_video/src/native/inputs/mod.rs: ensure evicts unused bindings only after prior generations release demand; cleanup is asynchronous",
+      "crates/golden_video/src/native/inputs/worker.rs: idle source state and final session cleanup are separate from cached registration metadata"
+    ],
+    "execution": "Not run on hardware after the correction. This batch's two attempts are exhausted.",
+    "limits": "Catalog entry count is not itself a count of live SDK objects; no production native leak is claimed from the timeout alone.",
+    "validation": "Selected native target strict Clippy (-D warnings) and exact no-run compilation pass after the notification-pumping correction. No third hardware attempt ran."
+  },
+  "cleanup": "After both terminal failures, process inventory showed no native_source_fixture or owned channel_rendering test processes remaining",
+  "next_action": "Execute the now compiled/linted corrected fixture to validate Unload/final-use source retirement and all three source kinds on NVIDIA. Keep M04/7 open until the complete native matrix and retained end-to-end requirements pass.",
+  "retained_gates": "M03 device removal/timing/private growth, broader M04 source qualification, M05 physical outputs and whole-app Q04/M09 remain unchanged"
+}
