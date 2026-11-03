@@ -6,6 +6,10 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
 
 This is the single execution entrypoint. The [updated proposal](MapGyver%20Updated%20Plan.md)
 is merged here as of **2026-11-02** and takes precedence over conflicting earlier requirements.
+The **2026-11-03 feedback** is incorporated in **M11** below and supersedes conflicting
+presentation, source-authoring and resource-capacity requirements. **All M11 gates take
+priority over M10 and M09**. Earlier acceptance is evidence for its tested contract; changed
+behavior requires M11 acceptance. This planning update claims no implementation or new acceptance.
 Implementation is active under the user's MapGyver goal. Planning awards no acceptance.
 
 ## Entry, order and delivery
@@ -21,9 +25,12 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
    cumulative limit. Finish or checkpoint the same gate at cutoff rather than expanding scope.
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
-   and M07 Matrix redesign together → M10 Video tiers → M09 final qualification**.
+   and M07 Matrix redesign together → M11 feedback corrections → M10 Video tiers → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
+   From the current checkout, retain **M07/4 → M08/3–4 → M11/1–10 → M10 → M09**;
+   retained M03/M05 qualification stays in its named return lane. A reproduced blocking defect
+   still takes precedence. Do not start M10 or M09 while any M11 gate remains unaccepted.
 5. The unrestricted finite Surface-warp correction is already delivered and manually accepted.
    Preserve it and its evidence; do not restart that correction.
 6. Functional dependencies permit product implementation before unrelated physical/timing
@@ -64,8 +71,9 @@ dependencies above without waiving physical/timing gates or changing qualificati
 the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,
 canvas and duration now drive actual rendering and per-Layer playback; native position/resize/
 Undo passes on both GPUs. Cell v3 now owns typed relative position/opacity/enabled with no size;
-its current verification is recorded in the accepted model report. New Matrices start with three
-Layers and three Columns, sparse empty addresses and four paired outputs in one backend tree.
+its current verification is recorded in the accepted model report. The accepted M07/1 fixture
+starts with three Layers and three Columns, sparse empty addresses and four paired outputs in
+one backend tree; M11/8 changes default exposed outputs while preserving internal compositing.
 Catalog creation, exact Undo/Redo/reload and whole-Matrix copies pass; queued reads after deletion
 return typed absence and recover on Undo. Full grid/playback/native/scale gates remain unchanged.
 
@@ -126,22 +134,24 @@ Historical batches, pauses and execution instructions in the
 
 ## Milestones and dependencies
 
-IDs remain stable; **M10 executes before M09**. M04–M08 are revised in place.
+IDs remain stable; **M11 executes before M10 and M09**. M04–M08 retain their earlier evidence;
+M11 owns acceptance of the new corrections to those contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
-| ID  | Outcome                                                  | Functional dependency                                   | Gates |
-| --- | -------------------------------------------------------- | ------------------------------------------------------- | ----- |
-| M00 | Reconciled baseline and qualification workloads          | Explicit product selection                              | 1     |
-| M01 | Functional native host/backend/binding decision          | M00                                                     | 4     |
-| M02 | Public multi-app seams and runnable thin shell           | M01 functional decision                                 | 7     |
-| M03 | Reusable rendering, channels, time, assets and preview   | M02                                                     | 9     |
-| M04 | Source variants, Resolution, Reference and Media Preview | M03 gates 1–3, 5–8                                      | 8     |
-| M05 | Screens, Surfaces, navigation and physical output        | M04 working revised contracts                           | 10    |
-| M06 | Child-media Composition and transform editor             | M04 and M05 working contracts                           | 5     |
-| M07 | Child-media Matrix, playback and virtualized grid        | M06; M08 configuration for app controls                 | 4     |
-| M08 | Reusable optional app control and shared runtime demand  | Existing Matrix playback; revised M04 ownership         | 4     |
-| M10 | Tiered Video playback                                    | Revised M04–M08 working contracts                       | 4     |
-| M09 | Actual-app qualification and Windows artifact            | All retained feature/qualification gates, including M10 | 1     |
+| ID  | Outcome                                                  | Functional dependency                                       | Gates |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------- | ----- |
+| M00 | Reconciled baseline and qualification workloads          | Explicit product selection                                  | 1     |
+| M01 | Functional native host/backend/binding decision          | M00                                                         | 4     |
+| M02 | Public multi-app seams and runnable thin shell           | M01 functional decision                                     | 7     |
+| M03 | Reusable rendering, channels, time, assets and preview   | M02                                                         | 9     |
+| M04 | Source variants, Resolution, Reference and Media Preview | M03 gates 1–3, 5–8                                          | 8     |
+| M05 | Screens, Surfaces, navigation and physical output        | M04 working revised contracts                               | 10    |
+| M06 | Child-media Composition and transform editor             | M04 and M05 working contracts                               | 5     |
+| M07 | Child-media Matrix, playback and virtualized grid        | M06; M08 configuration for app controls                     | 4     |
+| M08 | Reusable optional app control and shared runtime demand  | Existing Matrix playback; revised M04 ownership             | 4     |
+| M11 | Feedback: stable rendering, simpler authoring, shared UX | Existing M04–M08 product contracts; one gate at a time      | 10    |
+| M10 | Tiered Video playback                                    | Revised M04–M08 working contracts and all M11 gates         | 4     |
+| M09 | Actual-app qualification and Windows artifact            | All retained feature/qualification gates, including M10/M11 | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -219,7 +229,13 @@ Picture asset and Video file. Composition initially has one output; channel reta
 Every media has a disableable **Resolution** typed Vec2 in pixels, disabled by default, with
 integer constraints, unit steps and backend bounds **1–16384 per axis**. Disabled resolves to
 source-native extent or **1920×1080** for procedural canvases. Enabled forces every channel to
-that extent. Remove authored Shared Texture format, encoding, alpha and maximum dimensions:
+that extent. Under M11/4, applicable media use one shared **Fit Mode: Fit / Fill / Stretch**
+when Resolution is enabled; no per-channel authored size. Hide Fit Mode for automatic size and
+omit it for Solid Color. Remove authored Kind/SourceKind and generic Filter/Sampling controls;
+source kinds remain typed backend identity and sampling defaults to Linear. Keep each channel's
+actual source difference directly editable in expanded, compact Inspector rows.
+M11/5 adds media-level Manual/Auto Shared Texture selection with typed per-channel fields.
+Remove authored Shared Texture format, encoding, alpha and maximum dimensions:
 discover format/encoding at the native boundary, use straight alpha, and retain internal
 allocation limits and recovery. Remove useless `+` actions from declared Parameter folders
 through their container capabilities.
@@ -271,8 +287,9 @@ stay aligned during animation; disposal/document replacement cancels obsolete wo
 3. Calibration without a source restores routing; overlapping Surfaces preserve order/alpha.
 4. All three target modes work concurrently and continue while editors close/minimize.
 5. Display identity survives hotplug, mixed DPI and negative origins.
-6. Screen editor: actual Surface/shared Inspector selection, background deselection, handles only
-   on selected/hovered Surfaces and editor-local individual handle selection. Arrow keys move
+6. Screen editor: actual Surface/shared Inspector selection, background deselection and editor-local
+   individual handle selection. Under M11/6, unselected Surfaces have only a thin border;
+   selected Surfaces alone have a light overlay, slightly thicker border and handles. Arrow keys move
    handles **1 output pixel**, **10 with Shift**; held repeat is one Undo gesture. **Alt+drag**
    translates all four corners. Backend **Fill Screen** stretches the quad; **Fit to Screen**
    centers it with source aspect preserved. Verify pointer/keyboard input and smooth zoom alignment.
@@ -305,7 +322,8 @@ and publicly edited in **degrees**, converted only at the rendering boundary.
    edge resize acts on one axis, outside-corner rotation uses a rotation cursor. Remove the
    anchor-adjacent rotation control. Verify actual pointer input, smooth zoom and grouped history.
 5. Multiple independent Composition panels follow selection or lock per panel, restore state
-   and survive project/tab lifetime. Remove internal header and creation/refresh controls.
+   and survive project/tab lifetime. Remove internal headers and permanent creation/refresh bars;
+   M11/6 places relevant actions beside shared navigation and M11/7 adds contextual child creation.
 
 ### M07 — Deliver child-media Matrix, playback and grid
 
@@ -316,10 +334,10 @@ editable through bounded backend inspection independent of visible rows.
 
 | Owner  | Typed authored settings                                                                                                                      |
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Layer  | Position, size (layer canvas), opacity, blend, transition duration; retain enabling/group behavior                                           |
+| Layer  | Position, size (layer canvas), opacity, blend, transition duration, **Expose Channel (default false)**; retain enabling/group behavior       |
 | Column | Optional transition override, optional App file and conditional app-control settings, including integer pre/post                             |
 | Cell   | Position relative to Layer, opacity, enabled, optional transition override, optional App file and conditional app controls; **no Cell size** |
-| Group  | Typed opacity/blend/enabling and actual hierarchy/order                                                                                      |
+| Group  | Typed opacity/blend/enabling, **Expose Channel (default false)** and actual hierarchy/order; a rendered blend owner, not just a folder       |
 
 Populated Cells own actual child media; empty addresses stay sparse until content/settings need
 a Cell node. Cell media retains its own size. Transition precedence is **Cell override → Column
@@ -336,6 +354,9 @@ Cell triggering does not change the current Column anchor; Column launches remai
    Inspector survives virtualization. Complete caller parity and truthful native playback feedback.
 4. Native layer/group/final pixels, ordering/blend/alpha/interruptions, source loss/Undo/recovery,
    shared consumers, bounded sparse large-grid plans, lifetime and owner retirement under revised behavior.
+
+M11/8 separately verifies opt-in Layer/Group output exposure and media snapshot/name feedback
+in Cells. Existing default-output/model evidence does not prove those changed contracts.
 
 ### M08 — Deliver reusable optional app control
 
@@ -363,9 +384,147 @@ forced stop, tree cleanup and final-render-use retention. Never adopt/kill unrel
    singleton/external/elevated/launcher/breakaway outcomes, project/shutdown/recovery/cleanup.
    Retain unverified retirement/access-denial cases; authored Undo is distinct from OS side effects.
 
+### M11 — Resolve the 2026-11-03 feedback before Video and final qualification
+
+MapGyver owns media, Matrix, Screen/Surface and test-pattern policy under `apps/mapgyver`.
+Golden owns reusable GPU admission/adapter/preview mechanisms, generic Inspector presentation
+and shared viewport/workbench controls. App registration supplies branding and product behavior;
+do not put MapGyver-specific policy or assets in Golden packages.
+
+Source: the user's **MG Feedback.txt** (23 top-level bullets), reviewed with `flashes.mp4` (2.03 seconds,
+852×954, 30 fps), `bad view item.png`, `Screenshot 2026-11-02 152703.png` and
+`Screenshot 2026-11-02 154226.png`. The video illustrates repeated Inspector/channel expansion
+and transient redraws; it does not establish a root cause. The captures show the long display
+device path, existing edge-positioned navigation and the desired Golden graph toolbar reference.
+The supplied root `mapgyver_icon.png` and `apps/mapgyver/ui/src/lib/icons/nodes/*.svg` are the
+asset sources. These are reported defects/design references, not passing runtime evidence.
+
+Each numbered gate requires its complete listed behavior and affected caller/history/project
+and lifetime checks; do not award partial acceptance. Execute in order, in bounded coherent
+slices, with one active gate. M11/4 establishes Fit Mode for current applicable sources and the
+contract M10 Video will consume. M11 never requires implementing Video ahead of M10.
+
+1. **Stable interface and preview transitions.** Owner: shared Golden workbench/Inspector and
+   native-preview/host lifecycle, with app integration. Reproduce the supplied interaction on
+   a recorded build before choosing the fix. Clicking controls, expanding/collapsing Inspector
+   folders and clicking Matrix Cells must not flash unrelated UI. Media selection changes must
+   not tear down/reload the panel or show a transient blank/loading flash; preserve valid native
+   content until its replacement is ready and fence stale selections/project generations.
+   Verify repeated recorded real-input/native-frame sequences, independent live outputs,
+   rapid selection, tab close/reopen, reconnect and New/Load. A DOM-only test cannot close this
+   gate. Prior permission for a brief unavailable preview on restore does not waive these defects.
+2. **Useful concurrent 4K capacity with bounded ownership.** Owner: Golden Video resource
+   accounting/admission/native allocation and MapGyver demand projection. Reproduce the reported
+   4096×4096 Solid Color rejection: charge **138481672 B**, reserved **405631384 B**, limit
+   **536870912 B**. Determine real texture/pool costs, shared-target reuse, live/prepared/retiring
+   overlap and release before changing policy. Replace an arbitrary fixed 512 MiB product ceiling
+   with adapter-aware admission and explicit safe headroom; do not hide allocation failures,
+   remove accounting or duplicate resources per consumer. The planned discrete-GPU fixture is
+   **at least eight independently demanded 4096×4096 Solid Color outputs**, plus Reference aliases
+   and live replacement, with exact formats/counts/steady and peak reservations recorded.
+   Verify native content, sustained bounded memory, overload rejection/recovery and final-use
+   retirement. Also exercise the integrated adapter against its reported safe capacity; record
+   hardware limits explicitly. This new capacity requirement supersedes the fixed allocation
+   ceiling only; timing, private-growth and retirement budgets remain required.
+3. **Discrete GPU by default, explicit user choice.** Owner: reusable Golden adapter enumeration/
+   selection and shared desktop host, registered through MapGyver options. Prefer a suitable
+   NVIDIA/AMD high-performance GPU over an integrated adapter on hybrid/Optimus laptops.
+   Expose a persisted typed application option for automatic preference or an explicit available
+   adapter, report the actual active GPU and any restart requirement, and handle missing selected
+   devices/recovery truthfully. Respect explicit choice; never silently move a shared-texture
+   connection across incompatible adapters. Verify cold starts, both available GPUs, persisted
+   selection, unavailable preference and recovery; controls must agree with the rendering device.
+4. **Minimal typed media/channel Inspector.** Owner: MapGyver media Params/authoring and Golden
+   generic Inspector hooks. Remove user-facing Kind/SourceKind and generic Filter/Sampling
+   Parameters, keep backend kinds typed and default to Linear. Use expanded compact channel rows:
+   one Color per Solid Color channel, one File per Picture channel, and one File per future Video
+   channel; ordinary edits must not require opening nested Parameters folders. Preserve real
+   child nodes, labels, CRUD, bounded inspection/virtualization and shared selection. No authored
+   per-channel size. Add a typed media-level **Fit Mode (Fit / Fill / Stretch)** only where source
+   sizes can differ; hide it while Resolution is automatic and omit it for Solid Color. Verify
+   different-aspect Picture channels in all modes against native pixels and a single forced
+   Resolution; Auto preserves source-native extents. All time-related Parameters across existing
+   media, transitions and app control use Golden's existing time-style UI and preserve units.
+   M10 must apply the same style to Video. Cover generic/API/script/headless/history/copy/project
+   parity; change versioned schemas, codegen and consumers together where contracts change.
+5. **Shared Texture Manual/Auto discovery.** Owner: MapGyver typed media/channel authoring and
+   source supervision; Golden supplies live sender discovery and reusable Parameter adornments.
+   A media-level Manual/Auto setting chooses the channel control. Manual uses a String Parameter
+   with inline **Detect**, showing a live sender list and setting that same String on selection.
+   Auto uses only a dynamic enum Parameter populated from available senders, retaining a missing
+   selected value through absence and automatically recovering when the exact sender returns.
+   Sender-list changes update open controls without resetting authored choice. Verify multiple
+   channels, appearance/disappearance/restart/rename, mode changes, isolated failure, adapter
+   mismatch, history/project roundtrip and equivalent script/headless edits. Discovery and
+   recovery stay off the engine/UI thread; do not implement reconnect policy in UI stores.
+6. **One workbench canvas/navigation experience.** Owner: shared Golden viewport/graph/workbench
+   controls; MapGyver registers contextual actions. Remove every extra internal header from
+   Matrix, Composition, Surface and Screen panels and remove Refresh View. Reuse Golden graph's
+   panel/view navigation, manipulation mechanisms and shortcuts wherever applicable. If graph
+   domain assumptions prevent whole-view reuse, extract/reuse its public toolbar/navigation/
+   shortcut components; do not build another lookalike. Put selection-dependent icon actions
+   at the **top center, on the same line as navigation/zoom**, following the supplied graph
+   toolbar reference. Preserve editor-specific domain gestures, keyboard focus, smooth anchored
+   zoom, native/DOM alignment, reduced motion and pointer/history lifetime. In Screen editor,
+   unselected Surfaces show a thin border with **no blue fill**; only selected Surfaces show a
+   lighter overlay, slightly thicker border and handles. Hover must not reintroduce selected
+   decoration. Verify all four panels and Golden graph, multiple selections, narrow panels,
+   native composition and the retained invalid-quad indication without covering unrelated areas.
+7. **Create owned media directly in Composition.** Owner: MapGyver backend catalog/child-media
+   creation intents and Composition editor context menu. Right-clicking the canvas offers every
+   catalog media type supported by Composition, creating an actual owned media child with
+   backend defaults, placement, identity and selection. This coexists with default Reference/
+   Alt-copy drops; it must work without a pre-existing item in Medias. Reuse atomic detached
+   trees, cycle validation and the public authoring boundary. Verify actual menus, native output,
+   complete module commands/functions/callbacks/snippets, script/headless callers, single-gesture
+   Undo/Redo, copy/reorder/delete and project roundtrip; unavailable types have truthful states.
+8. **Matrix source feedback and real Group outputs.** Owner: MapGyver Matrix Parameters,
+   authoring/rendering/catalog and virtualized grid. Populated Cells show a media preview snapshot
+   and label **`media [channel]`**, rather than just the channel. Reuse bounded preview leases/
+   snapshots for visible Cells; no per-cell source/decoder duplication or frame-rate engine
+   polling. Layers have a typed **Expose Channel** option, **off by default**. Groups are actual
+   compositing owners with typed **Blend Mode** and the same opt-in channel exposure, not folders.
+   Existing blend fields must be wired/verified rather than duplicated. Backend output discovery,
+   References and demand honor exposure; internal Layer/Group composition and Final output
+   continue without exposure. Verify nested Group blend/alpha pixels, default and toggled
+   discovery, stable identities/history, existing/missing Reference recovery, copy/projects and
+   large sparse viewport/source-loss/preview retirement. Do not accept a UI-only channel filter.
+9. **Consistent identity, tabs, outliners and footer.** Owner: MapGyver registration/assets/UI
+   contributions and public Golden workbench hooks. Use the supplied node SVGs for Media rows
+   and corresponding panel tabs. Generate app/window/taskbar/installer/package icon variants
+   from root `mapgyver_icon.png`, including the test-pattern asset; replace placeholder MapGyver
+   branding. Rename **Screen Manager → Screens** and **Media Manager → Medias**. Screen rows show
+   the display's human-readable name, never its long internal ID/path; retain stable backend IDs
+   and truthful missing-target state. Matrix, Composition, Surface and Screen tab titles follow
+   the currently displayed object as Inspector does, respecting locked/independent panels,
+   rename, selection and document lifetime. Footer statistics align **right**, contain no `...`
+   or `submit` wording, present durations in **ms** and memory as **MB/GB**, replacing MiB with
+   matching numeric conversion. Preserve actual observation meaning and accessible compact
+   unavailable/recovering states. Verify native/app/package identity, tab/outliner interaction,
+   narrow layouts and footer states through the existing public contribution hook.
+10. **Official default Surface test pattern.** Owner: MapGyver app-owned pattern policy/assets,
+    using reusable Golden rendering/time/text/image primitives. Center the MapGyver icon, put
+    **surface resolution and actual FPS below**, and **current system time with milliseconds
+    above**. Draw alternating dark/light grey square cells adapted to output aspect, subtle
+    row/column labels such as A1/B2, and **thin rainbow grid edges moving diagonally**. The
+    **second row from bottom** is a color-test palette; the **second row from top** is a
+    black-to-white brightness palette. Include a correctly proportioned fit circle touching
+    the limiting canvas edges and both corner-to-corner diagonals. It is the default pattern
+    for Surface calibration and works with no source; leaving calibration restores routing.
+    Verify landscape, portrait, square, 4K and resize/warp/native output, text readability,
+    square/circle proportions, palette locations, live milliseconds/FPS and bounded animation
+    demand. Sample wall time at an IO/render boundary; keep animation on the shared runtime
+    clock and preserve deterministic geometry/palette tests without main-thread polling.
+
+Close each gate with the relevant software/strict/codegen/UI checks before native acceptance,
+and update affected architecture docs with implementation. M09 reruns the changed full-app
+workloads; M11 does not waive retained physical, timing, codec or device-removal requirements.
+
 ### M10 — Deliver Video playback in codec tiers
 
-Video has **one transport per media and one file per channel**; References only mirror outputs.
+Start only after **M11/1–10 are Accepted**. Video has **one transport per media and one file
+per channel**; References only mirror outputs. Reuse M11's simplified Channels, shared Fit Mode,
+time-style Parameters, icons and stable-preview contracts rather than restoring obsolete controls.
 Use a shared monotonic media timeline and timestamp-based sampling. Defaults: paused at zero,
 rate 1 and looping off. Shorter channels hold their final frame until the shared timeline ends.
 Frame stepping uses the selected channel's timestamps; References never independently reset transport.
@@ -398,8 +557,9 @@ remain outside this plan.
 
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** qualify the complete revised bundled Windows x64 product and all retained M03–M10
-requirements, not only a static render or native probe. Run exact binary/assets/dependency
+**Gate 1:** after all M11 feedback gates, qualify the complete revised bundled Windows x64 product
+and all retained M03–M11 requirements, not only a static render or native probe. Run exact
+binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
 recovery/retirement. Include seven media kinds, Media Preview, revised editors, all three output
