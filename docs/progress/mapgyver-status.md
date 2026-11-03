@@ -105,16 +105,22 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/6 pixel audit, 09:25–10:08 CET (cutoff 10:10).
-  [Baseline and failed candidate](evidence/mapgyver-native-zoom-sync-2026-11-03.json): 5-pixel
-  moving discrepancy; microtask scheduling candidate still fails at 6 pixels and was removed.
-  Native capture works; both owned fixtures exited 0. Two-experiment allowance is exhausted.
-  No new gate closed. Source input/history/read fixes in pushed `f1b45516` remain usable, but
-  M05/7 is Pending for an internal-landmark motion proof. Counts: M05 4/10 (40%), 29/57 gates
-  (51%), 3/11 phases (27%). Next product action stays M05/6: coherent native image/overlay
-  rendering and hit testing. Current local review binary contains the rejected candidate;
-  rebuild before native validation. User now prioritizes unattended Codex capacity recovery;
-  preserve this state while resolving that automation prerequisite, then resume this gate.
+- **Current handoff:** user-prioritized Codex capacity recovery, host-owned batch,
+  10:13 CET start / 10:58 CET cutoff. Built a local stdio supervisor under
+  `%USERPROFILE%/.codex/tools/goal-recovery` and configured VS Code's executable override.
+  It retries only terminal structured model-capacity failures on this exact goal thread,
+  checking active goal, idle thread, unchanged failed turn and empty input queue first.
+  Model, permissions, service tier and budgets are preserved. **23/23 transport/guard tests**,
+  Windows descendant cleanup, CLI version passthrough and real read-only app-server RPC pass;
+  no second thread writer or inference was started. **Activation still requires one VS Code
+  Reload Window; the existing IDE connection is not protected, and actual live recovery
+  remains unverified.** This host workaround closes no MapGyver acceptance gate.
+  Counts remain M05 4/10 (40%), 29/57 gates (51%), 3/11 phases (27%).
+  Next product action stays M05/6: coherent native image/overlay rendering and hit testing.
+  [The 5–6 physical-pixel moving discrepancy](evidence/mapgyver-native-zoom-sync-2026-11-03.json)
+  remains reproduced; the failed timing candidate was removed and its two-experiment
+  allowance is exhausted. M05/7 needs an internal-landmark motion proof after the shared fix.
+  The current local review binary contains the rejected candidate; rebuild before native checks.
 
 ## Maintenance rule
 
