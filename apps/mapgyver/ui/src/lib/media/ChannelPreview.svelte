@@ -33,8 +33,14 @@
 		height: 100%;
 		min-height: 0;
 	}
+	.fill {
+		container-type: size;
+		display: grid;
+		place-items: center;
+	}
 	.fill .surface {
-		width: 100%;
+		width: min(100cqw, calc(100cqh * var(--preview-aspect)));
+		height: min(100cqh, calc(100cqw / var(--preview-aspect)));
 	}
 	.surface {
 		width: min(100%, calc(10rem * var(--preview-aspect)));

@@ -8,6 +8,7 @@
 // Add --media-script-ui for app-template script creation and named source API callbacks.
 // Add --media-command-ui for typed command creation, generic editing and firing/history.
 // Add --reference-ui for Reference creation, generic target/resolution and live mirrored identities.
+// Add --media-preview-ui for independent follow/lock/grid/persisted Media Preview panels.
 // Add --owned-media-ui for Composition Reference/Alt-copy drops and real child-media ownership.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
@@ -49,6 +50,7 @@ const withUi = [
 	'--media-script-ui',
 	'--media-command-ui',
 	'--reference-ui',
+	'--media-preview-ui',
 	'--owned-media-ui',
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
@@ -326,6 +328,10 @@ try {
 	if (process.argv.includes('--reference-ui')) {
 		const { verifyReferenceUi } = await import('../browser/reference.mjs');
 		await verifyReferenceUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--media-preview-ui')) {
+		const { verifyMediaPreviewUi } = await import('../browser/media-preview.mjs');
+		await verifyMediaPreviewUi({ base, edit });
 	}
 	if (process.argv.includes('--owned-media-ui')) {
 		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');

@@ -125,6 +125,27 @@ pub struct MediaChannelsPage {
     pub channels: Vec<ChannelSnapshot>,
 }
 
+/// Panel selection and paging hints; no authored settings are changed by inspection.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MediaPreviewQuery {
+    pub selected: Option<NodeUuid>,
+    pub document: Option<NodeUuid>,
+    pub channel: Option<ChannelId>,
+    pub start: u32,
+    pub count: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MediaPreviewPage {
+    pub document: NodeUuid,
+    pub document_matches: bool,
+    pub media: Option<MediaId>,
+    pub label: Option<String>,
+    pub channels: Option<MediaChannelsPage>,
+    /// Independent bounded lookup keeps a chosen channel available outside the visible page.
+    pub selected: Option<ChannelSnapshot>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SizePolicy {
@@ -186,6 +207,9 @@ pub enum MediaEdit {
     },
     InspectChannels {
         query: MediaChannelsQuery,
+    },
+    InspectMediaPreview {
+        query: MediaPreviewQuery,
     },
     Matrix {
         media: MediaId,
@@ -339,6 +363,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MediaPreview {
+        page: MediaPreviewPage,
+    },
     MatrixMediaCreated {
         cell: crate::matrix::protocol::CellId,
         media: MediaId,

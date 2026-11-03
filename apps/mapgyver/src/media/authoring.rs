@@ -137,6 +137,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectChannels { query } => MediaEditResult::Channels {
             page: super::catalog::channels(engine, query)?,
         },
+        MediaEdit::InspectMediaPreview { query } => MediaEditResult::MediaPreview {
+            page: super::preview_selection::inspect(engine, query)?,
+        },
         MediaEdit::Matrix { media, edit } => crate::matrix::apply(engine, media, edit)?,
         MediaEdit::Composition { reference, edit } => super::composition::apply(engine, reference, edit)?,
         MediaEdit::ImportPicture { locator, target, label } => {

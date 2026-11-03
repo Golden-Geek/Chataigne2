@@ -6,6 +6,7 @@ mod creation;
 mod folders;
 mod parameters;
 mod picture_import;
+mod preview_selection;
 mod queries;
 mod resolution;
 mod script;

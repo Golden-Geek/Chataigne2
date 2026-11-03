@@ -5,7 +5,6 @@
 	import type { MediaEdit } from './generated/MediaEdit';
 	import { invokeMediaEdit } from './operations';
 	import { MEDIA_NAMESPACE } from './generated/constants';
-	import ChannelPreview from './ChannelPreview.svelte';
 	import CompositionProperties from '../composition/CompositionProperties.svelte';
 	import MatrixProperties from '../matrix/MatrixProperties.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
@@ -182,7 +181,6 @@
 				}} />
 		{/if}
 		{#if channel}
-			<ChannelPreview {channel} />
 			{#if channel.definition.source.kind === 'Picture'}
 				<AssetLocatorForm
 					disabled={busy}

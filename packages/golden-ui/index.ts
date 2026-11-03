@@ -169,6 +169,7 @@ export type {
 	UserPanelDefinition,
 	UserPanelDefinitionMap
 } from './dockview/panel-types';
+export { readPanelPersistedState, writePanelPersistedState } from './dockview/panel-persistence';
 
 export * from './store/ui-warnings';
 export * from './store/ui-panels';

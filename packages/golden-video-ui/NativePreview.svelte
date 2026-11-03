@@ -26,9 +26,21 @@
 	let presentedViews = $state<readonly string[]>([]);
 	let registrationError = $state(false);
 	let registration = $state<PreviewRegistration | null>(null);
+	// Register in component order; intersection delivery can otherwise reorder
+	// overlapping native surfaces. Hidden/clipped surfaces retire on observation.
+	let inViewport = $state(true);
 
 	$effect(() => {
 		if (!element) return;
+		const observer = new IntersectionObserver((entries) => {
+			inViewport = entries.some((entry) => entry.isIntersecting);
+		});
+		observer.observe(element);
+		return () => observer.disconnect();
+	});
+
+	$effect(() => {
+		if (!element || !visible || !inViewport) return;
 		const owner = session;
 		const unsubscribe = owner.subscribe((state) => {
 			availability = state.availability;

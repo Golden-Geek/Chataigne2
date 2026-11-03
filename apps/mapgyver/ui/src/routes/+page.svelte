@@ -12,6 +12,7 @@
 	import { provideCompositionAuthoring } from '../lib/composition/context.svelte';
 	import { provideMatrixAuthoring } from '../lib/matrix/context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
+	import MediaPreviewPanel from '../lib/media/MediaPreviewPanel.svelte';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 	import ScreenWarpPanel from '../lib/screens/ScreenWarpPanel.svelte';
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
@@ -52,6 +53,7 @@
 		registerNodeInspector(type, { component: DomainInspector });
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
+		mediaPreview: { title: 'Media Preview', component: MediaPreviewPanel },
 		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
 		screenWarp: { title: 'Screen Warping', component: ScreenWarpPanel },
 		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
@@ -108,6 +110,11 @@
 			panelType: 'inspector',
 			initialWidth: typeof window === 'undefined' ? undefined : window.innerWidth * 0.2,
 			position: { referencePanelId: 'screen-warp', direction: 'right' }
+		},
+		{
+			panelId: 'media-preview',
+			panelType: 'mediaPreview',
+			position: { referencePanelId: 'screen-warp', direction: 'within' }
 		}
 	];
 </script>

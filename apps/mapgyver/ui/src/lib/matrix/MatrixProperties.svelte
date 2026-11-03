@@ -9,7 +9,6 @@
 	import { channelKey, channelReferenceFromKey } from '../media/identity';
 	import RowForm from './RowForm.svelte';
 	import ColumnForm from './ColumnForm.svelte';
-	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import RuntimeFeedback from './RuntimeFeedback.svelte';
 	import './forms.css';
 	const owner = useMatrixAuthoring();
@@ -163,9 +162,7 @@
 					edit={(value) => owner.edit(value)} />
 			{/key}
 		{/if}
-		<h3>Output preview</h3>
 		<RuntimeFeedback snapshot={matrixWindow} {observation} />
-		<ChannelPreview channel={matrixWindow.final_output} />
 	{/if}
 </div>
 

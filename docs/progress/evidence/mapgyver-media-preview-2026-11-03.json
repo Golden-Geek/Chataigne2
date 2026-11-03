@@ -1,0 +1,39 @@
+{
+	"date": "2026-11-03",
+	"gate": "M04/8",
+	"state": "Implemented product slice; acceptance remains open",
+	"ownership": "MapGyver immutable bounded media selection and panel choices; Golden docking and native view retirement",
+	"checks": {
+		"cargo test --locked -p MapGyver --lib --quiet": {
+			"passed": 319,
+			"failed": 0,
+			"ignored": 2,
+			"generated_contract_included": true
+		},
+		"cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings": "passed",
+		"cargo build --locked -p MapGyver --bin MapGyver": "passed with ordinary bundled UI; no GC_SKIP_UI_BUILD",
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace golden_video_ui": "0 errors, 0 warnings",
+		"node --experimental-strip-types --test apps/mapgyver/ui/src/lib/media/tests/preview-reader.test.ts": {
+			"passed": 2,
+			"failed": 0
+		},
+		"npm test --workspace golden_video_ui": { "passed": 29, "failed": 0 },
+		"npm run test:browser --workspace golden_video_ui": "passed layout/hide/retirement, scale-3 qualification, expired-session recovery and independent Screen continuity browser fixtures",
+		"node apps/mapgyver/tests/headless/media.mjs --media-preview-ui": "passed ordinary source parity plus two panel instances, follow/lock, six-channel 4+2 grid pages, saved lock/grid/page, close/unlock/relock, New fencing and no Inspector images; host exit 0",
+		"node apps/mapgyver/tests/browser/native-media-preview.mjs": "passed the same actual bundled WebView2 controls with confirmed native installation for 1/4/2/1 views, panel close, unlock/relock and New clear; owned app exited normally 0"
+	},
+	"corrections_verified": [
+		"Initial Svelte query result now establishes reactive page observation.",
+		"Native view registration preserves initial component order before intersection callbacks retire hidden surfaces.",
+		"Panel reload check waits for Golden layout persistence and activates detached tab instances before inspecting them."
+	],
+	"limits": [
+		"Additional legacy --matrix-ui regression fails at startup awaiting the obsolete .properties textbox 'Channel name' (matrix.mjs:97). Both baseline HEAD and current MediaInspector use the generic header and do not define that form. It has not exercised later M07 assertions; modernize the retained workflow when revised M07 is active. The new preview workflow expands a real Matrix channel Inspector and verifies no native image remains.",
+		"No native pixel/color assertion or independent Screen/Spout output continuity claim is made by this product slice.",
+		"The two instances were exercised as independent docked tabs; concurrent side-by-side native views and capacity remain to be accepted.",
+		"Reader/session unit fences and generic expired-session recovery pass; actual MapGyver reconnect and project reload interaction remain required.",
+		"Existing eight-view/source/resource admission limits are unchanged. Grid presentation is bounded to four channels per page."
+	],
+	"next": "Finish M04/8 concurrent independent native panels, actual reconnect/project reload and close/lock retirement while separately observed outputs continue. Keep M04/8 Active until every requirement passes."
+}
