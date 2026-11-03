@@ -2,10 +2,12 @@ use super::{agent::*, *};
 use golden_io::owned_process::{ProcessSnapshot, ProcessSpec, RootProcessState};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod callbacks;
+mod configuration;
 mod observation;
 mod supervision;
 
 struct Fake {
+    specifications: Vec<ProcessSpec>,
     creates: usize,
     resumes: usize,
     closes: usize,
@@ -20,6 +22,7 @@ struct Fake {
 impl Default for Fake {
     fn default() -> Self {
         Self {
+            specifications: Vec::new(),
             creates: 0,
             resumes: 0,
             closes: 0,
@@ -36,7 +39,8 @@ impl Default for Fake {
 impl Backend for Fake {
     type Suspended = ();
     type Process = ();
-    fn create(&mut self, _: &ProcessSpec) -> Result<(), String> {
+    fn create(&mut self, specification: &ProcessSpec) -> Result<(), String> {
+        self.specifications.push(specification.clone());
         if let Some(callback) = &mut self.on_create {
             callback();
         }
@@ -87,8 +91,11 @@ impl Backend for Fake {
         Ok(())
     }
 }
-fn definition() -> Arc<ApplicationDefinition> {
-    Arc::new(ApplicationDefinition {
+fn key(definition: ApplicationDefinition) -> Arc<ApplicationRuntimeKey> {
+    Arc::new(ApplicationRuntimeKey::new(&definition).unwrap())
+}
+fn definition() -> Arc<ApplicationRuntimeKey> {
+    key(ApplicationDefinition {
         executable: Some(std::env::current_exe().unwrap().to_string_lossy().into()),
         stop: ApplicationStop {
             graceful_ms: 10,
@@ -112,7 +119,7 @@ fn tick(
     agent: &mut Agent<Fake>,
     now: u64,
     demanded: bool,
-    definition: Option<Arc<ApplicationDefinition>>,
+    definition: Option<Arc<ApplicationRuntimeKey>>,
     ready: bool,
 ) {
     agent.tick(
@@ -156,13 +163,13 @@ fn shared_reconciliation_and_retained_missing_definition_never_restart_until_fin
 #[test]
 fn sender_timeout_stops_owned_tree_then_backs_off_and_requires_fresh_launch_evidence() {
     let mut agent = agent();
-    let definition = Arc::new(ApplicationDefinition {
+    let definition = key(ApplicationDefinition {
         readiness: ApplicationReadiness::Spout {
             sender: "renderer".into(),
             first_frame: true,
             timeout_ms: 20,
         },
-        ..(*definition()).clone()
+        ..definition().definition().clone()
     });
     tick(&mut agent, 0, true, Some(definition.clone()), false);
     let first = agent.status.launch;
@@ -232,9 +239,9 @@ fn stuck_retirement_keeps_owner_and_prevents_replacement_even_after_deadline() {
     agent.backend.retire_on_kill = false;
     let first = definition();
     tick(&mut agent, 0, true, Some(first.clone()), false);
-    let second = Arc::new(ApplicationDefinition {
+    let second = key(ApplicationDefinition {
         arguments: vec!["replacement".into()],
-        ..(*first).clone()
+        ..first.definition().clone()
     });
     tick(&mut agent, 1, true, Some(second.clone()), false);
     tick(&mut agent, 11, true, Some(second.clone()), false);
@@ -272,9 +279,9 @@ fn configuration_replacement_waits_for_outgoing_or_final_use_hold_release() {
     let first = definition();
     tick(&mut agent, 0, true, Some(first.clone()), false);
     let launch = agent.status.launch;
-    let next = Arc::new(ApplicationDefinition {
+    let next = key(ApplicationDefinition {
         arguments: vec!["replacement".into()],
-        ..(*first).clone()
+        ..first.definition().clone()
     });
     for now in [1, 100] {
         agent.tick(
@@ -302,12 +309,12 @@ fn configuration_replacement_waits_for_outgoing_or_final_use_hold_release() {
 #[test]
 fn explicit_disable_and_restore_rearms_a_failed_non_restarting_definition() {
     let mut agent = agent();
-    let definition = Arc::new(ApplicationDefinition {
+    let definition = key(ApplicationDefinition {
         restart: ApplicationRestart {
             enabled: false,
             ..Default::default()
         },
-        ..(*definition()).clone()
+        ..definition().definition().clone()
     });
     tick(&mut agent, 0, true, Some(definition.clone()), false);
     agent.backend.running = false;

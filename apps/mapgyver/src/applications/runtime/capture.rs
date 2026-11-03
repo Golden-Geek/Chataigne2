@@ -62,8 +62,7 @@ impl PreparedApplications {
                     let definition = if snapshot.enablement == ApplicationEnablement::Enabled
                         && snapshot.definition.executable.is_some()
                     {
-                        snapshot.definition.validate()?;
-                        Some(Arc::new(snapshot.definition))
+                        Some(Arc::new(ApplicationRuntimeKey::new(&snapshot.definition)?))
                     } else {
                         None
                     };

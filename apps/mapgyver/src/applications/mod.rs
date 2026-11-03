@@ -1,5 +1,6 @@
 //! App-owned executable definitions and column demand. Golden IO owns OS process mechanisms.
 mod authoring;
+pub mod configuration;
 pub mod demand;
 pub mod driver;
 pub mod headless;

@@ -1,3 +1,4 @@
+use crate::applications::configuration::ApplicationRuntimeKey;
 use crate::applications::protocol::*;
 use golden_io::owned_process::{OwnedProcess, ProcessSnapshot, ProcessSpec, RootProcessState, SuspendedProcess};
 use std::sync::Arc;
@@ -80,7 +81,7 @@ struct Stop {
 
 pub(super) struct Desired {
     pub demanded: bool,
-    pub definition: Option<Arc<ApplicationDefinition>>,
+    pub definition: Option<Arc<ApplicationRuntimeKey>>,
     pub retain_existing: bool,
 }
 
@@ -88,7 +89,7 @@ pub(super) struct Agent<B: Backend> {
     pub status: ApplicationRuntimeStatus,
     pub backend: B,
     process: Option<B::Process>,
-    definition: Option<Arc<ApplicationDefinition>>,
+    definition: Option<Arc<ApplicationRuntimeKey>>,
     stop: Option<Stop>,
     ready_at: Option<u64>,
     failed: bool,
@@ -189,7 +190,7 @@ impl<B: Backend> Agent<B> {
         self.service(now, desired, ready, admitted, publish);
         self.update_configuration(target.as_deref());
     }
-    fn update_configuration(&mut self, target: Option<&ApplicationDefinition>) {
+    fn update_configuration(&mut self, target: Option<&ApplicationRuntimeKey>) {
         self.status.configuration = if self.process.is_none() {
             ApplicationConfigurationState::NotRunning
         } else {

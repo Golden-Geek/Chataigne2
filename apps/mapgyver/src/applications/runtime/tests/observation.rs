@@ -8,9 +8,9 @@ fn configuration_observations_distinguish_retained_pending_current_and_fully_rel
     let original = definition();
     tick(&mut agent, 0, true, Some(original.clone()), false);
     assert_eq!(agent.status.configuration, ApplicationConfigurationState::Current);
-    let changed = Arc::new(ApplicationDefinition {
+    let changed = key(ApplicationDefinition {
         arguments: vec!["new saved settings".into()],
-        ..(*original).clone()
+        ..original.definition().clone()
     });
     agent.tick(
         1,

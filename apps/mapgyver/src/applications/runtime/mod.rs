@@ -13,6 +13,7 @@ pub(crate) mod supervision;
 mod worker;
 pub use retention::PlanRetainer;
 
+use super::configuration::ApplicationRuntimeKey;
 use super::{demand::ApplicationDemand, protocol::*};
 use crate::app::{AppEngine, AppNode};
 use golden_io::{BoundedWorker, RetirementPool, RevisionGuard, WorkerLimits, WorkerNotifier};
@@ -28,7 +29,7 @@ const MAX_APPLICATIONS: usize = 64;
 struct Target {
     epoch: uuid::Uuid,
     retain_existing: bool,
-    definition: Option<Arc<ApplicationDefinition>>,
+    definition: Option<Arc<ApplicationRuntimeKey>>,
     guard: Option<RevisionGuard>,
     admission: Arc<[RevisionGuard]>,
     definition_revision: Option<u64>,

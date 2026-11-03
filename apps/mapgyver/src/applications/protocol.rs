@@ -5,14 +5,14 @@ use ts_rs::TS;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct ApplicationId(pub NodeUuid);
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum ApplicationWindow {
     #[default]
     Hidden,
     Normal,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationReadiness {
     /// Process readiness only; never proof that a texture/sender has produced a frame.
@@ -24,7 +24,7 @@ pub enum ApplicationReadiness {
         timeout_ms: u32,
     },
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct ApplicationStop {
     pub graceful_ms: u32,
@@ -39,7 +39,7 @@ impl Default for ApplicationStop {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct ApplicationRestart {
     pub enabled: bool,
@@ -56,7 +56,7 @@ impl Default for ApplicationRestart {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct ApplicationDefinition {
     pub executable: Option<String>,

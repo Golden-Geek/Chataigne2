@@ -88,6 +88,13 @@ and hosted scripts share the same application operations and committed history. 
 tests compare persistent definitions and associations; runtime revisions,
 instance identities and lifecycle observations remain ephemeral.
 
+`src/applications/configuration.rs` owns an immutable validated runtime key shared by capture
+and the process Agent. Absolute path spelling and explicit environment-entry ordering normalize
+without filesystem access or authored edits. Equivalent settings preserve a running PID/launch;
+argument order, environment inheritance and all launch/control settings stay significant.
+[M08 configuration progress](../../docs/progress/mapgyver-m08-configuration.md) records the actual
+native proof and the remaining typed Column/Cell, shared-owner and standalone-workflow replacement.
+
 The ordinary headless integration check verifies owned launch/retention/unload, availability,
 callback acknowledgement, overload recovery, external-process isolation and normal host shutdown:
 

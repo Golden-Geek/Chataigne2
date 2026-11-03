@@ -16,6 +16,7 @@ use mapgyver::{
 };
 use std::time::{Duration, Instant};
 
+mod application_configuration;
 mod lifecycle;
 
 fn edit(engine: &mut AppEngine, edit: ApplicationEdit) -> MediaEditResult {

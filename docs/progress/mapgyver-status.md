@@ -4,15 +4,15 @@
 
 **Verified gates: `███████░░░` 72% · 41/57 accepted** (phase completion above remains 5/11).
 
-**Current topic:** M06 complete: bounded independent Composition panels and native editor acceptance.
-**Next deliverable:** M08/2 reusable typed app-control configuration/runtime keys and Matrix settings.
+**Current topic:** M08/2 normalized runtime keys verified; full typed configuration/demand remains open.
+**Next deliverable:** reusable typed Column/Cell App file/control settings and standalone-workflow removal.
 **Execution:** M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M08/2 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Remaining requirement:** revised reusable app control, Matrix model/grid/playback, Video and retained
 physical/performance/final qualification. Original budgets and acceptance scope remain intact.
-**Newly usable:** independent Composition follow/lock panels with persisted pages, bounded selected
-child lookup, real reconnect, actual File Open/New and native close/tab/project lifetime.
-Geometry waits for current history after Undo; generic Inspector rename commits once on Enter/blur.
+**Newly usable:** equivalent executable-path spelling/environment-order edits preserve the actual
+owned process PID/launch and Current configuration without rewriting authored settings/history.
+Effective setting changes retain stop/retirement semantics. Cross-consumer deduplication is still required.
 **Usable now:** native Source crop/mapping/calibration, held Inspector feedback and selection/history;
 immutable background reads keep loaded controls usable; functional native zoom alignment is accepted;
 responsive Screen target/resolution/per-output FPS and Surface source-media tree
@@ -31,9 +31,9 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [independent Composition panels and complete M06](mapgyver-m06-panels.md).
-M06 is 5/5: actual side-by-side panels, persisted lock/page choices, off-page Inspector, reconnect,
-project/input fencing and native handle regression pass. M04 remains 8/8.
+**Last delivered capability:** [normalized app-control runtime configuration](mapgyver-m08-configuration.md).
+The immutable validated key is used by capture and the actual process Agent; 356 app tests and
+seven native lifecycle cases pass. M06 remains 5/5 and M04 remains 8/8.
 No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
@@ -47,7 +47,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Accepted | `██████████` 100% | 5/5 | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
-| <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Active configuration boundary | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; config/demand 0/1; runtime 0/1; app acceptance 0/1                |
+| <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Active configuration boundary | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; [key verified, full config/demand 0/1](mapgyver-m08-configuration.md); runtime 0/1; app acceptance 0/1 |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                      | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                     |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                  | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                  |
 
@@ -75,7 +75,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M08/2            | Deliver reusable typed MapGyver app-control configuration and normalized runtime-key boundary; replace standalone Applications/associations with conditional Column/Cell settings and aggregate neighbor/direct/outgoing demand. Follow the existing M06 → M08 configuration → revised Matrix ordering; start a bounded product batch after M06 is pushed. |
+| Active   | M08/2            | [Runtime-key slice verified](mapgyver-m08-configuration.md). Next replace standalone Applications/associations with reusable typed conditional Column/Cell settings, then aggregate matching keys and neighbor/direct/outgoing demand. Full gate remains open; follow the existing M06 → M08 configuration → revised Matrix ordering. |
 | Accepted | M06/5            | [Independent Composition panels](mapgyver-m06-panels.md): bounded off-page selection, simultaneous persisted follow/lock/page state, actual reconnect/File Open/New/held-input fencing and native tab/close lifetime. M06 is complete at 5/5. |
 | Accepted | M06/4            | [Native anchored editor](mapgyver-m06-editor.md): all eight resize and four outside rotation/cursor cases, actual smooth zoom, translation at zoom, shared Inspector selection, Escape, exact grouped Undo/Redo and tab lifetime pass. |
 | Accepted | M06/3            | [Full native Composition matrix](mapgyver-m06-native.md): both GPUs, nine original stages, 54 complete images, alpha/blends/pivots/signed scale/degrees/resize/missing/Undo/reload and completion-safe retirement pass. Active-area oracle reconciled with the existing black-canvas contract; scenes, quantization bounds, 2/255 residual tolerance and budgets preserved. |
@@ -113,15 +113,15 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M06/5 accepted in the 14:56–15:41 CET batch, before cutoff.
-  Delivered backend-resolved bounded pages/selected lookup and per-panel persisted follow/lock,
-  removed global catalog/provider/custom properties/internal controls, and fixed stale geometry
-  after history plus Enter/blur duplicate rename in Golden Inspector. Final checks: 351 app tests,
-  11 focused Composition tests, 233 Golden UI tests, strict Clippy, Svelte 0/0 and both formatters.
-  Actual browser/native independent-panel/reconnect/project/tab/close flow passes, as do native
-  handles and ported actual File Open/New/rename/history. [Phase audit and cumulative attempts](mapgyver-m06-panels.md).
-  M06 is 5/5 (100%); counts are 41/57 gates (72%) and 5/11 phases (45%). M08/2 alone is Active.
-  Commit/push this milestone before starting the next reusable app-control configuration batch.
+- **Current handoff:** M08/2 runtime-key milestone completed before the 15:35–16:20 CET cutoff.
+  Validated immutable keys now reach actual capture/Agent; equivalent settings keep a real owned
+  PID/launch and effective changes still wait for retirement. 356 app tests, strict all-test
+  native-qualification/process-fixture Clippy, both formatters and the compiled native lifecycle
+  suite (7 pass, 1 explicit fixture prerequisite ignored) pass. [Evidence and remaining scope](mapgyver-m08-configuration.md).
+  No gate closed: M08/2 alone remains Active, with typed conditional Column/Cell settings,
+  standalone workflow removal, cross-consumer deduplication and full aggregate neighbor/direct/
+  outgoing semantics still required. Counts remain 41/57 gates (72%), 5/11 phases (45%).
+  Commit/push this product milestone before the next typed app-control configuration batch.
   Host capacity recovery is configured under `%USERPROFILE%/.codex/tools/goal-recovery`, with
   23/23 tests and real read-only RPC verified. Activation still needs one VS Code Reload Window;
   the current IDE connection is not protected and live recovery is unverified. No product gate awarded.

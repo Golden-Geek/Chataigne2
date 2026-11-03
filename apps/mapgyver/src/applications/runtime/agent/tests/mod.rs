@@ -17,7 +17,7 @@ fn native_pre_resume_cancellation_keeps_suspended_ownership_and_never_executes_t
         .unwrap()
         .join("golden_io_process_fixture.exe");
     assert!(executable.is_file(), "build golden_io with process-fixture first");
-    let definition = Arc::new(ApplicationDefinition {
+    let definition = ApplicationDefinition {
         executable: Some(executable.to_string_lossy().into()),
         arguments: vec![
             "report".into(),
@@ -29,7 +29,8 @@ fn native_pre_resume_cancellation_keeps_suspended_ownership_and_never_executes_t
             retirement_ms: 1000,
         },
         ..Default::default()
-    });
+    };
+    let definition = Arc::new(ApplicationRuntimeKey::new(&definition).unwrap());
     let mut agent = Agent::new(
         ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
         Native,
