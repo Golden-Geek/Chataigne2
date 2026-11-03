@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { NativePreview } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
@@ -9,12 +10,15 @@
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
+	import { SurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
 	let {
 		screen,
 		selected,
 		disabled,
 		select,
 		start,
+		startPixels,
+		pixelsActive,
 		move,
 		finish,
 		stop
@@ -24,6 +28,8 @@
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, corner: number): boolean;
+		startPixels(reference: SurfaceReference, corner: number, origin: Point): boolean;
+		pixelsActive: boolean;
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
@@ -31,6 +37,26 @@
 	const owner = usePreview();
 	const documentIdentity = $derived(`${appState.session?.projectGeneration ?? 0}:${screen.id}`);
 	let corner = $state<{ document: string; surface: SurfaceId; index: number } | null>(null);
+	const keyboardTarget = $derived.by<KeyboardTarget | null>(() => {
+		if (!corner || corner.document !== documentIdentity || corner.surface !== selected) return null;
+		const surface = screen.surfaces.find((surface) => surface.reference.surface === selected);
+		const origin = surface?.definition.quad.corners[corner.index];
+		return surface && origin
+			? { document: documentIdentity, reference: surface.reference, corner: corner.index, origin }
+			: null;
+	});
+	const keyboard = new SurfaceKeyboard({
+		start: (target) => !disabled && startPixels(target.reference, target.corner, target.origin),
+		move: (pixels) => move(pixels),
+		finish: () => {
+			if (pixelsActive) finish();
+		},
+		stop: () => {
+			if (pixelsActive) stop();
+		}
+	});
+	$effect(() => keyboard.observe(keyboardTarget, pixelsActive));
+	onDestroy(() => keyboard.cancel());
 	$effect(() => {
 		if (corner && (corner.document !== documentIdentity || corner.surface !== selected))
 			corner = null;
@@ -54,6 +80,8 @@
 	);
 </script>
 
+<svelte:window onkeyup={(event) => keyboard.keyup(event.key)} onblur={() => keyboard.finish()} />
+
 <section aria-label="Screen preview">
 	<Viewport2D
 		aspect={extent ? extent.width / extent.height : 16 / 9}
@@ -65,10 +93,15 @@
 		}}
 		onkeydown={(event) => {
 			if (event.key === 'Escape' && corner) {
+				keyboard.cancel();
 				corner = null;
 				event.preventDefault();
+			} else if (keyboard.keydown(event, keyboardTarget)) {
+				event.preventDefault();
+				event.stopPropagation();
 			}
 		}}
+		onfocusout={() => keyboard.finish()}
 		{selection}
 		label="Screen view"
 		native>

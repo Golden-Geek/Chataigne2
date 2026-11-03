@@ -180,6 +180,13 @@ selection and exposes at most selected/hovered handle groups; project replacemen
 Corner clicks are presentation-only. The existing backend geometry gesture starts after a
 small rem-based pointer drag threshold, preserving geometry/history when selecting a corner.
 
+Keyboard holds collect cumulative integer offsets in the app UI and reuse Golden's bounded
+exclusive edit gesture. `QuadCornerPixels` converts the starting corner and offset in MapGyver's
+backend using the authored output extent. Fullscreen movement and rendering share cached
+display identity resolution in `screens/target.rs`; unavailable targets reject movement without
+guessing another display. Zoom never enters the conversion. Releasing all arrows or losing
+focus flushes one Undo group; selection/project/ownership loss discards unsent input.
+
 Surface Source uses the full uncropped source preview with independent crop overlays and the
 same typed authoring/history. Source loss preserves routing; it never substitutes another channel.
 

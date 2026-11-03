@@ -46,7 +46,7 @@ function fixture(handle: SurfaceHandle = { kind: 'QuadCorner', corner: 0 }) {
 	const gesture = new SurfaceGesture(() => current, state, {
 		group: () => group,
 		move: async (_host, _reference, edit) => {
-			points.push(edit.point);
+			points.push(edit.kind === 'QuadCornerPixels' ? edit.pixels : edit.point);
 			edits.push(edit);
 			const request = deferred<SurfaceSnapshot>();
 			pending.push(request);
@@ -94,6 +94,30 @@ const snapshot = (x: number): SurfaceSnapshot => ({
 			]
 		}
 	}
+});
+
+test('cumulative pixel samples preserve final distance through bounded coalescing', async () => {
+	const handle = { kind: 'QuadCornerPixels', corner: 0, origin: { x: 0.1, y: 0.1 } } as const;
+	const f = fixture(handle);
+	assert(f.start());
+	assert(f.gesture.pixelsActive);
+	f.gesture.move({ x: 1, y: 0 });
+	await flush();
+	for (let x = 2; x <= 100; x++) f.gesture.move({ x, y: 10 });
+	f.gesture.finish();
+	f.pending[0].resolve(snapshot(0.11));
+	await flush();
+	assert.deepEqual(f.edits, [
+		{ ...handle, pixels: { x: 1, y: 0 } },
+		{ ...handle, pixels: { x: 100, y: 10 } }
+	]);
+	f.pending[1].resolve(snapshot(0.2));
+	await flush();
+	assert(!f.gesture.pixelsActive);
+	assert(f.gesture.start(reference, { kind: 'QuadCorner', corner: 0 }));
+	assert(!f.gesture.pixelsActive);
+	f.gesture.stop();
+	await flush();
 });
 
 test('one in-flight request and one latest sample drain into exactly one group', async () => {

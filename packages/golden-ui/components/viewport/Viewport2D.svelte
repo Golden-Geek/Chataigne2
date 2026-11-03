@@ -16,6 +16,7 @@
 		native = false,
 		onbackgroundclick,
 		onkeydown: onEditorKeyDown,
+		onfocusout,
 		children
 	}: {
 		aspect: number;
@@ -27,6 +28,7 @@
 		/** Unconsumed primary clicks after navigation/child controls have handled input. */
 		onbackgroundclick?(event: MouseEvent): void;
 		onkeydown?(event: KeyboardEvent): void;
+		onfocusout?(event: FocusEvent): void;
 		children: Snippet;
 	} = $props();
 	let element: HTMLDivElement;
@@ -108,7 +110,7 @@
 	}
 	function keydown(event: KeyboardEvent) {
 		if (event.defaultPrevented || isEditable(event.target)) return;
-		onEditorKeyDown?.(event);
+		if (!isControl(event.target)) onEditorKeyDown?.(event);
 		if (
 			event.defaultPrevented ||
 			pressed !== null ||
@@ -166,6 +168,7 @@
 	aria-label={label}
 	tabindex="0"
 	onkeydown={keydown}
+	{onfocusout}
 	onpointerdowncapture={down}
 	onclickcapture={(event) => {
 		if (!suppressClick) return;

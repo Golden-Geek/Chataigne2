@@ -12,6 +12,7 @@
 // Add --preview-continuity-ui for simultaneous grids, real reconnect and New/Load lock recovery.
 // Add --navigation-ui for shared smooth zoom, camera cancellation and project generation replacement.
 // Add --screen-selection-ui for shared Inspector, hover/selected handles and independent corner selection.
+// Add --screen-keyboard-ui for output-pixel repeat, grouped history and focus/project fencing.
 // Add --owned-media-ui for Composition Reference/Alt-copy drops and real child-media ownership.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
@@ -57,6 +58,7 @@ const withUi = [
 	'--preview-continuity-ui',
 	'--navigation-ui',
 	'--screen-selection-ui',
+	'--screen-keyboard-ui',
 	'--owned-media-ui',
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
@@ -350,6 +352,10 @@ try {
 	if (process.argv.includes('--screen-selection-ui')) {
 		const { verifyScreenSelection } = await import('../browser/screen-selection.mjs');
 		await verifyScreenSelection({ base, post });
+	}
+	if (process.argv.includes('--screen-keyboard-ui')) {
+		const { verifyScreenKeyboard } = await import('../browser/screen-keyboard.mjs');
+		await verifyScreenKeyboard({ base, post });
 	}
 	if (process.argv.includes('--owned-media-ui')) {
 		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');

@@ -227,6 +227,13 @@ pub enum ScreenEdit {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SurfaceGeometryEdit {
+    /// Cumulative output-pixel input from an explicit starting corner coordinate.
+    /// Coalescing newer samples does not lose repeated keys; viewport pixels are never used.
+    QuadCornerPixels {
+        corner: u8,
+        origin: Point,
+        pixels: PixelOffset,
+    },
     /// Corner indices are top-left, top-right, bottom-right, bottom-left.
     QuadCorner {
         corner: u8,
@@ -239,6 +246,12 @@ pub enum SurfaceGeometryEdit {
     CropOrigin {
         point: Point,
     },
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PixelOffset {
+    pub x: i32,
+    pub y: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

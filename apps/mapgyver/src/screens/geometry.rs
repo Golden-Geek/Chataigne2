@@ -2,8 +2,24 @@ use super::protocol::{SurfaceDefinition, SurfaceGeometryEdit, UnitRect};
 
 impl SurfaceGeometryEdit {
     /// Only the cloned candidate changes before validation; callers commit it atomically.
-    pub(super) fn apply(self, definition: &mut SurfaceDefinition) -> Result<(), String> {
+    pub(super) fn apply(
+        self,
+        definition: &mut SurfaceDefinition,
+        extent: Option<golden_video::Extent2D>,
+    ) -> Result<(), String> {
         match self {
+            Self::QuadCornerPixels { corner, origin, pixels } => {
+                let extent = extent.ok_or("output pixel extent is unavailable")?;
+                let point = definition
+                    .quad
+                    .corners
+                    .get_mut(usize::from(corner))
+                    .ok_or("corner index must be 0..3")?;
+                *point = super::protocol::Point {
+                    x: origin.x + pixels.x as f32 / extent.width() as f32,
+                    y: origin.y + pixels.y as f32 / extent.height() as f32,
+                };
+            }
             Self::QuadCorner { corner, point } => {
                 *definition
                     .quad

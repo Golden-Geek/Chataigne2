@@ -15,7 +15,9 @@ backend project generation in `identity`, so reloading the same UUID also cancel
 ordinary snapshot receipts must preserve the camera of the same document.
 
 Editors receive unconsumed primary clicks through `onbackgroundclick` and specialized key
-input through `onkeydown`. Pan clicks and child buttons do not become background selection.
+input through `onkeydown`; editable controls and the navigation toolbar retain their own keys.
+`onfocusout` lets an editor flush its input gesture when focus changes. Pan clicks and child
+buttons do not become background selection.
 `ViewportHandle.selected` exposes an optional pressed state and shared selection styling;
 the app owns which document object or local handle is selected.
 

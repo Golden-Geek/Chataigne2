@@ -1,0 +1,48 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Output-pixel keyboard product slice implemented and functionally verified; full gate remains Active",
+	"ownership": {
+		"MapGyver backend": "Typed QuadCornerPixels projects cumulative integer input from a starting corner using authored Spout/rectangle dimensions or cached fullscreen display resolution. Rendering and keyboard geometry share screens/target.rs. Geometry validates before atomic Parameter edits; no OS query, polling or pixel normalization in UI.",
+		"MapGyver UI": "SurfaceKeyboard collects Arrow/Shift input, tracks held chords and fences selection/document/ownership changes. SurfaceGesture adapts cumulative samples to Golden's existing one-in-flight/one-latest edit gesture. ScreenPreview owns the selected corner and focus lifecycle.",
+		"Golden UI": "Viewport2D exposes focus changes and excludes editable/navigation controls from the specialized key hook. Existing bounded gesture retains history, transport/project fences and disposal."
+	},
+	"checks": {
+		"cargo run --locked -p MapGyver --bin generate_screen_protocol -- apps/mapgyver/ui/src/lib/screens/generated": "exit 0; public generator with GC_SKIP_UI_BUILD=1 only for this process; generated SurfaceGeometryEdit and PixelOffset updated together",
+		"cargo test --locked -p MapGyver --lib": {
+			"passed": 322,
+			"failed": 0,
+			"ignored": 2,
+			"generated_contract_match": true
+		},
+		"cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings": "exit 0",
+		"node --experimental-strip-types --test apps/mapgyver/ui/src/lib/screens/tests/surface-keyboard.test.ts apps/mapgyver/ui/src/lib/screens/tests/surface-gesture.test.ts apps/mapgyver/ui/src/lib/screens/tests/authoring.test.ts": {
+			"passed": 21,
+			"failed": 0
+		},
+		"npm test --workspace golden_ui": { "passed": 232, "failed": 0, "files": 44 },
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace chataigne-ui": "0 errors, 0 warnings",
+		"node packages/golden-ui/components/viewport/tests/browser/run.mjs": "exit 0; anchored smooth zoom, cancellation, pan/selection isolation, keyboard controls and native transparency",
+		"cargo build --locked -p MapGyver --bin MapGyver": "exit 0 with ordinary bundled frontend; no UI-skip override",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-keyboard-ui": "exit 0; exact 100/640 horizontal and Shift 10/360 vertical normalized delta at changed zoom; held chord retains active backend history until final release; exactly one Undo and complete geometry restoration; focus loss, toolbar/modifier isolation and New while held; no page errors or rejected intents; owned host exits normally 0",
+		"node apps/mapgyver/tests/headless/media.mjs --free-warp-ui --screen-selection-ui": "exit 0; retained invalid-shape input/red overlay/upside-down recovery, Surface/Inspector/background selection, two independent editors, click/jitter/pan with no authored change and one pointer drag/one Undo",
+		"node apps/mapgyver/tests/browser/native-navigation.mjs --keyboard": "exit 0; same actual bundled WebView2 keyboard flow with native preview installed, exact backend geometry/history checks, no page errors or rejected intents and owned app normal shutdown"
+	},
+	"backend_cases": [
+		"Spout 640x360 and negative-origin rectangle 640x360 use their output dimensions, preserve other corners/crop and coalesce 1/10/100 samples into one Undo/Redo gesture.",
+		"Fullscreen 800x600 uses the cached intended display. Invalid corner, absent display and unconfigured target reject without geometry/history changes.",
+		"Hosted manager.editScreens invokes the identical typed operation, conversion, result and one-step history. Generated TypeScript matches Rust exactly."
+	],
+	"test_corrections": [
+		"The first bundled flow attempted its next key before Undo's UI projection had rebuilt. The corrected flow waits for editor readiness and explicitly selects the corner before that independent gesture.",
+		"New immediately after BeginEdit can reject the already-dispatched old-object sample. The functional held-key flow now waits for its first sample to commit, then verifies New fences further repeat. Generic gesture unit tests separately verify late in-flight responses/errors, disconnect, replacement and disposal."
+	],
+	"limits": "This slice does not qualify physical output pixels, DPI, output-overlay alignment or latency. The native keyboard test asserts backend output-space math and installed-preview interaction, not independent native pixel readback. Whole-gate native alignment remains required. Existing source/device/timing/memory/display debts and both ignored backend tests retain their owning gates.",
+	"remaining": [
+		"Backend-owned Alt-drag translation of all four corners.",
+		"Backend Fill Screen and source-aspect-preserving Fit to Screen with complete caller/history parity.",
+		"Remaining M05/6 actual pointer/keyboard/native alignment acceptance; M05/8 retains the physical-pixel/DPI/latency matrix."
+	],
+	"gate_changes": "None. M05/6 alone stays Active; 28/57 accepted gates, M04 5/8 (63%), M05 3/10 (30%), fully accepted phases 3/11 (27%)."
+}

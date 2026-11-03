@@ -32,7 +32,7 @@ pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
     found.ok_or_else(|| "Screen Manager is missing".into())
 }
 
-fn screen_id(engine: &AppEngine, screen: ScreenId) -> Result<NodeId, String> {
+pub(super) fn screen_id(engine: &AppEngine, screen: ScreenId) -> Result<NodeId, String> {
     let id = engine.node_id_by_uuid(screen.0).ok_or("screen reference is missing")?;
     let Some(AppNode::Screen(node)) = engine.nodes.get(id) else {
         return Err("reference is not a Screen".into());
@@ -258,11 +258,14 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         ScreenEdit::EditSurfaceGeometry { reference, edit } => {
             let node = surface_id(engine, reference)?;
+            let extent = matches!(edit, SurfaceGeometryEdit::QuadCornerPixels { .. })
+                .then(|| super::target::output_extent(engine, reference.screen))
+                .transpose()?;
             let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
                 unreachable!()
             };
             let mut definition = current.definition();
-            edit.apply(&mut definition)?;
+            edit.apply(&mut definition, extent)?;
             let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition.clone());
             engine.edits.push(Edit::SetParamsAtomic {
                 values: current.parameter_values(definition),

@@ -8,6 +8,7 @@ mod geometry;
 mod gestures;
 mod output_input;
 mod parameters;
+mod pixel_gestures;
 mod scripting;
 mod selection;
 mod typescript;

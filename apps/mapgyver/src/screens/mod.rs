@@ -12,6 +12,7 @@ pub mod rendering;
 mod screen_node;
 mod scripting;
 mod surface_node;
+mod target;
 
 pub use authoring::{apply_operation, initialize, inspect, validate_project};
 pub use nodes::ScreenManagerNode;

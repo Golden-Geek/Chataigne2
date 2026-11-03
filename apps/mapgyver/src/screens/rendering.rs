@@ -99,24 +99,12 @@ pub fn capture_outputs(
         screens.push(screen);
         guards.push(node.guard());
         let hint = node.display_hint();
-        let resolved = screen_manager
-            .resolved_display(screen, &hint)
-            .and_then(|resolved| displays.iter().find(|display| *display == resolved));
-        let exact = match &node.definition().target {
-            Some(ScreenTarget::Fullscreen { display }) if !screen_manager.has_runtime_allocation() => {
-                displays.iter().find(|found| {
-                    found.id == *display
-                        && (screen_manager.displays().is_empty()
-                            || super::protocol::DisplayIdentityHint::from(*found) == hint)
-                })
-            }
-            _ => None,
-        };
+        let resolved = super::target::fullscreen_display(node, screen_manager, displays);
         if let Some(bounds) = hint.bounds {
             preview_extents.insert(screen, bounds.extent);
         }
         if let Some(ScreenTarget::Fullscreen { .. }) = &node.definition().target
-            && let Some(found) = resolved.or(exact)
+            && let Some(found) = resolved
             && found.bounds.extent.width() <= 8192
             && found.bounds.extent.height() <= 8192
         {
@@ -139,7 +127,7 @@ pub fn capture_outputs(
                 }
                 ScreenTarget::Rectangle { bounds } => ResolvedTarget::Rectangle(*bounds),
                 ScreenTarget::Fullscreen { .. } => {
-                    let Some(found) = resolved.or(exact) else {
+                    let Some(found) = resolved else {
                         unavailable.push((
                             screen,
                             "Intended fullscreen display is unavailable; output is inactive".into(),
