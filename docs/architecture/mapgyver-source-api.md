@@ -21,6 +21,10 @@ labels use backend defaults; empty asset/sender strings clear that channel's sou
 has no output channel. Its [target/output contract](mapgyver-reference-media.md) is distinct
 from physical source-channel authoring. Command records now use schema v4; older schemas reject clearly.
 
+`inspectChannel` is an immutable read: `Channel.snapshot` is null when the owner or channel
+has been removed, allowing queued Inspector reads to retire safely. Existing invalid node
+types or ownership still reject. Neither reads nor their rejections add history entries.
+
 | Method                     | Arguments after request id                                                      |
 | -------------------------- | ------------------------------------------------------------------------------- |
 | `createMedia`              | kind (`SolidColor`, `Picture`, `SharedTexture`, `Composition`, `Matrix`, `Reference`), label |

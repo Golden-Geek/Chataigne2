@@ -88,7 +88,7 @@
 				return;
 			if (result.kind === 'Channel') {
 				snapshot = result.snapshot;
-				owner = { session: current, generation };
+				owner = result.snapshot ? { session: current, generation } : null;
 				error = '';
 			}
 		} catch (cause) {

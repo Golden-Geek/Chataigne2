@@ -42,6 +42,22 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
         let created = create(&mut engine, kind);
         assert_ne!(created.media, reference.media);
         assert_ne!(created.channel, reference.channel);
+        for reference in [reference, created] {
+            let node = engine
+                .nodes
+                .get(engine.node_id_by_uuid(reference.channel.0).unwrap())
+                .unwrap();
+            let permissions = &node.node_data().meta.user_permissions;
+            assert_eq!(
+                permissions.can_edit_name,
+                kind.has_authored_channel_variants(),
+                "fresh catalog/API variant permission must not depend on reload: {kind:?}"
+            );
+            assert_eq!(
+                permissions.can_remove_and_duplicate,
+                kind.has_authored_channel_variants()
+            );
+        }
         assert_eq!(engine.undo_len(), history + 2);
         let catalog = crate::media::catalog::inspect(&engine).unwrap();
         let api = catalog.media.iter().find(|media| media.id == created.media).unwrap();

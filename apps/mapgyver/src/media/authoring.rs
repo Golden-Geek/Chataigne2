@@ -385,7 +385,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             MediaEditResult::Changed
         }
         MediaEdit::InspectChannel { reference } => MediaEditResult::Channel {
-            snapshot: channel(engine, reference)?,
+            snapshot: super::queries::inspect_channel(engine, reference)?,
         },
     };
     if engine.edits.pending.len() != pending_before {

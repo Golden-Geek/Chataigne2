@@ -462,7 +462,7 @@ pub enum MediaEditResult {
     },
     Changed,
     Channel {
-        snapshot: ChannelSnapshot,
+        snapshot: Option<ChannelSnapshot>,
     },
 }
 

@@ -37,6 +37,11 @@ impl ChannelNode {
         let mut node = Self::new();
         let presentation = node.node_data().meta.presentation.clone();
         node.node_data_mut().meta = golden_core::node::NodeMeta::new(label).with_presentation(presentation);
+        if definition.media_kind().has_authored_channel_variants() {
+            let permissions = &mut node.node_data_mut().meta.user_permissions;
+            permissions.can_edit_name = true;
+            permissions.can_remove_and_duplicate = true;
+        }
         macro_rules! seed {
             ($field:ident, $value:expr) => {
                 node.$field = ParameterHandle::new($value);

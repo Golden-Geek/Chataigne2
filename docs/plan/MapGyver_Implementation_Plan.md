@@ -65,7 +65,10 @@ fullscreen/rectangle/Spout](../progress/evidence/mapgyver-concurrent-output-2026
 passes actual editor close, OS-confirmed minimize/restore and changed physical/Spout pixels.
 M04/4 [Spout source acceptance](../progress/mapgyver-m04-spout.md) also passes full lifecycle,
 cross-adapter recovery and RGBA pixels on both GPUs, plus declared input capacity/retirement.
-Next is M04/5–6 source UI/parity acceptance before revised Composition work. M05/5,8 remain
+[M04/5 source UI acceptance](../progress/mapgyver-m04-source-ui.md) passes the complete retained
+interaction matrix through typed Channels and generic Inspector controls, including fresh
+permissions, safe deleted-channel reads and context-menu history. Next is M04/6 source
+caller/Picture/project/resource parity before revised Composition work. M05/5,8 remain
 in the physical return queue; every original matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the

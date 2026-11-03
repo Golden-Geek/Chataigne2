@@ -31,7 +31,9 @@
 	class:parent-disabled={enabled && !enabledInHierarchy}
 	title={enabledInHierarchy ? 'Node enabled' : enabled ? 'Disabled by parent' : 'Node disabled'}
 	tabindex="0"
-	onmousedown={toggleEnabled}
+	onmousedown={(event) => {
+		if (event.button === 0) toggleEnabled();
+	}}
 	onkeydown={(event) => {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();

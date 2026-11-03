@@ -52,6 +52,7 @@ No native experiment ran for this source API gate. Subsequent
 [M04/2 acceptance](mapgyver-m04-variants.md) verifies native variants, shared Resolution and
 channel identity on both hardware adapters. [M04/4 Spout acceptance](mapgyver-m04-spout.md)
 subsequently passed on 2026-11-03, completing the formerly unfinished metadata/pixel/adapter cases.
-M04/5 still requires its own complete interaction audit. M04/6 retains missing/relinked/replaced
-Picture behavior, full revised caller/project/resource parity and the broader legacy
-`--source-ui` harness port. Reference, Media Preview and all other plan gates remain required.
+[M04/5 source UI acceptance](mapgyver-m04-source-ui.md) subsequently passed on 2026-11-03,
+including the complete retained source interaction matrix ported to typed Channels and generic
+Inspector controls. M04/6 retains missing/relinked/replaced Picture behavior and full revised
+caller/project/resource parity. Reference, Media Preview and all other plan gates remain required.
