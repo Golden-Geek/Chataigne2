@@ -392,6 +392,28 @@ fn authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch()
         fixture.publish(&engine, references);
         fixture.settle([available(2, 2), available(3, 2)], Some(healthy));
         fixture.pixels(adapter.id, [[0, 255, 0, 255], [0, 255, 255, 255]], "adapter-recovery");
+        renamed.command("start-rgba 2 2 1 0 0 0.5");
+        wait("native RGBA byte-storage metadata", || {
+            let live = fixture.live();
+            if let Err(error) = live.refresh() {
+                assert!(error.contains("source observations"), "{error}");
+            }
+            live.native_control().unwrap().sources().iter().any(|source| {
+                source.texture == live.channels()[0].source.unwrap()
+                    && source.observed_descriptor
+                        == Some(TextureDescriptor {
+                            format: PixelFormat::Rgba8Unorm,
+                            alpha_mode: AlphaMode::Straight,
+                            ..descriptor(2, 2)
+                        })
+            })
+        });
+        fixture.settle([available(2, 2), available(3, 2)], Some(healthy));
+        fixture.pixels(
+            adapter.id,
+            [[255, 0, 0, 128], [0, 255, 255, 255]],
+            "rgba-byte-storage-alpha",
+        );
         assert!(
             fixture
                 .live()

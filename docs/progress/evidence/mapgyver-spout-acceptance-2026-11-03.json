@@ -1,0 +1,63 @@
+{
+	"date": "2026-11-03",
+	"gate": "M04/4",
+	"state": "Accepted",
+	"scope": "Exact authored Spout sender selection/discovery, runtime metadata, full input lifecycle and isolation on both hardware adapters, RGBA byte storage/alpha, declared input overlap/storage capacity and retirement.",
+	"ownership": "MapGyver owns authored media/variant Parameters and captured channel preparation. Golden Video owns discovered source layout, worker subscriptions, adapter/resource isolation and actual completion-based native retirement. Independent owned source processes render through the production VideoRuntime.",
+	"software": {
+		"source_build": "target/mapgyver-spout-source-build.log: cargo build --locked -p MapGyver --features native-qualification --bin native_source_fixture exits 0.",
+		"harness_compile": "target/mapgyver-spout-lifecycle-compile.log: cargo test --locked -p MapGyver --features native-qualification --test channel_rendering --no-run exits 0; executable target/debug/deps/channel_rendering-2e237188747a8c42.exe.",
+		"strict_lint": "target/mapgyver-spout-lifecycle-clippy.log: cargo clippy --locked -p MapGyver --features native-qualification --test channel_rendering --bin native_source_fixture -- -D warnings exits 0 before native execution.",
+		"golden": "target/mapgyver-spout-golden-software.log: cargo test --locked -p golden_video --features qualification --lib passes 188, skips 24 explicit hardware cases; executable target/debug/deps/golden_video-461e8949489e4251.exe.",
+		"retained_app": "Production app code is unchanged from M05/9's full MapGyver 340-pass/2-hardware-ignore software suite and subsequent native output/editor acceptance. Only owned qualification fixtures change in this slice.",
+		"fixture_sha256": "a978302d741655155d32636ac041056f669deceeb3a31ec4458d776e38e15db9",
+		"format": "Root and golden_core cargo fmt complete; no authored protocol/UI contract changes."
+	},
+	"app_native": {
+		"test": "shared_texture::authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch",
+		"command": "target/debug/deps/channel_rendering-2e237188747a8c42.exe --exact shared_texture::authored_shared_textures_isolate_failure_resize_rename_and_adapter_mismatch --ignored --nocapture --test-threads=1",
+		"log": "target/mapgyver-spout-lifecycle-native.log",
+		"result": "1 passed, 0 failed; 88.18 seconds; first native run this batch, no corrective rerun",
+		"adapters": [
+			{
+				"name": "Intel(R) Graphics",
+				"luid_low": 89313,
+				"luid_high": 0,
+				"rgba_output_sample": [255, 0, 0, 128]
+			},
+			{
+				"name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"luid_low": 90608,
+				"luid_high": 0,
+				"rgba_output_sample": [255, 0, 0, 127]
+			}
+		],
+		"stages_on_each_adapter": [
+			"independent inputs and shared consumers",
+			"absent input with healthy peer live",
+			"restart and native resize",
+			"oversized input incompatibility with healthy peer live",
+			"size recovery",
+			"renamed sender without implicit selection",
+			"explicit renamed-sender selection",
+			"fixed output with resized native input metadata/pixels",
+			"explicit cross-adapter mismatch without device migration",
+			"local adapter selection recovery",
+			"RGBA byte-storage metadata and straight-alpha pixels"
+		],
+		"metadata": "Fixed output remains 3x2 while the source observation changes to actual 4x3 Bgra8Unorm/Srgb/Straight. RGBA stage separately waits for actual Rgba8Unorm/Srgb/Straight source metadata before acceptance and pixel checks.",
+		"pixels": "All pixels at three native outputs (2x2, 2x2, 3x2) match stage oracles within the original 2/255 tolerance, including transparent missing/incompatible/foreign input, unaffected healthy cyan/blue peer and RGBA red/alpha 128 expectation. Repeated first-input consumers share exactly two total source subscriptions.",
+		"adapter_failure": "Both foreign directions report Recovering, HRESULT -2147024809 and zero publications. Selected adapter and initial device generation remain unchanged; healthy peer publications advance and pixels remain valid.",
+		"retirement": "Renderer closes and waits actual retirement before owned producer exit; all source processes exit successfully and their names disappear from discovery. No owned producer remains."
+	},
+	"golden_native": {
+		"test": "native::backend::tests::inputs::hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_processes",
+		"command": "target/debug/deps/golden_video-461e8949489e4251.exe --exact native::backend::tests::inputs::hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_processes --ignored --nocapture --test-threads=1",
+		"log": "target/mapgyver-spout-declared-capacity-native.log",
+		"result": "1 passed, 0 failed; 1.93 seconds; Intel hardware adapter",
+		"verified": "Declared source pressure rejects the new plan with ResourcePressure while Running/live generation/frames continue; resize/reconnect/oversize recovery and native blend pixels pass. Binding replacement preserves old-binding fences with four-source overlap admission; retired capacity is reusable. Byte ceiling rejects a third subscription despite four worker slots, without disturbing healthy pixels. Runtime shutdown releases charged bytes and stops sources."
+	},
+	"supersedes": "docs/progress/evidence/mapgyver-spout-metadata-native-2026-11-02.json: corrected fixed-output metadata, both full hardware lifecycles, cross-adapter mismatch/recovery, RGBA byte-storage pixels and declared overlap/storage cases are now verified. Historical failures remain evidence, not an active work queue.",
+	"limits": "Functional source acceptance, including tiny native pixel oracles and explicit metadata checks. Does not qualify large-graph throughput, physical display/latency, renderer memory/timing budgets or genuine device removal. No threshold, admission policy, pixel tolerance or budget is relaxed.",
+	"gate_changes": "M04/4 Active -> Accepted. M04 6/8 (75%), total 34/57 gates (60%), phases 3/11 (27%); denominators unchanged. M04/5 becomes sole Active for complete actual generic manager/Channels/Inspector typed-ownership/folder acceptance after this milestone is pushed."
+}

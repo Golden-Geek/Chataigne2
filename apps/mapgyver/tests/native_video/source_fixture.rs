@@ -46,12 +46,23 @@ mod fixture {
         }
     }
 
-    fn start(adapter: AdapterId, name: &str, width: u32, height: u32, color: [f32; 3]) -> io::Result<Running> {
+    fn start(
+        adapter: AdapterId,
+        name: &str,
+        width: u32,
+        height: u32,
+        format: PixelFormat,
+        color: [f32; 4],
+    ) -> io::Result<Running> {
         let descriptor = TextureDescriptor {
             extent: Extent2D::new(width, height).map_err(Error::other)?,
-            format: PixelFormat::Bgra8Unorm,
+            format,
             color_encoding: ColorEncoding::Srgb,
-            alpha_mode: AlphaMode::Opaque,
+            alpha_mode: if format == PixelFormat::Rgba8Unorm {
+                AlphaMode::Straight
+            } else {
+                AlphaMode::Opaque
+            },
         };
         let mut runtime = VideoRuntime::spawn_d3d11(
             config(),
@@ -80,7 +91,7 @@ mod fixture {
                     ..descriptor
                 },
                 operation: RenderOperation::Clear(
-                    LinearColor::from_straight(color[0], color[1], color[2], 1.0).map_err(Error::other)?,
+                    LinearColor::from_straight(color[0], color[1], color[2], color[3]).map_err(Error::other)?,
                 ),
             }],
             outputs: vec![PlanOutput {
@@ -134,13 +145,32 @@ mod fixture {
                         &args[3],
                         width.parse().map_err(Error::other)?,
                         height.parse().map_err(Error::other)?,
+                        PixelFormat::Bgra8Unorm,
                         [
                             red.parse().map_err(Error::other)?,
                             green.parse().map_err(Error::other)?,
                             blue.parse().map_err(Error::other)?,
+                            1.0,
                         ],
                     )?);
                     println!("OK started");
+                }
+                ["start-rgba", width, height, red, green, blue, alpha] => {
+                    drop(running.take());
+                    running = Some(start(
+                        adapter,
+                        &args[3],
+                        width.parse().map_err(Error::other)?,
+                        height.parse().map_err(Error::other)?,
+                        PixelFormat::Rgba8Unorm,
+                        [
+                            red.parse().map_err(Error::other)?,
+                            green.parse().map_err(Error::other)?,
+                            blue.parse().map_err(Error::other)?,
+                            alpha.parse().map_err(Error::other)?,
+                        ],
+                    )?);
+                    println!("OK started RGBA");
                 }
                 ["stop"] => {
                     drop(running.take());

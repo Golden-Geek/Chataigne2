@@ -52,9 +52,9 @@ Reproduce after the same prerequisites:
 cargo test --locked -p MapGyver --features native-qualification --test channel_rendering same_media_variants -- --ignored --nocapture --test-threads=1
 ```
 
-This closes M04/2 only. It adds both-adapter fixed-resolution resize/content evidence, but the
-[retained broader Shared Texture qualification](evidence/mapgyver-spout-metadata-native-2026-11-02.json)
-still needs its full lifecycle, cross-adapter mismatch/recovery, RGBA byte-storage pixels and
-declared-input overlap/capacity cases under M04/4. Generic interaction, full revised caller/
+This report closes M04/2 only. The broader [M04/4 Spout acceptance](mapgyver-m04-spout.md)
+subsequently passed on 2026-11-03: full lifecycle, cross-adapter mismatch/recovery, RGBA byte-storage
+pixels and declared-input overlap/capacity. The linked partial 2026-11-02 evidence remains history.
+Generic interaction, full revised caller/
 Picture/resource parity, Reference and Media Preview retain their separate acceptance gates.
 M03 timing/memory/recovery and M05 physical output gates remain unchanged.
