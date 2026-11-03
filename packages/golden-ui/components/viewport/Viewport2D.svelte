@@ -14,6 +14,8 @@
 		selection = null,
 		label = '2D editor view',
 		native = false,
+		onbackgroundclick,
+		onkeydown: onEditorKeyDown,
 		children
 	}: {
 		aspect: number;
@@ -22,6 +24,9 @@
 		label?: string;
 		/** Native underlays supply black themselves; their DOM aperture must stay transparent. */
 		native?: boolean;
+		/** Unconsumed primary clicks after navigation/child controls have handled input. */
+		onbackgroundclick?(event: MouseEvent): void;
+		onkeydown?(event: KeyboardEvent): void;
 		children: Snippet;
 	} = $props();
 	let element: HTMLDivElement;
@@ -30,6 +35,7 @@
 	let camera = $state<ViewCamera>({ zoom: 1, pan: { x: 0, y: 0 } });
 	let space = $state(false);
 	let pressed = $state<number | null>(null);
+	let suppressClick = false;
 	const motion = createZoomMotion(
 		() => camera,
 		(next) => {
@@ -75,6 +81,7 @@
 		return isEditable(target) || (target instanceof Element && !!target.closest('.navigation'));
 	}
 	function down(event: PointerEvent) {
+		suppressClick = false;
 		if (isControl(event.target)) return;
 		motion.cancel();
 		pressed ??= event.pointerId;
@@ -82,6 +89,7 @@
 		if (drag || !(event.button === 1 || (event.button === 0 && space))) return;
 		event.preventDefault();
 		event.stopPropagation();
+		suppressClick = true;
 		drag = {
 			id: event.pointerId,
 			x: event.clientX,
@@ -99,6 +107,8 @@
 		if (element.hasPointerCapture(id)) element.releasePointerCapture(id);
 	}
 	function keydown(event: KeyboardEvent) {
+		if (event.defaultPrevented || isEditable(event.target)) return;
+		onEditorKeyDown?.(event);
 		if (
 			event.defaultPrevented ||
 			pressed !== null ||
@@ -157,6 +167,22 @@
 	tabindex="0"
 	onkeydown={keydown}
 	onpointerdowncapture={down}
+	onclickcapture={(event) => {
+		if (!suppressClick) return;
+		suppressClick = false;
+		if (event.detail === 0) return;
+		event.preventDefault();
+		event.stopPropagation();
+	}}
+	onclick={(event) => {
+		if (
+			!event.defaultPrevented &&
+			event.button === 0 &&
+			!isControl(event.target) &&
+			!(event.target instanceof Element && event.target.closest('button, a, [role="button"]'))
+		)
+			onbackgroundclick?.(event);
+	}}
 	onpointermove={(event) => {
 		if (drag?.id === event.pointerId) {
 			camera = {

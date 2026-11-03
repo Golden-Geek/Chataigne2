@@ -8,6 +8,8 @@
 	let {
 		screen,
 		selected,
+		selectedCorner,
+		pickCorner,
 		disabled,
 		select,
 		start,
@@ -17,20 +19,35 @@
 	}: {
 		screen: ScreenSnapshot;
 		selected: SurfaceId | null;
+		selectedCorner: number | null;
+		pickCorner(surface: SurfaceId, corner: number): void;
 		disabled: boolean;
-		select(id: SurfaceId): void;
+		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, corner: number): boolean;
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
 	} = $props();
 	let canvas: SVGSVGElement;
-	let pointer: number | null = null;
+	let pointer = $state.raw<{
+		id: number;
+		reference: SurfaceReference;
+		corner: number;
+		x: number;
+		y: number;
+		threshold: number;
+		editing: boolean;
+	} | null>(null);
 	let ghost = $state<Point | null>(null);
-	const surface = $derived(
-		screen.surfaces.find((surface) => surface.reference.surface === selected)
-	);
+	let hovered = $state<SurfaceId | null>(null);
 	const visible = $derived(screen.surfaces.slice(0, 128));
+	const handles = $derived(
+		[selected, hovered].flatMap((id, index, all) => {
+			if (!id || all.indexOf(id) !== index) return [];
+			const item = screen.surfaces.find((item) => item.reference.surface === id);
+			return item ? [item] : [];
+		})
+	);
 	function point(event: PointerEvent): Point | null {
 		const rect = canvas.getBoundingClientRect();
 		if (rect.width <= 0 || rect.height <= 0) return null;
@@ -40,35 +57,71 @@
 		};
 	}
 	function down(event: PointerEvent, reference: SurfaceReference, corner: number) {
-		if (disabled || event.button !== 0 || pointer !== null || !start(reference, corner)) return;
+		if (disabled || event.button !== 0 || pointer !== null) return;
 		event.preventDefault();
 		event.stopPropagation();
-		pointer = event.pointerId;
+		pickCorner(reference.surface, corner);
+		// Selecting a corner must not open an authored edit until the pointer actually drags.
+		pointer = {
+			id: event.pointerId,
+			reference,
+			corner,
+			x: event.clientX,
+			y: event.clientY,
+			threshold:
+				(Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 0.15,
+			editing: false
+		};
+		canvas.setPointerCapture(pointer.id);
+	}
+	function update(event: PointerEvent) {
+		const active = pointer;
+		if (!active || event.pointerId !== active.id) return;
+		if (!active.editing) {
+			if (Math.hypot(event.clientX - active.x, event.clientY - active.y) < active.threshold) return;
+			if (!start(active.reference, active.corner)) {
+				cancel();
+				return;
+			}
+			active.editing = true;
+		}
 		ghost = point(event);
-		canvas.setPointerCapture(pointer);
+		if (ghost) move(ghost);
+		else cancel();
 	}
 	function release(event: PointerEvent, cancelled = false) {
-		if (event.pointerId !== pointer) return;
-		if (!cancelled) {
-			const next = point(event);
-			if (next) move(next);
-			finish();
-		} else stop();
-		const previous = pointer;
+		const active = pointer;
+		if (!active || event.pointerId !== active.id) return;
+		if (active.editing) {
+			if (!cancelled) {
+				update(event);
+				if (pointer) finish();
+			} else stop();
+		}
 		pointer = null;
 		ghost = null;
-		if (previous !== null && canvas.hasPointerCapture(previous))
-			canvas.releasePointerCapture(previous);
+		if (canvas.hasPointerCapture(active.id)) canvas.releasePointerCapture(active.id);
 	}
 	function cancel() {
-		if (pointer !== null) {
-			const previous = pointer;
-			pointer = null;
-			ghost = null;
-			if (canvas.hasPointerCapture(previous)) canvas.releasePointerCapture(previous);
-			stop();
-		}
+		const active = pointer;
+		if (!active) return;
+		pointer = null;
+		ghost = null;
+		if (canvas.hasPointerCapture(active.id)) canvas.releasePointerCapture(active.id);
+		if (active.editing) stop();
 	}
+	function leave(event: PointerEvent, id: SurfaceId) {
+		const next =
+			event.relatedTarget instanceof Element
+				? event.relatedTarget.closest('[data-surface-drop-target]')
+				: null;
+		if (next?.getAttribute('data-surface-drop-target') === id) return;
+		if (hovered === id) hovered = null;
+	}
+	$effect(() => {
+		const current = selected;
+		if (pointer && pointer.reference.surface !== current) cancel();
+	});
 	onDestroy(cancel);
 </script>
 
@@ -80,19 +133,19 @@
 		}
 	}} />
 
+<!-- Captured handle clicks belong to this control group, including after release. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
 	bind:this={canvas}
 	viewBox="0 0 1 1"
 	preserveAspectRatio="none"
 	aria-label="Surface mapping controls"
 	role="group"
-	onpointermove={(event) => {
-		if (event.pointerId === pointer) {
-			ghost = point(event);
-			if (ghost) move(ghost);
-			else cancel();
-		}
+	onclick={(event) => event.stopPropagation()}
+	onkeydown={(event) => {
+		if (event.key === 'Escape') cancel();
 	}}
+	onpointermove={update}
 	onpointerup={(event) => release(event)}
 	onpointercancel={(event) => release(event, true)}
 	onlostpointercapture={cancel}>
@@ -108,33 +161,63 @@
 			tabindex={disabled ? -1 : 0}
 			aria-label={`Select ${item.label}${item.mapping_valid ? '' : ' (invalid warp shape)'}`}
 			aria-disabled={disabled}
-			onclick={() => {
+			onpointerenter={() => {
+				hovered = item.reference.surface;
+			}}
+			onpointerleave={(event) => leave(event, item.reference.surface)}
+			onclick={(event) => {
+				event.stopPropagation();
 				if (!disabled) select(item.reference.surface);
 			}}
 			onkeydown={(event) => {
 				if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
 					event.preventDefault();
+					event.stopPropagation();
 					select(item.reference.surface);
 				}
 			}} />
 	{/each}
 </svg>
 
-{#if surface}
-	{#each surface.definition.quad.corners as corner, index}
-		<ViewportHandle
-			x={corner.x}
-			y={corner.y}
-			label={`Warp corner ${index + 1}`}
-			data-surface-drop-target={surface.reference.surface}
-			data-source-drop-object={surface.reference.surface}
-			{disabled}
-			onpointerdown={(event) => down(event, surface.reference, index)} />
-	{/each}
-{/if}
+{#each handles as item (item.reference.surface)}
+	<div class="corners" role="group" aria-label={`Warp handles for ${item.label}`}>
+		{#each item.definition.quad.corners as corner, index}
+			<ViewportHandle
+				x={corner.x}
+				y={corner.y}
+				label={`Warp corner ${index + 1}`}
+				selected={item.reference.surface === selected && index === selectedCorner}
+				data-surface-drop-target={item.reference.surface}
+				data-source-drop-object={item.reference.surface}
+				{disabled}
+				onpointerenter={() => {
+					hovered = item.reference.surface;
+				}}
+				onpointerleave={(event) => leave(event, item.reference.surface)}
+				onpointerdown={(event) => down(event, item.reference, index)}
+				onclick={(event) => {
+					event.stopPropagation();
+					if (!disabled && (item.reference.surface !== selected || index !== selectedCorner))
+						pickCorner(item.reference.surface, index);
+				}}
+				onkeydown={(event) => {
+					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+						event.preventDefault();
+						event.stopPropagation();
+						pickCorner(item.reference.surface, index);
+					}
+				}} />
+		{/each}
+	</div>
+{/each}
 {#if ghost}<ViewportHandle x={ghost.x} y={ghost.y} label="Warp pointer" ghost />{/if}
 
 <style>
+	.corners {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
 	svg {
 		position: absolute;
 		inset: 0;

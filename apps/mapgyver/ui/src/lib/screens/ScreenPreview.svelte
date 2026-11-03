@@ -22,13 +22,19 @@
 		screen: ScreenSnapshot;
 		selected: SurfaceId | null;
 		disabled: boolean;
-		select(id: SurfaceId): void;
+		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, corner: number): boolean;
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
 	} = $props();
 	const owner = usePreview();
+	const documentIdentity = $derived(`${appState.session?.projectGeneration ?? 0}:${screen.id}`);
+	let corner = $state<{ document: string; surface: SurfaceId; index: number } | null>(null);
+	$effect(() => {
+		if (corner && (corner.document !== documentIdentity || corner.surface !== selected))
+			corner = null;
+	});
 	const identity = $derived<PreviewSource>({ kind: 'Screen', screen: screen.id });
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(owner.statuses.get(previewKey(identity)));
@@ -51,14 +57,42 @@
 <section aria-label="Screen preview">
 	<Viewport2D
 		aspect={extent ? extent.width / extent.height : 16 / 9}
-		identity={`${appState.session?.projectGeneration ?? 0}:${screen.id}`}
+		identity={documentIdentity}
+		onbackgroundclick={() => {
+			if (disabled) return;
+			corner = null;
+			select(null);
+		}}
+		onkeydown={(event) => {
+			if (event.key === 'Escape' && corner) {
+				corner = null;
+				event.preventDefault();
+			}
+		}}
 		{selection}
 		label="Screen view"
 		native>
 		<NativePreview session={owner.session} {source} label={`Preview of ${screen.label}`}>
 			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
-			{#key screen.id}
-				<SurfaceHandles {screen} {selected} {disabled} {select} {start} {move} {finish} {stop} />
+			{#key documentIdentity}
+				<SurfaceHandles
+					{screen}
+					{selected}
+					{disabled}
+					{select}
+					{start}
+					{move}
+					{finish}
+					{stop}
+					selectedCorner={corner &&
+					corner.document === documentIdentity &&
+					corner.surface === selected
+						? corner.index
+						: null}
+					pickCorner={(surface, index) => {
+						select(surface);
+						corner = { document: documentIdentity, surface, index };
+					}} />
 			{/key}
 		</NativePreview>
 	</Viewport2D>

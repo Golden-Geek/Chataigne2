@@ -79,6 +79,26 @@ try {
 	await page.mouse.wheel(0, -100);
 	await zoom.getByText('115%').waitFor();
 	await atZoom(Math.exp(0.14));
+	const background = page.getByLabel('Background clicks');
+	const beforeBackground = Number(await background.textContent());
+	const backgroundRect = await box(active);
+	await page.mouse.click(
+		backgroundRect.x + backgroundRect.width / 2,
+		backgroundRect.y + backgroundRect.height / 2
+	);
+	assert.equal(Number(await background.textContent()), beforeBackground + 1);
+	await view.focus();
+	await page.keyboard.down('Space');
+	await page.mouse.click(
+		backgroundRect.x + backgroundRect.width / 2,
+		backgroundRect.y + backgroundRect.height / 2
+	);
+	await page.keyboard.up('Space');
+	assert.equal(
+		Number(await background.textContent()),
+		beforeBackground + 1,
+		'pan clicks do not notify background selection'
+	);
 	const samples = await page.evaluate(() => window.__zoomSamples);
 	assert(
 		new Set(
@@ -238,6 +258,18 @@ try {
 	await page.getByRole('button', { name: 'Update geometry snapshot', exact: true }).click();
 	await atZoom(Math.exp(0.14));
 	assert.deepEqual(errors, []);
+	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	const middleRect = await box(active);
+	await page.mouse.move(middleRect.x + middleRect.width / 2, middleRect.y + middleRect.height / 2);
+	await page.mouse.down({ button: 'middle' });
+	await page.mouse.move(
+		middleRect.x + middleRect.width / 2 + 10,
+		middleRect.y + middleRect.height / 2 + 10
+	);
+	await page.mouse.up({ button: 'middle' });
+	await zoomIn.focus();
+	await page.keyboard.press('Space');
+	await atZoom(1.2);
 	console.log(
 		JSON.stringify({
 			blackActiveArea: true,
@@ -253,6 +285,8 @@ try {
 			frameSelection: true,
 			toolbar: true,
 			panSuppressesDomainEdits: true,
+			backgroundSelectionPanIsolation: true,
+			keyboardActivationAfterMiddlePan: true,
 			nativeTransparency: true,
 			cameraPreservedAcrossSnapshotsAndHandleEdits: true,
 			cameraPreservedAcrossSelection: true,

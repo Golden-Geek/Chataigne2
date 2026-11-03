@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { appState, IconButton, type PanelProps, type PanelState } from 'golden_ui';
+	import { IconButton, type PanelProps, type PanelState } from 'golden_ui';
 	import refreshIcon from 'golden_ui/style/icons/reset.svg';
 	import { useScreenAuthoring } from './context.svelte';
 	import ScreenPreview from './ScreenPreview.svelte';
@@ -32,11 +32,11 @@
 			screen.surfaces
 		);
 	}
-	function select(uuid: string) {
-		const session = appState.session;
-		if (!session) return;
-		const node = [...session.graph.state.nodesById.values()].find((node) => node.uuid === uuid);
-		if (node) session.selectNode(node.node_id, 'REPLACE');
+	function selectSurface(uuid: string | null) {
+		if (gestureState.active || !screen) return;
+		if (uuid) controller.selectSurface({ screen: screen.id, surface: uuid });
+		else controller.selectScreen(screen.id);
+		selection.select(uuid ?? screen.id);
 	}
 </script>
 
@@ -83,12 +83,7 @@
 				{screen}
 				selected={view.selectedSurface}
 				disabled={controller.busy}
-				select={(uuid) => {
-					if (!gestureState.active) {
-						view.selectedSurface = uuid;
-						select(uuid);
-					}
-				}}
+				select={selectSurface}
 				start={(reference, corner) => gesture.start(reference, { kind: 'QuadCorner', corner })}
 				move={(point) => gesture.move(point)}
 				finish={() => gesture.finish()}

@@ -49,6 +49,25 @@ const surface = (width = 1): SurfaceSnapshot => ({
 const ownedCatalog = (): ScreenEditResult =>
 	catalog({ ...screen('current'), surfaces: [surface()] });
 
+test('Screen selection and catalog refresh preserve explicit Surface deselection', async () => {
+	const current = session(),
+		state = createScreenAuthoringState();
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async () => ownedCatalog(),
+		media
+	});
+	await controller.refresh();
+	assert.equal(state.selectedScreen, 'current');
+	assert.equal(state.selectedSurface, null);
+	controller.selectSurface(surface().reference);
+	await controller.refresh();
+	assert.equal(state.selectedSurface, 'surface');
+	controller.selectScreen('current');
+	assert.equal(state.selectedSurface, null);
+	await controller.refresh();
+	assert.equal(state.selectedSurface, null);
+});
+
 test('a live gesture defers catalog inspection until it finishes', async () => {
 	const current = session();
 	const state = createScreenAuthoringState();
@@ -208,6 +227,7 @@ test('generic Inspector edits publish bounded Surface reads before their edit se
 		}
 	});
 	await controller.refresh();
+	controller.selectSurface(surface().reference);
 	current.hasActiveEditSession = true;
 	const request = { kind: 'InspectSurface', reference: surface().reference } as const;
 	const task = controller.refreshOwner(request);
@@ -248,6 +268,7 @@ test('a live Screen definition updates output geometry without replacing its Sur
 		media
 	});
 	await controller.refresh();
+	controller.selectSurface(surface().reference);
 	const surfaces = controller.screen?.surfaces;
 	await controller.refreshOwner({ kind: 'InspectScreen', screen: 'current' });
 	assert.equal(controller.screen?.definition.target?.kind, 'Spout');
@@ -269,6 +290,7 @@ test('canvas ownership fences in-flight Inspector reads and defers further reads
 		media
 	});
 	await controller.refresh();
+	controller.selectSurface(surface().reference);
 	const request = { kind: 'InspectSurface', reference: surface().reference } as const;
 	const pending = controller.refreshOwner(request);
 	controller.setInteracting(true);
@@ -294,6 +316,7 @@ test('project replacement and full refresh fence stale live owner responses', as
 		media
 	});
 	await controller.refresh();
+	controller.selectSurface(surface().reference);
 	const pending = controller.refreshOwner({
 		kind: 'InspectSurface',
 		reference: surface().reference
@@ -302,6 +325,7 @@ test('project replacement and full refresh fence stale live owner responses', as
 	await controller.refresh();
 	read.resolve({ kind: 'Surface', snapshot: surface(0.2) });
 	await pending;
-	assert.equal(controller.surface?.definition.crop.width, 1);
+	assert.equal(state.selectedSurface, null);
+	assert.equal(controller.screen?.surfaces[0].definition.crop.width, 1);
 	assert.equal(state.error, '');
 });

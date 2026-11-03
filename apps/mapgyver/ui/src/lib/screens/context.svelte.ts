@@ -112,11 +112,13 @@ export function provideScreenAuthoring() {
 		controller.dispose();
 	});
 	$effect(() => {
-		const current = session;
-		const node =
-			current?.selectedNodeId == null ? null : current.getNodeData(current.selectedNodeId);
+		const node = inspectedOwner;
 		const catalog = view.catalog;
-		if (!node || !catalog) return;
+		if (!catalog) return;
+		if (!node) {
+			view.selectedSurface = null;
+			return;
+		}
 		const screen = catalog.screens.find(
 			(screen) =>
 				screen.id === node.uuid ||
@@ -126,8 +128,7 @@ export function provideScreenAuthoring() {
 		untrack(() => {
 			if (node.node_type === 'mapgyver.screen') controller.selectScreen(screen.id);
 			else if (node.node_type === 'mapgyver.surface') {
-				view.selectedScreen = screen.id;
-				view.selectedSurface = node.uuid;
+				controller.selectSurface({ screen: screen.id, surface: node.uuid });
 			}
 		});
 	});

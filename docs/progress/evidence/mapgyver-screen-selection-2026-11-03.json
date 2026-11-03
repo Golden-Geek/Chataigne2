@@ -1,0 +1,41 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Screen selection/handle product slice implemented and functionally verified; full gate remains Active",
+	"ownership": {
+		"Golden UI": "Viewport2D provides unconsumed background/key hooks, isolates pan clicks and preserves keyboard activation after pan. ViewportHandle provides optional pressed state and shared styling.",
+		"MapGyver": "Screen authoring selects explicit Surface identities and preserves deselection. ScreenPreview owns its local corner; SurfaceHandles shows at most selected/hovered groups and delays the existing backend geometry gesture until an actual drag. Shared workbench selection drives the generic Inspector."
+	},
+	"checks": {
+		"node --experimental-strip-types --test apps/mapgyver/ui/src/lib/screens/tests/authoring.test.ts apps/mapgyver/ui/src/lib/screens/tests/surface-gesture.test.ts": {
+			"passed": 17,
+			"failed": 0
+		},
+		"npm test --workspace golden_ui": { "passed": 232, "failed": 0, "files": 44 },
+		"node packages/golden-ui/components/viewport/tests/browser/run.mjs": "passed anchored animation, round handles, background/pan isolation, keyboard activation after middle pan, outside pointer release, snapshot/identity handling and native transparency",
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace chataigne-ui": "0 errors, 0 warnings",
+		"npm run test:browser --workspace golden_video_ui": "passed native-layout lifecycle, scale-3/recovery and continuity fixtures; no Screen flashes or overlap",
+		"cargo build --locked -p MapGyver --bin MapGyver": "exit 0 with ordinary bundled frontend",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-selection-ui": "exit 0; actual Surface/Inspector and background selection, hover/selected handle groups, refresh preserving deselection, corner selection and one-pixel pointer jitter without geometry/history changes, Escape/pan isolation, two independent editors, one drag/one Undo and full-scene restoration",
+		"node apps/mapgyver/tests/headless/media.mjs --free-warp-ui": "exit 0; held invalid warp input, red overlay, upside-down recovery and history remain functional",
+		"node apps/mapgyver/tests/headless/media.mjs --navigation-ui": "exit 0; all three editors retain smooth anchor/overlay behavior and same-UUID replacement handling",
+		"node apps/mapgyver/tests/browser/native-navigation.mjs --selection": "exit 0; same actual bundled WebView2 selection/hover/corner/two-panel/jitter/pan flow with both native views installed, unchanged selection geometry/history, one actual drag/one Undo and complete authored-scene restoration; owned app exits normally 0"
+	},
+	"behavior": [
+		"Selecting a Screen does not implicitly select its first Surface. Refresh retains explicit deselection and preserves a valid explicit Surface selection.",
+		"A canvas Surface click selects that actual node in the shared workbench/Inspector. Background deselection keeps the Screen owner in the Inspector and clears local corner selection.",
+		"Selected and hovered Surfaces expose at most two four-corner groups. Selected Surface handles remain available when the object is outside the bounded polygon-affordance list.",
+		"Corner selection is per ScreenPreview, not shared across panels and not persisted as authored data. Switching Surface or project clears it; Escape clears only the local corner while keeping the Surface Inspector owner.",
+		"Clicking a corner and sub-threshold pointer jitter do not start an edit group. A real drag reuses the existing typed backend geometry operation and bounded edit-group lifecycle.",
+		"Space/middle navigation and child control clicks do not become background deselection. Keyboard button activation remains functional after panning."
+	],
+	"remaining": [
+		"Arrow movement by 1 output pixel or 10 with Shift, including held-repeat grouping into one Undo gesture.",
+		"Alt-drag translating all four corners through backend-owned geometry semantics.",
+		"Backend Fill Screen and source-aspect-preserving Fit to Screen with complete caller/history parity.",
+		"Remaining M05/6 actual pointer/keyboard/native alignment acceptance; M05/8 retains the physical-pixel/DPI/latency matrix."
+	],
+	"limits": "No gate is accepted by this partial slice. No Rust runtime/DTO or native admission budget changes. Existing source/device/timing/memory/display qualification and the legacy M07 Matrix workflow gap remain in their return queues.",
+	"gate_changes": "None. M05/6 alone stays Active; 28/57 accepted gates, M04 5/8 (63%), M05 3/10 (30%), fully accepted phases 3/11 (27%)."
+}

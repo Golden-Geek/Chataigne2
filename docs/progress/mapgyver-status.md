@@ -3,22 +3,24 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M05/6 shared smooth navigation and Screen interaction.
-**Next deliverable:** Screen Surface/shared Inspector and background selection, selected/hovered
-handles and editor-local handle selection; then grouped keyboard movement and backend Fill/Fit.
+**Next deliverable:** backend-owned 1/10-output-pixel corner movement with grouped keyboard
+repeat, then Alt translation and source-aspect-preserving Fill/Fit operations.
 **Execution:** M04/1–3,7–8 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next delivery:** none known. Retained source/device/timing/memory/display gates remain below.
-**Usable now:** shared smooth anchored zoom in Screen, Surface Source and Composition;
+**Usable now:** actual Screen Surface/Inspector and background selection, selected/hover handles,
+independent per-editor corner selection and undoable pointer dragging; shared smooth anchored
+zoom in Screen, Surface Source and Composition;
 simultaneous independent Media Preview panels with follow/lock, channel choice,
 paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Shared smooth navigation](evidence/mapgyver-smooth-navigation-2026-11-03.json):
-all three bundled/native editors animate around a stable pointer anchor and share image/overlay
-DOM geometry. Pan/edit/Home/frame/resize/project/disposal cancel obsolete motion. Reduced motion
-snaps to the same target, ordinary equal-size snapshots preserve it, and same-UUID reload resets
-the old camera through Golden's public backend project-generation identity.
+**Last delivered capability:** [Screen selection and local handles](evidence/mapgyver-screen-selection-2026-11-03.json):
+Surface clicks drive the generic Inspector, background deselection survives refresh, selected/
+hovered Surfaces expose handles, and two native editors retain independent corner choices.
+Corner clicks/jitter and pan do not edit geometry/history. A real pointer drag produces one
+Undo step and Undo restores the complete scene; retained invalid-warp and smooth zoom pass.
 **Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
 including its complete original functional contract. M04/7 Reference remains accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -57,7 +59,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | Shared smooth zoom is delivered and bundled/native interaction passes. Finish Screen Surface/shared Inspector and background selection, selected/hover handles, local handle selection, grouped 1/10-pixel keyboard edits, Alt translation and backend Fill/Fit. Verify actual pointer/keyboard and native alignment; retain M05/8 physical matrix. |
+| Active   | M05/6            | Shared smooth zoom and Screen Surface/Inspector/background/local-handle selection are delivered with bundled/native interaction. Finish grouped 1/10-output-pixel keyboard edits, Alt translation and backend Fill/Fit, then complete actual pointer/keyboard/native alignment acceptance; retain M05/8 physical matrix. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
@@ -86,21 +88,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/6 reusable smooth navigation, started 2026-11-03 05:53 CET;
-  cutoff 06:38 CET. Golden owns one frame-driven anchored camera and its lifecycle; MapGyver
-  supplies backend project-generation identities for Screen, Surface Source and Composition.
-  Implemented accumulated zoom targets, reduced motion and safe pan/edit/Home/frame/resize/
-  replacement/disposal cancellation. Ordinary equal-size snapshots preserve the camera;
-  pointer release outside the viewport leaves navigation usable.
-  **Verified:** 232 Golden UI tests (including 7 focused geometry/motion tests), viewport real-
-  input browser suite, MapGyver/Chataigne UI checks with zero diagnostics, native UI lifecycle/
-  continuity fixtures, ordinary bundled build, three-editor navigation and retained free-warp
-  input/history regression. Actual native WebView2 observes 38 intermediate samples per editor,
-  stable anchors, image/overlay DOM geometry and same-UUID New/Load camera reset; host exit 0.
-  [Evidence and precise limits](evidence/mapgyver-smooth-navigation-2026-11-03.json).
-  **Gate changes:** none; M05/6 alone remains Active. Next deliver Surface/shared Inspector and
-  background selection, selected/hover/local handles, then grouped 1/10-pixel keyboard edits,
-  Alt translation and backend Fill/Fit. Physical-pixel/DPI/latency qualification stays M05/8.
+- **Current handoff:** M05/6 Screen selection/local-handle slice, started 2026-11-03 06:12 CET;
+  cutoff 06:57 CET. MapGyver now preserves explicit Surface deselection, shares actual Surface/
+  Inspector ownership and keeps corner selection local to each Screen preview. Golden's
+  background/key hooks and selected-handle styling contain no app policy. Hover/selection
+  expose at most eight handles; corner clicks/jitter do not edit geometry or open history.
+  Actual dragging retains backend geometry and one Undo group.
+  **Verified:** 17 authoring/gesture and 232 Golden UI tests, both app UI checks with zero
+  diagnostics, viewport input and native UI lifecycle/continuity fixtures, ordinary bundled
+  build, two-panel Screen selection, invalid-warp/history and smooth-navigation browser flows.
+  Actual native WebView2 installs both panels, passes shared Inspector/background/hover/local
+  corner/pan/jitter behavior, and verifies one real drag/one Undo restores the full scene; exit 0.
+  [Evidence and remaining requirements](evidence/mapgyver-screen-selection-2026-11-03.json).
+  **Gate changes:** none; M05/6 alone remains Active. Next deliver backend-owned 1/10-output-
+  pixel movement and held keyboard repeat in one Undo group, then Alt translation and backend
+  Fill/Fit. Full M05/6 input/alignment and M05/8 physical/DPI/latency acceptance stay required.
   Counts remain **28/57 gates, M04 5/8 (63%), M05 3/10 (30%), 3/11 phases (27%)**.
 
 ## Maintenance rule

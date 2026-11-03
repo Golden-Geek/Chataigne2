@@ -14,6 +14,11 @@ backend project generation in `identity`, so reloading the same UUID also cancel
 `WorkbenchSession.projectGeneration` exposes that lifetime independently of full-snapshot refreshes;
 ordinary snapshot receipts must preserve the camera of the same document.
 
+Editors receive unconsumed primary clicks through `onbackgroundclick` and specialized key
+input through `onkeydown`. Pan clicks and child buttons do not become background selection.
+`ViewportHandle.selected` exposes an optional pressed state and shared selection styling;
+the app owns which document object or local handle is selected.
+
 Layout spacing and handles use relative units. Measured content dimensions and camera offsets
 use CSS pixels to match browser pointer coordinates; these are computed geometry, not fixed
 layout sizes. Set `native` only for a native underlay aperture: its DOM background must stay

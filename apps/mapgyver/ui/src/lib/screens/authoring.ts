@@ -2,6 +2,7 @@ import type { ScreenEdit } from './generated/ScreenEdit';
 import type { ScreenEditResult } from './generated/ScreenEditResult';
 import type { ScreenId } from './generated/ScreenId';
 import type { SurfaceId } from './generated/SurfaceId';
+import type { SurfaceReference } from './generated/SurfaceReference';
 import type { ScreenManagerSnapshot } from './generated/ScreenManagerSnapshot';
 import type { MediaManagerSnapshot } from '../media/generated/MediaManagerSnapshot';
 import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
@@ -121,8 +122,7 @@ export class ScreenAuthoringController<S extends Connection> {
 			this.state.catalog = result.snapshot;
 			this.state.media = media;
 			if (!this.screen) this.state.selectedScreen = result.snapshot.screens[0]?.id ?? null;
-			if (!this.surface)
-				this.state.selectedSurface = this.screen?.surfaces[0]?.reference.surface ?? null;
+			if (!this.surface) this.state.selectedSurface = null;
 			this.state.error = '';
 		} catch (cause) {
 			if (active === this.read && this.current(session, generation))
@@ -232,7 +232,12 @@ export class ScreenAuthoringController<S extends Connection> {
 
 	selectScreen(screen: ScreenId) {
 		this.state.selectedScreen = screen;
-		this.state.selectedSurface = this.screen?.surfaces[0]?.reference.surface ?? null;
+		this.state.selectedSurface = null;
+	}
+
+	selectSurface(reference: SurfaceReference) {
+		this.state.selectedScreen = reference.screen;
+		this.state.selectedSurface = reference.surface;
 	}
 
 	acceptSurface(snapshot: SurfaceSnapshot) {

@@ -4,6 +4,7 @@
 	let narrow = $state(false);
 	let native = $state(false);
 	let edits = $state(0);
+	let backgrounds = $state(0);
 	let document = $state({
 		id: 'fixture',
 		aspect: 2,
@@ -30,10 +31,12 @@
 		document = { ...document, id: `${document.id}-next` };
 	}}>Change document</button>
 <output aria-label="Domain edit starts">{edits}</output>
+<output aria-label="Background clicks">{backgrounds}</output>
 <main style:width={narrow ? '32rem' : '50rem'}>
 	<Viewport2D
 		aspect={document.aspect}
 		identity={document.id}
+		onbackgroundclick={() => backgrounds++}
 		{native}
 		selection={document.selection}
 		label="Test viewport">

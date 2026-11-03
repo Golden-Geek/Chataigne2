@@ -174,6 +174,12 @@ is local editor state while Inspector keeps the Surface owner. Arrow repeat move
 handles by one output pixel, or ten with Shift, as one undoable interaction. Alt+drag translates
 the whole quad. Backend Fill Screen stretches to bounds; Fit to Screen centers source aspect.
 
+Screen authoring selection never substitutes the first Surface during refresh. Background
+selection keeps the Screen owner in the generic Inspector. Each Screen preview owns its corner
+selection and exposes at most selected/hovered handle groups; project replacement clears them.
+Corner clicks are presentation-only. The existing backend geometry gesture starts after a
+small rem-based pointer drag threshold, preserving geometry/history when selecting a corner.
+
 Surface Source uses the full uncropped source preview with independent crop overlays and the
 same typed authoring/history. Source loss preserves routing; it never substitutes another channel.
 
