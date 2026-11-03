@@ -1,4 +1,19 @@
-use super::protocol::{InstanceDefinition, InstanceGeometryEdit, InstanceGeometryMode};
+use super::protocol::{InstanceDefinition, InstanceGeometryEdit, InstanceGeometryMode, InstanceResizeHandle};
+
+impl InstanceResizeHandle {
+    fn position(self) -> [f64; 2] {
+        match self {
+            Self::TopLeft => [0., 0.],
+            Self::Top => [0.5, 0.],
+            Self::TopRight => [1., 0.],
+            Self::Right => [1., 0.5],
+            Self::BottomRight => [1., 1.],
+            Self::Bottom => [0.5, 1.],
+            Self::BottomLeft => [0., 1.],
+            Self::Left => [0., 0.5],
+        }
+    }
+}
 
 impl InstanceGeometryEdit {
     /// Change only the requested transform field on a validated clone of the current definition.
@@ -39,17 +54,30 @@ impl InstanceGeometryEdit {
                 definition.transform.rotation_degrees =
                     (f64::from(self.origin.rotation_degrees) + cross.atan2(dot).to_degrees()) as f32;
             }
-            InstanceGeometryMode::Scale => {
-                let (sin, cos) = f64::from(self.origin.rotation_degrees).to_radians().sin_cos();
-                let local = |point: [f64; 2]| [cos * point[0] + sin * point[1], -sin * point[0] + cos * point[1]];
-                let from = local(start);
-                let to = local(point);
-                if from.into_iter().any(|axis| axis.abs() < 1e-6) {
-                    return Err("scale pointer must be away from both local pivot axes".into());
+            InstanceGeometryMode::Resize { handle, extent } => {
+                if definition.transform.rotation_degrees != self.origin.rotation_degrees
+                    || definition.transform.pivot != self.origin.pivot
+                {
+                    return Err("resize basis changed; start a new gesture".into());
                 }
-                definition.transform.scale = [
-                    (f64::from(self.origin.scale[0]) * to[0] / from[0]) as f32,
-                    (f64::from(self.origin.scale[1]) * to[1] / from[1]) as f32,
+                let (sin, cos) = f64::from(self.origin.rotation_degrees).to_radians().sin_cos();
+                let delta = [point[0] - start[0], point[1] - start[1]];
+                let local = [cos * delta[0] + sin * delta[1], -sin * delta[0] + cos * delta[1]];
+                let handle = handle.position();
+                let dimensions = [f64::from(extent.width()), f64::from(extent.height())];
+                let mut shift = [0.; 2];
+                for axis in 0..2 {
+                    if handle[axis] == 0.5 {
+                        continue;
+                    }
+                    let size_delta = local[axis] * (2. * handle[axis] - 1.);
+                    definition.transform.scale[axis] =
+                        (f64::from(self.origin.scale[axis]) + size_delta / dimensions[axis]) as f32;
+                    shift[axis] = -(1. - handle[axis] - f64::from(self.origin.pivot[axis])) * size_delta;
+                }
+                definition.transform.position = [
+                    (position[0] + cos * shift[0] - sin * shift[1]) as f32,
+                    (position[1] + sin * shift[0] + cos * shift[1]) as f32,
                 ];
             }
         }

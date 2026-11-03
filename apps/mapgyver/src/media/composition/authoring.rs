@@ -229,6 +229,14 @@ pub(crate) fn apply(
             let id = instance(engine, parent, target)?;
             let current = children::placement(engine, id)?;
             let mut definition = children::definition(engine, id)?;
+            if let InstanceGeometryMode::Resize { extent, .. } = edit.mode {
+                let source = definition
+                    .source
+                    .ok_or("source dimensions are unavailable for resize")?;
+                if crate::media::resolution::channel_extent(engine, source)? != extent {
+                    return Err("source dimensions changed; start a new resize gesture".into());
+                }
+            }
             edit.apply(&mut definition)?;
             let snapshot = InstanceSnapshot {
                 reference: InstanceReference {

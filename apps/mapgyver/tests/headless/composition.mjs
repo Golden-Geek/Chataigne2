@@ -60,7 +60,11 @@ export async function verifyComposition({ post, intent, edit }) {
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 	const first = instances[0].instance;
 	let samples = 0;
-	for (const mode of ['Translate', 'Rotate', 'Scale']) {
+	for (const action of ['Translate', 'Rotate', 'Resize']) {
+		const mode =
+			action === 'Resize'
+				? { Resize: { handle: 'BottomRight', extent: { width: 20, height: 16 } } }
+				: action;
 		const before = await inspect(root);
 		const origin = before.instances[0].definition.transform;
 		const [x, y] = origin.position;
@@ -68,15 +72,15 @@ export async function verifyComposition({ post, intent, edit }) {
 		assert((await intent({ kind: 'beginEdit', client_edit_id, label: `${mode} review` })).success);
 		for (let step = 1; step <= 10; step++) {
 			const start =
-				mode === 'Translate'
+				action === 'Translate'
 					? { x, y }
-					: mode === 'Rotate'
+					: action === 'Rotate'
 						? { x: x + 20, y }
 						: { x: x - 20, y: y + 20 };
 			const point =
-				mode === 'Translate'
+				action === 'Translate'
 					? { x: x + 2 * step, y: y + step }
-					: mode === 'Rotate'
+					: action === 'Rotate'
 						? {
 								x: x + 20 * Math.cos((Math.PI * step) / 20),
 								y: y + 20 * Math.sin((Math.PI * step) / 20)
@@ -95,11 +99,13 @@ export async function verifyComposition({ post, intent, edit }) {
 		const after = await inspect(root);
 		assert.deepEqual(after.instances.slice(1), before.instances.slice(1));
 		const transform = after.instances[0].definition.transform;
-		if (mode === 'Translate') assert.deepEqual(transform.position, [100, 100]);
-		if (mode === 'Rotate') assert(Math.abs(transform.rotation_degrees - 90) < 1e-6);
-		if (mode === 'Scale') {
-			assert(Math.abs(transform.scale[0] - 8) < 1e-5);
-			assert(Math.abs(transform.scale[1] - 2) < 1e-5);
+		if (action === 'Translate') assert.deepEqual(transform.position, [100, 100]);
+		if (action === 'Rotate') assert(Math.abs(transform.rotation_degrees - 90) < 1e-6);
+		if (action === 'Resize') {
+			assert(Math.abs(transform.scale[0] - 5) < 1e-5);
+			assert(Math.abs(transform.scale[1] - 3.375) < 1e-5);
+			assert(Math.abs(transform.position[0] - 105) < 1e-5);
+			assert(Math.abs(transform.position[1] - 110) < 1e-5);
 		}
 		assert((await intent({ kind: 'undo' })).success);
 		assert.deepEqual(await inspect(root), before, `${mode} samples must be one undo`);

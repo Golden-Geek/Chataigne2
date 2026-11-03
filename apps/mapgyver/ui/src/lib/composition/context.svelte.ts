@@ -21,7 +21,11 @@ export function provideCompositionAuthoring() {
 	const gestureState = $state(createLatestEditGestureState());
 	const gesture = createInstanceGesture<WorkbenchSession>(() => session, gestureState, {
 		group: (session, handle) =>
-			createUiEditSession(`${handle.mode} instance`, 'composition-geometry', session),
+			createUiEditSession(
+				`${typeof handle.mode === 'string' ? handle.mode : 'Resize'} instance`,
+				'composition-geometry',
+				session
+			),
 		invoke: invokeMediaEdit,
 		accepted: (snapshot) => controller.acceptInstance(snapshot),
 		active: (active) => controller.setInteracting(active),

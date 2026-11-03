@@ -1,0 +1,17 @@
+<!-- Native cursor dimensions/hotspot are pixels; editor layout and hit targets use rem. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+	<path
+		d="M6 8a7 7 0 1 1-1 7M6 8V3M6 8h5"
+		fill="none"
+		stroke="#172334"
+		stroke-width="4"
+		stroke-linecap="round"
+		stroke-linejoin="round" />
+	<path
+		d="M6 8a7 7 0 1 1-1 7M6 8V3M6 8h5"
+		fill="none"
+		stroke="#edf4ff"
+		stroke-width="2"
+		stroke-linecap="round"
+		stroke-linejoin="round" />
+</svg>

@@ -2,18 +2,17 @@
 
 **Updated: 2026-11-03 · Overall: `████░░░░░░` 36% · 4/11 phases complete**
 
-**Verified gates: `███████░░░` 68% · 39/57 accepted** (phase completion above remains 4/11).
+**Verified gates: `███████░░░` 70% · 40/57 accepted** (phase completion above remains 4/11).
 
-**Current topic:** M06/3 accepted: complete native nested/shared Composition output on both GPUs.
-**Next deliverable:** M06/4 revised pointer handles, anchored resize/rotation and grouped history.
-**Execution:** M04/1–8, M05/4,6–7,9–10 and M06/1–3 accepted; M06/4 alone is Active on `mapgyver`.
+**Current topic:** M06/4 accepted: actual native anchored resize, outside rotation and grouped history.
+**Next deliverable:** M06/5 bounded independent Composition follow/lock panels and persistence.
+**Execution:** M04/1–8, M05/4,6–7,9–10 and M06/1–4 accepted; M06/5 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
-**Remaining requirement:** opposite-corner/one-axis anchored resizing, outside-corner rotation,
-actual pointer/zoom/history interaction, then bounded independent follow/lock panels.
-**Newly usable:** nested/shared Composition pixels, Normal/Add/Multiply/Screen alpha, pivots,
-mirroring/nonuniform scale and degree rotation pass on Intel and RTX. Canvas resize, missing
-source/Undo, fresh-renderer project reload, shared outputs and complete resource retirement pass.
-Native preview correctly composites transparent content over its active black canvas.
+**Remaining requirement:** bounded independent follow/lock panels, persisted choices and project/tab
+lifetime; remove internal heading/create/refresh controls and reconcile the obsolete form fixture.
+**Newly usable:** eight real resize handles fix the opposite corner/edge, including rotated,
+mirrored and nonuniform transforms. Four outside-corner rotation zones use the rotation cursor;
+actual native smooth zoom, dragging at zoom, Escape and grouped Undo/Redo pass.
 **Usable now:** native Source crop/mapping/calibration, held Inspector feedback and selection/history;
 immutable background reads keep loaded controls usable; functional native zoom alignment is accepted;
 responsive Screen target/resolution/per-output FPS and Surface source-media tree
@@ -32,9 +31,9 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [complete native Composition acceptance](mapgyver-m06-native.md).
-M06/3 closes all nine original native stages on both adapters: 54 images / 41,472 texels,
-maximum residual/nominal error 1/255 at the unchanged 2/255 limit. M04 remains 8/8 accepted.
+**Last delivered capability:** [native anchored Composition editor](mapgyver-m06-editor.md).
+M06/4 passes eight resize/four rotation controls and 45 smooth-zoom samples in the actual app.
+M06/3's full native pixel/retirement matrix remains accepted on both adapters. M04 remains 8/8.
 No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
@@ -46,7 +45,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m03-acceptance-items"></a>[M03 Rendering](mapgyver-m03-render-foundations.md)                                                                 | Blocked                         | `████████░░` 78%  | 7/9   | Foundations 7/7; recovery 0/1; qualification 0/1                                      |
 | <a id="m04-acceptance-items"></a>[M04 Media](mapgyver-m04-source-parity.md#m04-phase-audit) | Accepted | `██████████` 100% | 8/8 | Sources 6/6; Reference 1/1; Preview 1/1 |
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2 |
-| <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Active editor implementation    | `██████░░░░` 60%  | 3/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); editor geometry 0/1; panels 0/1 |
+| <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Active independent panels    | `████████░░` 80%  | 4/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); panels 0/1 |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Pending                         | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; config/demand 0/1; runtime 0/1; app acceptance 0/1                |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                      | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                     |
@@ -54,8 +53,8 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **39/57 accepted gates**; denominators are unchanged. M06/3 passes the full original
-native Composition matrix and retirement on both adapters. Revised editor/panel gates remain open;
+There are **40/57 accepted gates**; denominators are unchanged. M06/4 passes actual native
+anchored pointer/zoom/history interaction. The independent panel gate remains open;
 prior source/output/editor evidence remains valid. Fully accepted phases remain 4/11.
 The additional gate-progress bar uses accepted gates / 57, rounded; it does not replace or
 inflate the unchanged phase-completion calculation above.
@@ -76,7 +75,8 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M06/4            | Implement backend-authoritative corner resize fixing the opposite corner, edge resize on one local axis, and outside-corner rotation/cursor; remove the anchor-adjacent control. Complete the retained actual pointer, smooth zoom, selection/lifetime and grouped-history fixture port against the current typed model. Start the next bounded batch after this milestone is pushed. |
+| Active   | M06/5            | Deliver bounded independent Composition follow/lock panels, saved panel choices and project/tab lifetime; remove internal heading/create/refresh controls. Replace global InspectManager refresh with bounded owner/catalog reads and reconcile the obsolete form fixture. Start the bounded implementation batch after M06/4 is pushed. |
+| Accepted | M06/4            | [Native anchored editor](mapgyver-m06-editor.md): all eight resize and four outside rotation/cursor cases, actual smooth zoom, translation at zoom, shared Inspector selection, Escape, exact grouped Undo/Redo and tab lifetime pass. |
 | Accepted | M06/3            | [Full native Composition matrix](mapgyver-m06-native.md): both GPUs, nine original stages, 54 complete images, alpha/blends/pivots/signed scale/degrees/resize/missing/Undo/reload and completion-safe retirement pass. Active-area oracle reconciled with the existing black-canvas contract; scenes, quantization bounds, 2/255 residual tolerance and budgets preserved. |
 | Accepted | M06/2            | [Dependencies and shared production](mapgyver-m06-dependencies.md): all current media kinds, mixed cycles, missing/deletion/Undo, 100k validator/4,096-deep authored graph and exact five-producer/six-alias compiled sharing pass. Native pixels are separately accepted under M06/3. |
 | Accepted | M06/1            | [Degree-based child-media model](mapgyver-m06-model.md): typed Placement v2, complete structural/API/Parameter/history/project, old-radian rejection, actual Inspector Rotation and four caller paths pass. Native pixels are separately accepted under M06/3. |
@@ -90,7 +90,6 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
-| Pending  | M06/5            | After M06/4, complete bounded independent follow/lock panels, persistence and project/tab lifetime; remove internal heading/creation/refresh controls. Replace global Composition `InspectManager` refresh with bounded owner/catalog reads; Reference's paged query alone does not qualify whole-app scale. |
 | Pending  | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                                 |
 | Pending  | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                          |
 | Blocked  | M03/4            | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                         |
@@ -113,18 +112,17 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M06/3 accepted within the 14:08–14:53 CET batch. [Native report](mapgyver-m06-native.md)
-  records original requirement coverage and [exact receipt](evidence/mapgyver-composition-native-2026-11-03.json).
-  After software/compile/lint success, this batch's baseline exposed an obsolete theme-colored
-  preview oracle; production and its existing test require black active apertures. Corrected
-  independent oracle and half-step tests preserve every scene, quantization bound, 2/255 residual
-  tolerance and runtime budget. Final full native matrix: 1 passed in 44.42 s, Intel and RTX,
-  54 images / 41,472 texels, maximum residual/nominal error 1/255, five shared produced targets,
-  exact output/preview pixels and zero declared plan/source/output inventory after retirement.
-  Six Composition and five shared Matrix software oracle tests, strict all-test Clippy and both
-  Cargo formatters pass. Two native calls this batch, four cumulative including prior failures;
-  no reduced matrix or extra probe. No runtime/UI code changed. Next is M06/4 after milestone push.
-  Counts: M06 3/5 (60%), M04 8/8 (100%), M05 8/10 (80%), 39/57 gates (68%), 4/11 phases (36%).
+- **Current handoff:** M06/4 accepted in the 14:28–15:13 CET batch, before cutoff.
+  Delivered backend-authoritative anchored resize, generated protocol, eight real resize handles
+  and four outside rotation targets/cursor. 347 app tests, 10 focused UI tests, strict Clippy,
+  Svelte (0/0), both formatters and bundled/headless ownership/history/project suites pass.
+  Actual native acceptance passes every control, 45 zoom samples, translation at zoom, shared
+  selection, Escape and exact grouped Undo/Redo; normal app exit 0. Two baseline native attempts
+  exposed the SVG/CSS quoting defect; static inspection and one corrective validation closed it.
+  [Evidence and exact limits](mapgyver-m06-editor.md). M06/5 alone is Active; next deliverable is
+  bounded independent panel state/queries and removal of internal controls, followed by the
+  complete panel/project/tab fixture reconciliation. Counts: M06 4/5 (80%), 40/57 gates (70%),
+  4/11 phases (36%). Commit/push this milestone before starting that batch.
   Host capacity recovery is configured under `%USERPROFILE%/.codex/tools/goal-recovery`, with
   23/23 tests and real read-only RPC verified. Activation still needs one VS Code Reload Window;
   the current IDE connection is not protected and live recovery is unverified. No product gate awarded.

@@ -143,7 +143,10 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
     for mode in [
         InstanceGeometryMode::Translate,
         InstanceGeometryMode::Rotate,
-        InstanceGeometryMode::Scale,
+        InstanceGeometryMode::Resize {
+            handle: InstanceResizeHandle::BottomRight,
+            extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
+        },
     ] {
         cases.push((
             scene.owner,

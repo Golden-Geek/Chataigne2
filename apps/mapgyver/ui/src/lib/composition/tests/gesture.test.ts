@@ -29,7 +29,11 @@ const snapshot: InstanceSnapshot = {
 };
 
 test('all instance handles use exact backend identities, immutable anchors and a bounded latest sample', async () => {
-	for (const mode of ['Translate', 'Rotate', 'Scale'] satisfies InstanceGeometryMode[]) {
+	for (const mode of [
+		'Translate',
+		'Rotate',
+		{ Resize: { handle: 'BottomRight', extent: { width: 20, height: 16 } } }
+	] satisfies InstanceGeometryMode[]) {
 		const host = { status: 'connected', snapshotGeneration: 1, loading: { visible: false } };
 		const state = createLatestEditGestureState();
 		const first = deferred<MediaEditResult>();

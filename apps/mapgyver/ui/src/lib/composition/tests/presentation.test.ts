@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { outline, gizmo } from '../presentation.ts';
 
-test('source outlines match the mirrored/rotated renderer reference and gizmos remain usable without metadata', () => {
+test('real bounds project eight resize and four outside rotation handles, including mirrored local axes', () => {
 	const transform = {
 		position: [4, 4] as [number, number],
 		scale: [-2, 4] as [number, number],
@@ -19,10 +19,16 @@ test('source outlines match the mirrored/rotated renderer reference and gizmos r
 		assert.ok(Math.abs(points[index].x - expected[0]) < 1e-5);
 		assert.ok(Math.abs(points[index].y - expected[1]) < 1e-5);
 	}
-	const handles = gizmo(transform, { width: 8, height: 8 }, { width: 4, height: 2 });
+	const handles = gizmo(transform, { width: 4, height: 2 });
 	assert.deepEqual(handles.pivot, { x: 4, y: 4 });
-	assert.ok(points.some((point) => point.x === handles.scale.x && point.y === handles.scale.y));
-	const missing = gizmo(transform, { width: 8, height: 8 });
-	assert.notDeepEqual(missing.scale, missing.pivot);
-	assert.notDeepEqual(missing.rotate, missing.pivot);
+	assert.equal(handles.resize.length, 8);
+	assert.equal(handles.rotate.length, 4);
+	for (const [index, handle] of handles.rotate.entries()) {
+		assert.deepEqual(handle.point, points[index]);
+		assert.ok(Math.abs(Math.hypot(handle.offset.x, handle.offset.y) - 1) < 1e-10);
+	}
+	assert.equal(handles.resize.find((handle) => handle.name === 'Right')?.cursor, 'ns-resize');
+	assert.equal(handles.resize.find((handle) => handle.name === 'Top')?.cursor, 'ew-resize');
+	const missing = gizmo(transform);
+	assert.deepEqual(missing, { pivot: { x: 4, y: 4 }, resize: [], rotate: [] });
 });

@@ -94,7 +94,7 @@ fn absolute_translation_samples_preserve_other_fields_and_group_history() {
 }
 
 #[test]
-fn rotation_and_mirrored_nonuniform_scale_use_canvas_pivot_and_local_axes() {
+fn rotation_uses_canvas_pivot_and_preserves_other_fields() {
     let (mut engine, composition, instance) = instance_fixture();
     edit(
         &mut engine,
@@ -105,16 +105,92 @@ fn rotation_and_mirrored_nonuniform_scale_use_canvas_pivot_and_local_axes() {
     let mut expected = instance.definition.clone();
     expected.transform.rotation_degrees = 90.0;
     assert_eq!(rotated.definition, expected);
-    edit(
-        &mut engine,
-        composition,
-        request(&rotated, InstanceGeometryMode::Scale, [80.0, 110.0], [40.0, 95.0]),
-    );
-    let scaled = inspect(&mut engine, composition).instances.remove(0);
-    assert!((scaled.definition.transform.scale[0] - 1.0).abs() < 1e-5);
-    assert!((scaled.definition.transform.scale[1] - 9.0).abs() < 1e-5);
-    expected.transform.scale = scaled.definition.transform.scale;
-    assert_eq!(scaled.definition, expected);
+}
+
+fn resize(handle: InstanceResizeHandle) -> InstanceGeometryMode {
+    InstanceGeometryMode::Resize {
+        handle,
+        extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
+    }
+}
+
+fn projected(transform: Transform2D, fraction: [f64; 2]) -> [f64; 2] {
+    let local = [
+        (fraction[0] - f64::from(transform.pivot[0])) * 1920. * f64::from(transform.scale[0]),
+        (fraction[1] - f64::from(transform.pivot[1])) * 1080. * f64::from(transform.scale[1]),
+    ];
+    let (sin, cos) = f64::from(transform.rotation_degrees).to_radians().sin_cos();
+    [
+        f64::from(transform.position[0]) + cos * local[0] - sin * local[1],
+        f64::from(transform.position[1]) + sin * local[0] + cos * local[1],
+    ]
+}
+
+#[test]
+fn all_resize_handles_fix_opposite_anchor_with_rotated_mirrored_nonuniform_geometry() {
+    for (handle, opposite, axes) in [
+        (InstanceResizeHandle::TopLeft, [1., 1.], [true, true]),
+        (InstanceResizeHandle::Top, [0.5, 1.], [false, true]),
+        (InstanceResizeHandle::TopRight, [0., 1.], [true, true]),
+        (InstanceResizeHandle::Right, [0., 0.5], [true, false]),
+        (InstanceResizeHandle::BottomRight, [0., 0.], [true, true]),
+        (InstanceResizeHandle::Bottom, [0.5, 0.], [false, true]),
+        (InstanceResizeHandle::BottomLeft, [1., 0.], [true, true]),
+        (InstanceResizeHandle::Left, [1., 0.5], [true, false]),
+    ] {
+        for angle in [0., 37., 90.] {
+            let (mut engine, composition, mut instance) = instance_fixture();
+            instance.definition.transform.rotation_degrees = angle;
+            instance.definition.transform.pivot = [-0.3, 1.2];
+            edit(
+                &mut engine,
+                composition,
+                CompositionEdit::ConfigureInstance {
+                    instance: instance.reference.instance,
+                    definition: instance.definition.clone(),
+                },
+            );
+            let anchor = projected(instance.definition.transform, opposite);
+            let history = engine.undo_len();
+            group(&mut engine, true);
+            // Deliberately start away from the exact handle center. Deltas, not hit offsets,
+            // determine size; each admitted sample is relative to the immutable origin.
+            for step in 0..=12 {
+                edit(
+                    &mut engine,
+                    composition,
+                    request(
+                        &instance,
+                        resize(handle),
+                        [143., 81.],
+                        [143. + step as f32 * 2., 81. + step as f32],
+                    ),
+                );
+            }
+            group(&mut engine, false);
+            let after = inspect(&mut engine, composition).instances.remove(0);
+            let actual = projected(after.definition.transform, opposite);
+            for axis in 0..2 {
+                assert!(
+                    (anchor[axis] - actual[axis]).abs() < 0.001,
+                    "{handle:?} {angle}: {anchor:?} {actual:?}"
+                );
+                if !axes[axis] {
+                    assert_eq!(
+                        after.definition.transform.scale[axis],
+                        instance.definition.transform.scale[axis]
+                    );
+                }
+            }
+            assert_eq!(after.definition.opacity, instance.definition.opacity);
+            assert_eq!(after.definition.blend, instance.definition.blend);
+            assert_eq!(engine.undo_len(), history + 1);
+            assert!(engine.undo().unwrap());
+            assert_eq!(inspect(&mut engine, composition).instances[0], instance);
+            assert!(engine.redo().unwrap());
+            assert_eq!(inspect(&mut engine, composition).instances[0], after);
+        }
+    }
 }
 
 #[test]
@@ -130,11 +206,19 @@ fn rejected_degenerate_nonfinite_and_wrong_owner_geometry_is_atomic() {
         ),
         (
             composition,
-            request(&instance, InstanceGeometryMode::Scale, [110.0, 100.0], [120.0; 2]),
+            request(
+                &instance,
+                InstanceGeometryMode::Resize {
+                    handle: InstanceResizeHandle::Right,
+                    extent: golden_video::Extent2D::new(20, 16).unwrap(),
+                },
+                [0.; 2],
+                [10.; 2],
+            ),
         ),
         (
             composition,
-            request(&instance, InstanceGeometryMode::Scale, [110.0; 2], [100.0; 2]),
+            request(&instance, resize(InstanceResizeHandle::Right), [0.; 2], [3840., 0.]),
         ),
         (
             composition,

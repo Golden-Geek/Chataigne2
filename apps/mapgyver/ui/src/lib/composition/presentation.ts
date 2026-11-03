@@ -1,6 +1,7 @@
 import type { Transform2D } from '../media/generated/Transform2D';
 import type { Extent2D } from '../media/generated/Extent2D';
 import type { Point } from '../media/generated/Point';
+import type { InstanceResizeHandle } from '../media/generated/InstanceResizeHandle';
 
 /** Presentation only: source extent comes from the renderer, never from a UI domain default. */
 export function outline(transform: Transform2D, extent: Extent2D): Point[] {
@@ -22,29 +23,40 @@ export function outline(transform: Transform2D, extent: Extent2D): Point[] {
 	});
 }
 
-/** Handle reach depends on the displayed canvas, independently of unavailable source dimensions. */
-export function gizmo(transform: Transform2D, canvas: Extent2D, extent?: Extent2D | null) {
-	const radius = Math.min(canvas.width, canvas.height) * 0.06;
-	const angle = (transform.rotation_degrees * Math.PI) / 180;
-	const cos = Math.cos(angle),
-		sin = Math.sin(angle);
-	const point = (x: number, y: number) => ({
-		x: transform.position[0] + cos * x - sin * y,
-		y: transform.position[1] + sin * x + cos * y
-	});
-	const corner = extent
-		? point(
-				((transform.pivot[0] < 0.5 ? 1 : 0) - transform.pivot[0]) *
-					extent.width *
-					transform.scale[0],
-				((transform.pivot[1] < 0.5 ? 1 : 0) - transform.pivot[1]) *
-					extent.height *
-					transform.scale[1]
-			)
-		: null;
-	return {
-		pivot: point(0, 0),
-		rotate: point(0, -radius * 1.8),
-		scale: corner ?? point(radius, radius)
-	};
+/** Project real source bounds; hit-target reach is applied in rem by the view. */
+export function gizmo(transform: Transform2D, extent?: Extent2D | null) {
+	const pivot = { x: transform.position[0], y: transform.position[1] };
+	const resize: { name: InstanceResizeHandle; point: Point; cursor: string }[] = [];
+	const rotate: { name: InstanceResizeHandle; point: Point; offset: Point }[] = [];
+	if (!extent) return { pivot, resize, rotate };
+	const corners = outline(transform, extent);
+	const center = { x: (corners[0].x + corners[2].x) / 2, y: (corners[0].y + corners[2].y) / 2 };
+	const names: InstanceResizeHandle[] = [
+		'TopLeft',
+		'Top',
+		'TopRight',
+		'Right',
+		'BottomRight',
+		'Bottom',
+		'BottomLeft',
+		'Left'
+	];
+	for (let index = 0; index < 8; index++) {
+		const first = corners[Math.floor(index / 2)];
+		const next = corners[(Math.floor(index / 2) + 1) % 4];
+		const point = index % 2 ? { x: (first.x + next.x) / 2, y: (first.y + next.y) / 2 } : first;
+		const dx = point.x - center.x,
+			dy = point.y - center.y;
+		const direction = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 4) + 4) % 4;
+		resize.push({
+			name: names[index],
+			point,
+			cursor: ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'][direction]
+		});
+		if (index % 2 === 0) {
+			const length = Math.hypot(dx, dy);
+			rotate.push({ name: names[index], point, offset: { x: dx / length, y: dy / length } });
+		}
+	}
+	return { pivot, resize, rotate };
 }

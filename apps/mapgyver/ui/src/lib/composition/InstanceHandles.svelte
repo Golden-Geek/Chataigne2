@@ -11,6 +11,7 @@
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import { outline, gizmo } from './presentation';
+	import rotateCursor from './rotate-cursor.svg';
 	let {
 		composition,
 		selected,
@@ -43,9 +44,7 @@
 					?.extent
 			: null
 	);
-	const handles = $derived(
-		instance ? gizmo(instance.definition.transform, composition.canvas, selectedExtent) : null
-	);
+	const handles = $derived(instance ? gizmo(instance.definition.transform, selectedExtent) : null);
 	let canvas: SVGSVGElement;
 	let pointer: number | null = null;
 	let ghost = $state<Point | null>(null);
@@ -172,8 +171,6 @@
 				aria-hidden="true"
 				onpointerdown={(event) => down(event, instance!, 'Translate')} />
 		{/if}
-		<line x1={handles.pivot.x} y1={handles.pivot.y} x2={handles.rotate.x} y2={handles.rotate.y} />
-		<line x1={handles.pivot.x} y1={handles.pivot.y} x2={handles.scale.x} y2={handles.scale.y} />
 	{/if}
 </svg>
 
@@ -199,24 +196,31 @@
 		data-instance-handle="Translate"
 		{disabled}
 		onpointerdown={(event) => down(event, instance!, 'Translate')} />
-	<ViewportHandle
-		x={handles.rotate.x / composition.canvas.width}
-		y={handles.rotate.y / composition.canvas.height}
-		label={`Rotate ${instance.label}`}
-		data-instance-drop-target={instance.reference.instance}
-		data-source-drop-object={instance.reference.instance}
-		data-instance-handle="Rotate"
-		{disabled}
-		onpointerdown={(event) => down(event, instance!, 'Rotate')} />
-	<ViewportHandle
-		x={handles.scale.x / composition.canvas.width}
-		y={handles.scale.y / composition.canvas.height}
-		label={`Scale ${instance.label}`}
-		data-instance-drop-target={instance.reference.instance}
-		data-source-drop-object={instance.reference.instance}
-		data-instance-handle="Scale"
-		{disabled}
-		onpointerdown={(event) => down(event, instance!, 'Scale')} />
+	{#each handles.resize as handle (handle.name)}
+		<ViewportHandle
+			x={handle.point.x / composition.canvas.width}
+			y={handle.point.y / composition.canvas.height}
+			label={`Resize ${instance.label} ${handle.name}`}
+			data-instance-handle="Resize"
+			data-instance-resize={handle.name}
+			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
+			{disabled}
+			onpointerdown={(event) => {
+				if (selectedExtent)
+					down(event, instance!, { Resize: { handle: handle.name, extent: selectedExtent } });
+			}} />
+	{/each}
+	{#each handles.rotate as handle (handle.name)}
+		<ViewportHandle
+			x={handle.point.x / composition.canvas.width}
+			y={handle.point.y / composition.canvas.height}
+			label={`Rotate ${instance.label} ${handle.name}`}
+			data-instance-handle="Rotate"
+			data-instance-rotation={handle.name}
+			style={`width: 1.2rem; height: 1.2rem; background: transparent; border: none; transform: translate(-50%, -50%) translate(${handle.offset.x * 1.3}rem, ${handle.offset.y * 1.3}rem); cursor: url(${JSON.stringify(rotateCursor)}) 12 12, crosshair`}
+			{disabled}
+			onpointerdown={(event) => down(event, instance!, 'Rotate')} />
+	{/each}
 {/if}
 {#if ghost}<ViewportHandle
 		x={ghost.x / composition.canvas.width}
@@ -250,10 +254,5 @@
 	}
 	polygon.inactive {
 		stroke-dasharray: 0.3rem 0.2rem;
-	}
-	line {
-		stroke: #70aaff;
-		stroke-width: 0.1rem;
-		vector-effect: non-scaling-stroke;
 	}
 </style>

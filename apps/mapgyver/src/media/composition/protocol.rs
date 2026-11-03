@@ -129,7 +129,23 @@ pub enum CompositionEdit {
 pub enum InstanceGeometryMode {
     Translate,
     Rotate,
-    Scale,
+    Resize {
+        handle: InstanceResizeHandle,
+        /// Source extent observed when the gesture starts; backend validates current dimensions.
+        extent: Extent2D,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum InstanceResizeHandle {
+    TopLeft,
+    Top,
+    TopRight,
+    Right,
+    BottomRight,
+    Bottom,
+    BottomLeft,
+    Left,
 }
 
 /// Canvas-texel pointer samples and the authored transform at gesture start, never accumulated deltas.
