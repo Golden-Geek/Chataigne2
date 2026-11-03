@@ -184,6 +184,9 @@ pub enum RuntimeState {
 /// Metadata for the latest submitted frame; no pixels/native resources leave the worker.
 #[derive(Clone, Copy, Debug)]
 pub struct FrameObservation {
+    /// CPU wall duration of the successful backend submit call. Excludes preparation and
+    /// asynchronous GPU execution/presentation; this is never a GPU frame-time measurement.
+    pub submit_duration: Duration,
     /// Absolute cadence ordinal, without a catch-up frame loop.
     pub frame_index: u64,
     /// Ideal cadence deadline, distinct from actual submission and physical presentation.

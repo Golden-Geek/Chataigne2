@@ -5,6 +5,7 @@ pub mod capture;
 pub(crate) mod host;
 pub mod layout;
 pub mod protocol;
+pub(crate) mod runtime_status;
 
 #[cfg(test)]
 mod tests;

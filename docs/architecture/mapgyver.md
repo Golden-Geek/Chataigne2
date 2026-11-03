@@ -15,6 +15,16 @@ persisted panel choices, project fencing and shared native view lifetime.
 
 ## Ownership
 
+Golden UI's `MainWindow.footer` snippet is the public app contribution seam; the shared footer
+keeps hover help, notifications and engine status. MapGyver contributes `VideoRuntimeFooter`
+through that seam. Its transport-independent lifecycle subscribes before the initial native
+read, fences older sequences/disposal, expires missing updates and retries unavailable endpoints.
+The presentation worker samples once per second outside the engine actor. Rust-generated DTOs
+carry actual submitted FPS, the renderer adapter, latest CPU submit duration and tracked resource
+charges. These are not display-present FPS, GPU frame time or physical VRAM residency.
+Golden Video owns the reusable submit-call duration observation; it adds no GPU timing queries.
+Missing/recovering/expired observations clear metric values. No runtime metric is authored or saved.
+
 | Layer                                             | Responsibility                                                                                                                    |
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/mapgyver/src/app`                           | Thin identity, registration, lifecycle and public Golden host composition                                                         |

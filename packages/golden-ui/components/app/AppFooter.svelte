@@ -1,9 +1,11 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { WorkbenchSession } from '../../store/workbench.svelte';
 	import EngineStatus from './EngineStatus.svelte';
 
-	const { session } = $props<{
+	const { session, contribution } = $props<{
 		session?: WorkbenchSession | null;
+		contribution?: Snippet<[WorkbenchSession]>;
 	}>();
 
 	let hoverInfo = $derived(session?.getFooterHoverInfo() ?? null);
@@ -32,7 +34,10 @@
 				</div>
 			{/each}
 		</div>
-		<EngineStatus {session} />
+		<div class="footer-status">
+			{#if contribution}{@render contribution(session)}{/if}
+			<EngineStatus {session} />
+		</div>
 	{/if}
 </footer>
 
@@ -57,6 +62,13 @@
 		font-size: 0.72rem;
 		line-height: 1.15;
 		color: rgb(from var(--gc-color-text) r g b / 82%);
+	}
+	.footer-status {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		min-width: 0;
+		justify-self: end;
 	}
 
 	.description-label,

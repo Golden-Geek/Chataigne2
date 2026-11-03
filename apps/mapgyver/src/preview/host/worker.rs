@@ -22,6 +22,7 @@ use tauri::Emitter;
 
 struct Owner {
     renderer: ChannelRenderer,
+    gpu: String,
     windows: Vec<golden_core::app::NativeOutputWindow>,
     escapes: Vec<(super::targets::Target, Arc<std::sync::atomic::AtomicBool>)>,
 }
@@ -89,8 +90,7 @@ fn create(
         .map_err(io::Error::other)?
         .into_iter()
         .find(|adapter| !adapter.software)
-        .ok_or_else(|| io::Error::other("no native preview adapter"))?
-        .id;
+        .ok_or_else(|| io::Error::other("no native preview adapter"))?;
     let config = super::config::configuration(Some(notifier.clone()));
     let limits = config.video.plan_limits;
     let mut outputs = vec![OutputBinding::Window {
@@ -122,7 +122,7 @@ fn create(
         config.video,
         D3d11Config {
             diagnostics: None,
-            adapter,
+            adapter: adapter.id,
             inputs: InputLimits {
                 max_sources: 8,
                 max_storage_bytes: 256 * 1024 * 1024,
@@ -133,6 +133,7 @@ fn create(
     .map_err(io::Error::other)?;
     let mut owner = Owner {
         renderer: ChannelRenderer::new(runtime, limits),
+        gpu: adapter.description,
         windows,
         escapes,
     };
@@ -161,11 +162,13 @@ pub(super) struct Input {
     pub stop: NativePresentationStop,
     pub discovery: super::discovery::Discovery,
     pub displays: super::displays::Catalog,
+    pub status: Arc<crate::preview::runtime_status::StatusView>,
 }
 
 pub(super) fn run(input: Input) -> io::Result<()> {
     let _session = SessionOwner(input.controller.clone());
     let mut owner: Option<Owner> = None;
+    let mut status_sampler = crate::preview::runtime_status::StatusSampler::default();
     let mut native: Option<D3d11Control> = None;
     let mut capture: Option<CapturedPreview> = None;
     let mut _capture_subscriptions = Vec::new();
@@ -696,12 +699,35 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 retry = Instant::now() + Duration::from_millis(500);
             }
         }
+        let now = Instant::now();
+        if status_sampler.due(now) {
+            let snapshot = owner.as_ref().map(|owner| owner.renderer.snapshot());
+            let observed = snapshot
+                .as_ref()
+                .zip(owner.as_ref())
+                .map(|(snapshot, owner)| (snapshot, owner.gpu.as_str()));
+            if let Some(status) = status_sampler.sample(now, observed, last_error.as_deref()) {
+                input.status.publish(status.clone());
+                let _ = input
+                    .window
+                    .emit(crate::preview::protocol::VIDEO_RUNTIME_EVENT, &status);
+            }
+        }
         // Authored dependency invalidation, file/GPU/geometry completions wake this worker.
         // The timeout serves coarse supervision, lease expiry and recovery deadlines only.
         let _ = input.signal.recv_timeout(Duration::from_millis(100));
     }
     input.controller.close();
     drop(owner);
+    let stopped = crate::preview::protocol::VideoRuntimeStatus {
+        sequence: input.status.read().sequence.saturating_add(1),
+        state: crate::preview::protocol::VideoRuntimeState::Stopped,
+        ..Default::default()
+    };
+    input.status.publish(stopped.clone());
+    let _ = input
+        .window
+        .emit(crate::preview::protocol::VIDEO_RUNTIME_EVENT, &stopped);
     Ok(())
 }
 

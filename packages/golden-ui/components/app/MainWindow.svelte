@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
+	import type { WorkbenchSession } from '../../store/workbench.svelte';
 	import MainComponent from './MainComponent.svelte';
 	import AppHeader from './AppHeader.svelte';
 	import { appState } from '../../store/workbench.svelte';
@@ -18,6 +20,8 @@
 		userPanels?: UserPanelDefinitionMap;
 		initialPanels?: PanelSpawnRequest[];
 		nodeIcons?: NodeIconSet;
+		/** App-owned runtime presentation; ordinary engine status remains in the shared footer. */
+		footer?: Snippet<[WorkbenchSession]>;
 	}>();
 	let session = $derived(appState.session);
 </script>
@@ -38,7 +42,7 @@
 				initialPanels={props.initialPanels}
 				nodeIcons={props.nodeIcons} />
 			<WorkbenchOverlayHost />
-			<AppFooter {session} />
+			<AppFooter {session} contribution={props.footer} />
 		</div>
 	{/if}
 </WorkbenchSessionRoot>

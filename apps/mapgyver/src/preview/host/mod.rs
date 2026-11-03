@@ -18,6 +18,7 @@ use std::{
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 enum Request {
+    Runtime(super::protocol::VideoRuntimeRequest),
     Media(crate::media::protocol::MediaNativeRequest),
     Screen(crate::screens::protocol::ScreenNativeRequest),
     Preview(golden_video::preview::protocol::PreviewRequest),
@@ -43,6 +44,8 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
     let display_control = displays.clone();
     let control_viewport = viewport.clone();
     let control = controller.clone();
+    let status = Arc::new(super::runtime_status::StatusView::default());
+    let status_control = status.clone();
     Ok(NativePresentation::new(move |window: &tauri::WebviewWindow| {
         let hwnd = window.hwnd().map_err(io::Error::other)?.0 as isize;
         let size = window.inner_size().map_err(io::Error::other)?;
@@ -63,12 +66,16 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
                 stop,
                 discovery,
                 displays,
+                status,
             })
         }))
     })
     .with_control(move |request, metrics| {
         let request: Request = serde_json::from_str(request).map_err(|error| error.to_string())?;
         let request = match request {
+            Request::Runtime(super::protocol::VideoRuntimeRequest::Read) => {
+                return serde_json::to_string(&status_control.read()).map_err(|error| error.to_string());
+            }
             Request::Media(crate::media::protocol::MediaNativeRequest::Senders { refresh }) => {
                 return serde_json::to_string(&discovery_control.request(refresh)?).map_err(|error| error.to_string());
             }

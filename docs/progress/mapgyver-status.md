@@ -3,13 +3,15 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M05/10 workbench runtime status; M05/6 native alignment capture is Blocked.
-**Next deliverable:** public Golden footer contribution hook and MapGyver actual video runtime
-status through bounded coarse observations outside the engine loop.
+**Next deliverable:** finish M05/10 Screen output/target/resolution/FPS and Surface source-media
+outliner supplements; the public footer and actual runtime observations are verified.
 **Execution:** M04/1–3,7–8 accepted; M05/10 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next product:** none known. M05/6 needs usable native-window capture: the supported
 connection is unavailable and the settled fallback returns only black. Other retained gates remain below.
-**Usable now:** backend Fill Screen and centered Fit to Screen preserve cropped-source aspect
+**Usable now:** actual submitted FPS, selected GPU, CPU submit time and tracked renderer allocations
+in the shared workbench footer, with coarse observations and automatic stream recovery;
+backend Fill Screen and centered Fit to Screen preserve cropped-source aspect
 and other Surface settings, with one-step Undo and native automatic Picture sizing;
 Alt-drag from Surface bodies or corners translates the entire quad as one
 Undo gesture, including at zoom; 1/Shift-10-output-pixel corner movement with held-repeat/chord grouping into
@@ -22,11 +24,11 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Backend Fill/Fit](evidence/mapgyver-screen-fit-2026-11-03.json):
-compact actual bundled/native icon actions, cropped-source aspect, Reference sizing, cached
-target/runtime source dimensions and atomic failure when dimensions are unknown. Source/crop/
-opacity/calibration/enabling remain unchanged; Undo restores exact geometry. Alt-drag, keyboard,
-selection, free-warp and shared navigation regressions pass. Native pixel alignment stays open.
+**Last delivered capability:** [Runtime footer](evidence/mapgyver-runtime-footer-2026-11-03.json):
+public Golden contribution hook, actual bundled/native metrics and project recovery. Backend,
+generated parity, both apps' UI checks and focused lifecycle/shared UI checks pass. Native actual
+values include 60.1 submitted FPS on Intel Graphics; physical presentation/GPU time/VRAM are not
+inferred. Outliner supplements remain required before M05/10 closes.
 **Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
 including its complete original functional contract. M04/7 Reference remains accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -47,8 +49,8 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **28/57 accepted gates**; denominators are unchanged. The current qualification
-checkpoint closes no gate and awards no progress.
+There are **28/57 accepted gates**; denominators are unchanged. The current footer
+delivery closes no gate and awards no progress.
 Partial work, planning and unavailable checks earn no gate.
 
 **Scope revision:** the prior plan was 5/10 phases (50%), with 40/48 gates accepted.
@@ -96,18 +98,15 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/6 native alignment qualification, started 2026-11-03 07:42 CET;
-  cutoff 08:27 CET. [Baseline and exact return action](evidence/mapgyver-screen-capture-blocker-2026-11-03.json).
-  Current d4046ebc binary/hash and terminal software receipts were reconciled. The supported
-  capture pipe fails after retry/reset and through the alternate surface. An isolated actual
-  WebView2 fixture reaches native available/installed, but read-only window capture returns an
-  entirely black 1500×1000 image. No product alignment defect or acceptance is inferred.
-  The live zoom experiment was not run; no further capture variants are authorized by this
-  bounded investigation. Minimal scene/capture baseline retained; owned app exits normally 0.
-  M05/6 is Blocked until usable native image/overlay capture returns. M05/10 alone becomes
-  Active for public footer/runtime status; this independent order is recorded in the plan.
-  Last usable capability remains Fill/Fit plus the verified Screen interactions. No gate closed.
-  Counts remain 28/57 gates, M05 3/10 (30%), 3/11 phases (27%).
+- **Current handoff:** M05/10 footer delivered, 08:02–08:28 CET (cutoff 08:47).
+  [Checks and ownership](evidence/mapgyver-runtime-footer-2026-11-03.json): backend 334 + 176 pass,
+  strict Clippy, 25 focused UI tests, 232 Golden UI tests, both apps' zero-error UI checks,
+  normal bundled build, actual bundled/native footer and project recovery pass. Native app exits 0.
+  Exactly M05/10 remains Active: next deliver Screen/Surface outliner supplements and verify
+  their bounded updates to close the complete gate. No acceptance count changes. User is away;
+  progress must not wait for manual checks. Available local displays are external 1080p/100% and
+  laptop UHD/125%; that setup information alone verifies no physical gate. M05/6 native capture
+  remains isolated from ordinary native/CDP, backend and independent product delivery.
 
 ## Maintenance rule
 

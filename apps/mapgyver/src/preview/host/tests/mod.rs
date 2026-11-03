@@ -4,6 +4,12 @@ use golden_video::preview::protocol::{PREVIEW_PROTOCOL_VERSION, PreviewRequest};
 
 #[test]
 fn discovery_and_all_existing_preview_requests_keep_their_canonical_contracts() {
+    let json = serde_json::to_string(&crate::preview::protocol::VideoRuntimeRequest::Read).unwrap();
+    assert_eq!(json, r#"{"kind":"mapgyverRuntimeStatus"}"#);
+    assert!(matches!(
+        serde_json::from_str::<Request>(&json).unwrap(),
+        Request::Runtime(_)
+    ));
     let id = uuid::Uuid::new_v4();
     let requests = [
         PreviewRequest::Connect {

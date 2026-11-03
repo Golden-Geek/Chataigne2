@@ -1,0 +1,19 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/10",
+	"state": "Footer capability verified; Screen/Surface outliner supplements remain required",
+	"ownership": "Golden UI exposes an optional MainWindow footer snippet with the workbench session. Golden Video records successful CPU submit-call duration. MapGyver samples existing runtime metadata once a second on its presentation worker and owns generated DTOs, native transport, recovery controller and footer presentation.",
+	"semantics": "FPS counts successful renderer submissions, not display presentation. CPU submit duration excludes asynchronous GPU work. Resource bytes are tracked renderer allocation charges, not physical VRAM residency. No engine polling, GPU queries or persistent authored settings were introduced.",
+	"checks": {
+		"backend": "cargo test --locked -p MapGyver -p golden_video --lib: exit 0; MapGyver 334 passed/2 ignored, Golden Video 176 passed/20 ignored; includes generated-file parity, project/counter reset and observation expiry",
+		"clippy": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings: exit 0",
+		"ui": "Both MapGyver and Chataigne svelte-check: 0 errors/0 warnings. Golden UI: 232 tests passed. Focused runtime/Screen tests: 25 passed, including subscribe-before-read, ordering, disconnect/retry, expiry and disposal fencing.",
+		"bundled": "Normal cargo build --locked -p MapGyver --bin MapGyver passed. Actual bundled headless --runtime-footer-ui --screen-fit-ui passed with no page errors and normal host exit 0.",
+		"native": "Actual bundled WebView2 --footer passed: 60.1 submitted fps, Intel(R) Graphics, 0.46 ms CPU submit, 293.0 MiB tracked allocations; two sequence updates over 2.2 seconds; fresh observations after project replacement, existing engine status preserved, no page errors, owned app exit 0.",
+		"binary_sha256": "B726B7DBB4FE6A994C0892444B4C3AC45F5DBDACF41FCF50AE79FE5E631A7D9B",
+		"formatting": "Root and golden_core cargo fmt, touched authored UI/test Prettier and git diff --check passed."
+	},
+	"remaining": "Close M05/10 by delivering responsive Screen output/target/resolution/FPS and Surface source-media outliner supplements with bounded observations. This slice closes no gate; counts remain 28/57 accepted, M05 3/10 (30%), phases 3/11 (27%).",
+	"available_hardware": "User reports local Windows session, one external 1920x1080 monitor at 100% scaling and a UHD laptop panel at 125%. This is available setup information, not physical/DPI/hotplug acceptance. User is away; subsequent delivery must proceed autonomously.",
+	"limits": "Physical presentation FPS, GPU execution time, physical VRAM, native pixel alignment and broader timing/memory/display/device qualification remain unproven in their owning gates. Supported capture-helper failure does not block ordinary native/CDP or backend verification."
+}

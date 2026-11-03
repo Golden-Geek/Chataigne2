@@ -1,4 +1,5 @@
 use std::sync::{Arc, Barrier};
+use std::time::Duration;
 
 use golden_time::{
     Clock, MonotonicTime, PlaybackRate, ShowPosition, SystemClock, TimeAuthority, TimeError, TimeSnapshot,
@@ -73,6 +74,7 @@ fn an_old_admitted_frame_cannot_repopulate_the_replaced_projects_latest_frame() 
     let (clock, time) = clock_pair(100, 0);
     let shared = Shared::new(old_project, time, clock, 4, None);
     let frame = |project, serial| FrameObservation {
+        submit_duration: Duration::from_nanos(123),
         frame_index: serial,
         scheduled_at: time.monotonic(),
         completion: CompletionToken {
@@ -87,6 +89,10 @@ fn an_old_admitted_frame_cannot_repopulate_the_replaced_projects_latest_frame() 
         time,
     };
     shared.record_frame(frame(old_project, 1));
+    assert_eq!(
+        shared.snapshot().last_frame.unwrap().submit_duration,
+        Duration::from_nanos(123)
+    );
     assert_eq!(shared.snapshot().last_frame.unwrap().identity.project, old_project);
     {
         let mut state = shared.lock();
@@ -167,6 +173,7 @@ fn time_intents_do_not_certify_backend_recovery_or_revive_a_stopping_runtime() {
     assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
     assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Backend);
     let frame = |project, serial| FrameObservation {
+        submit_duration: Duration::from_nanos(123),
         frame_index: serial,
         scheduled_at: changed.monotonic(),
         completion: CompletionToken {

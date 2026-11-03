@@ -5,6 +5,7 @@ import { verifyScreenSelection } from './screen-selection.mjs';
 import { verifyScreenKeyboard } from './screen-keyboard.mjs';
 import { verifyScreenTranslation } from './screen-translation.mjs';
 import { verifyScreenFit } from './screen-fit.mjs';
+import { verifyRuntimeFooter } from './runtime-footer.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -26,6 +27,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--footer', verifyRuntimeFooter],
 			['--fit', verifyScreenFit],
 			['--translation', verifyScreenTranslation],
 			['--keyboard', verifyScreenKeyboard],

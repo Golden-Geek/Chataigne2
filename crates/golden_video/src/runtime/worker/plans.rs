@@ -247,6 +247,7 @@ impl<B: Backend> Runner<B> {
             }
             return;
         }
+        let submit_started = std::time::Instant::now();
         let submitted = if let Some(schedule) = schedule {
             self.core.submit_scheduled(time, schedule)
         } else {
@@ -258,6 +259,7 @@ impl<B: Backend> Runner<B> {
                     self.cadence.submitted(tick.index);
                 }
                 self.shared.record_frame(FrameObservation {
+                    submit_duration: submit_started.elapsed(),
                     frame_index: tick.index,
                     scheduled_at: tick.scheduled,
                     completion: submission.token,
