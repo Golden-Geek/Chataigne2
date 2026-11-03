@@ -23,7 +23,7 @@ fn parameter(engine: &AppEngine, owner: golden_core::node::NodeUuid, field: &str
         .unwrap()
         .0
 }
-fn write(
+pub(super) fn write(
     engine: &mut AppEngine,
     owner: golden_core::node::NodeUuid,
     field: &str,

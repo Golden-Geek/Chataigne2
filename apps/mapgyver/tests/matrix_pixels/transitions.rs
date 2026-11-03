@@ -52,6 +52,19 @@ pub(super) fn check(adapter: AdapterId) {
     let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
     let sources = [[1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]].map(|c| color(&mut engine, c));
+    // Cell media now keeps its own extent. Author this uniform-color fade scene at the
+    // full Layer size rather than relying on the removed implicit 1x1 stretch.
+    for source in sources {
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: source.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(32, 24).unwrap(),
+                },
+            },
+        );
+    }
     let root = create(&mut engine, MediaKind::Matrix);
     edit(
         &mut engine,
@@ -206,7 +219,14 @@ pub(super) fn check(adapter: AdapterId) {
     let deadline = Instant::now() + Duration::from_secs(12);
     loop {
         fixture.publish_channels(&engine, &routes, root, None);
-        if fixture.renderer().channels().len() == 4 {
+        // Owned References add alias records, not independent producers or textures.
+        let targets = fixture
+            .renderer()
+            .channels()
+            .iter()
+            .map(|channel| channel.target)
+            .collect::<std::collections::HashSet<_>>();
+        if targets.len() == 4 {
             break;
         }
         assert!(Instant::now() < deadline, "outgoing channel demand did not retire");
@@ -216,6 +236,35 @@ pub(super) fn check(adapter: AdapterId) {
     fixture.pixels_channels(adapter, &[&blue, &blue, &blue], &blue, "transition-interrupt-final");
     bounded(&mut fixture);
     eprintln!(
-        "Matrix interruption original_mix={before:?} outgoing_ratio={ratio:?} samples={count} retired_channels=4"
+        "Matrix interruption original_mix={before:?} outgoing_ratio={ratio:?} samples={count} retired_producers=4"
     );
+}
+
+#[test]
+#[ignore = "explicit M07/2 native shared-time fade/interruption acceptance"]
+fn native_layer_group_final_fades_preserve_interrupted_mixes_on_each_adapter() {
+    let (done, completion) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if matches!(
+            completion.recv_timeout(Duration::from_secs(90)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ) {
+            eprintln!("Matrix playback qualification/retirement watchdog expired");
+            std::process::exit(1);
+        }
+    });
+    let hardware = golden_video::native::adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        check(adapter.id);
+        println!(
+            "Native Matrix shared-time fade/interruption passed on {}",
+            adapter.description
+        );
+    }
+    let _ = done.send(());
 }

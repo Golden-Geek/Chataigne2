@@ -1,0 +1,188 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/2",
+  "decision": "Accepted",
+  "next_active_gate": "M07/3",
+  "batch": {
+    "start_utc": "20:23",
+    "cutoff_utc": "21:08",
+    "deliverable": "Full original Matrix playback acceptance",
+    "owners": [
+      "Matrix playback/timeline/configuration",
+      "Render/application lifetime integration"
+    ]
+  },
+  "requirements": [
+    {
+      "requirement": "Cell > Column > Layer timing, 250 ms default, curves/Cut",
+      "proof": [
+        "matrix::tests::playback_acceptance::actual_three_layer_columns_apply_cell_column_layer_precedence_atomically_from_interrupted_shared_time",
+        "matrix::tests::layer_settings",
+        "matrix::tests::playback",
+        "Cell declared transition tests"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Independent Cell activation preserves Column anchor and peers",
+      "proof": [
+        "matrix::tests::cell_playback",
+        "Four-caller independent Cell parity",
+        "Current bundled Column/Cell control receipt"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Atomic Column activation/admission",
+      "proof": [
+        "Combined three-Layer shared-anchor test",
+        "Timeline 32-contributor admission/Cut/completion recovery",
+        "Configured publication-credit bursts and foreign-column rejection"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Disabled and empty policies",
+      "proof": [
+        "Typed Cell settings/native cases and hierarchy-disabled playback tests",
+        "Empty destination transparency and no materialization/relaunch tests",
+        "Current typed disabled-Cell real PID hold/Unload receipt"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Interrupted blends under shared time",
+      "proof": [
+        "Exact Timeline/render-plan interrupted weights and completion-refresh tests",
+        "Current native three-color Layer/Group/Final observations on Intel/NVIDIA"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Outgoing/final-use source and process demand",
+      "proof": [
+        "matrix::tests::retained_demand including independent deadlines/interruption/reorder/delete/Undo/project replacement",
+        "Rendering retention/application tests and runtime final-use holds",
+        "Current Windows Column/direct Cell process ownership through controlled renderer completion and final release"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Ephemeral history/project state and unchanged bounds",
+      "proof": [
+        "Exact saved-project/history comparisons in combined case and launch bursts",
+        "Existing 32-contributor, 4096 binding, publication, retained-owner and plan bounds"
+      ],
+      "result": "accepted"
+    }
+  ],
+  "checks": {
+    "library": {
+      "command": "cargo test --locked -p MapGyver --lib",
+      "passed": 386,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 141.94,
+      "log": "target/m07-playback-tests.log"
+    },
+    "lint": {
+      "command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+      "exit": 0,
+      "log": "target/m07-playback-clippy.log"
+    },
+    "native_build": {
+      "command": "cargo rustc --locked -p MapGyver --test matrix_rendering --features native-qualification -- -C extra-filename=-codex-playback",
+      "exit": 0,
+      "log": "target/m07-playback-native-build.log"
+    },
+    "native": {
+      "command": "target/debug/deps/matrix_rendering-codex-playback.exe --ignored --nocapture native_layer_group_final_fades_preserve_interrupted_mixes_on_each_adapter",
+      "passed": 1,
+      "failed": 0,
+      "seconds": 35.12,
+      "adapters": [
+        "Intel(R) Graphics",
+        "NVIDIA GeForce RTX 5080 Laptop GPU"
+      ],
+      "duration_ms": 6000,
+      "outputs": [
+        "Layer",
+        "Group",
+        "Final",
+        "Preview endpoint oracle"
+      ],
+      "accepted_interrupted_samples": 3,
+      "accepted_three_color_image_observations": 18,
+      "exact_endpoint_images": 16,
+      "endpoint_extent": [
+        32,
+        24
+      ],
+      "maximum_endpoint_nominal_error": 0,
+      "maximum_endpoint_residual_error": 0,
+      "retired_producers": 4,
+      "original_bounds": {
+        "minimum_alpha": 253,
+        "color_weight_error": "4/255",
+        "outgoing_ratio_delta": 0.025,
+        "monotonic_weight_allowance": "2/255"
+      },
+      "retirement": "Existing Fixture Drop proves zero live allocations, created == released, empty output/source owners",
+      "log": "target/m07-playback-native.log"
+    },
+    "format": {
+      "commands": [
+        "cargo fmt --all",
+        "cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+        "git diff --check"
+      ],
+      "exit": 0
+    }
+  },
+  "retained_verified_evidence": {
+    "receipt": "mapgyver-m07-model-acceptance-2026-11-03.json",
+    "reason": "Runtime/protocol/UI implementations are unchanged from pushed 9edab894; executable hashes rechecked identical. Do not rerun passing checks solely to increase counts.",
+    "ui_tests": 28,
+    "svelte": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "windows": {
+      "passed": 12,
+      "ignored": 1
+    },
+    "bundled": "Independent Cell/anchor/marker, typed Enabled false preserving previous Column/Cell PID without renderer, exact history/offscreen controls and actual Unload",
+    "process_completion_tests": [
+      "matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completion_after_project_close",
+      "direct_cell_process_survives_owner_deletion_unload_and_project_close_until_renderer_completion"
+    ],
+    "app_sha256": "3B3A092F8A5707B24383EB2A4FE106AF9BC48B52D3EDCC38E5E6ADC2E1A9EF0A",
+    "process_sha256": "6644AFE1A82EC30B92B49B3F11FAF6D3CAC7E7E6DC496B456062D1D2830D75B5"
+  },
+  "native_sha256": "1F122BCFA55EA738A646FE5A20247552AA1EEFEBA26714C01237A893CFC446C9",
+  "fixture_reconciliation": [
+    "Uniform-color sources explicitly author 32x24 extent because revised Cells preserve native media size; this preserves the original full-canvas uniform fade scene without implicit 1x1 stretch.",
+    "Retirement counts four distinct produced targets, not raw channel aliases introduced by owned References. Production/storage limits and image/weight tolerances are unchanged."
+  ],
+  "native_experiments": {
+    "baseline": "pass",
+    "repair_reruns": 0
+  },
+  "counts": {
+    "accepted_gates": 44,
+    "total_gates": 57,
+    "gate_percent": 77,
+    "accepted_phases": 5,
+    "total_phases": 11,
+    "phase_percent": 45,
+    "m07_accepted": 2,
+    "m07_total": 4,
+    "m07_percent": 50
+  },
+  "remaining": [
+    "M07/3 full revised square-cell grid/contextual structural/media UI is Active",
+    "M07/4 complete native/scale/memory/timing and retained physical/final qualification remain unaccepted",
+    "M08/3-4 and Video/final scope unchanged"
+  ],
+  "limits": "Playback functional acceptance only. The full original native Matrix/large-grid suite was not run or accepted here; physical latency/timing, memory and final qualification budgets remain required. No denominator/budget revision. Pre-revision stash and unrelated user docs/icons preserved."
+}

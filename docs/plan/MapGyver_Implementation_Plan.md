@@ -49,8 +49,11 @@ is now accepted, including typed Column/Cell settings, standalone removal, norma
 independent activation and retained demand through disabled rendering, interruption, history,
 project replacement and final-use completion. [M07/1 model acceptance](../progress/mapgyver-m07-model.md#m071-acceptance--2026-11-03)
 is complete: typed Layer/Group/Column/Cell ownership, backend 3×3 defaults, actual child media,
-bounded Inspector and complete authored API/history/project/copy behavior. M07/2 is the single
-active gate for full playback acceptance. M07 grid/native/scale
+bounded Inspector and complete authored API/history/project/copy behavior.
+[M07/2 playback acceptance](../progress/mapgyver-m07-playback.md) is also complete: precedence,
+independent/atomic activation, disabled/empty policy, interruption and shared-time/final-use
+demand pass, with current native fade observations on both GPUs. M07/3 is the single active
+gate for the complete revised grid. M07 native/scale
 and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
 dependencies above without waiving physical/timing gates or changing qualification budgets.
 

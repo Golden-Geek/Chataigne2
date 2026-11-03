@@ -155,10 +155,11 @@ including source/history/Save-New-Load.
 
 **Gate change: M07/1 Accepted.** M07 is 1/4; the fixed plan total is 43/57 gates (75%) and 5/11
 fully accepted phases (45%). No denominator, qualification budget or original requirement changed.
-Exactly one next gate is Active: M07/2, for its full playback acceptance. This model closure does
-not accept the remaining grid design or native/scale/timing qualification.
+The subsequent [M07/2 playback acceptance](mapgyver-m07-playback.md) is now complete. The active
+queue is maintained in the status ledger. This model closure does not accept the remaining grid
+design or native/scale/timing qualification.
 
-M07/2 separately retains full Cell → Column → Layer transition precedence and playback acceptance.
+M07/2 separately verifies full Cell → Column → Layer transition precedence and playback acceptance.
 M07/3 retains the complete square-cell grid, contextual structural operations, naming, removal,
 drag sort/reparent and complete native feedback. M07/4 retains actual native pixels, scale,
 memory/timing and owner retirement. Neither extra typed nodes nor passing unit counts waive
