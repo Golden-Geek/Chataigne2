@@ -4,8 +4,9 @@
 including typed Column/Cell ownership, standalone removal, normalized sharing, independent Cell
 activation and retained demand through render disablement, interruption, history and projects.
 The acceptance audit below combines the preceding milestones with the completed retained-demand
-matrix. M07's complete model/playback/grid/native/scale and M08/3–4 aggregate runtime/access/UI
-qualification remain required; accepting this boundary does not accept those gates.
+matrix. [Complete Matrix acceptance](mapgyver-m07-native.md) and
+[M08/3 actual runtime acceptance](mapgyver-m08-runtime.md) are recorded separately. M08/4's
+complete picker/UI/script/target/access qualification remains required.
 
 ## Ownership and behavior
 
@@ -293,14 +294,14 @@ Cell activation still starts only the Cell control; it does not move the Column 
 Repeated held consumers deduplicate before admission. Configuration capture remains independent
 of source/render-index construction.
 
-| M08/2 requirement | Verified evidence |
-| --- | --- |
-| Reusable normalized launch/control key | Configuration equality/hash/distinction/validation tests and fake Agent launch counts; actual equivalent-path/environment PID preservation. |
-| Typed conditional Column/Cell settings; standalone removal | Real Parameter/Argument/Environment children, generic Inspector, four public caller modes, atomic history/copy/project/schema tests and bundled Column/Cell Inspector suites. |
-| Aggregate normalized demand | 4,096 equal-consumer grouping case, stale/missing/change/handoff tests, actual Column/Cell/two-Matrix sharing/split/rejoin and live consumer-count Inspector. |
-| Neighbor/jump/reorder/delete/direct semantics | Clamped/non-wrapping resolver and logical tests; stable independent anchor, render-disabled/transparent Layers, disabled destination holds, reorder/deletion/Undo and no render-index admission. |
-| Interrupted/outgoing/final-use retention | Shared fake time, separate 100/300 ms Layer deadlines, cached-capture settlement, interruption into empty content, deletion/Undo and actual process retention through owner deletion/unload/project close until explicit renderer completion. |
-| History/project and public UI | Playback never changes authored JSON/history; new project instances discard runtime requests/fence old captures. Bundled Inspector enable switch, Column launches and actual Unload preserve/retire the held process. |
+| M08/2 requirement                                          | Verified evidence                                                                                                                                                                                                                             |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reusable normalized launch/control key                     | Configuration equality/hash/distinction/validation tests and fake Agent launch counts; actual equivalent-path/environment PID preservation.                                                                                                   |
+| Typed conditional Column/Cell settings; standalone removal | Real Parameter/Argument/Environment children, generic Inspector, four public caller modes, atomic history/copy/project/schema tests and bundled Column/Cell Inspector suites.                                                                 |
+| Aggregate normalized demand                                | 4,096 equal-consumer grouping case, stale/missing/change/handoff tests, actual Column/Cell/two-Matrix sharing/split/rejoin and live consumer-count Inspector.                                                                                 |
+| Neighbor/jump/reorder/delete/direct semantics              | Clamped/non-wrapping resolver and logical tests; stable independent anchor, render-disabled/transparent Layers, disabled destination holds, reorder/deletion/Undo and no render-index admission.                                              |
+| Interrupted/outgoing/final-use retention                   | Shared fake time, separate 100/300 ms Layer deadlines, cached-capture settlement, interruption into empty content, deletion/Undo and actual process retention through owner deletion/unload/project close until explicit renderer completion. |
+| History/project and public UI                              | Playback never changes authored JSON/history; new project instances discard runtime requests/fence old captures. Bundled Inspector enable switch, Column launches and actual Unload preserve/retire the held process.                         |
 
 [Final receipt](evidence/mapgyver-m08-retained-demand-2026-11-03.json): **372 full library tests
 pass**, zero failures, two retained qualification exclusions, in **70.91 seconds**. After a

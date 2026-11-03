@@ -1,0 +1,102 @@
+{
+	"date": "2026-11-04",
+	"gate": "M08/3",
+	"decision": "Accepted; complete current runtime gate",
+	"next_active_gate": "M08/4",
+	"batch": {
+		"start_utc": "2026-11-03 23:04",
+		"cutoff_utc": "2026-11-03 23:49",
+		"qualification_passes": 2
+	},
+	"software": {
+		"passed": 393,
+		"failed": 0,
+		"ignored": 3,
+		"seconds": 13.93,
+		"log": "target/m08-runtime-software.log",
+		"features": "native-qualification,application-process-fixture",
+		"generated_equality": "pass; no DTO changes",
+		"strict_clippy": "pass; target/m08-runtime-clippy.log; all targets; -D warnings",
+		"formatting": "root and golden_core pass",
+		"terminal_prerequisite_exit": 0
+	},
+	"binaries": {
+		"library_tests": {
+			"path": "target/debug/deps/mapgyver-cad7fc19f6fa4e39.exe",
+			"sha256": "867489EBAEEE821C5BB1FAA0D77326078EA199E1FAFEB6BB635DEE544F65B27E"
+		},
+		"runtime_tests": {
+			"path": "target/debug/deps/application_runtime-689dc60b16282861.exe",
+			"sha256": "D476684A57B294196D6C0F366CA0DD9CB854B8B07EB0A83B5B240BBCA110513A"
+		},
+		"owned_fixture": {
+			"path": "target/debug/application_process_fixture.exe",
+			"sha256": "127FB342A4B4ADED8B25E3BD053BBFDFF00C708D4FF4977259A38D38D215849C"
+		},
+		"tree_and_cancellation_fixture": {
+			"path": "target/debug/golden_io_process_fixture.exe",
+			"sha256": "92AF73AE487D4C91FC430B22A041136ACC71C442FA7FBD7C0A7BD1461D03763D"
+		}
+	},
+	"native": {
+		"pre_resume_cancellation": {
+			"passed": 1,
+			"failed": 0,
+			"ignored": 0,
+			"seconds": 0.05,
+			"log": "target/m08-runtime-cancellation.log",
+			"target_executed": false,
+			"suspended_ownership_retired": true
+		},
+		"complete_runtime_suite": {
+			"passed": 14,
+			"failed": 0,
+			"ignored": 0,
+			"seconds": 6.08,
+			"terminal_exit": 0,
+			"log": "target/m08-runtime-native-acceptance.log"
+		},
+		"actual_spout_readiness_modes": [false, true],
+		"readiness_uses_renderer_preview_or_injected_evidence": false,
+		"pinned_tree_generations": 2,
+		"pinned_root_branch_leaf_handles": 6,
+		"all_pinned_processes_exit": true,
+		"retirement_handles_idle": true,
+		"final_render_retention_oracle": "actual owned process plus production ChannelRenderer using explicit null-backend completion; not a delayed native GPU fence claim"
+	},
+	"baseline": {
+		"passed": 14,
+		"failed": 0,
+		"ignored": 0,
+		"seconds": 5.25,
+		"log": "target/m08-runtime-native-baseline.log",
+		"limit": "actual first-image mode only; final test strengthening adds explicit sender-only runtime mode"
+	},
+	"build_logs": [
+		"target/m08-runtime-io-fixture-build.log",
+		"target/m08-runtime-native-build.log",
+		"target/m08-runtime-readiness-build.log"
+	],
+	"coverage": [
+		"real root readiness and exact Spout sender/completed image",
+		"timeout, exit code 23, capped exponential backoff and retry cancellation",
+		"normalized Column/Cell/two-Matrix sharing, handoff, effective split/rejoin without transient restarts",
+		"actual suspended creation cancelled before resume with no target execution",
+		"missing definitions, disabled destination, direct activation, history and final-use retention",
+		"same-ID replacement project, stale launch/project readiness and old-scope rejection",
+		"actual pinned root/branch/leaf cleanup after forced stop and project retirement"
+	],
+	"production_change": "None. Native test explicitly runs both readiness modes. Existing runtime/Golden ownership, deadlines, admission, retirement and callback semantics are unchanged.",
+	"counts": {
+		"accepted_gates": 47,
+		"total_gates": 67,
+		"gate_percent": 70,
+		"m08_accepted": 3,
+		"m08_total": 4,
+		"complete_phases": 6,
+		"total_phases": 12,
+		"phase_percent": 50
+	},
+	"remaining": "M08/4 picker/UI/script/headless command/callback/snippet, target/access/retirement/recovery/shutdown acceptance; M11 feedback, Video and retained M03/M05/M09 qualification.",
+	"checkout_limits": "Concurrent manager-label, app/theme/browser/architecture edits were present and are excluded/preserved. Actual owned test targets only; named prior stash remains un-restored."
+}

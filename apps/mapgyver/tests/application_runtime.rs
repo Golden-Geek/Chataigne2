@@ -124,6 +124,13 @@ fn wait(runtime: &ApplicationRuntime, phase: ApplicationPhase) -> ApplicationRun
 #[test]
 #[ignore = "requires hardware D3D11 and the native-qualification owned fixture"]
 fn actual_spout_sender_and_completed_first_image_make_the_owned_application_ready_without_renderer() {
+    for first_frame in [false, true] {
+        actual_owned_spout_readiness(first_frame);
+    }
+}
+
+#[cfg(feature = "native-qualification")]
+fn actual_owned_spout_readiness(first_frame: bool) {
     use golden_video::native::{SpoutProbe, SpoutProbeSnapshot, adapters};
     let sender = format!("MapGyver readiness {}", uuid::Uuid::new_v4());
     let adapter = adapters()
@@ -139,7 +146,7 @@ fn actual_spout_sender_and_completed_first_image_make_the_owned_application_read
     let (engine, application) = fixture_arguments(
         ApplicationReadiness::Spout {
             sender: sender.clone(),
-            first_frame: true,
+            first_frame,
             timeout_ms: 3500,
         },
         vec![sender],
@@ -190,6 +197,7 @@ fn actual_spout_sender_and_completed_first_image_make_the_owned_application_read
     wait(&runtime, ApplicationPhase::Idle);
     drop(runtime);
     assert!(retirement.wait_for_idle(Duration::from_secs(4)));
+    eprintln!("Actual owned Spout readiness first_frame={first_frame} passed with complete retirement");
 }
 fn observe(
     runtime: &ApplicationRuntime,
