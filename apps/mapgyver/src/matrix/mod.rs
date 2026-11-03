@@ -4,7 +4,8 @@ mod applications;
 mod authoring;
 mod bindings;
 pub(crate) mod capture;
-mod cells;
+pub(crate) mod cell_node;
+pub(crate) mod cells;
 mod copying;
 pub(crate) mod document;
 pub(crate) mod node;
@@ -16,6 +17,7 @@ mod view;
 pub(crate) use admission::validate_ui_intent;
 pub(crate) use applications::capture_application_columns;
 pub(crate) use authoring::apply;
+pub use cell_node::CellNode;
 pub(crate) use document::{inspect, validate_project};
 pub use node::ElementNode;
 #[cfg(test)]

@@ -7,7 +7,7 @@ use crate::app::{AppEngine, AppNode};
 use golden_core::model::NodeUuid;
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -174,6 +174,9 @@ pub(crate) fn capture_channels_with_time(
         unreachable!()
     };
     let mut guards = vec![manager.project_guard()];
+    let mut retired = HashMap::new();
+    let mut retired_matrices = HashSet::new();
+    let mut reference_owners = HashMap::<ChannelReference, Vec<crate::matrix::playback::PlaybackControl>>::new();
     let mut seen = HashSet::new();
     let mut channels = Vec::new();
     let mut assets = Vec::new();
@@ -235,9 +238,25 @@ pub(crate) fn capture_channels_with_time(
             }
             _ => {
                 guards.push(manager.membership_guard());
-                None
+                retired.get(&reference).cloned()
             }
         };
+        if let Some((definition, enabled)) = &definition
+            && let ChannelSource::Reference { target } = definition.source
+            && let Some(owners) = reference_owners.get(&reference).cloned()
+        {
+            for owner in &owners {
+                owner.cache_reference(reference, definition.clone(), *enabled);
+            }
+            if let Some(target) = target {
+                let target_owners = reference_owners.entry(target).or_default();
+                for owner in owners {
+                    if !target_owners.iter().any(|existing| existing.same_owner(&owner)) {
+                        target_owners.push(owner);
+                    }
+                }
+            }
+        }
         let (definition, enabled) = match definition {
             Some((definition, enabled)) => (Some(definition), enabled),
             None => (None, false),
@@ -334,7 +353,14 @@ pub(crate) fn capture_channels_with_time(
                 matrix = None;
             }
             if let Some(matrix) = &matrix {
+                if retired_matrices.insert(reference.media) {
+                    retired.extend(matrix.control.cached_references());
+                }
                 for source in matrix.inputs.iter().map(|input| input.source) {
+                    let owners = reference_owners.entry(source).or_default();
+                    if !owners.iter().any(|owner| owner.same_owner(&matrix.control)) {
+                        owners.push(matrix.control.clone());
+                    }
                     if seen.insert(source) {
                         pending.push_back(source);
                     }

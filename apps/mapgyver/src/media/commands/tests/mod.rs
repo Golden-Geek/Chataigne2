@@ -102,11 +102,43 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         let command = command(&mut engine, *kind);
         assert_eq!(inspect(&mut engine), before_creation, "creation must not fire {kind:?}");
         let target = match kind {
+            MediaCommandKind::DropMatrixMedia => create(&mut engine, MediaKind::Matrix),
             MediaCommandKind::DropCompositionMedia => create(&mut engine, MediaKind::Composition),
             MediaCommandKind::Picture => picture,
             MediaCommandKind::SharedTexture => shared,
             _ => solid,
         };
+        if *kind == MediaCommandKind::DropMatrixMedia {
+            use crate::matrix::protocol::*;
+            let MediaEditResult::MatrixCreated { items, .. } = apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: target.media,
+                    edit: MatrixEdit::AddLayers { parent: None, count: 1 },
+                },
+            ) else {
+                panic!()
+            };
+            let MediaEditResult::MatrixCreated { columns, .. } = apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: target.media,
+                    edit: MatrixEdit::AddColumns { count: 1 },
+                },
+            ) else {
+                panic!()
+            };
+            set(
+                &mut engine,
+                command,
+                "matrix_layer",
+                reference(match items[0] {
+                    MatrixItemId::Layer { id } => id.0,
+                    _ => panic!(),
+                }),
+            );
+            set(&mut engine, command, "matrix_column", reference(columns[0].0));
+        }
         for (name, value) in [
             ("label", ParamValue::Str("Program output".into())),
             ("target_folder", reference(folder)),

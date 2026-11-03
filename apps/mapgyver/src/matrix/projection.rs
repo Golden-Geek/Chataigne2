@@ -61,7 +61,7 @@ impl RenderIndex {
         let mut cells = HashMap::<ColumnId, BTreeMap<usize, CellSource>>::new();
         for cell in &document.snapshot.cells {
             if let Some(source) = cell.definition.source {
-                let AppNode::MatrixElement(node) = engine
+                let AppNode::MatrixCell(node) = engine
                     .nodes
                     .get(document.cells[&(cell.layer, cell.definition.column)])
                     .unwrap()

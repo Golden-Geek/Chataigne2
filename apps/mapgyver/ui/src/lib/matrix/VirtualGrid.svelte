@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { IconButton } from 'golden_ui';
+	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import { onMount, untrack } from 'svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
@@ -18,7 +19,8 @@
 		select,
 		selectRow,
 		selectColumn,
-		launch
+		launch,
+		drop
 	}: {
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
@@ -29,6 +31,7 @@
 		selectRow(row: MatrixViewRow): void;
 		selectColumn(column: ColumnSnapshot): void;
 		launch(column: string): void;
+		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
 	} = $props();
 	let element: HTMLDivElement;
 	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
@@ -146,22 +149,30 @@
 				</div>
 				{#each snapshot.columns as column, columnIndex (column.id)}
 					{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
-					<button
-						class="cell"
-						role="gridcell"
-						{disabled}
-						aria-selected={selected?.item?.id === row.item.id.id && selected?.column === column.id}
-						aria-colindex={snapshot.column_start + columnIndex + 2}
-						class:selected={selected?.item?.id === row.item.id.id && selected?.column === column.id}
-						style:left={`${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem`}
-						onclick={() => select(row, column)}
-						title={`${row.item.label} / ${column.label}`}>
-						{row.item.id.kind === 'Group'
-							? 'Group'
-							: cell?.source_missing
-								? 'Missing source'
-								: (cell?.source_label ?? 'Empty')}
-					</button>
+					<SourceDropZone
+						disabled={disabled || row.item.id.kind !== 'Layer'}
+						addLabel="Set media"
+						replaceOnly={cell?.cell.definition.source ? column.id : null}
+						style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
+						onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
+						<button
+							class="cell"
+							role="gridcell"
+							{disabled}
+							aria-selected={selected?.item?.id === row.item.id.id &&
+								selected?.column === column.id}
+							aria-colindex={snapshot.column_start + columnIndex + 2}
+							class:selected={selected?.item?.id === row.item.id.id &&
+								selected?.column === column.id}
+							onclick={() => select(row, column)}
+							title={`${row.item.label} / ${column.label}`}>
+							{row.item.id.kind === 'Group'
+								? 'Group'
+								: cell?.source_missing
+									? 'Missing source'
+									: (cell?.source_label ?? 'Empty')}
+						</button>
+					</SourceDropZone>
 				{/each}
 			</div>
 		{/each}

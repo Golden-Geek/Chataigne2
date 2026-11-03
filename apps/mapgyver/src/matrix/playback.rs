@@ -3,7 +3,9 @@ use super::projection::RenderIndex;
 use super::protocol::*;
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::{ChannelReference, ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId},
+    media::protocol::{
+        ChannelDefinition, ChannelReference, ChannelSource, MATRIX_PLAYBACK_EVENT, MediaEditResult, MediaId,
+    },
 };
 use golden_core::{
     edit::{Edit, EditCompletion, EditCompletionStatus},
@@ -11,6 +13,7 @@ use golden_core::{
     node::Node,
 };
 use golden_io::{RevisionGuard, RevisionSource};
+use std::collections::{HashMap, HashSet};
 use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
@@ -31,6 +34,7 @@ struct Control {
 }
 #[derive(Default)]
 struct State {
+    references: HashMap<ChannelReference, (ChannelDefinition, bool)>,
     current: MatrixPlaybackSnapshot,
     pending: Option<(MatrixPlaybackSnapshot, EditCompletion)>,
     index: Option<Arc<RenderIndex>>,
@@ -151,16 +155,93 @@ impl PlaybackControl {
         else {
             return Ok(None);
         };
-        capture(&mut state.timeline, &frame, &desired).map(Some)
+        let result = capture(&mut state.timeline, &frame, &desired).map(Some);
+        let mut keep = HashSet::new();
+        for (_, source) in state.timeline.bindings.edges() {
+            let mut next = source;
+            while keep.insert(next) {
+                let Some((
+                    ChannelDefinition {
+                        source: ChannelSource::Reference { target: Some(target) },
+                        ..
+                    },
+                    _,
+                )) = state.references.get(&next)
+                else {
+                    break;
+                };
+                next = *target;
+            }
+        }
+        state.references.retain(|key, _| keep.contains(key));
+        result
     }
-    pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
+    pub(crate) fn same_owner(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+    // Runtime-only alias definitions survive authored removal without retaining an old index.
+    pub(crate) fn cached_references(&self) -> HashMap<ChannelReference, (ChannelDefinition, bool)> {
         self.0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
+            .references
+            .clone()
+    }
+    pub(crate) fn cache_reference(&self, key: ChannelReference, definition: ChannelDefinition, enabled: bool) {
+        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        if state.references.len() < super::bindings::MAX_BINDINGS || state.references.contains_key(&key) {
+            state.references.insert(key, (definition, enabled));
+        }
+    }
+    pub(crate) fn retains_media(&self, media: MediaId) -> bool {
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        state.timeline.bindings.edges().into_iter().any(|(_, mut source)| {
+            let mut seen = HashSet::new();
+            while seen.insert(source) {
+                if source.media == media {
+                    return true;
+                }
+                let Some((
+                    ChannelDefinition {
+                        source: ChannelSource::Reference { target: Some(target) },
+                        ..
+                    },
+                    _,
+                )) = state.references.get(&source)
+                else {
+                    break;
+                };
+                source = *target;
+            }
+            false
+        })
+    }
+    pub(crate) fn retained_edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        state
             .timeline
             .bindings
             .edges()
+            .into_iter()
+            .map(|(owner, mut source)| {
+                let mut seen = HashSet::new();
+                while seen.insert(source) {
+                    let Some((
+                        ChannelDefinition {
+                            source: ChannelSource::Reference { target: Some(target) },
+                            ..
+                        },
+                        _,
+                    )) = state.references.get(&source)
+                    else {
+                        break;
+                    };
+                    source = *target;
+                }
+                (owner, source)
+            })
+            .collect()
     }
     fn admits(&self, column: ColumnId) -> bool {
         self.0

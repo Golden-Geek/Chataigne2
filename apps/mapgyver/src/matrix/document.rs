@@ -29,7 +29,7 @@ pub(super) fn children(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>
     let mut result = Vec::new();
     while let Some(id) = next {
         let node = engine.nodes.get(id).ok_or("missing Matrix child")?;
-        if !crate::parameters::is_parameter_folder(node) {
+        if !crate::parameters::is_parameter_folder(node) && !matches!(node, AppNode::CompositionPlacement(_)) {
             result.push(id);
         }
         next = node.node_data().next_sibling;
@@ -143,14 +143,11 @@ impl Document {
                 ),
                 MatrixItemId::Layer { id: layer } => {
                     for cell in children(engine, id)? {
-                        let Some(AppNode::MatrixElement(node)) = engine.nodes.get(cell) else {
+                        let Some(AppNode::MatrixCell(node)) = engine.nodes.get(cell) else {
                             return Err("Matrix layer children must be cells".into());
                         };
-                        let ElementDefinition::Cell { definition } = node.definition() else {
-                            return Err("Matrix layer children must be cells".into());
-                        };
-                        if node.node_data().first_child.is_some() || !document.columns.contains_key(&definition.column)
-                        {
+                        let definition = node.definition(engine)?;
+                        if !document.columns.contains_key(&definition.column) {
                             return Err("Matrix cell has invalid column or children".into());
                         }
                         if document.cells.insert((layer, definition.column), cell).is_some() {
@@ -215,7 +212,7 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
         }
     }
     for (id, node) in engine.nodes.iter() {
-        if matches!(node, AppNode::MatrixElement(_)) && !owned.contains(&id) {
+        if matches!(node, AppNode::MatrixElement(_) | AppNode::MatrixCell(_)) && !owned.contains(&id) {
             return Err("Matrix element is outside a Matrix document".into());
         }
     }

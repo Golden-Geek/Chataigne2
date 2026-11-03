@@ -142,7 +142,7 @@ fn matrix_fades_share_sources_preserve_interrupted_weights_and_withdraw_outgoing
     capture_channels_at(&engine, &[matrix], 16, time).unwrap();
     launch(&mut engine, matrix.media, columns[1], LaunchMode::Configured);
     let capture = capture_channels_at(&engine, &[matrix, layer], 16, time).unwrap();
-    assert_eq!(capture.channels.len(), 4);
+    assert_eq!(capture.channels.len(), 6);
     let first = prepared(&capture, matrix, &owner);
     let row = layers(&first, layer);
     assert_eq!(row.len(), 2);
@@ -156,7 +156,7 @@ fn matrix_fades_share_sources_preserve_interrupted_weights_and_withdraw_outgoing
     launch(&mut engine, matrix.media, columns[2], LaunchMode::Configured);
     assert!(!capture.is_current());
     let capture = capture_channels_at(&engine, &[matrix], 16, at(time, 500)).unwrap();
-    assert_eq!(capture.channels.len(), 5);
+    assert_eq!(capture.channels.len(), 8);
     let interrupted = prepared(&capture, matrix, &owner);
     assert_eq!(
         layers(&interrupted, layer)
@@ -173,7 +173,7 @@ fn matrix_fades_share_sources_preserve_interrupted_weights_and_withdraw_outgoing
             .any(|channel| channel.reference == *reference)
     }));
     let completed = capture_channels_at(&engine, &[matrix], 16, at(time, 1500)).unwrap();
-    assert_eq!(completed.channels.len(), 3);
+    assert_eq!(completed.channels.len(), 4);
     assert!(completed.channels.iter().any(|channel| channel.reference == sources[2]));
     launch(&mut engine, matrix.media, columns[3], LaunchMode::Configured);
     let empty = capture_channels_at(&engine, &[matrix], 16, at(time, 1500)).unwrap();

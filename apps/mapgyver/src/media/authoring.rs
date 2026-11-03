@@ -378,6 +378,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         MediaEdit::RemoveMedia { media: owner } => {
             let (node, _) = media(engine, owner)?;
+            crate::matrix::cells::reject_content_removal(engine, node)?;
             engine.edits.push(Edit::RemoveNode { node });
             MediaEditResult::Changed
         }

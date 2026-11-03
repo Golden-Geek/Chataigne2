@@ -19,6 +19,19 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Matrix {
+            media,
+            edit:
+                crate::matrix::protocol::MatrixEdit::DropSource {
+                    layer,
+                    column,
+                    source,
+                    copy,
+                },
+        } => (
+            "dropMatrixMedia",
+            serde_json::json!([media, layer, column, source, copy]),
+        ),
         MediaEdit::CreateMedia { media_kind, label } => (
             "createMedia",
             serde_json::json!([media_kind, label.as_deref().unwrap_or("")]),

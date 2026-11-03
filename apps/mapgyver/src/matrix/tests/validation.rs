@@ -384,29 +384,36 @@ fn project_candidate_preparation_rejects_loaded_feedback_and_orphaned_exports() 
     );
     let snapshot = inspect(&mut engine, matrix.media);
     let id = engine.node_id_by_uuid(snapshot.cells[0].id.0).unwrap();
-    let Some(AppNode::MatrixElement(node)) = engine.nodes.get_mut(id) else {
+    let AppNode::MatrixCell(cell) = engine.nodes.get(id).unwrap() else {
         panic!()
     };
-    node.set_definition(ElementDefinition::Cell {
-        definition: CellDefinition {
-            column: cols[0],
-            source: Some(matrix),
-        },
-    })
-    .unwrap();
+    let output = cell.output_parameter();
+    let content = cell.content(&engine).unwrap().unwrap();
+    let AppNode::ReferenceMedia(reference) = engine.nodes.get(content).unwrap() else {
+        panic!()
+    };
+    let target = reference.target_parameter();
+    for (parameter, uuid) in [(target, matrix.media.0), (output, matrix.channel.0)] {
+        engine
+            .nodes
+            .get_mut(parameter)
+            .unwrap()
+            .engine_set_param_value(golden_core::parameter::ParamValue::Reference(
+                golden_core::node::NodeReference::new(uuid),
+            ));
+    }
     let encoded = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
     assert!(AppNode::prepare_project_candidate(&mut loaded).is_err());
-    let Some(AppNode::MatrixElement(node)) = engine.nodes.get_mut(id) else {
-        panic!()
-    };
-    node.set_definition(ElementDefinition::Cell {
-        definition: CellDefinition {
-            column: cols[0],
-            source: Some(source),
-        },
-    })
-    .unwrap();
+    for (parameter, uuid) in [(target, source.media.0), (output, source.channel.0)] {
+        engine
+            .nodes
+            .get_mut(parameter)
+            .unwrap()
+            .engine_set_param_value(golden_core::parameter::ParamValue::Reference(
+                golden_core::node::NodeReference::new(uuid),
+            ));
+    }
     let export = snapshot.items[0].channel;
     let export_id = engine.node_id_by_uuid(export.channel.0).unwrap();
     // Deliberately corrupt persisted parameter state below the validated edit API.

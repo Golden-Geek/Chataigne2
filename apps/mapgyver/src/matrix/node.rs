@@ -6,21 +6,16 @@ use golden_core::{
 use golden_io::RevisionSource;
 use serde_json::Value;
 use std::any::Any;
-use std::sync::{
-    OnceLock,
-    atomic::{AtomicU64, Ordering},
-};
+use std::sync::OnceLock;
 pub const LAYER_TYPE: &str = "mapgyver.matrix.layer";
 pub const GROUP_TYPE: &str = "mapgyver.matrix.group";
 pub const COLUMN_TYPE: &str = "mapgyver.matrix.column";
-pub const CELL_TYPE: &str = "mapgyver.matrix.cell";
+pub use super::cell_node::CELL_TYPE;
 pub struct ElementNode {
     data: NodeData,
     definition: ElementDefinition,
     revision: RevisionSource,
     runtime: OnceLock<super::playback::RuntimeBinding>,
-    // Source identity changes have a different lifetime from enable/presentation changes.
-    source_version: AtomicU64,
 }
 impl ElementNode {
     pub(crate) fn new(label: String, definition: ElementDefinition) -> Self {
@@ -29,20 +24,13 @@ impl ElementNode {
             definition,
             revision: RevisionSource::default(),
             runtime: OnceLock::new(),
-            source_version: AtomicU64::new(0),
         }
     }
     pub(crate) fn definition(&self) -> &ElementDefinition {
         &self.definition
     }
     pub(super) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
-        let version = binding.version();
-        if self.runtime.set(binding).is_ok() {
-            self.source_version.store(version, Ordering::Release);
-        }
-    }
-    pub(super) fn source_version(&self) -> u64 {
-        self.source_version.load(Ordering::Acquire)
+        let _ = self.runtime.set(binding);
     }
     fn invalidate(&self) {
         self.revision.advance();
@@ -62,12 +50,6 @@ impl ElementNode {
         }
         if self.definition != definition {
             self.invalidate();
-            if matches!(definition, ElementDefinition::Cell { .. }) {
-                self.source_version.store(
-                    self.runtime.get().map_or(0, |binding| binding.version()),
-                    Ordering::Release,
-                );
-            }
             self.definition = definition;
         }
         Ok(())
@@ -83,12 +65,6 @@ fn canonical(node_type: &str) -> Option<ElementDefinition> {
         },
         COLUMN_TYPE => ElementDefinition::Column {
             definition: ColumnDefinition::default(),
-        },
-        CELL_TYPE => ElementDefinition::Cell {
-            definition: CellDefinition {
-                column: ColumnId(golden_core::model::NodeUuid::nil()),
-                source: None,
-            },
         },
         _ => return None,
     })
@@ -120,7 +96,6 @@ impl Node for ElementNode {
             ElementDefinition::Layer { .. } => LAYER_TYPE,
             ElementDefinition::Group { .. } => GROUP_TYPE,
             ElementDefinition::Column { .. } => COLUMN_TYPE,
-            ElementDefinition::Cell { .. } => CELL_TYPE,
         }
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
@@ -131,6 +106,9 @@ impl Node for ElementNode {
         }
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if node_type == CELL_TYPE {
+            return Some(Box::new(super::CellNode::new()));
+        }
         create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
@@ -148,7 +126,6 @@ impl Node for ElementNode {
                 serde_json::to_value(settings)
             }
             ElementDefinition::Column { definition } => serde_json::to_value(definition),
-            ElementDefinition::Cell { definition } => serde_json::to_value(definition),
         }
         .map_err(|error| error.to_string())
     }
@@ -165,9 +142,6 @@ impl Node for ElementNode {
                 settings: serde_json::from_value(data.clone()).map_err(|error| error.to_string())?,
             },
             ElementDefinition::Column { .. } => ElementDefinition::Column {
-                definition: serde_json::from_value(data.clone()).map_err(|error| error.to_string())?,
-            },
-            ElementDefinition::Cell { .. } => ElementDefinition::Cell {
                 definition: serde_json::from_value(data.clone()).map_err(|error| error.to_string())?,
             },
         };

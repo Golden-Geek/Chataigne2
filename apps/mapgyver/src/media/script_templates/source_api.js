@@ -14,6 +14,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// Configure the command's typed Parameters in the Inspector, then:
 	// local.executeCommand("run-command", commandId); // or command.execute("run-command")
 	// Uncomment the operations you need. Each call is its own atomic history step.
+	// local.dropMatrixMedia("cell", matrixId, layerId, columnId, mediaId, false); // true copies the full media
 	// local.dropCompositionMedia("drop", compositionMediaId, compositionChannelId, mediaId, "", false, 0, 0); // true copies the full media
 	// local.createReference("reference", mediaId, ""); // ReferenceCreated returns media UUID
 	// local.configureReference("retarget", referenceMediaId, mediaId); // empty target clears

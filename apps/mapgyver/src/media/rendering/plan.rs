@@ -57,19 +57,35 @@ pub(super) fn build(
         .map(|route| route.screen.id)
         .collect::<HashSet<_>>()
         .len();
-    if routes
-        .len()
-        .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
-        > limits.max_outputs
-        || capture.channels.len().saturating_add(screen_count) > limits.max_passes
-    {
-        return Err("channel scene exceeds admitted route/channel counts".into());
-    }
     let captured = capture
         .channels
         .iter()
         .map(|channel| (channel.reference, channel))
         .collect::<HashMap<_, _>>();
+    // Automatic References share their producer texture and consume no render pass.
+    let channel_passes = capture
+        .channels
+        .iter()
+        .filter(|channel| {
+            let Some(definition) = channel.definition.as_ref().filter(|_| channel.enabled) else {
+                return true;
+            };
+            if let (ChannelSource::Reference { target: Some(target) }, crate::media::protocol::SizePolicy::Automatic) =
+                (&definition.source, &definition.size)
+            {
+                return *target == channel.reference || !captured.contains_key(target);
+            }
+            true
+        })
+        .count();
+    if routes
+        .len()
+        .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
+        > limits.max_outputs
+        || channel_passes.saturating_add(screen_count) > limits.max_passes
+    {
+        return Err("channel scene exceeds admitted route/channel counts".into());
+    }
     let mut seen_outputs = HashSet::new();
     let mut entries = HashMap::new();
     let mut channels = Vec::new();
@@ -136,7 +152,7 @@ pub(super) fn build(
         guard_budget,
         limits
             .max_passes
-            .saturating_sub(capture.channels.len())
+            .saturating_sub(channel_passes)
             .saturating_sub(screen_count)
             .saturating_sub(if preview.is_some() {
                 super::PreviewLayout::PASS_COUNT

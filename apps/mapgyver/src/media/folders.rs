@@ -89,7 +89,13 @@ pub(crate) fn contains_parent(engine: &AppEngine, mut parent: Option<NodeId>, ma
         let Some(node) = engine.nodes.get(id) else { return false };
         match node {
             AppNode::MediaFolder(_) => {}
-            AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Composition => {}
+            AppNode::Media(media)
+                if matches!(
+                    media.kind(),
+                    super::protocol::MediaKind::Composition | super::protocol::MediaKind::Matrix
+                ) => {}
+            AppNode::MatrixCell(_) | AppNode::MatrixElement(_) => {}
+            AppNode::MediaChannel(channel) if channel.is_matrix_final() => {}
             _ => return false,
         }
         parent = node.node_data().parent;
@@ -129,7 +135,9 @@ pub(crate) fn entries(engine: &AppEngine) -> Result<Vec<NodeId>, String> {
             stack.push(next);
         }
         if (matches!(node, AppNode::MediaFolder(_))
-            || matches!(node, AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Composition))
+            || matches!(node, AppNode::Media(media) if matches!(media.kind(), super::protocol::MediaKind::Composition | super::protocol::MediaKind::Matrix))
+            || matches!(node, AppNode::MatrixCell(_) | AppNode::MatrixElement(_))
+            || matches!(node, AppNode::MediaChannel(channel) if channel.is_matrix_final()))
             && let Some(child) = node.node_data().first_child
         {
             stack.push(child);

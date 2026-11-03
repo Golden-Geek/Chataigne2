@@ -11,6 +11,7 @@ use golden_core::{
 
 mod bindings;
 mod copying;
+mod owned_media;
 mod playback;
 mod timeline;
 mod validation;

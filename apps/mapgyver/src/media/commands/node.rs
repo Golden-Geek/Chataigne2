@@ -9,7 +9,7 @@ use golden_core::{
 use golden_video::{Extent2D, plan::SampleFilter};
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v3", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v4", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -22,6 +22,8 @@ use std::sync::Arc;
             reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
         );
+        matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer".into()]);
+        matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column".into()]);
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
         composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
@@ -45,7 +47,7 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v5".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
@@ -132,6 +134,15 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            MediaCommandKind::DropMatrixMedia => MediaEdit::Matrix {
+                media,
+                edit: crate::matrix::protocol::MatrixEdit::DropSource {
+                    layer: crate::matrix::protocol::LayerId(self.matrix_layer.get_ref().uuid),
+                    column: crate::matrix::protocol::ColumnId(self.matrix_column.get_ref().uuid),
+                    source: self.entry.get_ref().uuid,
+                    copy: self.copy_media.get(),
+                },
+            },
             MediaCommandKind::DropCompositionMedia => MediaEdit::Composition {
                 reference,
                 edit: super::super::composition::protocol::CompositionEdit::DropSource {
@@ -305,7 +316,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v3", from_struct)]
+#[node("mapgyver.media.command.v4", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false

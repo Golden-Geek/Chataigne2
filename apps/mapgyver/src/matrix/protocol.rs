@@ -131,7 +131,6 @@ pub enum ElementDefinition {
     Layer { settings: CompositeSettings },
     Group { settings: CompositeSettings },
     Column { definition: ColumnDefinition },
-    Cell { definition: CellDefinition },
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct MatrixItemSnapshot {
@@ -251,6 +250,14 @@ pub struct MatrixTargetPage {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    DropSource {
+        layer: LayerId,
+        column: ColumnId,
+        #[ts(type = "string")]
+        source: NodeUuid,
+        #[serde(default)]
+        copy: bool,
+    },
     InspectTargets {
         query: MatrixTargetQuery,
     },

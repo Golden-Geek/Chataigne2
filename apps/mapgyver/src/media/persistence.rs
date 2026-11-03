@@ -4,6 +4,11 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![&project.root];
     while let Some(record) = pending.pop() {
+        if record.node_type.starts_with("mapgyver.matrix.cell")
+            && record.node_type != crate::matrix::cell_node::CELL_TYPE
+        {
+            return Err(format!("Unsupported Matrix Cell schema '{}'", record.node_type));
+        }
         if record.node_type.starts_with("mapgyver.composition.placement")
             && record.node_type != super::composition::PLACEMENT_TYPE
         {

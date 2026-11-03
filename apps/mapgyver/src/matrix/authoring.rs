@@ -71,7 +71,9 @@ pub(super) fn descendants(engine: &AppEngine, root: NodeId) -> Result<HashSet<No
     let mut result = HashSet::new();
     while let Some(id) = pending.pop() {
         result.insert(id);
-        pending.extend(children(engine, id)?);
+        if !matches!(engine.nodes.get(id), Some(AppNode::MatrixCell(_))) {
+            pending.extend(children(engine, id)?);
+        }
     }
     Ok(result)
 }
@@ -102,6 +104,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     }
     let document = Document::load(engine, media)?;
     match edit {
+        MatrixEdit::DropSource {
+            layer,
+            column,
+            source,
+            copy,
+        } => return super::cells::drop_source(engine, &document, layer, column, source, copy),
         MatrixEdit::InspectTargets { .. } => unreachable!(),
         MatrixEdit::InspectViewport { .. } => unreachable!(),
         MatrixEdit::LaunchColumn { .. } => unreachable!(),
@@ -276,6 +284,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::RemoveItem { item } => {
             let node = document.item(item)?;
             let subtree = descendants(engine, node)?;
+            for id in &subtree {
+                super::cells::reject_removal(engine, *id)?;
+            }
             for (item, id) in &document.items {
                 if subtree.contains(id) {
                     engine.edits.push(Edit::RemoveNode {
@@ -318,6 +329,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             let node = document.column(column)?;
             for ((_, owner), cell) in &document.cells {
                 if *owner == column {
+                    super::cells::reject_removal(engine, *cell)?;
                     engine.edits.push(Edit::RemoveNode { node: *cell });
                 }
             }

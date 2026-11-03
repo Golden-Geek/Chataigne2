@@ -66,17 +66,34 @@ fn group_copy_remaps_internal_exports_and_keeps_sources_independent_through_relo
         .iter()
         .find(|cell| cell.layer == layer(copies[0].id))
         .unwrap();
-    assert_eq!(a_copy.definition.source, Some(copies[1].channel));
-    assert_eq!(
-        snapshot
-            .cells
-            .iter()
-            .find(|cell| cell.layer == layer(copies[1].id))
-            .unwrap()
-            .definition
-            .source,
-        Some(source)
-    );
+    let owned = a_copy.definition.source.unwrap();
+    assert_ne!(owned.media, copies[1].channel.media);
+    assert_eq!(owned.channel, copies[1].channel.channel);
+    let AppNode::ReferenceMedia(reference) = engine
+        .nodes
+        .get(engine.node_id_by_uuid(owned.media.0).unwrap())
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(reference.target(), Some(copies[1].channel.media));
+    let external = snapshot
+        .cells
+        .iter()
+        .find(|cell| cell.layer == layer(copies[1].id))
+        .unwrap()
+        .definition
+        .source
+        .unwrap();
+    assert_eq!(external.channel, source.channel);
+    let AppNode::ReferenceMedia(reference) = engine
+        .nodes
+        .get(engine.node_id_by_uuid(external.media.0).unwrap())
+        .unwrap()
+    else {
+        panic!()
+    };
+    assert_eq!(reference.target(), Some(source.media));
     let encoded = to_sparse_project_json_pretty(&engine).unwrap();
     let mut restored = from_sparse_project_json::<AppNode>(&encoded).unwrap();
     assert_eq!(inspect(&mut restored, matrix.media), snapshot);

@@ -55,6 +55,15 @@ fn removes_protected_children(engine: &AppEngine, nodes: &[NodeId]) -> bool {
 }
 
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
+    match intent {
+        UiEditIntent::RemoveNode { node } => super::cells::reject_content_removal(engine, *node)?,
+        UiEditIntent::RemoveNodes { nodes } => {
+            for node in nodes {
+                super::cells::reject_content_removal(engine, *node)?;
+            }
+        }
+        _ => {}
+    }
     let protected = match intent {
         // Removing the owner removes its paired exports and all Matrix structure together.
         UiEditIntent::RemoveNode { node } => removes_protected_children(engine, &[*node]),

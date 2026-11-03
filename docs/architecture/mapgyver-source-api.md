@@ -19,7 +19,7 @@ id. UUID arguments come from committed results, not numeric session node IDs. Em
 labels use backend defaults; empty asset/sender strings clear that channel's source setting.
 `Reference` creation returns `ReferenceCreated { media }`, because an unconfigured Reference
 has no output channel. Its [target/output contract](mapgyver-reference-media.md) is distinct
-from physical source-channel authoring. Command records now use schema v3; older schemas reject clearly.
+from physical source-channel authoring. Command records now use schema v4; older schemas reject clearly.
 
 | Method                     | Arguments after request id                                                      |
 | -------------------------- | ------------------------------------------------------------------------------- |
@@ -27,6 +27,7 @@ from physical source-channel authoring. Command records now use schema v3; older
 | `createReference`          | target media UUID or empty string, label                                      |
 | `configureReference`       | Reference media UUID, target media UUID or empty string                       |
 | `inspectChannels`          | media UUID, nonnegative integer start, count in 1–128                          |
+| `dropMatrixMedia`          | Matrix media, layer, column and source node UUIDs; copy boolean |
 | `dropCompositionMedia`     | Composition media/channel UUIDs, source node UUID, replaced media UUID or empty string, copy boolean, canvas X/Y |
 | `addChannel`               | media UUID, label; backend rejects derived outputs                              |
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
@@ -59,13 +60,13 @@ No repository files are read when an installed app creates the template. The gen
 Composition/Matrix intents; see [the Rust contract](../../apps/mapgyver/src/media/protocol.rs).
 
 The Media Manager Inspector's **Commands** section creates app-owned
-`mapgyver.media.command.v3` children through `CreateCommand`. `InspectCommandCatalog` returns
+`mapgyver.media.command.v4` children through `CreateCommand`. `InspectCommandCatalog` returns
 the Rust-owned catalog; the generator exports each command's visible Parameter fields.
 The section mounts at most 32 commands per page. Commands stay out of object creation menus
 and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
 typed Parameters, including references, enums, file paths, resolution and color.
 
-The 32 command kinds cover source/variant and Reference creation, Composition Reference/copy drops, settings, assets, folders, ordering,
+The 33 command kinds cover source/variant and Reference creation, Composition and Matrix Reference/copy drops, settings, assets, folders, ordering,
 removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
 Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
 `execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's

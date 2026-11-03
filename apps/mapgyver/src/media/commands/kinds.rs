@@ -15,6 +15,7 @@ macro_rules! command_kinds {
     };
 }
 command_kinds! {
+    DropMatrixMedia => "Drop Matrix Media", "Matrix", ["media", "matrix_layer", "matrix_column", "entry", "copy_media"];
     DropCompositionMedia => "Drop Composition Media", "Composition", ["media", "channel", "entry", "composition_target", "copy_media", "position"];
     CreateReference => "Create Reference", "Media", ["reference_target", "label"];
     ConfigureReference => "Set Reference Target", "Media", ["media", "reference_target"];

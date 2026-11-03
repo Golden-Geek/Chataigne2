@@ -45,6 +45,13 @@ export const COMMAND_PARAMETER_FIELDS = {
     "copy_media",
     "position"
   ],
+  "DropMatrixMedia": [
+    "media",
+    "matrix_layer",
+    "matrix_column",
+    "entry",
+    "copy_media"
+  ],
   "ImportAsset": [
     "locator_kind",
     "project_path",

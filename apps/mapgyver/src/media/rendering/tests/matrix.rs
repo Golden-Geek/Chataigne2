@@ -136,7 +136,7 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
     );
     let roots = [matrix, group_channel, layers[0].1];
     let capture = capture_channels(&engine, &roots, 16).unwrap();
-    assert_eq!(capture.channels.len(), 5);
+    assert_eq!(capture.channels.len(), 7);
     let root_id = engine.node_id_by_uuid(matrix.channel.0).unwrap();
     let crate::app::AppNode::MediaChannel(root) = engine.nodes.get(root_id).unwrap() else {
         panic!()
@@ -270,7 +270,7 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
     assert!(!before.is_current());
     assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 1);
     assert!(engine.undo().unwrap());
-    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 5);
+    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 7);
     matrix_edit(
         &mut engine,
         matrix.media,
@@ -279,9 +279,9 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
         },
     );
     // Authoring does not stop a committed clip; a new explicit launch changes playback.
-    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 5);
+    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 7);
     assert!(engine.undo().unwrap());
-    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 5);
+    assert_eq!(capture_channels(&engine, &[matrix], 16).unwrap().channels.len(), 7);
     matrix_edit(
         &mut engine,
         matrix.media,

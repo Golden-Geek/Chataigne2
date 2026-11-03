@@ -181,7 +181,16 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
         for caller in CALLERS {
             let mut engine = loaded(&scene.document);
             let result = run(&mut engine, caller, operation.clone());
-            let actual = (result, authored(&engine));
+            // New owned References have fresh identities per caller; compare their stable Cell address.
+            let mut state = serde_json::to_string(&(result, authored(&engine))).unwrap();
+            for cell in crate::matrix::inspect(&engine, scene.root.media).unwrap().cells {
+                if let Some(source) = cell.definition.source
+                    && !scene.document.contains(&source.media.0.0.to_string())
+                {
+                    state = state.replace(&source.media.0.0.to_string(), &format!("owned-by-{}", cell.id.0.0));
+                }
+            }
+            let actual = state;
             if let Some(expected) = &canonical {
                 assert_eq!(&actual, expected, "{caller:?}: {operation:?}");
             } else {
@@ -400,6 +409,57 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                     }
                 ));
             }
+        }
+    }
+}
+
+#[test]
+fn matrix_owned_media_drops_return_committed_children_through_every_public_caller() {
+    let scene = scene();
+    let layer = scene.snapshot.cells[0].layer;
+    let column = scene.snapshot.columns[0].id;
+    for caller in CALLERS {
+        for copy in [false, true] {
+            let mut engine = loaded(&scene.document);
+            let reply = run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: scene.root.media,
+                    edit: MatrixEdit::DropSource {
+                        layer,
+                        column,
+                        source: scene.sources[1].media.0,
+                        copy,
+                    },
+                },
+            )
+            .unwrap();
+            let MediaEditResult::MatrixMediaCreated { cell, media } = serde_json::from_value(reply).unwrap() else {
+                panic!()
+            };
+            let snapshot = crate::matrix::inspect(&engine, scene.root.media).unwrap();
+            assert_eq!(
+                snapshot
+                    .cells
+                    .iter()
+                    .find(|entry| entry.id == cell)
+                    .unwrap()
+                    .definition
+                    .source
+                    .unwrap()
+                    .media,
+                media
+            );
+            assert_eq!(
+                crate::media::authoring::media(&engine, media).unwrap().1,
+                if copy {
+                    MediaKind::Composition
+                } else {
+                    MediaKind::Reference
+                }
+            );
+            crate::media::validate_project(&engine).unwrap();
         }
     }
 }

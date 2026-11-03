@@ -72,10 +72,11 @@ fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
     } else {
         let document = Document::load(engine, media)?;
         for id in &document.elements {
-            let Some(AppNode::MatrixElement(node)) = engine.nodes.get(*id) else {
-                unreachable!()
-            };
-            node.bind_runtime(control.binding());
+            match engine.nodes.get(*id) {
+                Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
+                Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
+                _ => unreachable!(),
+            }
         }
         let index = Arc::new(ViewIndex::build(document));
         control.cache_view(index.clone());
@@ -181,15 +182,27 @@ fn column_snapshot(engine: &AppEngine, id: ColumnId, node_id: NodeId) -> Result<
 }
 
 fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<MatrixViewCell, String> {
-    let Some(AppNode::MatrixElement(cell)) = engine.nodes.get(node_id) else {
+    let Some(AppNode::MatrixCell(cell)) = engine.nodes.get(node_id) else {
         return Err("Matrix cell changed".into());
     };
-    let ElementDefinition::Cell { definition } = cell.definition() else {
-        return Err("Matrix cell type changed".into());
-    };
-    let source = definition
-        .source
-        .and_then(|reference| crate::media::channel(engine, reference).ok());
+    let definition = cell.definition(engine)?;
+    let mut source = None;
+    let mut next = definition.source;
+    let mut seen = std::collections::HashSet::new();
+    while let Some(reference) = next {
+        if !seen.insert(reference) {
+            break;
+        }
+        let Ok(channel) = crate::media::channel(engine, reference) else {
+            break;
+        };
+        if let crate::media::protocol::ChannelSource::Reference { target } = channel.definition.source {
+            next = target;
+        } else {
+            source = Some(channel);
+            break;
+        }
+    }
     Ok(MatrixViewCell {
         cell: CellSnapshot {
             id: CellId(cell.node_data().meta.uuid),

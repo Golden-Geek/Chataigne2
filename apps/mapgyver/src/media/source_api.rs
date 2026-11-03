@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use super::protocol::*;
 
 pub(super) const METHODS: &[&str] = &[
+    "dropMatrixMedia",
     "dropCompositionMedia",
     "createReference",
     "configureReference",
@@ -67,6 +68,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "executeCommand" => 1,
         "inspectChannels" => 3,
         "dropCompositionMedia" => 7,
+        "dropMatrixMedia" => 5,
         "createReference" | "configureReference" => 2,
         _ => return Ok(None),
     };
@@ -74,6 +76,20 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "dropMatrixMedia" => {
+            let Some(ParamValue::Bool(copy)) = args.get(4) else {
+                return Err("copy must be boolean".into());
+            };
+            MediaEdit::Matrix {
+                media: MediaId(uuid(args, 0)?),
+                edit: crate::matrix::protocol::MatrixEdit::DropSource {
+                    layer: crate::matrix::protocol::LayerId(uuid(args, 1)?),
+                    column: crate::matrix::protocol::ColumnId(uuid(args, 2)?),
+                    source: uuid(args, 3)?,
+                    copy: *copy,
+                },
+            }
+        }
         "dropCompositionMedia" => {
             let Some(ParamValue::Bool(copy)) = args.get(4) else {
                 return Err("copy must be boolean".into());

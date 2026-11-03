@@ -50,6 +50,7 @@ const withUi = [
 	'--media-command-ui',
 	'--reference-ui',
 	'--owned-media-ui',
+	'--matrix-owned-media-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -328,6 +329,10 @@ try {
 	if (process.argv.includes('--owned-media-ui')) {
 		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');
 		await verifyOwnedMediaUi({ base, edit, post, directory, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--matrix-owned-media-ui')) {
+		const { verifyMatrixOwnedMediaUi } = await import('../browser/matrix-owned-media.mjs');
+		await verifyMatrixOwnedMediaUi({ base, edit, post, directory, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

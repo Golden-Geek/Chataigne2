@@ -74,7 +74,25 @@
 					}}
 					select={(row, column) => {
 						controller.select(row.item.id, column.id);
-						selectDocumentNode(row.item.id.id);
+						const cell = matrixWindow?.cells.find(
+							(cell) =>
+								cell.cell.layer === row.item.id.id && cell.cell.definition.column === column.id
+						);
+						selectDocumentNode(cell?.cell.id ?? row.item.id.id);
+					}}
+					drop={async (row, column, source, copy) => {
+						if (row.item.id.kind !== 'Layer') return;
+						const result = await owner.edit({
+							kind: 'DropSource',
+							layer: row.item.id.id,
+							column: column.id,
+							source,
+							copy
+						});
+						if (result?.kind === 'MatrixMediaCreated') {
+							controller.select(row.item.id, column.id);
+							selectDocumentNode(result.cell);
+						}
 					}}
 					launch={(column) => owner.edit({ kind: 'LaunchColumn', column, mode: 'Configured' })} />
 			{/key}

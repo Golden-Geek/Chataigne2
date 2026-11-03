@@ -50,7 +50,8 @@ fn viewport_reads_are_bounded_sparse_cached_and_do_not_launch_or_change_authored
     let cached = node.matrix_playback().unwrap().view().unwrap();
     let last = viewport(&mut engine, matrix.media, 990, 996);
     assert_eq!((last.rows.len(), last.columns.len(), last.cells.len()), (10, 4, 1));
-    assert_eq!(last.cells[0].cell.definition.source, Some(source));
+    assert_ne!(last.cells[0].cell.definition.source.unwrap().media, source.media);
+    assert_eq!(last.cells[0].cell.definition.source.unwrap().channel, source.channel);
     assert!(!last.cells[0].source_missing);
     assert_eq!(last.playback.desired_column, None);
     let AppNode::MediaChannel(node) = engine.nodes.get(root).unwrap() else {
@@ -107,7 +108,8 @@ fn viewport_refreshes_structure_payload_labels_history_and_missing_source_withou
     );
     let current = viewport(&mut engine, matrix.media, 0, 0);
     assert_eq!(current.rows[0].item.label, "Renamed");
-    assert_eq!(current.cells[0].cell.definition.source, Some(source));
+    assert_ne!(current.cells[0].cell.definition.source.unwrap().media, source.media);
+    assert_eq!(current.cells[0].cell.definition.source.unwrap().channel, source.channel);
     edit(
         &mut engine,
         matrix.media,
@@ -184,7 +186,14 @@ fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_sou
     assert_eq!(selected.selection, selection);
     assert_eq!(selected.row.as_ref().unwrap().item.id, items[127]);
     assert_eq!(selected.column.as_ref().unwrap().id, columns[127]);
-    assert_eq!(selected.cell.as_ref().unwrap().cell.definition.source, Some(source));
+    assert_ne!(
+        selected.cell.as_ref().unwrap().cell.definition.source.unwrap().media,
+        source.media
+    );
+    assert_eq!(
+        selected.cell.as_ref().unwrap().cell.definition.source.unwrap().channel,
+        source.channel
+    );
     assert!(!selected.cell.as_ref().unwrap().source_missing);
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);

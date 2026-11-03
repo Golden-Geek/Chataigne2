@@ -339,6 +339,10 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MatrixMediaCreated {
+        cell: crate::matrix::protocol::CellId,
+        media: MediaId,
+    },
     Channels {
         page: MediaChannelsPage,
     },

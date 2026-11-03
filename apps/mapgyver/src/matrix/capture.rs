@@ -57,10 +57,11 @@ pub(crate) fn capture(
         None => {
             let document = Document::load(engine, reference.media)?;
             for id in &document.elements {
-                let Some(AppNode::MatrixElement(node)) = engine.nodes.get(*id) else {
-                    unreachable!()
-                };
-                node.bind_runtime(control.binding());
+                match engine.nodes.get(*id) {
+                    Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
+                    Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
+                    _ => unreachable!(),
+                }
             }
             let index = Arc::new(RenderIndex::build(engine, &document));
             control.cache(index.clone());

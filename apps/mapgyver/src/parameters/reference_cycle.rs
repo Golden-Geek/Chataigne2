@@ -186,6 +186,28 @@ fn matrix_sources(
     pending: &mut Vec<NodeUuid>,
 ) -> Result<(), String> {
     while let Some(id) = rows.pop() {
+        if let Some(cell) = change
+            .node(id)
+            .and_then(|node| node.as_any().downcast_ref::<crate::matrix::CellNode>())
+        {
+            if let Some(ParamValue::Reference(output)) = change.parameter_value(cell.output_parameter()) {
+                for child in children(change, id) {
+                    if let Some(owner) = change.node(child).filter(|node| {
+                        node.as_any().is::<crate::media::MediaNode>()
+                            || node.as_any().is::<crate::media::ReferenceNode>()
+                    }) && let Some(source) = canonical(
+                        change,
+                        crate::media::protocol::ChannelReference {
+                            media: crate::media::protocol::MediaId(owner.node_data().meta.uuid),
+                            channel: crate::media::protocol::ChannelId(output.uuid),
+                        },
+                    )? {
+                        pending.push(source);
+                    }
+                }
+            }
+            continue;
+        }
         let Some(element) = change
             .node(id)
             .and_then(|node| node.as_any().downcast_ref::<ElementNode>())
@@ -193,13 +215,6 @@ fn matrix_sources(
             continue;
         };
         match element.definition() {
-            ElementDefinition::Cell { definition } => {
-                if let Some(source) = definition.source
-                    && let Some(source) = canonical(change, source)?
-                {
-                    pending.push(source);
-                }
-            }
             ElementDefinition::Layer { .. } | ElementDefinition::Group { .. } => rows.extend(children(change, id)),
             ElementDefinition::Column { .. } => {}
         }

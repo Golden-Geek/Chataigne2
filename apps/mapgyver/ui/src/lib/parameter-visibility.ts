@@ -35,7 +35,7 @@ function visible(child: UiNodeDto) {
 						: '')
 		);
 	}
-	if (owner.node_type === 'mapgyver.media.command.v3') {
+	if (owner.node_type === 'mapgyver.media.command.v4') {
 		if (field === 'command_kind' || field === 'trigger') return true;
 		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;
 		const fields: readonly string[] = COMMAND_PARAMETER_FIELDS[key] ?? [];
