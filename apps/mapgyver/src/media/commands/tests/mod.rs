@@ -16,6 +16,7 @@ use golden_core::{
     ui_sync::UiEditIntent,
 };
 
+mod applications;
 mod queries;
 mod unavailable;
 
@@ -105,13 +106,26 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         let command = command(&mut engine, *kind);
         assert_eq!(inspect(&mut engine), before_creation, "creation must not fire {kind:?}");
         let target = match kind {
-            MediaCommandKind::DropMatrixMedia => create(&mut engine, MediaKind::Matrix),
+            MediaCommandKind::DropMatrixMedia
+            | MediaCommandKind::SetApplicationFile
+            | MediaCommandKind::InspectApplication
+            | MediaCommandKind::LaunchMatrixColumn
+            | MediaCommandKind::LaunchMatrixCell
+            | MediaCommandKind::UnloadMatrix => create(&mut engine, MediaKind::Matrix),
             MediaCommandKind::DropCompositionMedia => create(&mut engine, MediaKind::Composition),
             MediaCommandKind::Picture => picture,
             MediaCommandKind::SharedTexture => shared,
             _ => solid,
         };
-        if *kind == MediaCommandKind::DropMatrixMedia {
+        if matches!(
+            kind,
+            MediaCommandKind::DropMatrixMedia
+                | MediaCommandKind::SetApplicationFile
+                | MediaCommandKind::InspectApplication
+                | MediaCommandKind::LaunchMatrixColumn
+                | MediaCommandKind::LaunchMatrixCell
+                | MediaCommandKind::UnloadMatrix
+        ) {
             use crate::matrix::protocol::*;
             let MediaEditResult::MatrixCreated { items, .. } = apply(
                 &mut engine,
@@ -141,6 +155,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 }),
             );
             set(&mut engine, command, "matrix_column", reference(columns[0].0));
+            set(&mut engine, command, "application_owner", reference(columns[0].0));
         }
         for (name, value) in [
             ("label", ParamValue::Str("Program output".into())),

@@ -24,6 +24,9 @@ use std::sync::Arc;
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
+        application_owner: NodeReference = NodeReference::empty() (label = "App control owner", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into(), "mapgyver.matrix.cell.v3".into()]);
+        application_file: File = File::default() (label = "App file", file_allowed_extensions = vec!["exe".into()]);
+        launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
         composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
@@ -134,6 +137,45 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            MediaCommandKind::SetApplicationFile => MediaEdit::Applications {
+                edit: crate::applications::protocol::ApplicationEdit::SetFile {
+                    application: crate::applications::protocol::ApplicationId(self.application_owner.get_ref().uuid),
+                    executable: match self.application_file.get_ref().as_str() {
+                        "" => None,
+                        path => Some(path.into()),
+                    },
+                },
+            },
+            MediaCommandKind::LaunchMatrixColumn => MediaEdit::Matrix {
+                media,
+                edit: crate::matrix::protocol::MatrixEdit::LaunchColumn {
+                    column: crate::matrix::protocol::ColumnId(self.matrix_column.get_ref().uuid),
+                    mode: choice(self.launch_mode.get_ref().as_str())?,
+                },
+            },
+            MediaCommandKind::LaunchMatrixCell => MediaEdit::Matrix {
+                media,
+                edit: crate::matrix::protocol::MatrixEdit::LaunchCell {
+                    layer: crate::matrix::protocol::LayerId(self.matrix_layer.get_ref().uuid),
+                    column: crate::matrix::protocol::ColumnId(self.matrix_column.get_ref().uuid),
+                    mode: choice(self.launch_mode.get_ref().as_str())?,
+                },
+            },
+            MediaCommandKind::UnloadMatrix => MediaEdit::Matrix {
+                media,
+                edit: crate::matrix::protocol::MatrixEdit::ClearPlayback,
+            },
+            MediaCommandKind::InspectApplication => MediaEdit::Applications {
+                edit: crate::applications::protocol::ApplicationEdit::Inspect {
+                    application: crate::applications::protocol::ApplicationId(self.application_owner.get_ref().uuid),
+                },
+            },
+            MediaCommandKind::InspectApplicationRuntime => MediaEdit::Applications {
+                edit: crate::applications::protocol::ApplicationEdit::InspectRuntime {},
+            },
+            MediaCommandKind::InspectApplicationCallbacks => MediaEdit::Applications {
+                edit: crate::applications::protocol::ApplicationEdit::InspectCallbacks {},
+            },
             MediaCommandKind::DropMatrixMedia => MediaEdit::Matrix {
                 media,
                 edit: crate::matrix::protocol::MatrixEdit::DropSource {
@@ -400,6 +442,7 @@ impl Node for MediaCommandNode {
         choice::<SampleFilter>(self.sampling.get_ref().as_str())?;
         choice::<ChannelMoveDirection>(self.direction.get_ref().as_str())?;
         choice::<ChannelChoiceScope>(self.choice_scope.get_ref().as_str())?;
+        choice::<crate::matrix::protocol::LaunchMode>(self.launch_mode.get_ref().as_str())?;
         if !["ProjectRelative", "Absolute"].contains(&self.locator_kind.get_ref().as_str())
             || self.start.get() < 0
             || !(1..=128).contains(&self.count.get())

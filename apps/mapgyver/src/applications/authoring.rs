@@ -37,6 +37,18 @@ pub fn inspect(engine: &AppEngine, application: ApplicationId) -> Result<Applica
 }
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
+        ApplicationEdit::SetFile {
+            application,
+            executable,
+        } => {
+            let node = node_id(engine, application)?;
+            let mut definition = control_node(engine, application)
+                .ok_or("App-control owner is missing or invalid")?
+                .definition(engine)?;
+            definition.executable = executable;
+            super::settings::configure(engine, node, definition)?;
+            Ok(MediaEditResult::Changed)
+        }
         ApplicationEdit::Configure {
             application,
             definition,

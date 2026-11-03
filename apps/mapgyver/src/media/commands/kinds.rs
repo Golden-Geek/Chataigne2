@@ -15,6 +15,13 @@ macro_rules! command_kinds {
     };
 }
 command_kinds! {
+    SetApplicationFile => "Set App File", "App control", ["application_owner", "application_file"];
+    LaunchMatrixColumn => "Launch Matrix Column", "App control", ["media", "matrix_column", "launch_mode"];
+    LaunchMatrixCell => "Launch Matrix Cell", "App control", ["media", "matrix_layer", "matrix_column", "launch_mode"];
+    UnloadMatrix => "Unload Matrix", "App control", ["media"];
+    InspectApplication => "Inspect App Control", "App control", ["application_owner"];
+    InspectApplicationRuntime => "Inspect App Runtime", "App control", [];
+    InspectApplicationCallbacks => "Inspect App Callbacks", "App control", [];
     DropMatrixMedia => "Drop Matrix Media", "Matrix", ["media", "matrix_layer", "matrix_column", "entry", "copy_media"];
     DropCompositionMedia => "Drop Composition Media", "Composition", ["media", "channel", "entry", "composition_target", "copy_media", "position"];
     CreateReference => "Create Reference", "Media", ["reference_target", "label"];

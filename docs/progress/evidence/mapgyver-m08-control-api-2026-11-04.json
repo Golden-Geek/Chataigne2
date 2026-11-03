@@ -1,0 +1,37 @@
+{
+	"date": "2026-11-04",
+	"gate": "M08/4",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"capability": "Seven typed app-control commands, eight named script methods and embedded lifecycle/request examples",
+	"ownership": "MapGyver applications and Medias command/script registration; Golden stays app-agnostic",
+	"verification": {
+		"library": { "passed": 396, "failed": 0, "ignored": 3, "seconds": 13.92 },
+		"protocol_generation": "pass",
+		"strict_clippy": "pass: all targets, native-qualification and application-process-fixture, -D warnings",
+		"svelte": { "errors": 0, "warnings": 0 },
+		"formatting": "root and golden_core workspace formatters",
+		"bundled_ui": "pass: all seven menu entries, typed owner/File Inspector, passive edits, Execute and exact Undo/Redo",
+		"regression": "pass: two-source Resolution command UI and ordinary headless source/history/Save-New-Load; normal exit",
+		"headless_elapsed_ms": 4757,
+		"native_picker_used": false,
+		"fixture_process_launched": false
+	},
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m08-control.exe",
+		"sha256": "15E200A47A359834DADFC2BABE73D2B5437D8AD6622F32510E05756786D6FF52"
+	},
+	"remaining": [
+		"Actual native App file picker and complete UI/script/callback lifecycle integration",
+		"Reconcile obsolete target-outcome fixture to intrinsic Column/Cell owners",
+		"Singleton, external, elevated, launcher and breakaway target outcomes",
+		"Unverified access/retirement, project/shutdown/recovery cleanup"
+	],
+	"progress": {
+		"accepted_gates": 47,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m08": "3/4"
+	}
+}

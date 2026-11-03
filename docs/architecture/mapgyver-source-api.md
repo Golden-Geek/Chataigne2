@@ -70,7 +70,7 @@ The section mounts at most 32 commands per page. Commands stay out of object cre
 and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
 typed Parameters, including references, enums, file paths, resolution and color.
 
-The 33 command kinds cover source/variant and Reference creation, Composition and Matrix Reference/copy drops, settings, assets, folders, ordering,
+The 40 command kinds cover app control, source/variant and Reference creation, Composition and Matrix Reference/copy drops, settings, assets, folders, ordering,
 removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
 Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
 `execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's
@@ -84,3 +84,28 @@ Native variant Resolution/sharing is
 [accepted on both hardware adapters](../progress/mapgyver-m04-variants.md). Full native
 lifecycle/resource parity, Reference and Media Preview retain separate open gates in the
 [status ledger](../progress/mapgyver-status.md).
+
+## App-control commands and scripts
+
+`applications/scripting.rs` owns eight named methods registered by the Medias script node:
+`setApplicationFile`, `configureApplication`, `inspectApplication`, `inspectApplicationRuntime`,
+`inspectApplicationCallbacks`, `launchMatrixColumn`, `launchMatrixCell` and `unloadMatrix`.
+Every call takes a request id first and projects to the same typed application/Matrix intents
+used by other callers. The owner id is a real Column or Cell UUID; there is no standalone
+Application authoring API. `configureApplication` accepts a bounded transient JSON call argument,
+never an authored JSON/String Parameter. Argument validation happens before queuing.
+
+Seven **App control** command kinds expose file selection, Column/Cell launch, Matrix unload
+and the three inspections through real File, NodeReference and enum Parameters. Rust generates
+their TypeScript contract and visible fields; the ordinary Golden Inspector edits them.
+`SetFile` changes only the executable through the existing atomic configuration boundary,
+preserving arguments, environment and every other setting. Empty file values clear it.
+Editing, project load and Undo/Redo never fire a command or replay OS side effects.
+
+The embedded `applications/script_template.js` supplies request examples and
+`onApplicationLifecycle(event)`. Project/sequence and runtime/launch identity describe the
+ordered lifecycle of a shared runtime owner; runtime inspection maps it to current consumers.
+These event-driven callbacks use the existing project-fenced delivery, with no idle polling.
+[The API milestone evidence](../progress/mapgyver-m08-control-api.md) covers software and bundled
+command UI behavior. The complete native picker, target/access, recovery and shutdown acceptance
+remains M08/4 in the status ledger.

@@ -1,4 +1,5 @@
 use super::*;
+mod applications;
 mod availability;
 mod parity;
 use crate::app::AppNode;

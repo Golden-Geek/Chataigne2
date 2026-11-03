@@ -3,6 +3,80 @@ use crate::applications::protocol::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn named_column_cell_and_unload_calls_preserve_anchor_policy_without_authored_history() {
+    let mut baseline = fixture();
+    let matrix = create(&mut baseline, MediaKind::Matrix);
+    let MediaEditResult::MatrixCreated { items, .. } = apply(
+        &mut baseline,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::AddLayers { parent: None, count: 1 },
+        },
+    ) else {
+        panic!()
+    };
+    let MatrixItemId::Layer { id: layer } = items[0] else {
+        panic!()
+    };
+    let MediaEditResult::MatrixCreated { columns, .. } = apply(
+        &mut baseline,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::AddColumns { count: 2 },
+        },
+    ) else {
+        panic!()
+    };
+    let document = to_sparse_project_json_pretty(&baseline).unwrap();
+    for caller in CALLERS {
+        for operation in [
+            MatrixEdit::LaunchColumn {
+                column: columns[0],
+                mode: LaunchMode::Cut,
+            },
+            MatrixEdit::LaunchCell {
+                layer,
+                column: columns[1],
+                mode: LaunchMode::Cut,
+            },
+            MatrixEdit::ClearPlayback,
+        ] {
+            let mut engine = loaded(&document);
+            apply(
+                &mut engine,
+                MediaEdit::Matrix {
+                    media: matrix.media,
+                    edit: MatrixEdit::LaunchColumn {
+                        column: columns[0],
+                        mode: LaunchMode::Cut,
+                    },
+                },
+            );
+            let individual = matches!(operation, MatrixEdit::LaunchCell { .. });
+            let unloaded = matches!(operation, MatrixEdit::ClearPlayback);
+            let reply = run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: matrix.media,
+                    edit: operation,
+                },
+            )
+            .unwrap();
+            let snapshot: MatrixPlaybackSnapshot = serde_json::from_value(reply["snapshot"].clone()).unwrap();
+            assert_eq!(snapshot.desired_column, (!unloaded).then_some(columns[0]));
+            if individual {
+                assert!(
+                    snapshot.layers.iter().any(|request| request.layer == layer
+                        && request.column == Some(columns[1])
+                        && request.individual)
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn owned_application_configuration_inspection_and_rejection_match_every_public_caller() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
@@ -37,6 +111,33 @@ fn owned_application_configuration_inspection_and_rejection_match_every_public_c
     invalid_restart.restart.maximum_ms = 1;
     let document = to_sparse_project_json_pretty(&engine).unwrap();
     let cases = vec![
+        (
+            MediaEdit::Applications {
+                edit: ApplicationEdit::SetFile {
+                    application: primary,
+                    executable: Some(std::env::current_exe().unwrap().to_string_lossy().into()),
+                },
+            },
+            true,
+        ),
+        (
+            MediaEdit::Applications {
+                edit: ApplicationEdit::SetFile {
+                    application: primary,
+                    executable: None,
+                },
+            },
+            true,
+        ),
+        (
+            MediaEdit::Applications {
+                edit: ApplicationEdit::SetFile {
+                    application: primary,
+                    executable: Some("relative.exe".into()),
+                },
+            },
+            false,
+        ),
         (
             MediaEdit::Applications {
                 edit: ApplicationEdit::Configure {

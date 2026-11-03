@@ -283,6 +283,10 @@ pub struct ApplicationCallbackTicket {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ApplicationEdit {
+    SetFile {
+        application: ApplicationId,
+        executable: Option<String>,
+    },
     DispatchCallbacks {
         ticket: ApplicationCallbackTicket,
     },

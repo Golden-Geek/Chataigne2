@@ -3,4 +3,4 @@ import type { ApplicationCallbackTicket } from "./ApplicationCallbackTicket";
 import type { ApplicationDefinition } from "./ApplicationDefinition";
 import type { ApplicationId } from "./ApplicationId";
 
-export type ApplicationEdit = { "kind": "DispatchCallbacks", ticket: ApplicationCallbackTicket, } | { "kind": "InspectCallbacks", } | { "kind": "InspectRuntime", } | { "kind": "Configure", application: ApplicationId, definition: ApplicationDefinition, } | { "kind": "Inspect", application: ApplicationId, };
+export type ApplicationEdit = { "kind": "SetFile", application: ApplicationId, executable: string | null, } | { "kind": "DispatchCallbacks", ticket: ApplicationCallbackTicket, } | { "kind": "InspectCallbacks", } | { "kind": "InspectRuntime", } | { "kind": "Configure", application: ApplicationId, definition: ApplicationDefinition, } | { "kind": "Inspect", application: ApplicationId, };

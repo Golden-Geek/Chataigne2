@@ -14,16 +14,16 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** final app-control UI/script/target/access qualification, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Verified owned application runtime](mapgyver-m08-runtime.md): actual sender-only
-and completed-image readiness, normalized shared Column/Cell/two-Matrix processes, timeout/
-crash/backoff, pre-resume cancellation, stale-project rejection and completion-based retention.
-Pinned root/branch/leaf cleanup now passes for forced stop and project retirement.
+**Newly usable:** [App-control commands and scripts](mapgyver-m08-control-api.md): seven typed
+commands, eight named methods and embedded lifecycle/request examples. Set App File preserves
+other settings; ordinary bundled Inspector/Execute/Undo/Redo passes without launching a process.
+The [verified runtime](mapgyver-m08-runtime.md) retains both real readiness modes and owned-tree cleanup.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** M08/3 complete runtime acceptance. 393 software tests, strict
-Clippy, native pre-resume cancellation and all 14 lifecycle cases pass, with both real Spout
-readiness modes and the formerly excluded pinned-descendant case. M08 is 3/4.
+**Last delivered capability:** typed app-control command/script API and bundled command UI.
+396 software tests, generated-contract parity, strict Clippy and Svelte 0/0 pass.
+M08/3 runtime acceptance remains verified; this API milestone adds no gate. M08 is 3/4.
 M08/4 and retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
 | Phase                                                                                                                                                              | State                           | Progress          | Gates | Subphase progression                                                                                                                                                                                                         |
@@ -43,7 +43,7 @@ M08/4 and retained physical/timing requirements remain open; M11 owns changed fe
 
 **Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **47/67 accepted gates**. M08/3 adds one verified gate; M08 is now 3/4. M07 remains
+There are **47/67 accepted gates**. This command/script milestone adds no gate; M08 stays 3/4. M07 remains
 complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
 The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
 and phase denominator 11 → 12. Planning itself added no acceptance. M11 owns changed-contract
@@ -93,27 +93,24 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M08/3 actual runtime acceptance, started 00:04 CET /
-  stopping time 00:49 CET (2026-11-04). Owner: MapGyver app-control runtime over Golden owned
-  processes. **Delivered:** complete current runtime qualification, including previously excluded
-  actual first-image readiness, pre-resume cancellation and pinned-descendant cleanup.
-  The native readiness test now explicitly runs both sender-only and completed-image settings.
-  Production ownership, deadlines, admission and retirement semantics are unchanged.
-  **Checks:** 393 software tests pass in 13.93 s with native/process features. Three software
-  exclusions include cancellation, which then passes explicitly in 0.05 s; two separate-scope
-  exclusions remain. Both owned fixtures build and exact harness compilation succeeds before
-  native execution. Final Windows suite: 14 passed, zero failures/exclusions, 6.08 s; strict
-  all-target Clippy, generated equality, scoped diff checks and both Cargo formatters pass.
-  Actual same-PID sharing/split/rejoin, crash/timeout/backoff, same-ID stale project, both readiness
-  settings and pinned root/branch/leaf cleanup across two trees pass. Final-render retention
-  uses actual processes and explicit null-renderer completion; no delayed GPU fence is claimed.
-  [Current audit/receipt](mapgyver-m08-runtime.md) pins binaries, hashes and the full coverage.
-  **Gate changes:** M08/3 Accepted; M08 is 3/4; **M08/4 alone is Active**.
-  **47/67 gates (70%), 6/12 phases (50%)**. Next product deliverable: complete actual app picker,
-  UI/script/headless commands/callbacks/snippets and target/access/recovery/shutdown acceptance.
-  M11, M10 and every retained physical/performance/final requirement remain queued unchanged.
-  Previous milestone `5b28a04d` is pushed/verified; concurrent manager-label/app/theme/browser/
-  architecture edits, pending documentation cleanup and the named stash remain preserved.
+- **Current batch/handoff:** M08/4 app-control command/script delivery, started 00:18 CET /
+  stopping time 01:03 CET (2026-11-04). Deliverable: typed app-control command nodes, named script
+  functions and app-owned lifecycle/request snippets over the existing public backend operations.
+  Owner: MapGyver applications plus its Media manager command/script registration; Golden stays
+  app-agnostic. File-only changes must preserve every other authored control setting and share
+  validation/history across command, script, UI and headless callers. No JSON-authored settings.
+  Result: seven typed commands, eight named methods and app-owned embedded examples are delivered.
+  [Evidence](mapgyver-m08-control-api.md): 396 tests, exact history/project and named-caller parity,
+  protocol generation, strict Clippy, Svelte 0/0 and actual bundled command-menu/Inspector/
+  passive-edit/Execute/Undo/Redo workflow pass. No process launch or actual native picker was
+  claimed by that browser check. No acceptance gate closes; exactly M08/4 remains Active.
+  Next deliverable: actual native App file picker plus target-outcome fixture reconciliation
+  from removed standalone Application/association APIs to intrinsic Column/Cell owners, then
+  actual target/access and retained UI/callback/project/shutdown/recovery cleanup acceptance.
+  Use the available Computer Use skill after the passing software prerequisites. Previous
+  milestone `68bee14a` is pushed/verified (remote equal, 0/0): M08/3 is Accepted.
+  Counts remain 47/67 gates (70%), 6/12 phases (50%). Preserve concurrent work, pending
+  documentation cleanup and the named stash. Original requirements remain in the return queue.
 
 ## Maintenance rule
 

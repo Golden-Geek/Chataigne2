@@ -40,6 +40,7 @@ pub(super) fn manager_descriptor() -> NodeScriptDescriptor {
     let mut descriptor = NodeScriptDescriptor::default();
     descriptor.add_methods(["editMedia", "inspectMedia"]);
     descriptor.add_methods(super::source_api::METHODS.iter().copied());
+    descriptor.add_methods(crate::applications::scripting::METHODS.iter().copied());
     descriptor
 }
 
@@ -50,11 +51,16 @@ pub(super) fn manager_method(
     method: &str,
     args: &[ParamValue],
 ) -> Result<bool, String> {
-    if super::source_api::METHODS.contains(&method) {
+    let application_method = crate::applications::scripting::METHODS.contains(&method);
+    if application_method || super::source_api::METHODS.contains(&method) {
         let Some(ParamValue::Str(request_id)) = args.first() else {
             return Err("media request id must be a string".into());
         };
-        let edit = super::source_api::operation(method, &args[1..])?.expect("registered source method");
+        let edit = if application_method {
+            crate::applications::scripting::operation(method, &args[1..])?
+        } else {
+            super::source_api::operation(method, &args[1..])?.expect("registered source method")
+        };
         enqueue(ctx, source, owner, request_id, edit)?;
         return Ok(true);
     }

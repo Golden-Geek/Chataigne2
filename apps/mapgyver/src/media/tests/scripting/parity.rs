@@ -19,6 +19,49 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Applications { edit } => match edit {
+            crate::applications::protocol::ApplicationEdit::SetFile {
+                application,
+                executable,
+            } => (
+                "setApplicationFile",
+                serde_json::json!([application, executable.as_deref().unwrap_or("")]),
+            ),
+            crate::applications::protocol::ApplicationEdit::Configure {
+                application,
+                definition,
+            } => (
+                "configureApplication",
+                serde_json::json!([application, serde_json::to_string(definition).unwrap()]),
+            ),
+            crate::applications::protocol::ApplicationEdit::Inspect { application } => {
+                ("inspectApplication", serde_json::json!([application]))
+            }
+            crate::applications::protocol::ApplicationEdit::InspectRuntime {} => {
+                ("inspectApplicationRuntime", serde_json::json!([]))
+            }
+            crate::applications::protocol::ApplicationEdit::InspectCallbacks {} => {
+                ("inspectApplicationCallbacks", serde_json::json!([]))
+            }
+            _ => {
+                return format!(
+                    "local.editMedia('parity', {:?});",
+                    serde_json::to_string(operation).unwrap()
+                );
+            }
+        },
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::LaunchColumn { column, mode },
+        } => ("launchMatrixColumn", serde_json::json!([media, column, mode])),
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::LaunchCell { layer, column, mode },
+        } => ("launchMatrixCell", serde_json::json!([media, layer, column, mode])),
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::ClearPlayback,
+        } => ("unloadMatrix", serde_json::json!([media])),
         MediaEdit::Matrix {
             media,
             edit:

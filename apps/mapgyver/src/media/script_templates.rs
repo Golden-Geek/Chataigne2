@@ -6,6 +6,7 @@ pub(super) fn config() -> ScriptNodeConfig {
         source: ScriptSource::Inline {
             text: [
                 include_str!("script_templates/source_api.js"),
+                crate::applications::scripting::SCRIPT_TEMPLATE,
                 include_str!("script_templates/callbacks.js"),
             ]
             .join("\n"),

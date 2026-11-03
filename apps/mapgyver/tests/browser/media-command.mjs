@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { verifyApplicationCommandUi } from './application-command.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyMediaCommandUi({ base, edit, intent, post, inspectMedia }) {
@@ -102,6 +103,7 @@ export async function verifyMediaCommandUi({ base, edit, intent, post, inspectMe
 		await waitResolutionProjection();
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await waitSize('Fixed');
+		await verifyApplicationCommandUi({ page, edit, intent, parameter, background, commands });
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(

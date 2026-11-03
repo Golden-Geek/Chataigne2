@@ -9,6 +9,7 @@ pub mod logical;
 mod node;
 pub mod protocol;
 pub mod runtime;
+pub(crate) mod scripting;
 mod settings;
 pub(crate) use authoring::control_node;
 pub use authoring::inspect;

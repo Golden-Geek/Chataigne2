@@ -66,6 +66,11 @@ export const COMMAND_PARAMETER_FIELDS = {
     "channel",
     "label"
   ],
+  "InspectApplication": [
+    "application_owner"
+  ],
+  "InspectApplicationCallbacks": [],
+  "InspectApplicationRuntime": [],
   "InspectAsset": [
     "asset"
   ],
@@ -85,6 +90,17 @@ export const COMMAND_PARAMETER_FIELDS = {
     "count"
   ],
   "InspectManager": [],
+  "LaunchMatrixCell": [
+    "media",
+    "matrix_layer",
+    "matrix_column",
+    "launch_mode"
+  ],
+  "LaunchMatrixColumn": [
+    "media",
+    "matrix_column",
+    "launch_mode"
+  ],
   "MoveChannel": [
     "media",
     "channel",
@@ -139,6 +155,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "channel",
     "after_channel"
   ],
+  "SetApplicationFile": [
+    "application_owner",
+    "application_file"
+  ],
   "SharedTexture": [
     "media",
     "channel",
@@ -148,5 +168,8 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "channel",
     "rgba"
+  ],
+  "UnloadMatrix": [
+    "media"
   ]
 } as const;
