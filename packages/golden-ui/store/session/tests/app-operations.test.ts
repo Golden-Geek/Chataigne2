@@ -19,6 +19,31 @@ const reply = (value: NonNullable<UiAck['result']>['value']): UiAck => ({
 });
 
 describe('workbench app operation results', () => {
+	it('background inspections retain applied receipts and skip user activity entirely', async () => {
+		const acks = [reply({ inspected: true })];
+		let observed: readonly UiAck[] | undefined;
+		const value = await invokeWorkbenchAppOperation(
+			request,
+			{
+				async sendIntent(intent, progress) {
+					expect(intent).toBe(request);
+					expect(progress?.lifecycle).toBeUndefined();
+					progress?.applied?.(acks);
+				}
+			},
+			{
+				run: async () => {
+					throw new Error('background read must not open user activity');
+				}
+			},
+			(value) => {
+				observed = value;
+			},
+			{ activity: 'background' }
+		);
+		expect(value).toEqual({ inspected: true });
+		expect(observed).toBe(acks);
+	});
 	it('forwards the canonical applied receipt to a caller projection observer', async () => {
 		const acks = [reply({ created: 123 })];
 		let observed: readonly UiAck[] | undefined;

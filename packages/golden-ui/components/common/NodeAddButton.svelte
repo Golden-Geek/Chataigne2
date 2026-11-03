@@ -66,9 +66,20 @@
 			await onCreateItem(item);
 			return;
 		}
+		const owner = appState.session;
+		const selection = owner?.selectionRevision;
+		const generation = owner?.snapshotGeneration;
 		const result = await sendCreateUserItemIntent(node.node_id, item);
-		if (result.selectWhenCreated && result.createdNodeId !== null) {
-			appState.session?.selectNode(result.createdNodeId, 'REPLACE');
+		// A late creation receipt cannot replace a newer explicit selection or document.
+		if (
+			owner &&
+			appState.session === owner &&
+			owner.snapshotGeneration === generation &&
+			owner.selectionRevision === selection &&
+			result.selectWhenCreated &&
+			result.createdNodeId !== null
+		) {
+			owner.selectNode(result.createdNodeId, 'REPLACE');
 		}
 	};
 

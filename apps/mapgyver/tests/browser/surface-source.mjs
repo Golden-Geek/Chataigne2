@@ -15,9 +15,16 @@ const corners = (crop) => [
 	{ x: crop.x, y: crop.y + crop.height }
 ];
 
-export async function verifySurfaceSourceUi({ base, post, media, inspectMedia }) {
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+export async function verifySurfaceSourceUi({
+	base,
+	post,
+	media,
+	inspectMedia,
+	page: nativePage = null
+}) {
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1440, height: 1000 } }));
+	if (nativePage) await page.setViewportSize({ width: 1440, height: 1000 });
 	page.setDefaultTimeout(5000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
@@ -45,7 +52,7 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 				await delay(20);
 			}
 		}
-		await page.goto(base);
+		if (!nativePage) await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Surface Source$/ });
 		const screenTab = page.getByRole('tab').filter({ hasText: /^Screen Manager$/ });
 		const panel = page.locator('section[aria-label="Surface Source"]');
@@ -54,11 +61,11 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		const controls = screenParameterControls(page);
 		await screenTab.click();
 		await tree.getByRole('button', { name: 'Add child item', exact: true }).click();
-		await page.getByRole('menuitem', { name: 'Screen', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const first = snapshot.screens[0].surfaces[0];
 		await tree
-			.getByRole('treeitem', { name: snapshot.screens[0].label, exact: true })
+			.locator('[data-node-id]')
+			.filter({ has: page.getByRole('button', { name: snapshot.screens[0].label, exact: true }) })
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.click();
 		snapshot = await wait(screens, (value) => value.screens[0].surfaces.length === 2);
@@ -115,6 +122,10 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		await remember();
 		await controls.reference('Source channel', sourceMedia.label, source.label);
 		await wait(definition, (value) => value.source?.channel === source.reference.channel);
+		if (nativePage)
+			await panel
+				.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
+				.waitFor();
 		await remember();
 		await controls.parameter('Enabled').locator('input.editor-checkbox').uncheck();
 		await wait(definition, (value) => !value.enabled);
@@ -204,17 +215,68 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		}
 		const svg = panel.getByRole('group', { name: 'Source crop controls', exact: true });
 		async function begin(index) {
+			const value = await crop();
 			await ready();
+			await wait(
+				async () =>
+					Object.fromEntries(
+						await Promise.all(
+							['x', 'y', 'width', 'height'].map(async (name) => [
+								name,
+								Number(await svg.locator('rect').getAttribute(name))
+							])
+						)
+					),
+				(displayed) => near(displayed, value)
+			);
+			await wait(
+				() =>
+					panel
+						.getByRole('button', {
+							name: `Crop corner ${index === null ? 1 : index + 1}`,
+							exact: true
+						})
+						.isEnabled(),
+				Boolean
+			);
 			await svg.scrollIntoViewIfNeeded();
 			const box = await svg.boundingBox();
 			assert(box && box.width > 20 && box.height > 20);
-			const value = await crop();
+			if (index !== null)
+				await wait(
+					() =>
+						panel
+							.getByRole('button', { name: `Crop corner ${index + 1}`, exact: true })
+							.isEnabled(),
+					Boolean
+				);
 			const point =
 				index === null
 					? { x: value.x + value.width / 2, y: value.y + value.height / 2 }
 					: corners(value)[index];
-			await page.mouse.move(box.x + point.x * box.width, box.y + point.y * box.height);
+			const handle =
+				index === null
+					? null
+					: await panel
+							.getByRole('button', { name: `Crop corner ${index + 1}`, exact: true })
+							.boundingBox();
+			if (handle) {
+				const target = await page.evaluate(
+					({ x, y }) => document.elementFromPoint(x, y)?.outerHTML,
+					{ x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 }
+				);
+				assert(
+					target?.includes(`aria-label="Crop corner ${index + 1}"`) &&
+						!target.includes(' disabled'),
+					`Crop handle must receive pointer input: ${target}`
+				);
+			}
+			await page.mouse.move(
+				handle ? handle.x + handle.width / 2 : box.x + point.x * box.width,
+				handle ? handle.y + handle.height / 2 : box.y + point.y * box.height
+			);
 			await page.mouse.down();
+			await wait(screens, () => history.active_edit_session);
 			const started = await svg.boundingBox();
 			assert(
 				started &&
@@ -335,8 +397,9 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 			12
 		);
 		await wait(crop, (value) => near(value, { x: current.x + 0.04, y: current.y + 0.02 }));
-		const accepted = await crop();
 		await page.keyboard.press('Escape');
+		await wait(screens, () => !history.active_edit_session);
+		const accepted = await crop();
 		await move(box, { x: 0.8, y: 0.8 });
 		await page.mouse.up();
 		await ready();
@@ -371,6 +434,10 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		before = await screens();
 		const cropBeforeSlider = before.screens[0].surfaces[0].definition.crop;
 		await panel.getByRole('button', { name: 'Zoom in', exact: true }).click();
+		await wait(
+			() => panel.locator('output[aria-label="View zoom"]').getAttribute('data-zoom'),
+			(value) => Math.abs(Number(value) - 1.2) < 1e-9
+		);
 		const zoomBeforeSlider = await panel.locator('output[aria-label="View zoom"]').innerText();
 		assert.notEqual(zoomBeforeSlider, '100%', 'exercise a camera different from Home');
 		const canvasBeforeSlider = await svg.boundingBox();
@@ -480,19 +547,21 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, [], 'finite crop controls and Inspector drags never reject');
 		await svg.scrollIntoViewIfNeeded();
-		await page.screenshot({ path: 'target/m05-surface-source-ui.png' });
+		if (!nativePage) await page.screenshot({ path: 'target/m05-surface-source-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'actual generic Surface Parameters/calibration/crop/origin/clamping/live-before-release/Escape/source-loss/history input; native preview remains unverified',
-				browser: browser.version(),
+					'actual generic Surface Parameters/calibration/crop/origin/clamping/live-before-release/Escape/source-loss/history input',
+				native: !!nativePage,
+				browser: nativePage ? 'bundled WebView2' : browser.version(),
 				surface: first.reference,
 				source: source.reference,
 				final_definition: await definition(),
 				page_errors: errors.length,
 				expected_crop_rejections: rejected.length,
-				screenshot: 'target/m05-surface-source-ui.png'
+				screenshot: nativePage ? null : 'target/m05-surface-source-ui.png',
+				native_pixel_alignment: 'not established by DOM input or installation assertions'
 			})
 		);
 	} catch (error) {
@@ -509,9 +578,10 @@ export async function verifySurfaceSourceUi({ base, post, media, inspectMedia })
 				).slice(-3500)
 			})
 		);
-		await page.screenshot({ path: 'target/m05-surface-source-ui-failure.png' }).catch(() => {});
+		if (!nativePage)
+			await page.screenshot({ path: 'target/m05-surface-source-ui-failure.png' }).catch(() => {});
 		throw error;
 	} finally {
-		await browser.close();
+		await browser?.close();
 	}
 }

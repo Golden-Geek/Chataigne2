@@ -79,7 +79,6 @@ export class ScreenAuthoringController<S extends Connection> {
 		return (
 			this.disposed ||
 			this.state.pending ||
-			this.state.refreshing ||
 			!this.state.catalog ||
 			session?.status !== 'connected' ||
 			session.loading.visible
@@ -208,6 +207,9 @@ export class ScreenAuthoringController<S extends Connection> {
 		if (!session || this.busy) return;
 		const generation = session.snapshotGeneration;
 		const operation = ++this.operation;
+		++this.read;
+		this.state.refreshing = false;
+		this.invalidateOwnerRead();
 		this.state.pending = true;
 		this.state.error = '';
 		try {

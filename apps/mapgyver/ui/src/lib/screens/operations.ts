@@ -8,9 +8,19 @@ export const invokeScreenEdit = async (
 	session: Pick<WorkbenchSession, 'invokeAppOperation'>,
 	edit: ScreenEdit
 ) =>
-	(await session.invokeAppOperation({
-		kind: 'invokeAppOperation',
-		namespace: SCREEN_NAMESPACE,
-		operation: SCREEN_OPERATION,
-		payload: edit
-	})) as ScreenEditResult;
+	(await session.invokeAppOperation(
+		{
+			kind: 'invokeAppOperation',
+			namespace: SCREEN_NAMESPACE,
+			operation: SCREEN_OPERATION,
+			payload: edit
+		},
+		undefined,
+		{
+			activity: ['InspectRow', 'InspectManager', 'InspectScreen', 'InspectSurface'].includes(
+				edit.kind
+			)
+				? 'background'
+				: 'user'
+		}
+	)) as ScreenEditResult;

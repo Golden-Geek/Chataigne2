@@ -13,7 +13,11 @@ import type { GraphStore } from '../graph.svelte';
 import type { UiEditOperations } from '../session/edit-operations';
 import type { AppliedIntentObserver } from '../session/intent-sender';
 import type { NodeSelectionIdentity } from '../session/pending-selection';
-import type { WorkbenchAppOperation, WorkbenchAppOperationValue } from '../session/app-operations';
+import type {
+	WorkbenchAppOperation,
+	WorkbenchAppOperationValue,
+	WorkbenchAppOperationOptions
+} from '../session/app-operations';
 import type { WorkbenchConnectionStatus } from '../session/connection-state';
 import type { WorkbenchUserActionPhase } from '../session/action-activity.svelte';
 import type {
@@ -102,7 +106,8 @@ export interface WorkbenchSession {
 	sendIntents(intents: UiEditIntent[], applied?: AppliedIntentObserver): Promise<void>;
 	invokeAppOperation(
 		request: WorkbenchAppOperation,
-		applied?: AppliedIntentObserver
+		applied?: AppliedIntentObserver,
+		options?: WorkbenchAppOperationOptions
 	): Promise<WorkbenchAppOperationValue>;
 	setLogUiUpdateHz(hz: number): void;
 	dismissToast(toastId: number): void;

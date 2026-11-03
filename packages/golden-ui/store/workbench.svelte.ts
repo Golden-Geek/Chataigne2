@@ -884,8 +884,8 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		appendUiLogRecord,
 		sendIntent,
 		sendIntents,
-		invokeAppOperation: (request, applied) =>
-			invokeWorkbenchAppOperation(request, intentPipeline, userActions, applied),
+		invokeAppOperation: (request, applied, options) =>
+			invokeWorkbenchAppOperation(request, intentPipeline, userActions, applied, options),
 		setLogUiUpdateHz,
 		dismissToast,
 		undo,

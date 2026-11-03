@@ -88,6 +88,34 @@ test('a live gesture defers catalog inspection until it finishes', async () => {
 	assert.equal(inspections, 2);
 });
 
+test('background catalog refresh leaves loaded controls usable and cannot overwrite an admitted gesture', async () => {
+	const current = session(),
+		state = createScreenAuthoringState();
+	const pending = deferred<ScreenEditResult>();
+	let initial = true;
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: async () => {
+			if (initial) {
+				initial = false;
+				return ownedCatalog();
+			}
+			return pending.promise;
+		},
+		media
+	});
+	await controller.refresh();
+	const refresh = controller.refresh();
+	assert.equal(state.refreshing, true);
+	assert.equal(controller.busy, false);
+	controller.setInteracting(true);
+	controller.acceptSurface(surface(0.5));
+	pending.resolve(ownedCatalog());
+	await refresh;
+	assert.equal(state.catalog?.screens[0].surfaces[0].definition.crop.width, 0.5);
+	controller.setInteracting(false);
+	controller.dispose();
+});
+
 test('a late catalog cannot replace a newer inspection or selection', async () => {
 	const current = session();
 	const state = createScreenAuthoringState();

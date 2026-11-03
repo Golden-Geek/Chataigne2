@@ -1,0 +1,48 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/7",
+	"state": "Accepted",
+	"capability": "Surface Source remains editable during background inspection; actual native full-source imagery, crop/mapping/calibration/shared selection, grouped history and smooth zoom are functionally verified.",
+	"corrections": {
+		"backend": "All Screen inspections and top-level media catalog inspections use Golden's immutable app-query hook. Reads preserve explicit edit sessions, redo, document identity and event cursors; all public callers receive the same canonical results/rejections. No duplicate DTOs or new transport declaration.",
+		"Golden UI": "Public invokeAppOperation background-activity option preserves ordinary queueing, authoritative receipts and project/transport fences without opening user-action feedback. NodeAddButton fences late creation selection against intervening user selection, session and document replacement.",
+		"MapGyver UI": "Inspection requests opt into background presentation. A loaded Screen catalog stays usable while refreshing; gestures and edits invalidate older read replies. Initial loading, real mutation, disconnection and project replacement still gate editing."
+	},
+	"checks": {
+		"backend": "cargo test --locked -p MapGyver --lib --quiet: 337 passed, 0 failed, 2 ignored. Includes immutable Screen query/active-session/redo/events parity, existing hosted crop scripting, all crop corners/bounds/grouped history and generated-contract parity.",
+		"quality": "Strict all-target native-qualification Clippy passed. Golden UI 233 tests passed; 25 focused runtime/row/Screen tests plus 3 keyboard tests passed. Both MapGyver and Chataigne svelte-check: 0 errors, 0 warnings.",
+		"build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review: exit 0 with ordinary bundled frontend; isolated target/debug/deps/MapGyver-codex-review.exe leaves the user's live --dev process untouched.",
+		"binary_sha256": "3C3C5B5B6EE3A40863FA825C03234374F750BE9A8BAA041AF65FE31A3D2895FA",
+		"bundled": "Actual --surface-source-ui passed all ordinary Inspector parameters and exact history, all four crop corners, origin/bounds, Escape with admitted-edit drain, zoomed held Inspector feedback, source deletion/Undo and selection/tab lifetime; no page errors or rejected finite crop edits; host exit 0. Outliner --screen-details-ui also passes independently.",
+		"native": "Actual bundled WebView2 --source passed the same complete input/history/lifetime checklist with installed full-source preview; no page errors or rejected finite crop edits; owned app exit 0.",
+		"fixtures": "Retained checklist now follows current direct single-type creation, actual Golden rows, real enabled handles/rendered crop state and smooth-zoom settlement. Escape freezes input after already-admitted work drains. Combining Source and Details initially exposed an ancestor locator ambiguity; selecting actual outliner-item-content fixes it and isolated Details passes."
+	},
+	"native_pixels": {
+		"route": "Pillow visible-desktop capture of the verified owned foreground HWND/PID. No helper launch, OS setting change or user-window interaction. The former per-window PrintWindow capture remains black; that method's failure does not mean native desktop pixels are inaccessible.",
+		"baseline": {
+			"fixture": "native-alignment.mjs target/mapgyver-source-visible-20261103-0913 --source",
+			"pixels": [1518, 1010],
+			"desktop_bounds": [160, 160, 1678, 1170],
+			"device_pixel_ratio": 1.25,
+			"distinct_colors": 4263,
+			"native_red_pixels": 390160,
+			"overlay_blue_pixels": 6902,
+			"rgb_sha256": "3f9004cc0af795e460367be987393b75a6067cefc4947fff5f9a5aebfe7515fc"
+		},
+		"zoom": {
+			"fixture": "native-alignment.mjs target/mapgyver-source-zoom-20261103-0918 --source --zoom",
+			"input": "Real wheel zoom-out around the Source active-area center; authored Screen quad remains 0.2..0.8 while Source shows the full raw channel.",
+			"dom_intermediate_frames": 38,
+			"dom_zoom": [1.0, 0.845353834684659],
+			"native_captures": 24,
+			"distinct_native_red_widths_px": [833, 715, 703],
+			"first_three_samples_ms": [81.108, 178.3, 267.118],
+			"blue_stroke_visible_red_inset_baseline_px": [1.5, 1.5, 1.5, 1.5],
+			"maximum_edge_offset_change_px": 0.5,
+			"method": "Same captured image, horizontal/vertical center-line red boundaries and blue stroke centers. Reference stroke inset must be 0.5..2.5 pixels; sampled offset change <=1; at least three native widths including an intermediate. Retained captured data passes those exact assertions. Source full image and crop outline remain aligned in sampled moving and settled frames.",
+			"shutdown": "Both owned native fixtures exited normally 0; no retained app or capture worker."
+		}
+	},
+	"limits": "This closes Source functional acceptance at the observed 125% setup. Captures are sparse, not every compositor frame or a p95 input-latency measurement. No full 100/125/150/200%, mixed-DPI/hotplug, absolute-pixel matrix, GPU timing/physical VRAM or sustained performance acceptance is inferred. M05/8 and all retained production gates remain required.",
+	"gate_changes": "M05/7 Active -> Accepted; M05 4/10 -> 5/10 (50%), gates 29/57 -> 30/57 (53%), phases remain 3/11 (27%). The usable native-capture return trigger is satisfied: M05/6 becomes the sole Active gate for Screen same-frame zoom evidence, then M05/9 output bounds."
+}

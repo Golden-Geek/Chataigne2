@@ -52,16 +52,13 @@ larger authored counts, UI, memory and output requirements remain required in th
 
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 
-M05/6's revised behavior is implemented, but its final native image/overlay capture proof is
-blocked as recorded in the [current status](../progress/mapgyver-status.md): the supported
-capture connection is unavailable and the settled fallback capture is entirely black. Resume
-that gate when usable native-window capture returns. While it is blocked, advance independent
-M05/10 runtime/workbench status before returning to M05/7 and M05/9 qualification. This changes
-execution order within M05 only; every gate, physical matrix and acceptance requirement remains.
-M05/10 is now [accepted](../progress/evidence/mapgyver-workbench-status-2026-11-03.json): responsive
-bounded Screen/Surface row supplements and native runtime footer are verified. Resume M05/7
-functional closure, then M05/9 stable output-bounds delivery. Native capture prerequisites apply
-only to the checks requiring captured native pixels, not ordinary native app/CDP verification.
+M05/10 is [accepted](../progress/evidence/mapgyver-workbench-status-2026-11-03.json): responsive
+bounded Screen/Surface row supplements and native runtime footer are verified. M05/7 is also
+[accepted](../progress/evidence/mapgyver-source-native-2026-11-03.json), including actual Source
+image/outline captures during smooth zoom. A verified owned-foreground desktop capture route
+restores native pixels despite the unavailable helper/black PrintWindow method. Return to
+M05/6 Screen alignment closure next, then M05/9 stable output bounds. This is execution order
+within M05 only; every original physical matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

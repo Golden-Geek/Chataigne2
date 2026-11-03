@@ -8,6 +8,7 @@ pub mod display_matching;
 mod geometry;
 mod nodes;
 pub mod protocol;
+mod queries;
 pub mod rendering;
 mod rows;
 mod screen_node;
@@ -17,6 +18,7 @@ mod target;
 
 pub use authoring::{apply_operation, initialize, inspect, validate_project};
 pub use nodes::ScreenManagerNode;
+pub(crate) use queries::query_operation;
 pub use screen_node::ScreenNode;
 pub use surface_node::SurfaceNode;
 

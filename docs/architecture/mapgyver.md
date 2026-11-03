@@ -50,6 +50,12 @@ feeds both footer and rows. The presentation worker samples actual per-output AP
 delivery counters once a second, fenced by device and endpoint incarnation. These rates are
 separate from renderer submissions and do not claim physical scanout FPS.
 
+Screen inspections and top-level media catalog inspections use Golden's immutable app-query
+dispatch, preserving explicit gestures, redo and event cursors. UI background inspections use
+the public `invokeAppOperation` background-activity option: queueing and authoritative receipts
+remain unchanged, while only explicit user edits open workbench action feedback. Background
+reads must not disable editor controls or retrigger themselves through loading-state changes.
+
 ## Authored document and operations
 
 Every setting is a real typed Golden Parameter; editable lists contain real child nodes.

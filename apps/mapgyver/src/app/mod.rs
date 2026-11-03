@@ -73,6 +73,8 @@ impl ProjectLifecycle for AppNode {
     ) -> Option<Result<serde_json::Value, String>> {
         if namespace == crate::media::protocol::MEDIA_NAMESPACE {
             crate::media::query_operation(engine, operation, payload)
+        } else if namespace == crate::screens::protocol::SCREEN_NAMESPACE {
+            crate::screens::query_operation(engine, operation, payload)
         } else {
             None
         }

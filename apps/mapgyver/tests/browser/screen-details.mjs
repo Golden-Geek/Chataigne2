@@ -46,7 +46,7 @@ export async function verifyScreenDetails({ base, post, page: nativePage = null 
 			.click();
 		const manager = page.locator('section[aria-label="Screen Manager"]');
 		const row = manager
-			.locator('[data-node-id]')
+			.locator('.outliner-item-content[data-node-id]')
 			.filter({ has: page.getByRole('button', { name: 'Details screen', exact: true }) })
 			.first();
 		const details = row.locator('[aria-label="Screen output details"]');

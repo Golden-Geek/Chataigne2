@@ -8,9 +8,23 @@ export const invokeMediaEdit = async (
 	session: Pick<WorkbenchSession, 'invokeAppOperation'>,
 	edit: MediaEdit
 ) =>
-	(await session.invokeAppOperation({
-		kind: 'invokeAppOperation',
-		namespace: MEDIA_NAMESPACE,
-		operation: MEDIA_OPERATION,
-		payload: edit
-	})) as MediaEditResult;
+	(await session.invokeAppOperation(
+		{
+			kind: 'invokeAppOperation',
+			namespace: MEDIA_NAMESPACE,
+			operation: MEDIA_OPERATION,
+			payload: edit
+		},
+		undefined,
+		{
+			activity: [
+				'InspectManager',
+				'InspectChannels',
+				'InspectMediaPreview',
+				'InspectChoices',
+				'InspectCommandCatalog'
+			].includes(edit.kind)
+				? 'background'
+				: 'user'
+		}
+	)) as MediaEditResult;

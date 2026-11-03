@@ -43,7 +43,7 @@ pub(super) fn screen_id(engine: &AppEngine, screen: ScreenId) -> Result<NodeId, 
     Ok(id)
 }
 
-fn surface_id(engine: &AppEngine, reference: SurfaceReference) -> Result<NodeId, String> {
+pub(super) fn surface_id(engine: &AppEngine, reference: SurfaceReference) -> Result<NodeId, String> {
     let parent = screen_id(engine, reference.screen)?;
     let id = engine
         .node_id_by_uuid(reference.surface.0)
@@ -70,33 +70,15 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported screen operation".into());
     }
     let edit: ScreenEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    if let Some(result) = super::queries::read(engine, &edit)? {
+        return serde_json::to_value(result).map_err(|error| error.to_string());
+    }
     let pending = engine.edits.pending.len();
     let result = match edit {
-        ScreenEdit::InspectRow { node } => ScreenEditResult::Row {
-            snapshot: super::rows::inspect(engine, node)?,
-        },
-        ScreenEdit::InspectManager => ScreenEditResult::Manager {
-            snapshot: inspect(engine)?,
-        },
-        ScreenEdit::InspectSurface { reference } => {
-            let id = surface_id(engine, reference)?;
-            let Some(AppNode::Surface(node)) = engine.nodes.get(id) else {
-                unreachable!()
-            };
-            ScreenEditResult::Surface {
-                snapshot: SurfaceSnapshot::new(reference, node.node_data().meta.label.clone(), node.definition()),
-            }
-        }
-        ScreenEdit::InspectScreen { screen } => {
-            let id = screen_id(engine, screen)?;
-            let Some(AppNode::Screen(node)) = engine.nodes.get(id) else {
-                unreachable!()
-            };
-            ScreenEditResult::ScreenDefinition {
-                screen,
-                definition: node.definition(),
-            }
-        }
+        ScreenEdit::InspectRow { .. }
+        | ScreenEdit::InspectManager
+        | ScreenEdit::InspectSurface { .. }
+        | ScreenEdit::InspectScreen { .. } => unreachable!("inspection handled before mutation dispatch"),
         ScreenEdit::CreateScreen { label } => {
             let parent = manager(engine)?;
             let label = labels::unique(engine, parent, label, "Screen", &[])?;

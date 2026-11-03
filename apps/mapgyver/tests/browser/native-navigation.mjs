@@ -7,6 +7,7 @@ import { verifyScreenTranslation } from './screen-translation.mjs';
 import { verifyScreenFit } from './screen-fit.mjs';
 import { verifyRuntimeFooter } from './runtime-footer.mjs';
 import { verifyScreenDetails } from './screen-details.mjs';
+import { verifySurfaceSourceUi } from './surface-source.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -28,6 +29,19 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			[
+				'--source',
+				async (options) => {
+					await options.edit({
+						kind: 'CreateMedia',
+						media_kind: 'SolidColor',
+						label: 'Native source crop'
+					});
+					const inspectMedia = async () =>
+						(await options.edit({ kind: 'InspectManager' })).snapshot;
+					await verifySurfaceSourceUi({ ...options, media: await inspectMedia(), inspectMedia });
+				}
+			],
 			['--details', verifyScreenDetails],
 			['--footer', verifyRuntimeFooter],
 			['--fit', verifyScreenFit],

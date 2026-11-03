@@ -20,6 +20,15 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         edit => edit,
     };
     let result = match edit {
+        MediaEdit::InspectManager => {
+            super::catalog::inspect(engine).map(|snapshot| MediaEditResult::Manager { snapshot })
+        }
+        MediaEdit::InspectChoices { query } => {
+            super::catalog::choices(engine, query).map(|page| MediaEditResult::Choices { page })
+        }
+        MediaEdit::InspectCommandCatalog => Ok(MediaEditResult::CommandCatalog {
+            commands: super::commands::catalog(),
+        }),
         MediaEdit::InspectMediaPreview { query } => {
             super::preview_selection::inspect(engine, query).map(|page| MediaEditResult::MediaPreview { page })
         }
