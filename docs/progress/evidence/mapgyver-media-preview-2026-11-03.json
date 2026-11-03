@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-03",
 	"gate": "M04/8",
-	"state": "Implemented product slice; acceptance remains open",
+	"state": "Product slice at db82852e; subsequent acceptance is recorded in mapgyver-media-preview-native-2026-11-03.json",
 	"ownership": "MapGyver immutable bounded media selection and panel choices; Golden docking and native view retirement",
 	"checks": {
 		"cargo test --locked -p MapGyver --lib --quiet": {

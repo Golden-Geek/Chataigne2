@@ -30,3 +30,8 @@ the replacement frame. Closing one panel does not own or stop another consumer's
 
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
+
+The [functional requirement audit](../progress/evidence/mapgyver-media-preview-native-2026-11-03.json)
+links the backend, bundled and native workflows, including eight simultaneous views, actual
+transport reconnect and independent Screen/Spout delivery through final preview closure.
+Physical display/DPI and whole-app timing/resource qualification keep their own gates.

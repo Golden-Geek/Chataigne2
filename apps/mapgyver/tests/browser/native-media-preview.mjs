@@ -1,10 +1,15 @@
 // Real bundled WebView2 controls and completion-based native preview installation.
-// Independent output pixels remain a separate M04/8 acceptance requirement.
+// --continuity adds eight-view concurrency, reconnect/New/Load and independent output pixels.
+// Build MapGyver/native_qualification with native-qualification; pixel checks need Python/Pillow.
 import assert from 'node:assert/strict';
 import { openNativeEditor } from './native-editor.mjs';
 import { verifyMediaPreviewUi } from './media-preview.mjs';
+import { verifyPreviewContinuity } from './preview-continuity.mjs';
+import { createPreviewOutputObserver } from './preview-output-observer.mjs';
+import path from 'node:path';
 
 const native = await openNativeEditor();
+let output;
 try {
 	let token;
 	async function post(route, body) {
@@ -22,9 +27,20 @@ try {
 		return value;
 	}
 	token = (await post('/api/ui/session', {})).token;
-	await verifyMediaPreviewUi({
+	const flow = process.argv.includes('--continuity')
+		? verifyPreviewContinuity
+		: verifyMediaPreviewUi;
+	if (process.argv.includes('--continuity'))
+		output = await createPreviewOutputObserver(
+			post,
+			path.resolve(`target/mapgyver-preview-acceptance-${Date.now()}`)
+		);
+	await flow({
 		base: native.base,
 		page: native.page,
+		post,
+		directory: native.directory,
+		observe: output?.observe,
 		edit: async (payload) => {
 			const ack = await post('/api/ui/intent', {
 				kind: 'invokeAppOperation',
@@ -36,6 +52,14 @@ try {
 			return ack.result.value;
 		}
 	});
+	if (output)
+		console.log(
+			JSON.stringify({ independentOutput: await output.finish(), pixels: output.observations })
+		);
 } finally {
-	await native.close();
+	try {
+		await output?.finish();
+	} finally {
+		await native.close();
+	}
 }

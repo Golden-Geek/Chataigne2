@@ -1,0 +1,81 @@
+{
+	"date": "2026-11-03",
+	"gate": "M04/8",
+	"state": "Accepted: original Media Preview functional requirements verified",
+	"implementation_commit": "db82852e0f83ce788d936d2de9ecf4acc581d46d",
+	"prerequisites": {
+		"product_slice": "mapgyver-media-preview-2026-11-03.json",
+		"native_compile": "cargo build --locked -p MapGyver --features native-qualification --bin MapGyver --bin native_qualification: exit 0, ordinary bundled frontend",
+		"software_flow": "node apps/mapgyver/tests/headless/media.mjs --preview-continuity-ui: exit 0 before native validation",
+		"native_flow": "node apps/mapgyver/tests/browser/native-media-preview.mjs --continuity: exit 0, owned app normal exit and independent receiver exit 0"
+	},
+	"original_requirement_audit": [
+		{
+			"requirement": "Dockable panel follows selected media or descendants",
+			"proof": "Public Golden panel registration and real dock-group creation; bundled/native selection-follow. Backend preview_selection tests resolve a selected channel's Parameter folder to its nearest media and independently return an off-page channel without history changes. Reference ownership/deletion/Undo/reload are covered by the same backend tests."
+		},
+		{
+			"requirement": "Channel choice, all-channel grid and independent persisted state for multiple instances",
+			"proof": "Two actual side-by-side native dock groups install four channels each, reaching the unchanged eight-view limit. One switches to a distinct selected channel while the other retains its grid. Both lock states, chosen channel and grid survive actual WebView reload. The earlier product workflow covers six channels over 4+2 grid pages and independent tab persistence."
+		},
+		{
+			"requirement": "Remove Inspector media previews",
+			"proof": "MediaInspector and MatrixProperties no longer instantiate ChannelPreview. The bundled/native product workflow expands a real Matrix channel's generic Inspector and verifies no native image remains; Parameters, Channels and runtime feedback remain editable."
+		},
+		{
+			"requirement": "Reconnect and project fencing",
+			"proof": "Fault injection closes the real /api/ui/ws socket with code 4001; ordinary automatic reconnect creates a new open socket and both panels recover their sources and chosen channel. Actual project New clears all native previews and shows the locked-project mismatch. Loading the saved project restores the locked media and native installation. Reader tests reject stale generation/history replies; valid identities survive active Parameter edits."
+		},
+		{
+			"requirement": "Reuse native leases, completion-based close/lock retirement",
+			"proof": "Production native installation and absence of retirement covers are required at 4/8/5/1/0-view checkpoints. Closing the peer, changing the main panel's lock and closing the final preview all settle; no separate renderer or view-budget expansion is introduced. The existing generic native UI lifecycle/retirement and expired-session recovery checks remain passing prerequisites."
+		},
+		{
+			"requirement": "Uninterrupted independent outputs during panel interaction",
+			"proof": "One independent SDK consumer stays connected from the first grid through eight-view concurrency, transport reconnect, layout reload, peer close, lock change and closing every preview. It receives 273 newer frames under one shared sender handle, with zero absence, native receive errors, descriptor mismatches or overflow. Separate finite full-image readbacks remain exact red at each lifecycle checkpoint. Editing the output source while no preview exists produces exact green. Project reload restores exact saved red."
+		}
+	],
+	"final_native_run": {
+		"artifact_directory": "target/mapgyver-preview-acceptance-1793681358370",
+		"concurrent_views": 8,
+		"side_by_side": true,
+		"chosen_channel": "4cb86655-4d61-43e8-be4c-0950307dbddc",
+		"copies": 273,
+		"logged_frames": 273,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"overflow": 0,
+		"stable_shared_handle": 1073751362,
+		"first_frame": 55,
+		"last_frame": 327,
+		"max_observed_receive_gap_ms": 33.7097,
+		"page_errors": [],
+		"rejected_requests": [],
+		"app_exit_code": 0,
+		"receiver_exit_code": 0
+	},
+	"pixel_oracles": {
+		"extent": [96, 64],
+		"comparison": "Every RGBA pixel, decoded from independent finite Spout readbacks by Pillow",
+		"red_255_0_0_255": [
+			"first-grid",
+			"concurrent-eight",
+			"transport-reconnected",
+			"peer-closed",
+			"lock-changed",
+			"all-previews-closed",
+			"project-reloaded"
+		],
+		"green_0_255_0_255": ["output-edited-without-previews"],
+		"payload_retirement": "Each existing pixels role confirms retired=true"
+	},
+	"limits_retained": [
+		"This accepts functional Media Preview behavior and independent output lifetime, not full cadence, GPU timing, memory, device-removal or physical display qualification. The observed receive gap is evidence, not a new acceptance budget.",
+		"Native view installation is observed through the production WebView/host completion contract. Native underlay physical-pixel/DPI alignment and all display configurations remain in M05/8.",
+		"The receiver is intentionally stopped before project New because replacing the project intentionally retires old outputs. Saved output pixels are independently rechecked after Load.",
+		"Existing eight-view, source, texture and byte limits are unchanged. Larger collections remain reachable through four-tile grid pages.",
+		"The legacy --matrix-ui workflow's obsolete Channel name assertion still awaits revised M07 modernization; it does not become passing evidence here."
+	],
+	"gate_change": "M04/8 Active -> Accepted; M04 becomes 5/8 (63%), total accepted gates 28/57. Fully accepted phases remain 3/11 (27%). Next selected gate is M05/6; source M04/4-6 and all retained qualification remain open."
+}

@@ -2,23 +2,24 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** M04 independent Media Preview (M04/8).
-**Next deliverable:** qualify concurrent independent native preview panels, actual reconnect/
-project reload and close/lock retirement while separately observed outputs continue.
-**Execution:** M04/1–3 and M04/7 accepted; M04/8 alone is Active on `mapgyver`. Source M04/4–6
+**Current topic:** M05/6 shared smooth navigation and Screen interaction.
+**Next deliverable:** reusable pointer-anchored animated zoom for Screen, Surface Source and
+Composition, then selected/hovered handles, grouped keyboard movement and backend Fill/Fit.
+**Execution:** M04/1–3,7–8 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next delivery:** none known. Retained source/device/timing/memory/display gates remain below.
-**Usable now:** independent Media Preview tabs with follow/lock, channel choice and paged grid;
+**Usable now:** simultaneous independent Media Preview panels with follow/lock, channel choice,
+paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
 **Last delivered capability:** [Independent Media Preview](../architecture/mapgyver-media-preview.md):
-backend descendant/channel resolution, persisted per-panel lock/channel/grid/page, bounded reads,
-aspect-preserving previews and no Inspector images. Bundled browser and actual WebView2 interaction
-pass; native 1/4/2/1-view installation and New clearing pass. Concurrent panel pixels, actual app
-reconnect/reload and independent output continuity remain open in M04/8.
-**Last accepted:** [M04/7 Reference](evidence/mapgyver-reference-native-2026-11-03.json), including
-all seven original functional requirement groups and six complete hardware/source cases.
+eight side-by-side native views, persisted independent locks/channel/grid, real transport
+reconnect, layout reload and New/Load fencing pass. A persistent receiver records 273 frames
+under one sender handle without absence/errors; full output pixels stay correct through closing
+every preview, editing the source without previews and project reload.
+**Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
+including its complete original functional contract. M04/7 Reference remains accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
 | Phase                                                                                                                                                | State                           | Progress          | Gates | Subphase progression                                                                  |
@@ -27,8 +28,8 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m01-acceptance-items"></a>[M01 Native route](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28)                        | Accepted                        | `██████████` 100% | 4/4   | Host/GPU/lifetime/decision 4/4                                                        |
 | <a id="m02-acceptance-items"></a>[M02 Shared shell](mapgyver-m02-shell.md)                                                                           | Accepted                        | `██████████` 100% | 7/7   | Build/identity/discovery/tools/host/isolation 7/7                                     |
 | <a id="m03-acceptance-items"></a>[M03 Rendering](mapgyver-m03-render-foundations.md)                                                                 | Blocked                         | `████████░░` 78%  | 7/9   | Foundations 7/7; recovery 0/1; qualification 0/1                                      |
-| <a id="m04-acceptance-items"></a>[M04 Media](../plan/MapGyver_Implementation_Plan.md#m04--deliver-source-variants-reference-media-and-media-preview) | Active                          | `█████░░░░░` 50%  | 4/8   | Sources 3/6; Reference 1/1; Preview 0/1                                               |
-| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Pending; physical gates blocked | `███░░░░░░░` 30%  | 3/10  | Authoring/warp/calibration 3/3; editors 0/2; physical 0/3; bounds/workbench stats 0/2 |
+| <a id="m04-acceptance-items"></a>[M04 Media](../plan/MapGyver_Implementation_Plan.md#m04--deliver-source-variants-reference-media-and-media-preview) | Pending source qualification    | `██████░░░░` 63%  | 5/8   | Sources 3/6; Reference 1/1; Preview 1/1                                               |
+| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Active; physical gates blocked  | `███░░░░░░░` 30%  | 3/10  | Authoring/warp/calibration 3/3; editors 0/2; physical 0/3; bounds/workbench stats 0/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Pending                         | `░░░░░░░░░░` 0%   | 0/5   | Child model 0/1; dependencies 0/1; native output 0/1; transforms 0/1; panels 0/1      |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Pending                         | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; config/demand 0/1; runtime 0/1; app acceptance 0/1                |
@@ -37,7 +38,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **27/57 accepted gates**. M04/7 adds one verified gate; denominators are unchanged.
+There are **28/57 accepted gates**. M04/8 adds one verified gate; denominators are unchanged.
 Partial work, planning and unavailable checks earn no gate.
 
 **Scope revision:** the prior plan was 5/10 phases (50%), with 40/48 gates accepted.
@@ -55,11 +56,12 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/8            | Preview product slice implemented and bundled/native tab interactions pass. Finish concurrent side-by-side panels/capacity, actual reconnect/project reload and close/lock retirement while independently observed outputs continue. [Evidence and exact limits](evidence/mapgyver-media-preview-2026-11-03.json). |
+| Active   | M05/6            | Deliver reusable smooth pointer-anchored zoom across Screen/Surface Source/Composition, then Screen selection/hover handles, grouped 1/10-pixel keyboard edits, Alt translation and backend Fill/Fit. Verify actual pointer/keyboard and native alignment; retain M05/8 physical matrix. |
+| Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
-| Pending  | M05/6,7,9,10     | After working revised media, deliver shared smooth navigation, Screen handles/keyboard/Fill/Fit, stable visible output-bounds updates and outliner supplements.                                                                                                                                                           |
+| Pending  | M05/7,9,10       | After M05/6, finish Surface Source interaction, stable visible output-bounds updates and outliner supplements.                                                                                                                                                           |
 | Pending  | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels. Replace the existing global Composition `InspectManager` refresh with bounded owner/catalog reads; Reference's paged query alone does not qualify whole-app scale. |
 | Pending  | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                                 |
 | Pending  | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                          |
@@ -83,24 +85,22 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M04/8 independent Media Preview product slice, started 2026-11-03
-  05:05 CET; cutoff 05:50 CET. MapGyver owns bounded backend resolution and independent
-  persisted panel choices; Golden owns native registration/retirement. Implemented follow,
-  lock, channel/grid/page, project fencing and Inspector image removal. Four tiles/page keep
-  existing eight-view/source/resource admission unchanged. Valid identities survive parameter
-  editing; hidden/clipped surfaces release registrations with existing retirement covers.
-  **Verified:** 319 MapGyver tests (2 ignored), generated DTO drift, strict all-target native-
-  qualification clippy, ordinary bundled build, both UI checks with zero diagnostics, 2 reader/
-  state tests, 29 native UI unit tests, generic lifecycle/recovery/Screen continuity browser
-  fixtures, new bundled interaction and actual WebView2 native 1/4/2/1-view installation,
-  tab close/unlock/relock and New clearing. Both owned app runs exited normally 0.
-  [Exact scope and limits](evidence/mapgyver-media-preview-2026-11-03.json).
-  Additional legacy `--matrix-ui` stops at its obsolete `Channel name` form assertion; baseline
-  and current Inspector use the generic header. Revised M07 must modernize that workflow.
-  **Gate changes:** none; M04/8 remains Active. Next finish concurrent side-by-side native
-  panels/capacity, actual app reconnect/project reload and close/lock retirement while observed
-  independent outputs continue. This is a useful product milestone, not gate acceptance.
-  Counts remain 27/57 gates, M04 4/8 (50%), 3/11 phases (27%).
+- **Current handoff:** M04/8 simultaneous native panels and independent-output acceptance,
+  started 2026-11-03 05:40 CET; cutoff 06:25 CET. Existing native editor/receiver/pixel roles
+  prove eight side-by-side views, independent saved lock/channel/grid, actual socket reconnect,
+  layout reload, final preview close and project New/Load lock recovery. Exact Screen/Spout
+  pixels pass at eight lifecycle checkpoints, including red after all previews close, green
+  after a source edit without previews and saved red after reload. One continuous receiver
+  records **273 frames, 0 absent, 0 failed receives, 0 mismatches/overflow**, one sender handle.
+  Both app and receiver exit normally 0; no admission limits change.
+  **Checks:** prerequisite ordinary bundled/native-qualification binaries compile; final
+  software and native continuity flows pass with no page errors/rejected requests. Reuse
+  unchanged product-slice Rust/UI/lifecycle checks. [Requirement audit, results and exact limits](evidence/mapgyver-media-preview-native-2026-11-03.json).
+  **Gate closed: M04/8.** Cadence/GPU/memory/device/physical qualification remains in its
+  existing gates; the observed receive gap is not a new budget. Legacy `--matrix-ui` still
+  awaits M07 modernization of its obsolete Channel name assertion.
+  Counts: **28/57 gates, M04 5/8 (63%), 3/11 phases (27%)**. Next selected gate is M05/6;
+  begin its reusable smooth-zoom product slice only after this acceptance milestone is pushed.
 
 ## Maintenance rule
 
