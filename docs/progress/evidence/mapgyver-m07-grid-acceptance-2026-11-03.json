@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/3",
+  "decision": "Accepted",
+  "next_active_gate": "M07/4",
+  "batch": { "start_utc": "21:34", "cutoff_utc": "22:19" },
+  "requirements": {
+    "square_full_panel_group_presentation": "matrix-grid + viewport geometry; pass",
+    "context_plus_remove_rename": "actual centered plus and context Add Media/Reference, filled removal and inline Layer/Column rename with exact history; pass",
+    "drag_sort_reparent_columns": "actual mouse before/inside/root and Column before/after; held source leaves mounted window; exact Undo/Redo and stable active anchor; pass",
+    "shared_inspector_virtualization": "typed Layer/Group/Cell/Column edits, offscreen history, keyboard scroll, tab/resize, 64x64 bounded DOM and narrow 125% geometry; pass",
+    "context_copy_delete_exports": "filled Group/Column subtree copies and row/Group/Column deletion; exact replay; Rust derived export/copy/project suites; pass",
+    "complete_caller_parity": "all four public caller paths and Rust-generated contract equality in current library suite; pass",
+    "source_lifetime": "default Reference/Alt-copy, cyclic atomic rejection, source loss/Undo, independent healthy copy and launched-cell replacement; pass",
+    "project_lifetime": "actual File New/browser upload, fresh epochs/history, stable persisted IDs and hash, verified drop observer, same-ID reload during a held drag, no stale domain dispatch/page errors/rejected receipts; pass",
+    "native_feedback": "actual WebView2 Column/Cell/Layer selection/request/installed/submitted/interruption/steady input and final-consumer clearing; pass"
+  },
+  "software": {
+    "rust_library": { "passed": 392, "failed": 0, "ignored": 2, "seconds": 143.37, "log": "target/m07-grid-acceptance-tests.log" },
+    "strict_clippy": "pass; target/m07-grid-acceptance-clippy.log",
+    "generated_equality": "pass in library suite",
+    "svelte": "0 errors, 0 warnings; target/m07-grid-acceptance-svelte.log",
+    "ui_tests": "29 pass; target/m07-grid-acceptance-ui-tests.log"
+  },
+  "actual_app": {
+    "binary": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "400C52778FAD525F60C35A3589B9F2ED1471E19FC712B437DF0C2086C3935A14",
+    "browser": "149.0.7827.55",
+    "combined_ui_project": "pass; target/m07-grid-acceptance-browser.log; 38527ms",
+    "explicit_context_creation": "pass; target/m07-grid-context-acceptance.log",
+    "native": "pass; target/m07-grid-acceptance-native.log; actual Intel renderer and 96x64 Spout Screen consumer",
+    "review_sha256": "13ce6d2e5d17ee2fb361c9359fd4e55a1f3a9fca9af74780aa507feb8a9efcba",
+    "screenshots": ["target/m07-native-grid-feedback.png", "target/m07-viewport-inspector.png"]
+  },
+  "checkout_limits": "Concurrent manager-label/dock-theme edits were present during final checks and are excluded from the milestone. Equivalent interaction paths also passed before those display-name edits.",
+  "counts": { "accepted_gates": 45, "total_gates": 57, "gate_percent": 79, "m07_accepted": 3, "m07_total": 4, "complete_phases": 5, "total_phases": 11, "phase_percent": 45 },
+  "remaining": "M07/4 full native pixels/scale/lifetime, M08 runtime/UI/access and retained physical/performance/final gates; no requirement or budget waived"
+}

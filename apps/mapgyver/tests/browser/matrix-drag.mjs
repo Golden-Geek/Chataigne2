@@ -163,6 +163,39 @@ export async function verifyMatrixDragUi({ base, edit }) {
 			(await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column,
 			playback.desired_column
 		);
+		const { items: added } = await matrix({ kind: 'AddLayers', parent: null, count: 128 });
+		const beforeLargeDrag = await inspect();
+		await wait(
+			() => grid.getAttribute('aria-rowcount'),
+			(count) => count === String(beforeLargeDrag.items.length + 1)
+		);
+		const moving = await row(c.id.id).boundingBox();
+		await page.mouse.move(moving.x + 20, moving.y + 30);
+		await page.mouse.down();
+		await page.mouse.move(moving.x + 60, moving.y + 50, { steps: 5 });
+		await grid.evaluate((element) => {
+			element.scrollTop = element.scrollHeight;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await wait(
+			() => row(c.id.id).count(),
+			(count) => count === 0
+		);
+		const destination = row(added.at(-1).id);
+		await destination.waitFor();
+		const landing = await destination.boundingBox();
+		assert(
+			(await grid.getByRole('rowheader').count()) < 30,
+			'held drag does not mount the whole Matrix'
+		);
+		await page.mouse.move(landing.x + 40, landing.y + landing.height - 4, { steps: 5 });
+		await page.mouse.move(landing.x + 40, landing.y + landing.height - 4);
+		await page.mouse.up();
+		const reordered = await wait(inspect, (state) => state.items.at(-1).id.id === c.id.id);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(inspect, (state) => isDeepStrictEqual(state, beforeLargeDrag));
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(inspect, (state) => isDeepStrictEqual(state, reordered));
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		await page.screenshot({ path: 'target/m07-drag-ui.png' });
@@ -170,7 +203,7 @@ export async function verifyMatrixDragUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Actual Layer/Group before/inside/root drags, complete subtree retention, Column before/after sort, exact one-step Undo/Redo, Escape cancellation, no implicit launch and stable active Column identity',
+					'Actual Layer/Group before/inside/root drags, complete subtree retention, Column before/after sort, exact one-step Undo/Redo, Escape cancellation, no implicit launch, stable active Column identity and bounded dragging after the source row leaves the viewport',
 				browser: browser.version()
 			})
 		);

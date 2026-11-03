@@ -58,6 +58,15 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		await page.getByRole('menuitem', { name: 'Solid Color', exact: true }).click();
 		const created = await wait(inspect, (state) => state.cells.some((cell) => cell.media));
 		const originalCell = created.cells[0];
+		await cell('Layer 2', 'Column 2').click({ button: 'right', position: { x: 5, y: 5 } });
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('Add Media', { exact: true }) })
+			.hover();
+		await page.getByRole('menuitem', { name: 'Reference', exact: true }).click();
+		await wait(inspect, (state) =>
+			state.cells.some((cell) => cell.layer === initialLayerId(state, 'Layer 2') && cell.media)
+		);
 		for (const [oldLabel, label, field] of [
 			['Layer 1', 'Stage A', 'items'],
 			['Column 1', 'Scene A', 'columns']
@@ -108,7 +117,42 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		const group = grouped.items.find((row) => row.id.kind === 'Group');
 		await grid.getByTitle(`Select ${group.label}`, { exact: true }).click({ button: 'right' });
 		await page.getByRole('menuitem', { name: 'Add layer in group', exact: true }).click();
-		await wait(inspect, (state) => state.items.some((row) => row.parent === group.id.id));
+		const withChild = await wait(inspect, (state) =>
+			state.items.some((row) => row.parent === group.id.id)
+		);
+		const child = withChild.items.find((row) => row.parent === group.id.id);
+		await grid
+			.getByRole('button', { name: `Add Media to ${child.label} / Scene A`, exact: true })
+			.click();
+		await page.getByRole('menuitem', { name: 'Solid Color', exact: true }).click();
+		await wait(inspect, (state) =>
+			state.cells.some((cell) => cell.layer === child.id.id && cell.media)
+		);
+		for (const [label, action, rowDelta, columnDelta] of [
+			[group.label, 'Duplicate row', 2, 0],
+			[group.label, 'Delete row', -2, 0],
+			['Layer 2', 'Delete row', -1, 0],
+			['Scene A', 'Duplicate Column', 0, 1],
+			['Column 3', 'Delete Column', 0, -1]
+		]) {
+			const before = await inspect();
+			await grid.getByTitle(`Select ${label}`, { exact: true }).click({ button: 'right' });
+			await page.getByRole('menuitem', { name: action, exact: true }).click();
+			const after = await wait(
+				inspect,
+				(state) =>
+					state.items.length === before.items.length + rowDelta &&
+					state.columns.length === before.columns.length + columnDelta
+			);
+			if (action.startsWith('Duplicate'))
+				assert(after.cells.length > before.cells.length, 'complete owned Cell subtree copied');
+			await undo();
+			await wait(inspect, (state) => isDeepStrictEqual(state, before));
+			await redo();
+			await wait(inspect, (state) => isDeepStrictEqual(state, after));
+			await undo();
+			await wait(inspect, (state) => isDeepStrictEqual(state, before));
+		}
 		await cell('Stage A', 'Scene A').click({ button: 'right', position: { x: 5, y: 5 } });
 		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
 		await opacity.waitFor();
@@ -165,4 +209,8 @@ export async function verifyMatrixGridUi({ base, edit }) {
 	} finally {
 		await browser.close();
 	}
+}
+
+function initialLayerId(snapshot, label) {
+	return snapshot.items.find((row) => row.label === label).id.id;
 }

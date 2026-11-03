@@ -25,6 +25,7 @@
 	function source(event: DragEvent) {
 		const session = appState.session;
 		if (
+			!element ||
 			disabled ||
 			session?.status !== 'connected' ||
 			session.loading.visible ||
@@ -41,7 +42,7 @@
 	function object(event: DragEvent) {
 		const target =
 			event.target instanceof Element ? event.target.closest('[data-source-drop-object]') : null;
-		return target && element.contains(target) ? target : null;
+		return target && element?.contains(target) ? target : null;
 	}
 	function reset() {
 		hovering = false;
@@ -89,8 +90,12 @@
 		hovering = true;
 	}}
 	ondragleave={(event) => {
-		if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
-		const rect = element.getBoundingClientRect();
+		if (event.relatedTarget instanceof Node && element?.contains(event.relatedTarget)) return;
+		const rect = element?.getBoundingClientRect();
+		if (!rect) {
+			reset();
+			return;
+		}
 		if (
 			event.clientX <= rect.left ||
 			event.clientX >= rect.right ||

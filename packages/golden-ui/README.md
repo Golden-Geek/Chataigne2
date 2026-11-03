@@ -58,6 +58,11 @@ renew that app's UI session or open a snapshot connection under the earlier stor
 
 ## Package Rules
 
+The main Inspector owns its responsive parameter layout. Its named inline-size container
+stacks parameter labels above their controls below 22 rem, keeping numeric/vector/file controls
+usable inside narrow nested folders and at larger desktop font scales. Parameter widgets and
+authored values remain unchanged; dashboard layouts keep their independent presentation.
+
 - Package internals must stay self-contained. Do not depend on `$app/*` or other app-only
   framework aliases from inside `golden_ui`.
 - App shell code should consume `golden_ui` through package exports, not by reaching into package

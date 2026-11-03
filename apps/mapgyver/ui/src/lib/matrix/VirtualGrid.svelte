@@ -93,7 +93,7 @@
 	function dropAt(
 		event: DragEvent
 	): { edit: MatrixEdit; element: HTMLElement; position: string } | null {
-		if (!dragging || disabled || !(event.target instanceof Element)) return null;
+		if (!element || !dragging || disabled || !(event.target instanceof Element)) return null;
 		const header = event.target.closest<HTMLElement>('[data-matrix-drop]');
 		if (dragging.kind === 'Column') {
 			if (header?.dataset.matrixDrop !== 'Column') return null;
@@ -202,7 +202,7 @@
 		highlighted.setAttribute('data-matrix-drop-position', target.position);
 	}}
 	ondragleave={(event) => {
-		if (!(event.relatedTarget instanceof Node) || !element.contains(event.relatedTarget))
+		if (!(event.relatedTarget instanceof Node) || !element?.contains(event.relatedTarget))
 			clearDropHint();
 	}}
 	ondrop={(event) => {

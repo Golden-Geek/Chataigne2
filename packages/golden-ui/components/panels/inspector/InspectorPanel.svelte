@@ -738,6 +738,8 @@
 	}
 
 	.inspector-content {
+		container-type: inline-size;
+		container-name: golden-inspector;
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow-x: hidden;
@@ -745,6 +747,24 @@
 		overflow-y: auto;
 		scrollbar-gutter: stable;
 		padding-right: 0.3rem;
+	}
+
+	/* Nested folders and large desktop font scales leave too little room for two columns. */
+	@container golden-inspector (width < 22rem) {
+		.inspector-content :global(.parameter-inspector:not(.layout-dashboard) .firstline) {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0.2rem;
+			align-items: stretch;
+		}
+		.inspector-content :global(.parameter-inspector:not(.layout-dashboard) .parameter-controls) {
+			grid-column: 1;
+			justify-self: stretch;
+			min-inline-size: 0;
+		}
+		.inspector-content :global(.parameter-inspector:not(.layout-dashboard) .parameter-info) {
+			grid-column: 1;
+			min-inline-size: 0;
+		}
 	}
 
 	.watcher-wrapper {

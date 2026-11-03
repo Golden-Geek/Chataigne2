@@ -1,103 +1,70 @@
 # Revised Matrix grid
 
-**M07/3 Active — 2026-11-03.** This slice delivers the square full-panel workbench grid,
-contextual structural/media operations, inline rename and drag sorting/reparenting. The full
-revised grid/project/native-feedback audit remains required; no gate is awarded.
+**M07/3 Accepted — 2026-11-03.** MapGyver owns Matrix document intents and presentation.
+Golden owns context menus, selection, generic Inspector, history/project transport and the native
+host. M07/4 remains required for full native layer/group/final pixels, scale and ownership qualification.
 
-MapGyver owns grid presentation and Matrix intents. Golden owns context menus, selection,
-Inspector, history and document edits. The generated Rust viewport supplies the backend media
-catalog; the UI does not choose media defaults or allocate labels. `CreateCellMedia` creates
-one actual owned subtree in a sparse or existing empty Cell, preserving typed Cell settings and
-app control. Occupied and foreign addresses reject atomically. All six kinds use the shared
-media factory, including nested 3×3 Matrices and empty References.
+The full-panel virtual grid uses 7.5 rem square Cells, compressed scroll bounds and bounded
+backend windows. Group rows have folder/accent/striped presentation. Ordinary settings use real
+Parameters in the shared Inspector; the internal heading and custom property forms are removed.
 
-Cells are 7.5 rem squares at every font scale, with the existing compressed scroll range and
-bounded backend window. Group rows use a folder, accent and striped non-playable addresses.
-Double-click edits row/Column labels in place. Empty Cells expose a centered plus/catalog and
-context Add Media; filled Cells expose compact removal. Row/Column menus provide inspection,
-creation, duplication and deletion. Settings forms and the internal header are removed; ordinary
-settings use real Golden Parameters and the shared Inspector. Runtime feedback remains a
-specialized supplement. The local-context-menu boundary prevents Golden's global node menu
-from intercepting grid right-clicks.
+| Original M07/3 requirement | Authoritative proof |
+| --- | --- |
+| Square full-panel grid, Layer/Group distinction and bounded presentation | `matrix-grid.mjs`, `matrix-viewport.mjs`, viewport tests and inspected screenshots |
+| Layer/Group drag sort/reparent/root return; Column sorting | Actual mouse drags, whole-subtree retention, before/after placement, Escape and exact one-step history in `matrix-drag.mjs`; source row leaves the mounted window while dragging |
+| Double-click rename | Actual Layer/Column inline input and exact Undo/Redo in `matrix-grid.mjs` |
+| Centered plus and context Add Media; compact filled removal | Both creation paths are exercised, including context Reference creation; removal preserves Cell settings/identity and exact Undo |
+| Context structural operations and exports | Filled Group/Column copies and row/Group/Column deletion with complete owned Cells and exact replay; backend copy/project suites retain derived exports |
+| Shared Inspector survives virtualization | Layer, Group, Cell and Column typed controls; offscreen edits/history without scrolling selected objects into view; 64×64 keyboard scroll, tab/resize lifetime |
+| Complete current caller parity | Rust DTO/generated equality and all four caller paths for creation, placement, settings, copy/removal, rejection, project/history and playback; accepted M07/1–2 evidence is retained |
+| Truthful native playback feedback | Real bundled WebView2 Column/Cell input and Screen consumer: installed/steady submission, selection independence, Cell/Layer mix, interruption and final-consumer retirement clearing |
+| Retained project/source/lifetime checklist | Real File New/browser upload, exact current reference hash, fresh epochs, stable saved IDs, fresh history and no stale receipts/errors; verified drop observer plus same-ID reload during a held drag; cyclic rejection and source loss/Undo with a healthy independent copy |
 
-Verification on the isolated bundled executable:
+The backend supplies the generated six-kind catalog and shared defaults. `CreateCellMedia`
+creates a real owned subtree in an existing or sparse Cell, preserves typed Cell settings/app
+control and never implicitly launches. `DropItem` / `DropColumn` resolve complete committed
+order once before the existing validated move path; the UI sends only target/side hints.
+No-op drops preserve history; foreign/self/cyclic targets reject atomically.
 
-- 389 Rust library tests pass, zero failures, two retained exclusions, 128.63 seconds. New
-  cases cover six kinds, existing/sparse Cells, no launch, exact history/project/copy, rejection
-  and all four public callers. Both generated-contract equality suites pass.
-- Strict all-target Clippy with native/process-fixture features passes. Both Cargo formatters
-  pass. Svelte reports zero errors/warnings; all 29 Matrix/application UI tests pass.
-- Actual browser interaction passes square/full-panel geometry, contextual media/structure,
-  inline Layer/Column rename with exact Undo/Redo, stable owned media identity after Undo,
-  removal preserving Cell settings, bounded offscreen Cell Inspector and no implicit launch.
-- Typed Layer/Group/Cell parameter/history/offscreen checks and actual 3×3 catalog creation
-  pass. Column/Cell app-control regressions pass: generic Inspector, shared PID, independent
-  trigger/anchor, disabled destination hold and actual Unload retirement. Every browser run
-  also passes ordinary source/history/Save-New-Load integration and normal host shutdown.
-- Screenshot `target/m07-grid-ui.png` is visually inspected. Browser 149.0.7827.55. Executable
-  SHA256: `C961F4C94BA20E2829E31990981D31495D9FDC8010707463218755C4485215BE`.
+Golden's main Inspector stacks parameter labels/controls below 22 rem. Native-sized/narrow
+125% editing stays inside the panel without overlapping labels. Matrix and media drop handlers
+reject detached DOM owners: a held drag across same-ID project reload cannot dispatch into the
+new document or throw a late `contains` error.
 
-[Machine-readable receipt](evidence/mapgyver-m07-grid-slice-2026-11-03.json).
-Browser previews report native observations unavailable; they do not establish native pixels
-or physical output timing. M07/1–2 remain Accepted; M07/4 and M08/3–4 remain Pending.
+The host's shared observation publisher clears the set when the final owner retires and on
+shutdown, retries failed delivery and republishes current state for new preview generations.
+This fixes the reproduced `Video idle` / stale submitted-marker defect. Hollow requested,
+filled submitted and selected-label outlines remain separate; native status markers fit the
+header at 125% scaling. Populated Cell media uses its normal Inspector; the runtime supplement
+is inspected through a Matrix row.
 
-Drag placement uses generated `DropItem` / `DropColumn` intents. The backend resolves the
-complete committed order once, then uses the existing validated move path; the UI sends only
-the hovered row/Column and pointer side. Row headers accept before/after and Group-middle
-reparenting; the corner/background returns a row to root. Column headers accept left/right
-sorting. Invalid/self/cyclic targets reject atomically; a drop into the current position creates
-no Undo entry. One bounded selected viewport is sufficient; the UI never computes missing
-preceding siblings. Project identity changes cancel held drag state.
+Current acceptance:
+- **392 library tests pass**, zero failures/two retained exclusions, **143.37 seconds**.
+- Strict all-target native/process Clippy, generated-contract equality and both Cargo formatters pass.
+- Svelte: **0 errors/warnings**; all **29 Matrix/application UI tests pass**.
+- Combined current `--matrix-ui --matrix-project-ui` passes in **38.53 seconds**. Six focused
+  real-input flows, actual project replacement/upload and held-input fencing pass. The explicit
+  context Add Media/Reference path also passes separately after strengthening that assertion.
+- Current `native-navigation.mjs --matrix-feedback` passes with an actual Intel renderer and
+  96×64 Spout Screen consumer, zero page errors/rejected requests and normal owned-host shutdown.
+  The prior two failures predate the idle publisher; its same-flow fix confirmation also passes.
+- Final executable SHA256:
+  `400C52778FAD525F60C35A3589B9F2ED1471E19FC712B437DF0C2086C3935A14`.
+  Screenshots `target/m07-native-grid-feedback.png` and `target/m07-viewport-inspector.png`
+  are visually inspected.
 
-Current drag proof: **390 library tests pass**, zero failures/two retained exclusions in 132.19
-seconds. Strict all-target Clippy passes after its equivalent `rfind` cleanup; the affected
-placement and four-caller parity tests pass again afterward. Generated equality, Svelte
-0 errors/warnings and all 29 UI tests pass. Actual mouse drags verify Layer sorting, into-Group
-and return-to-root moves, complete Group subtree retention, Column before/after sorting,
-one-step exact Undo/Redo, Escape cancellation, owned Cell/media identity retention and stable
-active Column identity. The square-grid/context/rename/offscreen-Inspector regression also
-passes. Browser fixtures wait for the committed row order to reach the DOM before continuing
-and move the mouse twice over the drop target before release. An earlier run failed to load a
-dynamic JS asset; a subsequent run exposed the missing DOM/drag-over synchronization. The
-final flow passes without retries or changes to acceptance predicates.
+[Acceptance receipt](evidence/mapgyver-m07-grid-acceptance-2026-11-03.json).
+[Earlier grid slice](evidence/mapgyver-m07-grid-slice-2026-11-03.json),
+[drag slice](evidence/mapgyver-m07-drag-slice-2026-11-03.json) and
+[native defect/software correction](evidence/mapgyver-m07-native-feedback-2026-11-03.json)
+retain their original limits. Earlier ordinary-form fixtures are replaced by equivalent
+current flows; no acceptance requirement is dropped.
 
-Current executable SHA256:
-`FA019DC89EA52C1B1F94CF55AB7C416846D2208B191291A19A28B1EBAFACA981`.
-Screenshot `target/m07-drag-ui.png` is visually inspected.
-[Drag receipt](evidence/mapgyver-m07-drag-slice-2026-11-03.json).
+The revised review uses `target/m07-grid-review`, explicitly native-sized 320×240 media/Layer
+canvases and 500 ms Layer durations. Its original hash is checked before/after UUID-named upload.
+Historical `target/m07-editor-review` artifacts remain untouched.
 
-Next deliverable: reconcile complete revised grid/project interaction, including keyboard/resize,
-source replacement/rejection, pending lifetime and cross-window virtualization; verify truthful
-current native playback feedback before M07/3 acceptance. The old ordinary-form fixtures retain
-their uncovered requirements until replaced by equivalent current checks. All original budgets
-and requirements remain in force.
-
-The bounded native feedback batch (21:20–22:05 UTC) used its baseline and one repaired run.
-Actual WebView2 input with a 96×64 Spout Screen consumer reaches installed/steady Matrix
-submissions, distinct selection/requested/submitted state, independent Cell/Layer requests,
-an interrupted mix and steady completion with unchanged authored state. The renderer is the
-actual Intel adapter. The first run also exposes header status text overflowing the first Cell
-at 125% scaling; the repaired header uses compact accessible markers and an independent selected
-label outline. Its bounds checks and `target/m07-native-grid-feedback.png` visual inspection pass.
-The runtime Inspector check explicitly selects a Matrix row after editing a populated Cell's
-media. No native pixels or physical timing are inferred from these observations.
-
-**Native feedback acceptance remains open:** the second run fails final-consumer retirement.
-The footer becomes `Video idle`, while old installed/submitted Matrix observations remain.
-Inspection identifies the ownerless/empty-topology early return in the host worker: it never
-publishes an empty preview-status set. The implementation now shares successful/error/idle/
-shutdown publication through `host/observations.rs`; delivery errors do not cache an unseen
-clear, and a new preview generation republishes its current snapshot. Two regression tests
-cover retirement, reconnect, deduplication and failed-clear retry. Full software results and the
-remaining native return trigger are recorded in the owning receipt/status page. No further
-native variants are added to this batch. The narrower generic Inspector layout also needs
-review in the remaining complete-grid audit.
-
-Return trigger: after the new host publisher's complete software and strict-lint prerequisites
-pass, rebuild the isolated app and run the same native flow to confirm retirement clearing.
-The two recorded native runs predate this newly implemented idle publication path; neither is
-claimed as post-fix acceptance. **392 library tests pass** (130.70 seconds, zero failures/two
-retained exclusions), including both new publication regressions and generated equality. Strict
-all-target native/process Clippy passes. Svelte remains 0 errors/warnings and all 29 UI tests
-pass; the bundled square-grid/context/rename/offscreen regression passes before the host-only
-idle change. [Current native/software receipt](evidence/mapgyver-m07-native-feedback-2026-11-03.json).
+Validation also ran with concurrent manager-label/dock-theme edits in the shared checkout;
+those changes are excluded from this milestone. The same interaction paths passed before
+those display-name edits. This evidence accepts grid interaction/native observations, not
+native pixels, physical scanout/timing, full render scale or release readiness. **Next: M07/4.**

@@ -105,8 +105,12 @@ fit inside the header at mixed desktop scaling. Native observation delivery live
 `src/preview/host/observations.rs`: live/error/idle/shutdown use one deduplicated publication
 path. Retiring the final renderer owner publishes an empty set; failed event delivery stays
 retryable. `node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-feedback` exercises
-actual WebView2 Column/Cell input and Screen-consumer retirement. Its post-fix retirement
-confirmation remains required in the [grid evidence](../../docs/progress/mapgyver-m07-grid.md).
+actual WebView2 Column/Cell input and Screen-consumer retirement. Native post-fix retirement
+clearing passes; the [grid evidence](../../docs/progress/mapgyver-m07-grid.md) records the full
+interaction/project audit and its scope. The current `--matrix-ui` command composes focused
+catalog/grid/drag/typed-Inspector/owned-media/viewport flows; `--matrix-project-ui` checks actual
+File New/browser upload and a held drag across a same-ID project reload. Generate its current
+reference with `--matrix-review`; historical review artifacts remain untouched.
 
 Application definitions, availability, column associations and lifecycle policy live under
 `src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS

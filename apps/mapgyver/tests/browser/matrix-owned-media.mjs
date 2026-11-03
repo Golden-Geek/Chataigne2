@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { clearMatrixScene } from './matrix-scene.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, inspectMedia }) {
@@ -19,6 +20,7 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		label: 'Owned Matrix'
 	});
 	const operation = (value) => edit({ kind: 'Matrix', media: matrix.media, edit: value });
+	await clearMatrixScene(edit, matrix.media);
 	await operation({ kind: 'AddLayers', parent: null, count: 1 });
 	await operation({ kind: 'AddColumns', count: 2 });
 	const inspect = async () => (await operation({ kind: 'Inspect' })).snapshot;
@@ -28,7 +30,8 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 	page.setDefaultTimeout(6000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
-	const rejected = observeRejectedRequests(page, () => 'Matrix owned media');
+	let stage = 'Matrix owned media';
+	const rejected = observeRejectedRequests(page, () => stage);
 	async function wait(read, predicate) {
 		const deadline = Date.now() + 6000;
 		while (true) {
@@ -55,11 +58,11 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 			.click();
 		const panel = page.locator('section[aria-label="Matrix"]');
 		await panel.getByRole('gridcell').first().waitFor();
-		async function drop(index, copy) {
+		async function drop(index, copy, label = 'Matrix drop source') {
 			const sourceLabel = manager
-				.getByRole('treeitem', { name: 'Matrix drop source', exact: true })
+				.getByRole('treeitem', { name: label, exact: true })
 				.first()
-				.getByRole('button', { name: 'Matrix drop source', exact: true });
+				.getByRole('button', { name: label, exact: true });
 			const transfer = await page.evaluateHandle(() => new DataTransfer());
 			try {
 				await sourceLabel.dispatchEvent('dragstart', { dataTransfer: transfer });
@@ -112,6 +115,34 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		await wait(inspect, (value) => value.cells.length === 1);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(inspect, (value) => value.cells.length === 2);
+		stage = 'Matrix cycle rejection';
+		await drop(0, false, 'Owned Matrix');
+		await wait(
+			() => panel.getByRole('alert').innerText(),
+			(text) => /cycle|feedback/i.test(text)
+		);
+		assert.deepEqual(await inspect(), second, 'self-source rejection is atomic');
+		stage = 'Reference source loss and independent copy';
+		await manager
+			.getByRole('treeitem', { name: 'Matrix drop source', exact: true })
+			.first()
+			.getByRole('button', { name: 'Matrix drop source', exact: true })
+			.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^Delete(?:\s|$)/ }).click();
+		await wait(inspectMedia, (state) => !state.media.some((entry) => entry.id === source.media));
+		await wait(
+			() => panel.getByRole('gridcell').nth(0).innerText(),
+			(text) => text.includes('Missing source')
+		);
+		assert(!(await panel.getByRole('gridcell').nth(1).innerText()).includes('Missing source'));
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(inspectMedia, (state) => state.media.some((entry) => entry.id === source.media));
+		await wait(inspect, (state) => JSON.stringify(state) === JSON.stringify(second));
+		await wait(
+			() => panel.getByRole('gridcell').nth(0).innerText(),
+			(text) => !text.includes('Missing source')
+		);
+		stage = 'Launched-cell replacement';
 		await panel
 			.getByRole('button', { name: `Launch ${initial.columns[0].label}`, exact: true })
 			.click();
@@ -150,12 +181,13 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		await post('/api/ui/project-load', { path: project });
 		assert.deepEqual(await inspect(), replaced);
 		assert.deepEqual(errors, []);
-		assert.deepEqual(rejected, []);
+		assert.equal(rejected.length, 1);
+		assert.equal(rejected[0].request?.stage, 'Matrix cycle rejection');
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Matrix default Reference/Alt-copy drops, typed Cell Inspector, independent variants, launched-cell replacement Undo/Redo and project roundtrip'
+					'Matrix default Reference/Alt-copy drops, cyclic rejection, missing-source recovery with independent copy, typed Cell Inspector, launched-cell replacement Undo/Redo and project roundtrip'
 			})
 		);
 	} finally {

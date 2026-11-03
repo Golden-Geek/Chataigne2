@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { clearMatrixScene } from '../browser/matrix-scene.mjs';
 
 export async function verifyMatrix({ post, intent, edit }) {
 	const create = async (media_kind, label) =>
@@ -22,11 +23,12 @@ export async function verifyMatrix({ post, intent, edit }) {
 		await edit({
 			kind: 'ConfigureMediaResolution',
 			media: reference.media,
-			size: { kind: 'Fixed', extent: { width: 32, height: 24 } }
+			size: { kind: 'Fixed', extent: { width: 320, height: 240 } }
 		});
 		sources.push(reference);
 	}
 	const root = await create('Matrix', 'Review Matrix');
+	await clearMatrixScene(edit, root.media);
 	await edit({
 		kind: 'ConfigureMediaResolution',
 		media: root.media,
@@ -40,14 +42,19 @@ export async function verifyMatrix({ post, intent, edit }) {
 	await matrix({
 		kind: 'Configure',
 		settings: {
-			empty_cell: 'Transparent',
-			transition: { duration_ms: 500, curve: 'SmoothStep' }
+			empty_cell: 'Transparent'
 		}
 	});
 	const {
 		items: [group]
 	} = await matrix({ kind: 'AddGroup', parent: null, label: 'Review Group' });
 	const { items: layers } = await matrix({ kind: 'AddLayers', parent: group.id, count: 2 });
+	for (const layer of layers)
+		await matrix({
+			kind: 'ConfigureLayer',
+			layer: layer.id,
+			settings: { position: [0, 0], size: { width: 320, height: 240 }, duration_ms: 500 }
+		});
 	const { columns } = await matrix({ kind: 'AddColumns', count: 3 });
 	for (const [index, label] of ['Lower', 'Upper'].entries())
 		await matrix({ kind: 'RenameItem', item: layers[index], label });
@@ -83,7 +90,7 @@ export async function verifyMatrix({ post, intent, edit }) {
 		null,
 		'inspecting/selecting a viewport is not launch'
 	);
-	const directory = path.resolve('target/m07-editor-review');
+	const directory = path.resolve('target/m07-grid-review');
 	await mkdir(directory, { recursive: true });
 	const project = path.join(directory, 'MatrixReview.mapgyver');
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
@@ -108,8 +115,8 @@ export async function verifyMatrix({ post, intent, edit }) {
 	assert.equal(
 		(await inspect()).cells.find(
 			(c) => c.layer === layers[0].id && c.definition.column === columns[0]
-		).definition.source.media,
-		sources[2].media
+		).definition.source.channel,
+		sources[2].channel
 	);
 	assert.equal((await playback()).desired_column, null, 'source assignment never launches');
 	assert((await intent({ kind: 'undo' })).success);
@@ -151,11 +158,14 @@ export async function verifyMatrix({ post, intent, edit }) {
 	assert.equal(rejected.success, false);
 	assert.deepEqual(await inspect(), review);
 	await edit({ kind: 'RemoveMedia', media: sources[0].media });
-	assert(
-		(await window()).cells.some(
-			(c) => c.cell.definition.source?.media === sources[0].media && c.source_missing
-		)
+	const redAliases = new Set(
+		review.cells
+			.filter((cell) => cell.definition.source?.channel === sources[0].channel)
+			.map((cell) => cell.media)
 	);
+	const missing = (await window()).cells;
+	assert.equal(missing.filter((entry) => redAliases.has(entry.cell.media)).length, 2);
+	assert(missing.every((entry) => entry.source_missing === redAliases.has(entry.cell.media)));
 	assert((await intent({ kind: 'undo' })).success);
 	assert.deepEqual(await inspect(), review);
 	assert.equal((await post('/api/ui/project-new', {})).ok, true);

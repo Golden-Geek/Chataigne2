@@ -52,8 +52,11 @@ is complete: typed Layer/Group/Column/Cell ownership, backend 3×3 defaults, act
 bounded Inspector and complete authored API/history/project/copy behavior.
 [M07/2 playback acceptance](../progress/mapgyver-m07-playback.md) is also complete: precedence,
 independent/atomic activation, disabled/empty policy, interruption and shared-time/final-use
-demand pass, with current native fade observations on both GPUs. M07/3 is the single active
-gate for the complete revised grid. M07 native/scale
+demand pass, with current native fade observations on both GPUs. [M07/3 grid
+acceptance](../progress/mapgyver-m07-grid.md) is complete: actual contextual creation/removal,
+inline rename, structural copy/delete and virtualized drag sorting/reparenting, bounded shared
+Inspector/keyboard/resize/project lifetime and truthful native submission/retirement feedback pass.
+M07/4 is the single active gate for full native pixels/scale/lifetime qualification. M07 native/scale
 and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
 dependencies above without waiving physical/timing gates or changing qualification budgets.
 

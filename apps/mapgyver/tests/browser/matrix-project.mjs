@@ -7,14 +7,13 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
-import { selectMediaChannel } from './media-tree.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
-	const project = path.resolve('target/m07-editor-review/MatrixReview.mapgyver');
+export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) {
+	const project = path.resolve('target/m07-grid-review/MatrixReview.mapgyver');
 	const review = JSON.parse(
-		await readFile(path.resolve('target/m07-editor-review/review.json'), 'utf8')
+		await readFile(path.resolve('target/m07-grid-review/review.json'), 'utf8')
 	);
 	const projectHash = async () =>
 		createHash('sha256')
@@ -34,6 +33,16 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
 	const rejectedRequests = observeRejectedRequests(page, () => stage);
+	const drops = [];
+	page.on('websocket', (socket) =>
+		socket.on('framesent', ({ payload }) => {
+			try {
+				const frame = JSON.parse(String(payload));
+				const edit = frame.intent?.payload?.edit;
+				if (edit?.kind === 'DropItem' || edit?.kind === 'DropColumn') drops.push(edit);
+			} catch {}
+		})
+	);
 	try {
 		async function wait(read, predicate) {
 			const deadline = Date.now() + 5000;
@@ -57,8 +66,8 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 		const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
 		await tab.click();
 		const panel = page.locator('section[aria-label="Matrix"]');
-		const properties = page.locator('.properties');
-		const actions = page.locator('section[aria-label="Matrix"] .editor-toolbar, .properties');
+		const properties = page.locator('.inspector');
+		const actions = panel;
 		const button = (name) => actions.getByRole('button', { name, exact: true });
 		const grid = panel.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		const undo = page.getByTitle('Ctrl/Cmd+Z', { exact: true });
@@ -71,32 +80,30 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			await openFile();
 			await menuItem('New').click();
 			await wait(inspectMedia, (value) => value.media.length === 0 && value.assets.length === 0);
-			await wait(() => button('Add Matrix').isEnabled(), Boolean);
 			await wait(
 				() => grid.count(),
 				(value) => value === 0
 			);
 			await wait(
-				() => properties.getByLabel('Row name', { exact: true }).count(),
-				(value) => value === 0
+				() => properties.locator('.parameter-inspector').count(),
+				(count) => count === 0
 			);
-			await wait(
-				() => properties.getByLabel('Column name', { exact: true }).count(),
-				(value) => value === 0
-			);
-			await wait(
-				() => properties.getByLabel('Canvas width', { exact: true }).count(),
-				(value) => value === 0
-			);
+			assert.equal(await grid.getByRole('textbox').count(), 0);
 			await wait(() => undo.isDisabled(), Boolean);
 			await wait(() => redo.isDisabled(), Boolean);
 			await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 		}
 		async function createSelectedRow() {
 			const before = await inspectMedia();
-			await button('Add Matrix').click();
-			const catalog = await wait(inspectMedia, (value) =>
-				value.media.some(
+			await page
+				.getByRole('tab')
+				.filter({ hasText: /^Media Manager$/ })
+				.click();
+			const manager = page.getByRole('region', { name: 'Media Manager', exact: true });
+			await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
+			await page.getByRole('menuitem', { name: 'Matrix', exact: true }).click();
+			const catalog = await wait(inspectMedia, (state) =>
+				state.media.some(
 					(entry) =>
 						entry.media_kind === 'Matrix' && !before.media.some((old) => old.id === entry.id)
 				)
@@ -104,40 +111,31 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			const root = catalog.media.find(
 				(entry) => entry.media_kind === 'Matrix' && !before.media.some((old) => old.id === entry.id)
 			);
+			await manager.getByRole('button', { name: root.label, exact: true }).click();
+			await tab.click();
 			await wait(
 				() => grid.getAttribute('aria-rowcount'),
-				(value) => value === '1'
+				(count) => count === '4'
 			);
-			await button('Add layer').click();
-			const authored = await wait(
-				() => inspect(root.id),
-				(value) => value.items.length === 1
-			);
-			await button('Add column').click();
-			const snapshot = await wait(
-				() => inspect(root.id),
-				(value) => value.columns.length === 1
-			);
-			await grid.getByTitle(`Select ${authored.items[0].label}`, { exact: true }).click();
-			await grid.getByTitle(`Select ${snapshot.columns[0].label}`, { exact: true }).click();
-			await wait(
-				() => properties.getByLabel('Row name', { exact: true }).inputValue(),
-				(value) => value === authored.items[0].label
-			);
+			const snapshot = await inspect(root.id);
+			assert.equal(snapshot.items.length, 3);
+			assert.equal(snapshot.columns.length, 3);
+			assert.equal(snapshot.cells.length, 0);
+			await grid.getByTitle(`Select ${snapshot.items[0].label}`, { exact: true }).click();
 			return snapshot;
 		}
 		async function rename(label) {
-			const form = properties
-				.locator('form')
-				.filter({ has: page.getByRole('textbox', { name: 'Row name', exact: true }) });
-			await form.getByLabel('Row name', { exact: true }).fill(label);
-			await form.getByRole('button', { name: 'Rename', exact: true }).click();
+			const selected = grid.getByRole('button', { pressed: true }).first();
+			await selected.dblclick();
+			const input = grid.getByRole('textbox');
+			await input.fill(label);
+			await input.press('Enter');
 			await grid.getByTitle(`Select ${label}`, { exact: true }).waitFor({ state: 'attached' });
 		}
 		stage = 'active Matrix replaced through File New';
 		const first = await createSelectedRow();
 		await rename('Before replacement');
-		await button('Cut').click();
+		await grid.getByRole('button', { name: 'Launch Column 1', exact: true }).click();
 		const active = await wait(
 			() => playback(first.media),
 			(value) => value.desired_column === first.columns[0].id
@@ -184,19 +182,25 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 		await wait(inspectMedia, (value) =>
 			value.media.some((entry) => entry.id === review.root.media)
 		);
-		await selectMediaChannel(page, await inspectMedia(), review.root);
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Media Manager$/ })
+			.click();
+		await page
+			.getByRole('region', { name: 'Media Manager', exact: true })
+			.getByRole('button', { name: 'Review Matrix', exact: true })
+			.click();
+		await tab.click();
+		await grid.getByTitle('Select Review Group', { exact: true }).click();
 		await wait(
 			() => grid.getAttribute('aria-rowcount'),
 			(value) => value === String(review.rows + 1)
 		);
-		await wait(
-			() => properties.getByLabel('Row name', { exact: true }).count(),
-			(value) => value === 0
-		);
-		await wait(
-			() => properties.getByLabel('Column name', { exact: true }).count(),
-			(value) => value === 0
-		);
+		await properties
+			.locator('.parameter-inspector')
+			.filter({ has: page.getByText('Opacity', { exact: true }) })
+			.locator('input.number-field')
+			.waitFor();
 		const loaded = await inspect(review.root.media);
 		assert.equal(loaded.items.length, review.rows);
 		assert.equal(loaded.cells.length, review.populated_cells);
@@ -238,6 +242,53 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			(value) => isDeepStrictEqual(value, added)
 		);
 		assert.equal((await playback(review.root.media)).desired_column, null);
+		const header = (id) => grid.locator(`[role="rowheader"][data-row-id="${id}"]`);
+		const source = header(review.layers[0].id);
+		const ordinarySource = await source.boundingBox(),
+			ordinaryTarget = await header(review.layers[1].id).boundingBox();
+		await page.mouse.move(ordinarySource.x + 20, ordinarySource.y + 30);
+		await page.mouse.down();
+		await page.mouse.move(ordinaryTarget.x + 40, ordinaryTarget.y + ordinaryTarget.height - 4, {
+			steps: 5
+		});
+		await page.mouse.move(ordinaryTarget.x + 40, ordinaryTarget.y + ordinaryTarget.height - 4);
+		await page.mouse.up();
+		await wait(
+			() => inspect(review.root.media),
+			(state) => state.items[1].id.id === review.layers[1].id
+		);
+		assert.equal(drops.length, 1, 'the observer captures a normal dispatched row drop');
+		await undo.click();
+		await wait(
+			() => inspect(review.root.media),
+			(state) => isDeepStrictEqual(state, added)
+		);
+		stage = 'same persisted IDs reload during a held drag';
+		const sourceBounds = await source.boundingBox();
+		await page.mouse.move(sourceBounds.x + 20, sourceBounds.y + 30);
+		await page.mouse.down();
+		await page.mouse.move(sourceBounds.x + 60, sourceBounds.y + 50, { steps: 5 });
+		const beforeDrops = drops.length;
+		await post('/api/ui/project-load', { path: project });
+		await wait(() => undo.isDisabled(), Boolean);
+		await wait(
+			() => grid.getByTitle('Select Upper', { exact: true }).count(),
+			(count) => count === 1
+		);
+		const target = await header(review.layers[1].id).boundingBox();
+		await page.mouse.move(target.x + 40, target.y + target.height - 4, { steps: 5 });
+		await page.mouse.move(target.x + 40, target.y + target.height - 4);
+		await page.mouse.up();
+		await page.evaluate(
+			() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+		);
+		assert.equal(
+			drops.length,
+			beforeDrops,
+			'the old project drag never dispatches into reloaded identical IDs'
+		);
+		assert.deepEqual(await inspect(review.root.media), loaded);
+		assert.notEqual((await window(review.root.media)).project, loadedEpoch);
 		stage = 'loaded project replaced again';
 		await newProject();
 		assert.deepEqual(await inspectMedia(), { assets: [], media: [] });
@@ -261,7 +312,7 @@ export async function verifyMatrixProjectUi({ base, edit, inspectMedia }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'actual File New/browser upload replaces active Matrix project, clears selection/history, preserves saved IDs with fresh epochs, and retains usable controls; native feedback/pending-outcome integration unverified',
+					'actual File New/browser upload replaces active Matrix project, clears selection/history, preserves saved IDs with fresh epochs, fences a held drag across same-ID reload with a verified drop observer, and retains usable current grid controls; native feedback verified separately',
 				browser: browser.version(),
 				replaced_media: first.media,
 				fresh_media: second.media,

@@ -76,6 +76,7 @@ const withUi = [
 	'--matrix-defaults-ui',
 	'--matrix-grid-ui',
 	'--matrix-drag-ui',
+	'--matrix-viewport-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
 	'--column-applications-ui',
@@ -408,11 +409,11 @@ try {
 	}
 	if (process.argv.includes('--matrix-ui')) {
 		const { verifyMatrixUi } = await import('../browser/matrix.mjs');
-		await verifyMatrixUi({ base, edit, inspectMedia: inspect });
+		await verifyMatrixUi({ base, post, edit, directory, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-project-ui')) {
 		const { verifyMatrixProjectUi } = await import('../browser/matrix-project.mjs');
-		await verifyMatrixProjectUi({ base, edit, inspectMedia: inspect });
+		await verifyMatrixProjectUi({ base, post, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--composition-project-ui')) {
 		const { verifyCompositionProjectUi } = await import('../browser/composition-project.mjs');
@@ -437,6 +438,10 @@ try {
 	if (process.argv.includes('--matrix-drag-ui')) {
 		const { verifyMatrixDragUi } = await import('../browser/matrix-drag.mjs');
 		await verifyMatrixDragUi({ base, edit });
+	}
+	if (process.argv.includes('--matrix-viewport-ui')) {
+		const { verifyMatrixViewportUi } = await import('../browser/matrix-viewport.mjs');
+		await verifyMatrixViewportUi({ base, edit });
 	}
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');
