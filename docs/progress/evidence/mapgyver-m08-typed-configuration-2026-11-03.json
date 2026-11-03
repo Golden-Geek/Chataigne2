@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "state": "Active; typed settings milestone verified; complete gate remains open",
+  "software": {
+    "command": "cargo test --locked -p MapGyver -p golden_parameters --lib",
+    "MapGyver": { "passed": 363, "failed": 0, "ignored": 2 },
+    "golden_parameters": { "passed": 26, "failed": 0, "ignored": 1 },
+    "strict_clippy": "cargo clippy --locked -p MapGyver -p golden_parameters --lib --tests --features native-qualification,application-process-fixture -- -D warnings",
+    "svelte": "0 errors, 0 warnings",
+    "generated_contracts": "Existing Rust/TypeScript parity tests pass; DTO shapes unchanged",
+    "format": "Both Cargo formatters and touched UI/fixture Prettier checks pass"
+  },
+  "native": {
+    "prerequisites": "Terminal passing software/lint and inspected --no-run executable build before execution",
+    "binary": "target/debug/deps/application_runtime-d39e2a9bf0d5ebf6.exe",
+    "sha256": "4483B88F758445F7F98DC9C30E36E2C0C92239876670000C350EB7D8CDE96860",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 1,
+    "duration_seconds": 2.63,
+    "exclusion": "Pinned-descendant qualification still requires the explicit Golden IO fixture under M08/4"
+  },
+  "bundled_ui": {
+    "command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-codex-review.exe node apps/mapgyver/tests/headless/media.mjs --application-ui",
+    "sha256": "E636C50BCE1CB8A5883046AB3E488065D538516E835E902CBA2CD2D274D811AE",
+    "browser": "149.0.7827.55",
+    "result": "pass",
+    "page_errors": 0,
+    "rejected_intents": 0,
+    "coverage": "Generic file/path, window/readiness/deadline/restart Parameters, actual Argument/Environment children, conditional widget visibility, inherited environment, clearing and Undo/Redo",
+    "screenshot": "target/m08-applications-ui.png",
+    "initial_failure": "The fixture counted an exiting widget before its hide animation completed; waiting for DOM settlement passed without product changes"
+  },
+  "receipts": "target/m08-typed-{tests,clippy,ui-check,native-build,native,app-build,ui}.log",
+  "remaining": [
+    "Embed the reusable typed settings in Column/Cell and remove the standalone Applications/association workflow",
+    "Deduplicate normalized keys across consumers and implement complete neighbor/direct/outgoing/final-use demand semantics",
+    "Complete contextual CRUD, actual desktop picker and retained M08/3-4 process/retirement/access acceptance"
+  ],
+  "acceptance_awarded": 0
+}

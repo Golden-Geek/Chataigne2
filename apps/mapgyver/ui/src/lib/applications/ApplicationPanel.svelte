@@ -14,7 +14,7 @@
 	let error = $state('');
 	const items: UiCreatableUserItem[] = [
 		{
-			node_type: 'mapgyver.application',
+			node_type: 'mapgyver.app_control.v1',
 			item_kind: 'application',
 			label: 'Application',
 			menu_path: [],
@@ -23,7 +23,7 @@
 		}
 	];
 	const isTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
-		!!node && node.node_type === 'mapgyver.application';
+		!!node && node.node_type === 'mapgyver.app_control.v1';
 	async function create() {
 		const session = appState.session;
 		if (!session) return;

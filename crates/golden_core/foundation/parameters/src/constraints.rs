@@ -605,6 +605,11 @@ impl ParameterConstraints {
     }
 
     fn validate_file(&self, path: &str) -> Result<(), String> {
+        // An empty File is unconfigured. Extension restrictions apply to chosen paths;
+        // owners that require a file enforce presence at their domain boundary.
+        if path.is_empty() {
+            return Ok(());
+        }
         if self.file.allowed_types.is_empty() && self.file.allowed_extensions.is_empty() {
             return Ok(());
         }

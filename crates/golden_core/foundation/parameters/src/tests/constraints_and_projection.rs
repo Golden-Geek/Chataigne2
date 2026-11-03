@@ -50,3 +50,22 @@ fn extracted_projection_preserves_vector_component_behavior() {
         Some(2.0)
     );
 }
+
+#[test]
+fn constrained_file_can_be_cleared_without_admitting_an_invalid_chosen_path() {
+    use crate::{FileConstraints, ParamValue, ParameterConstraints};
+    let constraints = ParameterConstraints {
+        file: FileConstraints {
+            allowed_types: vec![],
+            allowed_extensions: vec!["exe".into()],
+        },
+        ..Default::default()
+    };
+    assert_eq!(
+        constraints.normalize(ParamValue::File(String::new())).unwrap(),
+        ParamValue::File(String::new())
+    );
+    assert!(constraints.normalize(ParamValue::File("program.txt".into())).is_err());
+    assert!(constraints.normalize(ParamValue::File("program".into())).is_err());
+    assert!(constraints.normalize(ParamValue::File("program.exe".into())).is_ok());
+}

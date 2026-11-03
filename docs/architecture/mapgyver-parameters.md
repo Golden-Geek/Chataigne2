@@ -75,3 +75,19 @@ Ordinary properties use generic Inspector widgets. Specialized UI only supplies 
 operations, native presentation or gestures against these same Parameters. Verify each converted
 owner through generic editing, direct API/script/headless callers, rejection, Undo/Redo,
 duplication, project roundtrip and applicable native behavior before counting its gate.
+
+App control uses `mapgyver.app_control.v1`: App file/directory are File Parameters;
+window/readiness, stop/restart and environment inheritance are typed Parameters. Ordered
+Argument and Environment nodes own their own String Parameters. `ApplicationDefinition`
+is a validated input/read projection. Configure retains entries by ordinal, removes surplus
+entries, applies one atomic Parameter proposal and appends missing subtrees in one forest.
+Entry changes invalidate the owner's runtime revision through a snapshot-free mutation.
+Obsolete `mapgyver.application` records are rejected before recoverable decoding.
+
+These settings stay materialized when inactive. Params DSL dependencies deliberately control
+materialization and cannot represent reversible presentation toggles without missing write
+targets. The generic Inspector's app visibility filter only chooses which existing widgets to
+show; it never changes settings or runtime policy. Empty File values represent unconfigured
+locators, so shared extension constraints permit clearing them; chosen paths retain extension
+validation and app-owned absolute executable validation. Column/Cell embedding and removal of
+the temporary standalone consumer remain tracked in M08/2.

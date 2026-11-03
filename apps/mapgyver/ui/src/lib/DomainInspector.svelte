@@ -27,5 +27,9 @@
 		{defaultContent}
 		{defaultChildren} />
 {:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}<MatrixProperties />
-{:else if node.node_type === 'mapgyver.application'}<ApplicationInspector {node} {defaultHeader} />
+{:else if node.node_type === 'mapgyver.app_control.v1'}<ApplicationInspector
+		{node}
+		{defaultHeader}
+		{defaultContent}
+		{defaultChildren} />
 {:else}<MediaInspector {node} {collapsed} {defaultHeader} {defaultContent} {defaultChildren} />{/if}

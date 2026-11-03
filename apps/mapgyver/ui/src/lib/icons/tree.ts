@@ -15,6 +15,6 @@ export const treeIcons: NodeIconSet = {
 		'mapgyver.media.channel': channel,
 		'mapgyver.screen': screen,
 		'mapgyver.surface': surface,
-		'mapgyver.application': application
+		'mapgyver.app_control.v1': application
 	}
 };

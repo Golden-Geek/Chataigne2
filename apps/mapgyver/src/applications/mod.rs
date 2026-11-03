@@ -3,13 +3,16 @@ mod authoring;
 pub mod configuration;
 pub mod demand;
 pub mod driver;
+mod entries;
 pub mod headless;
 pub mod logical;
 mod node;
 pub mod protocol;
 pub mod runtime;
+mod settings;
 pub use authoring::inspect;
 pub(crate) use authoring::{apply, validate_associations, validate_project, validate_ui_intent};
-pub use node::ApplicationNode;
+pub use entries::{ArgumentNode, EnvironmentNode};
+pub use node::AppControlNode;
 #[cfg(test)]
 mod tests;

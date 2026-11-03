@@ -49,7 +49,7 @@
 		'mapgyver.matrix.layer',
 		'mapgyver.matrix.group',
 		'mapgyver.matrix.column',
-		'mapgyver.application'
+		'mapgyver.app_control.v1'
 	])
 		registerNodeInspector(type, { component: DomainInspector });
 	const userPanels: UserPanelDefinitionMap = {

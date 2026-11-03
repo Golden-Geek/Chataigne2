@@ -1,10 +1,10 @@
-use super::{ApplicationNode, protocol::*};
+use super::{AppControlNode, protocol::*};
 use crate::{
     app::{AppEngine, AppNode, labels},
     media::protocol::MediaEditResult,
 };
 use golden_core::{
-    edit::{Edit, NodeTree},
+    edit::Edit,
     node::{Node, NodeId, NodeMetaPatch},
     ui_sync::UiEditIntent,
 };
@@ -27,7 +27,7 @@ pub fn inspect(engine: &AppEngine, application: ApplicationId) -> Result<Applica
     let Some(AppNode::Application(node)) = engine.nodes.get(node_id(engine, application)?) else {
         unreachable!()
     };
-    Ok(node.snapshot())
+    node.snapshot(engine)
 }
 fn create(
     engine: &mut AppEngine,
@@ -45,13 +45,12 @@ fn create(
         return Err("application catalog exceeds 4096 definitions".into());
     }
     let label = labels::unique(engine, manager, label, "Application", &[])?;
-    let mut node = ApplicationNode::new(label, definition);
-    node.node_data_mut().meta.enabled = enabled;
-    let application = ApplicationId(node.node_data().meta.uuid);
+    let tree = AppControlNode::tree(label, definition, enabled);
+    let application = ApplicationId(tree.node.node_data().meta.uuid);
     engine.edits.push(Edit::AddUserItemTree {
         parent: manager,
         prev_sibling: engine.nodes.get(manager).unwrap().node_data().last_child,
-        tree: NodeTree::new(node),
+        tree,
     });
     Ok(MediaEditResult::ApplicationCreated { application })
 }
@@ -94,7 +93,7 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
                                 id: application,
                                 label: node.node_data().meta.label.clone(),
                                 enabled: node.node_data().effective_enabled,
-                                configured: node.definition().executable.is_some(),
+                                configured: node.configured(),
                             }),
                             _ => None,
                         });
@@ -149,7 +148,7 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
                         id: ApplicationId(node.node_data().meta.uuid),
                         label: node.node_data().meta.label.clone(),
                         enabled: node.node_data().effective_enabled,
-                        configured: node.definition().executable.is_some(),
+                        configured: node.configured(),
                     });
                 }
             }
@@ -161,17 +160,7 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
         } => {
             definition.validate()?;
             let node = node_id(engine, application)?;
-            engine.edits.push(Edit::CallNodeMutation {
-                node,
-                needs_tree_snapshot: false,
-                callback: Box::new(move |node, _| {
-                    node.as_any_mut()
-                        .downcast_mut::<ApplicationNode>()
-                        .ok_or("application type changed")?
-                        .set_definition(definition);
-                    Ok(())
-                }),
-            });
+            super::settings::configure(engine, node, definition)?;
             Ok(MediaEditResult::Changed)
         }
         ApplicationEdit::Rename { application, label } => {
@@ -223,13 +212,20 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     for (_, node) in engine.nodes.iter() {
         if let AppNode::Application(node) = node {
             count += 1;
-            if count > MAX_DEFINITIONS
-                || node.node_data().parent != Some(manager)
-                || node.node_data().first_child.is_some()
-            {
+            if count > MAX_DEFINITIONS || node.node_data().parent != Some(manager) {
                 return Err("application catalog ownership/count is invalid".into());
             }
-            node.definition().validate()?;
+            node.definition(engine)?.validate()?;
+        }
+        if matches!(
+            node,
+            AppNode::ApplicationArgument(_) | AppNode::ApplicationEnvironment(_)
+        ) && (!matches!(
+            node.node_data().parent.and_then(|id| engine.nodes.get(id)),
+            Some(AppNode::Application(_))
+        ) || crate::parameters::has_domain_children(engine, node.id()))
+        {
+            return Err("app-control entry ownership is invalid".into());
         }
         if let AppNode::MatrixElement(node) = node
             && let crate::matrix::protocol::ElementDefinition::Column { definition } = node.definition()
@@ -241,23 +237,58 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
 }
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
     let owned = |id| matches!(engine.nodes.get(id), Some(AppNode::Application(_)));
+    let mut additions = std::collections::HashMap::new();
+    let mut admit = |source: NodeId, parent: NodeId, moving: bool| -> Result<(), String> {
+        let Some(node) = engine.nodes.get(source) else {
+            return Ok(());
+        };
+        if moving && node.node_data().parent == Some(parent) {
+            return Ok(());
+        }
+        let limit = match node {
+            AppNode::Application(_) => MAX_DEFINITIONS,
+            AppNode::ApplicationArgument(_) => 256,
+            AppNode::ApplicationEnvironment(_) => 128,
+            _ => return Ok(()),
+        };
+        let count = additions
+            .entry((parent, node.get_type().to_owned()))
+            .or_insert_with(|| {
+                engine
+                    .nodes
+                    .iter()
+                    .filter(|(_, candidate)| {
+                        candidate.node_data().parent == Some(parent) && candidate.get_type() == node.get_type()
+                    })
+                    .count()
+            });
+        *count += 1;
+        if *count > limit {
+            return Err("app-control collection capacity exceeded".into());
+        }
+        Ok(())
+    };
+    match intent {
+        UiEditIntent::MoveNode { node, new_parent, .. } => admit(*node, *new_parent, true)?,
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => admit(*source, *new_parent, false)?,
+        UiEditIntent::DuplicateNodes { nodes, .. } => {
+            for entry in nodes {
+                admit(entry.source, entry.new_parent, false)?;
+            }
+        }
+        _ => {}
+    }
     let protected = match intent {
         UiEditIntent::MoveNode { node, new_parent, .. } => {
-            owned(*new_parent)
-                || (owned(*node)
-                    && engine.nodes.get(*node).and_then(|node| node.node_data().parent) != Some(*new_parent))
+            owned(*node) && engine.nodes.get(*node).and_then(|node| node.node_data().parent) != Some(*new_parent)
         }
-        UiEditIntent::DuplicateNode { source, new_parent, .. } => owned(*source) || owned(*new_parent),
-        UiEditIntent::DuplicateNodes {
-            nodes,
-            created_items,
-            dependent_items,
-        } => {
-            nodes.iter().any(|entry| owned(entry.source) || owned(entry.new_parent))
-                || created_items.iter().any(|entry| owned(entry.parent))
-                || dependent_items.iter().any(|entry| owned(entry.parent))
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => {
+            owned(*source) && engine.nodes.get(*source).and_then(|node| node.node_data().parent) != Some(*new_parent)
         }
-        UiEditIntent::CreateUserItem { parent, .. } => owned(*parent),
+        UiEditIntent::DuplicateNodes { nodes, .. } => nodes.iter().any(|entry| {
+            owned(entry.source)
+                && engine.nodes.get(entry.source).and_then(|node| node.node_data().parent) != Some(entry.new_parent)
+        }),
         _ => false,
     };
     if protected {

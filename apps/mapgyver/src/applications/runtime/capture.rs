@@ -58,7 +58,7 @@ impl PreparedApplications {
                 .and_then(|id| engine.nodes.get(id))
             {
                 Some(AppNode::Application(node)) => {
-                    let snapshot = node.snapshot();
+                    let snapshot = node.snapshot(engine)?;
                     let definition = if snapshot.enablement == ApplicationEnablement::Enabled
                         && snapshot.definition.executable.is_some()
                     {

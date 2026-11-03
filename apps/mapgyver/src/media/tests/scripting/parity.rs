@@ -177,7 +177,7 @@ fn authored(
         .iter()
         .filter_map(|(_, node)| match node {
             AppNode::Application(node) => {
-                let snapshot = node.snapshot();
+                let snapshot = node.snapshot(engine).unwrap();
                 // Runtime revisions and recreated node instances are not persistent authoring.
                 Some((snapshot.id, snapshot.label, snapshot.enablement, snapshot.definition))
             }

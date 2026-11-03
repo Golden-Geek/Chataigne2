@@ -1,19 +1,29 @@
 <script lang="ts">
 	import { onDestroy, untrack, type Snippet } from 'svelte';
-	import { appState, IconButton, type WorkbenchSession, type UiNodeDto } from 'golden_ui';
-	import copyIcon from 'golden_ui/style/icons/copy.svg';
+	import {
+		appState,
+		type WorkbenchSession,
+		type UiNodeDto,
+		type NodeInspectorChildFilter
+	} from 'golden_ui';
 	import { ApplicationController, applicationState } from './authoring';
 	import { catalogState } from './catalog';
-	import ApplicationDefinitionForm from './ApplicationDefinitionForm.svelte';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
 	import { ApplicationRuntimeReader, runtimeState } from './runtime';
 	import { createRuntimeTransport } from './runtime-transport';
 	import RuntimeStatus from './RuntimeStatus.svelte';
-	import NameField from '../properties/NameField.svelte';
-	import { useDocumentSelection } from '../selection.svelte';
-	import type { ApplicationEdit } from '../media/generated/ApplicationEdit';
-	let { node, defaultHeader }: { node: UiNodeDto; defaultHeader?: Snippet } = $props();
+	let {
+		node,
+		defaultHeader,
+		defaultContent,
+		defaultChildren
+	}: {
+		node: UiNodeDto;
+		defaultHeader?: Snippet;
+		defaultContent?: Snippet<[Snippet?]>;
+		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
+	} = $props();
 	const session = $derived(appState.session);
 	const view = $state(applicationState()),
 		catalog = $state(catalogState());
@@ -24,13 +34,6 @@
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy);
-	const selection = useDocumentSelection();
-	async function edit(intent: ApplicationEdit) {
-		const selectCreated = selection.capture();
-		const result = await controller.edit(intent);
-		if (result?.kind === 'ApplicationCreated') selectCreated(result.application);
-		return result;
-	}
 	const runtime = $state(runtimeState());
 	const runtimeReader = new ApplicationRuntimeReader(
 		() => session,
@@ -75,67 +78,30 @@
 </script>
 
 {@render defaultHeader?.()}
-<div class="properties">
-	{#if view.error || view.readError}<p role="alert">{view.error || view.readError}</p>{/if}
-	{#if view.missing}<p role="status">Application no longer exists.</p>{/if}
-	{#if view.snapshot}
-		{@const application = view.snapshot}
-		<NameField
-			label="Application name"
-			value={application.label}
-			disabled={busy}
-			rename={(label) => edit({ kind: 'Rename', application: application.id, label })} />
-		<div class="actions">
-			<label
-				>Allow new launches<input
-					type="checkbox"
-					checked={application.enablement !== 'Disabled'}
-					disabled={busy}
-					onchange={(event) =>
-						edit({
-							kind: 'SetEnabled',
-							application: application.id,
-							enabled: event.currentTarget.checked
-						})} /></label>
-			<IconButton
-				icon={copyIcon}
-				label="Duplicate application"
+{#snippet content()}
+	{@render defaultChildren?.()}
+	<div class="properties">
+		{#if view.error || view.readError}<p role="alert">{view.error || view.readError}</p>{/if}
+		{#if view.missing}<p role="status">Application no longer exists.</p>{/if}
+		<details>
+			<summary>Runtime</summary><RuntimeStatus
+				snapshot={runtime.snapshot}
+				selected={view.snapshot}
+				catalog={catalog.page}
+				live={runtime.live}
+				loading={runtime.loading}
+				error={runtime.error || runtime.transportError}
 				disabled={busy}
-				onclick={() => edit({ kind: 'Duplicate', application: application.id })} />
-		</div>
-		{#key JSON.stringify([application.id, application.definition_instance, application.definition])}
-			<ApplicationDefinitionForm
-				definition={application.definition}
-				disabled={busy}
-				save={(definition) =>
-					edit({ kind: 'Configure', application: application.id, definition })} />
-		{/key}
-	{/if}
-	<details>
-		<summary>Runtime</summary><RuntimeStatus
-			snapshot={runtime.snapshot}
-			selected={view.snapshot}
-			catalog={catalog.page}
-			live={runtime.live}
-			loading={runtime.loading}
-			error={runtime.error || runtime.transportError}
-			disabled={busy}
-			refresh={() => runtimeReader.refresh()} />
-	</details>
-</div>
+				refresh={() => runtimeReader.refresh()} />
+		</details>
+	</div>
+{/snippet}
+{@render defaultContent?.(content)}
 
 <style>
 	.properties {
 		display: grid;
 		gap: 0.5rem;
 		padding: 0.5rem;
-	}
-	.actions {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-	.actions label {
-		flex: 1;
 	}
 </style>

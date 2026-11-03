@@ -15,6 +15,7 @@ mod demand;
 mod headless;
 mod inspection;
 mod logical;
+mod parameters;
 mod references;
 fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();

@@ -4,6 +4,20 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![&project.root];
     while let Some(record) = pending.pop() {
+        if record.node_type == "mapgyver.application"
+            || (record.node_type.starts_with("mapgyver.app_control")
+                && ![
+                    "mapgyver.app_control.v1",
+                    "mapgyver.app_control.argument.v1",
+                    "mapgyver.app_control.environment.v1",
+                ]
+                .contains(&record.node_type.as_str()))
+        {
+            return Err(format!(
+                "Unsupported app-control schema '{}': settings require typed Parameter children",
+                record.node_type
+            ));
+        }
         if record.node_type.starts_with("mapgyver.matrix.cell")
             && record.node_type != crate::matrix::cell_node::CELL_TYPE
         {

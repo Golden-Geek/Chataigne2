@@ -24,6 +24,24 @@ function visible(child: UiNodeDto) {
 		}
 		return null;
 	}
+	if (owner.node_type === 'mapgyver.app_control.v1') {
+		function value(name: string) {
+			const parameter = folder!.children
+				.map((id) => session!.getNodeData(id))
+				.find((node) => node?.decl_id === `parameters/${name}`);
+			return parameter?.data.kind === 'parameter' ? parameter.data.param.value : null;
+		}
+		if (field === 'app_file') return true;
+		const file = value('app_file');
+		if (file?.kind !== 'file' || !file.value) return false;
+		if (['sender', 'first_frame', 'timeout_ms'].includes(field ?? ''))
+			return choice('readiness') === 'Spout';
+		if (['initial_ms', 'maximum_ms'].includes(field ?? '')) {
+			const enabled = value('restart_enabled');
+			return enabled?.kind === 'bool' && enabled.value;
+		}
+		return true;
+	}
 	if (owner.node_type === 'mapgyver.media.asset') {
 		return (
 			field === 'locator_kind' ||
