@@ -38,6 +38,6 @@ cargo test --locked -p MapGyver --features native-qualification --test channel_r
 cargo test --locked -p golden_video --features qualification --lib native::backend::tests::inputs::hardware_inputs_receive_bound_resize_reconnect_and_retire_across_independent_processes -- --exact --ignored --nocapture --test-threads=1
 ```
 
-M04/5 still owns complete actual generic manager/Channels/Inspector interaction. M04/6 retains
-full revised caller/Picture/history/project/resource parity. Native physical/timing and genuine
-device-removal gates remain separately open; this acceptance does not claim release readiness.
+[M04/5 source UI](mapgyver-m04-source-ui.md) and [M04/6 source parity](mapgyver-m04-source-parity.md)
+subsequently passed, completing M04. Native physical/timing and genuine device-removal gates
+remain separately open; this acceptance does not claim release readiness.

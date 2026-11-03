@@ -32,17 +32,16 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
    Apply AGENTS.md's product/diagnostic allocation during feature delivery; switch to its
    acceptance-closure rules once completing the implemented revised scope.
 
-After M04/1–2 source ownership/variant acceptance, the next product gate is M04/7 Reference.
-M04/4–6 remain Pending while Reference's authored model, shared rendering, API and UI slices
-advance; return to their retained qualification at the next allocated qualification batch
-after those product deliveries. M04/8 Preview follows Reference. This uses the functional
-dependencies above and preserves every source, interaction, resource and native requirement;
-it does not waive a gate or change qualification budgets.
+M04/1–8 are now accepted, including the retained source qualification returned to after
+Reference and Preview delivery. [M04/6 and the complete phase audit](../progress/mapgyver-m04-source-parity.md)
+close source caller/Picture/project/resource parity. Next is M06/1's full child-media
+Composition/degree/structural/history/project contract. This follows the functional dependencies
+above without waiving physical/timing gates or changing qualification budgets.
 
-M04/7's default Reference/Alt-copy drops require actual Composition/Matrix child-media
-containment. Establish that ownership/copy/drop foundation while M04/7 is active, before
-closing Reference or starting Preview. M06/M07 retain their complete transform, editor,
-playback, scale and native acceptance; this dependency work does not accept those later gates.
+M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
+containment before Reference/Preview acceptance. Reuse that ownership/copy/drop foundation.
+M06/M07 retain their complete transform, editor, playback, scale and native acceptance;
+this dependency work does not accept those later gates.
 
 M04/7 verifies the Reference contract below through typed callers, bundled app interaction and
 the production native renderer. Whole-app Q04 qualification remains in M09, including M06's
@@ -67,8 +66,9 @@ M04/4 [Spout source acceptance](../progress/mapgyver-m04-spout.md) also passes f
 cross-adapter recovery and RGBA pixels on both GPUs, plus declared input capacity/retirement.
 [M04/5 source UI acceptance](../progress/mapgyver-m04-source-ui.md) passes the complete retained
 interaction matrix through typed Channels and generic Inspector controls, including fresh
-permissions, safe deleted-channel reads and context-menu history. Next is M04/6 source
-caller/Picture/project/resource parity before revised Composition work. M05/5,8 remain
+permissions, safe deleted-channel reads and context-menu history. [M04/6 source parity](../progress/mapgyver-m04-source-parity.md)
+also passes revised callers, all-source copies/history/project and the complete both-adapter
+native Picture recovery/recreation matrix, completing M04. M05/5,8 remain
 in the physical return queue; every original matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the

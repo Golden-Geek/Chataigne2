@@ -24,8 +24,7 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Media Manager$/ });
 		await tab.click();
-		const manager = page.locator('section.manager');
-		const properties = page.locator('.properties');
+		const manager = page.locator('section[aria-label="Media Manager"]');
 		async function wait(read, accept) {
 			const deadline = Date.now() + 5000;
 			for (;;) {
@@ -40,10 +39,29 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 		const selected = media.channels.find(
 			(entry) => entry.reference.channel === picture.first.channel
 		);
-		await manager.getByRole('button', { name: selected.label, exact: true }).click();
-		const reload = properties.getByRole('button', { name: 'Reload Picture', exact: true });
+		await manager.getByRole('button', { name: media.label, exact: true }).click();
+		const channels = page.getByRole('region', { name: 'Channels', exact: true });
+		const row = channels
+			.locator(
+				':scope > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
+			)
+			.filter({ has: page.getByText(selected.label, { exact: true }) });
+		const title = row.locator(':scope > .node-header > .node-title');
+		if ((await title.getAttribute('aria-checked')) === 'false') await title.press('Enter');
+		const reload = row.getByRole('button', { name: 'Reload Picture', exact: true });
 		await reload.waitFor();
 		await wait(() => reload.isEnabled(), Boolean);
+		// Expanding typed children authors presentation metadata. Establish the retained redo
+		// after that navigation, so this check isolates Reload rather than folder expansion.
+		await manager
+			.getByRole('button', { name: media.label, exact: true })
+			.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: /^Delete(?:\s|$)/ }).click();
+		await wait(inspect, (value) => !value.media.some((entry) => entry.id === media.id));
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await manager.getByRole('button', { name: media.label, exact: true }).click();
+		await wait(() => reload.isEnabled(), Boolean);
+		assert(await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).isEnabled());
 		await reload.click();
 		await wait(
 			() => reloadRequests.length,

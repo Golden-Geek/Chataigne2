@@ -340,6 +340,18 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             locator: relative("replacement.png"),
         },
         MediaEdit::RemoveAsset { asset: baseline.asset },
+        MediaEdit::InspectChannel {
+            reference: ChannelReference {
+                media: baseline.references[0][0].media,
+                channel: ChannelId(golden_core::node::NodeUuid::nil()),
+            },
+        },
+        MediaEdit::InspectChannel {
+            reference: ChannelReference {
+                media: baseline.references[0][0].media,
+                channel: baseline.references[1][0].channel,
+            },
+        },
     ];
     for [first, second] in baseline.references {
         let mut definition = channel(&initial, first).unwrap().definition;
@@ -421,6 +433,15 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
         for caller in CALLERS {
             let mut engine = loaded(&baseline.json);
             let result = run(&mut engine, caller, operation.clone());
+            if let MediaEdit::InspectChannel { reference } = &operation {
+                if reference.channel.0 == golden_core::node::NodeUuid::nil() {
+                    assert!(result.as_ref().unwrap()["snapshot"].is_null(), "{caller:?}");
+                } else if reference.media == baseline.references[0][0].media
+                    && reference.channel == baseline.references[1][0].channel
+                {
+                    assert!(result.is_none(), "{caller:?}: existing wrong-owner channel must reject");
+                }
+            }
             let actual = (result, inspect(&engine));
             if let Some(expected) = &canonical {
                 assert_eq!(&actual, expected, "{caller:?}: {operation:?}");

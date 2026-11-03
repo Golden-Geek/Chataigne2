@@ -1,0 +1,55 @@
+{
+	"date": "2026-11-03",
+	"gate": "M04/6",
+	"state": "Accepted",
+	"production_commit": "958d600261be064437c7e1b950a7a27eb1c87379",
+	"scope": "Complete revised source caller/duplication/history/project parity and functional native Picture recovery/recreation; production code unchanged in this milestone",
+	"checks": {
+		"final_library": "cargo test --locked -p MapGyver --features native-qualification --lib: 342 passed, 2 hardware tests ignored",
+		"lint": "cargo clippy --locked -p MapGyver --features native-qualification --lib --tests -- -D warnings: exit 0",
+		"generated_contracts": "Current media, Screen and preview Rust/TypeScript equality tests passed",
+		"format": "Both root and golden_core Cargo formatters; browser Prettier; diff check passed",
+		"bundled": "--ui-reload --media-script-ui --media-command-ui: all three DOM checks plus ordinary HTTP source/history/Save/New/Load passed, 6427 ms, owned host exit 0",
+		"native_compile": "cargo test --locked -p MapGyver --features native-qualification --lib --test picture_rendering: software passed and native target compiled before hardware validation",
+		"native_test": "picture_pixels::authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_4k --exact --ignored --nocapture --test-threads=1",
+		"native_result": "1 passed, 0 failed, 45.69 seconds, one invocation, exit 0, no retained Picture test process",
+		"native_executable_sha256": "56EB97945F22F3FD6F56B1C8E1586C97C0E9176520E2ACC56170015AE9EEF94D",
+		"bundled_executable_sha256": "8A596B0CC512D08579C410782B17D7A547B17A372D05DC5FE1008006D0476273"
+	},
+	"native_pixels": {
+		"adapters": [
+			{ "description": "Intel(R) Graphics", "luid_low": 89313, "luid_high": 0 },
+			{ "description": "NVIDIA GeForce RTX 5080 Laptop GPU", "luid_low": 90608, "luid_high": 0 }
+		],
+		"complete_images": 54,
+		"compared_texels": 33177836,
+		"component_tolerance_8bit": 2,
+		"largest_output": [3840, 2160],
+		"consumers": "first/first/second; independent native Spout pixel readbacks",
+		"stages": [
+			"missing",
+			"automatic-missing-recovery",
+			"shared-jpeg",
+			"undo-source",
+			"relink-alpha",
+			"in-place-replacement",
+			"unsupported-gamma",
+			"recovered-jpeg",
+			"4k-reload-recreate"
+		],
+		"asserted": [
+			"healthy peer prepared identity retained through source failure/relink/reload",
+			"shared retained image uploads do not recur per frame",
+			"reload leaves authored history and identities unchanged",
+			"sparse project and fresh renderer reproduce 4K pixels",
+			"stable asset IDs, zero Picture Spout receiver inputs, observer pool release and Picture/GPU retirement"
+		]
+	},
+	"added_coverage": {
+		"duplication": "Whole media and individual variants for SolidColor/Picture/SharedTexture: six cases, fresh identities, shared assets, media Resolution/Sampling retention, independent copy edits/Resolution, exact Undo/Redo and project reload",
+		"callers": "Nullable missing-channel reads and wrong-owner rejections through direct UI/project intent, QuickJS app operation, hosted editMedia and named inspectChannel",
+		"bundled_reload": "Actual typed Channels selection, one selected-asset Reload, unchanged catalog, retained deletion redo/undo, no unexpected alerts/rejections/page errors"
+	},
+	"gate_changes": "M04/6 Accepted; M04 7/8 -> 8/8; accepted gates 35/57 -> 36/57 (63%); accepted phases 3/11 -> 4/11 (36%); M06/1 next Active",
+	"limits": "No watcher, genuine device-removal recovery, physical display/latency matrix, sustained performance, physical VRAM or whole-app Q04 acceptance is inferred. Existing tolerances, budgets and return gates are unchanged."
+}

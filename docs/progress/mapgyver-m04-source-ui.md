@@ -54,6 +54,7 @@ Local reproducible receipts are `target/mapgyver-source-ui-ported.log`,
 `target/mapgyver-source-ui-final-unit.log` and `target/mapgyver-media-source-inspector.png`.
 The checked-in fixtures retain the assertions; transient logs/screenshots are not source assets.
 
-This accepts M04/5 only. M04/6 retains complete revised caller parity, missing/relinked/replaced
-Picture behavior, duplication/Undo/Redo/project roundtrip and functional native resource
-recreation. No GPU rendering or physical timing is inferred from the headless browser checks.
+This accepts M04/5 only. Subsequent [M04/6 acceptance](mapgyver-m04-source-parity.md) completes
+revised caller parity, missing/relinked/replaced Picture behavior, duplication/history/project
+and functional native resource recreation. No GPU rendering or physical timing is inferred
+from this report's headless browser checks.

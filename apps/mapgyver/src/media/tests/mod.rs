@@ -3,6 +3,7 @@ mod authoring;
 mod catalog;
 mod channels;
 mod creation;
+mod duplication;
 mod folders;
 mod parameters;
 mod picture_import;
