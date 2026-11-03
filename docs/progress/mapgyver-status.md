@@ -2,12 +2,14 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** M04 Reference media.
-**Next deliverable:** mixed Reference/Composition/Matrix scale and native sharing/resampling/
-recovery acceptance; finish M04/7 before independent Media Preview.
+**Current topic:** M04 Reference read/edit scale acceptance.
+**Next deliverable:** public immutable app-query dispatch and paged Reference reads without
+mutation checkpoints; retain fixed-edit, mixed/native acceptance before Media Preview.
 **Execution:** M04/1–2 accepted; M04/7 continues on `mapgyver`, with one active gate. Source
 qualification M04/4–6 remains in the return queue under the plan's recorded functional order.
-**Blocker for next delivery:** none known. Retained native/timing/memory/display blockers are below.
+**Blocker for acceptance:** 10k Reference read/edit receipts have no passing 50 ms p95 result.
+Both observed timing runs overlapped compilation and failed; isolated compliance is unverified.
+Native Reference execution waits for software success. Other retained blockers are below.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
 Texture authoring, typed source commands and named scripting from the Inspector, source media,
@@ -57,7 +59,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/7            | Reference core, paged Inspector and actual Composition/Matrix child-media drops delivered as bounded slices. Physical/copied retirement and missing/unconfigured Reference drops are software/bundled-verified. Next verify mixed scale and native acceptance. Full mixed Matrix, end-to-end scale and native sharing/resampling/recovery remain open. |
+| Active   | M04/7            | Reference core, paged Inspector and actual Composition/Matrix child-media drops are delivered. [Scale attempts](evidence/mapgyver-reference-scale-2026-11-03.json) failed under compile contention; uncontended 10k receipts remain unverified. Next deliver immutable app-query dispatch, preserve fixed-edit acceptance, then run isolated scale and the compiled native fixture. Full mixed/end-to-end scale and native sharing/resampling/recovery remain open. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
 | Pending  | M04/8            | After Reference working contracts, deliver independent dockable Media Preview instances with selection-follow/lock/channel/grid state and retirement; remove Inspector previews and complete native/bundled acceptance.                                                                                                   |
@@ -85,26 +87,27 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current milestone:** M04/7 unavailable Reference drops, owned by MapGyver media/matrix
-  authoring and Golden parameter persistence. Batch 2026-11-03 02:30–03:15 CET; checkpoint
-  finishes within the recorded cutoff. Default/Alt drops retain actual media identity before
-  an output exists. Empty typed Output follows the first available channel; explicit values
-  pin identity. Matrix bindings admit the selection and recover through Reference guards
-  without relaunch or authored writes. `CellSnapshot.media` distinguishes occupied unavailable
-  Cells from empty ones; its Rust DTO/generated TypeScript and grid consumer changed together.
-  Geometry/settings edits preserve automatic choice, and cycle validation includes proposed
-  automatic outputs. Golden's codec now preserves cleared values against dynamic defaults.
-  **Checks:** 315 MapGyver library tests passed, one existing ignored; Golden parameter 27/27
-  and persistence 15/15 passed. Both packages' strict Clippy, Svelte (zero errors/warnings),
-  generated drift and both formatters passed. The ordinary bundled build and combined
-  `--reference-ui --owned-media-ui --matrix-owned-media-ui --unavailable-reference-ui`
-  workflows passed, including generic Target/Output recovery, independent copies, auto/pinned
-  outputs, history and Save/New/Load; the isolated host exited 0. [Owning architecture/evidence](../architecture/mapgyver-owned-media.md).
-  **Gate change:** none; M04/7 remains the only Active gate. Counts stay 26/57 gates, M04 3/8
-  (38%), 3/11 phases (27%). No native experiment or full Reference acceptance is claimed.
-  **Exact next deliverable:** mixed Reference/Composition/Matrix scale and native sharing,
-  resampling/recovery acceptance under M04/7. Then M04/8 independent Preview. Layer/Group/Column
-  typed settings, revised editor/trigger semantics and app controls remain required in M07/M08.
+- **Current batch/handoff:** M04/7 mixed graph/native Reference acceptance; MapGyver owns
+  the fixture and Golden owns atomic checkpoint storage. Start 2026-11-03 03:12 CET;
+  cutoff 03:57 CET. Two software timing attempts exhausted this batch's experiment allowance;
+  no hardware run started after the failed prerequisite. [Exact evidence and limits](evidence/mapgyver-reference-scale-2026-11-03.json).
+  The authored fixture reaches 10k References/54,111 actual nodes and 5.12M virtual channels;
+  32-row pages stay 10,726 bytes, 15 demanded aliases capture one producer/16 records, and
+  reads preserve history. Observed 10k read/edit p95 was 68.5/88.0 ms, then 51.1/103.1 ms
+  after retaining Golden's existing copy-on-write parameter values in atomic checkpoints.
+  Both runs overlapped fixture compilation; **no isolated speedup or budget pass is claimed**.
+  The checkpoint correction removes the parameter-snapshot rebuild and passes rollback/cache/
+  history regression coverage: Golden engine **666 passed, 3 ignored**; MapGyver **315 passed,
+  2 ignored**; strict Golden engine lib/tests and all-target native-feature MapGyver Clippy passed.
+  Native `channel_rendering` and its producer fixture compile; the six-case mixed Reference/
+  Composition/Matrix sharing/resampling/loss/Undo/reload/owned-retirement fixture is unexecuted.
+  Prior bundled Reference/default/Alt/missing/Inspector/history/reload evidence remains valid.
+  **Next product action:** add a public immutable app-query contract and route paged Reference
+  reads through it without mutation checkpoints, preserving UI/script/headless parity. Then
+  run isolated scale after terminal builds; keep fixed-edit checkpoint costs and full end-to-end
+  scale open, and run native only after software success. Do not repeat this contended benchmark
+  or add another probe in this batch. No acceptance gate closed: **26/57 gates, M04 3/8 (38%),
+  3/11 phases (27%)**; M04/7 alone remains Active. M03/source/display debt stays in its return queue.
 
 ## Maintenance rule
 

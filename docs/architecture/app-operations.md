@@ -31,6 +31,12 @@ engine edits and keep external side effects out of this rollback boundary. The t
 container distinguishes an omitted result from a present JSON null using ordinary Serde and
 generated declarations.
 
+Atomic checkpoints retain the engine's existing 256-shard copy-on-write parameter value store.
+Checkpoint creation shares its roots; a write copies only the affected shard. Rollback restores
+the retained roots and resynchronizes bound handles after journal replay. This preserves parameter
+rollback without rebuilding every parameter snapshot for each app operation, including reads.
+Authored changes must continue through engine edits so the value store remains authoritative.
+
 For creates, the backend can allocate detached UUIDs, apply one subtree/forest and return exact
 created IDs/UUIDs. Callers consume those identities directly, independently of UI projection
 timing. They must not identify creates by discovering the first unseen child.

@@ -4,6 +4,7 @@ use golden_io::PayloadPool;
 use golden_video::native::{AdapterId, SourceState, SpoutDiscovery, SpoutProbe};
 use mapgyver::media::rendering::PreparedChannel;
 
+mod reference;
 mod variant_resolution;
 
 struct Fixture {

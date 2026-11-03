@@ -1,0 +1,114 @@
+{
+  "date": "2026-11-03",
+  "gate": "M04/7",
+  "status": "Open",
+  "owner": "MapGyver Reference backend; Golden atomic checkpoint storage",
+  "baseline": "cc51b25a84be22c063eeabcdef638e8fd2ba8bc7",
+  "fixture": "apps/mapgyver/src/media/reference/tests/scale.rs",
+  "scope": "Reference backend read/edit/capture only; not whole-app Q04, desktop latency, throughput or memory acceptance",
+  "method": {
+    "authored_references": [
+      1000,
+      5000,
+      10000
+    ],
+    "source_channels": 512,
+    "queries_per_size": 25,
+    "query_start": 480,
+    "query_count": 32,
+    "edits_per_size": 50,
+    "edit": "Alternate one inactive Reference Target between empty and the same producer",
+    "captured_references": 15,
+    "captured_source_channels": 1,
+    "receipt_budget_p95_ms": 50
+  },
+  "runs": [
+    {
+      "label": "Baseline",
+      "terminal": "failed at 10000",
+      "compilation_overlap": "native_source_fixture dev build overlapped the software test; timings are contended",
+      "measurements": [
+        {
+          "references": 1000,
+          "actual_nodes": 9109,
+          "virtual_channels": 512000,
+          "setup_ms": 62.1102,
+          "query_p95_ms": 10.4577,
+          "edit_p95_ms": 13.5875,
+          "capture_ms": 0.1037
+        },
+        {
+          "references": 5000,
+          "actual_nodes": 29110,
+          "virtual_channels": 2560000,
+          "setup_ms": 288.0641,
+          "query_p95_ms": 38.2118,
+          "edit_p95_ms": 46.516,
+          "capture_ms": 0.0432
+        },
+        {
+          "references": 10000,
+          "actual_nodes": 54111,
+          "virtual_channels": 5120000,
+          "setup_ms": 471.2807,
+          "query_p95_ms": 68.4655,
+          "edit_p95_ms": 88.0091,
+          "capture_ms": 0.051
+        }
+      ]
+    },
+    {
+      "label": "Copy-on-write checkpoint correction",
+      "terminal": "failed at 10000",
+      "compilation_overlap": "native channel_rendering dependency rebuild overlapped at least the 10000-Reference samples; no isolated speedup/budget claim",
+      "measurements": [
+        {
+          "references": 1000,
+          "actual_nodes": 9109,
+          "virtual_channels": 512000,
+          "setup_ms": 71.6214,
+          "query_p95_ms": 10.0371,
+          "edit_p95_ms": 11.0536,
+          "capture_ms": 0.0647
+        },
+        {
+          "references": 5000,
+          "actual_nodes": 29110,
+          "virtual_channels": 2560000,
+          "setup_ms": 283.1764,
+          "query_p95_ms": 28.7619,
+          "edit_p95_ms": 39.6667,
+          "capture_ms": 0.0637
+        },
+        {
+          "references": 10000,
+          "actual_nodes": 54111,
+          "virtual_channels": 5120000,
+          "setup_ms": 516.2516,
+          "query_p95_ms": 51.0665,
+          "edit_p95_ms": 103.1437,
+          "capture_ms": 0.0592
+        }
+      ]
+    }
+  ],
+  "verified_in_both_runs": {
+    "page_bytes": 10726,
+    "captured_records": 16,
+    "no_read_history_change": true,
+    "virtual_channels_not_materialized": true
+  },
+  "correction": "Atomic checkpoints retain the existing 256-shard ParameterValueStore instead of rebuilding all parameter snapshots. Full correctness/lint suites pass. Remaining original-node/event/dirty-state checkpoint cloning is unchanged.",
+  "native": {
+    "fixture": "apps/mapgyver/tests/shared_texture/reference.rs",
+    "run": false,
+    "reason": "Software scale prerequisite did not pass; no hardware experiment authorized by this result",
+    "intended_cases": "Solid Color/Picture/Shared Texture on both hardware adapters, automatic sharing, forced resampling, Composition/Matrix, reload, deletion/Undo, copied-source final-use retirement"
+  },
+  "limits": [
+    "No isolated latency result or claimed speedup",
+    "No UI/native throughput, whole-app Q04, memory, device-removal or final qualification acceptance",
+    "Two timing attempts exhausted this batch allowance; no third run or budget change"
+  ],
+  "next_action": "Deliver immutable app-owned query dispatch through a public Golden contract so paged Reference reads avoid mutation checkpoints; preserve script/headless/transport parity and history. Then run isolated scale acceptance after terminal prerequisite builds, retain the fixed-edit checkpoint requirement and complete the native fixture only after software success."
+}

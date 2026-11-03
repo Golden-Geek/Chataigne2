@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::edit_journal::JournalMode;
+use super::parameter_value_store::ParameterValueStore;
 use super::{Engine, EngineEditError, EngineTime, PendingAddedSubtreeUiBatch};
 use crate::edit::EditRequest;
 use crate::node::{Node, NodeCreationContext, NodeId};
-use crate::parameter::ParamValue;
 
 pub(crate) trait EditOperationError: From<EngineEditError> {
     fn with_rollback(original: Self, rollback: EngineEditError) -> Self;
@@ -32,7 +32,7 @@ pub(crate) struct EditCheckpoint {
     time: EngineTime,
     pending_node_ready: Vec<(NodeId, NodeCreationContext)>,
     pending_added_subtree_ui_batches: Vec<PendingAddedSubtreeUiBatch>,
-    parameter_values: Vec<(NodeId, ParamValue)>,
+    parameter_values: ParameterValueStore,
     project_dirty_nodes: HashSet<NodeId>,
     pending_edits: Vec<EditRequest>,
     event_listeners: super::listener_index::ListenerIndex,
@@ -116,11 +116,7 @@ impl<T: Node> Engine<T> {
             pending_edits,
             event_listeners: self.event_listeners.clone(),
             user_contexts: self.user_contexts.clone(),
-            parameter_values: self
-                .nodes
-                .iter()
-                .filter_map(|(id, node)| node.engine_param_snapshot().map(|s| (id, s.value)))
-                .collect(),
+            parameter_values: self.parameter_values_cache.clone(),
         };
         if let Some(started) = started {
             eprintln!(
@@ -154,12 +150,12 @@ impl<T: Node> Engine<T> {
             return Ok(());
         };
         let result = self.rollback_edit_journal();
-        for (node, value) in &checkpoint.parameter_values {
-            if let Some(target) = self.nodes.get_mut(*node) {
+        for (node, value) in checkpoint.parameter_values.iter() {
+            if let Some(target) = self.nodes.get_mut(node) {
                 target.engine_set_param_value(value.clone());
             }
         }
-        self.parameter_values_cache = checkpoint.parameter_values.into_iter().collect();
+        self.parameter_values_cache = checkpoint.parameter_values;
         let values = &self.parameter_values_cache;
         for node in self.nodes.keys().collect::<Vec<_>>() {
             if let Some(target) = self.nodes.get_mut(node) {

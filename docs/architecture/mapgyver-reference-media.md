@@ -55,12 +55,19 @@ generic Inspector expose the real Reference node.
 
 The manager's named `createReference`, `configureReference` and `inspectChannels` methods use
 the same intents, committed callbacks and embedded source examples. Typed command kinds use real
-Reference-target Parameters. Composition drop commands extend the command document
-schema to **`mapgyver.media.command.v3`**; unsupported older records reject explicitly. Existing
+Reference-target Parameters. Composition/Matrix drop commands use command document
+schema **`mapgyver.media.command.v4`**; unsupported older records reject explicitly. Existing
 source media remain schema v5; Reference uses its separate v1 schema. No migration is added.
 
-Reference core, paged output presentation and [Composition-owned Reference/copy drops](mapgyver-owned-media.md)
-are implemented. Full acceptance still requires Matrix child-media drops, missing/unconfigured
-Reference source-drop parity, complete mixed Matrix/Reference parity and native
-sharing/resampling/recovery checks. The
-[status ledger](../progress/mapgyver-status.md) keeps the full gate open.
+Reference core, paged output presentation, [Composition/Matrix-owned Reference/copy drops](mapgyver-owned-media.md)
+and missing/unconfigured source-drop parity are software/bundled-verified. Full mixed/end-to-end
+scale and native sharing/resampling/recovery remain open. The existing native fixture now includes
+all three source kinds on both hardware adapters, nested Composition/Matrix, missing-target Undo,
+reload and copied-source final-use retirement; it compiles but has not run.
+
+The [authored scale fixture and two observed results](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
+cover up to 10k actual References and 512 producer variants. Pages and demanded capture stay
+bounded, but no passing isolated 50 ms receipt result exists. Golden checkpoints now retain their
+existing copy-on-write parameter values; document-wide transaction work remains outside the
+Reference resolver. Next move pure app reads behind an immutable public Golden query contract.
+The [status ledger](../progress/mapgyver-status.md) keeps the full gate open; this is not Q04 acceptance.
