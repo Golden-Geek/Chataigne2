@@ -45,8 +45,8 @@
 		'mapgyver.media.folder',
 		'mapgyver.screen',
 		'mapgyver.surface',
-		'mapgyver.matrix.layer',
-		'mapgyver.matrix.group',
+		'mapgyver.matrix.layer.v2',
+		'mapgyver.matrix.group.v2',
 		'mapgyver.app_control.v1'
 	])
 		registerNodeInspector(type, { component: DomainInspector });

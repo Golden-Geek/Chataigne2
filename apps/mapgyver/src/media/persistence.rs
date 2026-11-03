@@ -4,6 +4,20 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        for (prefix, current) in [
+            ("mapgyver.matrix.layer", crate::matrix::node::LAYER_TYPE),
+            ("mapgyver.matrix.group", crate::matrix::node::GROUP_TYPE),
+        ] {
+            if record.node_type.starts_with(prefix) && record.node_type != current {
+                return Err(format!(
+                    "Unsupported Matrix row schema '{}': typed Parameters require {current}",
+                    record.node_type
+                ));
+            }
+            if record.node_type == current && record.data.as_ref().is_some_and(|data| !data.is_null()) {
+                return Err("Matrix row settings require Parameter children; opaque row data is unsupported".into());
+            }
+        }
         if record.node_type == "mapgyver.app_control.v1"
             && !matches!(
                 parent_type,

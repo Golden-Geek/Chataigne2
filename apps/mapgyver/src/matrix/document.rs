@@ -131,7 +131,7 @@ impl Document {
                 id: item,
                 parent,
                 label: node.node_data().meta.label.clone(),
-                settings: settings.clone(),
+                settings,
                 channel,
             });
             match item {

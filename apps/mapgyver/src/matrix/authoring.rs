@@ -19,18 +19,6 @@ use golden_core::{
 use std::collections::HashSet;
 pub(super) const MAX_BATCH: usize = 4096;
 
-pub(super) fn mutate(engine: &mut AppEngine, id: NodeId, definition: ElementDefinition) {
-    engine.edits.push(Edit::CallNodeMutation {
-        node: id,
-        needs_tree_snapshot: false,
-        callback: Box::new(move |node, _| {
-            node.as_any_mut()
-                .downcast_mut::<ElementNode>()
-                .ok_or("Matrix element type changed")?
-                .set_definition(definition)
-        }),
-    });
-}
 pub(super) fn export(media: MediaId, item: MatrixItemId, label: String) -> (NodeTree, ChannelReference) {
     let mut definition = ChannelDefinition::for_media(MediaKind::Matrix);
     definition.source = ChannelSource::Matrix {
@@ -163,7 +151,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                         break candidate;
                     }
                 };
-                let node = ElementNode::new(
+                let node = ElementNode::from_definition(
                     label.clone(),
                     ElementDefinition::Layer {
                         settings: CompositeSettings::default(),
@@ -188,7 +176,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                 return Err("Matrix groups exceed depth 32".into());
             }
             let label = labels::unique(engine, parent, label, "Group", &[])?;
-            let node = ElementNode::new(
+            let node = ElementNode::from_definition(
                 label.clone(),
                 ElementDefinition::Group {
                     settings: CompositeSettings::default(),
@@ -234,14 +222,10 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::ConfigureItem { item, settings } => {
             settings.validate()?;
             let id = document.item(item)?;
-            mutate(
-                engine,
-                id,
-                match item {
-                    MatrixItemId::Layer { .. } => ElementDefinition::Layer { settings },
-                    MatrixItemId::Group { .. } => ElementDefinition::Group { settings },
-                },
-            );
+            let Some(AppNode::MatrixElement(node)) = engine.nodes.get(id) else {
+                unreachable!()
+            };
+            engine.edits.push(node.configuration_edit(settings));
         }
         MatrixEdit::RenameItem { item, label } => labels::rename(engine, document.item(item)?, label)?,
         MatrixEdit::MoveItem { item, parent, after } => {

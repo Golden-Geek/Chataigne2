@@ -198,34 +198,37 @@ export async function verifyMatrixUi({ base, edit, inspectMedia }) {
 		stage = 'row and group settings';
 		for (const row of [lower, group]) {
 			await selectRow(row.label);
-			for (const blend of ['Normal', 'Add', 'Multiply', 'Screen']) {
+			for (const [field, next] of [
+				['opacity', 0.5],
+				['blend', 'Add'],
+				['blend', 'Multiply'],
+				['blend', 'Screen'],
+				['blend', 'Normal'],
+				['enabled', false]
+			]) {
 				snapshot = await inspect();
-				const settings = properties.getByRole('group', { name: 'Row blending', exact: true });
-				const expected = snapshot.items.find((entry) => entry.id.id === row.id.id).settings;
-				await wait(
-					async () => ({
-						opacity: Math.fround(
-							Number(await settings.getByLabel('Opacity', { exact: true }).inputValue())
-						),
-						blend: await settings.getByRole('combobox', { name: /^Blend/ }).inputValue(),
-						enabled: await settings.getByLabel('Enabled', { exact: true }).isChecked()
-					}),
-					(value) => isDeepStrictEqual(value, expected)
-				);
-				await settings.getByLabel('Opacity', { exact: true }).fill('0.5');
-				await settings.getByRole('combobox', { name: /^Blend/ }).selectOption(blend);
-				await settings.getByLabel('Enabled', { exact: true }).uncheck();
-				assert.deepEqual(await inspect(), snapshot);
-				await button('Save row settings').click();
+				const parameter = (label) =>
+					page
+						.locator('.parameter-inspector')
+						.filter({ has: page.getByText(label, { exact: true }) });
+				if (field === 'opacity') {
+					const input = parameter('Opacity').locator('input.number-field');
+					await input.fill(String(next));
+					await input.press('Enter');
+				} else if (field === 'blend') {
+					await parameter('Blend').locator('select').selectOption(next);
+				} else {
+					await parameter('Render enabled').locator('input[type=checkbox]').setChecked(next);
+				}
 				after = await wait(inspect, (value) => {
 					const settings = value.items.find((entry) => entry.id.id === row.id.id).settings;
-					return settings.opacity === 0.5 && settings.blend === blend && !settings.enabled;
+					return settings[field] === next;
 				});
 				assert.deepEqual(after, {
 					...snapshot,
 					items: snapshot.items.map((entry) =>
 						entry.id.id === row.id.id
-							? { ...entry, settings: { opacity: 0.5, blend, enabled: false } }
+							? { ...entry, settings: { ...entry.settings, [field]: next } }
 							: entry
 					)
 				});

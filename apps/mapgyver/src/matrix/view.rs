@@ -159,7 +159,7 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
             id: row.id,
             parent: row.parent,
             label: node.node_data().meta.label.clone(),
-            settings: settings.clone(),
+            settings,
             channel: row.channel,
         },
         depth: row.depth,

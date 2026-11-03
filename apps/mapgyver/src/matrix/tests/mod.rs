@@ -14,6 +14,7 @@ mod bindings;
 mod cell_playback;
 mod copying;
 mod owned_media;
+mod parameters;
 mod playback;
 mod retained_demand;
 mod timeline;

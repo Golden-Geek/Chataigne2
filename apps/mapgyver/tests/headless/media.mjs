@@ -72,6 +72,7 @@ const withUi = [
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
 	'--matrix-ui',
+	'--matrix-parameters-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
 	'--column-applications-ui',
@@ -417,6 +418,10 @@ try {
 	if (process.argv.includes('--column-applications-ui')) {
 		const { verifyColumnApplicationsUi } = await import('../browser/column-applications.mjs');
 		await verifyColumnApplicationsUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--matrix-parameters-ui')) {
+		const { verifyMatrixParametersUi } = await import('../browser/matrix-parameters.mjs');
+		await verifyMatrixParametersUi({ base, edit });
 	}
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');

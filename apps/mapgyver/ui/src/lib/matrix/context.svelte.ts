@@ -109,9 +109,15 @@ export function provideMatrixAuthoring() {
 			) {
 				if (view.media !== media.uuid) controller.selectMedia(media.uuid);
 			}
-			if (node.node_type === 'mapgyver.matrix.layer' || node.node_type === 'mapgyver.matrix.group')
+			if (
+				node.node_type === 'mapgyver.matrix.layer.v2' ||
+				node.node_type === 'mapgyver.matrix.group.v2'
+			)
 				controller.select(
-					{ kind: node.node_type === 'mapgyver.matrix.layer' ? 'Layer' : 'Group', id: node.uuid },
+					{
+						kind: node.node_type === 'mapgyver.matrix.layer.v2' ? 'Layer' : 'Group',
+						id: node.uuid
+					},
 					view.selected?.column ?? null
 				);
 			else if (node.node_type === 'mapgyver.matrix.column.v2')

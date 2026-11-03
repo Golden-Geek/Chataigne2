@@ -4,13 +4,15 @@
 
 **Verified gates: `███████░░░` 74% · 42/57 accepted** (phase completion above remains 5/11).
 
-**Current topic:** M08/2 configuration/demand accepted; revised Matrix model next.
-**Next deliverable:** M07/1 typed Layer/Group/Cell settings, 3×3 defaults and complete API/history/project behavior.
+**Current topic:** M07/1 typed Layer/Group blending in the generic Inspector delivered; full model remains Active.
+**Next deliverable:** Typed Layer position/canvas/duration and runtime projection, then Cell transforms and 3×3 defaults.
 **Execution:** M08/1–2, M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M07/1 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Remaining requirement:** revised reusable app control, Matrix model/grid/playback, Video and retained
 physical/performance/final qualification. Original budgets and acceptance scope remain intact.
-**Newly usable:** Columns own typed transition and App control settings in the generic Inspector;
+**Newly usable:** Layer/Group opacity, all blend modes and render enablement are real typed Parameters
+in the generic Inspector, with atomic Configure, exact history/copy/project behavior and offscreen editing.
+Columns own typed transition and App control settings in the generic Inspector;
 standalone Applications/catalog/associations are removed. An empty Matrix address can also own
 app control without media. The actual Matrix action opens its generic Inspector with App file, integer pre/post
 and real Argument/Environment children. Column-relative demand launches the owned process and
@@ -40,9 +42,9 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Complete configuration/demand boundary](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03).
-372 library tests and twelve Windows lifecycle cases pass. Bundled Inspector, direct trigger/anchor/marker,
-disabled-destination held-PID/unload and source/history/project regressions pass. M08/2 closes.
+**Last delivered capability:** [Typed Layer/Group blending](mapgyver-m07-model.md#typed-layergroup-blending--2026-11-03).
+375 library tests pass; typed-row admission/copy/history and bundled generic/offscreen Inspector are verified.
+The complete M07/1 model remains required. [M08/2 remains accepted](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03).
 M06 remains 5/5 and M04 remains 8/8.
 No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -56,7 +58,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m04-acceptance-items"></a>[M04 Media](mapgyver-m04-source-parity.md#m04-phase-audit) | Accepted | `██████████` 100% | 8/8 | Sources 6/6; Reference 1/1; Preview 1/1 |
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Accepted | `██████████` 100% | 5/5 | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
-| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Active model                    | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
+| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Active model                    | `░░░░░░░░░░` 0%   | 0/4   | [Model 0/1](mapgyver-m07-model.md); playback 0/1; grid 0/1; native/scale 0/1              |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Runtime qualification pending | `█████░░░░░` 50% | 2/4 | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); runtime 0/1; app acceptance 0/1 |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                      | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                     |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                  | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                  |
@@ -85,7 +87,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M07/1            | Complete typed Layer/Group/Cell model, position/size/opacity/blend/enabling/transition settings, 3×3 defaults and full Parameter/API/history/project/copy behavior. Reuse M08's accepted control boundary and actual child-media ownership; reconcile named stash without restoring it wholesale. |
+| Active   | M07/1            | [Typed Layer/Group blending verified](mapgyver-m07-model.md). Finish Layer position/canvas/duration, Cell relative position/opacity/enabling (no size), 3×3 defaults and complete Parameter/API/history/project/copy behavior. Preserve actual child media and M08 control ownership; stash remains intact/un-restored. |
 | Accepted | M08/2            | [Configuration/demand audit](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03): typed ownership, standalone removal, normalized sharing, neighbor/direct semantics and disabled-render/outgoing/final-use through interruption/reorder/deletion/Undo/projects pass. M08 is 2/4; broader runtime/access/UI qualification remains open. |
 | Accepted | M06/5            | [Independent Composition panels](mapgyver-m06-panels.md): bounded off-page selection, simultaneous persisted follow/lock/page state, actual reconnect/File Open/New/held-input fencing and native tab/close lifetime. M06 is complete at 5/5. |
 | Accepted | M06/4            | [Native anchored editor](mapgyver-m06-editor.md): all eight resize and four outside rotation/cursor cases, actual smooth zoom, translation at zoom, shared Inspector selection, Escape, exact grouped Undo/Redo and tab lifetime pass. |
@@ -122,23 +124,22 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   Brief “preview unavailable” on restore was accepted for now; other timing/alignment budgets remain.
 - Prior Matrix Parameter and icon/presentation work is preserved, unaccepted, in named stash
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
-  `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
-  typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current batch/handoff:** M08/2 retained demand acceptance, 19:15 CET / cutoff 20:00 CET.
-  Delivered correct logical held-Cell/originating-Column demand without a renderer and deduplicated
-  admission. Disabled-render/transparent Layer demand, independent deadlines/cached settlement,
-  interrupted empty targets, reorder/deletion/Undo and project fencing pass. **372 full-library
-  tests pass**, two retained exclusions; strengthened three-case retention suite also passes.
-  Strict native-target Clippy, generated equality, formatting and browser Prettier pass. Twelve
-  actual Windows process cases pass (one retained exclusion), including independent Cell final-use
-  through deletion/unload/project close until explicit null-renderer completion. Bundled generic
-  Cell/Column Inspector, disabled-destination held-PID, direct/anchor/marker/unload and source/history/
-  Save-New-Load pass. [Evidence and precise limits](evidence/mapgyver-m08-retained-demand-2026-11-03.json).
-  **Gate change: M08/2 Accepted.** M07/1 alone is selected Active; next deliverable is the complete
-  typed Matrix model and 3×3 defaults. M07 playback/grid/native/scale and M08/3–4 aggregate runtime/
-  access/picker/commands/scripts/callbacks/snippets remain required. Null completion evidence does
-  not claim hardware GPU completion. Counts increase to 42/57 gates (74%); phases remain 5/11
-  (45%). No denominator or qualification-budget waiver.
+  `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
+  approach is reconciled in the current conversion; its older model/host/presentation
+  changes remain un-restored and unaccepted.
+- **Current batch/handoff:** M07/1 typed Matrix model, 19:34 CET / cutoff 20:19 CET.
+  Delivered real Layer/Group opacity/blend/render-enabled Parameters and generic Inspector;
+  atomic Configure, direct edits/capture fencing, copy, history/project and early schema admission
+  pass. Old row codec/custom blending form are removed; callbacks require no tree snapshot.
+  **375 full-library tests pass**, two retained exclusions; strict native-target Clippy, generated
+  equality, Svelte (0/0), 26 app/Matrix UI tests and formatting pass. Final bundled generic/all-blend/
+  enable/history/offscreen checks pass; existing Cell/Column sharing/direct/disabled-destination/
+  Unload and source/history/Save-New-Load pass. Twelve Windows lifecycle regressions pass, one
+  retained exclusion. [Evidence and exact limits](evidence/mapgyver-m07-row-parameters-2026-11-03.json).
+  **Gate changes: none.** M07/1 stays Active. Next: typed Layer position/canvas/duration with runtime
+  projection, then Cell relative position/opacity/enabling and backend 3×3 defaults. M07/2–4 and
+  M08/3–4 retain their full acceptance; no native Matrix pixel/scale or hardware GPU completion
+  claim. Counts remain 42/57 gates (74%), 5/11 phases (45%); no denominator/budget waiver.
   Host capacity recovery is configured under `%USERPROFILE%/.codex/tools/goal-recovery`, with
   23/23 tests and real read-only RPC verified. Activation still needs one VS Code Reload Window;
   the current IDE connection is not protected and live recovery is unverified. Recovery awards no product gate.

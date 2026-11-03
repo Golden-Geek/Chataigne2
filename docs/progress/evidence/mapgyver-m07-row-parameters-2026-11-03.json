@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/1",
+  "state": "Active",
+  "batch": { "start_utc": "18:34", "cutoff_utc": "19:19" },
+  "delivered": "Layer/Group opacity, blend and render enabling are actual Parameters in typed row v2 nodes; generic Inspector replaces custom blending form; atomic Configure and direct edits share validation/history; nested copy/project preserve values with independent identities; unsupported old and opaque row records reject before recovery.",
+  "software": {
+    "command": "cargo test --locked -p MapGyver --lib",
+    "passed": 375, "failed": 0, "ignored": 2, "seconds": 108.52,
+    "new_cases": "Three Parameter cases: atomic real values/history/reload; direct writes/capture fencing/invalid/atomic rollback; nested copy/identity/independence and old/current-opaque row admission rejection.",
+    "regressions": "Existing public four-caller parity, Matrix render plans and retained application demand pass.",
+    "clippy": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings: pass",
+    "protocol": "DTOs unchanged; Media/Preview generated equality passes in full suite",
+    "svelte": "0 errors, 0 warnings",
+    "ui_unit": "26 Matrix/application Node tests passed",
+    "format": "Root/Golden Cargo fmt, touched UI/browser Prettier and whitespace checks pass"
+  },
+  "bundled": {
+    "build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review: exit 0",
+    "binary": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "8D2550DFF03C7E9FD8B521109E92B370CFF867A622381335FB2652B703AADD02",
+    "result": "pass", "browser": "149.0.7827.55",
+    "row_elapsed_ms": 6496,
+    "coverage": "Actual generic Layer/Group opacity/all four blends/render enabling; exact per-control Undo/Redo; selected Layer remains editable outside 258-row visible grid; no playback side effects; separate same-build Cell/Column Inspector/sharing/direct/disabled-destination/Unload and source/history/Save-New-Load regression.",
+    "page_errors": 0, "rejected_intents": 0,
+    "limit": "One combined browser attempt failed fetching a dynamic JavaScript chunk; final fresh focused runs pass. No retry logic added. Comprehensive revised grid/native qualification remains open."
+  },
+  "windows": {
+    "build": "cargo rustc --locked -p MapGyver --test application_runtime --features application-process-fixture -- -C extra-filename=-codex-rows: exit 0",
+    "binary": "target/debug/deps/application_runtime-codex-rows.exe",
+    "sha256": "259C3FAF2FC5C3CC9857DBF80532DC6E9BAD88C2392228B4FE801741F733B310",
+    "passed": 12, "failed": 0, "ignored": 1, "seconds": 1.15,
+    "limit": "Existing owned-process and null-renderer completion regression; pinned-descendant remains M08/4, revised Matrix native pixels/scale remain M07/4."
+  },
+  "ownership": "All product changes remain in MapGyver; no Golden/Chataigne edits. Named pre-revision stash remains un-restored; unrelated AGENTS/CONTRIBUTING/icons preserved.",
+  "logs": "target/m07-row-parameters-{lib-complete,admission-tests,clippy-complete,ui-check,ui-tests,app-build-complete,native-build-complete,native-complete,bundled-row-complete,bundled-controls-complete}.log",
+  "remaining": "Typed Layer position/canvas/transition duration and runtime projection; Cell relative position/opacity/enabling without size; backend 3x3 defaults and complete model acceptance; full transition/grid/native/scale and M08/3-4 qualification remain required.",
+  "gate_delta": 0, "accepted_gates": 42, "total_gates": 57, "completed_phases": 5, "total_phases": 11
+}

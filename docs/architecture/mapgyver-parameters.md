@@ -91,6 +91,15 @@ show; it never changes settings or runtime policy. Empty File values represent u
 locators, so shared extension constraints permit clearing them; chosen paths retain extension
 validation and app-owned absolute executable validation.
 
+Matrix Layer v2 and Group v2 now declare opacity, blend and render enablement as real Parameters.
+Their immutable kind comes from the persisted node type; `ElementDefinition` and row snapshots
+only project these values. `ConfigureItem` uses one `SetParamsAtomic` proposal, sharing validation,
+invalidation and exact Undo with direct generic edits. Forest copying preserves the declared
+Parameter/control tree with fresh identities. Unsupported row schemas and non-null opaque row
+data reject before recoverable decoding. Ordinary blending controls use the generic Inspector;
+the old custom blending form and opaque row codec are removed. Layer position/canvas/duration,
+Cell transforms and the full Matrix model/default/grid conversion remain in M07.
+
 Cell v2 and Column v2 declare this subtree directly and own their application identities. The public
 `ApplicationId` equals the persistent consumer UUID; the default settings child's internal UUID
 may be omitted by sparse persistence and must not escape as a consumer identity. `EnsureCell`

@@ -26,7 +26,12 @@
 		{defaultHeader}
 		{defaultContent}
 		{defaultChildren} />
-{:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}<MatrixProperties />
+{:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}
+	{#snippet matrixContent()}
+		{@render defaultChildren?.('', (child) => child.decl_id === 'parameters')}
+		<MatrixProperties />
+	{/snippet}
+	{@render defaultContent?.(matrixContent)}
 {:else if node.node_type === 'mapgyver.app_control.v1'}<ApplicationInspector
 		{node}
 		{defaultHeader}

@@ -6,7 +6,6 @@
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
 	import type { MatrixTargetId } from '../media/generated/MatrixTargetId';
-	import type { BlendMode } from '../media/generated/BlendMode';
 	import NameForm from './NameForm.svelte';
 	import TargetPicker from './TargetPicker.svelte';
 	let {
@@ -24,7 +23,6 @@
 	} = $props();
 	let parent = $state(untrack(() => row.item.parent));
 	let after = $state<MatrixTargetId | null>(null);
-	const blends: BlendMode[] = ['Normal', 'Add', 'Multiply', 'Screen'];
 </script>
 
 <NameForm
@@ -32,41 +30,6 @@
 	value={row.item.label}
 	{disabled}
 	rename={(label) => edit({ kind: 'RenameItem', item: row.item.id, label })} />
-<form
-	class="matrix-authoring"
-	onsubmit={(event) => {
-		event.preventDefault();
-		const data = new FormData(event.currentTarget);
-		edit({
-			kind: 'ConfigureItem',
-			item: row.item.id,
-			settings: {
-				opacity: Number(data.get('opacity')),
-				blend: String(data.get('blend')) as BlendMode,
-				enabled: data.has('enabled')
-			}
-		});
-	}}>
-	<fieldset {disabled}>
-		<legend>Row blending</legend>
-		<label
-			>Opacity<input
-				name="opacity"
-				type="number"
-				min="0"
-				max="1"
-				step="any"
-				required
-				value={row.item.settings.opacity} /></label>
-		<label
-			>Blend<select name="blend" value={row.item.settings.blend}
-				>{#each blends as blend}<option>{blend}</option>{/each}</select
-			></label>
-		<label
-			><input type="checkbox" name="enabled" checked={row.item.settings.enabled} />Enabled</label>
-		<button>Save row settings</button>
-	</fieldset>
-</form>
 <form
 	class="matrix-authoring"
 	onsubmit={(event) => {
