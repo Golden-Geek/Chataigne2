@@ -149,6 +149,7 @@ pub struct ColumnSnapshot {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CellSnapshot {
     pub id: CellId,
+    pub media: Option<MediaId>,
     pub layer: LayerId,
     pub definition: CellDefinition,
 }

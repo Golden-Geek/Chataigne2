@@ -2,7 +2,7 @@
 use super::protocol::{CellDefinition, ColumnId};
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::{ChannelId, ChannelReference, MediaId},
+    media::protocol::{ChannelId, MediaId},
 };
 use golden_core::{
     node,
@@ -20,7 +20,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v1";
 #[children(folder(parameters, label = "Parameters") {
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column".into()]);
-    output: NodeReference = NodeReference::empty() (label = "Output", read_only = true, persist_read_only_value = true,
+    output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
 })]
 pub struct CellNode {
@@ -58,16 +58,22 @@ impl CellNode {
         }
         Ok(found)
     }
-    pub(crate) fn definition(&self, engine: &AppEngine) -> Result<CellDefinition, String> {
+    pub(crate) fn selection(&self, engine: &AppEngine) -> Result<Option<crate::media::MediaSource>, String> {
         let output = self.output.get_ref().uuid;
-        let source = self
+        Ok(self
             .content(engine)?
             .and_then(|id| engine.nodes.get(id))
-            .filter(|_| !output.0.is_nil())
-            .map(|node| ChannelReference {
+            .map(|node| crate::media::MediaSource {
                 media: MediaId(node.node_data().meta.uuid),
-                channel: ChannelId(output),
-            });
+                channel: (!output.0.is_nil()).then_some(ChannelId(output)),
+            }))
+    }
+    pub(crate) fn definition(&self, engine: &AppEngine) -> Result<CellDefinition, String> {
+        let source = self
+            .selection(engine)?
+            .map(|source| source.output(engine))
+            .transpose()?
+            .flatten();
         Ok(CellDefinition {
             column: self.column(),
             source,

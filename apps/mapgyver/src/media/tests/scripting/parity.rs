@@ -32,6 +32,27 @@ fn named_invocation(operation: &MediaEdit) -> String {
             "dropMatrixMedia",
             serde_json::json!([media, layer, column, source, copy]),
         ),
+        MediaEdit::Composition {
+            reference,
+            edit:
+                crate::media::composition::protocol::CompositionEdit::DropSource {
+                    source,
+                    instance,
+                    position,
+                    copy,
+                },
+        } => (
+            "dropCompositionMedia",
+            serde_json::json!([
+                reference.media,
+                reference.channel,
+                source,
+                instance.map(|id| id.0.0.to_string()).unwrap_or_default(),
+                copy,
+                position.x,
+                position.y
+            ]),
+        ),
         MediaEdit::CreateMedia { media_kind, label } => (
             "createMedia",
             serde_json::json!([media_kind, label.as_deref().unwrap_or("")]),

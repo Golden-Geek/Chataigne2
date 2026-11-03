@@ -282,7 +282,18 @@ pub(crate) fn capture_channels_with_time(
                 next = node.node_data().next_sibling;
                 let placement = super::composition::children::placement(engine, id)?;
                 instance_guards.push(placement.guard());
-                let definition = super::composition::children::definition(engine, id)?;
+                let mut definition = super::composition::children::definition(engine, id)?;
+                if placement.output().is_none()
+                    && node.node_data().effective_enabled
+                    && definition.enabled
+                    && definition.opacity > 0.0
+                {
+                    definition.source = super::MediaSource {
+                        media: super::protocol::MediaId(node.node_data().meta.uuid),
+                        channel: None,
+                    }
+                    .capture(engine, &mut instance_guards)?;
+                }
                 if node.node_data().effective_enabled
                     && definition.enabled
                     && definition.opacity > 0.0

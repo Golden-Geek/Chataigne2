@@ -156,6 +156,7 @@ impl Document {
                         document.elements.insert(cell);
                         document.snapshot.cells.push(CellSnapshot {
                             id: CellId(node.node_data().meta.uuid),
+                            media: node.selection(engine)?.map(|source| source.media),
                             layer,
                             definition: definition.clone(),
                         });

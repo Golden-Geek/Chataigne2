@@ -223,8 +223,12 @@ fn reference_retarget_detects_feedback_from_existing_missing_channel_aliases() {
     engine.edits.push(Edit::AddNodeTree {
         parent,
         prev_sibling: None,
-        tree: children::tree(
+        tree: children::reference_tree(
             "Missing alias".into(),
+            Some(crate::media::MediaSource {
+                media: a,
+                channel: Some(composition.channel),
+            }),
             InstanceDefinition {
                 source: Some(ChannelReference {
                     media: a,

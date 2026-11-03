@@ -15,7 +15,7 @@ pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v1";
 #[children(
     folder(parameters, label = "Parameters") {
         source_channel: NodeReference = NodeReference::empty() (
-            label = "Output", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
+            label = "Output", description = "Empty follows the first available output.", reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.channel".into()]
         );
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
@@ -33,6 +33,10 @@ pub struct PlacementNode {
 }
 
 impl PlacementNode {
+    pub(crate) fn output(&self) -> Option<ChannelId> {
+        let uuid = self.source_channel.get_ref().uuid;
+        (!uuid.0.is_nil()).then_some(ChannelId(uuid))
+    }
     pub(crate) fn output_parameter(&self) -> NodeId {
         self.source_channel.id()
     }
@@ -82,12 +86,10 @@ impl PlacementNode {
     }
     pub(crate) fn parameter_edits(&self, definition: InstanceDefinition) -> Vec<golden_core::edit::Edit> {
         use golden_core::{edit::Edit, parameter::ParameterEventBehaviour};
-        let channel = source_reference(definition.source);
         let position = vector(definition.transform.position);
         let scale = vector(definition.transform.scale);
         let pivot = vector(definition.transform.pivot);
         [
-            (self.source_channel.id(), ParamValue::Reference(channel)),
             (self.position.id(), ParamValue::Vec2(position.x, position.y)),
             (self.scale.id(), ParamValue::Vec2(scale.x, scale.y)),
             (

@@ -158,6 +158,10 @@ pub(crate) fn capture(
                         Ok(None) => continue,
                         Err(_) => return Ok(None),
                     };
+                    let output = source.capture(engine, guards)?;
+                    let Some(source) = timeline.bindings.output(entry.clip, layer, output) else {
+                        continue;
+                    };
                     if let Some((_, current_from, current_to)) = sources.iter_mut().find(|(id, _, _)| *id == source) {
                         *current_from += entry.from;
                         *current_to += entry.to;

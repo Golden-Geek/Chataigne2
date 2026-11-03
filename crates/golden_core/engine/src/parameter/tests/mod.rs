@@ -440,3 +440,31 @@ fn binding_projection_roundtrips_vec2_x_to_float() {
     .expect("reverse vec2 x projection should update vec2");
     assert_eq!(reverse, ParamValue::Vec2(6.0, 4.0));
 }
+
+#[test]
+fn cleared_values_stay_cleared_when_a_dynamic_default_is_persisted() {
+    for (node_type, initial, cleared) in [
+        ("int", ParamValue::Int(42), ParamValue::Int(0)),
+        (
+            "reference",
+            ParamValue::Reference(crate::node::NodeReference::new(crate::node::NodeUuid(
+                uuid::Uuid::new_v4(),
+            ))),
+            ParamValue::Reference(crate::node::NodeReference::empty()),
+        ),
+    ] {
+        let mut parameter = Parameter::new("Dynamic", initial.clone(), ParameterChangeCheck::ValueChange);
+        parameter.value = cleared.clone();
+        for data in [
+            parameter.project_encode_data().unwrap(),
+            parameter
+                .project_encode_data_against_baseline(None, true, true)
+                .unwrap(),
+        ] {
+            let mut loaded = Parameter::project_create(node_type).unwrap();
+            loaded.project_decode_data(&data).unwrap();
+            assert_eq!(loaded.value, cleared);
+            assert_eq!(loaded.default_value, initial);
+        }
+    }
+}

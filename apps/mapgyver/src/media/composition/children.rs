@@ -43,10 +43,21 @@ pub(crate) fn definition(engine: &AppEngine, media: NodeId) -> Result<InstanceDe
         .node_data()
         .meta
         .uuid;
-    Ok(placement(engine, media)?.definition(MediaId(uuid)))
+    let placement = placement(engine, media)?;
+    let mut definition = placement.definition(MediaId(uuid));
+    definition.source = crate::media::MediaSource {
+        media: MediaId(uuid),
+        channel: placement.output(),
+    }
+    .output(engine)?;
+    Ok(definition)
 }
-pub(crate) fn tree(label: String, definition: InstanceDefinition) -> (NodeTree, InstanceId) {
-    let node = ReferenceNode::from_target(label, definition.source.map(|source| source.media));
+pub(crate) fn reference_tree(
+    label: String,
+    source: Option<crate::media::MediaSource>,
+    definition: InstanceDefinition,
+) -> (NodeTree, InstanceId) {
+    let node = ReferenceNode::from_target(label, source.map(|source| source.media));
     let id = InstanceId(node.node_data().meta.uuid);
     let tree = NodeTree::new(node).with_child(NodeTree::new(PlacementNode::from_definition(
         "Placement".into(),

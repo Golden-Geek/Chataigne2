@@ -1,6 +1,6 @@
 //! Demand-admitted source references, independent of authored indices and native resources.
 use super::{projection::CellSource, protocol::LayerId, timeline::Clip};
-use crate::media::protocol::ChannelReference;
+use crate::media::{MediaSource, protocol::ChannelReference};
 use std::collections::{HashMap, HashSet};
 
 pub(super) const MAX_BINDINGS: usize = 4096;
@@ -11,7 +11,8 @@ pub(crate) struct Bindings {
 }
 struct Binding {
     owner: ChannelReference,
-    source: Option<ChannelReference>,
+    source: Option<MediaSource>,
+    output: Option<ChannelReference>,
 }
 pub(crate) struct BindingCapacity;
 impl Bindings {
@@ -21,7 +22,7 @@ impl Bindings {
         layer: LayerId,
         owner: ChannelReference,
         candidate: Option<&CellSource>,
-    ) -> Result<Option<ChannelReference>, BindingCapacity> {
+    ) -> Result<Option<MediaSource>, BindingCapacity> {
         let key = (clip.id, layer);
         if let Some(binding) = self.entries.get(&key) {
             return Ok(binding.source);
@@ -34,8 +35,27 @@ impl Bindings {
         let source = candidate
             .filter(|cell| cell.version <= clip.version)
             .map(|cell| cell.source);
-        self.entries.insert(key, Binding { owner, source });
+        self.entries.insert(
+            key,
+            Binding {
+                owner,
+                source,
+                output: source.and_then(|source| {
+                    source.channel.map(|channel| ChannelReference {
+                        media: source.media,
+                        channel,
+                    })
+                }),
+            },
+        );
         Ok(source)
+    }
+    pub fn output(&mut self, clip: Clip, layer: LayerId, output: Option<ChannelReference>) -> Option<ChannelReference> {
+        let binding = self.entries.get_mut(&(clip.id, layer)).expect("resolved clip binding");
+        if output.is_some() {
+            binding.output = output;
+        }
+        binding.output
     }
     pub fn retain(&mut self, clips: impl Iterator<Item = uuid::Uuid>) {
         let clips = clips.collect::<HashSet<_>>();
@@ -50,7 +70,7 @@ impl Bindings {
     pub fn edges(&self) -> Vec<(ChannelReference, ChannelReference)> {
         self.entries
             .values()
-            .filter_map(|binding| binding.source.map(|source| (binding.owner, source)))
+            .filter_map(|binding| binding.output.map(|source| (binding.owner, source)))
             .collect()
     }
 }

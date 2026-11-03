@@ -24,28 +24,54 @@ pub(super) fn assign(
     document: &Document,
     assignments: Vec<CellAssignment>,
 ) -> Result<(), String> {
+    assign_sources(
+        engine,
+        document,
+        assignments
+            .into_iter()
+            .map(|assignment| {
+                (
+                    assignment.layer,
+                    assignment.column,
+                    assignment.source.map(|source| crate::media::MediaSource {
+                        media: source.media,
+                        channel: Some(source.channel),
+                    }),
+                )
+            })
+            .collect(),
+    )
+}
+fn assign_sources(
+    engine: &mut AppEngine,
+    document: &Document,
+    assignments: Vec<(LayerId, ColumnId, Option<crate::media::MediaSource>)>,
+) -> Result<(), String> {
     if assignments.is_empty() || assignments.len() > MAX_BATCH {
         return Err("assign 1..4096 Matrix cells per atomic batch".into());
     }
     let mut seen = HashSet::new();
     let mut additions = 0;
     let mut changes = HashMap::new();
-    for assignment in assignments {
-        document.item(MatrixItemId::Layer { id: assignment.layer })?;
-        document.column(assignment.column)?;
-        if !seen.insert((assignment.layer, assignment.column)) {
+    for (layer, column, source) in assignments {
+        document.item(MatrixItemId::Layer { id: layer })?;
+        document.column(column)?;
+        if !seen.insert((layer, column)) {
             return Err("duplicate Matrix cell address in one batch".into());
         }
-        if let Some(source) = assignment.source {
-            crate::media::channel(engine, source)?;
+        if let Some(source) = source {
+            crate::media::authoring::media(engine, source.media)?;
+            if let Some(output) = source.output(engine)? {
+                crate::media::channel(engine, output)?;
+            }
         }
-        if let Some(id) = document.cells.get(&(assignment.layer, assignment.column)) {
+        if let Some(id) = document.cells.get(&(layer, column)) {
             let AppNode::MatrixCell(node) = engine.nodes.get(*id).unwrap() else {
                 unreachable!()
             };
-            let current = node.definition(engine)?.source;
-            let unchanged = current == assignment.source || node.content(engine)?.is_some_and(|id| {
-                matches!(engine.nodes.get(id), Some(AppNode::ReferenceMedia(reference)) if assignment.source.is_some_and(|source|
+            let current = node.selection(engine)?;
+            let unchanged = current == source || node.content(engine)?.is_some_and(|id| {
+                matches!(engine.nodes.get(id), Some(AppNode::ReferenceMedia(reference)) if source.is_some_and(|source|
                     reference.target() == Some(source.media) && current.is_some_and(|current| current.channel == source.channel)))
             });
             if unchanged {
@@ -55,7 +81,7 @@ pub(super) fn assign(
         } else {
             additions += 1;
         }
-        changes.insert((assignment.layer, assignment.column), assignment.source);
+        changes.insert((layer, column), source);
     }
     document.admit(additions)?;
     let affected = changes.keys().map(|(layer, _)| *layer).collect::<HashSet<_>>();
@@ -69,8 +95,10 @@ pub(super) fn assign(
         }
     }
     for ((layer, _), source) in &changes {
-        if let Some(source) = source {
-            edges.entry(*layer).or_default().push(*source);
+        if let Some(source) = source
+            && let Some(output) = source.output(engine)?
+        {
+            edges.entry(*layer).or_default().push(output);
         }
     }
     crate::media::dependencies::replace_sources(
@@ -98,7 +126,9 @@ pub(super) fn assign(
             engine.edits.push(Edit::SetParam {
                 node: current.output_parameter(),
                 value: ParamValue::Reference(
-                    source.map_or_else(NodeReference::empty, |source| NodeReference::new(source.channel.0)),
+                    source
+                        .and_then(|source| source.channel)
+                        .map_or_else(NodeReference::empty, |channel| NodeReference::new(channel.0)),
                 ),
                 behaviour: ParameterEventBehaviour::Append,
             });
@@ -106,7 +136,7 @@ pub(super) fn assign(
                 insertions.push(UserItemTreeInsertion::new(*id, NodeTree::new(node)));
             }
         } else {
-            let node = CellNode::from_address("Cell".into(), column, source.map(|source| source.channel));
+            let node = CellNode::from_address("Cell".into(), column, source.and_then(|source| source.channel));
             node.bind_runtime(binding(engine, document));
             let mut tree = NodeTree::new(node);
             if let Some(content) = content {
@@ -132,19 +162,11 @@ pub(super) fn drop_source(
     source: golden_core::node::NodeUuid,
     copy: bool,
 ) -> Result<MediaEditResult, String> {
-    let source = crate::media::resolve_source_node(engine, source)?;
+    let source = crate::media::source_selection(engine, source)?;
     document.item(MatrixItemId::Layer { id: layer })?;
     document.column(column)?;
     if !copy {
-        assign(
-            engine,
-            document,
-            vec![CellAssignment {
-                layer,
-                column,
-                source: Some(source),
-            }],
-        )?;
+        assign_sources(engine, document, vec![(layer, column, Some(source))])?;
         engine.apply_edits().map_err(|e| e.to_string())?;
     } else {
         let cell = if let Some(id) = document.cells.get(&(layer, column)) {
@@ -201,14 +223,16 @@ pub(super) fn drop_source(
                 |_, _| Ok(()),
             )
             .map_err(|e| e.to_string())?;
-        let output = imported
-            .identities
-            .iter()
-            .find(|item| item.source_uuid == source.channel.0)
-            .map_or(source.channel.0, |item| item.uuid);
+        let output = source.channel.map(|channel| {
+            imported
+                .identities
+                .iter()
+                .find(|item| item.source_uuid == channel.0)
+                .map_or(channel.0, |item| item.uuid)
+        });
         engine.edits.push(Edit::SetParam {
             node: output_parameter,
-            value: ParamValue::Reference(NodeReference::new(output)),
+            value: ParamValue::Reference(output.map_or_else(NodeReference::empty, NodeReference::new)),
             behaviour: ParameterEventBehaviour::Append,
         });
         engine.apply_edits().map_err(|e| e.to_string())?;

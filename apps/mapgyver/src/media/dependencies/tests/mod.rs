@@ -65,8 +65,12 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
         );
         for (instance, source) in [next, leaf].into_iter().enumerate() {
             tree.push_child(
-                children::tree(
+                children::reference_tree(
                     format!("Instance {instance}"),
+                    Some(crate::media::MediaSource {
+                        media: source.media,
+                        channel: Some(source.channel),
+                    }),
                     InstanceDefinition {
                         source: Some(source),
                         ..InstanceDefinition::default()

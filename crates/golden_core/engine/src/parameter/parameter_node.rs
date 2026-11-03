@@ -357,7 +357,10 @@ impl Parameter {
         let mut data = serde_json::Map::new();
 
         let value_is_dynamic_default = self.default_value != baseline.default_value && self.value == self.default_value;
-        if (persist_runtime_value || value_is_dynamic_default) && self.value != baseline.value {
+        // A changed default makes an omitted baseline value ambiguous on decode.
+        if (persist_runtime_value || value_is_dynamic_default)
+            && (self.value != baseline.value || self.default_value != baseline.default_value)
+        {
             data.insert(
                 "value".to_string(),
                 serde_json::to_value(&self.value).map_err(|err| format!("failed to encode 'value' field: {err}"))?,
@@ -511,7 +514,7 @@ impl Node for Parameter {
         let baseline = default_parameter_project_data(self.get_type())?;
         let mut data = serde_json::Map::new();
 
-        if self.value != baseline.value {
+        if self.value != baseline.value || self.default_value != baseline.default_value {
             data.insert(
                 "value".to_string(),
                 serde_json::to_value(&self.value).map_err(|err| format!("failed to encode 'value' field: {err}"))?,

@@ -118,9 +118,17 @@ pub(crate) fn apply(
                 parent,
                 sources
                     .into_iter()
-                    .map(|source| InstanceDefinition {
-                        source: Some(source),
-                        ..InstanceDefinition::for_canvas(canvas)
+                    .map(|source| {
+                        (
+                            crate::media::MediaSource {
+                                media: source.media,
+                                channel: Some(source.channel),
+                            },
+                            InstanceDefinition {
+                                source: Some(source),
+                                ..InstanceDefinition::for_canvas(canvas)
+                            },
+                        )
                     })
                     .collect(),
             )
@@ -263,7 +271,7 @@ pub(super) fn append(
     engine: &mut AppEngine,
     reference: ChannelReference,
     parent: NodeId,
-    definitions: Vec<InstanceDefinition>,
+    definitions: Vec<(crate::media::MediaSource, InstanceDefinition)>,
 ) -> Result<MediaEditResult, String> {
     let existing = instances(engine, parent)?;
     if existing.len().saturating_add(definitions.len()) > MAX_INSTANCES {
@@ -276,7 +284,7 @@ pub(super) fn append(
     let mut next_label = 1u64;
     let mut created = Vec::with_capacity(definitions.len());
     let mut items = Vec::with_capacity(definitions.len());
-    for definition in definitions {
+    for (source, definition) in definitions {
         let label = loop {
             let candidate = format!("Instance {next_label}");
             next_label += 1;
@@ -284,7 +292,7 @@ pub(super) fn append(
                 break candidate;
             }
         };
-        let (tree, id) = children::tree(label, definition);
+        let (tree, id) = children::reference_tree(label, Some(source), definition);
         created.push(InstanceReference {
             composition: reference,
             instance: id,

@@ -2,7 +2,7 @@
 use super::{document::Document, protocol::*};
 use crate::{
     app::{AppEngine, AppNode},
-    media::protocol::ChannelReference,
+    media::{MediaSource, protocol::ChannelReference},
 };
 use golden_core::node::Node;
 use std::collections::{BTreeMap, HashMap};
@@ -22,7 +22,7 @@ pub(crate) struct RenderIndex {
 }
 pub(crate) struct CellSource {
     pub layer: LayerId,
-    pub source: ChannelReference,
+    pub source: MediaSource,
     pub version: u64,
 }
 impl RenderIndex {
@@ -60,7 +60,7 @@ impl RenderIndex {
         }
         let mut cells = HashMap::<ColumnId, BTreeMap<usize, CellSource>>::new();
         for cell in &document.snapshot.cells {
-            if let Some(source) = cell.definition.source {
+            if cell.media.is_some() {
                 let AppNode::MatrixCell(node) = engine
                     .nodes
                     .get(document.cells[&(cell.layer, cell.definition.column)])
@@ -68,6 +68,7 @@ impl RenderIndex {
                 else {
                     unreachable!()
                 };
+                let source = node.selection(engine).expect("validated Cell media").unwrap();
                 let entry = &items[&MatrixItemId::Layer { id: cell.layer }];
                 if !entry.enabled || !entry.settings.enabled || entry.settings.opacity == 0.0 {
                     continue;

@@ -34,9 +34,13 @@ pub(super) fn apply(
     if !position.x.is_finite() || !position.y.is_finite() {
         return Err("Composition drop position must be finite canvas coordinates".into());
     }
-    let source = crate::media::resolve_source_node(engine, source)?;
+    let source = crate::media::source_selection(engine, source)?;
     if !copy {
-        dependencies::reject_cycle(engine, reference, &[source])?;
+        dependencies::reject_cycle(
+            engine,
+            reference,
+            &source.output(engine)?.into_iter().collect::<Vec<_>>(),
+        )?;
     }
     let parent = children::owner(engine, channel)?;
     let existing = target
@@ -55,9 +59,9 @@ pub(super) fn apply(
                 let target_parameter = node.target_parameter();
                 let placement = children::placement(engine, id)?;
                 let mut definition = children::definition(engine, id)?;
-                definition.source = Some(ChannelReference {
+                definition.source = source.channel.map(|channel| ChannelReference {
                     media: MediaId(target.unwrap().0),
-                    channel: source.channel,
+                    channel,
                 });
                 engine.edits.push(Edit::SetParamsAtomic {
                     values: vec![
@@ -67,7 +71,13 @@ pub(super) fn apply(
                         ),
                         (
                             placement.output_parameter(),
-                            ParamValue::Reference(golden_core::node::NodeReference::new(source.channel.0)),
+                            ParamValue::Reference(
+                                source
+                                    .channel
+                                    .map_or_else(golden_core::node::NodeReference::empty, |channel| {
+                                        golden_core::node::NodeReference::new(channel.0)
+                                    }),
+                            ),
                         ),
                     ],
                     behaviour: ParameterEventBehaviour::Append,
@@ -86,9 +96,9 @@ pub(super) fn apply(
             return replace_with_reference(engine, reference, parent, id, source);
         }
         let mut definition = InstanceDefinition::for_canvas(canvas);
-        definition.source = Some(source);
+        definition.source = source.output(engine)?;
         definition.transform.position = [position.x, position.y];
-        return super::authoring::append(engine, reference, channel, vec![definition]);
+        return super::authoring::append(engine, reference, channel, vec![(source, definition)]);
     }
     let root = engine
         .node_id_by_uuid(source.media.0)
@@ -121,19 +131,24 @@ pub(super) fn apply(
         .map_err(|e| e.to_string())?;
     let id = result.roots[0];
     let uuid = engine.nodes.get(id).unwrap().node_data().meta.uuid;
-    let output = result
-        .identities
-        .iter()
-        .find(|item| item.source_uuid == source.channel.0)
-        .map_or(source.channel.0, |item| item.uuid);
-    let selected = ChannelReference {
+    let output = source.channel.map(|channel| {
+        result
+            .identities
+            .iter()
+            .find(|item| item.source_uuid == channel.0)
+            .map_or(channel.0, |item| item.uuid)
+    });
+    let selected = output.map(|output| ChannelReference {
         media: MediaId(uuid),
         channel: ChannelId(output),
-    };
+    });
     if let Ok(placement) = children::placement(engine, id) {
         let mut values = vec![(
             placement.output_parameter(),
-            ParamValue::Reference(golden_core::node::NodeReference::new(output)),
+            ParamValue::Reference(output.map_or_else(
+                golden_core::node::NodeReference::empty,
+                golden_core::node::NodeReference::new,
+            )),
         )];
         if existing.is_none() {
             values.push((
@@ -147,7 +162,7 @@ pub(super) fn apply(
         });
     } else {
         let mut definition = InstanceDefinition::for_canvas(canvas);
-        definition.source = Some(selected);
+        definition.source = selected;
         definition.transform.position = [position.x, position.y];
         engine.edits.push(Edit::AddNodeTree {
             parent: id,
@@ -171,12 +186,12 @@ fn replace_with_reference(
     reference: ChannelReference,
     parent: NodeId,
     old: NodeId,
-    source: ChannelReference,
+    source: crate::media::MediaSource,
 ) -> Result<MediaEditResult, String> {
     let label = engine.nodes.get(old).unwrap().node_data().meta.label.clone();
     let mut definition = children::definition(engine, old)?;
-    definition.source = Some(source);
-    let (tree, instance) = children::tree("Replacement".into(), definition.clone());
+    definition.source = source.output(engine)?;
+    let (tree, instance) = children::reference_tree("Replacement".into(), Some(source), definition.clone());
     engine.edits.push(Edit::AddUserItemTree {
         parent,
         prev_sibling: engine.nodes.get(old).unwrap().node_data().prev_sibling,
@@ -196,7 +211,13 @@ fn replace_with_reference(
     engine.edits.push(Edit::RemoveNode { node: old });
     engine.edits.push(Edit::SetParam {
         node: output,
-        value: ParamValue::Reference(golden_core::node::NodeReference::new(source.channel.0)),
+        value: ParamValue::Reference(
+            source
+                .channel
+                .map_or_else(golden_core::node::NodeReference::empty, |channel| {
+                    golden_core::node::NodeReference::new(channel.0)
+                }),
+        ),
         behaviour: ParameterEventBehaviour::Append,
     });
     engine.edits.push(Edit::PatchMeta {
@@ -206,9 +227,9 @@ fn replace_with_reference(
             ..Default::default()
         },
     });
-    definition.source = Some(ChannelReference {
+    definition.source = source.channel.map(|channel| ChannelReference {
         media: MediaId(instance.0),
-        channel: source.channel,
+        channel,
     });
     Ok(MediaEditResult::InstanceChanged {
         snapshot: InstanceSnapshot {

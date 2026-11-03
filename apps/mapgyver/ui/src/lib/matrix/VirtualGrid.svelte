@@ -152,7 +152,7 @@
 					<SourceDropZone
 						disabled={disabled || row.item.id.kind !== 'Layer'}
 						addLabel="Set media"
-						replaceOnly={cell?.cell.definition.source ? column.id : null}
+						replaceOnly={cell?.cell.media ? column.id : null}
 						style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
 						onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 						<button

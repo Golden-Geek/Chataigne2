@@ -27,7 +27,13 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
     let owner = reference();
     let source = CellSource {
         layer: row,
-        source: reference(),
+        source: {
+            let reference = reference();
+            crate::media::MediaSource {
+                media: reference.media,
+                channel: Some(reference.channel),
+            }
+        },
         version: 10,
     };
     assert_eq!(
@@ -36,7 +42,13 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
     );
     let edited = CellSource {
         layer: row,
-        source: reference(),
+        source: {
+            let reference = reference();
+            crate::media::MediaSource {
+                media: reference.media,
+                channel: Some(reference.channel),
+            }
+        },
         version: 11,
     };
     assert_eq!(
@@ -68,7 +80,16 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         Some(edited.source)
     );
     bindings.retain(std::iter::once(next.id));
-    assert_eq!(bindings.edges(), vec![(owner, edited.source)]);
+    assert_eq!(
+        bindings.edges(),
+        vec![(
+            owner,
+            ChannelReference {
+                media: edited.source.media,
+                channel: edited.source.channel.unwrap()
+            }
+        )]
+    );
     for _ in 1..MAX_BINDINGS {
         assert!(bindings.resolve(next, LayerId(uuid()), owner, Some(&edited)).is_ok());
     }

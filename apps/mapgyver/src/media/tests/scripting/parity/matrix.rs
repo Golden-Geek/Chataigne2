@@ -463,3 +463,85 @@ fn matrix_owned_media_drops_return_committed_children_through_every_public_calle
         }
     }
 }
+
+#[test]
+fn unavailable_reference_drops_return_owned_identities_and_atomic_history_for_every_caller() {
+    for caller in CALLERS {
+        for missing in [false, true] {
+            for copy in [false, true] {
+                for matrix in [false, true] {
+                    let scene = scene();
+                    let mut engine = loaded(&scene.document);
+                    let MediaEditResult::ReferenceCreated { media: source } = apply(
+                        &mut engine,
+                        MediaEdit::CreateReference {
+                            target: missing.then_some(scene.sources[0].media),
+                            label: None,
+                        },
+                    ) else {
+                        panic!()
+                    };
+                    if missing {
+                        apply(
+                            &mut engine,
+                            MediaEdit::RemoveMedia {
+                                media: scene.sources[0].media,
+                            },
+                        );
+                    }
+                    let operation = if matrix {
+                        MediaEdit::Matrix {
+                            media: scene.root.media,
+                            edit: MatrixEdit::DropSource {
+                                layer: scene.snapshot.cells[0].layer,
+                                column: scene.snapshot.columns[0].id,
+                                source: source.0,
+                                copy,
+                            },
+                        }
+                    } else {
+                        MediaEdit::Composition {
+                            reference: scene.sources[1],
+                            edit: crate::media::composition::protocol::CompositionEdit::DropSource {
+                                source: source.0,
+                                instance: None,
+                                position: golden_video::plan::Point { x: 1.0, y: 2.0 },
+                                copy,
+                            },
+                        }
+                    };
+                    let reply = run(&mut engine, caller, operation).unwrap();
+                    let owned = match serde_json::from_value::<MediaEditResult>(reply).unwrap() {
+                        MediaEditResult::MatrixMediaCreated { cell, media } => {
+                            let snapshot = crate::matrix::inspect(&engine, scene.root.media).unwrap();
+                            let cell = snapshot.cells.iter().find(|item| item.id == cell).unwrap();
+                            assert_eq!(cell.media, Some(media));
+                            assert!(cell.definition.source.is_none());
+                            media
+                        }
+                        MediaEditResult::InstancesCreated { instances } => {
+                            let snapshot = crate::media::composition::inspect(&engine, scene.sources[1]).unwrap();
+                            assert!(
+                                snapshot
+                                    .instances
+                                    .iter()
+                                    .find(|item| item.reference == instances[0])
+                                    .unwrap()
+                                    .definition
+                                    .source
+                                    .is_none()
+                            );
+                            MediaId(instances[0].instance.0)
+                        }
+                        other => panic!("{other:?}"),
+                    };
+                    assert!(matches!(
+                        engine.nodes.get(engine.node_id_by_uuid(owned.0).unwrap()),
+                        Some(AppNode::ReferenceMedia(_))
+                    ));
+                    crate::media::validate_project(&engine).unwrap();
+                }
+            }
+        }
+    }
+}

@@ -2,5 +2,6 @@
 import type { CellDefinition } from "./CellDefinition";
 import type { CellId } from "./CellId";
 import type { LayerId } from "./LayerId";
+import type { MediaId } from "./MediaId";
 
-export type CellSnapshot = { id: CellId, layer: LayerId, definition: CellDefinition, };
+export type CellSnapshot = { id: CellId, media: MediaId | null, layer: LayerId, definition: CellDefinition, };

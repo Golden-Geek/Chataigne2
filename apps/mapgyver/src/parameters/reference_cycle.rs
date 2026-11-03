@@ -37,8 +37,17 @@ fn canonical(
     let Some(owner) = leaf(change, source.media.0)? else {
         return Ok(None);
     };
-    Ok(change
-        .resolve(source.channel.0)
+    let channel = if source.channel.0.0.is_nil() {
+        children(change, owner)
+            .into_iter()
+            .filter_map(|id| change.node(id))
+            .find(|node| node.as_any().is::<ChannelNode>())
+            .map(|node| node.node_data().meta.uuid)
+    } else {
+        Some(source.channel.0)
+    };
+    Ok(channel
+        .and_then(|channel| change.resolve(channel))
         .and_then(|id| change.node(id))
         .filter(|node| node.node_data().parent == Some(owner))
         .map(|node| node.node_data().meta.uuid))
@@ -114,7 +123,6 @@ fn edges(change: &ParameterValidationContext<'_>, source: NodeUuid) -> Result<Ve
                             .and_then(|node| node.as_any().downcast_ref::<crate::media::composition::PlacementNode>())
                             && let Some(ParamValue::Reference(output)) =
                                 change.parameter_value(placement.output_parameter())
-                            && !output.uuid.0.is_nil()
                             && let Some(source) = canonical(
                                 change,
                                 crate::media::protocol::ChannelReference {

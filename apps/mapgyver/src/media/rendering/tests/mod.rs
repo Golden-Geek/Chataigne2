@@ -12,6 +12,7 @@ mod retention;
 mod screens;
 mod solid_color;
 mod transitions;
+mod unavailable;
 
 use super::*;
 use crate::app::AppEngine;

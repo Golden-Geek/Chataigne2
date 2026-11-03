@@ -8,8 +8,8 @@ and capture/dependency validation consume those same public media identities.
 Composition media contain their single output channel and ordered actual media children.
 An authored item is a normal `MediaNode` or `ReferenceNode`, with exactly one
 `mapgyver.composition.placement.v1` child. That child declares Output, Position, Scale, Rotation,
-Pivot, Opacity, Blend and Enabled Parameters. Output is a producer-owned stable channel choice;
-ordinary channel retargeting remains deferred. No separate Instance document node or source
+Pivot, Opacity, Blend and Enabled Parameters. Output is an editable typed channel reference:
+a value pins that channel identity; empty follows the first available output. No separate Instance document node or source
 media Parameter duplicates the parent identity. Canvas `InstanceId`/snapshots are presentation
 projections: their ID is the real media child's UUID and their source routes that child's output.
 
@@ -26,8 +26,9 @@ groups the complete operation, including imported media and replacement cleanup.
 children. Batched creation uses a detached forest. Media Manager follows the real hierarchy;
 the generic Inspector displays each child's media Parameters and Placement. The canvas sends
 the drag's Alt state as `copy` and viewport-derived coordinates, with defaults/validation owned
-by the backend. An unconfigured or missing Reference source currently has no selectable output
-and cannot yet be dropped; that parity case remains open under M04/7.
+by the backend. Missing/unconfigured Reference media can be dropped with an empty automatic
+Output. A default drop retains the original Reference as Target; Alt-copy preserves its full
+independent Target/settings subtree, even when no channel is currently available.
 
 The manager's named `dropCompositionMedia` method and typed **Drop Composition Media** command
 use the same intent and committed callback. The command's Position, Copy media and Replace media
@@ -38,7 +39,8 @@ No persisted-data migration or alternate compatibility model is introduced.
 
 Matrix Cells are real `mapgyver.matrix.cell.v1` nodes under their Layer, with typed Column
 and Output Parameters and at most one actual Media/Reference child. Cell snapshots project
-that child's identity; the selected output belongs to the child. Default grid drops create a
+that child's identity; the selected output belongs to the child. `CellSnapshot.media` preserves
+occupied-slot identity independently of its optional resolved `definition.source`. Default grid drops create a
 Reference; Alt-drops copy the entire media subtree. A copied Composition item's root Placement
 is excluded because Matrix owns its layout. Group/Column copies remap all internal references,
 including Cell addresses and paired exports, in one history operation. Matrix row/column
@@ -48,6 +50,24 @@ The virtualized grid selects the actual Cell for Golden's Inspector. Media Manag
 Matrix hierarchy and owned sources. `dropMatrixMedia`, the typed **Drop Matrix Media** command,
 and `MatrixEdit::DropSource` share the backend implementation; command schema v4 has 33 kinds.
 Old Cell records reject explicitly instead of restoring the removed opaque source model.
+
+Media identity and output choice are separate in `media/source_node.rs`. Available media-node
+drops pin the first ordered channel, while unavailable References retain an automatic choice.
+Changing Target or restoring a missing producer resolves that choice without materializing
+channel nodes, polling or changing authored Parameters. Explicit output choices stay pinned
+through channel reorder. Generic Inspector edits use the same typed Output Parameters; canvas
+geometry/settings edits preserve the choice instead of silently pinning a resolved projection.
+
+Matrix clips admit a media/output selection before any concrete channel exists. Their bounded
+bindings resolve it during demand capture, retain the last admitted concrete output for
+retirement, and fence unresolved Reference chains so target recovery wakes capture. Empty Cells
+remain distinct from occupied unavailable media and do not acquire later content without relaunch.
+Parameter-cycle validation resolves automatic outputs against the proposed atomic values.
+
+Golden's parameter codec explicitly writes a baseline value when its dynamic default differs;
+clearing an Output to automatic (or an integer to zero) therefore survives project reload.
+The fix belongs in Golden persistence, with direct codec tests, rather than in app-specific
+serialization or an authored-state migration.
 
 The Media Manager owns one runtime-only producer registry in `media/retention.rs`.
 Admitted Matrix bindings retain reachable channel definitions and derived inputs there; shared
@@ -77,26 +97,30 @@ previously uncaptured Cells. These runtime records never persist; all authored s
 in their typed Parameter children.
 
 This delivers the Composition and Matrix ownership/retirement foundation of M04/7;
-full mixed parity, missing/unconfigured-source drops, native copying/sharing/resampling and
+full mixed/scale acceptance, native copying/sharing/resampling and
 end-to-end scale remain open. M06 also retains degree-based Rotation (Placement v1 currently
 keeps the prior radian convention), new handles/anchors, bounded independent panels and its
 complete native/editor acceptance. See the [status ledger](../progress/mapgyver-status.md).
 
 Verification for the Matrix ownership/retirement foundation (2026-11-03):
 
-- Library: **311 passed, one existing ignored**, including generated-contract drift, all 33
+- Library: **315 passed, one existing ignored**, including generated-contract drift, all 33
   command kinds, four caller paths, typed/copy/project/history, feedback and outgoing fades.
   Physical-copy replacement/removal, uncaptured launch epochs,
   derived retirement, atomic channel/element capacity rejection and Picture leases are covered.
-  All 56 affected rendering tests passed after the final consumer-registration deduplication.
-- Strict all-target Clippy with `native-qualification` passed; both workspace formatters ran.
-- UI sources are unchanged; the prior zero-error/warning Svelte check remains applicable.
-  The ordinary bundled executable built successfully.
+  Unavailable default/Alt drops, live automatic/pinned outputs, nil-output feedback, four
+  caller paths and typed commands are covered. Golden's parameter suite passed 27 tests and
+  its persistence suite passed 15, including the dynamic-default clearing regression.
+- Strict all-target MapGyver Clippy with `native-qualification` and Golden engine lib/tests
+  Clippy passed; both workspace formatters ran.
+- MapGyver Svelte reported zero errors/warnings; the ordinary bundled executable built.
 - `tests/headless/media.mjs --matrix-owned-media-ui --owned-media-ui` passed: actual manager
   drags, default/Alt copies, generic Cell/Placement Inspectors, independent variants,
-  launched-cell replacement Undo/Redo and Save/New/Load. The isolated headless host exited normally.
+  launched-cell replacement Undo/Redo and Save/New/Load. `--unavailable-reference-ui` also passed
+  real missing/unconfigured drops, independent copies, generic Target/Output widgets, automatic
+  recovery, pinning/reorder and project roundtrip. The isolated headless host exited normally.
 - Automatic Reference aliases no longer consume render-pass admission credits; the retained
   five-pass bounded Matrix test still rejects the extra group scratch pass without raising budgets.
 
 No native experiment ran. These software checks do not close M04/7 or qualify native media
-retirement, unconfigured/missing drops, the revised Matrix editor or native resource use.
+retirement, the revised Matrix editor or native resource use.

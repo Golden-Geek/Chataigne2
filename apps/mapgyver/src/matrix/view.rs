@@ -206,11 +206,12 @@ fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<
     Ok(MatrixViewCell {
         cell: CellSnapshot {
             id: CellId(cell.node_data().meta.uuid),
+            media: cell.selection(engine)?.map(|source| source.media),
             layer,
             definition: definition.clone(),
         },
         source_label: source.as_ref().map(|source| source.label.clone()),
-        source_missing: definition.source.is_some() && source.is_none(),
+        source_missing: cell.content(engine)?.is_some() && source.is_none(),
     })
 }
 
