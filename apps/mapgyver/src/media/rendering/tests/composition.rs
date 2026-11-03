@@ -2,6 +2,7 @@ use super::*;
 use crate::media::composition::protocol::*;
 use crate::media::resolution::ChannelAvailability;
 use golden_video::plan::{LayerSource, Point, RenderOperation};
+use std::collections::HashSet;
 
 fn composition(engine: &mut AppEngine, width: u32, height: u32) -> ChannelReference {
     let reference = create(engine, MediaKind::Composition);
@@ -107,6 +108,85 @@ fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
             .iter()
             .all(|channel| channel.resolution.availability == ChannelAvailability::Ready)
     );
+}
+
+#[test]
+fn native_scene_five_producers_share_six_aliases_and_recover_without_duplicate_passes() {
+    let mut engine = engine();
+    let leaves = std::array::from_fn::<_, 3, _>(|_| {
+        let source = create(&mut engine, MediaKind::SolidColor);
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureMediaResolution {
+                media: source.media,
+                size: SizePolicy::Fixed {
+                    extent: Extent2D::new(1, 1).unwrap(),
+                },
+            },
+        );
+        source
+    });
+    let inner = composition(&mut engine, 8, 4);
+    add(&mut engine, inner, vec![leaves[0], leaves[1]]);
+    let root = composition(&mut engine, 32, 24);
+    add(&mut engine, root, vec![leaves[2], inner, inner, inner]);
+    let capture = capture_channels(&engine, &[root], 16).unwrap();
+    assert_eq!(capture.channels.len(), 11, "five producers and six virtual References");
+    let assert_shared = |engine: &AppEngine| {
+        let compiled = prepare(engine, root);
+        assert_eq!(compiled.channels.len(), 11);
+        assert_eq!(compiled.submission.plan.passes.len(), 5);
+        let targets = compiled
+            .channels
+            .iter()
+            .map(|channel| channel.target)
+            .collect::<HashSet<_>>();
+        assert_eq!(targets.len(), 5, "References must reuse existing producer textures");
+        assert_eq!(compiled.submission.plan.outputs.len(), 2);
+        assert_eq!(
+            compiled.submission.plan.outputs[0].source,
+            compiled.submission.plan.outputs[1].source
+        );
+        assert!(compiled.submission.plan.external_textures.is_empty());
+        let pass_targets = compiled
+            .submission
+            .plan
+            .passes
+            .iter()
+            .map(|pass| pass.output)
+            .collect::<HashSet<_>>();
+        assert_eq!(targets, pass_targets, "each target has exactly one producing pass");
+        compiled
+    };
+    assert_shared(&engine);
+    edit(&mut engine, MediaEdit::RemoveMedia { media: leaves[0].media });
+    assert!(!capture.is_current());
+    let missing = prepare(&engine, root);
+    assert!(
+        missing.submission.plan.passes.len() <= 5,
+        "source loss cannot duplicate production"
+    );
+    let pass = missing
+        .submission
+        .plan
+        .passes
+        .iter()
+        .find(|pass| pass.output == missing.entries[&inner].target)
+        .unwrap();
+    let RenderOperation::Composite { layers } = &pass.operation else {
+        panic!()
+    };
+    assert_eq!(
+        layers.len(),
+        1,
+        "the healthy peer producer remains in the inner Composition"
+    );
+    assert!(engine.undo().unwrap());
+    assert_shared(&engine);
+    let json = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+    let mut restored = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&json).unwrap();
+    restored.apply_edits().unwrap();
+    assert_shared(&restored);
 }
 
 #[test]
