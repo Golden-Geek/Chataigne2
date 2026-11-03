@@ -6,7 +6,7 @@ test('source outlines match the mirrored/rotated renderer reference and gizmos r
 	const transform = {
 		position: [4, 4] as [number, number],
 		scale: [-2, 4] as [number, number],
-		rotation: Math.PI / 2,
+		rotation_degrees: 90,
 		pivot: [0.25, 0.5] as [number, number]
 	};
 	const points = outline(transform, { width: 4, height: 2 });

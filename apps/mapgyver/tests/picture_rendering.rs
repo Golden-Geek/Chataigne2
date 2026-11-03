@@ -475,7 +475,7 @@ fn nested_compositions_share_sources_and_native_outputs_across_edits_and_source_
         transform: Transform2D {
             position: [3.0, 4.0],
             scale: [-1.0, 1.0],
-            rotation: std::f32::consts::FRAC_PI_2,
+            rotation_degrees: 90.0,
             pivot: [0.25, 0.75],
         },
         opacity: 0.6,

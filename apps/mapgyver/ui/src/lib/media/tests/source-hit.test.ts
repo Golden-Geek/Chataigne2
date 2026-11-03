@@ -41,7 +41,7 @@ function instance(id: string, transform: Partial<Transform2D> = {}): InstanceSna
 			transform: {
 				position: [50, 50],
 				scale: [1, 1],
-				rotation: 0,
+				rotation_degrees: 0,
 				pivot: [0.5, 0.5],
 				...transform
 			},
@@ -127,7 +127,7 @@ test('Composition picking covers later instances and resolves the topmost overla
 });
 
 test('Composition picking follows rotated mirrored geometry rather than its axis-aligned bounds', () => {
-	const instances = [instance('transformed', { scale: [-2, 1], rotation: Math.PI / 4 })];
+	const instances = [instance('transformed', { scale: [-2, 1], rotation_degrees: 45 })];
 	assert.equal(
 		pickCompositionSource({ x: 50, y: 50 }, { canvas, instances }, extent),
 		'transformed'
@@ -170,7 +170,11 @@ test('Composition body picking rejects absent metadata, invalid transforms and p
 			null
 		);
 	}
-	for (const transform of [{ scale: [0, 1] }, { rotation: NaN }, { position: [Infinity, 0] }]) {
+	for (const transform of [
+		{ scale: [0, 1] },
+		{ rotation_degrees: NaN },
+		{ position: [Infinity, 0] }
+	]) {
 		assert.equal(
 			pickCompositionSource(
 				{ x: 50, y: 50 },

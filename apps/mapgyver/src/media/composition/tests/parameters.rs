@@ -303,7 +303,11 @@ fn copying_preserves_parameter_configuration_and_control_subtrees_with_independe
     assert_eq!(loaded_parameter, parameter);
 }
 
-fn instance_parameter(engine: &AppEngine, root: golden_core::node::NodeId, name: &str) -> golden_core::node::NodeId {
+pub(super) fn instance_parameter(
+    engine: &AppEngine,
+    root: golden_core::node::NodeId,
+    name: &str,
+) -> golden_core::node::NodeId {
     let folder = super::super::children::placement(engine, root)
         .unwrap()
         .node_data()

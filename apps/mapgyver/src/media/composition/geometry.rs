@@ -36,10 +36,11 @@ impl InstanceGeometryEdit {
                 }
                 let cross = start[0] * point[1] - start[1] * point[0];
                 let dot = start[0] * point[0] + start[1] * point[1];
-                definition.transform.rotation = (f64::from(self.origin.rotation) + cross.atan2(dot)) as f32;
+                definition.transform.rotation_degrees =
+                    (f64::from(self.origin.rotation_degrees) + cross.atan2(dot).to_degrees()) as f32;
             }
             InstanceGeometryMode::Scale => {
-                let (sin, cos) = f64::from(self.origin.rotation).sin_cos();
+                let (sin, cos) = f64::from(self.origin.rotation_degrees).to_radians().sin_cos();
                 let local = |point: [f64; 2]| [cos * point[0] + sin * point[1], -sin * point[0] + cos * point[1]];
                 let from = local(start);
                 let to = local(point);

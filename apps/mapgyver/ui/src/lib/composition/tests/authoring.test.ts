@@ -48,7 +48,7 @@ const composition = (id: string, ...instances: string[]): MediaEditResult => ({
 			label: instance,
 			definition: {
 				source: reference('source'),
-				transform: { position: [4, 2], scale: [-2, 3], rotation: 1, pivot: [0.2, 0.7] },
+				transform: { position: [4, 2], scale: [-2, 3], rotation_degrees: 60, pivot: [0.2, 0.7] },
 				opacity: 0.6,
 				blend: 'Screen',
 				enabled: true

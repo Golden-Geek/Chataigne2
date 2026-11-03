@@ -106,6 +106,22 @@ export async function verifyOwnedMediaUi({ base, edit, post, directory, inspectM
 				value.instances[1].definition.transform.position[0] ===
 				copied.instances[1].definition.transform.position[0]
 		);
+		const rotation = parameter('Rotation').locator('input.number-field');
+		await rotation.fill('90');
+		await rotation.press('Enter');
+		const rotated = await wait(
+			inspect,
+			(value) => value.instances[1].definition.transform.rotation_degrees === 90
+		);
+		assert.deepEqual(
+			rotated.instances[0],
+			copied.instances[0],
+			'copied child rotation is independent'
+		);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(inspect, (value) => value.instances[1].definition.transform.rotation_degrees === 0);
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(inspect, (value) => value.instances[1].definition.transform.rotation_degrees === 90);
 		const parent = manager.getByRole('treeitem', { name: 'Owned media canvas', exact: true });
 		if ((await parent.getAttribute('aria-expanded')) === 'false') {
 			await parent.focus();

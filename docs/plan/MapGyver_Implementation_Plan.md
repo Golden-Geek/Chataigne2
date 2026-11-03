@@ -34,8 +34,9 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
 
 M04/1–8 are now accepted, including the retained source qualification returned to after
 Reference and Preview delivery. [M04/6 and the complete phase audit](../progress/mapgyver-m04-source-parity.md)
-close source caller/Picture/project/resource parity. Next is M06/1's full child-media
-Composition/degree/structural/history/project contract. This follows the functional dependencies
+close source caller/Picture/project/resource parity. [M06/1's child-media model](../progress/mapgyver-m06-model.md)
+now passes the complete degree/structural/API/Parameter/history/project contract. Next is M06/2
+dependency/sharing acceptance; M06/3's corrected full native matrix remains unverified. This follows the functional dependencies
 above without waiving physical/timing gates or changing qualification budgets.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media

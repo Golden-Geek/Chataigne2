@@ -119,7 +119,7 @@ pub(super) fn composition_layers(
         }
         let extent = source.resolution.extent.ok_or("ready source has no extent")?;
         let transform = instance.transform;
-        let (sin, cos) = f64::from(transform.rotation).sin_cos();
+        let (sin, cos) = f64::from(transform.rotation_degrees).to_radians().sin_cos();
         let size = [f64::from(extent.width()), f64::from(extent.height())];
         let dimensions = [f64::from(canvas.width()), f64::from(canvas.height())];
         let corners = [[0.0, 0.0], [size[0], 0.0], size, [0.0, size[1]]].map(|point| {

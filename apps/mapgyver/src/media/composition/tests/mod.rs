@@ -8,6 +8,7 @@ use crate::{
 };
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
+mod degrees;
 mod drop_source;
 mod geometry;
 mod owned_media;
@@ -51,7 +52,7 @@ fn independent_instances_copy_order_remove_and_roundtrip_with_atomic_history() {
     definition.transform = Transform2D {
         position: [40.0, 60.0],
         scale: [-1.5, 2.0],
-        rotation: 0.25,
+        rotation_degrees: 15.0,
         pivot: [0.2, 0.8],
     };
     definition.opacity = 0.4;

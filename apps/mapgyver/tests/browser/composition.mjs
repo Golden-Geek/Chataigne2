@@ -166,7 +166,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				position: [200, 150],
 				scale: [-1.2, 0.8].map(Math.fround),
 				pivot: [0.3, 0.7].map(Math.fround),
-				rotation: 0.25
+				rotation_degrees: 15
 			},
 			opacity: Math.fround(0.6),
 			blend: 'Screen',
@@ -215,7 +215,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				'Position Y': expected.position[1],
 				'Scale X': expected.scale[0],
 				'Scale Y': expected.scale[1],
-				'Rotation (radians, clockwise)': expected.rotation
+				Rotation: expected.rotation_degrees
 			}))
 				await wait(
 					async () => Number(await form.getByLabel(label, { exact: true }).inputValue()),
@@ -265,7 +265,10 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 			const transform = (await current()).definition.transform;
 			if (mode === 'Translate') assert(near(transform.position, [x + 30, y + 20], 2));
 			if (mode === 'Rotate')
-				assert(Math.abs(transform.rotation - before.rotation - Math.PI / 4) < 0.05);
+				assert(
+					Math.abs(transform.rotation_degrees - before.rotation_degrees - 45) <
+						(0.05 * 180) / Math.PI
+				);
 			if (mode === 'Scale')
 				assert(
 					near(
@@ -275,7 +278,7 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 					),
 					JSON.stringify({ mode, before, transform, point, target, rect })
 				);
-			const field = { Translate: 'position', Rotate: 'rotation', Scale: 'scale' }[mode];
+			const field = { Translate: 'position', Rotate: 'rotation_degrees', Scale: 'scale' }[mode];
 			assert.deepEqual(transform, { ...before, [field]: transform[field] });
 			after = await inspect();
 			assert.deepEqual(after, {

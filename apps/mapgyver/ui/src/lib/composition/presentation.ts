@@ -4,8 +4,9 @@ import type { Point } from '../media/generated/Point';
 
 /** Presentation only: source extent comes from the renderer, never from a UI domain default. */
 export function outline(transform: Transform2D, extent: Extent2D): Point[] {
-	const cos = Math.cos(transform.rotation),
-		sin = Math.sin(transform.rotation);
+	const angle = (transform.rotation_degrees * Math.PI) / 180;
+	const cos = Math.cos(angle),
+		sin = Math.sin(angle);
 	return [
 		[0, 0],
 		[extent.width, 0],
@@ -24,8 +25,9 @@ export function outline(transform: Transform2D, extent: Extent2D): Point[] {
 /** Handle reach depends on the displayed canvas, independently of unavailable source dimensions. */
 export function gizmo(transform: Transform2D, canvas: Extent2D, extent?: Extent2D | null) {
 	const radius = Math.min(canvas.width, canvas.height) * 0.06;
-	const cos = Math.cos(transform.rotation),
-		sin = Math.sin(transform.rotation);
+	const angle = (transform.rotation_degrees * Math.PI) / 180;
+	const cos = Math.cos(angle),
+		sin = Math.sin(angle);
 	const point = (x: number, y: number) => ({
 		x: transform.position[0] + cos * x - sin * y,
 		y: transform.position[1] + sin * x + cos * y

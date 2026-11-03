@@ -55,11 +55,11 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, source: Channe
         edit(engine, MediaEdit::ConfigureChannel { reference, source });
     }
 }
-fn transform(position: [f32; 2], scale: [f32; 2], rotation: f32, pivot: [f32; 2]) -> Transform2D {
+fn transform(position: [f32; 2], scale: [f32; 2], rotation_degrees: f32, pivot: [f32; 2]) -> Transform2D {
     Transform2D {
         position,
         scale,
-        rotation,
+        rotation_degrees,
         pivot,
     }
 }
@@ -92,8 +92,24 @@ fn set_instance(
     engine: &mut AppEngine,
     reference: ChannelReference,
     instance: InstanceId,
-    definition: InstanceDefinition,
+    mut definition: InstanceDefinition,
 ) {
+    let MediaEditResult::Composition { snapshot } = edit(
+        engine,
+        MediaEdit::Composition {
+            reference,
+            edit: CompositionEdit::Inspect,
+        },
+    ) else {
+        panic!()
+    };
+    definition.source = snapshot
+        .instances
+        .iter()
+        .find(|item| item.reference.instance == instance)
+        .unwrap()
+        .definition
+        .source;
     edit(
         engine,
         MediaEdit::Composition {
@@ -158,10 +174,7 @@ impl Scene {
         let mut outer = vec![
             instance(blue, transform([0.0, 0.0], [32.0, 24.0], 0.0, [0.0, 0.0])),
             instance(inner_channel, transform([4.0, 4.0], [1.0, 1.0], 0.0, [0.0, 0.0])),
-            instance(
-                inner_channel,
-                transform([24.0, 16.0], [-1.0, 1.0], std::f32::consts::FRAC_PI_2, [0.25, 0.75]),
-            ),
+            instance(inner_channel, transform([24.0, 16.0], [-1.0, 1.0], 90.0, [0.25, 0.75])),
             instance(inner_channel, transform([8.0, 4.0], [1.0, 1.0], 0.0, [0.0, 0.0])),
         ];
         outer[3].opacity = 0.5;
@@ -192,6 +205,46 @@ impl Scene {
             outer.draw(&inner, definition);
         }
         outer
+    }
+}
+
+#[test]
+fn native_fixture_authors_owned_children_without_rebinding_projected_sources() {
+    let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
+    engine.apply_edits().unwrap();
+    let scene = Scene::new(&mut engine);
+    let MediaEditResult::Composition { snapshot } = edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: scene.root,
+            edit: CompositionEdit::Inspect,
+        },
+    ) else {
+        panic!()
+    };
+    for (actual, expected) in snapshot.instances.iter().zip(&scene.outer) {
+        let source = actual.definition.source.unwrap();
+        assert_eq!(source.media, MediaId(actual.reference.instance.0));
+        assert_eq!(source.channel, expected.source.unwrap().channel);
+        assert_eq!(actual.definition.transform, expected.transform);
+    }
+    assert_eq!(snapshot.instances.len(), scene.outer.len());
+    let mut definition = scene.outer[2].clone();
+    definition.transform.rotation_degrees = -90.0;
+    set_instance(&mut engine, scene.root, scene.outer_ids[2], definition);
+    let MediaEditResult::Composition { snapshot: changed } = edit(
+        &mut engine,
+        MediaEdit::Composition {
+            reference: scene.root,
+            edit: CompositionEdit::Inspect,
+        },
+    ) else {
+        panic!()
+    };
+    assert_eq!(changed.instances[2].definition.transform.rotation_degrees, -90.0);
+    for (actual, before) in changed.instances.iter().zip(snapshot.instances) {
+        assert_eq!(actual.reference, before.reference);
+        assert_eq!(actual.definition.source, before.definition.source);
     }
 }
 
@@ -230,7 +283,7 @@ fn native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_
             fixture.publish(&engine, scene.root);
             fixture.pixels(adapter.id, &scene.expected(false), label);
         }
-        scene.outer[2].transform = transform([14.0, 18.0], [2.0, 1.0], -std::f32::consts::FRAC_PI_2, [1.0, 0.0]);
+        scene.outer[2].transform = transform([14.0, 18.0], [2.0, 1.0], -90.0, [1.0, 0.0]);
         set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
         fixture.publish(&engine, scene.root);
         fixture.pixels(adapter.id, &scene.expected(false), "independent-transform");

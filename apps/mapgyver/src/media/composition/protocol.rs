@@ -15,13 +15,13 @@ pub struct InstanceReference {
     pub instance: InstanceId,
 }
 
-/// Position locates the source pivot in canvas texels. Pivot is a source fraction; rotation is radians.
+/// Position locates the source pivot in canvas texels. Pivot is a source fraction; rotation is degrees.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Transform2D {
     pub position: [f32; 2],
     pub scale: [f32; 2],
-    pub rotation: f32,
+    pub rotation_degrees: f32,
     pub pivot: [f32; 2],
 }
 
@@ -30,7 +30,7 @@ impl Default for Transform2D {
         Self {
             position: [0.0; 2],
             scale: [1.0; 2],
-            rotation: 0.0,
+            rotation_degrees: 0.0,
             pivot: [0.5; 2],
         }
     }
@@ -73,7 +73,7 @@ impl InstanceDefinition {
             .into_iter()
             .chain(self.transform.scale)
             .chain(self.transform.pivot)
-            .chain([self.transform.rotation, self.opacity])
+            .chain([self.transform.rotation_degrees, self.opacity])
             .all(f32::is_finite)
             || self.transform.scale.into_iter().any(|value| value == 0.0)
             || !(0.0..=1.0).contains(&self.opacity)

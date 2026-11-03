@@ -10,7 +10,7 @@ fn instance_fixture() -> (AppEngine, ChannelReference, InstanceSnapshot) {
     instance.definition.transform = Transform2D {
         position: [100.0, 100.0],
         scale: [-2.0, 3.0],
-        rotation: 0.0,
+        rotation_degrees: 0.0,
         pivot: [0.2, 0.8],
     };
     instance.definition.opacity = 0.4;
@@ -103,7 +103,7 @@ fn rotation_and_mirrored_nonuniform_scale_use_canvas_pivot_and_local_axes() {
     );
     let rotated = inspect(&mut engine, composition).instances.remove(0);
     let mut expected = instance.definition.clone();
-    expected.transform.rotation = std::f32::consts::FRAC_PI_2;
+    expected.transform.rotation_degrees = 90.0;
     assert_eq!(rotated.definition, expected);
     edit(
         &mut engine,

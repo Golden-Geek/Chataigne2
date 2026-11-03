@@ -120,7 +120,7 @@ fn affine_reference_points_preserve_position_mirror_rotation_pivot_opacity_and_b
     definition.transform = Transform2D {
         position: [4.0, 4.0],
         scale: [-1.0, 2.0],
-        rotation: std::f32::consts::FRAC_PI_2,
+        rotation_degrees: 90.0,
         pivot: [0.25, 0.5],
     };
     definition.opacity = 0.4;

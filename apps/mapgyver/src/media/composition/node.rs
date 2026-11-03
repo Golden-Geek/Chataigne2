@@ -9,9 +9,9 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v1";
+pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v2";
 
-#[node("mapgyver.composition.placement.v1", label = "Placement")]
+#[node("mapgyver.composition.placement.v2", label = "Placement")]
 #[children(
     folder(parameters, label = "Parameters") {
         source_channel: NodeReference = NodeReference::empty() (
@@ -20,7 +20,7 @@ pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v1";
         );
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
         scale: Vec2 = Vec2::new(1.0, 1.0) (label = "Scale");
-        rotation: f64 = 0.0 (label = "Rotation", description = "Rotation in radians.");
+        rotation_degrees: f64 = 0.0 (label = "Rotation", description = "Clockwise rotation in degrees.");
         pivot: Vec2 = Vec2::new(0.5, 0.5) (label = "Pivot");
         opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
         blend: Enum = "Normal" (label = "Blend", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
@@ -50,7 +50,7 @@ impl PlacementNode {
         node.source_channel = ParameterHandle::new(channel);
         node.position = ParameterHandle::new(vector(definition.transform.position));
         node.scale = ParameterHandle::new(vector(definition.transform.scale));
-        node.rotation = ParameterHandle::new(f64::from(definition.transform.rotation));
+        node.rotation_degrees = ParameterHandle::new(f64::from(definition.transform.rotation_degrees));
         node.pivot = ParameterHandle::new(vector(definition.transform.pivot));
         node.opacity = ParameterHandle::new(f64::from(definition.opacity));
         node.blend = ParameterHandle::new(Enum::new(blend_name(definition.blend)));
@@ -67,7 +67,7 @@ impl PlacementNode {
             transform: Transform2D {
                 position: components(self.position.get()),
                 scale: components(self.scale.get()),
-                rotation: self.rotation.get() as f32,
+                rotation_degrees: self.rotation_degrees.get() as f32,
                 pivot: components(self.pivot.get()),
             },
             opacity: self.opacity.get() as f32,
@@ -93,8 +93,8 @@ impl PlacementNode {
             (self.position.id(), ParamValue::Vec2(position.x, position.y)),
             (self.scale.id(), ParamValue::Vec2(scale.x, scale.y)),
             (
-                self.rotation.id(),
-                ParamValue::Float(f64::from(definition.transform.rotation)),
+                self.rotation_degrees.id(),
+                ParamValue::Float(f64::from(definition.transform.rotation_degrees)),
             ),
             (self.pivot.id(), ParamValue::Vec2(pivot.x, pivot.y)),
             (self.opacity.id(), ParamValue::Float(f64::from(definition.opacity))),
@@ -111,7 +111,7 @@ impl PlacementNode {
     }
 }
 
-#[node("mapgyver.composition.placement.v1", from_struct)]
+#[node("mapgyver.composition.placement.v2", from_struct)]
 impl Node for PlacementNode {
     fn needs_update(&self) -> bool {
         false
@@ -160,7 +160,7 @@ impl Node for PlacementNode {
         {
             return Err("Composition transform must be finite".into());
         }
-        if change.parameter == self.rotation.id()
+        if change.parameter == self.rotation_degrees.id()
             && let ParamValue::Float(value) = change.value
             && !(*value as f32).is_finite()
         {

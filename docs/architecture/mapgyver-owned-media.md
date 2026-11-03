@@ -7,11 +7,17 @@ and capture/dependency validation consume those same public media identities.
 
 Composition media contain their single output channel and ordered actual media children.
 An authored item is a normal `MediaNode` or `ReferenceNode`, with exactly one
-`mapgyver.composition.placement.v1` child. That child declares Output, Position, Scale, Rotation,
+`mapgyver.composition.placement.v2` child. That child declares Output, Position, Scale, Rotation,
 Pivot, Opacity, Blend and Enabled Parameters. Output is an editable typed channel reference:
 a value pins that channel identity; empty follows the first available output. No separate Instance document node or source
 media Parameter duplicates the parent identity. Canvas `InstanceId`/snapshots are presentation
 projections: their ID is the real media child's UUID and their source routes that child's output.
+
+Rotation is authored in degrees as the real `parameters/rotation_degrees` Parameter and the
+Rust-owned/generated `Transform2D.rotation_degrees` field. Negative angles and multiple turns
+retain their authored values. Geometry replies remain in degrees; only transient trigonometry
+for geometry, canvas presentation and renderer mapping converts to radians. No radian-valued
+snapshot, cache or second authored model crosses those boundaries.
 
 Default `CompositionEdit::DropSource` inserts a Reference with Placement in one detached tree.
 Its target rendering/decoder remains shared. `copy: true` captures the complete source media
@@ -33,8 +39,10 @@ independent Target/settings subtree, even when no channel is currently available
 The manager's named `dropCompositionMedia` method and typed **Drop Composition Media** command
 use the same intent and committed callback. The command's Position, Copy media and Replace media
 Parameters advance its schema to `mapgyver.media.command.v4`. Older command records reject.
-Placement v1 is versioned separately; old reference-only `mapgyver.composition.instance` records
-reject explicitly. Source media v5 and Reference v1 retain their existing source-setting formats.
+Placement v2 is versioned separately; radian Placement v1 and old reference-only
+`mapgyver.composition.instance` records reject explicitly before recoverable node decoding.
+Legacy `rotation` operation fields also reject rather than silently defaulting an angle to zero.
+Source media v5 and Reference v1 retain their existing source-setting formats.
 No persisted-data migration or alternate compatibility model is introduced.
 
 Matrix Cells are real `mapgyver.matrix.cell.v1` nodes under their Layer, with typed Column
@@ -99,9 +107,10 @@ in their typed Parameter children.
 The Composition and Matrix ownership/retirement foundation now passes
 [M04/7 functional Reference acceptance](../progress/evidence/mapgyver-reference-native-2026-11-03.json),
 including both-adapter mixed/native copying, sharing, resampling and final-use retirement.
-Whole-app scale remains required under Q04. M06 retains degree-based Rotation (Placement v1 currently
-keeps the prior radian convention), new handles/anchors, bounded independent panels and its
-complete native/editor acceptance. See the [status ledger](../progress/mapgyver-status.md).
+Whole-app scale remains required under Q04. [M06/1's model contract](../progress/mapgyver-m06-model.md)
+is accepted; degree-based Rotation now uses Placement v2.
+New handles/anchors, bounded independent panels and complete native/editor acceptance retain
+their separate gates. See the [status ledger](../progress/mapgyver-status.md).
 
 Verification for the Matrix ownership/retirement foundation (2026-11-03):
 

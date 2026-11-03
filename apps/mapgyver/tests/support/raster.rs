@@ -94,7 +94,7 @@ impl Image {
             return;
         }
         let t = definition.transform;
-        let angle = f64::from(t.rotation);
+        let angle = f64::from(t.rotation_degrees).to_radians();
         for y in 0..self.height {
             for x in 0..self.width {
                 let dx = x as f64 + 0.5 - f64::from(t.position[0]);
@@ -296,7 +296,7 @@ fn reference_checks_asymmetric_rotation_and_mirror() {
             transform: Transform2D {
                 position: [1.0, 2.0],
                 scale: [-1.0, 1.0],
-                rotation: std::f32::consts::FRAC_PI_2,
+                rotation_degrees: 90.0,
                 pivot: [0.0, 0.0],
             },
             ..Default::default()

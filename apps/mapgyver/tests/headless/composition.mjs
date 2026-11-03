@@ -47,7 +47,7 @@ export async function verifyComposition({ post, intent, edit }) {
 				transform: {
 					position,
 					scale: [4, 4],
-					rotation: 0,
+					rotation_degrees: 0,
 					pivot: [0.5, 0.5]
 				}
 			}
@@ -96,7 +96,7 @@ export async function verifyComposition({ post, intent, edit }) {
 		assert.deepEqual(after.instances.slice(1), before.instances.slice(1));
 		const transform = after.instances[0].definition.transform;
 		if (mode === 'Translate') assert.deepEqual(transform.position, [100, 100]);
-		if (mode === 'Rotate') assert(Math.abs(transform.rotation - Math.PI / 2) < 1e-6);
+		if (mode === 'Rotate') assert(Math.abs(transform.rotation_degrees - 90) < 1e-6);
 		if (mode === 'Scale') {
 			assert(Math.abs(transform.scale[0] - 8) < 1e-5);
 			assert(Math.abs(transform.scale[1] - 2) < 1e-5);

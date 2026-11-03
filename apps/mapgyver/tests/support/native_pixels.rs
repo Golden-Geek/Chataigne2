@@ -150,7 +150,7 @@ impl Fixture {
         engine: &AppEngine,
         routes: &[ChannelReference],
         root: ChannelReference,
-        expected_channels: Option<usize>,
+        expected_produced_targets: Option<usize>,
     ) {
         assert_eq!(routes.len() + 1, self.names.len());
         self.revision += 1;
@@ -261,9 +261,6 @@ impl Fixture {
             );
             std::thread::sleep(Duration::from_millis(5));
         }
-        if let Some(expected) = expected_channels {
-            assert_eq!(live.channels().len(), expected, "shared channel production count");
-        }
         let actual = live.native_control().unwrap().snapshot();
         assert!(actual.initialized && actual.device.is_some());
         assert_eq!(actual.adapter, Some(self.adapter));
@@ -276,7 +273,11 @@ impl Fixture {
             .iter()
             .map(|channel| channel.target)
             .collect::<std::collections::HashSet<_>>();
-        assert_eq!(targets.len(), live.channels().len());
+        // Automatic References add channel records but reuse their producer's target.
+        // Retain the original production limit rather than charging virtual aliases as renders.
+        if let Some(expected) = expected_produced_targets {
+            assert_eq!(targets.len(), expected, "distinct produced channel target count");
+        }
     }
 
     pub fn pixels(&self, adapter: AdapterId, expected: &oracle::Image, label: &str) {

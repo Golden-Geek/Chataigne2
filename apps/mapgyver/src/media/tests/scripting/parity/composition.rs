@@ -37,7 +37,7 @@ fn scene() -> Scene {
         transform: Transform2D {
             position: [100.0, 80.0],
             scale: [-2.0, 3.0],
-            rotation: 0.0,
+            rotation_degrees: 30.0,
             pivot: [0.2, 0.8],
         },
         opacity: 0.4,

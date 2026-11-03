@@ -19,7 +19,7 @@ const reference = { composition: { media: 'media', channel: 'channel' }, instanc
 const origin = {
 	position: [4, 4] as [number, number],
 	scale: [-1, 2] as [number, number],
-	rotation: 0.25,
+	rotation_degrees: 15,
 	pivot: [0.2, 0.7] as [number, number]
 };
 const snapshot: InstanceSnapshot = {

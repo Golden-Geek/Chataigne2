@@ -13,13 +13,14 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             && record.node_type != super::composition::PLACEMENT_TYPE
         {
             return Err(format!(
-                "Unsupported Composition Placement schema '{}'",
-                record.node_type
+                "Unsupported Composition Placement schema '{}': degree rotation requires {}",
+                record.node_type,
+                super::composition::PLACEMENT_TYPE
             ));
         }
         if record.node_type == "mapgyver.composition.instance" {
             return Err(
-                "Unsupported reference-only Composition instance schema; use child media with Placement v1".into(),
+                "Unsupported reference-only Composition instance schema; use child media with degree-based Placement v2".into(),
             );
         }
         if record.node_type.starts_with("mapgyver.media.reference") && record.node_type != super::reference::NODE_TYPE {

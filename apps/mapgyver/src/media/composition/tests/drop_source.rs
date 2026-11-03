@@ -92,7 +92,10 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
                 fields["parameters/pivot"],
                 ParamValue::Vec2(0.123456789123, 0.987654321987),
             ),
-            (fields["parameters/rotation"], ParamValue::Float(0.123456789123)),
+            (
+                fields["parameters/rotation_degrees"],
+                ParamValue::Float(12.123456789123),
+            ),
             (fields["parameters/opacity"], ParamValue::Float(0.987654321987)),
             (fields["parameters/blend"], ParamValue::Enum("Multiply".into())),
             (fields["parameters/render_enabled"], ParamValue::Bool(false)),
