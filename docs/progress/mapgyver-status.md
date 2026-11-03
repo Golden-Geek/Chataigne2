@@ -5,7 +5,7 @@
 **Verified gates: `███████░░░` 67% · 45/67 accepted** (phase completion above remains 5/12).
 
 **Current topic:** M07/1–3 model/playback/grid Accepted; M07/4 native pixels/scale/lifetime is Active.
-**Next deliverable:** Full current Matrix layer/Group/Final native pixels, source-loss/recovery and bounded sparse scale/lifetime qualification.
+**Next deliverable:** Correct bulk typed Matrix authoring cost with software proof, then finish the unchanged full native sparse/burst/reload/lifetime matrix on both GPUs.
 **Execution:** M08/1–2, M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M07/1–3 accepted; M07/4 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -35,7 +35,7 @@ M07/4 and M08/3–4 retain their full requirements. No physical/timing budget is
 | <a id="m04-acceptance-items"></a>[M04 Media](mapgyver-m04-source-parity.md#m04-phase-audit)                                                                        | Accepted                        | `██████████` 100% | 8/8   | Sources 6/6; Reference 1/1; Preview 1/1                                                                                                                                                                                      |
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)                | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2                                                                                                                                        |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
-| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Active native/scale             | `████████░░` 75%  | 3/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); native/scale 0/1                                                                 |
+| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Active native/scale             | `████████░░` 75%  | 3/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 0/1](mapgyver-m07-native.md)                                       |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Runtime qualification pending   | `█████░░░░░` 50%  | 2/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); runtime 0/1; app acceptance 0/1                                                               |
 | <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Pending before M10/M09          | `░░░░░░░░░░` 0%   | 0/10  | Stability/capacity/GPU 0/3; media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
@@ -65,7 +65,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State   | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active  | M07/4    | Run the complete current native Matrix layer/Group/Final pixel, ordering/blend/alpha/interruption, source-loss/Undo/recovery, shared-consumer, bounded sparse scale and final-owner retirement matrix on both adapters. Retained partial model/playback/native evidence is reusable; no pixel/scale gate is inferred from grid observations.                                                                                                                                                                                                                                         |
+| Active  | M07/4    | [Native checkpoint](mapgyver-m07-native.md): both-adapter Cell/Layer/fades and Intel pre-scale pixels pass. Both complete-scene attempts reject preview Layout after bulk 1000×1000/six-Cell authoring. Correct bulk typed-authoring cost with software proof before another native run. Sparse/burst/reload/sharing/final retirement on both GPUs remain required; no limits are waived.                                                                                                                                                                                            |
 | Pending | M08/3–4  | After M07, aggregate app-control runtime/UI qualification, actual picker, commands/snippets and retained retirement/access cases. Prior partial process/renderer evidence remains reusable.                                                                                                                                                                                                                                                                                                                                                                                          |
 | Pending | M11/1–10 | After the current M07/4 and M08/3–4 closure, resolve stable UI/previews, 4K resource capacity, GPU preference/options, minimal typed Channels/Fit Mode/time UI, Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially; reproduce stability first. All ten precede M10 and M09. |
 | Pending | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -91,27 +91,32 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** 2026-11-03 feedback integration, started 23:33 CET /
-  stopping time 00:18 CET (2026-11-04). Deliverable: incorporate every feedback item and supporting
-  capture into the single plan, ahead of M10/M09. Owner: MapGyver plan/status; no product-code
-  changes. Proof: complete source-to-gate coverage, dependency/link/count review, diff checks and
-  root/Golden Core formatting. Feedback text, supplied captures/video frames and both icon sources
-  reviewed. M11 defines ten unaccepted gates with ownership and behavioral/native proof.
-  **Gate changes:** M11/1–10 added Pending; M10 requires M11; M09 remains Waiting;
-  M07/4 remains the sole Active gate. **45/67 gates (67%); 5/12 phases (42%)**.
-  No new app capability or runtime acceptance is claimed. Last delivered capability remains
-  [M07/3's complete grid](mapgyver-m07-grid.md), milestone `fcff2f6d`.
-  Next product deliverable remains full Matrix Layer/Group/Final native pixel/scale/lifetime
-  acceptance on both GPUs. Preserve the existing uncommitted M07/4 fixture work: its 23:12–23:57
-  CET investigation window, old empty-default/stretch/Matrix-wide-time hypothesis and two-experiment
-  allowance are not reset by planning. Reconcile current 3×3/typed-Layer/native-sized Cell behavior,
-  require inspected software success, and finish or checkpoint exact remaining native requirements.
-  Existing unrelated app/theme/architecture/browser work and the named stash remain preserved.
-  **Validation:** all 23 source items map to the ten gates; 12 phases/67 gates, one Active gate and
-  all 62 local links/anchors pass review. Plan/status Markdown and scoped diff checks pass;
-  root and Golden Core Cargo formatting checks pass. No runtime suite is claimed for this
-  documentation-only change. Delivery scope is plan/status on `mapgyver`; verify the remote
-  after pushing this milestone before starting another implementation batch.
+- **Current batch/handoff:** M07/4 native qualification checkpoint, started 23:12 CET /
+  stopping time 23:57 CET. Owner: Matrix authoring/capture and the public-contract native fixture.
+  Delivered fixture reconciliation for actual 3×3 defaults and explicit media/Layer sizes,
+  plus a software ownership/order/project preflight. Production behavior is unchanged.
+  [Native audit and receipt](mapgyver-m07-native.md): both-adapter Cell/Layer/fade suites and
+  Intel pre-scale blend/alpha/order/source-loss/Undo/empty pixels pass. The optimized attempt
+  records 108 complete image captures, zero error outside legal UNORM ranges, and six interrupted
+  observation groups. **Complete native acceptance fails** after exact 1000×1000/six-Cell authoring:
+  preview Layout is rejected before scale pixels, burst, recovery or reload. Lease expiry is
+  inferred; its exact response was absent from the original assertion. The two native attempts
+  are exhausted: 3 passed/1 failed in 198.47 seconds (dev) and 173.89 seconds (optimized test).
+  No third native run and no resource/watchdog/tolerance changes.
+  The final checkpoint adds exact rejection/stage reporting and distinct-owner/single-source
+  assertions. **12 software tests and strict all-target native/process Clippy pass**; both Cargo
+  formatters pass. The strengthened sharing assertion remains native-unrun.
+  **Gate changes: none; M07/4 stays Active.** Current scope includes the separately delivered
+  M11 feedback plan: **45/67 gates (67%), 5/12 phases (42%)**, with unchanged acceptance counts.
+  Last usable capability remains M07/3's complete grid, milestone `fcff2f6d`.
+  **Next product deliverable:** correct bulk typed-authoring cost at the Matrix/Golden boundary
+  with software proof, preserving ownership/history/callback/UI semantics. Then finish the
+  unchanged sparse/burst/reload/sharing/final-retirement matrix on both GPUs. Do not restart an
+  unchanged native experiment; this checkpoint resets neither the investigation allowance nor
+  retained requirements. M08/3–4, M11, M10 and retained physical/performance gates keep their queue.
+  Concurrent app/manager-label/theme/architecture/browser work and the named stash remain preserved.
+  Host capacity recovery is active on this goal's verified proxy route (reconfirmed 22:40 UTC);
+  actual recovery from a live overload remains unobserved.
 
 ## Maintenance rule
 

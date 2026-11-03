@@ -18,6 +18,7 @@ use std::{
 
 mod cell_geometry;
 mod layer_geometry;
+mod tests;
 mod transitions;
 
 fn edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
@@ -113,13 +114,29 @@ struct Scene {
     columns: Vec<ColumnId>,
     blend: BlendMode,
     outside_first: bool,
+    shared_red: bool,
 }
 impl Scene {
     fn new(engine: &mut AppEngine) -> Self {
         let red = color(engine, [1.0, 0.0, 0.0, 0.5]);
         let green = color(engine, [0.0, 1.0, 0.0, 0.75]);
         let blue = color(engine, [0.0, 0.0, 1.0, 0.25]);
+        for source in [red, green, blue] {
+            edit(
+                engine,
+                MediaEdit::ConfigureMediaResolution {
+                    media: source.media,
+                    size: SizePolicy::Fixed {
+                        extent: Extent2D::new(32, 24).unwrap(),
+                    },
+                },
+            );
+        }
         let root = create(engine, MediaKind::Matrix);
+        let defaults = inspect(engine, root.media);
+        assert_eq!(defaults.items.len(), 3);
+        assert_eq!(defaults.columns.len(), 3);
+        assert!(defaults.cells.is_empty());
         edit(
             engine,
             MediaEdit::ConfigureMediaResolution {
@@ -148,22 +165,30 @@ impl Scene {
         };
         let group = items[0];
         let MatrixItemId::Group { id } = group else { panic!() };
-        let MediaEditResult::MatrixCreated { items: layers, .. } = matrix(
+        let layers = defaults.items[..2].iter().map(|row| row.id).collect::<Vec<_>>();
+        let outside = [defaults.items[2].id];
+        let mut previous = None;
+        for item in &layers {
+            matrix(
+                engine,
+                root.media,
+                MatrixEdit::MoveItem {
+                    item: *item,
+                    parent: Some(id),
+                    after: previous,
+                },
+            );
+            previous = Some(*item);
+        }
+        matrix(
             engine,
             root.media,
-            MatrixEdit::AddLayers {
-                parent: Some(id),
-                count: 2,
+            MatrixEdit::MoveItem {
+                item: outside[0],
+                parent: None,
+                after: Some(group),
             },
-        ) else {
-            panic!()
-        };
-        let MediaEditResult::MatrixCreated { items: outside, .. } =
-            matrix(engine, root.media, MatrixEdit::AddLayers { parent: None, count: 1 })
-        else {
-            panic!()
-        };
-        matrix(engine, root.media, MatrixEdit::AddColumns { count: 3 });
+        );
         let snapshot = inspect(engine, root.media);
         for item in &snapshot.items {
             if let MatrixItemId::Layer { id } = item.id {
@@ -174,6 +199,7 @@ impl Scene {
                         layer: id,
                         settings: LayerSettings {
                             duration_ms: 4000,
+                            size: Extent2D::new(32, 24).unwrap(),
                             ..item.layer.unwrap()
                         },
                     },
@@ -219,6 +245,7 @@ impl Scene {
             columns,
             blend: BlendMode::Normal,
             outside_first: false,
+            shared_red: false,
         }
     }
     fn routes(&self) -> [ChannelReference; 3] {
@@ -235,7 +262,12 @@ impl Scene {
         let mut first = image([0.0; 4]);
         draw(&mut first, &red, 0.75, BlendMode::Normal);
         let mut second = image([0.0; 4]);
-        draw(&mut second, &green, 0.6, BlendMode::Normal);
+        draw(
+            &mut second,
+            if self.shared_red { &red } else { &green },
+            0.6,
+            BlendMode::Normal,
+        );
         let mut scratch = image([0.0; 4]);
         draw(&mut scratch, &first, 1.0, BlendMode::Normal);
         draw(&mut scratch, &second, 1.0, self.blend);
@@ -278,7 +310,15 @@ fn large_and_burst(engine: &mut AppEngine, scene: &Scene, fixture: &mut Fixture,
             count: 997,
         },
     );
+    eprintln!(
+        "Matrix large-grid Layer authoring elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
     matrix(engine, scene.root.media, MatrixEdit::AddColumns { count: 997 });
+    eprintln!(
+        "Matrix large-grid Layer/Column authoring elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
     let snapshot = inspect(engine, scene.root.media);
     assert_eq!(snapshot.columns.len(), 1000);
     assert_eq!(
@@ -396,6 +436,52 @@ fn native_matrix_pixels_cover_exports_blends_order_recovery_scale_and_interrupti
         assert!(engine.undo().unwrap());
         scene.outside_first = false;
         scene.check(&mut fixture, &engine, adapter.id, false, "undo-order");
+        let MatrixItemId::Layer { id: second_layer } = scene.second else {
+            panic!()
+        };
+        matrix(
+            &mut engine,
+            scene.root.media,
+            MatrixEdit::SetCells {
+                assignments: vec![CellAssignment {
+                    layer: second_layer,
+                    column: scene.columns[0],
+                    source: Some(scene.red),
+                }],
+            },
+        );
+        launch(&mut engine, scene.root, scene.columns[0], LaunchMode::Cut);
+        scene.shared_red = true;
+        scene.check(&mut fixture, &engine, adapter.id, false, "shared-source");
+        let shared = inspect(&mut engine, scene.root.media);
+        let aliases = shared
+            .cells
+            .iter()
+            .filter(|cell| {
+                cell.definition.column == scene.columns[0]
+                    && cell
+                        .definition
+                        .source
+                        .is_some_and(|source| source.channel == scene.red.channel)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(aliases.len(), 2);
+        assert_ne!(aliases[0].media.unwrap(), aliases[1].media.unwrap());
+        assert!(aliases.iter().all(|cell| cell.media.unwrap() != scene.red.media));
+        assert_eq!(
+            fixture
+                .renderer()
+                .channels()
+                .iter()
+                .filter(|channel| channel.reference == scene.red)
+                .count(),
+            1,
+            "distinct owned Cell References must share one prepared physical source"
+        );
+        assert!(engine.undo().unwrap());
+        scene.shared_red = false;
+        launch(&mut engine, scene.root, scene.columns[0], LaunchMode::Cut);
+        scene.check(&mut fixture, &engine, adapter.id, false, "undo-shared-source");
         edit(&mut engine, MediaEdit::RemoveMedia { media: scene.red.media });
         scene.check(&mut fixture, &engine, adapter.id, true, "missing-source");
         assert!(engine.undo().unwrap());

@@ -160,28 +160,30 @@ impl Fixture {
             width: self.extent.width() as f64,
             height: self.extent.height() as f64,
         };
-        assert!(matches!(
-            self.preview.handle(
-                PreviewRequest::Layout {
-                    session: self.session,
-                    revision: self.revision,
-                    views: vec![PreviewView {
-                        id: uuid::Uuid::new_v4(),
-                        source: serde_json::to_string(&mapgyver::preview::protocol::PreviewSource::Channel {
-                            reference: root
-                        })
-                        .unwrap(),
-                        rect,
-                        clip: rect,
-                        visible: true,
-                        overlays: Vec::new(),
-                        overlay_capacity: 0,
-                    }],
-                },
-                Self::viewport(self.extent)
-            ),
-            PreviewResponse::Applied { visible_views: 1, .. }
-        ));
+        let response = self.preview.handle(
+            PreviewRequest::Layout {
+                session: self.session,
+                revision: self.revision,
+                views: vec![PreviewView {
+                    id: uuid::Uuid::new_v4(),
+                    source: serde_json::to_string(&mapgyver::preview::protocol::PreviewSource::Channel {
+                        reference: root,
+                    })
+                    .unwrap(),
+                    rect,
+                    clip: rect,
+                    visible: true,
+                    overlays: Vec::new(),
+                    overlay_capacity: 0,
+                }],
+            },
+            Self::viewport(self.extent),
+        );
+        assert!(
+            matches!(response, PreviewResponse::Applied { visible_views: 1, .. }),
+            "native raster layout revision {} rejected: {response:?}",
+            self.revision
+        );
         let preview = PreviewLayout {
             output: OutputId::new(self.names.len() as u64).unwrap(),
             descriptor: TextureDescriptor {

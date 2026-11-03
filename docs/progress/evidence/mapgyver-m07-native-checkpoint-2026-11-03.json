@@ -1,0 +1,59 @@
+{
+	"date": "2026-11-03",
+	"gate": "M07/4",
+	"decision": "Active; partial checkpoint, not Accepted",
+	"batch": {
+		"start_utc": "22:12",
+		"cutoff_utc": "22:57",
+		"native_attempts_used": 2,
+		"native_attempt_limit": 2
+	},
+	"software_before_hardware": {
+		"matrix_rendering": "6 pass, 4 explicit native exclusions",
+		"composition_rendering": "6 pass, 1 explicit native exclusion",
+		"log": "target/m07-native-final-software-fixed.log",
+		"strict_clippy": "pass; target/m07-native-final-clippy.log",
+		"formatting": "root and golden_core pass"
+	},
+	"native_attempts": [
+		{
+			"profile": "dev; isolated build accidentally differed from documented test profile",
+			"binary": "target/debug/deps/matrix_rendering-codex-m07-final.exe",
+			"sha256": "385D91E4479D48847BAFCD6E2811EA3DEE437E580AD13F571B8E8714B2033D78",
+			"log": "target/m07-native-final-baseline.log",
+			"passed": 3,
+			"failed": 1,
+			"seconds": 198.47
+		},
+		{
+			"profile": "test; optimized; terminal build exit 0 inspected before execution",
+			"binary": "target/debug/deps/matrix_rendering-codex-m07-final-optimized.exe",
+			"sha256": "EFC09FCAF9E4128867C00A76B213240938CACABE271A83369355D24A85E51E46",
+			"build_log": "target/m07-native-final-optimized-build.log",
+			"log": "target/m07-native-final-optimized.log",
+			"passed": 3,
+			"failed": 1,
+			"seconds": 173.89,
+			"full_image_captures": 108,
+			"max_outside_legal_unorm_error_255": 0,
+			"interrupted_observation_groups": 6
+		}
+	],
+	"adapters": [
+		"Intel(R) Graphics; LUID 89313:0",
+		"NVIDIA GeForce RTX 5080 Laptop GPU; LUID 90608:0"
+	],
+	"verified": "Both-adapter Cell and Layer geometry/Undo and standalone interruption/final-demand retirement. Intel main-scene blends/opacity/order/shared-source image/source deletion/Undo/empty output before scale.",
+	"failure": "Main-scene preview Layout assertion after exact 1000x1000/six-Cell authoring; no scale raster, burst or reload reached. Lease expiry is inferred; exact response was absent from original assertion.",
+	"checkpoint_changes_after_native": "Log exact preview response and separate Layer/Column authoring durations; strengthen distinct owned Reference/single prepared source assertions. No further native run in this batch.",
+	"checkpoint_software": {
+		"matrix_rendering": "6 pass, 0 failures, 4 explicit native exclusions; 0.03 seconds",
+		"composition_rendering": "6 pass, 0 failures, 1 explicit native exclusion",
+		"log": "target/m07-native-checkpoint-software.log",
+		"strict_clippy": "pass; target/m07-native-checkpoint-clippy.log",
+		"terminal_pipeline_exit": 0,
+		"formatting": "root and golden_core pass"
+	},
+	"remaining": "Correct bulk typed authoring with software proof; then complete original sparse/burst/reload/sharing/lifetime main scene on both adapters. M07 remains 3/4. Budgets and requirements unchanged.",
+	"other_work": "Concurrent M11 plan/feedback, manager labels, theme, architecture, browser changes and named prior stash preserved and excluded from this fixture milestone. Current global counts belong to the synchronized status ledger."
+}
