@@ -1,0 +1,68 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/4",
+	"state": "Accepted",
+	"contract": "All three target modes work concurrently and continue while editors close/minimize.",
+	"fixture": "apps/mapgyver/tests/native_output/concurrent.mjs, ordinary bundled isolated app using public authoring operations and actual WebView editor/titlebar controls; existing independent SDK receiver plus finite Spout pixel probe; read-only PID-scoped native HWND/physical-client/composited-pixel observations.",
+	"directory": "target/mapgyver-concurrent-output-20261103-1118",
+	"log": "target/mapgyver-concurrent-output-native.log",
+	"binary": {
+		"app": "target/debug/deps/MapGyver-codex-review.exe",
+		"sha256": "876a4f66c33e6e8fb73e36c20d3a3311e5bf7a5b50ca45074f19be2713924694",
+		"note": "Same ordinary app executable and production code validated in M05/9; no runtime/UI product change for this qualification slice."
+	},
+	"prerequisites": {
+		"retained_software": "M05/9 app 340 passed/2 hardware ignores, desktop 37 passed/3 hardware ignores, extended allocation wake test and host hardware geometry test passed; strict desktop/app lib/tests Clippy and ordinary bundled isolated build exit 0. Production code is unchanged.",
+		"consumer_build": "target/mapgyver-concurrent-output-consumer-build.log: cargo build --locked -p MapGyver --features native-qualification --bin native_qualification exits 0 before native execution.",
+		"consumer_sha256": "8d0be9d15b211cc8d47e552a6ff5cf3d030d9576270866b8d088bdf1e1a4d988",
+		"fixture": "node --check and repository Prettier pass. Root and golden_core cargo fmt complete. Existing observer exposes its pixel oracle for reuse; no additional product protocol/permission or test-only host control added."
+	},
+	"native": {
+		"pid": 22956,
+		"main_hwnd": 8652072,
+		"physical_outputs": [
+			{ "mode": "Fullscreen", "hwnd": 3278228, "rect": [2560, 0, 1920, 1080] },
+			{ "mode": "Rectangle", "hwnd": 22088242, "rect": [80, 80, 400, 240] }
+		],
+		"checkpoints": [
+			{
+				"phase": "editor-open-red",
+				"native_previews": 1,
+				"main_minimized": false,
+				"rgb": [255, 0, 0]
+			},
+			{
+				"phase": "all-editors-closed-green",
+				"native_previews": 0,
+				"main_minimized": false,
+				"rgb": [0, 255, 0]
+			},
+			{
+				"phase": "minimized-blue",
+				"native_previews": 0,
+				"main_minimized": true,
+				"rgb": [0, 0, 255]
+			},
+			{ "phase": "restored-red", "native_previews": 0, "main_minimized": false, "rgb": [255, 0, 0] }
+		],
+		"oracle": "Both native windows preserve HWND, exact physical bounds, visible/non-minimized state and all 25 composited center RGB pixels at every checkpoint. All 96x64 Spout output pixels equal the expected RGBA including alpha 255, independently read via the SDK in each phase. Color edits occur after editor closure/minimize, establishing live output instead of a retained static image.",
+		"editor_lifetime": "Actual Screen Warping view is installed before the first checkpoint. Screen Warping, Surface Source, Media Preview, Composition and Matrix tabs are closed via actual Close panel controls; document contains zero native-preview elements before subsequent observations.",
+		"window_lifetime": "Minimize app titlebar click reaches the existing host command. IsIconic confirms actual main HWND minimized; the two physical outputs remain visible/non-minimized. Existing window_toggle_maximize restores the owned main window, verified by IsIconic false. No new permission or test-only restore command was added.",
+		"spout_consumer": {
+			"copies": 192,
+			"logged_frames": 192,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"shared_handle": 1073745858,
+			"first_frame": 75,
+			"last_frame": 266,
+			"max_observed_receive_gap_ms": 35.075,
+			"exit_code": 0
+		},
+		"cleanup": "Consumer finishes normally before New. New retires both physical output HWNDs; the ordinary app exits normally 0. No page errors or owned app/consumer process remains. User app/processes are not targeted."
+	},
+	"computer_access": "Supported Windows computer-use discovery reports native pipe unavailable (os error 2) in both Sky and CUA. This gate still completes using the app's existing supported titlebar/host interface through its documented WebView test connection, with independent OS state/pixel confirmation. No manual-user dependency remains for M05/4.",
+	"limits": "Functional concurrency/lifetime acceptance only. Physical image samples are center patches; complete Spout pixel oracles are separate. Receive gap is an observation, not a latency/cadence qualification. M05/5 and M05/8 physical hotplug/full DPI/negative-origin/latency matrix and M03 performance gates remain unverified with unchanged requirements/budgets.",
+	"gate_changes": "M05/4 Active -> Accepted. M05 8/10 (80%), total 33/57 gates (58%), phases 3/11 (27%); denominators unchanged. M04/4 Spout source lifecycle/cross-adapter/RGBA/capacity acceptance becomes sole Active after this milestone is pushed. M05/5,8 retain explicit physical-configuration/measurement return triggers."
+}

@@ -4,6 +4,22 @@ This fixture uses the ordinary MapGyver app and public media/Screen operations. 
 the native windows, display catalog and Spout probe; MapGyver owns calibration and editor policy.
 Finite probe readbacks run in a separate test process, never in the production frame path.
 
+For current unattended concurrent-output acceptance (M05/4):
+
+```powershell
+cargo build --locked -p MapGyver --features native-qualification --bin native_qualification
+cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review
+$env:MAPGYVER_TEST_BINARY=(Resolve-Path target/debug/deps/MapGyver-codex-review.exe).Path
+node apps/mapgyver/tests/native_output/concurrent.mjs target/mapgyver-concurrent-output-RESULT
+```
+
+The fixture runs fullscreen and rectangle on the two available local displays alongside an
+independent Spout SDK receiver. It changes source colors after closing all native preview panels,
+minimizes through the real titlebar control, restores through the existing host window command,
+and independently verifies OS minimized state, physical output pixels and complete Spout pixels.
+It needs neither a manual continuation file nor a new host test backdoor. New retires the outputs;
+the fixture checks normal owned app/consumer shutdown. Wider physical/timing gates remain separate.
+
 For stable output bounds (M05/9), use the ordinary isolated review binary:
 
 ```powershell
@@ -26,7 +42,7 @@ cargo build --locked -p MapGyver --features native-qualification --bin MapGyver 
 node apps/mapgyver/tests/native_output/check.mjs --acceptance
 ```
 
-The flow reserves its localhost port, creates private app data and prints `launch_required`.
+The older checkpoint flow below reserves its localhost port, creates private app data and prints `launch_required`.
 Use the supported computer-use API to launch the printed `native_output_launcher.exe`, then
 select its returned **child MapGyver window**. The windowless launcher may itself have no
 targetable window. It starts the child at the desktop helper's integrity level, retains its

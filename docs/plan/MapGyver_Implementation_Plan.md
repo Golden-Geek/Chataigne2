@@ -60,9 +60,11 @@ are verified alongside the complete bundled editor input/history/lifetime suites
 owned-foreground desktop capture route supplies native pixels; moving-hit metadata is not a
 physical latency measurement. M05/9 [stable output-window bounds](../progress/evidence/mapgyver-output-bounds-2026-11-03.json)
 is also accepted: one visible HWND through move/resize/Undo and both actual display targets,
-with pending allocation fenced and completion-safe backing replacement. Next is M05/4 concurrent
-fullscreen/rectangle/Spout through editor close/minimize. This is execution order
-within M05 only; every original physical matrix and acceptance requirement remains unchanged.
+with pending allocation fenced and completion-safe backing replacement. M05/4 [concurrent
+fullscreen/rectangle/Spout](../progress/evidence/mapgyver-concurrent-output-2026-11-03.json) now
+passes actual editor close, OS-confirmed minimize/restore and changed physical/Spout pixels.
+Return to M04/4 source acceptance, then M04/5–6, before revised Composition work. M05/5,8 remain
+in the physical return queue; every original matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

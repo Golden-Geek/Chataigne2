@@ -125,6 +125,7 @@ export async function createPreviewOutputObserver(post, directory) {
 	}
 	return {
 		observations,
+		observePixels: pixels,
 		finish,
 		async observe(phase, { first }) {
 			if (phase === 'first-grid') {

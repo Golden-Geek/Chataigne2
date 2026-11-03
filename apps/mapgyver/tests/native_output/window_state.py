@@ -7,7 +7,7 @@ import sys
 from PIL import ImageGrab
 
 
-def snapshot(pid):
+def snapshot(pid, main=False):
     user = ctypes.windll.user32
     user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
     user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
@@ -28,10 +28,11 @@ def snapshot(pid):
             return True
         name = ctypes.create_unicode_buffer(256)
         user.GetClassNameW(hwnd, name, len(name))
-        if name.value != "GoldenNativeOutputWindow":
-            return True
         title = ctypes.create_unicode_buffer(512)
         user.GetWindowTextW(hwnd, title, len(title))
+        output = name.value == "GoldenNativeOutputWindow"
+        if (not main and not output) or (main and (output or not title.value.startswith("MapGyver"))):
+            return True
         rect = wintypes.RECT()
         origin = wintypes.POINT()
         assert user.GetClientRect(hwnd, ctypes.byref(rect))
@@ -39,7 +40,7 @@ def snapshot(pid):
         width, height = rect.right - rect.left, rect.bottom - rect.top
         x, y = origin.x + width // 2, origin.y + height // 2
         # Actual composited desktop pixels, including native output absent in WebView captures.
-        image = ImageGrab.grab(bbox=(x - 2, y - 2, x + 3, y + 3), all_screens=True)
+        image = None if main else ImageGrab.grab(bbox=(x - 2, y - 2, x + 3, y + 3), all_screens=True)
         result.append({
             "hwnd": hwnd,
             "title": title.value,
@@ -47,7 +48,7 @@ def snapshot(pid):
                        "extent": {"width": width, "height": height}},
             "visible": bool(user.IsWindowVisible(hwnd)),
             "minimized": bool(user.IsIconic(hwnd)),
-            "center_rgb": sorted(set(image.convert("RGB").get_flattened_data())),
+            "center_rgb": sorted(set(image.convert("RGB").get_flattened_data())) if image else None,
         })
         return True
 
@@ -58,4 +59,4 @@ def snapshot(pid):
 
 
 if __name__ == "__main__":
-    print(json.dumps(snapshot(int(sys.argv[1]))))
+    print(json.dumps(snapshot(int(sys.argv[1]), main="--main" in sys.argv[2:])))
