@@ -197,7 +197,9 @@ impl From<Event> for UiEventDto {
                 node,
                 patch: NodeMetaPatch::from(&patch),
             },
-            EventKind::GraphTransaction { transaction } => UiEventKind::GraphTransaction { transaction },
+            EventKind::GraphTransaction { transaction } => UiEventKind::GraphTransaction {
+                transaction: std::sync::Arc::unwrap_or_clone(transaction),
+            },
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic,
                 origin: custom.origin,

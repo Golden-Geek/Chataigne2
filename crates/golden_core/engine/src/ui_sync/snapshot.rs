@@ -597,7 +597,7 @@ impl<T: Node> Engine<T> {
                 patch: NodeMetaPatch::from(patch),
             },
             EventKind::GraphTransaction { transaction } => UiEventKind::GraphTransaction {
-                transaction: transaction.clone(),
+                transaction: transaction.as_ref().clone(),
             },
             EventKind::Custom(custom) => UiEventKind::Custom {
                 topic: custom.topic.clone(),

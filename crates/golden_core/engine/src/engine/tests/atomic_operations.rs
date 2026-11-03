@@ -86,6 +86,18 @@ fn rejected_remove_stabilization_restores_graph_publication_and_enclosing_histor
         );
         assert_eq!(engine.ui_history_state(), history);
         assert_eq!(engine.ui_event_log(), events);
+        for (before, after) in events.iter().zip(engine.ui_event_log()) {
+            if let (
+                crate::events::EventKind::GraphTransaction { transaction: before },
+                crate::events::EventKind::GraphTransaction { transaction: after },
+            ) = (&before.kind, &after.kind)
+            {
+                assert!(
+                    std::sync::Arc::ptr_eq(before, after),
+                    "rollback retains the original graph payload"
+                );
+            }
+        }
         assert_eq!(engine.project_dirty_nodes, dirty);
         assert_eq!(engine.ui_graph_version, graph_version);
         assert_eq!(engine.node_id_by_uuid(uuid), Some(child));

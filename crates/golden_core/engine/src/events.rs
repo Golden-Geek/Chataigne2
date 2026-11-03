@@ -274,8 +274,8 @@ pub enum EventKind {
 
     /// An atomic graph transaction containing multiple operations.
     GraphTransaction {
-        /// The transaction payload.
-        transaction: crate::ui_sync::UiGraphTransaction,
+        /// Immutable transaction shared by routing, replay and atomic checkpoints.
+        transaction: Arc<crate::ui_sync::UiGraphTransaction>,
     },
 
     /// User-defined event emitted through the edit pipeline.

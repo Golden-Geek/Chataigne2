@@ -44,6 +44,11 @@ the retained roots and resynchronizes bound handles after journal replay. This p
 rollback without rebuilding every parameter snapshot for each atomic operation.
 Authored changes must continue through engine edits so the value store remains authoritative.
 
+Retained engine graph events share their immutable transaction payloads across routing and atomic
+checkpoints. A fixed edit copies replay headers rather than previous subtree snapshots. The UI
+projection still owns the same Rust-generated transaction DTO; serialization, replay ordering,
+retention and rollback semantics are unchanged.
+
 For creates, the backend can allocate detached UUIDs, apply one subtree/forest and return exact
 created IDs/UUIDs. Callers consume those identities directly, independently of UI projection
 timing. They must not identify creates by discovering the first unseen child.

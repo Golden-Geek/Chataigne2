@@ -71,8 +71,11 @@ reload and copied-source final-use retirement; it compiles but has not run.
 The [authored scale fixture and observed runs](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
 cover up to 10k actual References and 512 producer variants. Pages and demanded capture stay
 bounded. Isolated paged reads at 1k/5k/10k References pass at 0.086/0.095/0.104 ms p95;
-fixed Target edits at 10k still fail at 71.0 ms against 50 ms. Golden checkpoints retain their
+fixed Target edits initially failed at 71.0 ms against 50 ms. Sharing immutable graph-event
+payloads across Golden checkpoints reduces that result to 22.6 ms p95 in the unchanged fixture;
+the combined read/edit/capture check passes. Golden checkpoints retain their
 existing copy-on-write parameter values; document-wide transaction work remains outside the
 Reference resolver. Paged Channels reads now use the immutable public Golden query contract;
-fixed-edit checkpoint costs and isolated scale acceptance remain required.
+full mixed/native and whole-app scale acceptance remain required. This backend fixture does
+not qualify whole-app inactive-count scaling, UI latency, memory or production output budgets.
 The [status ledger](../progress/mapgyver-status.md) keeps the full gate open; this is not Q04 acceptance.

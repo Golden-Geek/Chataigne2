@@ -3,25 +3,23 @@
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
 **Current topic:** M04 Reference read/edit scale acceptance.
-**Next deliverable:** fixed Target edits within the unchanged 50 ms p95 receipt budget;
-then mixed/native acceptance before Media Preview. Immutable channel reads are delivered.
+**Next deliverable:** mixed native Reference sharing, resampling, recovery and copied-source
+retirement on both hardware adapters, then finish M04/7 before Media Preview.
 **Execution:** M04/1–2 accepted; M04/7 continues on `mapgyver`, with one active gate. Source
 qualification M04/4–6 remains in the return queue under the plan's recorded functional order.
-**Blocker for acceptance:** isolated 10k Reference fixed edits take 71.0 ms p95 (limit 50 ms).
-Immutable channel reads pass at 0.104 ms p95. Native execution waits for software success;
-full mixed/end-to-end scale and the other retained blockers remain open.
+**Blocker for next delivery:** none known; the Reference backend read/edit/capture prerequisite
+passes. Mixed/native and full end-to-end qualification remain open, alongside retained blockers.
 **Usable now:** shared typed media Resolution/Sampling and bounded Channels editing through
 the generic Inspector, media-owned procedural canvases and Matrix settings, sender-only Shared
 Texture authoring, typed source commands and named scripting from the Inspector, source media,
 Screen/Surface editing, Composition and Matrix playback, paged Reference output inspection,
 actual Composition media children with typed Placement, and typed Matrix Cells with Reference/
 Alt-copy drops and independent source copies.
-**Last delivered capability:** [Immutable Reference channel reads](../architecture/mapgyver-reference-media.md):
-UI, scripts, typed commands and headless callers receive the same bounded page without
-mutation checkpoints/history work. Isolated reads at 1k/5k/10k References are 0.086/0.095/0.104 ms
-p95; pages stay 10,726 bytes and demanded capture stays 16 records. Bundled generic Target/
-Resolution, paging, Inspector navigation and missing-target Undo pass. Default/Alt drops,
-automatic/pinned outputs and owned-media retirement remain available. Full acceptance stays open.
+**Last delivered capability:** [Reference reads and fixed edits at 10k](../architecture/mapgyver-reference-media.md):
+immutable pages and shared graph-event payloads keep 10k Reference reads at 0.102 ms and
+Target edits at 22.6 ms p95 (50 ms limit), with atomic history/rollback and unchanged wire data.
+Pages stay 10,726 bytes; 15 demanded aliases capture one producer/16 records. Bundled Target/
+Resolution, paging, Inspector navigation and missing-target recovery pass. Whole-app Q04 remains open.
 **Last accepted:** [M04/2 native source variants](mapgyver-m04-variants.md): all three source
 kinds on Intel Graphics and NVIDIA RTX 5080, including shared Resolution, three consumers,
 source resize, reorder/history/reload and pixels. Broader native qualification remains open.
@@ -59,7 +57,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M04/7            | Immutable paged reads delivered and isolated at 0.104 ms p95 with 10k References; [fixed edits still fail at 71.0 ms](evidence/mapgyver-reference-scale-2026-11-03.json). Next bound atomic mutation checkpoint work, preserving rollback/history, then rerun the unchanged isolated fixture and run native only after software success. Full mixed/end-to-end scale and native sharing/resampling/recovery remain open. |
+| Active   | M04/7            | Immutable pages and fixed Target edits pass the unchanged isolated fixture at 10k References: read 0.102 ms/edit 22.6 ms p95. [Earlier failures and passing correction](evidence/mapgyver-reference-scale-2026-11-03.json) retained. Next compile/run the mixed native fixture after verified software success. Full mixed/native and end-to-end qualification remain open. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
 | Pending  | M04/8            | After Reference working contracts, deliver independent dockable Media Preview instances with selection-follow/lock/channel/grid state and retirement; remove Inspector previews and complete native/bundled acceptance.                                                                                                   |
@@ -87,24 +85,24 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current batch/handoff:** M04/7 immutable Reference queries; Golden owns the public
-  lifecycle/query boundary and MapGyver owns the read model. Start 2026-11-03 03:47 CET;
-  cutoff 04:32 CET. Delivered `query_app_operation(&Engine, ...)`: reads settle pending
-  engine edits and preserve result admission, callbacks, history/Redo and active edit groups
-  without creating a mutation checkpoint. MapGyver Channels pages and typed commands use it.
-  Golden engine **671 passed, 3 ignored**; MapGyver **317 passed, 2 ignored**, including generated
-  contracts; strict all-target Clippy for both with native qualification passed. Ordinary bundled
-  build and `--reference-ui` passed; its isolated headless host exited normally.
-  After all other builds/app processes ended, the unchanged scale fixture ran once in isolation:
-  1k/5k/10k References read p95 **0.086/0.095/0.104 ms**, edit p95 **9.99/41.38/71.02 ms**.
-  At 10k: **54,111 actual nodes**, 5.12M virtual channels, 10,726-byte page and 16 captured records.
-  [Exact evidence](evidence/mapgyver-reference-scale-2026-11-03.json) preserves both earlier contended
-  failures. This proves the Reference read path, not whole-app Q04.
-  **Remaining/next product action:** bound fixed Target edit checkpoint costs while retaining
-  atomic rollback/history. The combined fixture failed its unchanged 50 ms edit budget, so no
-  hardware run started. Keep full mixed/end-to-end scale and compiled native sharing/resampling/
-  recovery/retirement acceptance open. No gate closed: **26/57 gates, M04 3/8 (38%),
-  3/11 phases (27%)**; M04/7 alone remains Active. Other return-queue gates are unchanged.
+- **Current batch/handoff:** M04/7 fixed-edit receipts; Golden owns immutable graph-event
+  payloads and atomic checkpoint retention. Start 2026-11-03 04:10 CET; cutoff 04:55 CET.
+  Delivered shared graph transactions across routing, replay and checkpoints. Public generated
+  UI DTOs and wire shape are unchanged; clone/serialization and rollback payload-identity
+  regressions pass, including active history groups.
+  Golden engine **672 passed, 3 ignored**; MapGyver **317 passed, 2 ignored**; strict all-target
+  Clippy with native qualification, bundled build and Reference/source/project browser workflow
+  passed. The owned headless host exited normally. Both workspace formatters ran.
+  One isolated unchanged scale correction run after all prerequisite processes ended passed:
+  1k/5k/10k read p95 **0.116/0.091/0.102 ms**, edit p95 **2.28/9.75/22.60 ms**.
+  At 10k: 54,111 actual nodes, 5.12M virtual channels, 10,726-byte pages and 16 captured records.
+  [Evidence](evidence/mapgyver-reference-scale-2026-11-03.json) preserves the earlier 71.0 ms
+  isolated failure. This closes the Reference backend receipt prerequisite only; whole-app
+  inactive-count scaling/UI/memory/output Q04 qualification remains required.
+  **Next action:** compile and run the prepared mixed native Reference fixture on both adapters;
+  software prerequisites now pass. Native sharing/resampling/loss/Undo/reload/owned-retirement
+  and full end-to-end qualification remain open. No complete gate closed: **26/57 gates,
+  M04 3/8 (38%), 3/11 phases (27%)**; M04/7 alone remains Active.
 
 ## Maintenance rule
 

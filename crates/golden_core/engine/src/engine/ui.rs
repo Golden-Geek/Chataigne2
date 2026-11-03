@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::events::{CustomEvent, CustomEventRetention, Event, EventKind};
 use crate::node::{Node, NodeId};
@@ -202,13 +203,13 @@ impl<T: Node> Engine<T> {
         self.next_ui_tx_id = self.next_ui_tx_id.saturating_add(1);
 
         self.push_ui_event_kind(EventKind::GraphTransaction {
-            transaction: UiGraphTransaction {
+            transaction: Arc::new(UiGraphTransaction {
                 tx_id,
                 epoch: self.ui_epoch,
                 base_graph_version,
                 next_graph_version,
                 ops: compacted,
-            },
+            }),
         });
     }
 

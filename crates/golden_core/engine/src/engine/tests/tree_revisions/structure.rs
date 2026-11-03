@@ -168,7 +168,8 @@ fn ui_value_transactions_do_not_invalidate_bindings_but_alias_transactions_do() 
             base_graph_version: 0,
             next_graph_version: 1,
             ops,
-        },
+        }
+        .into(),
     };
     engine.emit_event(transaction(vec![UiGraphOp::ParamPatched {
         node: leaf,
