@@ -13,7 +13,8 @@ fn generic_parameter_edits_are_the_only_authored_instance_state_and_roundtrip_wi
     let composition = create(&mut engine, MediaKind::Composition);
     let instance = add(&mut engine, composition, vec![source])[0];
     let root = engine.node_id_by_uuid(instance.instance.0).unwrap();
-    let folder = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
+    let placement = super::super::children::placement(&engine, root).unwrap();
+    let folder = placement.node_data().first_child.unwrap();
     let mut params = Vec::new();
     let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
     while let Some(id) = child {
@@ -22,7 +23,7 @@ fn generic_parameter_edits_are_the_only_authored_instance_state_and_roundtrip_wi
         params.push((node.node_data().meta.decl_id.0.clone(), id));
         child = node.node_data().next_sibling;
     }
-    assert_eq!(params.len(), 9);
+    assert_eq!(params.len(), 8);
     assert!(
         engine.nodes.get(root).unwrap().project_encode_data().unwrap().is_null(),
         "No second authored DTO"
@@ -66,7 +67,11 @@ fn direct_parameter_edits_reject_invalid_geometry_and_reference_cycles_without_s
     let composition = create(&mut engine, MediaKind::Composition);
     let instance = add(&mut engine, composition, vec![source])[0];
     let root = engine.node_id_by_uuid(instance.instance.0).unwrap();
-    let folder = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
+    let folder = super::super::children::placement(&engine, root)
+        .unwrap()
+        .node_data()
+        .first_child
+        .unwrap();
     let find = |engine: &AppEngine, name: &str| {
         let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
         loop {
@@ -130,7 +135,10 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
         let root = engine.node_id_by_uuid(instance.instance.0).unwrap();
         vec![
             (
-                instance_parameter(engine, root, "source_media"),
+                match engine.nodes.get(root).unwrap() {
+                    AppNode::ReferenceMedia(node) => node.target_parameter(),
+                    _ => panic!(),
+                },
                 ParamValue::Reference(NodeReference::new(source.media.0)),
             ),
             (
@@ -160,7 +168,13 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
     engine.apply_edits().unwrap();
     let old_a = inspect(&mut engine, a);
     let old_b = inspect(&mut engine, b);
-    assert_eq!(old_a.instances[0].definition.source, Some(b));
+    assert_eq!(
+        old_a.instances[0].definition.source,
+        Some(ChannelReference {
+            media: MediaId(a_instance.instance.0),
+            channel: b.channel
+        })
+    );
     // Moving A -> B to B -> A is valid when A's old edge is removed in this batch.
     let mut reversed = binding(&engine, a_instance, solid);
     reversed.extend(binding(&engine, b_instance, a));
@@ -168,8 +182,20 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
     engine.apply_edits().unwrap();
     let new_a = inspect(&mut engine, a);
     let new_b = inspect(&mut engine, b);
-    assert_eq!(new_a.instances[0].definition.source, Some(solid));
-    assert_eq!(new_b.instances[0].definition.source, Some(a));
+    assert_eq!(
+        new_a.instances[0].definition.source,
+        Some(ChannelReference {
+            media: MediaId(a_instance.instance.0),
+            channel: solid.channel
+        })
+    );
+    assert_eq!(
+        new_b.instances[0].definition.source,
+        Some(ChannelReference {
+            media: MediaId(b_instance.instance.0),
+            channel: a.channel
+        })
+    );
     assert_eq!(engine.undo_len(), history + 2);
     assert!(engine.undo().unwrap());
     assert_eq!(inspect(&mut engine, a), old_a);
@@ -278,7 +304,11 @@ fn copying_preserves_parameter_configuration_and_control_subtrees_with_independe
 }
 
 fn instance_parameter(engine: &AppEngine, root: golden_core::node::NodeId, name: &str) -> golden_core::node::NodeId {
-    let folder = engine.nodes.get(root).unwrap().node_data().first_child.unwrap();
+    let folder = super::super::children::placement(engine, root)
+        .unwrap()
+        .node_data()
+        .first_child
+        .unwrap();
     let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
     loop {
         let id = child.unwrap();

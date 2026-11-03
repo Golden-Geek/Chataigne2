@@ -20,7 +20,6 @@ fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
             | AppNode::MediaFolder(_)
             | AppNode::MediaAsset(_)
             | AppNode::Application(_)
-            | AppNode::CompositionInstance(_)
             | AppNode::Screen(_)
             | AppNode::Surface(_),
         ) => true,
@@ -85,11 +84,17 @@ pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> R
             let folder = match destination {
                 Some(AppNode::MediaManager(_)) => None,
                 Some(AppNode::MediaFolder(node)) => Some(node.node_data().meta.uuid),
+                Some(AppNode::Media(media)) if media.kind() == super::protocol::MediaKind::Composition => {
+                    if !matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) || old_parent != Some(parent) {
+                        return Err("Use a Composition drop to create Reference or copied media".into());
+                    }
+                    return Ok(());
+                }
                 _ => return Err("media and folders belong in Media Manager or its folders".into()),
             };
             super::folders::parent(engine, folder)? == parent
         }
-        AppNode::MediaChannel(_) | AppNode::CompositionInstance(_) => old_parent == Some(parent),
+        AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_) => old_parent == Some(parent),
         AppNode::MediaAsset(_) | AppNode::Application(_) => parent == super::authoring::manager(engine)?,
         AppNode::MediaCommand(_) => parent == super::authoring::manager(engine)?,
         AppNode::Screen(_) => {

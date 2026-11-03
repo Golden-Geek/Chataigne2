@@ -36,11 +36,9 @@ fn authored_graph(engine: &AppEngine) -> Result<HashMap<ChannelReference, Vec<Ch
         };
         let mut sources = Vec::new();
         for instance in super::composition::authoring::instances(engine, id)? {
-            let AppNode::CompositionInstance(node) = engine.nodes.get(instance).unwrap() else {
-                unreachable!()
-            };
-            node.definition().validate()?;
-            if let Some(source) = node.definition().source {
+            let definition = super::composition::children::definition(engine, instance)?;
+            definition.validate()?;
+            if let Some(source) = definition.source {
                 sources.push(source);
             }
         }

@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use super::protocol::*;
 
 pub(super) const METHODS: &[&str] = &[
+    "dropCompositionMedia",
     "createReference",
     "configureReference",
     "createMedia",
@@ -65,6 +66,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "importPicture" => 2,
         "executeCommand" => 1,
         "inspectChannels" => 3,
+        "dropCompositionMedia" => 7,
         "createReference" | "configureReference" => 2,
         _ => return Ok(None),
     };
@@ -72,6 +74,29 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "dropCompositionMedia" => {
+            let Some(ParamValue::Bool(copy)) = args.get(4) else {
+                return Err("copy must be boolean".into());
+            };
+            MediaEdit::Composition {
+                reference: reference(args)?,
+                edit: super::composition::protocol::CompositionEdit::DropSource {
+                    source: uuid(args, 2)?,
+                    instance: optional_text(args, 3)?
+                        .map(|value| {
+                            uuid::Uuid::parse_str(&value)
+                                .map(|id| super::composition::protocol::InstanceId(golden_core::node::NodeUuid(id)))
+                        })
+                        .transpose()
+                        .map_err(|e| e.to_string())?,
+                    copy: *copy,
+                    position: golden_video::plan::Point {
+                        x: number(args, 5)? as f32,
+                        y: number(args, 6)? as f32,
+                    },
+                },
+            }
+        }
         "inspectChannels" => {
             let start = number(args, 1)?;
             let count = number(args, 2)?;

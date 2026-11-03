@@ -254,12 +254,19 @@ pub(crate) fn capture_channels_with_time(
                 .node_id_by_uuid(reference.channel.0)
                 .and_then(|id| engine.nodes.get(id))
                 .unwrap();
-            let mut next = channel.node_data().first_child;
+            let owner = channel.node_data().parent.ok_or("Composition has no media")?;
+            let mut next = engine
+                .nodes
+                .get(owner)
+                .ok_or("Composition media is missing")?
+                .node_data()
+                .first_child;
             let mut active = Vec::new();
             let mut admitted = true;
             while let Some(id) = next {
                 if let Some(node) = engine.nodes.get(id)
-                    && crate::parameters::is_parameter_folder(node)
+                    && (crate::parameters::is_parameter_folder(node)
+                        || matches!(node, AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_)))
                 {
                     next = node.node_data().next_sibling;
                     continue;
@@ -269,13 +276,15 @@ pub(crate) fn capture_channels_with_time(
                     break;
                 }
                 instance_budget -= 1;
-                let Some(AppNode::CompositionInstance(node)) = engine.nodes.get(id) else {
+                let node = engine.nodes.get(id).ok_or("Composition media child is missing")?;
+                if !matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {
                     admitted = false;
                     break;
-                };
+                }
                 next = node.node_data().next_sibling;
-                instance_guards.push(node.guard());
-                let definition = node.definition();
+                let placement = super::composition::children::placement(engine, id)?;
+                instance_guards.push(placement.guard());
+                let definition = super::composition::children::definition(engine, id)?;
                 if node.node_data().effective_enabled
                     && definition.enabled
                     && definition.opacity > 0.0

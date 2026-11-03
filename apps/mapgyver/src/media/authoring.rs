@@ -529,10 +529,24 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
         .into_iter()
         .collect::<std::collections::HashSet<_>>();
     for (id, node) in engine.nodes.iter() {
+        if matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_))
+            && node
+                .node_data()
+                .parent
+                .and_then(|id| engine.nodes.get(id))
+                .is_some_and(|node| matches!(node, AppNode::Media(media) if media.kind() == MediaKind::Composition))
+        {
+            super::composition::children::placement(engine, id)?;
+        }
         match node {
             AppNode::ReferenceMedia(_) => {
-                if !managed.contains(&id) || crate::parameters::has_domain_children(engine, id) {
-                    return Err("Reference belongs in media hierarchy and owns only declared Parameters".into());
+                if !managed.contains(&id) {
+                    return Err("Reference is outside its media hierarchy".into());
+                }
+                for child in crate::parameters::domain_children(engine, id)? {
+                    if !matches!(engine.nodes.get(child), Some(AppNode::CompositionPlacement(_))) {
+                        return Err("Reference owns only Parameters and Placement".into());
+                    }
                 }
             }
             AppNode::MediaCommand(node) => {
@@ -552,6 +566,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if !managed.contains(&id) {
                     return Err("media is outside its manager".into());
                 }
+                let accepts_media_children = node.kind() == MediaKind::Composition;
                 let mut child = node.node_data().first_child;
                 let mut count = 0;
                 while let Some(id) = child {
@@ -560,8 +575,17 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     if crate::parameters::is_parameter_folder(node) {
                         continue;
                     }
+                    if matches!(node, AppNode::CompositionPlacement(_)) {
+                        continue;
+                    }
+                    if matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {
+                        if !accepts_media_children {
+                            return Err("only Composition owns child media".into());
+                        }
+                        continue;
+                    }
                     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
-                        return Err("media children must be channels".into());
+                        return Err("invalid media child".into());
                     };
                     count += 1;
                     child = channel.node_data().next_sibling;
@@ -586,20 +610,26 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if parent.kind() != node.kind() {
                     return Err("channel source does not match its media kind".into());
                 }
-                if node.kind() != MediaKind::Composition
-                    && !node.is_matrix_final()
-                    && crate::parameters::has_domain_children(engine, id)
-                {
-                    return Err("only Composition channels may own instances".into());
+                if !node.is_matrix_final() && crate::parameters::has_domain_children(engine, id) {
+                    return Err("only Matrix final channels may own domain children".into());
                 }
             }
-            AppNode::CompositionInstance(node) => {
-                node.definition().validate()?;
-                if !node.node_data().parent.and_then(|id| engine.nodes.get(id)).is_some_and(
-                    |node| matches!(node, AppNode::MediaChannel(channel) if channel.kind() == MediaKind::Composition),
-                ) {
-                    return Err("instance is outside a Composition channel".into());
+            AppNode::CompositionPlacement(node) => {
+                let parent = node.node_data().parent.ok_or("Placement has no media owner")?;
+                let owner = engine.nodes.get(parent).ok_or("Placement media is missing")?;
+                if !matches!(owner, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {
+                    return Err("Placement belongs to media".into());
                 }
+                if !owner
+                    .node_data()
+                    .parent
+                    .and_then(|id| engine.nodes.get(id))
+                    .is_some_and(|node| matches!(node, AppNode::Media(media) if media.kind() == MediaKind::Composition))
+                {
+                    return Err("Placement belongs to a Composition child".into());
+                }
+                super::composition::children::placement(engine, parent)?;
+                node.definition(MediaId(owner.node_data().meta.uuid)).validate()?;
             }
             _ => {}
         }

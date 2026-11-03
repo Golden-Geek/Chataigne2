@@ -73,7 +73,11 @@ fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
     let outer = composition(&mut engine, 8, 8);
     add(&mut engine, outer, vec![inner, leaf]);
     let capture = capture_channels(&engine, &[outer], 16).unwrap();
-    assert_eq!(capture.channels.len(), 3);
+    assert_eq!(
+        capture.channels.len(),
+        7,
+        "three render owners and four passthrough References"
+    );
     let prepared = prepare(&engine, outer);
     assert_eq!(prepared.submission.plan.passes.len(), 3);
     assert_eq!(prepared.submission.plan.outputs.len(), 2);

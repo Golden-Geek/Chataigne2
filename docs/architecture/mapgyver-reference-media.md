@@ -55,11 +55,12 @@ generic Inspector expose the real Reference node.
 
 The manager's named `createReference`, `configureReference` and `inspectChannels` methods use
 the same intents, committed callbacks and embedded source examples. Typed command kinds use real
-Reference-target Parameters. Adding that command Parameter advances the command document
-schema to **`mapgyver.media.command.v2`**; unsupported v1 records reject explicitly. Existing
+Reference-target Parameters. Composition drop commands extend the command document
+schema to **`mapgyver.media.command.v3`**; unsupported older records reject explicitly. Existing
 source media remain schema v5; Reference uses its separate v1 schema. No migration is added.
 
-Reference core and paged output presentation are implemented. Full acceptance still requires
-default-drop/Alt-copy child-media behavior, complete mixed Matrix/Reference parity and native
+Reference core, paged output presentation and [Composition-owned Reference/copy drops](mapgyver-owned-media.md)
+are implemented. Full acceptance still requires Matrix child-media drops, missing/unconfigured
+Reference source-drop parity, complete mixed Matrix/Reference parity and native
 sharing/resampling/recovery checks. The
 [status ledger](../progress/mapgyver-status.md) keeps the full gate open.

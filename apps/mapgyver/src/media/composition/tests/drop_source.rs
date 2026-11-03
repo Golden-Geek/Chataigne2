@@ -8,7 +8,8 @@ use std::collections::HashMap;
 
 fn fields(engine: &AppEngine, instance: InstanceId) -> HashMap<String, NodeId> {
     let id = engine.node_id_by_uuid(instance.0).unwrap();
-    let folder = engine.nodes.get(id).unwrap().node_data().first_child.unwrap();
+    let placement = super::super::children::placement(engine, id).unwrap();
+    let folder = placement.node_data().first_child.unwrap();
     let mut next = engine.nodes.get(folder).unwrap().node_data().first_child;
     let mut fields = HashMap::new();
     while let Some(id) = next {
@@ -32,6 +33,7 @@ fn source_drop_adds_at_canvas_position_with_backend_defaults_and_one_history_ste
         &mut engine,
         composition,
         CompositionEdit::DropSource {
+            copy: false,
             source: source.media.0,
             instance: None,
             position: Point { x: -120., y: 2230. },
@@ -41,12 +43,15 @@ fn source_drop_adds_at_canvas_position_with_backend_defaults_and_one_history_ste
     };
     assert_eq!(instances.len(), 1);
     assert_eq!(engine.undo_len(), history + 1);
-    assert_eq!(engine.nodes.len(), count + 11, "one complete detached instance subtree");
+    assert_eq!(engine.nodes.len(), count + 15, "one complete detached instance subtree");
     let after = inspect(&mut engine, composition);
     assert_eq!(after.instances[0], before.instances[0]);
     assert_eq!(after.instances[1].reference, instances[0]);
     let expected = InstanceDefinition {
-        source: Some(source),
+        source: Some(ChannelReference {
+            media: MediaId(instances[0].instance.0),
+            channel: source.channel,
+        }),
         transform: Transform2D {
             position: [-120., 2230.],
             ..Default::default()
@@ -115,6 +120,7 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
         &mut engine,
         composition,
         CompositionEdit::DropSource {
+            copy: false,
             source: replacement.channel.0,
             instance: Some(target),
             position: Point { x: 900., y: 800. },
@@ -125,7 +131,10 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
     assert_eq!(engine.undo_len(), history + 1);
     let after = inspect(&mut engine, composition);
     let mut expected = before.instances[0].clone();
-    expected.definition.source = Some(replacement);
+    expected.definition.source = Some(ChannelReference {
+        media: MediaId(target.0),
+        channel: replacement.channel,
+    });
     assert_eq!(after.instances[0], expected);
     assert_eq!(snapshot, expected);
     assert_eq!(after.instances[1], before.instances[1]);
@@ -168,6 +177,7 @@ fn source_drop_rejects_cycles_foreign_or_stale_targets_and_invalid_sources_witho
                 MediaEdit::Composition {
                     reference: a,
                     edit: CompositionEdit::DropSource {
+                        copy: false,
                         source,
                         instance,
                         position

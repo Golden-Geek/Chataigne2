@@ -4,26 +4,11 @@ use crate::{
         node::ElementNode,
         protocol::{ElementDefinition, MatrixItemId},
     },
-    media::{ChannelNode, composition::InstanceNode, protocol::MediaKind},
+    media::{ChannelNode, protocol::MediaKind},
 };
 use golden_core::node::{NodeId, NodeUuid, ParameterValidationContext};
+use golden_core::parameter::ParamValue;
 use std::collections::HashSet;
-
-pub(crate) fn validate(change: &ParameterValidationContext<'_>, owner: NodeId, source: NodeUuid) -> Result<(), String> {
-    let Some(owner) = change.node(owner) else { return Ok(()) };
-    let owner = owner.node_data().meta.uuid;
-    let mut pending = vec![source];
-    let mut seen = HashSet::new();
-    while let Some(source) = pending.pop() {
-        if source == owner {
-            return Err("media channel dependency cycle".into());
-        }
-        if seen.insert(source) {
-            pending.extend(edges(change, source)?);
-        }
-    }
-    Ok(())
-}
 
 fn leaf(change: &ParameterValidationContext<'_>, mut media: NodeUuid) -> Result<Option<NodeId>, String> {
     let mut seen = HashSet::new();
@@ -58,21 +43,20 @@ fn canonical(
         .filter(|node| node.node_data().parent == Some(owner))
         .map(|node| node.node_data().meta.uuid))
 }
-pub(crate) fn validate_channel(
+pub(crate) fn validate_output(
     change: &ParameterValidationContext<'_>,
-    owner: NodeId,
-    source: crate::media::protocol::ChannelReference,
+    media: NodeUuid,
+    output: NodeUuid,
 ) -> Result<(), String> {
-    if change
-        .node(owner)
-        .is_some_and(|node| node.node_data().meta.uuid == source.channel.0)
+    if let Some(owner) = leaf(change, media)?
+        && let Some(id) = change.resolve(output)
+        && change
+            .node(id)
+            .is_some_and(|node| node.node_data().parent != Some(owner))
     {
-        return Err("media channel dependency cycle".into());
+        return Err("Output belongs to another media".into());
     }
-    if let Some(source) = canonical(change, source)? {
-        validate(change, owner, source)?;
-    }
-    Ok(())
+    validate_media(change, media)
 }
 /// A Reference target is a whole media, but cycles remain channel-specific. Canonical aliases
 /// avoid expanding every mirrored channel across every Reference in a large document.
@@ -116,14 +100,32 @@ fn edges(change: &ParameterValidationContext<'_>, source: NodeUuid) -> Result<Ve
     };
     match channel.kind() {
         MediaKind::Composition => {
-            for child in children(change, id) {
-                if let Some(instance) = change
-                    .node(child)
-                    .and_then(|node| node.as_any().downcast_ref::<InstanceNode>())
-                    && let Some(source) = instance.source_for_validation(change)
-                    && let Some(source) = canonical(change, source)?
-                {
-                    pending.push(source);
+            if let Some(media) = node.node_data().parent {
+                for child in children(change, media) {
+                    let Some(owner) = change.node(child).filter(|node| {
+                        node.as_any().is::<crate::media::MediaNode>()
+                            || node.as_any().is::<crate::media::ReferenceNode>()
+                    }) else {
+                        continue;
+                    };
+                    for placement in children(change, child) {
+                        if let Some(placement) = change
+                            .node(placement)
+                            .and_then(|node| node.as_any().downcast_ref::<crate::media::composition::PlacementNode>())
+                            && let Some(ParamValue::Reference(output)) =
+                                change.parameter_value(placement.output_parameter())
+                            && !output.uuid.0.is_nil()
+                            && let Some(source) = canonical(
+                                change,
+                                crate::media::protocol::ChannelReference {
+                                    media: crate::media::protocol::MediaId(owner.node_data().meta.uuid),
+                                    channel: crate::media::protocol::ChannelId(output.uuid),
+                                },
+                            )?
+                        {
+                            pending.push(source);
+                        }
+                    }
                 }
             }
         }

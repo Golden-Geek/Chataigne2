@@ -70,12 +70,16 @@ export function provideCompositionAuthoring() {
 			catalog = view.catalog;
 		if (!node || !graph || !catalog) return;
 		let channelNode = node;
-		if (node.node_type === 'mapgyver.composition.instance') {
+		if (['mapgyver.media.v5', 'mapgyver.media.reference.v1'].includes(node.node_type)) {
 			const parent = graph.parentById.get(node.node_id);
 			if (parent === undefined) return;
 			const found = graph.nodesById.get(parent);
-			if (!found) return;
-			channelNode = found;
+			if (found?.node_type === 'mapgyver.media.v5') {
+				const output = found.children
+					.map((id) => current?.getNodeData(id))
+					.find((node) => node?.node_type === 'mapgyver.media.channel');
+				if (output) channelNode = output;
+			}
 		}
 		const found = catalog.media
 			.flatMap((media) => media.channels)
@@ -87,7 +91,11 @@ export function provideCompositionAuthoring() {
 		if (!found) return;
 		untrack(() => {
 			if (view.selected?.channel !== found.reference.channel) controller.select(found.reference);
-			if (node.node_type === 'mapgyver.composition.instance') view.instance = node.uuid;
+			if (
+				found.reference.media !== node.uuid &&
+				['mapgyver.media.v5', 'mapgyver.media.reference.v1'].includes(node.node_type)
+			)
+				view.instance = node.uuid;
 		});
 	});
 	const owner = {

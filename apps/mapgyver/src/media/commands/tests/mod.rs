@@ -102,6 +102,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         let command = command(&mut engine, *kind);
         assert_eq!(inspect(&mut engine), before_creation, "creation must not fire {kind:?}");
         let target = match kind {
+            MediaCommandKind::DropCompositionMedia => create(&mut engine, MediaKind::Composition),
             MediaCommandKind::Picture => picture,
             MediaCommandKind::SharedTexture => shared,
             _ => solid,

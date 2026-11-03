@@ -1,11 +1,11 @@
-use super::{InstanceNode, dependencies, protocol::*};
+use super::{children, dependencies, protocol::*};
 use crate::{
     app::{AppEngine, AppNode, labels},
     media::protocol::{ChannelReference, ChannelSource, MediaEditResult},
 };
 use golden_core::{
     app::ProjectNode,
-    edit::{Edit, NodeTree, UserItemTreeInsertion},
+    edit::{Edit, UserItemTreeInsertion},
     engine::ProjectImportSpec,
     node::{Node, NodeId},
 };
@@ -29,6 +29,7 @@ pub(super) fn channel(
 }
 
 pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>, String> {
+    let parent = children::owner(engine, parent)?;
     let mut next = engine
         .nodes
         .get(parent)
@@ -39,12 +40,17 @@ pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<
     while let Some(id) = next {
         let child = engine.nodes.get(id).ok_or("missing Composition child")?;
         next = child.node_data().next_sibling;
-        if crate::parameters::is_parameter_folder(child) {
+        if crate::parameters::is_parameter_folder(child)
+            || matches!(child, AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_))
+        {
             continue;
         }
-        let Some(AppNode::CompositionInstance(_)) = engine.nodes.get(id) else {
-            return Err("Composition children must be instances".into());
-        };
+        if !matches!(
+            engine.nodes.get(id),
+            Some(AppNode::Media(_) | AppNode::ReferenceMedia(_))
+        ) {
+            return Err("Composition children must be media".into());
+        }
         if result.len() == MAX_INSTANCES {
             return Err("Composition exceeds 100000 authored instances".into());
         }
@@ -54,9 +60,12 @@ pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<
 }
 
 fn instance(engine: &AppEngine, parent: NodeId, instance: InstanceId) -> Result<NodeId, String> {
+    let parent = children::owner(engine, parent)?;
     let id = engine.node_id_by_uuid(instance.0).ok_or("instance is missing")?;
     match engine.nodes.get(id) {
-        Some(AppNode::CompositionInstance(node)) if node.node_data().parent == Some(parent) => Ok(id),
+        Some(node @ (AppNode::Media(_) | AppNode::ReferenceMedia(_))) if node.node_data().parent == Some(parent) => {
+            Ok(id)
+        }
         _ => Err("instance belongs to another Composition".into()),
     }
 }
@@ -67,19 +76,17 @@ pub fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<Compos
     let instances = instances(engine, parent)?
         .into_iter()
         .map(|id| {
-            let AppNode::CompositionInstance(node) = engine.nodes.get(id).unwrap() else {
-                unreachable!()
-            };
-            InstanceSnapshot {
+            let node = engine.nodes.get(id).unwrap();
+            Ok(InstanceSnapshot {
                 reference: InstanceReference {
                     composition: reference,
-                    instance: node.id(),
+                    instance: InstanceId(node.node_data().meta.uuid),
                 },
                 label: node.node_data().meta.label.clone(),
-                definition: node.definition().clone(),
-            }
+                definition: children::definition(engine, id)?,
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, String>>()?;
     Ok(CompositionSnapshot {
         reference,
         canvas,
@@ -122,42 +129,19 @@ pub(crate) fn apply(
             source,
             instance: target,
             position,
-        } => {
-            if !position.x.is_finite() || !position.y.is_finite() {
-                return Err("Composition drop position must be finite canvas coordinates".into());
-            }
-            let source = super::super::resolve_source_node(engine, source)?;
-            dependencies::reject_cycle(engine, reference, &[source])?;
-            if let Some(target) = target {
-                let id = instance(engine, parent, target)?;
-                let AppNode::CompositionInstance(current) = engine.nodes.get(id).unwrap() else {
-                    unreachable!()
-                };
-                let mut definition = current.definition();
-                definition.source = Some(source);
-                let snapshot = InstanceSnapshot {
-                    reference: InstanceReference {
-                        composition: reference,
-                        instance: target,
-                    },
-                    label: current.node_data().meta.label.clone(),
-                    definition,
-                };
-                // Preserve exact authored values, including f64 Parameter precision that
-                // the render-definition projection deliberately narrows to f32.
-                engine.edits.push(Edit::SetParamsAtomic {
-                    values: current.source_parameter_values(source),
-                    behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
-                });
-                Ok(MediaEditResult::InstanceChanged { snapshot })
-            } else {
-                let mut definition = InstanceDefinition::for_canvas(canvas);
-                definition.source = Some(source);
-                definition.transform.position = [position.x, position.y];
-                definition.validate()?;
-                append(engine, reference, parent, vec![definition])
-            }
-        }
+            copy,
+        } => super::drops::apply(
+            engine,
+            reference,
+            parent,
+            canvas,
+            super::drops::DropRequest {
+                source,
+                target,
+                position,
+                copy,
+            },
+        ),
         CompositionEdit::DuplicateInstances { instances: targets } => {
             if targets.is_empty() || targets.len() > MAX_ADD_BATCH {
                 return Err("duplicate 1..4096 instances per atomic batch".into());
@@ -184,12 +168,16 @@ pub(crate) fn apply(
                     })
                 })
                 .collect::<Result<Vec<_>, String>>()?;
-            let previous = engine.nodes.get(parent).unwrap().node_data().last_child;
             let result = engine
                 .import_project_subtrees_with(
                     imports,
-                    parent,
-                    previous,
+                    children::owner(engine, parent)?,
+                    engine
+                        .nodes
+                        .get(children::owner(engine, parent)?)
+                        .unwrap()
+                        .node_data()
+                        .last_child,
                     AppNode::project_decode_node,
                     // These are internally captured, already admitted instance subtrees.
                     |_, _| Ok(()),
@@ -212,14 +200,9 @@ pub(crate) fn apply(
         } => {
             let id = instance(engine, parent, target)?;
             definition.validate()?;
-            let AppNode::CompositionInstance(current) = engine.nodes.get(id).unwrap() else {
-                unreachable!()
-            };
-            if current.definition().source != definition.source
-                && let Some(source) = definition.source
-            {
-                super::super::channel(engine, source)?;
-                dependencies::reject_cycle(engine, reference, &[source])?;
+            let current = children::placement(engine, id)?;
+            if children::definition(engine, id)?.source != definition.source {
+                return Err("Edit child media Target/Output to change its source".into());
             }
             for edit in current.parameter_edits(definition) {
                 engine.edits.push(edit);
@@ -236,17 +219,15 @@ pub(crate) fn apply(
         }
         CompositionEdit::EditInstanceGeometry { instance: target, edit } => {
             let id = instance(engine, parent, target)?;
-            let AppNode::CompositionInstance(current) = engine.nodes.get(id).unwrap() else {
-                unreachable!()
-            };
-            let mut definition = current.definition().clone();
+            let current = children::placement(engine, id)?;
+            let mut definition = children::definition(engine, id)?;
             edit.apply(&mut definition)?;
             let snapshot = InstanceSnapshot {
                 reference: InstanceReference {
                     composition: reference,
                     instance: target,
                 },
-                label: current.node_data().meta.label.clone(),
+                label: engine.nodes.get(id).unwrap().node_data().meta.label.clone(),
                 definition: definition.clone(),
             };
             for edit in current.parameter_edits(definition) {
@@ -270,7 +251,7 @@ pub(crate) fn apply(
             }
             engine.edits.push(Edit::MoveNode {
                 node: id,
-                new_parent: parent,
+                new_parent: children::owner(engine, parent)?,
                 new_prev_sibling: previous,
             });
             Ok(MediaEditResult::Changed)
@@ -278,7 +259,7 @@ pub(crate) fn apply(
     }
 }
 
-fn append(
+pub(super) fn append(
     engine: &mut AppEngine,
     reference: ChannelReference,
     parent: NodeId,
@@ -303,12 +284,12 @@ fn append(
                 break candidate;
             }
         };
-        let node = InstanceNode::from_definition(label, definition);
+        let (tree, id) = children::tree(label, definition);
         created.push(InstanceReference {
             composition: reference,
-            instance: node.id(),
+            instance: id,
         });
-        items.push(UserItemTreeInsertion::new(parent, NodeTree::new(node)));
+        items.push(UserItemTreeInsertion::new(children::owner(engine, parent)?, tree));
     }
     engine.edits.push(Edit::AddUserItemTrees { items });
     Ok(MediaEditResult::InstancesCreated { instances: created })

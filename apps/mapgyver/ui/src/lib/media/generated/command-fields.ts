@@ -37,6 +37,14 @@ export const COMMAND_PARAMETER_FIELDS = {
   "CreateScript": [
     "label"
   ],
+  "DropCompositionMedia": [
+    "media",
+    "channel",
+    "entry",
+    "composition_target",
+    "copy_media",
+    "position"
+  ],
   "ImportAsset": [
     "locator_kind",
     "project_path",

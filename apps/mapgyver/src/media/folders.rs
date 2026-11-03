@@ -86,10 +86,13 @@ pub(crate) fn contains_parent(engine: &AppEngine, mut parent: Option<NodeId>, ma
         if !seen.insert(id) {
             return false;
         }
-        let Some(AppNode::MediaFolder(folder)) = engine.nodes.get(id) else {
-            return false;
-        };
-        parent = folder.node_data().parent;
+        let Some(node) = engine.nodes.get(id) else { return false };
+        match node {
+            AppNode::MediaFolder(_) => {}
+            AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Composition => {}
+            _ => return false,
+        }
+        parent = node.node_data().parent;
     }
     false
 }
@@ -125,7 +128,8 @@ pub(crate) fn entries(engine: &AppEngine) -> Result<Vec<NodeId>, String> {
         if let Some(next) = node.node_data().next_sibling {
             stack.push(next);
         }
-        if matches!(node, AppNode::MediaFolder(_))
+        if (matches!(node, AppNode::MediaFolder(_))
+            || matches!(node, AppNode::Media(media) if media.kind() == super::protocol::MediaKind::Composition))
             && let Some(child) = node.node_data().first_child
         {
             stack.push(child);

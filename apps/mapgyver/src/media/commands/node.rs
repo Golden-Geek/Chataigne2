@@ -9,7 +9,7 @@ use golden_core::{
 use golden_video::{Extent2D, plan::SampleFilter};
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v2", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v3", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -22,6 +22,9 @@ use std::sync::Arc;
             reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
         );
+        position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
+        copy_media: bool = false (label = "Copy media");
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
         channel: NodeReference = NodeReference::empty() (
@@ -129,6 +132,19 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            MediaCommandKind::DropCompositionMedia => MediaEdit::Composition {
+                reference,
+                edit: super::super::composition::protocol::CompositionEdit::DropSource {
+                    source: self.entry.get_ref().uuid,
+                    instance: optional(self.composition_target.get_ref())
+                        .map(super::super::composition::protocol::InstanceId),
+                    copy: self.copy_media.get(),
+                    position: golden_video::plan::Point {
+                        x: self.position.get().x as f32,
+                        y: self.position.get().y as f32,
+                    },
+                },
+            },
             MediaCommandKind::CreateReference => MediaEdit::CreateReference {
                 target: optional(self.reference_target.get_ref()).map(MediaId),
                 label: requested,
@@ -289,7 +305,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v2", from_struct)]
+#[node("mapgyver.media.command.v3", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false

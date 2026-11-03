@@ -5,7 +5,7 @@ pub(crate) use kinds::catalog;
 pub use kinds::{MediaCommandCatalogItem, MediaCommandKind};
 pub use node::MediaCommandNode;
 
-pub(crate) const NODE_TYPE: &str = "mapgyver.media.command.v2";
+pub(crate) const NODE_TYPE: &str = "mapgyver.media.command.v3";
 
 fn kind_options() -> Vec<golden_core::parameter::ParameterEnumOption> {
     crate::parameters::enum_options(&MediaCommandKind::ALL.iter().map(|kind| kind.key()).collect::<Vec<_>>())

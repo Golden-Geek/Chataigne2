@@ -31,7 +31,8 @@
 		collapsed?: boolean;
 	} = $props();
 	const selection = useDocumentSelection();
-	const parametersOnly = (child: UiNodeDto) => child.decl_id === 'parameters';
+	const parametersOnly = (child: UiNodeDto) =>
+		child.decl_id === 'parameters' || child.node_type === 'mapgyver.composition.placement.v1';
 	const session = $derived(appState.session);
 	let snapshot = $state<ChannelSnapshot | null>(null),
 		pending = $state(false),

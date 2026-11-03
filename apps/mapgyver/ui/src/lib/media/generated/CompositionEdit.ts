@@ -5,7 +5,7 @@ import type { InstanceGeometryEdit } from "./InstanceGeometryEdit";
 import type { InstanceId } from "./InstanceId";
 import type { Point } from "./Point";
 
-export type CompositionEdit = { "kind": "Inspect" } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DropSource", source: string, instance: InstanceId | null,
+export type CompositionEdit = { "kind": "Inspect" } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DropSource", source: string, instance: InstanceId | null, copy: boolean,
 /**
  * Canvas texels for a new instance; replacement preserves its existing transform.
  */

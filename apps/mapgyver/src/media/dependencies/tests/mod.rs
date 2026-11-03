@@ -2,7 +2,7 @@ use super::*;
 use crate::media::{
     MediaManagerNode,
     authoring::{manager, media_tree},
-    composition::{InstanceNode, protocol::*},
+    composition::{children, protocol::*},
     protocol::*,
     tests::{apply, create, fixture, invoke},
 };
@@ -64,14 +64,15 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
             ChannelDefinition::for_media(MediaKind::Composition),
         );
         for (instance, source) in [next, leaf].into_iter().enumerate() {
-            tree.children[0].push_child(
-                NodeTree::new(InstanceNode::from_definition(
+            tree.push_child(
+                children::tree(
                     format!("Instance {instance}"),
                     InstanceDefinition {
                         source: Some(source),
                         ..InstanceDefinition::default()
                     },
-                ))
+                )
+                .0
                 .as_user_item(),
             );
         }
@@ -89,7 +90,7 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
     });
     engine.apply_edits().unwrap();
     // Media/channel each have six Parameters plus their folder; two full instances per branch.
-    assert_eq!(engine.nodes.len(), before_nodes + 16 + DEPTH * 38);
+    assert_eq!(engine.nodes.len(), before_nodes + 16 + DEPTH * 46);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

@@ -105,6 +105,7 @@
 			const selectDropped = selection.capture();
 			const result = await controller.edit({
 				kind: 'DropSource',
+				copy: event.altKey,
 				source,
 				instance: target,
 				position

@@ -9,6 +9,7 @@ implementation and verification state belong only to the
 
 The [Reference implementation boundary](mapgyver-reference-media.md) explains typed targets,
 virtual channel identities, shared target rendering and channel-specific cycle validation.
+[Owned media](mapgyver-owned-media.md) describes Composition containment and Reference/copy drops.
 
 ## Ownership
 

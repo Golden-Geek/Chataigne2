@@ -10,6 +10,7 @@ use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
 mod drop_source;
 mod geometry;
+mod owned_media;
 mod parameters;
 
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {
@@ -77,6 +78,7 @@ fn independent_instances_copy_order_remove_and_roundtrip_with_atomic_history() {
         panic!()
     };
     let copied = inspect(&mut engine, composition);
+    definition.source.as_mut().unwrap().media = MediaId(copies[0].instance.0);
     assert_eq!(copied.instances[2].definition, definition);
     assert_eq!(copied.instances[2].reference, copies[0]);
     edit(
@@ -202,8 +204,8 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
     let started = std::time::Instant::now();
     let instances = add(&mut engine, composition, vec![source; 1000]);
     eprintln!("Composition 1000-instance forest: {:?}", started.elapsed());
-    // Each instance owns a declared folder and nine real Parameter children.
-    assert_eq!(engine.nodes.len(), before + 1000 * 11);
+    // Each Reference owns three Parameters and an eight-Parameter Placement subtree.
+    assert_eq!(engine.nodes.len(), before + 1000 * 15);
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(inspect(&mut engine, composition).instances.len(), 1000);
     assert!(engine.undo().unwrap());

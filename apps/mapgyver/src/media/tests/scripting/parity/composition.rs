@@ -30,7 +30,10 @@ fn scene() -> Scene {
         panic!()
     };
     let definition = InstanceDefinition {
-        source: Some(sources[0]),
+        source: Some(ChannelReference {
+            media: MediaId(instances[0].instance.0),
+            channel: sources[0].channel,
+        }),
         transform: Transform2D {
             position: [100.0, 80.0],
             scale: [-2.0, 3.0],
@@ -78,6 +81,7 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
         (
             scene.owner,
             CompositionEdit::DropSource {
+                copy: false,
                 source: scene.sources[1].media.0,
                 instance: Some(first),
                 position: Point { x: 800., y: 600. },
@@ -86,6 +90,7 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
         (
             scene.owner,
             CompositionEdit::DropSource {
+                copy: false,
                 source: scene.owner.channel.0,
                 instance: Some(first),
                 position: Point { x: 0., y: 0. },
@@ -190,6 +195,13 @@ fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_
         let scene = scene();
         for edit in [
             CompositionEdit::DropSource {
+                copy: true,
+                source: scene.sources[0].media.0,
+                instance: None,
+                position: Point { x: 10., y: 20. },
+            },
+            CompositionEdit::DropSource {
+                copy: false,
                 source: scene.sources[1].media.0,
                 instance: None,
                 position: Point { x: 320., y: 180. },

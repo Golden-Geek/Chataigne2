@@ -95,7 +95,7 @@ impl Node for ReferenceNode {
         false
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&[]))
+        Some(UserContainerRules::new(&[super::super::composition::PLACEMENT_TYPE]))
     }
     fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
         self.revision.advance();

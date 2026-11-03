@@ -186,6 +186,8 @@ export class CompositionAuthoringController<S extends Connection> {
 				this.state.selected = result.reference;
 				this.state.instance = null;
 				this.state.composition = null;
+			} else if (result.kind === 'InstanceChanged') {
+				this.state.instance = result.snapshot.reference.instance;
 			} else if (result.kind === 'InstancesCreated' && result.instances[0]) {
 				this.state.instance = result.instances[0].instance;
 			}

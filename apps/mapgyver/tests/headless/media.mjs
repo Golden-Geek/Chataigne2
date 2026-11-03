@@ -8,6 +8,7 @@
 // Add --media-script-ui for app-template script creation and named source API callbacks.
 // Add --media-command-ui for typed command creation, generic editing and firing/history.
 // Add --reference-ui for Reference creation, generic target/resolution and live mirrored identities.
+// Add --owned-media-ui for Composition Reference/Alt-copy drops and real child-media ownership.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
 // Add --matrix-review for M07 parity and an initially unlaunched Matrix review scene.
@@ -48,6 +49,7 @@ const withUi = [
 	'--media-script-ui',
 	'--media-command-ui',
 	'--reference-ui',
+	'--owned-media-ui',
 	'--matrix-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
@@ -322,6 +324,10 @@ try {
 	if (process.argv.includes('--reference-ui')) {
 		const { verifyReferenceUi } = await import('../browser/reference.mjs');
 		await verifyReferenceUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--owned-media-ui')) {
+		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');
+		await verifyOwnedMediaUi({ base, edit, post, directory, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--matrix-review')) {
 		const { verifyMatrix } = await import('./matrix.mjs');

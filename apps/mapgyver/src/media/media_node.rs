@@ -174,7 +174,12 @@ impl Node for MediaNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         // Container shape is stable while parameter values bind during project decode.
         // Catalog creation and app admission apply the source-specific policy.
-        Some(UserContainerRules::new(&["mapgyver.media.channel"]))
+        Some(UserContainerRules::new(&[
+            "mapgyver.media.channel",
+            "mapgyver.media.v5",
+            super::reference::NODE_TYPE,
+            super::composition::PLACEMENT_TYPE,
+        ]))
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         (node_type == "mapgyver.media.channel").then(|| {

@@ -38,6 +38,7 @@ impl Default for Transform2D {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
+// Canvas read projection. Source is the owned media output, not a second authored binding.
 pub struct InstanceDefinition {
     pub source: Option<ChannelReference>,
     pub transform: Transform2D,
@@ -95,6 +96,8 @@ pub enum CompositionEdit {
         #[ts(type = "string")]
         source: NodeUuid,
         instance: Option<InstanceId>,
+        #[serde(default)]
+        copy: bool,
         /// Canvas texels for a new instance; replacement preserves its existing transform.
         position: Point,
     },

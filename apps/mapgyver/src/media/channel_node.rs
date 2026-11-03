@@ -253,30 +253,14 @@ impl Node for ChannelNode {
             crate::matrix::node::LAYER_TYPE,
             crate::matrix::node::GROUP_TYPE,
             crate::matrix::node::COLUMN_TYPE,
-            super::composition::INSTANCE_TYPE,
         ]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
-        if self.kind() == super::protocol::MediaKind::Composition {
-            vec![UserCreatableItem::new(
-                super::composition::INSTANCE_TYPE,
-                super::composition::INSTANCE_TYPE,
-                "Instance",
-            )]
-        } else {
-            Vec::new()
-        }
+        Vec::new()
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
         if self.is_matrix_final() {
             crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
-        } else if self.kind() == super::protocol::MediaKind::Composition
-            && node_type == super::composition::INSTANCE_TYPE
-        {
-            Some(Box::new(super::composition::InstanceNode::from_definition(
-                "Instance".into(),
-                Default::default(),
-            )))
         } else {
             None
         }

@@ -214,16 +214,16 @@ fn mixed_composition_feedback_through_reference_aliases_is_rejected() {
 
 #[test]
 fn reference_retarget_detects_feedback_from_existing_missing_channel_aliases() {
-    use crate::media::composition::{InstanceNode, protocol::InstanceDefinition};
-    use golden_core::edit::{Edit, NodeTree};
+    use crate::media::composition::{children, protocol::InstanceDefinition};
+    use golden_core::edit::Edit;
     let mut engine = fixture();
     let composition = create(&mut engine, MediaKind::Composition);
     let a = reference(&mut engine, None);
-    let parent = engine.node_id_by_uuid(composition.channel.0).unwrap();
+    let parent = engine.node_id_by_uuid(composition.media.0).unwrap();
     engine.edits.push(Edit::AddNodeTree {
         parent,
         prev_sibling: None,
-        tree: NodeTree::new(InstanceNode::from_definition(
+        tree: children::tree(
             "Missing alias".into(),
             InstanceDefinition {
                 source: Some(ChannelReference {
@@ -232,7 +232,8 @@ fn reference_retarget_detects_feedback_from_existing_missing_channel_aliases() {
                 }),
                 ..Default::default()
             },
-        )),
+        )
+        .0,
     });
     engine.apply_edits().unwrap();
     crate::media::validate_project(&engine).unwrap();

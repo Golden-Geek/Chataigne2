@@ -1,5 +1,5 @@
 //! Composition settings are declared Golden parameters; definitions are read projections.
-use super::protocol::{BlendMode, InstanceDefinition, InstanceId, Transform2D};
+use super::protocol::{BlendMode, InstanceDefinition, Transform2D};
 use crate::media::protocol::{ChannelId, ChannelReference, MediaId};
 use golden_core::{
     node,
@@ -9,17 +9,13 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-pub const INSTANCE_TYPE: &str = "mapgyver.composition.instance";
+pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v1";
 
-#[node("mapgyver.composition.instance", label = "Instance")]
+#[node("mapgyver.composition.placement.v1", label = "Placement")]
 #[children(
     folder(parameters, label = "Parameters") {
-        source_media: NodeReference = NodeReference::empty() (
-            label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
-        );
         source_channel: NodeReference = NodeReference::empty() (
-            label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode,
+            label = "Output", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.channel".into()]
         );
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
@@ -31,17 +27,22 @@ pub const INSTANCE_TYPE: &str = "mapgyver.composition.instance";
         render_enabled: bool = true (label = "Enabled");
     }
 )]
-pub struct InstanceNode {
+pub struct PlacementNode {
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
 }
 
-impl InstanceNode {
+impl PlacementNode {
+    pub(crate) fn output_parameter(&self) -> NodeId {
+        self.source_channel.id()
+    }
+    pub(crate) fn position_parameter(&self) -> NodeId {
+        self.position.id()
+    }
     pub(crate) fn from_definition(label: String, definition: InstanceDefinition) -> Self {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
-        let (media, channel) = source_references(definition.source);
-        node.source_media = ParameterHandle::new(media);
+        let channel = source_reference(definition.source);
         node.source_channel = ParameterHandle::new(channel);
         node.position = ParameterHandle::new(vector(definition.transform.position));
         node.scale = ParameterHandle::new(vector(definition.transform.scale));
@@ -52,15 +53,11 @@ impl InstanceNode {
         node.render_enabled = ParameterHandle::new(definition.enabled);
         node
     }
-    pub(crate) fn id(&self) -> InstanceId {
-        InstanceId(self.node_data().meta.uuid)
-    }
-    pub(crate) fn definition(&self) -> InstanceDefinition {
-        let media = self.source_media.get_ref().uuid;
+    pub(crate) fn definition(&self, media: MediaId) -> InstanceDefinition {
         let channel = self.source_channel.get_ref().uuid;
         InstanceDefinition {
-            source: (!media.0.is_nil() && !channel.0.is_nil()).then_some(ChannelReference {
-                media: MediaId(media),
+            source: (!channel.0.is_nil()).then_some(ChannelReference {
+                media,
                 channel: ChannelId(channel),
             }),
             transform: Transform2D {
@@ -79,38 +76,17 @@ impl InstanceNode {
             enabled: self.render_enabled.get(),
         }
     }
-    /// Reads the complete proposed binding while validating a parameter batch.
-    pub(crate) fn source_for_validation(&self, change: &ParameterValidationContext<'_>) -> Option<ChannelReference> {
-        let ParamValue::Reference(media) = change.parameter_value(self.source_media.id())? else {
-            return None;
-        };
-        let ParamValue::Reference(channel) = change.parameter_value(self.source_channel.id())? else {
-            return None;
-        };
-        (!media.uuid.0.is_nil() && !channel.uuid.0.is_nil()).then_some(ChannelReference {
-            media: MediaId(media.uuid),
-            channel: ChannelId(channel.uuid),
-        })
-    }
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
-    pub(crate) fn source_parameter_values(&self, source: ChannelReference) -> Vec<(NodeId, ParamValue)> {
-        let (media, channel) = source_references(Some(source));
-        vec![
-            (self.source_media.id(), ParamValue::Reference(media)),
-            (self.source_channel.id(), ParamValue::Reference(channel)),
-        ]
-    }
     pub(crate) fn parameter_edits(&self, definition: InstanceDefinition) -> Vec<golden_core::edit::Edit> {
         use golden_core::{edit::Edit, parameter::ParameterEventBehaviour};
-        let (media, channel) = source_references(definition.source);
+        let channel = source_reference(definition.source);
         let position = vector(definition.transform.position);
         let scale = vector(definition.transform.scale);
         let pivot = vector(definition.transform.pivot);
         [
-            (self.source_media.id(), ParamValue::Reference(media)),
             (self.source_channel.id(), ParamValue::Reference(channel)),
             (self.position.id(), ParamValue::Vec2(position.x, position.y)),
             (self.scale.id(), ParamValue::Vec2(scale.x, scale.y)),
@@ -133,8 +109,8 @@ impl InstanceNode {
     }
 }
 
-#[node("mapgyver.composition.instance", from_struct)]
-impl Node for InstanceNode {
+#[node("mapgyver.composition.placement.v1", from_struct)]
+impl Node for PlacementNode {
     fn needs_update(&self) -> bool {
         false
     }
@@ -154,7 +130,7 @@ impl Node for InstanceNode {
         if !["Normal", "Add", "Multiply", "Screen"].contains(&self.blend.get_ref().as_str()) {
             return Err("Unknown Composition blend mode".into());
         }
-        self.definition().validate()
+        self.definition(MediaId(golden_core::node::NodeUuid::nil())).validate()
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         if !data.is_null() {
@@ -188,11 +164,11 @@ impl Node for InstanceNode {
         {
             return Err("Composition rotation must be finite".into());
         }
-        if [self.source_media.id(), self.source_channel.id()].contains(&change.parameter)
-            && let Some(source) = self.source_for_validation(change)
-            && let Some(owner) = self.node_data().parent
+        if change.parameter == self.source_channel.id()
+            && let ParamValue::Reference(output) = change.value
+            && let Some(media) = self.node_data().parent.and_then(|id| change.node(id))
         {
-            crate::parameters::reference_cycle::validate_channel(change, owner, source)?;
+            crate::parameters::reference_cycle::validate_output(change, media.node_data().meta.uuid, output.uuid)?;
         }
         Ok(())
     }
@@ -204,11 +180,8 @@ fn vector(value: [f32; 2]) -> Vec2 {
 fn components(value: Vec2) -> [f32; 2] {
     [value.x as f32, value.y as f32]
 }
-fn source_references(source: Option<ChannelReference>) -> (NodeReference, NodeReference) {
-    source.map_or_else(
-        || (NodeReference::empty(), NodeReference::empty()),
-        |source| (NodeReference::new(source.media.0), NodeReference::new(source.channel.0)),
-    )
+fn source_reference(source: Option<ChannelReference>) -> NodeReference {
+    source.map_or_else(NodeReference::empty, |source| NodeReference::new(source.channel.0))
 }
 fn blend_name(blend: BlendMode) -> &'static str {
     match blend {
