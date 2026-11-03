@@ -1,5 +1,6 @@
 // The generic Inspector authors Column settings; actual Matrix controls drive process demand.
 import assert from 'node:assert/strict';
+import { clearMatrixScene } from './matrix-scene.mjs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -12,6 +13,8 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		media_kind: 'Matrix',
 		label: 'Column app review'
 	});
+
+	await clearMatrixScene(edit, reference.media);
 	const { items } = await edit({
 		kind: 'Matrix',
 		media: reference.media,
@@ -249,13 +252,11 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		await grid.getByTitle('Layer 1 / Column 5', { exact: true }).click();
 		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
 		await parameter('App file').locator('input.path-input').waitFor();
-		const enabled = page
-			.locator('.inspector-header')
-			.getByRole('switch', { name: 'Toggle node enabled', exact: true });
-		await enabled.click();
+		const enabled = parameter('Enabled').locator('input[type=checkbox]');
+		await enabled.setChecked(false);
 		await wait(
-			() => enabled.getAttribute('aria-checked'),
-			(value) => value === 'false'
+			() => enabled.isChecked(),
+			(value) => value === false
 		);
 		await grid.getByRole('button', { name: 'Launch Column 3', exact: true }).click();
 		const prior = await wait(runtime, (s) =>

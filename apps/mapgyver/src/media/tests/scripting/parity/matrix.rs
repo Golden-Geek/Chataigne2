@@ -2,6 +2,41 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn new_matrix_three_by_three_sparse_defaults_match_every_public_caller() {
+    for caller in CALLERS {
+        let mut engine = fixture();
+        let reply = run(
+            &mut engine,
+            caller,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::Matrix,
+                label: Some("Default Matrix".into()),
+            },
+        )
+        .unwrap();
+        let MediaEditResult::Created { reference } = serde_json::from_value(reply).unwrap() else {
+            panic!()
+        };
+        let snapshot = crate::matrix::inspect(&engine, reference.media).unwrap();
+        assert_eq!(snapshot.items.len(), 3, "{caller:?}");
+        assert_eq!(snapshot.columns.len(), 3, "{caller:?}");
+        assert!(snapshot.cells.is_empty());
+        assert!(
+            snapshot
+                .items
+                .iter()
+                .all(|row| row.layer == Some(LayerSettings::default()) && row.settings == CompositeSettings::default())
+        );
+        assert!(
+            snapshot
+                .columns
+                .iter()
+                .all(|column| column.definition == ColumnDefinition::default())
+        );
+    }
+}
+
+#[test]
 fn independent_cell_launch_preserves_anchor_and_authored_history_for_all_callers() {
     let scene = scene();
     let row = scene
@@ -145,6 +180,7 @@ fn scene() -> Scene {
         create(&mut engine, MediaKind::Composition),
     ];
     let root = create(&mut engine, MediaKind::Matrix);
+    crate::matrix::tests::clear_scene(&mut engine, root.media);
     let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
         &mut engine,
         root,

@@ -1,6 +1,6 @@
 # Revised Matrix model
 
-**M07/1 Active; no gate accepted by this slice.** Matrix owns authored document policy under
+**M07/1 Accepted — 2026-11-03.** Matrix owns authored document policy under
 `apps/mapgyver/src/matrix`; Golden owns typed Parameters, forest edits, Inspector, persistence
 and history. The accepted M08 configuration/demand boundary remains a dependency of this model.
 
@@ -121,10 +121,42 @@ destination activation. Both normal outputs and preview are checked, with existi
 resource-retirement assertions. The baseline passes without a native repair experiment. This is
 the Cell slice's spatial acceptance; full M07/4 is still required.
 
-## Remaining M07/1 contract
+## M07/1 acceptance — 2026-11-03
 
-- New Matrix 3×3 defaults through backend-owned batched structure creation; complete typed
-  Parameter/API/copy/history/project behavior and current caller/schema coverage.
+New Matrix creation now builds three Layers, three Columns and the paired Layer exports beside
+Final in one detached tree. All nine empty addresses remain sparse. The same factory serves the
+public API, all four callers and manager/folder catalog creation. Defaults are creation policy:
+deleting all rows/Columns and loading the saved project keeps the Matrix empty.
+
+The baseline exposed two real defects. Prepared catalog creation lost nested curated-item roles
+when converting to Golden's staging tree; Golden now preserves those roles. Matrix admission
+also rejected whole-owner copies; single and atomic multi-owner copies now use Golden's complete
+subtree remapping, while child-only edits remain protected. Both fixes have direct regressions.
+A bundled creation/Undo check reproduced a queued viewport read after deletion. The generated
+MatrixMissing response and current-media/history fencing clear held data without an error or
+history change, and recover on Undo. Mismatched/late absence cannot clear a new selection.
+
+| Original model requirement | Inspected acceptance evidence |
+| --- | --- |
+| Stable sparse document, derived Layer/Group/Final identities and hierarchy | Current sparse-authoring, validation, nested grouping/move/rename/export-identity and bounded-view suites; unchanged 100k element/depth/batch guards. |
+| Typed Layer, Group, Column and Cell settings | Layer/Group/Cell receipts above; real Parameter declarations and projections, atomic Configure, direct validation, early old/opaque-schema rejection, native-sized Cell content and no Cell size. |
+| Actual owned media, default Reference and independent Alt-copy | Current owned-media/reference-feedback and nested-copy suites; retained [M04 Reference/ownership acceptance](evidence/mapgyver-reference-native-2026-11-03.json). |
+| Backend 3×3 defaults and sparse empty addresses | API, four callers, manager/folder catalog, one-step creation Undo/Redo, exact project reload, explicit empty reload and actual bundled nine-cell grid. |
+| Complete authored API, history, copying and project behavior | Current four-caller parity, all owner Parameter/history/copy/project suites, single and atomic multi-Matrix copies with independent paired-export identities; protected-child regression remains passing. |
+| Bounded editable selection and owner lifetime | Current offscreen Layer/Cell Inspector in the 258-row scene, deleted viewport/late response/Undo tests, actual creation Undo/Redo with no rejected requests and no launch. |
+
+[Closure receipt](evidence/mapgyver-m07-model-acceptance-2026-11-03.json): **385 app library tests
+pass**, two retained exclusions, in **137.12 seconds**. **672 shared Golden tests pass**, three
+retained exclusions. Strict Golden and app all-target/native Clippy, generated-contract equality,
+Svelte (0 errors/warnings), **28 UI tests**, both formatters and diff checks pass. **Twelve Windows
+process regressions pass**, one retained exclusion. Fresh bundled default/grid/history,
+Layer/Group/Cell/offscreen Inspector and typed disabled-Cell process-hold/Unload checks pass,
+including source/history/Save-New-Load.
+
+**Gate change: M07/1 Accepted.** M07 is 1/4; the fixed plan total is 43/57 gates (75%) and 5/11
+fully accepted phases (45%). No denominator, qualification budget or original requirement changed.
+Exactly one next gate is Active: M07/2, for its full playback acceptance. This model closure does
+not accept the remaining grid design or native/scale/timing qualification.
 
 M07/2 separately retains full Cell → Column → Layer transition precedence and playback acceptance.
 M07/3 retains the complete square-cell grid, contextual structural operations, naming, removal,

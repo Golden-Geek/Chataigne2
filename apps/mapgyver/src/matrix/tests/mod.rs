@@ -14,6 +14,7 @@ mod bindings;
 mod cell_playback;
 mod cell_settings;
 mod copying;
+mod defaults;
 mod layer_settings;
 mod owned_media;
 mod parameters;
@@ -53,7 +54,21 @@ fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReference {
     ) else {
         panic!()
     };
+    if kind == MediaKind::Matrix {
+        clear_scene(engine, reference.media);
+    }
     reference
+}
+// Bespoke playback/scale scenes specify their complete shape. Product defaults are exercised
+// through raw creation intents in defaults.rs rather than silently assumed empty here.
+pub(crate) fn clear_scene(engine: &mut AppEngine, media: MediaId) {
+    let snapshot = inspect(engine, media);
+    for item in snapshot.items.into_iter().filter(|item| item.parent.is_none()) {
+        edit(engine, media, MatrixEdit::RemoveItem { item: item.id });
+    }
+    for column in snapshot.columns {
+        edit(engine, media, MatrixEdit::RemoveColumn { column: column.id });
+    }
 }
 fn edit(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> MediaEditResult {
     apply(engine, MediaEdit::Matrix { media, edit })

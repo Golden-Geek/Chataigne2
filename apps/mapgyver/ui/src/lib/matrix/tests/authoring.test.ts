@@ -23,6 +23,76 @@ const connection = () => ({
 	currentHistoryStateId: 0,
 	loading: { visible: false }
 });
+
+test('authoritative Matrix absence clears held viewport data and Undo refresh recovers it', async () => {
+	const session = connection(),
+		state = matrixState();
+	const replies: ReturnType<typeof deferred<MediaEditResult>>[] = [];
+	const controller = new MatrixController(
+		() => session,
+		state,
+		choiceState(),
+		choiceState(),
+		async () => {
+			const reply = deferred<MediaEditResult>();
+			replies.push(reply);
+			return reply.promise;
+		}
+	);
+	controller.observe(false);
+	controller.selectMedia('matrix');
+	replies[0].resolve(snapshot('matrix'));
+	await flush();
+	assert.equal(controller.window?.media, 'matrix');
+	session.currentHistoryStateId++;
+	controller.observe(false);
+	replies[1].resolve({ kind: 'MatrixMissing', media: 'matrix' });
+	await flush();
+	assert.equal(Boolean(controller.window), false);
+	assert.equal(state.readError, '');
+	assert.equal(state.media, 'matrix');
+	session.currentHistoryStateId++;
+	controller.observe(false);
+	replies[2].resolve(snapshot('matrix'));
+	await flush();
+	assert.equal(controller.window?.media, 'matrix');
+	controller.dispose();
+});
+
+test('mismatched or late Matrix absence cannot clear a current viewport', async () => {
+	const session = connection(),
+		state = matrixState();
+	const replies: ReturnType<typeof deferred<MediaEditResult>>[] = [];
+	const controller = new MatrixController(
+		() => session,
+		state,
+		choiceState(),
+		choiceState(),
+		async () => {
+			const reply = deferred<MediaEditResult>();
+			replies.push(reply);
+			return reply.promise;
+		}
+	);
+	controller.observe(false);
+	controller.selectMedia('matrix');
+	replies[0].resolve(snapshot('matrix'));
+	await flush();
+	controller.refresh();
+	replies[1].resolve({ kind: 'MatrixMissing', media: 'other' });
+	await flush();
+	assert.equal(controller.window?.media, 'matrix');
+	assert.equal(state.readError, 'Unexpected Matrix viewport');
+	controller.refresh();
+	controller.selectMedia('new');
+	replies[2].resolve({ kind: 'MatrixMissing', media: 'matrix' });
+	await flush();
+	replies[3].resolve(snapshot('new'));
+	await flush();
+	assert.equal(controller.window?.media, 'new');
+	assert.equal(state.readError, '');
+	controller.dispose();
+});
 function snapshot(media: string, row = 0): MediaEditResult {
 	return {
 		kind: 'MatrixViewport',

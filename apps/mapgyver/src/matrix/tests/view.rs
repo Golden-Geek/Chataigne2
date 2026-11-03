@@ -1,6 +1,36 @@
 use super::*;
 use std::sync::Arc;
 
+#[test]
+fn deleted_viewport_reports_typed_absence_without_history_and_recovers_on_undo() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    layers(&mut engine, matrix.media, None, 1);
+    let original = viewport(&mut engine, matrix.media, 0, 0);
+    let owner = engine.node_id_by_uuid(matrix.media.0).unwrap();
+    assert!(apply_project_intent(&mut engine, UiEditIntent::RemoveNode { node: owner }).success);
+    let history = engine.undo_len();
+    let result = edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::InspectViewport {
+            viewport: MatrixViewport {
+                row_start: 0,
+                row_count: 16,
+                column_start: 0,
+                column_count: 8,
+            },
+            selection: None,
+        },
+    );
+    assert!(matches!(result, MediaEditResult::MatrixMissing { media } if media == matrix.media));
+    assert_eq!(engine.undo_len(), history);
+    assert!(engine.undo().unwrap());
+    let recovered = viewport(&mut engine, matrix.media, 0, 0);
+    assert_eq!(recovered.rows[0].item.id, original.rows[0].item.id);
+    assert_eq!(recovered.final_output.reference, original.final_output.reference);
+}
+
 fn viewport(engine: &mut AppEngine, media: MediaId, row: u32, column: u32) -> MatrixViewportSnapshot {
     let MediaEditResult::MatrixViewport { snapshot } = edit(
         engine,

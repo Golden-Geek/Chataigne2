@@ -258,6 +258,9 @@ pub(super) fn inspect(
     {
         return Err("Matrix viewport admits 1..128 rows, 1..64 columns and at most 4096 addresses".into());
     }
+    if engine.node_id_by_uuid(media.0).is_none() {
+        return Ok(MediaEditResult::MatrixMissing { media });
+    }
     let index = index(engine, media)?;
     let root = super::playback::root(engine, media)?;
     let Some(AppNode::MediaChannel(node)) = engine.nodes.get(root) else {

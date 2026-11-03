@@ -10,6 +10,7 @@ pub(crate) mod cells;
 pub(crate) mod column_node;
 pub(crate) mod configuration;
 mod copying;
+pub(crate) mod defaults;
 pub(crate) mod document;
 pub(crate) mod node;
 pub(crate) mod playback;
@@ -25,4 +26,4 @@ pub use column_node::ColumnNode;
 pub(crate) use document::{inspect, validate_project};
 pub use node::ElementNode;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

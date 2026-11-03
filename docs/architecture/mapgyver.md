@@ -75,6 +75,15 @@ catalog, explicit app intents and Picture import. Each creation/import prepares 
 detached subtree; the app operation and generic creation routes validate the same ownership
 rules and commit one history step.
 
+New Matrix creation uses `matrix/defaults.rs` through that same Media tree factory. It builds
+three typed Layers, three typed Columns and three paired Layer exports beside Final, with no
+Cell nodes. Defaults are fresh creation policy; decoding and copying preserve the actual authored
+shape, including a deliberately empty Matrix. Whole-Matrix generic copies remap the complete
+owned subtree; child-only structural edits remain protected by Matrix admission.
+Bounded Matrix viewport queries return typed `MatrixMissing` when deletion wins a queued read.
+The UI clears held viewport data only for the matching current media/history context, retaining
+the selected UUID for Undo recovery. Query absence is a read result and never changes history.
+
 Rust owns DTOs and generated TypeScript. UI, transport/headless callers, command nodes, script
 functions, callbacks and app-owned snippets use the same operations. Structural schema changes
 receive explicit version handling and clear unsupported-record rejection; no compatibility

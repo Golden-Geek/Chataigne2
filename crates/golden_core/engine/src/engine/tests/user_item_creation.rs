@@ -20,8 +20,11 @@ impl Node for LiveCreationFactory {
         )]
     }
     fn create_user_item_tree(&self, kind: &str) -> Option<NodeTree> {
-        (kind == "live_creation_item")
-            .then(|| NodeTree::new(LiveCreationItem::new()).with_child(NodeTree::new(Folder::new("Intrinsic"))))
+        (kind == "live_creation_item").then(|| {
+            NodeTree::new(LiveCreationItem::new())
+                .with_child(NodeTree::new(Folder::new("Intrinsic")))
+                .with_child(NodeTree::new(Folder::new("Curated")).as_user_item())
+        })
     }
     fn create_user_item_tree_with_context(
         &self,
@@ -37,7 +40,11 @@ impl Node for LiveCreationFactory {
 #[crate::node("live_creation_item")]
 struct LiveCreationItem {}
 #[crate::node("live_creation_item", from_struct)]
-impl Node for LiveCreationItem {}
+impl Node for LiveCreationItem {
+    fn user_container_rules(&self) -> Option<UserContainerRules> {
+        Some(UserContainerRules::new(&[crate::node::FOLDER_NODE_TYPE]))
+    }
+}
 crate::define_node_enum!(
     enum LiveCreationNode {
         LiveCreationFactory,
@@ -129,6 +136,12 @@ fn live_user_item_creation_reads_bounded_current_nodes_and_decode_factory_stays_
         }
         let created = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
         let marker = engine.nodes.get(created).unwrap().node_data().first_child.unwrap();
+        let curated = engine.nodes.get(created).unwrap().node_data().last_child.unwrap();
+        assert_ne!(curated, marker);
+        assert_eq!(
+            engine.nodes.get(curated).unwrap().node_data().user_role,
+            crate::node::UserNodeRole::ItemRoot
+        );
         assert_eq!(
             engine.nodes.get(marker).unwrap().node_data().meta.label,
             "Current document"

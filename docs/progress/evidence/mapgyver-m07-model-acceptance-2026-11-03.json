@@ -1,0 +1,189 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/1",
+  "decision": "Accepted",
+  "next_active_gate": "M07/2",
+  "batch": {
+    "start_utc": "19:52",
+    "cutoff_utc": "20:37",
+    "deliverable": "Backend 3x3 sparse Matrix defaults and complete revised model acceptance",
+    "owners": [
+      "MapGyver Matrix defaults/admission/view",
+      "Media detached tree factory",
+      "Golden prepared user-item staging"
+    ]
+  },
+  "requirements": [
+    {
+      "requirement": "Stable sparse document, Layer/Group/Final identities and hierarchy",
+      "evidence": [
+        "matrix::tests sparse_authoring, copying, validation, view suites",
+        "Existing 100k element/depth32/batch4096 guards preserved"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Typed Layer/Group/Column/Cell settings, no Cell size",
+      "evidence": [
+        "Current full Parameter/configuration/history/copy/project/schema suites",
+        "mapgyver-m07-row-parameters-2026-11-03.json",
+        "mapgyver-m07-layer-settings-2026-11-03.json",
+        "mapgyver-m07-cell-settings-2026-11-03.json"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Actual owned child media; Reference default and independent Alt-copy",
+      "evidence": [
+        "matrix::tests::owned_media",
+        "matrix::tests::copying",
+        "M04 Reference ownership evidence retained"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Backend 3x3 defaults; empty addresses sparse",
+      "evidence": [
+        "matrix::tests::defaults (3 cases)",
+        "Four public creation callers",
+        "Actual bundled catalog creation/nine-cell grid/four outputs"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Complete authored API/history/copy/project behavior",
+      "evidence": [
+        "Current caller/typed/tree suites",
+        "Single and atomic multi-owner Matrix copies with fresh paired identities",
+        "Exact creation Undo/Redo/project and deliberately empty reload"
+      ],
+      "result": "accepted"
+    },
+    {
+      "requirement": "Bounded editable selected objects and lifetime",
+      "evidence": [
+        "Offscreen Layer/Cell Inspector in 258-row scene",
+        "Typed viewport absence/history/Undo backend test",
+        "Current-media/history-fenced missing and stale/mismatched absence UI tests",
+        "Actual catalog Undo/Redo with zero rejected requests"
+      ],
+      "result": "accepted"
+    }
+  ],
+  "implemented": [
+    "matrix/defaults.rs builds three typed Layers and Columns plus three paired Layer exports beside Final in one detached Media tree; no Cells",
+    "Same tree factory serves API/script/transport and manager/folder catalogs; load/copy do not regenerate defaults",
+    "Golden prepared catalog conversion preserves nested NodeTree item roles",
+    "Generic single and multi-owner Matrix duplication uses public Golden subtree remapping; child-only edits remain protected",
+    "Rust-owned MatrixMissing response handles queued viewport reads after deletion; current-media/history UI fence clears held data and recovers on Undo"
+  ],
+  "checks": {
+    "app_library": {
+      "command": "cargo test --locked -p MapGyver --lib",
+      "passed": 385,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 137.12,
+      "log": "target/m07-defaults-tests-current.log",
+      "contracts": "Includes Media, Preview and Screen generated TypeScript equality"
+    },
+    "golden_focused": {
+      "command": "cargo test --manifest-path crates/golden_core/Cargo.toml -p golden_engine --lib user_item_creation",
+      "passed": 2,
+      "failed": 0,
+      "log": "target/m07-defaults-golden.log"
+    },
+    "golden_library": {
+      "command": "target/debug/deps/golden_engine-887541a9517bd5e4.exe",
+      "passed": 672,
+      "failed": 0,
+      "ignored": 3,
+      "seconds": 0.55,
+      "log": "target/m07-defaults-golden-full.log"
+    },
+    "golden_lint": {
+      "command": "cargo clippy --manifest-path crates/golden_core/Cargo.toml -p golden_engine --lib --tests -- -D warnings",
+      "exit": 0,
+      "log": "target/m07-defaults-golden-clippy.log"
+    },
+    "app_lint": {
+      "command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+      "exit": 0,
+      "log": "target/m07-defaults-clippy-current.log"
+    },
+    "ui": {
+      "passed": 28,
+      "failed": 0,
+      "log": "target/m07-defaults-ui-tests-current-final.log"
+    },
+    "svelte": {
+      "errors": 0,
+      "warnings": 0,
+      "log": "target/m07-defaults-ui-check-current.log"
+    },
+    "windows": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "seconds": 1.13,
+      "log": "target/m07-defaults-process.log"
+    },
+    "bundled_defaults": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-defaults-ui",
+      "exit": 0,
+      "scope": "Actual Media Manager catalog creation; three Layers/Columns; nine empty cells; four exports; one-step exact Undo/Redo, stable identities, no launch or rejected requests; source/history/Save-New-Load",
+      "log": "target/m07-defaults-browser-current.log"
+    },
+    "bundled_parameters": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-parameters-ui",
+      "exit": 0,
+      "scope": "All generic Layer/Group/Cell settings, exact per-field Undo/Redo, no Cell size, offscreen Layer and Cell editing in 258-row scene, no launch",
+      "log": "target/m07-defaults-parameters.log"
+    },
+    "bundled_controls": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+      "exit": 0,
+      "scope": "Normalized process sharing, direct Cell/anchor/markers, typed Cell Enabled false holds previous Column/Cell PID without renderer, Unload retires",
+      "log": "target/m07-defaults-controls.log"
+    },
+    "format": {
+      "commands": [
+        "cargo fmt --all",
+        "cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+        "Prettier touched UI/browser checks",
+        "git diff --check"
+      ],
+      "exit": 0
+    }
+  },
+  "repairs": [
+    "Initial catalog creation lost curated nested item roles during Golden staging, producing orphan paired exports. Fixed shared conversion; focused and complete Golden suites and actual catalog creation pass.",
+    "Whole-Matrix copy was over-rejected by app admission; owner-level single/multi copy now permitted with internal-child protections unchanged.",
+    "Older app-shell catalog expectation of one Matrix channel updated to four; bespoke fixtures explicitly verify/remove defaults before authoring their full scenes.",
+    "Baseline browser Undo reproduced queued InspectViewport rejection after owner removal. Added generated typed absence and fenced recovery; final actual browser check passes without filtering rejections.",
+    "New multi-copy test initially called a private catalog module; switched it to the public InspectManager operation.",
+    "One intermediate library relink collided with the prior still-running unit executable (LNK1104); inspected terminal prior result and rebuilt current code. Final library run passes.",
+    "New UI absence tests initially started an extra queued read and narrowed a mutable getter in TypeScript; corrected fixture initialization and assertion, preserving runtime behavior. Final 28 UI tests/Svelte pass."
+  ],
+  "binaries": {
+    "app_sha256": "3B3A092F8A5707B24383EB2A4FE106AF9BC48B52D3EDCC38E5E6ADC2E1A9EF0A",
+    "process_sha256": "6644AFE1A82EC30B92B49B3F11FAF6D3CAC7E7E6DC496B456062D1D2830D75B5"
+  },
+  "remaining": [
+    "M07/2 full original playback acceptance is Active",
+    "M07/3 revised grid and M07/4 complete native/scale/memory/timing acceptance remain Pending",
+    "M08/3-4, Video and retained physical/final qualification remain unchanged"
+  ],
+  "counts": {
+    "accepted_gates": 43,
+    "total_gates": 57,
+    "gate_percent": 75,
+    "accepted_phases": 5,
+    "total_phases": 11,
+    "phase_percent": 45,
+    "m07_accepted": 1,
+    "m07_total": 4,
+    "m07_percent": 25
+  },
+  "limits": "Model gate only; no release/final qualification claim or denominator/budget change. Prior native Layer/Cell spatial receipts remain scoped to those unchanged render behaviors; full M07/4 is not accepted here. Pre-revision stash and unrelated user docs/icons remain untouched."
+}

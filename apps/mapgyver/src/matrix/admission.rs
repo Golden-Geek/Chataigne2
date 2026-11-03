@@ -102,7 +102,10 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
                 matches!(engine.nodes.get(*node), Some(AppNode::Media(media)) if media.kind() == MediaKind::Matrix);
             (!owner && owned(engine, *node)) || owned(engine, *new_parent)
         }
-        UiEditIntent::DuplicateNode { source, new_parent, .. } => owned(engine, *source) || owned(engine, *new_parent),
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => {
+            let owner = matches!(engine.nodes.get(*source), Some(AppNode::Media(media)) if media.kind() == MediaKind::Matrix);
+            (!owner && owned(engine, *source)) || owned(engine, *new_parent)
+        },
         UiEditIntent::DuplicateNodes {
             nodes,
             created_items,
@@ -110,7 +113,10 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
         } => {
             nodes
                 .iter()
-                .any(|node| owned(engine, node.source) || owned(engine, node.new_parent))
+                .any(|node| {
+                    let owner = matches!(engine.nodes.get(node.source), Some(AppNode::Media(media)) if media.kind() == MediaKind::Matrix);
+                    (!owner && owned(engine, node.source)) || owned(engine, node.new_parent)
+                })
                 || created_items.iter().any(|item| owned(engine, item.parent))
                 || dependent_items.iter().any(|item| owned(engine, item.parent))
         }

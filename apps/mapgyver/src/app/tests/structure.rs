@@ -161,7 +161,12 @@ fn shared_catalog_creation_builds_complete_typed_media_and_screen_forests() {
         panic!()
     };
     assert_eq!(snapshot.media.len(), 5);
-    assert!(snapshot.media.iter().all(|media| media.channels.len() == 1));
+    assert!(
+        snapshot
+            .media
+            .iter()
+            .all(|media| media.channels.len() == if media.media_kind == MediaKind::Matrix { 4 } else { 1 })
+    );
     let screen_manager = engine
         .nodes
         .iter()

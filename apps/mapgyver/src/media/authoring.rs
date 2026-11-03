@@ -412,6 +412,12 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
 }
 
 pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
+    let matrix_canvas = match &definition.source {
+        ChannelSource::Matrix {
+            output: crate::matrix::protocol::MatrixOutput::Final { definition },
+        } => Some(definition.canvas),
+        _ => None,
+    };
     let paired_export = !definition.media_kind().has_authored_channel_variants();
     let media = MediaNode::from_definition(label, &definition);
     let channel_label = if definition.media_kind() == MediaKind::Matrix {
@@ -426,7 +432,13 @@ pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeT
     };
     let channel = NodeTree::new(channel);
     let channel = if paired_export { channel } else { channel.as_user_item() };
-    (NodeTree::new(media).with_child(channel), reference)
+    let (channel, exports) = match matrix_canvas {
+        Some(canvas) => crate::matrix::defaults::initial_tree(reference.media, channel, canvas),
+        None => (channel, Vec::new()),
+    };
+    let mut tree = NodeTree::new(media).with_child(channel);
+    tree.children.extend(exports);
+    (tree, reference)
 }
 
 pub(super) fn configure_channel(

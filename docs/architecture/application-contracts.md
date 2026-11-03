@@ -11,6 +11,9 @@ Fresh catalog requests use `create_user_item_tree_with_context`; its borrowed
 `UserItemCreationContext` reads explicitly addressed live nodes without building a process-tree
 snapshot. Applications register their catalog and factory once instead of duplicating menu entries
 or construction defaults in UI panels.
+Prepared catalog creation preserves each nested `NodeTree::user_role` while converting to
+the staging tree. Curated children must retain their authored role through preflight, insertion,
+history and persistence just as they do through direct forest insertion.
 Intrinsic factories also define sparse persistence baselines: they must return identical defaults
 with both live and still-unbound parent Parameters. Contextual factories may choose source-specific
 defaults for fresh objects; those choices must never leak into decode or sparse omission decisions.

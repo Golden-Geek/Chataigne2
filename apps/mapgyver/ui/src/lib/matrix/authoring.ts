@@ -162,6 +162,11 @@ export class MatrixController<S extends Connection> {
 				}),
 			(result) => {
 				if (!current()) return;
+				if (result.kind === 'MatrixMissing' && result.media === media) {
+					this.state.window = null;
+					this.state.readError = '';
+					return;
+				}
 				if (result.kind !== 'MatrixViewport' || result.snapshot.media !== media) {
 					this.state.readError = 'Unexpected Matrix viewport';
 					return;

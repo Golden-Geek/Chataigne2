@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { clearMatrixScene } from './matrix-scene.mjs';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
@@ -11,6 +12,8 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 		media_kind: 'Matrix',
 		label: 'Typed Matrix rows'
 	});
+
+	await clearMatrixScene(edit, reference.media);
 	const matrix = (operation) => edit({ kind: 'Matrix', media: reference.media, edit: operation });
 	const { items: groups } = await matrix({ kind: 'AddGroup', parent: null, label: 'Typed Group' });
 	const { items: layers } = await matrix({ kind: 'AddLayers', parent: groups[0].id, count: 1 });

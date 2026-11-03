@@ -423,6 +423,10 @@ pub enum MediaEditResult {
     MatrixViewport {
         snapshot: crate::matrix::protocol::MatrixViewportSnapshot,
     },
+    /// A bounded viewport read may arrive after its Matrix was removed.
+    MatrixMissing {
+        media: MediaId,
+    },
     MatrixLaunched {
         snapshot: crate::matrix::protocol::MatrixPlaybackSnapshot,
     },

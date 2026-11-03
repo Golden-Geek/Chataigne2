@@ -327,9 +327,12 @@ impl<T: Node> Engine<T> {
         tree: NodeTree,
         operation: &'static str,
     ) -> Result<DecodedProjectTree<T>, ProjectPersistenceError> {
-        let node = self
+        let mut node = self
             .coerce_node_for_engine(0, operation, tree.node)
             .map_err(ProjectPersistenceError::Engine)?;
+        // Prepared catalog creation must preserve the same nested item roles as direct
+        // forest insertion. Staging otherwise treats curated children as intrinsic schema.
+        node.node_data_mut().user_role = tree.user_role;
         let mut children = Vec::with_capacity(tree.children.len());
         for child in tree.children {
             children.push(self.coerce_detached_node_tree(child, operation)?);

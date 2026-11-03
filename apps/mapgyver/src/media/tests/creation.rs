@@ -36,7 +36,7 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
         let catalog = crate::media::catalog::inspect(&engine).unwrap();
         let generic = catalog.media.iter().find(|media| media.label == label).unwrap();
         assert_eq!(generic.media_kind, kind);
-        assert_eq!(generic.channels.len(), 1);
+        assert_eq!(generic.channels.len(), if kind == MediaKind::Matrix { 4 } else { 1 });
         assert_eq!(generic.channels[0].definition, ChannelDefinition::for_media(kind));
         let reference = generic.channels[0].reference;
         let created = create(&mut engine, kind);

@@ -2,15 +2,18 @@
 
 **Updated: 2026-11-03 · Overall: `█████░░░░░` 45% · 5/11 phases complete**
 
-**Verified gates: `███████░░░` 74% · 42/57 accepted** (phase completion above remains 5/11).
+**Verified gates: `████████░░` 75% · 43/57 accepted** (phase completion above remains 5/11).
 
-**Current topic:** M07/1 typed Layer/Cell settings and native spatial slices delivered; model defaults remain Active.
-**Next deliverable:** Backend 3×3 Matrix defaults, then the complete M07/1 model audit.
-**Execution:** M08/1–2, M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M07/1 alone is Active on `mapgyver`.
+**Current topic:** M07/1 model Accepted, including typed owners, sparse 3×3 defaults and complete authored lifecycle; M07/2 playback is Active.
+**Next deliverable:** Full M07/2 playback acceptance: configured precedence, independent triggers, atomic Columns, interruption/disabled/empty policy and final-use demand.
+**Execution:** M08/1–2, M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M07/1 accepted; M07/2 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Remaining requirement:** revised reusable app control, Matrix model/grid/playback, Video and retained
 physical/performance/final qualification. Original budgets and acceptance scope remain intact.
-**Newly usable:** Cell position, opacity and enabled are typed Parameters in the generic Inspector,
+**Newly usable:** New Matrices open as 3×3 grids with sparse empty addresses and four paired outputs.
+Actual catalog creation, exact Undo/Redo, complete subtree copies and empty project reload are verified;
+queued viewport reads after deletion clear safely and recover on Undo.
+Cell position, opacity and enabled are typed Parameters in the generic Inspector,
 including offscreen editing and atomic configuration of sparse empty addresses. Native-sized child
 content, Cell × Layer opacity, live edits, Undo and disabled holds pass on both GPUs.
 Layer position, canvas size and transition duration are typed Parameters in the generic
@@ -47,9 +50,9 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Typed Cell settings](mapgyver-m07-model.md#typed-cell-placement-opacity-and-enabled--2026-11-03).
-380 library tests, bundled generic/offscreen Inspector and 30 exact native Cell images pass.
-Backend 3×3 defaults and the complete M07/1 model audit remain required. [M08/2 remains accepted](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03).
+**Last delivered capability:** [Complete M07/1 Matrix model](mapgyver-m07-model.md#m071-acceptance--2026-11-03).
+385 app tests, 672 shared Golden tests, 28 UI tests, actual catalog/defaults/history and typed/offscreen
+Inspector pass. M07 is 1/4; playback, complete grid and native/scale qualification remain required. [M08/2 remains accepted](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03).
 M06 remains 5/5 and M04 remains 8/8.
 No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -63,16 +66,16 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m04-acceptance-items"></a>[M04 Media](mapgyver-m04-source-parity.md#m04-phase-audit) | Accepted | `██████████` 100% | 8/8 | Sources 6/6; Reference 1/1; Preview 1/1 |
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Accepted | `██████████` 100% | 5/5 | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
-| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Active model                    | `░░░░░░░░░░` 0%   | 0/4   | [Model 0/1](mapgyver-m07-model.md); playback 0/1; grid 0/1; native/scale 0/1              |
+| <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Active playback | `███░░░░░░░` 25% | 1/4 | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); playback 0/1; grid 0/1; native/scale 0/1 |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Runtime qualification pending | `█████░░░░░` 50% | 2/4 | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); runtime 0/1; app acceptance 0/1 |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                      | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                     |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                  | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                  |
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **42/57 accepted gates**; denominators are unchanged. M08/2 adds one accepted gate
-for the complete revised configuration/demand boundary. M08 is 2/4; fully accepted phases
-remain 5/11. Prior source/output/editor evidence remains valid.
+There are **43/57 accepted gates**; denominators are unchanged. M07/1 adds one accepted gate
+for the complete revised typed model, ownership, defaults and authored lifecycle. M07 is 1/4;
+M08 remains 2/4 and fully accepted phases remain 5/11. Prior source/output/editor evidence remains valid.
 The additional gate-progress bar uses accepted gates / 57, rounded; it does not replace or
 inflate the unchanged phase-completion calculation above.
 Partial work, planning and unavailable checks earn no gate.
@@ -92,7 +95,8 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M07/1            | [Typed Layer/Cell settings verified](mapgyver-m07-model.md). Finish backend 3×3 defaults and audit complete Parameter/API/history/project/copy behavior. Preserve actual child media and M08 control ownership; stash remains intact/un-restored. |
+| Active | M07/2 | Complete the original playback matrix: Cell → Column → Layer timing, independent triggers, atomic Columns, disabled/empty policy, interrupted mixes and final-use outgoing demand under shared time. Reuse verified model/process/spatial evidence; retain full acceptance scope. |
+| Accepted | M07/1 | [Complete model audit](mapgyver-m07-model.md#m071-acceptance--2026-11-03): typed Layer/Group/Column/Cell owners, real child media, 3×3 sparse defaults, all callers, exact history/project, single/multi-owner copy, schema admission and bounded editable lifetime pass. M07 is 1/4. |
 | Accepted | M08/2            | [Configuration/demand audit](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03): typed ownership, standalone removal, normalized sharing, neighbor/direct semantics and disabled-render/outgoing/final-use through interruption/reorder/deletion/Undo/projects pass. M08 is 2/4; broader runtime/access/UI qualification remains open. |
 | Accepted | M06/5            | [Independent Composition panels](mapgyver-m06-panels.md): bounded off-page selection, simultaneous persisted follow/lock/page state, actual reconnect/File Open/New/held-input fencing and native tab/close lifetime. M06 is complete at 5/5. |
 | Accepted | M06/4            | [Native anchored editor](mapgyver-m06-editor.md): all eight resize and four outside rotation/cursor cases, actual smooth zoom, translation at zoom, shared Inspector selection, Escape, exact grouped Undo/Redo and tab lifetime pass. |
@@ -109,7 +113,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
-| Pending  | M07/2–4; M08/3–4 | After M07/1, complete revised transition/typed Layer-duration/grid and native/scale acceptance; then finish aggregate app-control runtime/UI qualification, actual picker, dedicated commands/snippets and retained retirement/access cases. Prior partial process/renderer evidence remains reusable. |
+| Pending | M07/3–4; M08/3–4 | After M07/2, complete the revised grid and full native/scale acceptance; then aggregate app-control runtime/UI qualification, actual picker, commands/snippets and retained retirement/access cases. Prior partial process/renderer evidence remains reusable. |
 | Pending  | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                          |
 | Blocked  | M03/4            | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                         |
 | Pending  | M03/9            | Original GPU critical-path/window timing and reproduced private-growth failure need corrective qualification, not additional user/tool permission. Return in its bounded qualification lane with an ownership correction and supported timing evidence; no unchanged benchmark reruns or budget revision. |
@@ -132,21 +136,18 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M07/1 typed Cell spatial/opacity/enabled delivered within the
-  20:37–21:22 CET batch. Owner: Matrix Cell nodes, bindings/capture and render preparation.
-  Cell v3 real Parameters, atomic ConfigureCell and detached sparse creation preserve child size.
-  Live edits update retained source settings without redirecting replaced/deleted outgoing content;
-  opacity multiplies fade and Layer opacity. Disabled destinations hold/skip activation.
-  **380 library tests pass**, two retained exclusions, including current schema/opaque admission,
-  history/copy/project, caller parity, source retention and single-input opacity. Strict all-target/
-  native Clippy, generated equality, Svelte (0/0), 26 UI tests and both formatters pass. Twelve
-  Windows lifecycle regressions pass, one retained exclusion. Bundled Cell/Layer/Group generic
-  fields, exact per-field history, offscreen Inspector and Column/Cell control regressions pass.
-  Native Cell geometry/opacity/Undo/disabled/enable cases pass on both GPUs: 30 complete images,
-  zero error and completion-safe retirement. [Receipt and limits](evidence/mapgyver-m07-cell-settings-2026-11-03.json).
-  **Gate changes: none.** M07/1 stays Active. Next: backend 3×3 defaults and complete model audit.
-  Full M07/2–4 and M08/3–4 remain required. Counts remain 42/57 gates (74%), 5/11 phases (45%);
-  no denominator/budget waiver. The saved pre-revision stash and unrelated user changes remain intact.
+- **Current batch/handoff:** M07/1 complete model Accepted within the 20:52–21:37 CET batch.
+  Delivered backend 3×3 sparse defaults through one detached Media tree, whole-Matrix single/
+  multi-copy admission, preserved Golden nested item roles and typed missing-viewport recovery
+  through owner Undo/Redo. Owner: Matrix/Media creation, app admission and shared Golden staging.
+  **385 app tests pass**, two retained exclusions; **672 Golden tests pass**, three retained
+  exclusions. Strict Golden/app all-target/native Clippy, generated equality, Svelte (0/0),
+  28 UI tests and both formatters pass. Twelve Windows process regressions pass, one retained
+  exclusion. Bundled catalog/defaults/nine-cell grid/exact history, Layer/Group/Cell/offscreen
+  Inspector and typed disabled-Cell PID hold/Unload pass. [Audit and closure receipt](evidence/mapgyver-m07-model-acceptance-2026-11-03.json).
+  **Gate changes: M07/1 Accepted; M07/2 Active.** Next: full original playback acceptance.
+  M07/3–4 and M08/3–4 stay Pending. Counts are 43/57 gates (75%), 5/11 phases (45%);
+  denominators/budgets are unchanged. The saved stash and unrelated user changes remain intact.
   Host capacity recovery is configured under `%USERPROFILE%/.codex/tools/goal-recovery`, with
   23/23 tests and real read-only RPC verified. Activation still needs one VS Code Reload Window;
   the current IDE connection is not protected and live recovery is unverified. Recovery awards no product gate.

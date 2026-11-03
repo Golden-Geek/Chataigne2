@@ -79,6 +79,9 @@ pub(super) fn create(engine: &mut AppEngine, kind: MediaKind) -> ChannelReferenc
     ) else {
         panic!()
     };
+    if kind == MediaKind::Matrix {
+        crate::matrix::tests::clear_scene(engine, reference.media);
+    }
     reference
 }
 fn resize(engine: &mut AppEngine, reference: ChannelReference, width: u32) {

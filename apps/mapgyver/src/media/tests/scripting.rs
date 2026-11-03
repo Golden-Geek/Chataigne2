@@ -151,6 +151,7 @@ fn matrix_authored_intents_use_hosted_methods_and_committed_callbacks() {
     use crate::matrix::protocol::*;
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
+    crate::matrix::tests::clear_scene(&mut engine, matrix.media);
     let request = serde_json::to_string(&MediaEdit::Matrix {
         media: matrix.media,
         edit: MatrixEdit::AddLayers { parent: None, count: 2 },

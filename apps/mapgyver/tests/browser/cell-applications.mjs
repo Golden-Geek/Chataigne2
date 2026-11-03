@@ -1,5 +1,6 @@
 // The actual Matrix action materializes a sparse Cell; generic widgets author its settings.
 import assert from 'node:assert/strict';
+import { clearMatrixScene } from './matrix-scene.mjs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -12,6 +13,8 @@ export async function verifyCellApplicationsUi({ base, edit }) {
 		media_kind: 'Matrix',
 		label: 'Cell app review'
 	});
+
+	await clearMatrixScene(edit, reference.media);
 	const { items } = await edit({
 		kind: 'Matrix',
 		media: reference.media,

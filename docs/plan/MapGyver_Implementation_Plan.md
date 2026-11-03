@@ -47,8 +47,10 @@ persisted follow/lock/page choices, actual reconnect/project/tab/native lifetime
 generic Inspector/File Open/New regressions. M06 is complete. [M08/2 configuration/demand](../progress/mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03)
 is now accepted, including typed Column/Cell settings, standalone removal, normalized sharing,
 independent activation and retained demand through disabled rendering, interruption, history,
-project replacement and final-use completion. M07/1 is the next single active gate: complete the
-typed Layer/Group/Cell model and 3×3 defaults on this shared boundary. M07 playback/grid/native/scale
+project replacement and final-use completion. [M07/1 model acceptance](../progress/mapgyver-m07-model.md#m071-acceptance--2026-11-03)
+is complete: typed Layer/Group/Column/Cell ownership, backend 3×3 defaults, actual child media,
+bounded Inspector and complete authored API/history/project/copy behavior. M07/2 is the single
+active gate for full playback acceptance. M07 grid/native/scale
 and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
 dependencies above without waiving physical/timing gates or changing qualification budgets.
 
@@ -56,9 +58,10 @@ dependencies above without waiving physical/timing gates or changing qualificati
 the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,
 canvas and duration now drive actual rendering and per-Layer playback; native position/resize/
 Undo passes on both GPUs. Cell v3 now owns typed relative position/opacity/enabled with no size;
-its complete current verification is recorded in the model report. This remains partial M07/1
-delivery: backend 3×3 defaults and complete model acceptance remain required; full
-grid/playback/native/scale gates remain unchanged.
+its current verification is recorded in the accepted model report. New Matrices start with three
+Layers and three Columns, sparse empty addresses and four paired outputs in one backend tree.
+Catalog creation, exact Undo/Redo/reload and whole-Matrix copies pass; queued reads after deletion
+return typed absence and recover on Undo. Full grid/playback/native/scale gates remain unchanged.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
 containment before Reference/Preview acceptance. Reuse that ownership/copy/drop foundation.
