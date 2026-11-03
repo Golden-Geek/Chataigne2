@@ -315,7 +315,25 @@ pub struct MatrixTargetPage {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
+pub enum MatrixItemDropTarget {
+    Root,
+    Before { item: MatrixItemId },
+    After { item: MatrixItemId },
+    Inside { group: GroupId },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
 pub enum MatrixEdit {
+    DropItem {
+        item: MatrixItemId,
+        target: MatrixItemDropTarget,
+    },
+    DropColumn {
+        column: ColumnId,
+        target: ColumnId,
+        before: bool,
+    },
     CreateCellMedia {
         layer: LayerId,
         column: ColumnId,

@@ -19,6 +19,7 @@ mod defaults;
 mod layer_settings;
 mod owned_media;
 mod parameters;
+mod placement;
 mod playback;
 mod playback_acceptance;
 mod retained_demand;

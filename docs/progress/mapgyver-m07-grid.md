@@ -1,8 +1,8 @@
 # Revised Matrix grid
 
 **M07/3 Active — 2026-11-03.** This slice delivers the square full-panel workbench grid,
-contextual structural/media operations and inline rename. Drag sorting/reparenting, Column
-sorting and the full revised grid/native-feedback audit remain required; no gate is awarded.
+contextual structural/media operations, inline rename and drag sorting/reparenting. The full
+revised grid/project/native-feedback audit remains required; no gate is awarded.
 
 MapGyver owns grid presentation and Matrix intents. Golden owns context menus, selection,
 Inspector, history and document edits. The generated Rust viewport supplies the backend media
@@ -41,6 +41,33 @@ Verification on the isolated bundled executable:
 Browser previews report native observations unavailable; they do not establish native pixels
 or physical output timing. M07/1–2 remain Accepted; M07/4 and M08/3–4 remain Pending.
 
-Next deliverable: drag sort/reparent Layers/Groups and sort Columns through existing validated
-backend intents, then reconcile the complete grid/project/native-feedback fixtures before M07/3
-acceptance. All original budgets and requirements remain in force.
+Drag placement uses generated `DropItem` / `DropColumn` intents. The backend resolves the
+complete committed order once, then uses the existing validated move path; the UI sends only
+the hovered row/Column and pointer side. Row headers accept before/after and Group-middle
+reparenting; the corner/background returns a row to root. Column headers accept left/right
+sorting. Invalid/self/cyclic targets reject atomically; a drop into the current position creates
+no Undo entry. One bounded selected viewport is sufficient; the UI never computes missing
+preceding siblings. Project identity changes cancel held drag state.
+
+Current drag proof: **390 library tests pass**, zero failures/two retained exclusions in 132.19
+seconds. Strict all-target Clippy passes after its equivalent `rfind` cleanup; the affected
+placement and four-caller parity tests pass again afterward. Generated equality, Svelte
+0 errors/warnings and all 29 UI tests pass. Actual mouse drags verify Layer sorting, into-Group
+and return-to-root moves, complete Group subtree retention, Column before/after sorting,
+one-step exact Undo/Redo, Escape cancellation, owned Cell/media identity retention and stable
+active Column identity. The square-grid/context/rename/offscreen-Inspector regression also
+passes. Browser fixtures wait for the committed row order to reach the DOM before continuing
+and move the mouse twice over the drop target before release. An earlier run failed to load a
+dynamic JS asset; a subsequent run exposed the missing DOM/drag-over synchronization. The
+final flow passes without retries or changes to acceptance predicates.
+
+Current executable SHA256:
+`FA019DC89EA52C1B1F94CF55AB7C416846D2208B191291A19A28B1EBAFACA981`.
+Screenshot `target/m07-drag-ui.png` is visually inspected.
+[Drag receipt](evidence/mapgyver-m07-drag-slice-2026-11-03.json).
+
+Next deliverable: reconcile complete revised grid/project interaction, including keyboard/resize,
+source replacement/rejection, pending lifetime and cross-window virtualization; verify truthful
+current native playback feedback before M07/3 acceptance. The old ordinary-form fixtures retain
+their uncovered requirements until replaced by equivalent current checks. All original budgets
+and requirements remain in force.

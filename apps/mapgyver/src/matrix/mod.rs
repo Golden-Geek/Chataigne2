@@ -13,6 +13,7 @@ mod copying;
 pub(crate) mod defaults;
 pub(crate) mod document;
 pub(crate) mod node;
+mod placement;
 pub(crate) mod playback;
 mod projection;
 pub mod protocol;

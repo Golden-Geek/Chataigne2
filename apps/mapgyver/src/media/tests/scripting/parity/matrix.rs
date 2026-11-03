@@ -337,6 +337,46 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
             parent: None,
             after: Some(group),
         },
+        MatrixEdit::DropItem {
+            item: layer,
+            target: MatrixItemDropTarget::Root,
+        },
+        MatrixEdit::DropItem {
+            item: layer,
+            target: MatrixItemDropTarget::Before { item: group },
+        },
+        MatrixEdit::DropItem {
+            item: layer,
+            target: MatrixItemDropTarget::After { item: group },
+        },
+        MatrixEdit::DropItem {
+            item: layer,
+            target: MatrixItemDropTarget::Inside {
+                group: match group {
+                    MatrixItemId::Group { id } => id,
+                    _ => panic!(),
+                },
+            },
+        },
+        MatrixEdit::DropItem {
+            item: group,
+            target: MatrixItemDropTarget::Before { item: layer },
+        },
+        MatrixEdit::DropColumn {
+            column: b,
+            target: a,
+            before: true,
+        },
+        MatrixEdit::DropColumn {
+            column: a,
+            target: b,
+            before: false,
+        },
+        MatrixEdit::DropColumn {
+            column: a,
+            target: a,
+            before: true,
+        },
         MatrixEdit::RemoveItem { item: layer },
         MatrixEdit::RenameColumn {
             column: a,

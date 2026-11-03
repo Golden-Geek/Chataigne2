@@ -93,6 +93,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return super::playback::unload(engine, media);
     }
     let document = Document::load(engine, media)?;
+    let Some(edit) = super::placement::resolve(&document, edit)? else {
+        return Ok(MediaEditResult::Changed);
+    };
     match edit {
         MatrixEdit::CreateCellMedia {
             layer,
@@ -345,7 +348,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             engine.edits.push(Edit::RemoveNode { node });
         }
         MatrixEdit::DuplicateColumn { column } => return super::copying::column(engine, &document, column),
-        MatrixEdit::LaunchCell { .. } => unreachable!(),
+        MatrixEdit::LaunchCell { .. } | MatrixEdit::DropItem { .. } | MatrixEdit::DropColumn { .. } => unreachable!(),
         MatrixEdit::SetCells { assignments } => super::cells::assign(engine, &document, assignments)?,
     }
     Ok(MediaEditResult::Changed)

@@ -5,13 +5,15 @@
 **Verified gates: `████████░░` 77% · 44/57 accepted** (phase completion above remains 5/11).
 
 **Current topic:** M07/1 model and M07/2 playback Accepted; M07/3 revised grid is Active.
-**Next deliverable:** Drag sort/reparent Layers/Groups and sort Columns, followed by complete revised grid/project/native-feedback acceptance.
+**Next deliverable:** Complete revised grid/project/keyboard/source/lifetime acceptance and current native playback feedback; cross-window virtualized dragging remains to verify.
 **Execution:** M08/1–2, M04/1–8, M05/4,6–7,9–10 and M06/1–5 accepted; M07/1–2 accepted; M07/3 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Remaining requirement:** revised reusable app control, Matrix model/grid/playback, Video and retained
 physical/performance/final qualification. Original budgets and acceptance scope remain intact.
 **Newly usable:** [Square full-panel Matrix grid](mapgyver-m07-grid.md), inline row/Column rename,
-centered empty-Cell media creation, compact removal and contextual structural actions. Ordinary
+centered empty-Cell media creation, compact removal and contextual structural actions. Actual
+Layer/Group drag sorting/reparenting/root moves and Column sorting retain subtree/media identity,
+exact one-step history and the active Column. Ordinary
 settings use the shared Inspector, including offscreen Cells. Full Matrix playback is verified: Cell → Column → Layer timing, independent Cell
 triggers, atomic Columns, disabled/empty destinations, interrupted shared-time mixes and final-use
 demand. Native Layer/Group/Final fade observations pass on both GPUs.
@@ -55,9 +57,9 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Square grid and contextual creation](mapgyver-m07-grid.md).
-389 library tests, strict Clippy, 29 UI tests, clean Svelte and five bundled browser flows pass.
-M07/3 remains Active for sorting/reparenting and complete native-feedback acceptance. [M07/2
+**Last delivered capability:** [Matrix drag sorting and reparenting](mapgyver-m07-grid.md).
+390 library tests, strict Clippy, 29 UI tests, clean Svelte and actual mouse/Undo/Redo/cancel
+checks pass. M07/3 remains Active for complete grid/project/lifetime and native-feedback acceptance. [M07/2
 playback remains Accepted](mapgyver-m07-playback.md); [M08/2 remains Accepted](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03).
 M06 remains 5/5 and M04 remains 8/8.
 No timing/physical requirement is waived.
@@ -143,24 +145,27 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M07/3 square-cell workbench grid, started 21:36 CET / stopping time
-  22:21 CET. Delivered: full-panel square Cells, clear Group presentation, inline rename,
-  contextual structural operations, backend-owned media creation and compact removal. Ordinary
-  settings forms/internal header are removed; shared Inspector remains editable offscreen.
-  Owner: MapGyver Matrix UI/backend authoring. **389 library tests pass**, two retained exclusions;
-  strict native/process all-target Clippy, generated equality, both formatters, 29 UI tests and
-  Svelte 0 errors/warnings pass. Five bundled flows pass: grid/context/history, typed Parameters,
-  3×3 catalog defaults, Column/Cell shared process lifecycle and sparse Cell app settings.
-  The revised grid screenshot is inspected. [Receipt and remaining scope](mapgyver-m07-grid.md).
-  **Gate changes: none.** M07/3 alone remains Active. Exact next deliverable: drag sort/reparent
-  Layers/Groups and sort Columns, then complete grid/project/caller/native-feedback acceptance.
+- **Current batch/handoff:** M07/3 drag sorting/reparenting, started 22:00 CET / stopping time
+  22:45 CET. Delivered: actual Layer/Group before/inside/root moves and Column before/after sort
+  through backend-owned complete-order placement. Complete subtree/owned-media identities,
+  exact one-step Undo/Redo, Escape cancellation and active Column identity pass. No-op drops
+  preserve history; self/cyclic targets reject atomically. Owner: Matrix authoring/grid.
+  **390 library tests pass**, zero failures/two exclusions in 132.19 seconds. Strict native/process
+  all-target Clippy, generated equality, both formatters, Svelte 0 errors/warnings and 29 UI tests
+  pass; affected placement/four-caller tests pass after lint's equivalent iterator cleanup.
+  Actual browser mouse drags and square-grid/context/rename/offscreen-Inspector regression pass;
+  final fixtures synchronize committed DOM order and issue final drag-over movement before release.
+  Earlier dynamic-asset-load and test input-synchronization failures are retained in the
+  [owning report/receipt](mapgyver-m07-grid.md), without weakening the predicates.
+  Previous square-grid milestone `b4037674` was pushed and verified. **Gate changes: none.**
+  M07/3 alone remains Active. Exact next deliverable: complete revised grid/project/keyboard/
+  source/lifetime and cross-window virtualized-drag audit, plus current native playback feedback.
   M07/1–2 remain Accepted; M07/4 and M08/3–4 Pending. Counts: 44/57 gates (77%), 5/11 phases
   (45%); denominators/budgets unchanged. Saved stash and unrelated user changes remain intact.
-  Host recovery proxy is now running: VS Code extension-host PID 30884 → launcher 34752 →
-  proxy 27472 → app-server 27832; journal confirms enabled startup at 20:37:37 UTC. The old
-  “reload required” note is superseded. Existing 23/23 tests/read-only RPC remain verified;
-  watched-thread routing and recovery from a real live capacity failure remain unobserved.
-  Recovery awards no product gate.
+  Host recovery is now active for this goal: VS Code extension-host PID 30884 → launcher 34752 →
+  proxy 27472 → app-server 27832; enabled startup is journaled at 20:37:37 UTC. The active goal's
+  shell ancestry confirms that route at 21:08 UTC. Existing 23/23 tests/read-only RPC remain
+  verified. Recovery from a real live capacity failure remains unobserved and awards no product gate.
 
 ## Maintenance rule
 

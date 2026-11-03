@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/3",
+  "decision": "Active; drag sorting/reparenting product slice verified",
+  "batch": { "start_utc": "21:00", "cutoff_utc": "21:45" },
+  "capability": "Actual Layer/Group drag sorting/reparenting/root moves and Column sorting with backend-owned placement",
+  "software": {
+    "rust_library": { "passed": 390, "failed": 0, "ignored": 2, "seconds": 132.19, "log": "target/m07-drag-tests-fixed.log" },
+    "after_lint_cleanup": ["target/m07-drag-placement-final.log: pass", "target/m07-drag-parity-final.log: pass"],
+    "strict_native_all_target_clippy": "pass; target/m07-drag-clippy-fixed.log",
+    "generated_equality": "pass in full library suite",
+    "svelte": "0 errors, 0 warnings; target/m07-drag-ui-check-final.log",
+    "ui_tests": "29 pass; target/m07-drag-ui-tests.log"
+  },
+  "bundled_browser": {
+    "version": "149.0.7827.55",
+    "executable": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "FA019DC89EA52C1B1F94CF55AB7C416846D2208B191291A19A28B1EBAFACA981",
+    "passed": ["--matrix-drag-ui", "--matrix-grid-ui"],
+    "logs": ["target/m07-drag-browser-fixed.log", "target/m07-drag-grid-regression.log"],
+    "screenshot": "target/m07-drag-ui.png",
+    "assertions": ["Layer before/inside/root moves", "Group subtree retention", "Column before/after sort", "exact one-step Undo/Redo", "Escape cancellation", "owned Cell/media identities retained", "no implicit launch", "active Column identity retained"]
+  },
+  "remaining": ["Complete revised grid/project/keyboard/resize/source/lifetime audit", "Cross-window virtualized drag verification", "Actual current native playback feedback"],
+  "gate_changes": "None; M07/3 Active, 44/57 gates and 5/11 phases accepted",
+  "host_capacity_recovery": "Active goal shell ancestry confirms app-server 27832 is owned by proxy 27472 and VS Code launcher 34752. Real future overload recovery remains unobserved."
+}

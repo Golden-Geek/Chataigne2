@@ -75,6 +75,7 @@ const withUi = [
 	'--matrix-parameters-ui',
 	'--matrix-defaults-ui',
 	'--matrix-grid-ui',
+	'--matrix-drag-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
 	'--column-applications-ui',
@@ -432,6 +433,10 @@ try {
 	if (process.argv.includes('--matrix-grid-ui')) {
 		const { verifyMatrixGridUi } = await import('../browser/matrix-grid.mjs');
 		await verifyMatrixGridUi({ base, edit });
+	}
+	if (process.argv.includes('--matrix-drag-ui')) {
+		const { verifyMatrixDragUi } = await import('../browser/matrix-drag.mjs');
+		await verifyMatrixDragUi({ base, edit });
 	}
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');

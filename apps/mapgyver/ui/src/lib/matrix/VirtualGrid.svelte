@@ -15,6 +15,7 @@
 	import { gridSize, projectGrid } from './viewport';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import GridLabel from './GridLabel.svelte';
+	import { rowDropTarget, type GridDrag } from './grid-drag';
 	let {
 		snapshot,
 		selected,
@@ -61,6 +62,74 @@
 		)
 	);
 	let element: HTMLDivElement;
+	let dragging = $state<GridDrag | null>(null);
+	let highlighted: HTMLElement | null = null;
+	let dragIdentity = '';
+	function clearDropHint() {
+		highlighted?.removeAttribute('data-matrix-drop-position');
+		highlighted = null;
+	}
+	function endDrag() {
+		clearDropHint();
+		dragging = null;
+	}
+	$effect(() => {
+		const identity = JSON.stringify([snapshot.project, snapshot.media]);
+		if (identity !== dragIdentity) {
+			dragIdentity = identity;
+			endDrag();
+		}
+	});
+	function startDrag(event: DragEvent, value: GridDrag) {
+		if (disabled || !event.dataTransfer || event.target instanceof HTMLInputElement) {
+			event.preventDefault();
+			return;
+		}
+		event.stopPropagation();
+		dragging = value;
+		event.dataTransfer.effectAllowed = 'move';
+		event.dataTransfer.setData('application/x-mapgyver-matrix-drag', JSON.stringify(value));
+	}
+	function dropAt(
+		event: DragEvent
+	): { edit: MatrixEdit; element: HTMLElement; position: string } | null {
+		if (!dragging || disabled || !(event.target instanceof Element)) return null;
+		const header = event.target.closest<HTMLElement>('[data-matrix-drop]');
+		if (dragging.kind === 'Column') {
+			if (header?.dataset.matrixDrop !== 'Column') return null;
+			const target = header.dataset.columnId;
+			if (!target || target === dragging.column) return null;
+			const rect = header.getBoundingClientRect();
+			const before = event.clientX < rect.left + rect.width / 2;
+			return {
+				edit: { kind: 'DropColumn', column: dragging.column, target, before },
+				element: header,
+				position: before ? 'left' : 'right'
+			};
+		}
+		if (header?.dataset.matrixDrop === 'Item') {
+			const row = snapshot.rows.find((row) => row.item.id.id === header.dataset.rowId);
+			if (!row || row.item.id.id === dragging.item.id) return null;
+			const rect = header.getBoundingClientRect();
+			const target = rowDropTarget(row, (event.clientY - rect.top) / rect.height);
+			return {
+				edit: { kind: 'DropItem', item: dragging.item, target },
+				element: header,
+				position: target.kind.toLowerCase()
+			};
+		}
+		if (
+			header?.dataset.matrixDrop === 'Root' ||
+			event.target === element ||
+			event.target.classList.contains('canvas')
+		)
+			return {
+				edit: { kind: 'DropItem', item: dragging.item, target: { kind: 'Root' } },
+				element: header ?? element,
+				position: 'inside'
+			};
+		return null;
+	}
 	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
 	const projection = $derived(projectGrid(metrics, snapshot.row_total, snapshot.column_total));
 	function measure() {
@@ -113,6 +182,8 @@
 	});
 </script>
 
+<svelte:window ondragend={endDrag} />
+
 <div
 	class="viewport"
 	data-local-context-menu
@@ -120,6 +191,28 @@
 	onscroll={measure}
 	onkeydown={navigate}
 	oncontextmenu={context}
+	ondragover={(event) => {
+		const target = dropAt(event);
+		clearDropHint();
+		if (!target) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		highlighted = target.element;
+		highlighted.setAttribute('data-matrix-drop-position', target.position);
+	}}
+	ondragleave={(event) => {
+		if (!(event.relatedTarget instanceof Node) || !element.contains(event.relatedTarget))
+			clearDropHint();
+	}}
+	ondrop={(event) => {
+		const target = dropAt(event);
+		endDrag();
+		if (!target) return;
+		event.preventDefault();
+		event.stopPropagation();
+		void edit(target.edit);
+	}}
 	role="grid"
 	aria-label="Scrollable Matrix grid"
 	aria-rowcount={snapshot.row_total + 1}
@@ -135,6 +228,8 @@
 		style:width={`${projection.canvasWidth}rem`}>
 		<div
 			class="corner"
+			data-matrix-drop="Root"
+			title="Drop a row here to move it to Matrix root"
 			role="toolbar"
 			aria-label="Matrix actions"
 			style:top={`${projection.top}rem`}
@@ -165,7 +260,11 @@
 			{#each snapshot.columns as column, index (column.id)}
 				<div
 					class="heading"
+					data-matrix-drop="Column"
+					draggable={!disabled}
+					ondragstart={(event) => startDrag(event, { kind: 'Column', column: column.id })}
 					role="columnheader"
+					tabindex="0"
 					data-column-id={column.id}
 					aria-colindex={snapshot.column_start + index + 2}
 					class:requested={snapshot.playback.desired_column === column.id}
@@ -204,7 +303,12 @@
 				style:top={`${projection.rowOrigin + (snapshot.row_start + index) * gridSize.row}rem`}>
 				<div
 					class="row-label"
+					data-matrix-drop="Item"
+					data-row-id={row.item.id.id}
+					draggable={!disabled}
+					ondragstart={(event) => startDrag(event, { kind: 'Item', item: row.item.id })}
 					role="rowheader"
+					tabindex="0"
 					style:left={`${projection.left}rem`}
 					style:padding-left={`${0.5 + row.depth * 0.8}rem`}
 					title={row.item.label}>
@@ -427,5 +531,21 @@
 	}
 	small {
 		font-size: 0.7em;
+	}
+	:global([data-matrix-drop-position='before']) {
+		box-shadow: inset 0 0.2rem var(--gc-color-focus);
+	}
+	:global([data-matrix-drop-position='after']) {
+		box-shadow: inset 0 -0.2rem var(--gc-color-focus);
+	}
+	:global([data-matrix-drop-position='left']) {
+		box-shadow: inset 0.2rem 0 var(--gc-color-focus);
+	}
+	:global([data-matrix-drop-position='right']) {
+		box-shadow: inset -0.2rem 0 var(--gc-color-focus);
+	}
+	:global([data-matrix-drop-position='inside']) {
+		outline: 0.15rem solid var(--gc-color-focus);
+		outline-offset: -0.2rem;
 	}
 </style>

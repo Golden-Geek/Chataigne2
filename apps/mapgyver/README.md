@@ -89,8 +89,15 @@ creates the actual owned media subtree with shared backend defaults, one history
 implicit playback. Removing media preserves the Cell and its typed settings/app control.
 Ordinary settings stay in the generic Inspector; the Matrix supplement only presents runtime
 observations. `--matrix-grid-ui`, `--matrix-parameters-ui` and `--matrix-defaults-ui` verify this
-slice. [Grid evidence](../../docs/progress/mapgyver-m07-grid.md) retains the remaining drag
-sorting and final native-feedback acceptance requirements.
+slice. [Grid evidence](../../docs/progress/mapgyver-m07-grid.md) retains the remaining complete
+grid/project and native-feedback acceptance requirements.
+
+Drag row headers above/below another row to sort; drop in the middle of a Group header to
+reparent, or in the grid corner/background to return to root. Column headers sort by their
+left/right halves. `DropItem` and `DropColumn` resolve the complete committed sibling order
+in the backend before applying the existing validated move operations. Empty drops into the
+current position preserve history; hierarchy/dependency/depth validation stays shared by all
+callers. The UI only sends the pointer's target/side and displays a drop marker.
 
 Application definitions, availability, column associations and lifecycle policy live under
 `src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS
