@@ -31,6 +31,8 @@ fn committed_qualification_contracts_match_rust_including_the_exact_file_set() {
     let generated = files(temporary.path());
     let expected = [
         "CssRect.ts",
+        "OverlayPrimitive.ts",
+        "OverlayShape.ts",
         "PreviewView.ts",
         "QualificationAction.ts",
         "QualificationCommand.ts",
@@ -132,6 +134,8 @@ fn fixture_actions_and_reports_keep_their_generated_wire_shape() {
                 rect,
                 clip: rect,
                 visible: true,
+                overlays: Vec::new(),
+                overlay_capacity: 0,
             }
         })
         .collect();

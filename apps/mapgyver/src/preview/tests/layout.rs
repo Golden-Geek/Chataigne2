@@ -51,6 +51,9 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                     source: serde_json::to_string(&PreviewSource::Screen { screen }).unwrap(),
                     destination,
                     backdrop: destination,
+                    overlays: std::sync::Arc::from([]),
+                    overlay_scale: 1.0,
+                    overlay_capacity: 0,
                     source_rect: UnitRect::FULL,
                 })
                 .collect(),

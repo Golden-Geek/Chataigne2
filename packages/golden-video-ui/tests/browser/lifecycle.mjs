@@ -38,7 +38,7 @@ try {
 					return JSON.stringify({
 						kind: 'Connected',
 						session: '35537689-b168-461d-90a9-7d8566eafdd5',
-						version: 1,
+						version: request.version,
 						max_views: 64
 					});
 				if (request.kind === 'Disconnect') return JSON.stringify({ kind: 'Disconnected' });
@@ -99,6 +99,13 @@ try {
 		/capability unavailable/
 	);
 	assert.equal(await browserPage.getByText('Preview unavailable', { exact: true }).count(), 2);
+	assert.equal(
+		await browserPage
+			.locator('[data-native-overlay-control]')
+			.evaluate((element) => getComputedStyle(element).opacity),
+		'1'
+	);
+	assert(report.trace[0].views.find((view) => view.source === 'red').overlays.length === 1);
 	await browserPage.getByRole('button', { name: 'DOM overlay control' }).click();
 	await browserPage.getByText('Overlay clicks: 1', { exact: true }).waitFor();
 	assert.deepEqual(browserErrors, []);

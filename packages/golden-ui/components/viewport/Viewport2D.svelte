@@ -14,6 +14,7 @@
 		selection = null,
 		label = '2D editor view',
 		native = false,
+		nativeFrame = false,
 		onbackgroundclick,
 		onkeydown: onEditorKeyDown,
 		onfocusout,
@@ -25,6 +26,8 @@
 		label?: string;
 		/** Native underlays supply black themselves; their DOM aperture must stay transparent. */
 		native?: boolean;
+		/** An installed underlay owns the image frame and surrounding canvas paint. */
+		nativeFrame?: boolean;
 		/** Unconsumed primary clicks after navigation/child controls have handled input. */
 		onbackgroundclick?(event: MouseEvent): void;
 		onkeydown?(event: KeyboardEvent): void;
@@ -217,6 +220,7 @@
 		<div
 			class="active-zone"
 			class:native
+			class:native-frame={native && nativeFrame}
 			style:width={`${size.width * camera.zoom}px`}
 			style:height={`${size.height * camera.zoom}px`}
 			style:left={`calc(50% + ${camera.pan.x}px)`}
@@ -274,6 +278,12 @@
 	}
 	.active-zone.native {
 		background: transparent;
+	}
+	.active-zone.native-frame {
+		/* A moving DOM surround would clip an independently presented native frame,
+		   including unrestricted handles outside the image. The underlay paints both. */
+		box-shadow: none;
+		outline: none;
 	}
 	.panning,
 	.panning :global(*) {

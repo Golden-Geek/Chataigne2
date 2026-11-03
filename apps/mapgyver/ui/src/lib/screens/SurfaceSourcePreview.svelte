@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { NativePreview } from 'golden_video_ui';
+	import { NativePreview, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D } from 'golden_ui';
 	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
@@ -24,6 +24,14 @@
 		stop(): void;
 	} = $props();
 	const owner = usePreview();
+	let overlays = $state<OverlayPrimitive[]>([]);
+	let nativeFrame = $state(false);
+	function presentationChanged(painted: boolean) {
+		nativeFrame = painted;
+	}
+	function setOverlays(next: OverlayPrimitive[]) {
+		overlays = next;
+	}
 	const identity = $derived<PreviewSource | null>(
 		surface.definition.source ? { kind: 'Channel', reference: surface.definition.source } : null
 	);
@@ -34,19 +42,33 @@
 
 {#snippet controls()}
 	{#key surface.reference.surface + source}
-		<CropHandles crop={surface.definition.crop} {disabled} {start} {move} {finish} {stop} />
+		<CropHandles
+			onoverlays={setOverlays}
+			crop={surface.definition.crop}
+			{disabled}
+			{start}
+			{move}
+			{finish}
+			{stop} />
 	{/key}
 {/snippet}
 
 <section aria-label="Surface Source preview">
 	<Viewport2D
+		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 		selection={surface.definition.crop}
 		label="Surface source view"
 		native={identity !== null}>
 		{#if identity}
-			<NativePreview session={owner.session} {source} label={`Full source for ${surface.label}`}>
+			<NativePreview
+				onpresentationchange={presentationChanged}
+				overlayCapacity={16}
+				session={owner.session}
+				{source}
+				overlays={status?.error || status?.message ? [] : overlays}
+				label={`Full source for ${surface.label}`}>
 				{#if status?.error || status?.message}<div class="message">
 						{status.error ?? status.message}
 					</div>{/if}

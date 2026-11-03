@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { NativePreview } from 'golden_video_ui';
+	import { NativePreview, MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
@@ -34,6 +34,14 @@
 		stop(): void;
 	} = $props();
 	const owner = usePreview();
+	let overlays = $state<OverlayPrimitive[]>([]);
+	let nativeFrame = $state(false);
+	function presentationChanged(painted: boolean) {
+		nativeFrame = painted;
+	}
+	function setOverlays(next: OverlayPrimitive[]) {
+		overlays = next;
+	}
 	const documentIdentity = $derived(`${appState.session?.projectGeneration ?? 0}:${screen.id}`);
 	let corner = $state<{ document: string; surface: SurfaceId; index: number } | null>(null);
 	const keyboardTarget = $derived.by<KeyboardTarget | null>(() => {
@@ -89,6 +97,7 @@
 
 <section aria-label="Screen preview">
 	<Viewport2D
+		{nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={documentIdentity}
 		onbackgroundclick={() => {
@@ -110,10 +119,17 @@
 		{selection}
 		label="Screen view"
 		native>
-		<NativePreview session={owner.session} {source} label={`Preview of ${screen.label}`}>
+		<NativePreview
+			onpresentationchange={presentationChanged}
+			overlayCapacity={MAX_VIEW_OVERLAYS}
+			session={owner.session}
+			{source}
+			overlays={status?.error ? [] : overlays}
+			label={`Preview of ${screen.label}`}>
 			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
 			{#key documentIdentity}
 				<SurfaceHandles
+					onoverlays={setOverlays}
 					{screen}
 					{selected}
 					{disabled}

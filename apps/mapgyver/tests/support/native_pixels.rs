@@ -174,6 +174,8 @@ impl Fixture {
                         rect,
                         clip: rect,
                         visible: true,
+                        overlays: Vec::new(),
+                        overlay_capacity: 0,
                     }],
                 },
                 Self::viewport(self.extent)

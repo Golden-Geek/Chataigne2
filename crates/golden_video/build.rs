@@ -30,6 +30,7 @@ fn compile_native_shaders() {
         ("PIXEL", s!("ps_main"), s!("ps_5_0"), "ps_main.dxbc"),
         ("MAPPED_PIXEL", s!("ps_mapped"), s!("ps_5_0"), "ps_mapped.dxbc"),
         ("PATTERN_PIXEL", s!("ps_pattern"), s!("ps_5_0"), "ps_pattern.dxbc"),
+        ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),
     ] {
         let mut code = None;
         let mut diagnostics = None;

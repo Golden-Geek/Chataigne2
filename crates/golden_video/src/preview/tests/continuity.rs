@@ -92,7 +92,7 @@ fn zoom_retains_frames_but_host_session_and_lease_changes_withdraw_captured_dest
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),
-            version: 1,
+            version: PREVIEW_PROTOCOL_VERSION,
         },
         host(),
     ) else {
@@ -107,7 +107,7 @@ fn zoom_retains_frames_but_host_session_and_lease_changes_withdraw_captured_dest
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),
-            version: 1,
+            version: PREVIEW_PROTOCOL_VERSION,
         },
         host(),
     ) else {

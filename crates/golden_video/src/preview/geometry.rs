@@ -63,6 +63,12 @@ pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<Re
     if view.source.is_empty() || view.source.len() > 255 || view.source.contains('\0') {
         return Err(PreviewRejection::Source);
     }
+    if view.overlay_capacity as usize > crate::plan::MAX_VIEW_OVERLAYS
+        || view.overlays.len() > view.overlay_capacity as usize
+        || !view.overlays.iter().all(crate::plan::OverlayPrimitive::is_valid)
+    {
+        return Err(PreviewRejection::Geometry);
+    }
     if !view.visible
         || view.rect.width == 0.
         || view.rect.height == 0.
@@ -126,5 +132,8 @@ pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<Re
             destination,
             source_rect,
             backdrop,
+            overlays: view.overlays.into(),
+            overlay_scale: host.css_scale as f32,
+            overlay_capacity: view.overlay_capacity as usize,
         }))
 }

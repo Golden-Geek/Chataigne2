@@ -4,6 +4,7 @@
 	import { measurePreview } from './geometry';
 	import { observePreviewLayout } from './observation';
 	import type { PreviewSession, PreviewSessionState, PreviewRegistration } from './session';
+	import type { OverlayPrimitive } from './generated/OverlayPrimitive';
 
 	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
 		source: string;
@@ -11,6 +12,9 @@
 		visible?: boolean;
 		label?: string;
 		children?: Snippet;
+		overlays?: OverlayPrimitive[];
+		overlayCapacity?: number;
+		onpresentationchange?(nativeOverlays: boolean): void;
 	};
 	let {
 		source,
@@ -18,6 +22,9 @@
 		visible = true,
 		label = 'Preview',
 		children,
+		overlays = [],
+		overlayCapacity = 0,
+		onpresentationchange,
 		...attributes
 	}: Props = $props();
 	let element: HTMLDivElement;
@@ -29,6 +36,15 @@
 	// Register in component order; intersection delivery can otherwise reorder
 	// overlapping native surfaces. Hidden/clipped surfaces retire on observation.
 	let inViewport = $state(true);
+	const nativeOverlays = $derived(
+		overlays.length > 0 &&
+			registration !== null &&
+			availability === 'available' &&
+			presentedViews.includes(registration.id)
+	);
+	$effect(() => {
+		onpresentationchange?.(nativeOverlays);
+	});
 
 	$effect(() => {
 		if (!element) return;
@@ -55,7 +71,11 @@
 				() => {
 					const geometry = measurePreview(element, visible);
 					observation?.measured(geometry);
-					return geometry;
+					return {
+						...geometry,
+						overlays: untrack(() => overlays),
+						overlay_capacity: untrack(() => overlayCapacity)
+					};
 				}
 			);
 			registrationError = false;
@@ -75,6 +95,8 @@
 
 	$effect(() => {
 		visible;
+		overlays;
+		overlayCapacity;
 		registration?.update(source);
 		registration?.invalidate();
 	});
@@ -86,6 +108,7 @@
 	class="native-preview {attributes.class ?? ''}"
 	data-preview-state={availability}
 	data-preview-installed={installed}
+	data-native-overlays={nativeOverlays}
 	aria-label={label}
 >
 	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
@@ -118,5 +141,8 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+	}
+	.native-preview[data-native-overlays='true'] :global([data-native-overlay-control]) {
+		opacity: 0;
 	}
 </style>

@@ -27,6 +27,14 @@ cbuffer PatternParameters : register(b1) {
     float4 pattern_colors[8];
 };
 
+cbuffer OverlayParameters : register(b2) {
+    float4 overlay_points[4];
+    float4 overlay_fill;
+    float4 overlay_stroke;
+    float4 overlay_style;
+    uint4 overlay_kind;
+};
+
 static const uint ENCODING_SRGB = 1;
 static const uint ALPHA_STRAIGHT = 0;
 static const uint ALPHA_PREMULTIPLIED = 1;
@@ -190,4 +198,40 @@ float4 ps_pattern(Vertex input) : SV_Target {
         }
     }
     return finish_pixel(input, color * opacity);
+}
+
+float4 ps_overlay(Vertex input) : SV_Target {
+    float2 p = input.position.xy;
+    float distance_to_edge = 1e20;
+    float path_position = 0;
+    bool inside = false;
+    if (overlay_kind.x == 1) {
+        float length_from_center = length(p - overlay_points[0].xy);
+        distance_to_edge = abs(length_from_center - overlay_style.y);
+        inside = length_from_center <= overlay_style.y;
+    } else {
+        float path_length = 0;
+        [unroll] for (uint i = 0; i < 4; i++) {
+            float2 a = overlay_points[i].xy;
+            float2 b = overlay_points[(i + 1) % 4].xy;
+            float2 edge = b - a;
+            float edge_length = length(edge);
+            float t = saturate(dot(p - a, edge) / max(dot(edge, edge), 1e-12));
+            float edge_distance = length(p - a - edge * t);
+            if (edge_distance < distance_to_edge) {
+                distance_to_edge = edge_distance;
+                path_position = path_length + t * edge_length;
+            }
+            path_length += edge_length;
+            if ((a.y > p.y) != (b.y > p.y)) {
+                if (p.x < a.x + (p.y - a.y) * edge.x / edge.y) inside = !inside;
+            }
+        }
+    }
+    float fill_coverage = saturate((inside ? distance_to_edge : -distance_to_edge) + 0.5);
+    float stroke_coverage = overlay_style.x > 0 ? saturate(overlay_style.x * 0.5 + 0.5 - distance_to_edge) : 0;
+    if (overlay_style.z > 0 && fmod(path_position, overlay_style.z + overlay_style.w) > overlay_style.z) stroke_coverage = 0;
+    float4 fill = overlay_fill * fill_coverage;
+    float4 stroke = overlay_stroke * stroke_coverage;
+    return stroke + fill * (1 - stroke.a);
 }

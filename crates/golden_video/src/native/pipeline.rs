@@ -13,6 +13,7 @@ use windows::core::s;
 use windows::core::{Error, HRESULT, Result};
 
 use crate::plan::{BlendMode, BlitRegion, Layer, LayerSource, Pattern, ProjectiveMapping, SampleFilter, UnitRect};
+mod overlay;
 mod pattern;
 use crate::{AlphaMode, ColorEncoding, LinearColor};
 use pattern::PatternParameters;
@@ -65,7 +66,8 @@ struct Parameters {
 }
 
 const _: () = assert!(size_of::<Parameters>() == 112);
-pub(super) const CONSTANT_BYTES: u64 = (size_of::<Parameters>() + size_of::<PatternParameters>()) as u64;
+pub(super) const CONSTANT_BYTES: u64 =
+    (size_of::<Parameters>() + size_of::<PatternParameters>() + overlay::CONSTANT_BYTES) as u64;
 
 struct DrawSettings {
     opacity: f32,
@@ -83,6 +85,9 @@ pub(super) struct Pipeline {
     pixel: ID3D11PixelShader,
     mapped_pixel: ID3D11PixelShader,
     pattern_pixel: ID3D11PixelShader,
+    overlay_pixel: ID3D11PixelShader,
+    overlay_constants: ID3D11Buffer,
+    overlay_blend: ID3D11BlendState,
     constants: ID3D11Buffer,
     pattern_constants: ID3D11Buffer,
     rasterizer: ID3D11RasterizerState,
@@ -136,7 +141,11 @@ impl Pipeline {
                 Some(&mut pattern_constants),
             )?;
         }
+        let (overlay_pixel, overlay_constants, overlay_blend) = overlay::prepare(device)?;
         Ok(Self {
+            overlay_pixel,
+            overlay_constants,
+            overlay_blend,
             vertex: vertex.ok_or_else(missing_output)?,
             pixel: pixel.ok_or_else(missing_output)?,
             mapped_pixel: mapped_pixel.ok_or_else(missing_output)?,

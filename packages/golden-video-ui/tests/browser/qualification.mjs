@@ -67,7 +67,7 @@ export async function verifyQualification(browser, baseUrl) {
 							return JSON.stringify({
 								kind: 'Connected',
 								session,
-								version: 1,
+								version: request.version,
 								max_views: 64
 							});
 						}

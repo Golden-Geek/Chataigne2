@@ -4,6 +4,7 @@ mod compile;
 mod envelope;
 mod error;
 mod mapping;
+mod overlay;
 mod pattern;
 mod placement;
 mod region;
@@ -12,6 +13,7 @@ mod weight;
 pub use envelope::{InterpolationCurve, OpacityEnvelope};
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
+pub use overlay::{MAX_VIEW_OVERLAYS, OverlayPrimitive, OverlayShape};
 pub use pattern::{GridPattern, LayerSource, Pattern};
 pub use placement::{RegionGeometry, RegionPlacement};
 pub use region::{BlitRegion, UnitRect};
@@ -332,7 +334,8 @@ pub struct PlanLimits {
     pub max_external_textures: usize,
     /// Maximum submitted output declarations.
     pub max_outputs: usize,
-    /// Maximum submitted input/draw units, including repeated samples, procedural layers and undemanded branches.
+    /// Maximum submitted source input/draw units, including repeated samples, procedural layers
+    /// and undemanded branches. Attached decorations have separate fixed RegionPlacement capacity.
     pub max_dependencies: usize,
     /// Maximum width or height of any submitted texture.
     pub max_texture_dimension: u32,

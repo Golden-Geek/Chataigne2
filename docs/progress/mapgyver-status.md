@@ -4,13 +4,16 @@
 
 **Verified gates: `█████░░░░░` 51% · 29/57 accepted** (phase completion above remains 3/11).
 
-**Current topic:** M05/6 moving-frame alignment defect; native desktop capture restored.
-**Next deliverable:** make native editor image and outline/handle presentation share a coherent
-frame/placement contract. Retain native hit-testing and lifecycle semantics, then M05/9 output bounds.
+**Current topic:** M05/6 native image/decoration/frame paint verified; moving-frame input remains.
+**Next deliverable:** bounded presented-placement native hits and point conversion during animation;
+complete M05/6–7 before M05/9 output bounds.
 **Execution:** M04/1–3,7–8 and M05/10 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
-**Current defect:** moving native image and DOM outline differ by 5–6 physical pixels; settled
-geometry agrees. Capture works. The next action is a presentation fix, not more capture research.
+**Remaining requirement:** native paint uses a sampled frame placement; DOM hit regions still
+follow the latest browser camera. Bind input to presented geometry and verify moving-frame hits.
+**Newly usable:** native Screen/Source outlines, handles and frames paint with the image; Screen
+and internal-landmark Source captures vary by at most 1 physical pixel during sampled zoom,
+replacing the reproduced 5–6-pixel paint mismatch. Native editor input/history/lifetime suites pass.
 **Usable now:** native Source crop/mapping/calibration, held Inspector feedback and selection/history;
 immutable background reads keep loaded controls usable; native zoom alignment remains unaccepted;
 responsive Screen target/resolution/per-output FPS and Surface source-media tree
@@ -29,10 +32,10 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Source editing/read isolation](evidence/mapgyver-source-native-2026-11-03.json),
-including the complete bundled/native input/history/source-loss checklist and usable desktop capture.
-[Pixel audit](evidence/mapgyver-native-zoom-sync-2026-11-03.json) reopens Source alignment because
-the uniform image border can be clipped by the DOM aperture. Last accepted remains M05/10
+**Last delivered capability:** [coherent native editor paint](evidence/mapgyver-native-zoom-sync-2026-11-03.json),
+including fixed admitted decoration capacity, native frame/canvas ownership, internal Source
+landmark proof and repaired missing-row read lifecycle. Moving-frame input is still unverified.
+Last accepted remains M05/10
 workbench status; M04/7–8 remain accepted. No timing/physical requirement is waived.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
@@ -52,8 +55,9 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **29/57 accepted gates**; denominators are unchanged. M05/7 image-motion proof is
-reopened for an internal landmark; its input/history/read-fencing evidence is retained.
+There are **29/57 accepted gates**; denominators are unchanged. M05/7's internal-landmark
+paint proof now passes; presented-placement native input remains open. Earlier input/history
+and read-fencing evidence is retained.
 The additional gate-progress bar uses accepted gates / 57, rounded; it does not replace or
 inflate the unchanged phase-completion calculation above.
 Partial work, planning and unavailable checks earn no gate.
@@ -73,8 +77,8 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | [Moving-frame defect reproduced](evidence/mapgyver-native-zoom-sync-2026-11-03.json); two experiments exhausted. Implement coherent native image/editor-overlay presentation and preserve hit testing/lifecycle; rebuild before native verification. No more scheduling probes. |
-| Pending  | M05/7            | Native/bundled Inspector/crop/history/lifetime and read/gesture fixes pass. Reopen moving-image proof: the prior uniform full-image border can be clipped by the DOM aperture. After the shared M05/6 scheduling fix, verify an internal source-image landmark against the crop outline, then restore acceptance. |
+| Active   | M05/6            | [Native image/decoration/frame paint verified](evidence/mapgyver-native-zoom-sync-2026-11-03.json), plus complete native input/history suites. Implement presented-placement native hits/point conversion during animation; current DOM hits still follow the latest camera. No scheduling probes. |
+| Pending  | M05/7            | Internal Picture landmark/crop motion and complete native Source input/history/lifetime suite now pass. Return after the shared M05/6 presented-placement input contract is verified; paint proof alone does not complete moving-frame hit acceptance. |
 | Accepted | M05/10           | [Complete outliner/footer contract](evidence/mapgyver-workbench-status-2026-11-03.json): bounded responsive target/resolution/source rows, actual individual output FPS and public shared footer with native values and recovery. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
@@ -105,22 +109,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** user-prioritized Codex capacity recovery, host-owned batch,
-  10:13 CET start / 10:58 CET cutoff. Built a local stdio supervisor under
-  `%USERPROFILE%/.codex/tools/goal-recovery` and configured VS Code's executable override.
-  It retries only terminal structured model-capacity failures on this exact goal thread,
-  checking active goal, idle thread, unchanged failed turn and empty input queue first.
-  Model, permissions, service tier and budgets are preserved. **23/23 transport/guard tests**,
-  Windows descendant cleanup, CLI version passthrough and real read-only app-server RPC pass;
-  no second thread writer or inference was started. **Activation still requires one VS Code
-  Reload Window; the existing IDE connection is not protected, and actual live recovery
-  remains unverified.** This host workaround closes no MapGyver acceptance gate.
-  Counts remain M05 4/10 (40%), 29/57 gates (51%), 3/11 phases (27%).
-  Next product action stays M05/6: coherent native image/overlay rendering and hit testing.
-  [The 5–6 physical-pixel moving discrepancy](evidence/mapgyver-native-zoom-sync-2026-11-03.json)
-  remains reproduced; the failed timing candidate was removed and its two-experiment
-  allowance is exhausted. M05/7 needs an internal-landmark motion proof after the shared fix.
-  The current local review binary contains the rejected candidate; rebuild before native checks.
+- **Current handoff:** M05/6 native editor paint delivered, 10:23–11:00 CET (cutoff 11:08).
+  Golden owns bounded decoration/frame presentation; MapGyver contributes geometry/styles.
+  [Evidence](evidence/mapgyver-native-zoom-sync-2026-11-03.json): final Screen/internal-landmark
+  Source each pass 24 native observations, three image widths and ≤1-pixel relative edge variation.
+  Native selection/keyboard/Alt-drag/Fill-Fit/Source suites pass. Missing mounted-row reads after
+  New now return typed null without rejected edits or history changes.
+  Checks: MapGyver 338, Golden Video 179, Golden UI 233, Preview UI 30, Screen UI 25 pass;
+  strict Clippy, generated contracts, both consumer UI checks and ordinary bundled build pass.
+  No gate closed: M05/6 stays Active for presented-placement native hit routing during animation;
+  M05/7 retains that shared input requirement despite its newly verified internal landmark.
+  Counts remain M05 4/10 (40%), 29/57 gates (51%), 3/11 phases (27%); no scope/budget revision.
+  Current review binary matches this delivery. Next action is the input contract, not recapture.
+  Host capacity recovery is configured under `%USERPROFILE%/.codex/tools/goal-recovery`, with
+  23/23 tests and real read-only RPC verified. Activation still needs one VS Code Reload Window;
+  the current IDE connection is not protected and live recovery is unverified. No product gate awarded.
 
 ## Maintenance rule
 

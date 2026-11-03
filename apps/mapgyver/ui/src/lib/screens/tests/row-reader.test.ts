@@ -66,3 +66,17 @@ test('disconnect clears authored rows and no reads start until the session is us
 	assert.equal(reads, 2);
 	reader.dispose();
 });
+
+test('a row deleted before its bounded query returns clears its details without an error', async () => {
+	const state = createRowState();
+	state.snapshot = row('removed');
+	const reader = new ScreenRowReader(state, async () => null);
+	reader.refresh(
+		{ status: 'connected', snapshotGeneration: 1, loading: { visible: false } },
+		'removed'
+	);
+	await flush();
+	assert.equal(state.snapshot, null);
+	assert.equal(state.error, '');
+	reader.dispose();
+});

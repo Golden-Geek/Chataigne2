@@ -1,6 +1,7 @@
 use super::*;
 use protocol::{CssRect, PreviewView};
 mod continuity;
+mod overlays;
 
 fn host() -> HostViewport {
     HostViewport {
@@ -30,6 +31,8 @@ fn view() -> PreviewView {
             height: 10.,
         },
         visible: true,
+        overlays: Vec::new(),
+        overlay_capacity: 0,
     }
 }
 fn fixture() -> (PreviewController, PreviewReceiver, Uuid) {
@@ -37,7 +40,7 @@ fn fixture() -> (PreviewController, PreviewReceiver, Uuid) {
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),
-            version: 1,
+            version: PREVIEW_PROTOCOL_VERSION,
         },
         host(),
     ) else {
@@ -155,7 +158,7 @@ fn replacing_session_and_unregister_fence_late_preparation_without_clearing_new_
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),
-            version: 1,
+            version: PREVIEW_PROTOCOL_VERSION,
         },
         host(),
     ) else {
@@ -224,7 +227,7 @@ fn lease_expiry_clears_disconnected_views_and_close_prevents_new_registration() 
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),
-            version: 1,
+            version: PREVIEW_PROTOCOL_VERSION,
         },
         host(),
     ) else {
@@ -246,7 +249,7 @@ fn lease_expiry_clears_disconnected_views_and_close_prevents_new_registration() 
         control.handle(
             PreviewRequest::Connect {
                 client: Uuid::new_v4(),
-                version: 1
+                version: PREVIEW_PROTOCOL_VERSION
             },
             host()
         ),
@@ -263,7 +266,7 @@ fn wire_contract_rejects_mismatched_version_and_contains_only_layout_metadata() 
         control.handle(
             PreviewRequest::Connect {
                 client: Uuid::new_v4(),
-                version: 2
+                version: PREVIEW_PROTOCOL_VERSION + 1
             },
             host()
         ),

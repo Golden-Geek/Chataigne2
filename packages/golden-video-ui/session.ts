@@ -3,8 +3,12 @@ import type { PreviewView } from './generated/PreviewView';
 import type { PreviewRequest } from './generated/PreviewRequest';
 import type { PreviewResponse } from './generated/PreviewResponse';
 import type { PreviewTransport } from './transport';
+import type { OverlayPrimitive } from './generated/OverlayPrimitive';
 
-export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'>;
+export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'> & {
+	overlays?: OverlayPrimitive[];
+	overlay_capacity?: number;
+};
 export interface PreviewSessionState {
 	availability: 'idle' | 'connecting' | 'available' | 'unavailable' | 'disposed';
 	session: string | null;
@@ -182,6 +186,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		return [...registrations.values()].map((registration) => ({
 			id: registration.id,
 			source: registration.source,
+			overlays: [],
+			overlay_capacity: 0,
 			...registration.measure()
 		}));
 	}

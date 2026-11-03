@@ -12,3 +12,6 @@ export type { PreviewRequest } from './generated/PreviewRequest';
 export type { PreviewResponse } from './generated/PreviewResponse';
 export type { PreviewView } from './generated/PreviewView';
 export type { CssRect } from './generated/CssRect';
+export type { OverlayPrimitive } from './generated/OverlayPrimitive';
+export type { OverlayShape } from './generated/OverlayShape';
+export { MAX_VIEW_OVERLAYS } from './generated/constants';

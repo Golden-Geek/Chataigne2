@@ -38,6 +38,9 @@
 		if (!session.state.installed)
 			throw new Error(`Native installation was not confirmed during ${phase}`);
 		const retirementMasks = document.querySelectorAll('[data-native-preview-retirement]').length;
+		const nativeControl = document.querySelector('[data-native-overlay-control]');
+		if (nativeControl && getComputedStyle(nativeControl).opacity !== '0')
+			throw new Error('Installed native decorations must replace DOM paint');
 		if (retirementMasks !== 0)
 			throw new Error(`Retirement masks remained after confirmed ${phase} layout`);
 		report.phase = phase;
@@ -110,8 +113,32 @@
 	<div class="views">
 		{#if redMounted}
 			<div class="preview red">
-				<NativePreview {session} source="red" label="Red native source">
-					<svg viewBox="0 0 100 80" aria-hidden="true"><path d="M5 5H95V75H5Z" /></svg>
+				<NativePreview
+					{session}
+					source="red"
+					overlayCapacity={1}
+					label="Red native source"
+					overlays={[
+						{
+							shape: {
+								kind: 'Quad',
+								corners: [
+									[0.05, 0.0625],
+									[0.95, 0.0625],
+									[0.95, 0.9375],
+									[0.05, 0.9375]
+								]
+							},
+							fill: [0, 0, 0, 0],
+							stroke: [1, 1, 0, 1],
+							width: 2,
+							dash: null
+						}
+					]}
+				>
+					<svg data-native-overlay-control viewBox="0 0 100 80" aria-hidden="true"
+						><path d="M5 5H95V75H5Z" /></svg
+					>
 				</NativePreview>
 				<button
 					type="button"

@@ -6,6 +6,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { crc32, deflateSync } from 'node:zlib';
 import { openNativeEditor } from './native-editor.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
@@ -13,6 +14,7 @@ await mkdir(directory, { recursive: true });
 const exists = async (name) => !!(await stat(path.join(directory, name)).catch(() => null));
 assert(!(await exists('ready.json')), 'Alignment fixture requires a fresh output directory');
 const native = await openNativeEditor();
+const sourceEditor = process.argv.includes('--source');
 let token;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {
@@ -41,14 +43,52 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const { reference: source } = await edit('media', {
 		kind: 'CreateMedia',
-		media_kind: 'SolidColor',
+		media_kind: sourceEditor ? 'Picture' : 'SolidColor',
 		label: 'Alignment red'
 	});
-	await edit('media', {
-		kind: 'ConfigureChannel',
-		reference: source,
-		source: { kind: 'SolidColor', rgba: [1, 0, 0, 1] }
-	});
+	if (sourceEditor) {
+		// A red internal landmark surrounded by black defeats the prior full-image
+		// aperture false positive. Its edges coincide with the authored source crop.
+		const width = 800,
+			height = 600;
+		const raw = Buffer.alloc(height * (1 + width * 3));
+		for (let y = 120; y < 480; y++)
+			for (let x = 160; x < 640; x++) raw[y * (1 + width * 3) + 1 + x * 3] = 255;
+		function chunk(name, data) {
+			const type = Buffer.from(name);
+			const length = Buffer.alloc(4);
+			length.writeUInt32BE(data.length);
+			const crc = Buffer.alloc(4);
+			crc.writeUInt32BE(crc32(Buffer.concat([type, data])));
+			return Buffer.concat([length, type, data, crc]);
+		}
+		const header = Buffer.alloc(13);
+		header.writeUInt32BE(width);
+		header.writeUInt32BE(height, 4);
+		header[8] = 8;
+		header[9] = 2;
+		const picture = path.join(directory, 'internal-landmark.png');
+		await writeFile(
+			picture,
+			Buffer.concat([
+				Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+				chunk('IHDR', header),
+				chunk('IDAT', deflateSync(raw)),
+				chunk('IEND', Buffer.alloc(0))
+			])
+		);
+		await edit('media', {
+			kind: 'ImportPicture',
+			target: source,
+			locator: { kind: 'absolute', path: picture },
+			label: null
+		});
+	} else
+		await edit('media', {
+			kind: 'ConfigureChannel',
+			reference: source,
+			source: { kind: 'SolidColor', rgba: [1, 0, 0, 1] }
+		});
 	const { screen, surface: reference } = await edit('screens', {
 		kind: 'CreateScreen',
 		label: 'Alignment screen'
@@ -68,6 +108,7 @@ try {
 		definition: {
 			...snapshot.definition,
 			source,
+			...(sourceEditor ? { crop: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 } } : {}),
 			quad: {
 				corners: [
 					{ x: 0.2, y: 0.2 },
@@ -91,7 +132,6 @@ try {
 		.getByRole('tab')
 		.filter({ hasText: /^Screen Warping$/ })
 		.click();
-	const sourceEditor = process.argv.includes('--source');
 	if (sourceEditor)
 		await page
 			.getByRole('tab')
@@ -110,6 +150,9 @@ try {
 	assert(bounds);
 	const metadata = {
 		editor: sourceEditor ? 'source' : 'screen',
+		landmark: sourceEditor
+			? { extent: [800, 600], internalRedRect: [160, 120, 480, 360], crop: [0.2, 0.2, 0.6, 0.6] }
+			: null,
 		pid: native.app.pid,
 		directory,
 		base: native.base,

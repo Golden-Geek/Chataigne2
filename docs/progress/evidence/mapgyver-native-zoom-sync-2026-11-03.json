@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-03",
 	"gate": "M05/6",
-	"state": "Active: reproduced moving-frame image/DOM-overlay mismatch; native capture is available",
+	"state": "Active: native image/decorations/frame paint verified; moving-frame native hit routing remains unverified",
 	"baseline": {
 		"fixture": "native-alignment.mjs target/mapgyver-screen-zoom-20261103-0925 --zoom",
 		"native_samples": 24,
@@ -25,6 +25,32 @@
 	"decision": "Two native experiments are complete; do not add a third timing probe or repeat unchanged captures. Separate DOM/native presentation needs a coherent presentation solution. Next product slice is rendering editor outline/handle presentation with the native image's placement/frame, through app-neutral Golden contracts and app-owned overlay contributions; input and lifecycle semantics remain required.",
 	"source_scope_correction": "M05/7's full bundled/native input, crop, calibration, history, source-loss and read-fencing proof remains valid. Its uniform full-source outer edge can be clipped by the DOM aperture, so it does not independently prove internal image motion. Reopen that gate Pending; restore acceptance only after a source image with an internal landmark follows its crop outline during motion. Do not count the prior border-only pass as complete alignment proof.",
 	"cleanup": "Both native fixtures exited normally 0 after their verifiers completed/failed. No native test app or capture worker remains. Local PNGs and detailed traces remain under the named target directories; no large archive or diagnostic framework is added.",
-	"current_binary_note": "The last local codex-review executable includes the rejected microtask candidate and is not a current-checkout acceptance binary. Rebuild normally before the next native run. The source and repository retain the pre-candidate scheduler.",
+	"native_presentation_delivery": {
+		"owner": "Golden Video owns bounded Quad/Circle metadata, host scaling, aperture clipping, fixed admitted capacity and frame-coherent drawing. MapGyver contributes geometry/styles. Golden viewport nativeFrame withdraws the moving DOM surround/outline so it cannot clip native images or out-of-image controls.",
+		"protocol": "Preview v2 and OverlayPrimitive/OverlayShape are generated from Rust. Each view declares fixed overlay_capacity; ordinary previews/backdrops reserve zero. Live decoration growth cannot bypass retained-input admission. Existing source dependency limits and qualification budgets are unchanged; the separately bounded decoration work retains final GPU/latency qualification.",
+		"screen": {
+			"directory": "target/mapgyver-screen-native-overlays-final-20261103-0956",
+			"native_samples": 24,
+			"red_widths_px": [421, 436, 498],
+			"max_edge_offset_change_px": 1,
+			"baseline_offsets_px": [2.5, 1.5, 2.5, 2],
+			"result": "Pass unchanged relative-edge verifier using actual owned foreground native desktop pixels at DPR 1.25. This is sampled paint coherence, not absolute scanout alignment or input latency."
+		},
+		"source": {
+			"directory": "target/mapgyver-source-native-overlays-final-20261103-0956",
+			"native_samples": 24,
+			"red_widths_px": [421, 441, 498],
+			"max_edge_offset_change_px": 1,
+			"baseline_offsets_px": [2.5, 1.5, 2.5, 1.5],
+			"landmark": "800x600 Picture, internal red rectangle [160,120,480,360] on black, authored crop [0.2,0.2,0.6,0.6]. Independent of the full-image aperture.",
+			"result": "Pass unchanged relative-edge verifier at DPR 1.25; replaces the former uniform-border-only proof."
+		},
+		"native_input": "Final native-navigation --selection/--keyboard/--translation/--fit/--source all exit 0. Includes Inspector/background/hover/local corner selection, 100 held repeats and Shift at zoom, one-Undo grouping, Alt body/corner translation, Escape/New/blur fences, automatic Picture Fit and complete Source/crop/calibration/source-loss/history input. No page errors or unexpected rejected intents remain.",
+		"lifecycle_repair": "Selection reproduced queued InspectRow reads after project-new. Missing rows now return typed null instead of a rejected edit. Wrong existing node types still reject. Rust/generated TS/reader and deletion/Undo/history tests change together.",
+		"software": "MapGyver 338 pass/2 hardware ignores; Golden Video 179 pass/20 hardware ignores; strict golden_video/MapGyver lib+tests Clippy exit 0; Golden UI 233, Preview UI 30, app Screen UI 25 pass. Both UI consumer checks have 0 errors/warnings. Generated contracts, fixed shaders, lifecycle/scale-3/recovery/continuity browser checks pass. Root/golden_core fmt and touched authored UI formatting complete.",
+		"remaining": "M05/6 Active: native paint uses the sampled frame placement, but DOM hits/point conversion still follow the latest browser camera. Implement bounded presented-placement input during animation before accepting it. M05/7 internal-landmark paint proof passes; its shared moving-frame input contract remains Pending. Original physical DPI, latency and performance qualification remains required.",
+		"cleanup": "Both final capture fixtures and all five owned native interaction fixtures exited normally 0; no owned app/capture worker remains. Only owned processes were closed; no action targeted the user's dev app."
+	},
+	"current_binary_note": "Current ordinary bundled target/debug/deps/MapGyver-codex-review.exe SHA256 e07af8e4b560dd788694a58d613a7e076b7169645453a0fae392aaf104a94b3a, built with cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review, exit 0. Contains native/frame painting and missing-row repair; the rejected scheduling candidate is absent.",
 	"gate_changes": "M05/6 stays sole Active gate. M05/7 Accepted -> Pending after evidence audit; M05 returns to 4/10 (40%), accepted gates 29/57 (51%), phases 3/11 (27%). M05/10 remains Accepted. Every original requirement and budget remains unchanged."
 }

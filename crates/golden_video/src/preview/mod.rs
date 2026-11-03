@@ -44,6 +44,12 @@ pub struct ResolvedView {
     pub source_rect: UnitRect,
     /// Stationary clipped editor backing, independent of the moving image rectangle.
     pub backdrop: UnitRect,
+    /// Validated, tightly retained image-relative editor presentation.
+    pub overlays: Arc<[crate::plan::OverlayPrimitive]>,
+    /// Host-authenticated CSS-to-physical scale for decoration widths and radii.
+    pub overlay_scale: f32,
+    /// Fixed retained decoration capacity for this view's plan lifetime.
+    pub overlay_capacity: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -67,6 +73,26 @@ impl PreviewSnapshot {
     /// Builds a snapshot whose destinations share one visibility lifetime. Controller snapshots
     /// retain independent destination lifetimes so unrelated layout edits do not clear live views.
     pub fn new(generation: u64, views: Vec<ResolvedView>, guard: RevisionGuard) -> Self {
+        let placements = views
+            .iter()
+            .filter(|view| !view.overlays.is_empty())
+            .map(|view| {
+                let placement = crate::plan::RegionPlacement::with_overlay_capacity(
+                    view.destination,
+                    view.source_rect,
+                    view.overlay_capacity,
+                )
+                .expect("resolved preview geometry");
+                assert!(placement.update_decorated(
+                    view.destination,
+                    view.source_rect,
+                    view.backdrop,
+                    view.overlay_scale,
+                    &view.overlays
+                ));
+                (view.id, placement)
+            })
+            .collect();
         Self {
             generation,
             views,
@@ -74,7 +100,7 @@ impl PreviewSnapshot {
             routing_guard: guard.clone(),
             guard,
             view_guards: HashMap::new(),
-            placements: HashMap::new(),
+            placements,
             backdrops: HashMap::new(),
         }
     }
@@ -144,11 +170,9 @@ impl State {
     fn replace_views(&mut self, views: Vec<ResolvedView>, viewport: HostViewport) {
         let routing_changed = self.viewport != Some(viewport)
             || self.views.len() != views.len()
-            || self
-                .views
-                .iter()
-                .zip(&views)
-                .any(|(old, new)| old.id != new.id || old.source != new.source);
+            || self.views.iter().zip(&views).any(|(old, new)| {
+                old.id != new.id || old.source != new.source || old.overlay_capacity != new.overlay_capacity
+            });
         if routing_changed {
             self.routing.advance();
         }
@@ -187,6 +211,13 @@ impl State {
             });
         }
         for view in &views {
+            if self
+                .placements
+                .get(&view.id)
+                .is_some_and(|placement| placement.overlay_capacity() != view.overlay_capacity)
+            {
+                self.placements.remove(&view.id);
+            }
             self.backdrops
                 .entry(view.id)
                 .and_modify(|placement| {
@@ -199,11 +230,29 @@ impl State {
             self.placements
                 .entry(view.id)
                 .and_modify(|placement| {
-                    assert!(placement.update(view.destination, view.source_rect));
+                    assert!(placement.update_decorated(
+                        view.destination,
+                        view.source_rect,
+                        view.backdrop,
+                        view.overlay_scale,
+                        &view.overlays
+                    ));
                 })
                 .or_insert_with(|| {
-                    crate::plan::RegionPlacement::new(view.destination, view.source_rect)
-                        .expect("resolved preview geometry")
+                    let placement = crate::plan::RegionPlacement::with_overlay_capacity(
+                        view.destination,
+                        view.source_rect,
+                        view.overlay_capacity,
+                    )
+                    .expect("resolved preview geometry");
+                    assert!(placement.update_decorated(
+                        view.destination,
+                        view.source_rect,
+                        view.backdrop,
+                        view.overlay_scale,
+                        &view.overlays
+                    ));
+                    placement
                 });
         }
         self.placements.retain(|id, _| views.iter().any(|view| view.id == *id));

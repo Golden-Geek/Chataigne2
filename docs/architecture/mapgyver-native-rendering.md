@@ -9,7 +9,7 @@ and the [implementation plan](../plan/MapGyver_Implementation_Plan.md).
 ## Transparent WebView over native rendering
 
 The desired "hole" is a transparent area in the HTML/WebView revealing a native GPU-rendered
-surface underneath. Opaque workbench chrome and DOM handles remain above it. Wry's official
+surface underneath. Opaque workbench chrome and DOM input controls remain above it. Wry's official
 [GPU example](https://github.com/tauri-apps/wry/blob/dev/examples/wgpu.rs) demonstrates native
 rendering behind a transparent child WebView. On Windows it disables child clipping and enables
 WebView transparency. The example is also present in the locally installed, locked Wry 0.55.1.
@@ -36,6 +36,23 @@ of creating a second app-owned bootstrap. Tauri exposes public native window and
 API documentation advises pinning at least the minor version when using underlying types.
 [Tauri window API](https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.Window.html),
 [Tauri platform access](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri/src/webview/mod.rs).
+
+Editor decorations belong to the same native presentation as the image. Golden Video owns
+bounded Quad/Circle metadata, host-authenticated physical scale and aperture clipping, checked
+live placement and premultiplied linear drawing. Placement and decorations are sampled once
+per GPU completion token, so independent WebView/GPU presentation cannot separate their paint
+during navigation. Preview protocol v2 carries metadata only. Each view declares its fixed
+decoration capacity before plan admission; ordinary previews and backdrop placements reserve
+zero. Live updates cannot exceed the reserved capacity or bypass retained-input accounting.
+
+MapGyver supplies Screen/Source geometry and styles, including selected, hovered, disabled,
+invalid, crop and pointer presentation. DOM controls retain accessibility and input; Golden's
+preview component suppresses their marked paint only while an installed native view supplies
+decorations. The public viewport `nativeFrame` hook also withdraws the moving DOM outline and
+surround mask while native paint owns the black canvas and image frame; this permits controls
+outside the image and prevents the WebView aperture from clipping an independently presented
+image. Browser/unavailable previews keep their DOM paint. This rendering mechanism does
+not by itself establish the retained native interaction, physical alignment or latency gates.
 
 Recommended first probe: D3D11 rendering below the existing ordinary Tauri/Wry WebView, following
 the layering pattern in Wry's wgpu example. The example proves the pattern, not this exact

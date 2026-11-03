@@ -13,10 +13,10 @@ export class ScreenRowReader<S extends Connection> {
 	private running = false;
 	private desired: { session: S; generation: number; node: string; epoch: number } | null = null;
 	private state: ReturnType<typeof createRowState>;
-	private read: (session: S, node: string) => Promise<ScreenRowSnapshot>;
+	private read: (session: S, node: string) => Promise<ScreenRowSnapshot | null>;
 	constructor(
 		state: ReturnType<typeof createRowState>,
-		read: (session: S, node: string) => Promise<ScreenRowSnapshot>
+		read: (session: S, node: string) => Promise<ScreenRowSnapshot | null>
 	) {
 		this.state = state;
 		this.read = read;

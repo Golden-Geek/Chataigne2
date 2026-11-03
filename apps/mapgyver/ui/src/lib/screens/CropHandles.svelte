@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { ViewportHandle } from 'golden_ui';
+	import type { OverlayPrimitive } from 'golden_video_ui';
+	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';
 	import type { SurfaceHandle } from './surface-gesture';
@@ -10,7 +12,8 @@
 		start,
 		move,
 		finish,
-		stop
+		stop,
+		onoverlays = () => {}
 	}: {
 		crop: UnitRect;
 		disabled: boolean;
@@ -18,6 +21,7 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		onoverlays?(overlays: OverlayPrimitive[]): void;
 	} = $props();
 	let canvas: SVGSVGElement;
 	let drag: { id: number; offset: Point } | null = null;
@@ -28,6 +32,15 @@
 		{ x: crop.x + crop.width, y: crop.y + crop.height },
 		{ x: crop.x, y: crop.y + crop.height }
 	]);
+	$effect(() => {
+		const rem = overlayRem();
+		onoverlays([
+			imageFrameOverlay(rem),
+			quadOverlay(corners, rem, { selected: true }),
+			...corners.flatMap((point) => handleOverlays(point, rem)),
+			...(ghost ? handleOverlays(ghost, rem, false, true) : [])
+		]);
+	});
 	function point(event: PointerEvent): Point | null {
 		const rect = canvas.getBoundingClientRect();
 		return rect.width > 0 && rect.height > 0
@@ -91,6 +104,7 @@
 		}
 	}} />
 <svg
+	data-native-overlay-control
 	bind:this={canvas}
 	viewBox="0 0 1 1"
 	preserveAspectRatio="none"
@@ -115,13 +129,19 @@
 
 {#each corners as corner, index}
 	<ViewportHandle
+		data-native-overlay-control
 		x={corner.x}
 		y={corner.y}
 		label={`Crop corner ${index + 1}`}
 		{disabled}
 		onpointerdown={(event) => down(event, { kind: 'CropCorner', corner: index })} />
 {/each}
-{#if ghost}<ViewportHandle x={ghost.x} y={ghost.y} label="Crop pointer" ghost />{/if}
+{#if ghost}<ViewportHandle
+		data-native-overlay-control
+		x={ghost.x}
+		y={ghost.y}
+		label="Crop pointer"
+		ghost />{/if}
 
 <style>
 	svg {

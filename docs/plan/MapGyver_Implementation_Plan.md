@@ -60,6 +60,10 @@ but its image-motion acceptance is reopened for an internal landmark after the
 restores native pixels despite the unavailable helper/black PrintWindow method. Return to
 M05/6 coherent image/overlay presentation next, then restore M05/7 and deliver M05/9 output bounds. This is execution order
 within M05 only; every original physical matrix and acceptance requirement remains unchanged.
+The [native paint delivery](../progress/evidence/mapgyver-native-zoom-sync-2026-11-03.json)
+now verifies frame-coherent Screen/Source decorations and an internal source-image landmark.
+M05/6 stays active for presented-placement native hit routing during animation; M05/7 retains
+that shared input requirement. Passing paint or ordinary pointer suites alone does not close it.
 
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

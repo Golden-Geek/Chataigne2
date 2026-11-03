@@ -3,9 +3,12 @@ use super::protocol::{ScreenId, ScreenRowSnapshot, ScreenTarget};
 use crate::app::{AppEngine, AppNode};
 use golden_core::{model::NodeUuid, node::Node};
 
-pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<ScreenRowSnapshot, String> {
-    let id = engine.node_id_by_uuid(node).ok_or("row object is missing")?;
-    let owner = engine.nodes.get(id).ok_or("row object is missing")?;
+pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<ScreenRowSnapshot>, String> {
+    // A mounted outliner row can outlive deletion/project replacement until its next UI
+    // snapshot. Missing data is a normal bounded query result, not a rejected edit.
+    let Some(owner) = engine.node_id_by_uuid(node).and_then(|id| engine.nodes.get(id)) else {
+        return Ok(None);
+    };
     let (detail, extent, enabled) = match owner {
         AppNode::Screen(screen) => {
             let definition = screen.definition();
@@ -42,10 +45,10 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<ScreenRowSna
         }
         _ => return Err("row object is not a Screen or Surface".into()),
     };
-    Ok(ScreenRowSnapshot {
+    Ok(Some(ScreenRowSnapshot {
         node,
         detail,
         extent,
         enabled,
-    })
+    }))
 }

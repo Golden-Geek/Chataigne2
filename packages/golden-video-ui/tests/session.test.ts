@@ -3,6 +3,7 @@ import { createPreviewSession, type PreviewSession } from '../session';
 import type { PreviewTransport } from '../transport';
 import type { PreviewRequest } from '../generated/PreviewRequest';
 import type { PreviewResponse } from '../generated/PreviewResponse';
+import { PREVIEW_PROTOCOL_VERSION } from '../generated/constants';
 
 const geometry = (x = 0) => ({
 	rect: { x, y: 0, width: 20, height: 10 },
@@ -29,7 +30,7 @@ function transport(override?: (request: PreviewRequest) => Promise<PreviewRespon
 				return {
 					kind: 'Connected',
 					session: `session-${++connections}`,
-					version: 1,
+					version: request.version,
 					max_views: 64
 				};
 			if (request.kind === 'Layout' || request.kind === 'Status')
@@ -72,7 +73,12 @@ describe('window preview session', () => {
 
 	it.each([
 		null,
-		{ kind: 'Connected', session: 'invalid-capability', version: 1, max_views: null }
+		{
+			kind: 'Connected',
+			session: 'invalid-capability',
+			version: PREVIEW_PROTOCOL_VERSION,
+			max_views: null
+		}
 	])(
 		'withholds an invalid native control response rather than leaving negotiation pending',
 		async (response) => {
@@ -106,6 +112,35 @@ describe('window preview session', () => {
 		expect(layouts.at(-1)?.views[0].rect.x).toBe(20);
 		expect(layouts.map((layout) => layout.revision)).toEqual(layouts.map((_, index) => index + 1));
 		expect(session.state.installed).toBe(true);
+	});
+
+	it('updates native decorations without changing view identity or its source', async () => {
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		let overlays: import('../generated/OverlayPrimitive').OverlayPrimitive[] = [];
+		const view = session.register('channel', () => ({
+			...geometry(),
+			overlays,
+			overlay_capacity: 1
+		}));
+		await session.connect();
+		await flush();
+		await session.whenSettled();
+		overlays = [
+			{
+				shape: { kind: 'Circle', center: [0.5, 0.5], radius: 6 },
+				fill: [1, 1, 1, 1],
+				stroke: [0, 0, 1, 1],
+				width: 1.6,
+				dash: null
+			}
+		];
+		view.invalidate();
+		await flush();
+		await session.whenSettled();
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts.at(-1)?.views[0]).toMatchObject({ id: view.id, source: 'channel', overlays });
+		expect(session.state.presentedViews).toContain(view.id);
 	});
 
 	it('retains only the newest desired geometry while one IPC is in flight', async () => {
@@ -380,7 +415,12 @@ describe('window preview session', () => {
 		const session = own(endpoint.value);
 		const pending = session.connect();
 		const disposal = session.dispose();
-		connected.resolve({ kind: 'Connected', session: 'late-session', version: 1, max_views: 64 });
+		connected.resolve({
+			kind: 'Connected',
+			session: 'late-session',
+			version: PREVIEW_PROTOCOL_VERSION,
+			max_views: 64
+		});
 		await pending;
 		await disposal;
 		expect(session.state.availability).toBe('disposed');

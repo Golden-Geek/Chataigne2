@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { ViewportHandle } from 'golden_ui';
+	import type { OverlayPrimitive } from 'golden_video_ui';
+	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
@@ -17,7 +19,8 @@
 		start,
 		move,
 		finish,
-		stop
+		stop,
+		onoverlays = () => {}
 	}: {
 		screen: ScreenSnapshot;
 		selected: SurfaceId | null;
@@ -29,6 +32,7 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		onoverlays?(overlays: OverlayPrimitive[]): void;
 	} = $props();
 	let canvas: SVGSVGElement;
 	let pointer = $state.raw<{
@@ -50,6 +54,29 @@
 			return item ? [item] : [];
 		})
 	);
+	$effect(() => {
+		const rem = overlayRem();
+		onoverlays([
+			imageFrameOverlay(rem),
+			...visible.map((item) =>
+				quadOverlay(item.definition.quad.corners, rem, {
+					selected: item.reference.surface === selected,
+					enabled: item.definition.enabled,
+					valid: item.mapping_valid
+				})
+			),
+			...handles.flatMap((item) =>
+				item.definition.quad.corners.flatMap((point, index) =>
+					handleOverlays(
+						point,
+						rem,
+						item.reference.surface === selected && index === selectedCorner
+					)
+				)
+			),
+			...(ghost ? handleOverlays(ghost, rem, false, true) : [])
+		]);
+	});
 	function point(event: PointerEvent): Point | null {
 		const rect = canvas.getBoundingClientRect();
 		if (rect.width <= 0 || rect.height <= 0) return null;
@@ -157,6 +184,7 @@
 <!-- Captured handle clicks belong to this control group, including after release. -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <svg
+	data-native-overlay-control
 	bind:this={canvas}
 	viewBox="0 0 1 1"
 	preserveAspectRatio="none"
@@ -205,6 +233,7 @@
 	<div class="corners" role="group" aria-label={`Warp handles for ${item.label}`}>
 		{#each item.definition.quad.corners as corner, index}
 			<ViewportHandle
+				data-native-overlay-control
 				x={corner.x}
 				y={corner.y}
 				label={`Warp corner ${index + 1}`}
@@ -233,7 +262,12 @@
 		{/each}
 	</div>
 {/each}
-{#if ghost}<ViewportHandle x={ghost.x} y={ghost.y} label="Warp pointer" ghost />{/if}
+{#if ghost}<ViewportHandle
+		data-native-overlay-control
+		x={ghost.x}
+		y={ghost.y}
+		label="Warp pointer"
+		ghost />{/if}
 
 <style>
 	.corners {

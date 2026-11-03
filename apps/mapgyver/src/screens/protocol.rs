@@ -321,7 +321,8 @@ pub struct ScreenRowSnapshot {
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
     Row {
-        snapshot: ScreenRowSnapshot,
+        /// None when deletion/project replacement overtook a mounted row's read.
+        snapshot: Option<ScreenRowSnapshot>,
     },
     Manager {
         snapshot: ScreenManagerSnapshot,

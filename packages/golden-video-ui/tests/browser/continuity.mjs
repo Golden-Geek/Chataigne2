@@ -20,7 +20,7 @@ export async function verifyContinuity(browser, baseUrl) {
 						return JSON.stringify({
 							kind: 'Connected',
 							session: 'continuity',
-							version: 1,
+							version: request.version,
 							max_views: 64
 						});
 					if (request.kind === 'Disconnect') return JSON.stringify({ kind: 'Disconnected' });

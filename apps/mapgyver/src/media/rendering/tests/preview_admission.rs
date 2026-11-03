@@ -39,7 +39,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
     let PreviewResponse::Connected { session, .. } = controller.handle(
         PreviewRequest::Connect {
             client: uuid::Uuid::new_v4(),
-            version: 1,
+            version: golden_video::preview::protocol::PREVIEW_PROTOCOL_VERSION,
         },
         host,
     ) else {
@@ -57,6 +57,8 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         rect,
         clip: rect,
         visible: true,
+        overlays: Vec::new(),
+        overlay_capacity: 0,
     };
     controller.handle(
         PreviewRequest::Layout {
