@@ -65,6 +65,11 @@ impl ScreenManagerNode {
     pub(crate) fn has_runtime_allocation(&self) -> bool {
         self.allocation_guard.is_some()
     }
+    pub(crate) fn allocation_pending(&self, displays: &[DisplayInfo]) -> bool {
+        self.allocation_guard
+            .as_ref()
+            .is_some_and(|guard| !guard.is_current() || self.displays.as_ref() != displays)
+    }
     pub(crate) fn resolved_display(
         &self,
         screen: super::protocol::ScreenId,
@@ -129,8 +134,11 @@ impl Node for ScreenManagerNode {
             if !update.guard.is_current() {
                 return;
             }
+            let allocation_changed = self.allocation_guard.as_ref().is_none_or(|guard| !guard.is_current());
             self.allocation_guard = Some(update.guard.clone());
-            let changed = self.set_displays(update.displays.clone()) || self.resolved_displays != update.resolved;
+            let changed = self.set_displays(update.displays.clone())
+                || self.resolved_displays != update.resolved
+                || allocation_changed;
             for display in &update.profiles {
                 self.known_displays
                     .entry(display.id.clone())

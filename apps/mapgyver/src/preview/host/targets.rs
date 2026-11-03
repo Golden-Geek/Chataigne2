@@ -7,8 +7,7 @@ use crate::{
         rendering::ResolvedTarget,
     },
 };
-use golden_core::app::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow};
-use golden_video::native::OutputBinding;
+use golden_core::app::NativeOutputBounds;
 use golden_video::{AlphaMode, ColorEncoding, OutputId, PixelFormat, TextureDescriptor};
 use std::collections::HashMap;
 
@@ -23,43 +22,39 @@ pub(super) struct Target {
 }
 
 impl Target {
-    pub fn binding(
-        &self,
-        windows: &mut Vec<NativeOutputWindow>,
-        on_event: impl Fn(NativeOutputEvent) + Send + 'static,
-    ) -> Result<OutputBinding, String> {
+    pub fn window_bounds(&self) -> Result<Option<NativeOutputBounds>, String> {
         match &self.kind {
-            ResolvedTarget::Spout { sender: name, .. } => Ok(OutputBinding::Spout {
-                id: self.id,
-                name: name.clone(),
-                descriptor: self.descriptor,
-            }),
+            ResolvedTarget::Spout { .. } => Ok(None),
             ResolvedTarget::Rectangle(bounds) | ResolvedTarget::Fullscreen { bounds, .. } => {
-                let physical =
-                    NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
-                        .map_err(|error| error.to_string())?;
-                let window =
-                    NativeOutputWindow::with_events(&format!("MapGyver output {}", self.id.get()), physical, on_event)
-                        .map_err(|error| error.to_string())?;
-                let actual = window.physical_bounds().map_err(|error| error.to_string())?;
-                if actual != physical {
-                    return Err(format!(
-                        "output physical client bounds differ: expected {physical:?}, actual {actual:?}"
-                    ));
-                }
-                eprintln!("[mapgyver-output] window id={} physical={actual:?}", self.id.get());
-                // SAFETY: the session owner retains this HWND through actual renderer retirement.
-                let target = unsafe { golden_video::native::WindowTarget::from_raw(window.raw_handle()) }
-                    .map_err(|error| error.to_string())?;
-                windows.push(window);
-                Ok(OutputBinding::Window {
-                    id: self.id,
-                    window: target,
-                    extent: bounds.extent,
-                })
+                NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
+                    .map(Some)
+                    .map_err(|error| error.to_string())
             }
         }
     }
+
+    /// Physical position/display policy is independent of immutable renderer bindings.
+    pub fn same_binding(&self, next: &Self) -> bool {
+        self.project == next.project
+            && self.screen == next.screen
+            && self.id == next.id
+            && self.descriptor == next.descriptor
+            && match (&self.kind, &next.kind) {
+                (ResolvedTarget::Spout { sender: left, .. }, ResolvedTarget::Spout { sender: right, .. }) => {
+                    left == right
+                }
+                (ResolvedTarget::Spout { .. }, _) | (_, ResolvedTarget::Spout { .. }) => false,
+                _ => true,
+            }
+    }
+}
+
+pub(super) fn same_bindings(current: &[Target], next: &[Target]) -> bool {
+    current.len() == next.len()
+        && current
+            .iter()
+            .zip(next)
+            .all(|(current, next)| current.same_binding(next))
 }
 
 #[derive(Default)]

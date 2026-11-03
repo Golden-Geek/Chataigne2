@@ -60,6 +60,8 @@ impl CapturedOutput {
 }
 
 pub struct CapturedOutputs {
+    /// Hosts retain window identity until a pending display allocation resolves or confirms absence.
+    pub allocation_pending: bool,
     pub catalog: Vec<ScreenId>,
     pub outputs: Vec<CapturedOutput>,
     pub guards: Vec<RevisionGuard>,
@@ -88,6 +90,8 @@ pub fn capture_outputs(
     let mut unavailable = Vec::new();
     let mut preview_extents = HashMap::new();
     let mut physical_displays = HashSet::new();
+    let mut allocation_pending = false;
+    let pending = screen_manager.allocation_pending(displays);
     while let Some(id) = child {
         let node = engine.nodes.get(id).ok_or("Screen Manager child is missing")?;
         child = node.node_data().next_sibling;
@@ -115,6 +119,7 @@ pub fn capture_outputs(
                 continue;
             };
             let authored = target.clone();
+            allocation_pending |= pending && matches!(target, ScreenTarget::Fullscreen { .. });
             let target = match target {
                 ScreenTarget::Spout { sender, extent } => {
                     if !names.insert(sender.clone()) {
@@ -165,6 +170,7 @@ pub fn capture_outputs(
         }
     }
     Ok(CapturedOutputs {
+        allocation_pending,
         catalog: screens,
         outputs,
         guards,

@@ -18,6 +18,7 @@ pub struct CapturedPreview {
     pub screens: Vec<ScreenRoute>,
     pub catalog: Vec<ScreenId>,
     pub outputs: Vec<CapturedOutput>,
+    pub allocation_pending: bool,
     statuses: Vec<PreviewStatus>,
     guards: Vec<RevisionGuard>,
 }
@@ -152,6 +153,7 @@ fn capture_preview_with_time(
         screens,
         catalog: Vec::new(),
         outputs: Vec::new(),
+        allocation_pending: false,
         statuses,
         guards,
     })
@@ -190,6 +192,7 @@ pub(crate) fn capture_presentation_with_time(
     let mut result = capture_preview_with_time(engine, sources, maximum_sources, maximum_surfaces, time)?;
     let captured = capture_outputs(engine, 128, crate::screens::rendering::MAX_SCREEN_OUTPUTS, displays)?;
     result.catalog = captured.catalog;
+    result.allocation_pending = captured.allocation_pending;
     result.guards.extend(captured.guards);
     for route in &mut result.screens {
         if let Some(&extent) = captured.preview_extents.get(&route.screen.id()) {

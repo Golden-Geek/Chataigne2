@@ -25,6 +25,16 @@ fn hardware_native_output_window_preserves_physical_bounds_and_joins_close() {
     assert_eq!(window.physical_bounds().unwrap(), bounds);
     let hwnd = HWND(window.raw_handle() as *mut _);
     assert!(unsafe { IsWindow(Some(hwnd)) }.as_bool());
+    for bounds in [
+        NativeOutputBounds::new(160, 80, 320, 180).unwrap(),
+        NativeOutputBounds::new(-120, -40, 480, 270).unwrap(),
+        NativeOutputBounds::new(80, 40, 240, 135).unwrap(),
+    ] {
+        window.set_physical_bounds(bounds).unwrap();
+        assert_eq!(window.raw_handle(), hwnd.0 as isize);
+        assert_eq!(window.physical_bounds().unwrap(), bounds);
+        assert!(unsafe { windows::Win32::UI::WindowsAndMessaging::IsWindowVisible(hwnd) }.as_bool());
+    }
     window.close().unwrap();
     assert!(!unsafe { IsWindow(Some(hwnd)) }.as_bool());
 }

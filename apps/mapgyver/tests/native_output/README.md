@@ -4,6 +4,21 @@ This fixture uses the ordinary MapGyver app and public media/Screen operations. 
 the native windows, display catalog and Spout probe; MapGyver owns calibration and editor policy.
 Finite probe readbacks run in a separate test process, never in the production frame path.
 
+For stable output bounds (M05/9), use the ordinary isolated review binary:
+
+```powershell
+cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review
+$env:MAPGYVER_TEST_BINARY=(Resolve-Path target/debug/deps/MapGyver-codex-review.exe).Path
+node apps/mapgyver/tests/native_output/bounds.mjs target/mapgyver-output-bounds-RESULT
+```
+
+This finite fixture uses public authoring and Undo, plus read-only observations of its own
+PID's native output HWND, physical client bounds, visibility and composited red center pixels.
+It verifies position-only session preservation, resize retirement, both local display targets,
+return to rectangle and disabled-window retirement. One creation across all updates rules out
+window replacement. Checkpoints do not establish continuous scanout, DPI-matrix or latency gates.
+The Python observer never changes focus, geometry or another application's windows.
+
 Build from the repository root:
 
 ```text

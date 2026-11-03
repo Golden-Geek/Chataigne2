@@ -1,0 +1,46 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/9",
+	"state": "Accepted",
+	"deliverable": "Stable visible native output HWND during physical rectangle position/size and display-policy changes, with completion-safe backing replacement and window retirement.",
+	"ownership": {
+		"golden_desktop": "Public NativeOutputWindow.set_physical_bounds sends bounded value-only commands to the owning per-monitor-v2 thread. SetWindowPos preserves the visible HWND without activation and verifies actual physical client bounds.",
+		"mapgyver": "Preparation-host window leases are keyed by project/Screen, independently of renderer sessions. Unchanged GPU bindings preserve the session. New backing extents complete actual old renderer/GPU/Picture retirement before a newly admitted immutable configuration uses the same retained HWND. Session Arc leases protect error/unwind lifetime.",
+		"display_handoff": "Explicit allocation_pending distinguishes stale authored/native display metadata from confirmed absence. Pending captures retain existing window identity and wait for revision-driven allocation completion, including an identical resulting cohort. Confirmed absence, disable/removal or project replacement releases windows after all GPU leases retire.",
+		"resize_limit": "Backing-size changes conservatively rebuild the renderer session, including other bindings. This gate does not claim stable Spout shared handles or uninterrupted cadence across that replacement. No retained performance/latency requirement is waived."
+	},
+	"software": {
+		"app": "target/mapgyver-output-bounds-handoff-tests.log: 340 passed, 2 hardware ignores. Additional same-cohort handoff case passes in target/mapgyver-output-bounds-same-cohort-test.log after the test extension; runtime code is unchanged from the full passing suite.",
+		"desktop": "target/mapgyver-output-bounds-tests.log: Golden desktop 37 passed, 3 hardware ignores; MapGyver initial 339 passed, 2 hardware ignores.",
+		"strict_lint": "target/mapgyver-output-bounds-handoff-clippy.log: golden_host_desktop and MapGyver lib/tests Clippy with -D warnings exits 0.",
+		"build": "target/mapgyver-output-bounds-handoff-build.log: ordinary bundled isolated cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review exits 0 before final native fixture.",
+		"binary_sha256": "876a4f66c33e6e8fb73e36c20d3a3311e5bf7a5b50ca45074f19be2713924694",
+		"host_native": "target/mapgyver-output-bounds-host-native.log: existing hardware_native_output_window_preserves_physical_bounds_and_joins_close extended with move/size/negative-origin checks; 1 passed, identity and visibility retained, explicit close joins destruction.",
+		"format": "Root and golden_core cargo fmt complete; authored fixture formatted with repository Prettier. No authored DTO/protocol/UI source changes; prior generated-contract and UI evidence remains applicable."
+	},
+	"native": {
+		"directory": "target/mapgyver-output-bounds-final-20261103-1110",
+		"log": "target/mapgyver-output-bounds-native-final.log",
+		"pid": 31568,
+		"hwnd": 2491864,
+		"creations": 1,
+		"checkpoints": [
+			{ "phase": "initial", "rect": [2640, 100, 320, 180], "retirements": 0 },
+			{ "phase": "position-only", "rect": [2780, 160, 320, 180], "retirements": 0 },
+			{ "phase": "resize", "rect": [2780, 160, 480, 270], "retirements": 1 },
+			{ "phase": "undo-resize", "rect": [2780, 160, 320, 180], "retirements": 2 },
+			{ "phase": "fullscreen-external", "rect": [2560, 0, 1920, 1080], "retirements": 3 },
+			{ "phase": "fullscreen-laptop", "rect": [0, 0, 2560, 1600], "retirements": 4 },
+			{ "phase": "return-rectangle", "rect": [100, 100, 400, 225], "retirements": 5 }
+		],
+		"oracle": "Every checkpoint: same HWND 2491864, visible, not minimized, exact physical client rectangle, all 25 sampled composited desktop center pixels RGB [255,0,0]. Read-only Python observer filters native Golden output class by owned fixture PID. The app receives public authored operations and actual WebView Undo; no production instrumentation or external window mutation.",
+		"disable": "After disable, all owned output HWNDs disappear following native session retirement. Fixture exits normally 0, no page errors; no owned review app remains.",
+		"configuration": "Actual current OS catalog is external RTK FHD HDR 1920x1080 at (2560,0) and laptop primary 2560x1600 at (0,0). These recorded OS bounds supersede assumptions from the earlier user-reported UHD configuration for this check only; they do not complete the wider physical matrix.",
+		"scope": "Native identity/visibility/bounds and composited pixel checkpoints, corroborated by one lifetime window creation and no hide/replacement path. Not a continuous scanout capture, input-latency measurement, hotplug matrix or final performance qualification."
+	},
+	"corrections": {
+		"fixture_start": "Initial fixture attempted native control before frontend navigation completed. It now waits for the real workbench tab before invoking control; no app behavior changed for that failure.",
+		"product_regression": "First complete native run passed position/resize/Undo but reproduced HWND replacement on fullscreen reassignment. Current allocation metadata temporarily omitted the new fullscreen route; host mistook it for removal. The explicit pending handoff plus completion wake regression fixes that product defect; unchanged final fixture passes all seven checkpoints."
+	},
+	"gate_changes": "M05/9 Active -> Accepted. M05 is 7/10 (70%), total gates 32/57 (56%), phases 3/11 (27%); denominators unchanged. M05/4 becomes sole Active for concurrent fullscreen/rectangle/Spout and editor-close/minimize acceptance after this milestone is pushed. Other retained physical/performance gates remain open."
+}

@@ -23,7 +23,7 @@ use tauri::Emitter;
 struct Owner {
     renderer: ChannelRenderer,
     gpu: String,
-    windows: Vec<golden_core::app::NativeOutputWindow>,
+    windows: Vec<(OutputId, Arc<super::output_windows::WindowLease>)>,
     escapes: Vec<(super::targets::Target, Arc<std::sync::atomic::AtomicBool>)>,
 }
 impl Drop for Owner {
@@ -34,11 +34,7 @@ impl Drop for Owner {
         if let Some(pictures) = pictures {
             while !pictures.wait(Duration::from_millis(20)) {}
         }
-        for window in self.windows.drain(..) {
-            if let Err(error) = window.close() {
-                eprintln!("[mapgyver-output] window teardown failed: {error}");
-            }
-        }
+        self.windows.clear();
     }
 }
 
@@ -84,6 +80,7 @@ fn create(
     hwnd: isize,
     extent: Extent2D,
     targets: &[super::targets::Target],
+    output_windows: &mut super::output_windows::OutputWindows,
     notifier: WorkerNotifier,
 ) -> io::Result<(Owner, D3d11Control)> {
     let adapter = adapters()
@@ -100,23 +97,14 @@ fn create(
         extent,
     }];
     let mut windows = Vec::new();
-    let mut escapes = Vec::new();
     for target in targets {
-        let pressed = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let signal = pressed.clone();
-        let wake = notifier.clone();
-        outputs.push(
-            target
-                .binding(&mut windows, move |event| {
-                    if event == golden_core::app::NativeOutputEvent::EscapePressed
-                        && !signal.swap(true, std::sync::atomic::Ordering::AcqRel)
-                    {
-                        wake.notify();
-                    }
-                })
-                .map_err(io::Error::other)?,
-        );
-        escapes.push((target.clone(), pressed));
+        let (binding, lease) = output_windows
+            .binding(target, notifier.clone())
+            .map_err(io::Error::other)?;
+        outputs.push(binding);
+        if let Some(lease) = lease {
+            windows.push((target.id, lease));
+        }
     }
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
@@ -134,8 +122,8 @@ fn create(
     let mut owner = Owner {
         renderer: ChannelRenderer::new(runtime, limits),
         gpu: adapter.description,
+        escapes: super::output_windows::escape_targets(targets, &windows),
         windows,
-        escapes,
     };
     let native = owner
         .renderer
@@ -182,6 +170,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut discovery = None;
     let mut targets = super::targets::Targets::default();
     let mut topology = Vec::new();
+    let mut output_windows = super::output_windows::OutputWindows::default();
     let mut last_error = None;
     let mut output_states = Vec::new();
     let mut accepted_outputs = std::collections::HashMap::new();
@@ -416,6 +405,12 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     },
                     layout: layout.clone(),
                 };
+                if capture
+                    .as_ref()
+                    .is_some_and(|capture| capture.allocation_pending && capture.is_current())
+                {
+                    return Ok(());
+                }
                 let mut changed = published != Some(layout.routing_generation)
                     || capture.as_ref().is_none_or(|capture| !capture.is_current());
                 if changed {
@@ -433,20 +428,34 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         })
                         .map_err(|e| e.to_string())??;
                     next.add_revision_guard(input.displays.guard());
+                    if next.allocation_pending {
+                        // Pending display metadata is not target removal. Retain the visible
+                        // HWND until the allocation commits; its revision wakes this capture.
+                        _capture_subscriptions = next.subscribe(input.notifier.clone());
+                        capture = Some(next);
+                        return Ok(());
+                    }
                     let desired = targets.assign(&mut next)?;
                     if desired != topology {
-                        // The public native contract has immutable bindings. Complete actual GPU
-                        // retirement before replacing a topology, including the same HWND/name.
-                        if let Some(previous) = owner.take() {
-                            drop(previous);
-                            eprintln!("[mapgyver-output] native session retired");
+                        if !super::targets::same_bindings(&topology, &desired) {
+                            // Immutable GPU bindings retire completely before new backing storage.
+                            // Physical window leases remain visible across the replacement.
+                            if let Some(previous) = owner.take() {
+                                drop(previous);
+                                eprintln!("[mapgyver-output] native session retired");
+                            }
+                            output_windows.retain(&desired);
+                            native = None;
+                            output_states.clear();
+                            accepted_outputs.clear();
+                            installed = None;
+                            confirmed = None;
                         }
-                        native = None;
-                        output_states.clear();
-                        accepted_outputs.clear();
+                        output_windows.update_bounds(&desired)?;
+                        if let Some(owner) = &mut owner {
+                            owner.escapes = super::output_windows::escape_targets(&desired, &owner.windows);
+                        }
                         topology = desired;
-                        installed = None;
-                        confirmed = None;
                     }
                     _capture_subscriptions = next.subscribe(input.notifier.clone());
                     capture = Some(next);
@@ -465,8 +474,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         published = Some(layout.routing_generation);
                         return Ok(());
                     }
-                    let (created, control) =
-                        create(input.hwnd, extent, &topology, input.notifier.clone()).map_err(|e| e.to_string())?;
+                    let (created, control) = create(
+                        input.hwnd,
+                        extent,
+                        &topology,
+                        &mut output_windows,
+                        input.notifier.clone(),
+                    )
+                    .map_err(|e| e.to_string())?;
                     native = Some(control);
                     owner = Some(created);
                     // Topology discovery precedes runtime construction. Recapture timed demand

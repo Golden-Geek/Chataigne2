@@ -37,6 +37,22 @@ API documentation advises pinning at least the minor version when using underlyi
 [Tauri window API](https://docs.rs/tauri/latest/x86_64-pc-windows-msvc/tauri/window/struct.Window.html),
 [Tauri platform access](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri/src/webview/mod.rs).
 
+Physical output-window ownership is separate from GPU-session ownership. Golden desktop's
+`NativeOutputWindow::set_physical_bounds` sends a bounded value-only command to the owning
+per-monitor-v2 thread, preserves the visible HWND and verifies the actual physical client bounds.
+MapGyver's preparation host retains window leases by project/Screen identity. Position and
+same-size display-policy changes preserve the GPU binding/session; Escape uses the current
+authored target. A changed backing extent requires a new admitted immutable GPU configuration:
+the old session completes actual GPU and Picture retirement before replacement, while the
+same window lease remains visible. Removed/disabled outputs and project replacements release
+the window only after all renderer leases retire. This conservative resize path rebuilds the
+renderer session, including other native bindings; it does not claim uninterrupted Spout
+identity or timing qualification across backing-size changes.
+Display allocation has an explicit pending handoff: a stale authored cohort or changed native
+catalog retains the previous window until current metadata commits. A revision wakes preparation
+even when the resulting allocation is identical. A committed missing target still withdraws the
+output and releases its window after retirement; pending metadata is never mistaken for removal.
+
 Editor decorations belong to the same native presentation as the image. Golden Video owns
 bounded Quad/Circle metadata, host-authenticated physical scale and aperture clipping, checked
 live placement and premultiplied linear drawing. Placement and decorations are sampled once

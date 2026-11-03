@@ -58,6 +58,80 @@ fn publish(engine: &mut AppEngine, displays: Arc<[DisplayInfo]>) {
     source.publisher.publish(update).unwrap();
     drain(engine);
 }
+
+#[test]
+fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_target_or_absence() {
+    let mut engine = runtime();
+    let displays = catalog();
+    publish(&mut engine, displays.clone());
+    let (screen, _) = create(&mut engine);
+    publish(&mut engine, displays.clone());
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: ScreenDefinition {
+                target: Some(ScreenTarget::Fullscreen {
+                    display: "screen-b".into(),
+                }),
+                enabled: true,
+            },
+        },
+    );
+    let capture = super::super::rendering::capture_outputs(&engine, 128, 7, &displays).unwrap();
+    assert!(
+        capture.allocation_pending,
+        "pending reassignment is not confirmed output removal"
+    );
+    let guard = owner(&engine).guard();
+    publish(&mut engine, displays.clone());
+    assert!(
+        !guard.is_current(),
+        "allocation completion must wake retained host preparation"
+    );
+    let ready = super::super::rendering::capture_outputs(&engine, 128, 7, &displays).unwrap();
+    assert!(!ready.allocation_pending);
+    assert_eq!(ready.outputs.len(), 1);
+    // A dirty allocation can resolve to the identical cohort (disable/enable before delivery).
+    for enabled in [false, true] {
+        apply(
+            &mut engine,
+            ScreenEdit::ConfigureScreen {
+                screen,
+                definition: ScreenDefinition {
+                    target: Some(ScreenTarget::Fullscreen {
+                        display: "screen-b".into(),
+                    }),
+                    enabled,
+                },
+            },
+        );
+    }
+    let guard = owner(&engine).guard();
+    assert!(
+        super::super::rendering::capture_outputs(&engine, 128, 7, &displays)
+            .unwrap()
+            .allocation_pending
+    );
+    publish(&mut engine, displays.clone());
+    assert!(
+        !guard.is_current(),
+        "identical allocation still completes the pending handoff"
+    );
+    let missing: Arc<[DisplayInfo]> = Arc::from([]);
+    assert!(
+        super::super::rendering::capture_outputs(&engine, 128, 7, &missing)
+            .unwrap()
+            .allocation_pending
+    );
+    publish(&mut engine, missing.clone());
+    let absent = super::super::rendering::capture_outputs(&engine, 128, 7, &missing).unwrap();
+    assert!(
+        !absent.allocation_pending,
+        "confirmed absence must retire instead of retaining wrong display"
+    );
+    assert!(absent.outputs.is_empty());
+}
 fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
     DisplayInfo {
         id: id.into(),

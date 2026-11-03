@@ -3,6 +3,7 @@ pub(crate) mod config;
 mod discovery;
 mod displays;
 mod output_status;
+mod output_windows;
 mod targets;
 mod worker;
 

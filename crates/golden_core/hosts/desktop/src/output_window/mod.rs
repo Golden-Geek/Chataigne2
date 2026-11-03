@@ -128,6 +128,19 @@ impl NativeOutputWindow {
             unreachable!("unsupported platform cannot construct an output window")
         }
     }
+    /// Update this same visible window on its DPI-aware thread without activation.
+    /// GPU backing extents remain the consumer's separately admitted responsibility.
+    pub fn set_physical_bounds(&self, bounds: NativeOutputBounds) -> io::Result<()> {
+        #[cfg(windows)]
+        {
+            self.inner.set_bounds(bounds)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = bounds;
+            unreachable!("unsupported platform cannot construct an output window")
+        }
+    }
     /// Close/join after the caller's GPU consumers retire. Returns only after native destruction.
     pub fn close(self) -> io::Result<()> {
         #[cfg(windows)]

@@ -22,11 +22,15 @@ use windows::{
 const QUERY: u32 = WM_APP + 1;
 const CLOSE: u32 = WM_APP + 2;
 type Reply = mpsc::SyncSender<io::Result<NativeOutputBounds>>;
+enum Request {
+    Bounds(Reply),
+    SetBounds(NativeOutputBounds, mpsc::SyncSender<io::Result<()>>),
+}
 
 pub(super) struct Window {
     hwnd: isize,
     thread_id: u32,
-    queries: mpsc::SyncSender<Reply>,
+    queries: mpsc::SyncSender<Request>,
     thread: Option<JoinHandle<io::Result<()>>>,
 }
 
@@ -38,7 +42,7 @@ impl Window {
     ) -> io::Result<Self> {
         let title = title.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
         let (ready, startup) = mpsc::sync_channel(1);
-        let (queries, requests) = mpsc::sync_channel::<Reply>(4);
+        let (queries, requests) = mpsc::sync_channel::<Request>(4);
         let thread = thread::Builder::new()
             .name("golden-output-window".into())
             .spawn(move || {
@@ -86,8 +90,31 @@ impl Window {
                             continue;
                         }
                         if message.hwnd.is_invalid() && message.message == QUERY {
-                            while let Ok(reply) = requests.try_recv() {
-                                let _ = reply.send(client_bounds(hwnd));
+                            while let Ok(request) = requests.try_recv() {
+                                match request {
+                                    Request::Bounds(reply) => {
+                                        let _ = reply.send(client_bounds(hwnd));
+                                    }
+                                    Request::SetBounds(bounds, reply) => {
+                                        let result = SetWindowPos(
+                                            hwnd,
+                                            Some(HWND_TOPMOST),
+                                            bounds.left(),
+                                            bounds.top(),
+                                            bounds.width() as i32,
+                                            bounds.height() as i32,
+                                            SWP_NOACTIVATE | SWP_NOOWNERZORDER,
+                                        )
+                                        .map_err(io::Error::other)
+                                        .and_then(|()| {
+                                            if client_bounds(hwnd)? != bounds {
+                                                return Err(io::Error::other("output physical bounds update differed"));
+                                            }
+                                            Ok(())
+                                        });
+                                        let _ = reply.send(result);
+                                    }
+                                }
                             }
                         } else {
                             let _ = TranslateMessage(&message);
@@ -121,8 +148,19 @@ impl Window {
     }
     pub fn bounds(&self) -> io::Result<NativeOutputBounds> {
         let (reply, result) = mpsc::sync_channel(1);
-        self.queries.try_send(reply).map_err(io::Error::other)?;
+        self.queries
+            .try_send(Request::Bounds(reply))
+            .map_err(io::Error::other)?;
         // SAFETY: the owned thread ID is live until close/join; no borrowed pointers cross it.
+        unsafe { PostThreadMessageW(self.thread_id, QUERY, WPARAM(0), LPARAM(0)) }.map_err(io::Error::other)?;
+        result.recv_timeout(Duration::from_secs(2)).map_err(io::Error::other)?
+    }
+    pub fn set_bounds(&self, bounds: NativeOutputBounds) -> io::Result<()> {
+        let (reply, result) = mpsc::sync_channel(1);
+        self.queries
+            .try_send(Request::SetBounds(bounds, reply))
+            .map_err(io::Error::other)?;
+        // SAFETY: value-only bounded commands execute on the owned DPI-aware window thread.
         unsafe { PostThreadMessageW(self.thread_id, QUERY, WPARAM(0), LPARAM(0)) }.map_err(io::Error::other)?;
         result.recv_timeout(Duration::from_secs(2)).map_err(io::Error::other)?
     }

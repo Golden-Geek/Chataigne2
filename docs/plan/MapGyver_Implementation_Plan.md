@@ -58,7 +58,10 @@ bounded Screen/Surface row supplements and native runtime footer are verified. M
 paint, an internal Source landmark, output-accepted moving-frame hits and projected DOM events
 are verified alongside the complete bundled editor input/history/lifetime suites. A verified
 owned-foreground desktop capture route supplies native pixels; moving-hit metadata is not a
-physical latency measurement. Next is M05/9 stable output-window bounds. This is execution order
+physical latency measurement. M05/9 [stable output-window bounds](../progress/evidence/mapgyver-output-bounds-2026-11-03.json)
+is also accepted: one visible HWND through move/resize/Undo and both actual display targets,
+with pending allocation fenced and completion-safe backing replacement. Next is M05/4 concurrent
+fullscreen/rectangle/Spout through editor close/minimize. This is execution order
 within M05 only; every original physical matrix and acceptance requirement remains unchanged.
 
 Historical batches, pauses and execution instructions in the

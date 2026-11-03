@@ -2,6 +2,7 @@ use super::*;
 use crate::{app::AppEngine, preview::capture::capture_presentation, screens::protocol::*};
 use golden_core::{app::create_new_project_engine, application::apply_project_intent, ui_sync::UiEditIntent};
 use golden_video::Extent2D;
+mod bounds;
 
 fn edit(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
     let result = apply_project_intent(
