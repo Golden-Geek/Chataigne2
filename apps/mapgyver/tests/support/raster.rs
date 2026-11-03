@@ -188,7 +188,9 @@ impl Image {
         self.preview_image().output_bounds()
     }
     fn preview_image(&self) -> Self {
-        let mut result = Self::solid(self.width, self.height, [0.0075, 0.0075, 0.0075, 1.0]);
+        // This fixture fills the active aperture. The workbench theme is outside that aperture;
+        // authored transparent content composites over the app's black canvas backing.
+        let mut result = Self::solid(self.width, self.height, [0.0, 0.0, 0.0, 1.0]);
         for index in 0..self.pixels.len() {
             result.pixels[index] = quantize(over(
                 quantize(self.pixels[index]),
@@ -309,10 +311,17 @@ fn reference_checks_asymmetric_rotation_and_mirror() {
 }
 
 #[test]
-fn preview_unorm_bound_covers_both_legal_near_black_conversions_only() {
+fn preview_uses_black_active_area_without_workbench_theme_bleed() {
     let image = Image::solid(1, 1, [0.0, 1.0, 0.0, 0.75]);
-    assert_eq!(image.preview(), vec![[13, 225, 13, 255]]);
-    assert_eq!(image.preview_bounds(), vec![([0, 224, 0, 255], [13, 225, 13, 255])]);
+    assert_eq!(image.preview(), vec![[0, 224, 0, 255]]);
+    assert_eq!(image.preview_bounds(), vec![([0, 224, 0, 255], [0, 224, 0, 255])]);
+}
+
+#[test]
+fn unorm_bounds_keep_legal_half_steps_without_a_blanket_output_tolerance() {
+    let bounds = Bounds::exact([0.5 / 255.0, 0.25 / 255.0, 0.0, 1.0]).quantized();
+    assert_eq!(bounds.low, [0.0, 0.0, 0.0, 1.0]);
+    assert_eq!(bounds.high, [1.0 / 255.0, 0.0, 0.0, 1.0]);
     // At 0.25 ULP, only zero is legal; this is not a blanket extra output-byte tolerance.
     let low = (0.25_f64 - 0.6).ceil().max(0.0);
     let high = (0.25_f64 + 0.6).floor();

@@ -38,8 +38,10 @@ close source caller/Picture/project/resource parity. [M06/1's child-media model]
 now passes the complete degree/structural/API/Parameter/history/project contract.
 [M06/2 dependency/sharing](../progress/mapgyver-m06-dependencies.md) also passes all-media cycles,
 missing/Undo, deep/large graphs and compiled production sharing. The five-producer/six-alias
-software proof satisfies the retained return trigger: M06/3's corrected full native matrix is next
-and remains unverified. This follows the functional dependencies
+software proof satisfied the retained return trigger. [M06/3 native Composition](../progress/mapgyver-m06-native.md)
+now passes all nine original stages on both GPUs, including the active black preview canvas,
+with unchanged scenes/quantization/error tolerance/budgets. Next is M06/4's revised handles,
+anchored geometry and actual pointer/history/zoom acceptance. This follows the functional dependencies
 above without waiving physical/timing gates or changing qualification budgets.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media

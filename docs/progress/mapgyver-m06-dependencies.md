@@ -44,10 +44,10 @@ Checks completed:
 Receipts: `target/mapgyver-composition-dependencies-tests.log` and
 `target/mapgyver-composition-dependencies-clippy.log`; the checked-in tests retain the assertions.
 
-M06 is **2/5 accepted**. M06/3 becomes the sole Active gate after this milestone is pushed.
-Its original full native matrix remains required. Carry the two prior stale-fixture attempts
-forward; they accepted no native pixels. The new compiled-plan proof resolves the counter's
-meaning and supplies the previously recorded return trigger, allowing the corrected fixed
-matrix to resume with unchanged scenes, oracle, tolerances and budgets. M06/4's revised
-pointer anchors and M06/5's bounded independent panels remain Pending. This does not accept
+This milestone brought M06 to **2/5 accepted** and supplied M06/3's recorded return trigger.
+The two prior stale-fixture attempts accepted no native pixels. The compiled-plan proof resolved
+the counter's meaning; subsequent [M06/3 native acceptance](mapgyver-m06-native.md) passes both GPUs
+with the same scenes, quantization rules, tolerance and budgets, after reconciling its old preview
+backdrop oracle with the existing black-active-canvas contract. M06/4's revised pointer anchors
+and M06/5's bounded independent panels remain open. This dependency milestone does not accept
 whole-app scale/performance, physical display or release qualification.

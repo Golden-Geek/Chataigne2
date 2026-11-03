@@ -1,0 +1,72 @@
+{
+	"date": "2026-11-03",
+	"gate": "M06/3",
+	"state": "Accepted",
+	"runtime_source_commit": "0a3f0b3c70b0873d7a2b97106022fecd794902e3",
+	"fixture": "apps/mapgyver/tests/composition_pixels/mod.rs",
+	"test": "composition_pixels::native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_and_reload",
+	"scope": "Production native ChannelRenderer and PreviewController; nested/shared Composition output, alpha/blends, signed scale/pivots/degrees, resize, missing/Undo, reload/recreation and retirement",
+	"prerequisites": {
+		"app_library": "346 passed, 2 explicit qualification tests ignored at runtime source commit; generated contracts included",
+		"software_fixture": "cargo test --locked -p MapGyver --features native-qualification --test composition_rendering: 6 passed, 1 native case ignored, exit 0 before final hardware run",
+		"lint": "cargo clippy --locked -p MapGyver --features native-qualification --lib --tests -- -D warnings: exit 0 after correction",
+		"compiled_sharing": "11 logical records, 5 distinct produced targets, 5 passes and 2 outputs sharing one root; M06/2 software proof",
+		"format": "Root and golden_core Cargo formatters; diff check passed"
+	},
+	"attempts": {
+		"previous_recorded": "Two M06/1 attempts stopped at obsolete fixture source binding and channel-record counting; no accepted pixels",
+		"reopening_evidence": "M06/2 compiled five-producer/six-alias proof resolved the target-count question and satisfied its recorded return trigger",
+		"baseline": {
+			"result": "failed after the two independent first-scene Composition outputs passed",
+			"seconds": 0.53,
+			"adapter": "Intel(R) Graphics",
+			"preview_texel": 0,
+			"actual_rgba": [0, 0, 137, 255],
+			"obsolete_nominal_rgba": [13, 13, 138, 255],
+			"finding": "Oracle used workbench theme behind a full active aperture; current production contract and existing unit test require black there"
+		},
+		"oracle_correction": "Independent preview backing changed from 0.0075 linear theme to black; all source/scene/geometry/blend/quantization/original 2/255 residual tolerances and budgets retained",
+		"final": {
+			"command": "composition_rendering-d896154e45f921e9.exe composition_pixels::native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_and_reload --exact --ignored --nocapture --test-threads=1",
+			"result": "1 passed, 0 failed, 6 filtered out; exit 0",
+			"seconds": 44.42,
+			"executable_sha256": "840AE9E8A42791BDED98B59DB00BD8A400B1F25855710373422CCE8715886FF8"
+		},
+		"cumulative_attempts": 4,
+		"this_batch_attempts": 2
+	},
+	"native_pixels": {
+		"adapters": [
+			{ "description": "Intel(R) Graphics", "luid_low": 89313, "luid_high": 0 },
+			{ "description": "NVIDIA GeForce RTX 5080 Laptop GPU", "luid_low": 90608, "luid_high": 0 }
+		],
+		"stages": [
+			"normal",
+			"add",
+			"multiply",
+			"screen",
+			"independent-transform",
+			"canvas-resize",
+			"missing-shared-source",
+			"undo-source-removal",
+			"reload-recreate"
+		],
+		"outputs_per_stage": "Two independent shared-root outputs and one native preview-compositor readback",
+		"readback_extent": [32, 24],
+		"source_canvas_extents": [
+			[8, 4],
+			[32, 24],
+			[64, 48]
+		],
+		"complete_images": 54,
+		"compared_texels": 41472,
+		"maximum_nominal_component_error_8bit": 1,
+		"maximum_error_outside_legal_quantization_bounds_8bit": 1,
+		"original_residual_tolerance_8bit": 2,
+		"sharing": "Five distinct produced channel targets retained through all stages; six virtual aliases do not add channel production; M06/2 separately asserts one compiled pass per target",
+		"retirement": "Each fixture waits for preview/renderer completion and asserts plan.live=0, plan.created=plan.released, empty source/output native inventories; observer readback pool idle",
+		"owned_test_process_remaining": false
+	},
+	"gate_changes": "M06/3 Accepted; M06 2/5 -> 3/5 (60%); accepted gates 38/57 -> 39/57 (68%); phases remain 4/11 (36%); M06/4 next Active",
+	"limits": "Finite pixel correctness and declared resource retirement only; no whole-app performance, physical display geometry/latency, VRAM/device-removal or release acceptance"
+}

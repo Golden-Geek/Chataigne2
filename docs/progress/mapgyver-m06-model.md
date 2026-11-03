@@ -57,12 +57,13 @@ The shared native fixture now counts distinct produced targets, retaining the or
 count of **five**; its old assertion that all metadata records own distinct targets contradicted
 Reference sharing. Existing software `demanded_nested_channels_render_once_for_shared_instances_and_outputs`
 independently proves the distinction: seven metadata records, three render passes. Pixel scenes,
-oracles, tolerances and runtime budgets remain unchanged. The corrected native assertion has
-**not** been exercised on hardware. Attempts stop at the batch's two-run investigation limit.
+oracles, tolerances and runtime budgets remained unchanged at this checkpoint. The corrected
+native assertion had not been exercised on hardware; attempts stopped at its two-run limit.
 
-M06/3 remains Pending. Return after M06/2 dependency/sharing acceptance and a software check of
-the current compiled five-producer scene, then run the retained full native matrix. Carry this
-cumulative two-attempt finding forward; do not reset it by renaming the batch. M06/4 still needs
+The recorded return trigger was M06/2 acceptance plus a compiled five-producer proof. That proof
+subsequently passed, followed by [complete M06/3 native acceptance](mapgyver-m06-native.md) on both
+GPUs. The linked report preserves all cumulative attempts and its separate active-backdrop oracle
+correction. M06/4 still needs
 the complete retained pointer/handle/history fixture port and revised anchors; the legacy browser
 fixture's unit fields were updated here, but it is not accepted. M06/5 retains bounded independent
 follow/lock panels and removal of internal controls. No physical, timing or release gate closes.
