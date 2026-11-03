@@ -9,6 +9,10 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
+use std::sync::{
+    Arc, OnceLock,
+    atomic::{AtomicBool, Ordering},
+};
 
 #[node(
     "mapgyver.app_control.v1", label = "App control",
@@ -48,15 +52,27 @@ use golden_io::{RevisionGuard, RevisionSource};
     maximum_ms: f64 = 30000.0 [1.0..600000.0] (
         label = "Maximum restart delay (ms)", step = 1.0, constraint_policy = "reject"
     );
+    pre: i32 = 0 [0..65535] (label = "Preload columns before", constraint_policy = "reject");
+    post: i32 = 0 [0..65535] (label = "Keep columns after", constraint_policy = "reject");
 })]
 pub struct AppControlNode {
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
     #[state(default = uuid::Uuid::new_v4())]
     definition_instance: uuid::Uuid,
+    #[state(default = OnceLock::new())]
+    invalidation: OnceLock<Arc<dyn Fn() + Send + Sync>>,
+    #[state(default = AtomicBool::new(false))]
+    was_configured: AtomicBool,
 }
 
 impl AppControlNode {
+    pub(crate) fn embedded() -> Self {
+        let mut node = Self::new();
+        node.node_data_mut().meta.can_be_disabled = false;
+        node.node_data_mut().meta.user_permissions = Default::default();
+        node
+    }
     fn from_definition(definition: &ApplicationDefinition) -> Self {
         let mut node = Self::new();
         node.app_file = ParameterHandle::new(File::new(definition.executable.as_deref().unwrap_or_default()));
@@ -111,8 +127,13 @@ impl AppControlNode {
         }
     }
     pub fn snapshot(&self, engine: &AppEngine) -> Result<ApplicationSnapshot, String> {
+        let owner = self.node_data().parent.and_then(|id| engine.nodes.get(id));
+        let id = match owner {
+            Some(crate::app::AppNode::MatrixCell(cell)) => cell.node_data().meta.uuid,
+            _ => self.node_data().meta.uuid,
+        };
         Ok(ApplicationSnapshot {
-            id: ApplicationId(self.node_data().meta.uuid),
+            id: ApplicationId(id),
             label: self.node_data().meta.label.clone(),
             enablement: if !self.node_data().meta.enabled {
                 ApplicationEnablement::Disabled
@@ -132,6 +153,28 @@ impl AppControlNode {
     }
     pub(crate) fn invalidate(&self) {
         self.revision.advance();
+        // Inactive, default Cell settings do not change demand when their declared
+        // Parameters materialize. Both activation and clearing a configured file do.
+        let configured = self.configured();
+        let previous = self.was_configured.swap(configured, Ordering::AcqRel);
+        if (configured || previous)
+            && let Some(notify) = self.invalidation.get()
+        {
+            notify();
+        }
+    }
+    pub(crate) fn bind_invalidation(&self, notify: impl Fn() + Send + Sync + 'static) {
+        self.was_configured.store(self.configured(), Ordering::Release);
+        let _ = self.invalidation.set(Arc::new(notify));
+    }
+    pub(crate) fn distances(&self) -> (u16, u16) {
+        (self.pre.get() as u16, self.post.get() as u16)
+    }
+    pub(crate) fn distance_values(&self, pre: u16, post: u16) -> [(NodeId, ParamValue); 2] {
+        [
+            (self.pre.id(), ParamValue::Int(pre.into())),
+            (self.post.id(), ParamValue::Int(post.into())),
+        ]
     }
     fn scalar_values(&self) -> Vec<(NodeId, ParamValue)> {
         vec![

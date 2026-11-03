@@ -38,7 +38,7 @@ struct State {
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
     view: Option<(u64, Arc<super::view::ViewIndex>)>,
-    application_columns: Option<(u64, Arc<[ColumnSnapshot]>)>,
+    application_columns: Option<(u64, Arc<[crate::applications::demand::DemandColumn]>)>,
 }
 
 #[derive(Clone)]
@@ -94,7 +94,7 @@ impl PlaybackControl {
         let reader = self.0.logical.reader();
         reader.guard_at(reader.current())
     }
-    pub(crate) fn application_columns(&self) -> Option<Arc<[ColumnSnapshot]>> {
+    pub(crate) fn application_columns(&self) -> Option<Arc<[crate::applications::demand::DemandColumn]>> {
         self.0
             .state
             .lock()
@@ -104,7 +104,7 @@ impl PlaybackControl {
             .filter(|(revision, _)| *revision == self.0.columns.reader().current())
             .map(|(_, columns)| columns.clone())
     }
-    pub(crate) fn cache_application_columns(&self, columns: Arc<[ColumnSnapshot]>) {
+    pub(crate) fn cache_application_columns(&self, columns: Arc<[crate::applications::demand::DemandColumn]>) {
         self.0
             .state
             .lock()

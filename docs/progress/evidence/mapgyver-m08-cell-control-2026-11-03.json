@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "scope": "Cell-owned typed app control and Column-relative logical demand; full gate remains Active",
+  "software": {
+    "command": "cargo test --locked -p MapGyver --lib",
+    "passed": 368,
+    "failed": 0,
+    "ignored": 2,
+    "strict_clippy": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings",
+    "svelte": "0 errors, 0 warnings",
+    "protocol": "Rust generator updated CellDefinition, MatrixEdit and MediaEditResult; generated equality tests pass",
+    "coverage": "Sparse ownership/default identity, typed ranges/collections, atomic history/project/copy, standalone protection, pre/post clamp/jump/reorder/logical disable/delete/Undo, four public callers"
+  },
+  "native": {
+    "prerequisites": "Passing software/lint and inspected terminal --no-run build before execution",
+    "binary": "target/debug/deps/application_runtime-d39e2a9bf0d5ebf6.exe",
+    "sha256": "276B21599669108276F58DA239C9FE8085FBC75454024C34EFB0E71CCDF5442E",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 1,
+    "duration_seconds": 2.86,
+    "new_case": "Actual media-free Cell launch; same PID/launch across neighbor-to-exact Column demand; completed retirement outside its range without a renderer",
+    "exclusion": "Pinned-descendant fixture qualification remains under M08/4"
+  },
+  "bundled_ui": {
+    "command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-codex-review.exe node apps/mapgyver/tests/headless/media.mjs --cell-application-ui",
+    "binary_sha256": "0C13BCDDD1D0DC6CF8960697995B7D4D9979F5E16B66801E1714E3FF24E01A62",
+    "browser": "149.0.7827.55",
+    "result": "pass",
+    "page_errors": 0,
+    "rejected_intents": 0,
+    "coverage": "Actual Matrix Cell action; generic File/pre/post/Argument edits, inactive visibility, Undo/Redo, persistent Cell identity, no standalone definitions or authoring launches",
+    "regression": "The --application-ui fixture also passes on this exact binary",
+    "screenshot": "target/m08-cell-applications-ui.png"
+  },
+  "corrected_findings": [
+    "Default declared-child UUIDs are sparse implementation details; the persisted Cell now owns application identity",
+    "Unconfigured declared materialization must not invalidate logical demand; configured activation/change/clearing still do",
+    "The new Cell UI fixture now selects a real Media Manager object instead of the obsolete channel-row helper"
+  ],
+  "receipts": "target/m08-cell-{codegen,tests,caller-check,clippy,ui-check,native-build,native,app-build,ui,application-regression}.log",
+  "remaining": "Column integration and standalone removal; normalized-key shared ownership; independent Cell triggers and complete transition/final-use acceptance; M08/3-4 picker/commands/snippets/access/retirement coverage",
+  "acceptance_awarded": 0
+}

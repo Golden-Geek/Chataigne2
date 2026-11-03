@@ -10,8 +10,10 @@
 	import RowForm from './RowForm.svelte';
 	import ColumnForm from './ColumnForm.svelte';
 	import RuntimeFeedback from './RuntimeFeedback.svelte';
+	import { useDocumentSelection } from '../selection.svelte';
 	import './forms.css';
 	const owner = useMatrixAuthoring();
+	const selection = useDocumentSelection();
 	const { view, controller, matrices, sources } = owner;
 	const session = $derived(owner.session),
 		busy = $derived(owner.busy),
@@ -62,6 +64,20 @@
 							>{/each}
 					</select></label>
 				<div class="actions">
+					<IconButton
+						icon={referenceIcon}
+						label="Edit Cell app control"
+						disabled={busy}
+						onclick={async () => {
+							if (selectedRow?.item.id.kind !== 'Layer' || !selectedColumn) return;
+							const select = selection.capture();
+							const result = await owner.edit({
+								kind: 'EnsureCell',
+								layer: selectedRow.item.id.id,
+								column: selectedColumn.id
+							});
+							if (result?.kind === 'MatrixCellPrepared') select(result.application);
+						}} />
 					<IconButton
 						icon={arrowIcon}
 						label="Previous sources"

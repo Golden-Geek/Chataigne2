@@ -7,7 +7,7 @@ use golden_core::{
     parameter::ParameterEventBehaviour,
 };
 
-pub(super) fn configure(
+pub(crate) fn configure(
     engine: &mut AppEngine,
     parent: NodeId,
     definition: ApplicationDefinition,

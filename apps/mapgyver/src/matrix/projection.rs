@@ -15,7 +15,7 @@ pub(crate) struct RenderItem {
     pub end: usize,
 }
 pub(crate) struct RenderIndex {
-    pub columns: Vec<ColumnSnapshot>,
+    pub columns: Vec<crate::applications::demand::DemandColumn>,
     pub canvas: golden_video::Extent2D,
     pub items: HashMap<MatrixItemId, RenderItem>,
     pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
@@ -26,7 +26,11 @@ pub(crate) struct CellSource {
     pub version: u64,
 }
 impl RenderIndex {
-    pub(super) fn build(engine: &AppEngine, document: &Document) -> Self {
+    pub(super) fn build(
+        engine: &AppEngine,
+        document: &Document,
+        control: &super::playback::PlaybackControl,
+    ) -> Result<Self, String> {
         let mut items = HashMap::with_capacity(document.snapshot.items.len());
         let mut groups = Vec::<MatrixItemId>::new();
         for (order, item) in document.snapshot.items.iter().enumerate() {
@@ -83,11 +87,18 @@ impl RenderIndex {
                 );
             }
         }
-        Self {
-            columns: document.snapshot.columns.clone(),
+        let mut columns = document
+            .snapshot
+            .columns
+            .iter()
+            .map(crate::applications::demand::DemandColumn::from)
+            .collect::<Vec<_>>();
+        super::cell_applications::append(engine, document, control, &mut columns)?;
+        Ok(Self {
+            columns,
             canvas: document.snapshot.definition.canvas,
             items,
             cells,
-        }
+        })
     }
 }

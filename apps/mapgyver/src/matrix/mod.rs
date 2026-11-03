@@ -4,6 +4,7 @@ mod applications;
 mod authoring;
 mod bindings;
 pub(crate) mod capture;
+mod cell_applications;
 pub(crate) mod cell_node;
 pub(crate) mod cells;
 mod copying;

@@ -12,22 +12,55 @@ use std::collections::HashSet;
 
 const MAX_DEFINITIONS: usize = 4096;
 fn node_id(engine: &AppEngine, application: ApplicationId) -> Result<NodeId, String> {
-    let id = engine
+    let owner = engine
         .node_id_by_uuid(application.0)
         .ok_or("application reference is missing")?;
+    let id = match engine.nodes.get(owner) {
+        Some(AppNode::MatrixCell(cell)) => cell.application_node().ok_or("Cell app-control settings are missing")?,
+        _ => owner,
+    };
     let Some(AppNode::Application(node)) = engine.nodes.get(id) else {
         return Err("reference is not an application".into());
     };
-    if node.node_data().parent != Some(crate::media::authoring::manager(engine)?) {
+    if id == owner
+        && matches!(
+            node.node_data().parent.and_then(|id| engine.nodes.get(id)),
+            Some(AppNode::MatrixCell(_))
+        )
+    {
+        return Err("Cell app control uses its owning Cell identity".into());
+    }
+    if !valid_owner(engine, node) {
         return Err("application is outside its catalog".into());
     }
     Ok(id)
+}
+pub(crate) fn control_node(engine: &AppEngine, application: ApplicationId) -> Option<&AppControlNode> {
+    match engine.nodes.get(node_id(engine, application).ok()?) {
+        Some(AppNode::Application(node)) => Some(node),
+        _ => None,
+    }
+}
+fn valid_owner(engine: &AppEngine, node: &AppControlNode) -> bool {
+    match node.node_data().parent.and_then(|id| engine.nodes.get(id)) {
+        Some(AppNode::MediaManager(_)) => true,
+        Some(AppNode::MatrixCell(cell)) => cell.application_node() == Some(node.id()),
+        _ => false,
+    }
 }
 pub fn inspect(engine: &AppEngine, application: ApplicationId) -> Result<ApplicationSnapshot, String> {
     let Some(AppNode::Application(node)) = engine.nodes.get(node_id(engine, application)?) else {
         unreachable!()
     };
     node.snapshot(engine)
+}
+fn catalog_node_id(engine: &AppEngine, application: ApplicationId) -> Result<NodeId, String> {
+    let id = node_id(engine, application)?;
+    if engine.nodes.get(id).and_then(|node| node.node_data().parent) != Some(crate::media::authoring::manager(engine)?)
+    {
+        return Err("Embedded app control is owned by its Cell; edit the Cell or its Parameters".into());
+    }
+    Ok(id)
 }
 fn create(
     engine: &mut AppEngine,
@@ -39,7 +72,7 @@ fn create(
     let count = engine
         .nodes
         .iter()
-        .filter(|(_, node)| matches!(node, AppNode::Application(_)))
+        .filter(|(_, node)| matches!(node, AppNode::Application(_)) && node.node_data().parent == Some(manager))
         .count();
     if count >= MAX_DEFINITIONS {
         return Err("application catalog exceeds 4096 definitions".into());
@@ -57,7 +90,7 @@ fn create(
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
         ApplicationEdit::SetEnabled { application, enabled } => {
-            let node = node_id(engine, application)?;
+            let node = catalog_node_id(engine, application)?;
             if engine.nodes.get(node).unwrap().node_data().meta.enabled != enabled {
                 engine.edits.push(Edit::PatchMeta {
                     node,
@@ -164,15 +197,16 @@ pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<Med
             Ok(MediaEditResult::Changed)
         }
         ApplicationEdit::Rename { application, label } => {
-            labels::rename(engine, node_id(engine, application)?, label)?;
+            labels::rename(engine, catalog_node_id(engine, application)?, label)?;
             Ok(MediaEditResult::Changed)
         }
         ApplicationEdit::Remove { application } => {
-            let node = node_id(engine, application)?;
+            let node = catalog_node_id(engine, application)?;
             engine.edits.push(Edit::RemoveNode { node });
             Ok(MediaEditResult::Changed)
         }
         ApplicationEdit::Duplicate { application } => {
+            catalog_node_id(engine, application)?;
             let snapshot = inspect(engine, application)?;
             create(
                 engine,
@@ -201,18 +235,22 @@ pub(crate) fn validate_associations(
             .iter()
             .any(|entry| entry.application == association.application)
         {
-            node_id(engine, association.application)?;
+            catalog_node_id(engine, association.application)?;
         }
     }
     Ok(())
 }
 pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
-    let manager = crate::media::authoring::manager(engine)?;
     let mut count = 0;
     for (_, node) in engine.nodes.iter() {
         if let AppNode::Application(node) = node {
-            count += 1;
-            if count > MAX_DEFINITIONS || node.node_data().parent != Some(manager) {
+            if matches!(
+                node.node_data().parent.and_then(|id| engine.nodes.get(id)),
+                Some(AppNode::MediaManager(_))
+            ) {
+                count += 1;
+            }
+            if count > MAX_DEFINITIONS || !valid_owner(engine, node) {
                 return Err("application catalog ownership/count is invalid".into());
             }
             node.definition(engine)?.validate()?;
@@ -236,6 +274,12 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     Ok(())
 }
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
+    let embedded = |id| matches!(engine.nodes.get(id), Some(AppNode::Application(node)) if node.node_data().parent.is_some_and(|parent| matches!(engine.nodes.get(parent), Some(AppNode::MatrixCell(_)))));
+    if matches!(intent, UiEditIntent::RemoveNode { node } if embedded(*node))
+        || matches!(intent, UiEditIntent::RemoveNodes { nodes } if nodes.iter().any(|node| embedded(*node)))
+    {
+        return Err("Cell app-control settings are declared children and cannot be removed separately".into());
+    }
     let owned = |id| matches!(engine.nodes.get(id), Some(AppNode::Application(_)));
     let mut additions = std::collections::HashMap::new();
     let mut admit = |source: NodeId, parent: NodeId, moving: bool| -> Result<(), String> {

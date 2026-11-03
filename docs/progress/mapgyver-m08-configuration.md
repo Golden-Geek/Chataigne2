@@ -3,7 +3,8 @@
 **M08/2 remains Active.** The first configuration milestone is implemented and functionally
 verified: equivalent launch definitions preserve the existing owned process rather than
 triggering a stop/restart. The typed settings milestone below is also verified. Neither
-milestone alone accepts the full configuration/demand gate.
+milestone alone accepts the full configuration/demand gate. Cell ownership is verified below;
+Column integration and the complete aggregate-demand contract remain required.
 
 ## Ownership and behavior
 
@@ -99,17 +100,66 @@ Verified results ([receipt](evidence/mapgyver-m08-typed-configuration-2026-11-03
   an exiting widget before its animation completed; awaiting DOM settlement corrected the test.
 
 Binary identities and local command receipts are in the linked receipt. Native picker interaction,
-standalone-workflow removal, Column/Cell embedding and shared-owner aggregate demand remain open.
+standalone-workflow removal, Column/Cell embedding and shared-owner aggregate demand were open
+at that milestone; the Cell slice below advances its owning boundary.
 The prior custom-form browser fixture has been replaced by the typed-widget fixture; final
 M08/3 acceptance still owes complete contextual CRUD/picker/native interaction coverage.
 
+## Cell-owned app control — 2026-11-03
+
+Cell v2 declares the reusable typed control subtree, including integer `pre`/`post` Parameters.
+`EnsureCell` materializes an empty address without choosing defaults in the UI;
+`ConfigureCellApplication` creates/configures that address atomically. A compact Matrix action
+selects the real Cell and exposes ordinary File/control/collection widgets. Inactive controls
+and Argument/Environment children hide when App file is empty. Authoring launches no process
+and adds no standalone catalog entry. Embedded settings cannot be removed or manipulated with
+standalone CRUD; they copy and retire with their Cell/Column owner.
+
+The persistent Cell UUID is the application consumer identity. Initial regression failures
+showed that default declared-child UUIDs can disappear during sparse encoding; using the actual
+Cell identity fixes default reload/history/copy/caller parity without persisting an extra UUID
+or changing Golden's codec. Internal settings identities remain private. Cell v1 is explicitly
+rejected before recoverable decoding; Rust-generated DTOs and all consumers change together.
+
+Logical and render demand use one plain binding projection. Configured Cells contribute relative
+to their Column position with clamped, non-wrapping pre/post ranges, including media-free Cells.
+Direct Parameter changes invalidate the owning demand capture; unconfigured materialization and
+source-only edits retain the existing no-rescan contract. Jumps, reorder, logical disable,
+deletion/Undo and copied identities pass. Current clips accumulate new controls for retention;
+the complete revised direct-trigger/disabled-render/outgoing/final-use matrix remains required.
+
+[Verification receipt](evidence/mapgyver-m08-cell-control-2026-11-03.json):
+
+- **368 library tests pass**, zero failures, two existing qualification exclusions. Five new
+  cases cover sparse/default ownership, one-step history, project replay, range rejection,
+  standalone-CRUD protection, bounded Column-relative demand, reorder/disable/delete/Undo,
+  independent copies/schema rejection and UI/generic/hosted script parity across the four
+  existing caller modes. New dedicated named methods/commands/snippets remain in M08/4.
+  The caller fixture also explicitly uses an initially absent address.
+- Strict library/all-test Clippy passes with native/process-fixture features. Svelte reports
+  zero errors/warnings; touched UI/fixtures, both Cargo formatters and generated-contract tests pass.
+- After inspected software and executable-build success, the Windows suite passes **8 tests,
+  zero failures, one retained pinned-descendant exclusion**, in **2.86 seconds**. The new case
+  starts an actual owned process from a media-free Cell, preserves PID/launch from Neighbor to
+  exact-Column demand, then verifies completed retirement outside its range, without a renderer.
+- The isolated bundled app passes actual Cell preparation and generic File/pre/post/Argument
+  edits, inactive visibility, Undo/Redo, owner identity, zero standalone catalog entries and no
+  authoring process side effects. Existing application-widget UI regression also passes.
+  Zero browser errors/rejected intents occur. The initial Cell UI fixture used an obsolete
+  channel-row helper; selecting the current Media Manager object corrected that fixture.
+
+**No complete M08 gate closes in this slice.** Column-owned controls, standalone/association
+removal, cross-consumer normalized-key sharing, independent Cell triggering and full retained
+transition/final-use behavior remain in the same active gate. Native picker/complete contextual
+CRUD, app-owned command/snippet coverage and retained access/retirement cases remain M08/3–4.
+
 ## Exact remaining M08/2 requirement
 
-Embed the verified typed subtree into Column/Cell App file and conditional controls, and remove
+Embed the verified typed subtree into Column App file and conditional controls, and remove
 the standalone Applications/catalog association workflow.
 Aggregate identical normalized keys across consumers, Cells, Columns and Matrices without
-transient process restarts. Implement clamped non-wrapping Cell pre/post distances relative
-to Column position, direct activation and outgoing/final-use retention through jumps,
+transient process restarts. Preserve the verified clamped/non-wrapping Cell ranges while adding
+direct activation and complete outgoing/final-use retention through jumps,
 reorder/delete and project/history operations. Complete fake-time/process, UI/public caller
 and project verification before accepting M08/2. M08/3–4 retain their complete actual-process,
 picker/API/script/callback/snippet, target-outcome and retirement/access acceptance.

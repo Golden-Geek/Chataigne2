@@ -464,10 +464,7 @@ pub(crate) fn capture_channels_with_time(
         let mut availability = std::collections::HashMap::new();
         guards.push(manager.membership_guard());
         for entry in demand {
-            if let Some(AppNode::Application(node)) = engine
-                .node_id_by_uuid(entry.application.0)
-                .and_then(|id| engine.nodes.get(id))
-            {
+            if let Some(node) = crate::applications::control_node(engine, entry.application) {
                 guards.push(node.guard());
                 availability.insert(entry.application, node.availability());
             }

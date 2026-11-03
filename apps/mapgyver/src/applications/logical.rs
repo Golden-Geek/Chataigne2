@@ -86,10 +86,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         .collect::<Vec<_>>();
     let mut demand = resolve(&[], &inputs, DemandLimits::default())?;
     for entry in &mut demand {
-        if let Some(AppNode::Application(node)) = engine
-            .node_id_by_uuid(entry.application.0)
-            .and_then(|id| engine.nodes.get(id))
-        {
+        if let Some(node) = super::control_node(engine, entry.application) {
             guards.push(node.guard());
             entry.availability = node.availability();
         }

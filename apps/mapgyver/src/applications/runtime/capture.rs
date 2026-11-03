@@ -53,11 +53,8 @@ impl PreparedApplications {
             if !identities.insert(entry.application) {
                 return Err("duplicate application demand identity".into());
             }
-            let mut target = match engine
-                .node_id_by_uuid(entry.application.0)
-                .and_then(|id| engine.nodes.get(id))
-            {
-                Some(AppNode::Application(node)) => {
+            let mut target = match crate::applications::control_node(engine, entry.application) {
+                Some(node) => {
                     let snapshot = node.snapshot(engine)?;
                     let definition = if snapshot.enablement == ApplicationEnablement::Enabled
                         && snapshot.definition.executable.is_some()

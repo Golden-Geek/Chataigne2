@@ -366,6 +366,10 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MatrixCellPrepared {
+        cell: crate::matrix::protocol::CellId,
+        application: crate::applications::protocol::ApplicationId,
+    },
     CompositionEditor {
         page: super::composition::protocol::CompositionEditorPage,
     },

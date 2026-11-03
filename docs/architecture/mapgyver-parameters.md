@@ -89,5 +89,23 @@ materialization and cannot represent reversible presentation toggles without mis
 targets. The generic Inspector's app visibility filter only chooses which existing widgets to
 show; it never changes settings or runtime policy. Empty File values represent unconfigured
 locators, so shared extension constraints permit clearing them; chosen paths retain extension
-validation and app-owned absolute executable validation. Column/Cell embedding and removal of
-the temporary standalone consumer remain tracked in M08/2.
+validation and app-owned absolute executable validation.
+
+Cell v2 declares this subtree directly and owns its application identity. The public
+`ApplicationId` equals the persistent Cell UUID; the default settings child's internal UUID
+may be omitted by sparse persistence and must not escape as a consumer identity. `EnsureCell`
+materializes an empty address using backend defaults; `ConfigureCellApplication` configures it
+in one authoring/history transaction. Ordinary app-control reads/configuration resolve through
+that Cell owner. Standalone CRUD cannot remove, duplicate, rename or disable its declared slot.
+Cell and Column copy operations retain their normal fresh-identity semantics.
+
+Typed pre/post distances stay outside the process runtime key. Matrix projects configured Cell
+controls into the same plain demand input used by Column consumers, regardless of media content
+or render visibility. The cached logical projection does not build a render index. An app-owned
+invalidation callback keeps the reusable settings node independent of Matrix types and wakes
+demand when configured settings activate, change or clear; default unconfigured materialization
+and source-only Cell edits do not cause application rescans. Live clip retention accumulates
+newly observed Cell controls through that clip's lifetime.
+
+Column embedding, standalone-workflow removal, normalized-key shared ownership and the complete
+direct-Cell/outgoing/final-use acceptance remain tracked in M08/2.

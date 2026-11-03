@@ -1,6 +1,84 @@
 use super::*;
 use crate::matrix::protocol::*;
 
+#[test]
+fn sparse_cell_app_control_creation_configuration_and_rejection_match_every_public_caller() {
+    let scene = scene();
+    let row = scene
+        .snapshot
+        .items
+        .iter()
+        .rev()
+        .find_map(|item| match item.id {
+            MatrixItemId::Layer { id } => Some(id),
+            _ => None,
+        })
+        .unwrap();
+    let column = scene.snapshot.columns[1].id;
+    assert!(
+        !scene
+            .snapshot
+            .cells
+            .iter()
+            .any(|cell| cell.layer == row && cell.definition.column == column)
+    );
+    let definition = crate::applications::protocol::ApplicationDefinition {
+        executable: Some(std::env::current_exe().unwrap().to_string_lossy().into_owned()),
+        arguments: vec!["literal & value".into()],
+        environment: Some(vec![("EXACT".into(), "value".into())]),
+        ..Default::default()
+    };
+    for caller in CALLERS {
+        for operation in [
+            MatrixEdit::EnsureCell { layer: row, column },
+            MatrixEdit::ConfigureCellApplication {
+                layer: row,
+                column,
+                definition: definition.clone(),
+                pre: 2,
+                post: 3,
+            },
+            MatrixEdit::ConfigureCellApplication {
+                layer: row,
+                column,
+                definition: crate::applications::protocol::ApplicationDefinition {
+                    executable: Some("relative.exe".into()),
+                    ..Default::default()
+                },
+                pre: 0,
+                post: 0,
+            },
+        ] {
+            let mut engine = from_sparse_project_json::<AppNode>(&scene.document).unwrap();
+            let configured = matches!(&operation, MatrixEdit::ConfigureCellApplication { definition, .. } if definition.executable.as_deref() != Some("relative.exe"));
+            let rejected = matches!(&operation, MatrixEdit::ConfigureCellApplication { definition, .. } if definition.executable.as_deref() == Some("relative.exe"));
+            let result = run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: scene.root.media,
+                    edit: operation,
+                },
+            );
+            if rejected {
+                assert!(result.is_none());
+                continue;
+            }
+            let MediaEditResult::MatrixCellPrepared { application, .. } =
+                serde_json::from_value(result.unwrap()).unwrap()
+            else {
+                panic!()
+            };
+            if configured {
+                assert_eq!(
+                    crate::applications::inspect(&engine, application).unwrap().definition,
+                    definition
+                );
+            }
+        }
+    }
+}
+
 fn matrix_edit(engine: &mut AppEngine, reference: ChannelReference, edit: MatrixEdit) -> MediaEditResult {
     apply(
         engine,

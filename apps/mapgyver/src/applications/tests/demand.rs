@@ -32,10 +32,11 @@ fn demand(
     cursors: &[DemandCursor],
     holds: &[DemandHold],
 ) -> Vec<ApplicationDemand> {
+    let columns = columns.iter().map(DemandColumn::from).collect::<Vec<_>>();
     resolve(
         catalog,
         &[MatrixDemand {
-            columns,
+            columns: &columns,
             cursors,
             holds,
         }],
@@ -153,6 +154,7 @@ fn admitted_large_sparse_columns_and_invalid_input_bounds_do_not_materialize_cel
     });
     let active = [cursor(columns[9998].id, DemandReason::Active)];
     assert_eq!(demand(&catalog, &columns, &active, &[]).len(), 1);
+    let columns = columns.iter().map(DemandColumn::from).collect::<Vec<_>>();
     assert!(
         resolve(
             &catalog,

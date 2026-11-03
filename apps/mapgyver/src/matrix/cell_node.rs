@@ -15,14 +15,18 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v1";
-#[node("mapgyver.matrix.cell.v1", label = "Cell")]
+pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v2";
+#[node("mapgyver.matrix.cell.v2", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
-})]
+}
+node app_control: crate::applications::AppControlNode = (self.create_app_control()) (
+    label = "App control"
+);
+)]
 pub struct CellNode {
     #[state(default = OnceLock::new())]
     runtime: OnceLock<super::playback::RuntimeBinding>,
@@ -30,6 +34,19 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    fn create_app_control(&self) -> crate::applications::AppControlNode {
+        let node = crate::applications::AppControlNode::embedded();
+        if let Some(binding) = self.runtime.get().cloned() {
+            node.bind_invalidation(move || {
+                binding.invalidate();
+                binding.invalidate_applications();
+            });
+        }
+        node
+    }
+    pub(crate) fn application_node(&self) -> Option<NodeId> {
+        self.app_control.current_id()
+    }
     pub(crate) fn from_address(label: String, column: ColumnId, output: Option<ChannelId>) -> Self {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
@@ -49,7 +66,7 @@ impl CellNode {
         while let Some(id) = next {
             let node = engine.nodes.get(id).ok_or("Cell child is missing")?;
             next = node.node_data().next_sibling;
-            if crate::parameters::is_parameter_folder(node) {
+            if crate::parameters::is_parameter_folder(node) || self.application_node() == Some(id) {
                 continue;
             }
             if !matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) || found.replace(id).is_some() {
@@ -77,6 +94,7 @@ impl CellNode {
         Ok(CellDefinition {
             column: self.column(),
             source,
+            application: crate::applications::protocol::ApplicationId(self.node_data().meta.uuid),
         })
     }
     pub(crate) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
@@ -95,16 +113,13 @@ impl CellNode {
         }
     }
 }
-#[node("mapgyver.matrix.cell.v1", from_struct)]
+#[node("mapgyver.matrix.cell.v2", from_struct)]
 impl Node for CellNode {
     fn needs_update(&self) -> bool {
         false
     }
     fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
         golden_core::engine::NodeExecutionRule::passive()
-    }
-    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
-        false
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
@@ -118,8 +133,13 @@ impl Node for CellNode {
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
         self.invalidate();
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
+    fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         self.invalidate();
+        if parameter == self.column.id()
+            && let Some(binding) = self.runtime.get()
+        {
+            binding.invalidate_applications();
+        }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.invalidate();

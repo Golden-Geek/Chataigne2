@@ -25,6 +25,24 @@
 		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
 	} = $props();
 	const session = $derived(appState.session);
+	const application = $derived.by(() => {
+		const parentId = session?.graph.state.parentById.get(node.node_id);
+		const parent = parentId == null ? null : session?.getNodeData(parentId);
+		return parent?.node_type === 'mapgyver.matrix.cell.v2' ? parent.uuid : node.uuid;
+	});
+	const configured = $derived.by(() => {
+		const folder = node.children
+			.map((id) => session?.getNodeData(id))
+			.find((child) => child?.decl_id === 'parameters');
+		const file = folder?.children
+			.map((id) => session?.getNodeData(id))
+			.find((child) => child?.decl_id === 'parameters/app_file');
+		return (
+			file?.data.kind === 'parameter' &&
+			file.data.param.value.kind === 'file' &&
+			!!file.data.param.value.value
+		);
+	});
 	const view = $state(applicationState()),
 		catalog = $state(catalogState());
 	const controller = new ApplicationController<WorkbenchSession>(
@@ -54,6 +72,7 @@
 	$effect(() => {
 		const current = session;
 		const uuid = node.uuid;
+		const target = application;
 		const currentNode = current?.getNodeData(node.node_id);
 		if (current) {
 			void current.status;
@@ -69,9 +88,9 @@
 				controller.select(null);
 				return;
 			}
-			if (view.selected !== uuid) controller.select(null);
+			if (view.selected !== target) controller.select(null);
 			controller.observe();
-			if (view.selected !== uuid) controller.select(uuid);
+			if (view.selected !== target) controller.select(target);
 		});
 	});
 	onDestroy(() => controller.dispose());
@@ -79,7 +98,7 @@
 
 {@render defaultHeader?.()}
 {#snippet content()}
-	{@render defaultChildren?.()}
+	{@render defaultChildren?.('', (child) => child.decl_id === 'parameters' || configured)}
 	<div class="properties">
 		{#if view.error || view.readError}<p role="alert">{view.error || view.readError}</p>{/if}
 		{#if view.missing}<p role="status">Application no longer exists.</p>{/if}

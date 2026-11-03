@@ -55,6 +55,44 @@ fn removes_protected_children(engine: &AppEngine, nodes: &[NodeId]) -> bool {
 }
 
 pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> Result<(), String> {
+    // App-control entry collections use Golden's ordinary child operations. The declared
+    // settings root and paired Matrix structure remain protected by their owning policy.
+    let setting = |id| {
+        let mut next = Some(id);
+        while let Some(id) = next {
+            let Some(node) = engine.nodes.get(id) else { return false };
+            if matches!(node, AppNode::Application(_)) {
+                return true;
+            }
+            if matches!(node, AppNode::MatrixCell(_)) {
+                return false;
+            }
+            next = node.node_data().parent;
+        }
+        false
+    };
+    let entries = match intent {
+        UiEditIntent::CreateUserItem { parent, .. } => setting(*parent),
+        UiEditIntent::RemoveNode { node } => setting(*node),
+        UiEditIntent::RemoveNodes { nodes } => nodes.iter().all(|node| setting(*node)),
+        UiEditIntent::MoveNode { node, new_parent, .. } => setting(*node) && setting(*new_parent),
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => setting(*source) && setting(*new_parent),
+        UiEditIntent::DuplicateNodes {
+            nodes,
+            created_items,
+            dependent_items,
+        } => {
+            nodes
+                .iter()
+                .all(|node| setting(node.source) && setting(node.new_parent))
+                && created_items.iter().all(|item| setting(item.parent))
+                && dependent_items.iter().all(|item| setting(item.parent))
+        }
+        _ => false,
+    };
+    if entries {
+        return Ok(());
+    }
     let protected = match intent {
         // Removing the owner removes its paired exports and all Matrix structure together.
         UiEditIntent::RemoveNode { node } => removes_protected_children(engine, &[*node]),

@@ -94,7 +94,7 @@ pub(crate) fn capture(
                     _ => unreachable!(),
                 }
             }
-            let index = Arc::new(RenderIndex::build(engine, &document));
+            let index = Arc::new(RenderIndex::build(engine, &document, control)?);
             control.cache(index.clone());
             index
         }

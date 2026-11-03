@@ -10,9 +10,11 @@ mod node;
 pub mod protocol;
 pub mod runtime;
 mod settings;
+pub(crate) use authoring::control_node;
 pub use authoring::inspect;
 pub(crate) use authoring::{apply, validate_associations, validate_project, validate_ui_intent};
 pub use entries::{ArgumentNode, EnvironmentNode};
 pub use node::AppControlNode;
+pub(crate) use settings::configure as configure_node;
 #[cfg(test)]
 mod tests;

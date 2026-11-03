@@ -49,6 +49,7 @@ const withUi = [
 	'--source-ui',
 	'--ui-reload',
 	'--application-ui',
+	'--cell-application-ui',
 	'--screen-ui',
 	'--surface-source-ui',
 	'--composition-ui',
@@ -296,6 +297,10 @@ try {
 	if (process.argv.includes('--application-ui')) {
 		const { verifyApplicationUi } = await import('../browser/applications.mjs');
 		await verifyApplicationUi({ base, edit });
+	}
+	if (process.argv.includes('--cell-application-ui')) {
+		const { verifyCellApplicationsUi } = await import('../browser/cell-applications.mjs');
+		await verifyCellApplicationsUi({ base, edit, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--screen-ui')) {
 		const { verifyScreenUi } = await import('../browser/screens.mjs');

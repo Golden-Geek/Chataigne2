@@ -124,6 +124,8 @@ pub struct CellDefinition {
     pub column: ColumnId,
     #[serde(default)]
     pub source: Option<ChannelReference>,
+    /// This Cell's declared typed settings, including when unconfigured.
+    pub application: crate::applications::protocol::ApplicationId,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
@@ -326,6 +328,17 @@ pub enum MatrixEdit {
     },
     SetCells {
         assignments: Vec<CellAssignment>,
+    },
+    ConfigureCellApplication {
+        layer: LayerId,
+        column: ColumnId,
+        definition: crate::applications::protocol::ApplicationDefinition,
+        pre: u16,
+        post: u16,
+    },
+    EnsureCell {
+        layer: LayerId,
+        column: ColumnId,
     },
 }
 

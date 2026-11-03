@@ -24,9 +24,37 @@ pub struct DemandHold {
     pub reason: DemandReason,
 }
 pub struct MatrixDemand<'a> {
-    pub columns: &'a [ColumnSnapshot],
+    pub columns: &'a [DemandColumn],
     pub cursors: &'a [DemandCursor],
     pub holds: &'a [DemandHold],
+}
+#[derive(Clone, Debug)]
+pub struct DemandBinding {
+    pub application: ApplicationId,
+    pub pre: u16,
+    pub post: u16,
+}
+#[derive(Clone, Debug)]
+pub struct DemandColumn {
+    pub id: ColumnId,
+    pub bindings: Vec<DemandBinding>,
+}
+impl From<&ColumnSnapshot> for DemandColumn {
+    fn from(column: &ColumnSnapshot) -> Self {
+        Self {
+            id: column.id,
+            bindings: column
+                .definition
+                .applications
+                .iter()
+                .map(|binding| DemandBinding {
+                    application: binding.application,
+                    pre: binding.pre,
+                    post: binding.post,
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,8 +130,8 @@ pub fn resolve(
             if positions.insert(column.id, position).is_some() {
                 return Err("application demand has duplicate column identities".into());
             }
-            if column.definition.applications.len() > 64 {
-                return Err("application demand column exceeds 64 associations".into());
+            if column.bindings.len() > limits.applications {
+                return Err("application demand column exceeds admitted bindings".into());
             }
         }
         let mut cursors = Vec::new();
@@ -122,7 +150,7 @@ pub fn resolve(
         cursors.sort_unstable();
         cursors.dedup();
         for (position, column) in matrix.columns.iter().enumerate() {
-            for association in &column.definition.applications {
+            for association in &column.bindings {
                 let low = position.saturating_sub(usize::from(association.pre));
                 let high = position
                     .saturating_add(usize::from(association.post))

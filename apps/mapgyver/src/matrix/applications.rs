@@ -9,38 +9,37 @@ pub(crate) fn capture_application_columns(
     root: NodeId,
     control: &super::playback::PlaybackControl,
     maximum: usize,
-) -> Result<Arc<[ColumnSnapshot]>, String> {
+) -> Result<Arc<[DemandColumn]>, String> {
     if let Some(columns) = control.application_columns() {
         if columns.len() > maximum {
             return Err("logical Matrix aggregate column capacity exceeded".into());
         }
         return Ok(columns);
     }
-    let mut columns = Vec::new();
-    let mut next = engine
+    let owner = engine
         .nodes
         .get(root)
-        .ok_or("Matrix root is missing")?
-        .node_data()
-        .first_child;
-    while let Some(id) = next {
-        let node = engine.nodes.get(id).ok_or("Matrix column index changed")?;
-        next = node.node_data().next_sibling;
-        if let crate::app::AppNode::MatrixElement(node) = node
-            && let ElementDefinition::Column { definition } = node.definition()
-        {
-            if columns.len() == maximum {
-                return Err("logical Matrix column capacity exceeded".into());
-            }
+        .and_then(|node| node.node_data().parent)
+        .and_then(|id| engine.nodes.get(id))
+        .ok_or("Matrix media is missing")?;
+    let document =
+        super::document::Document::load(engine, crate::media::protocol::MediaId(owner.node_data().meta.uuid))?;
+    if document.snapshot.columns.len() > maximum {
+        return Err("logical Matrix column capacity exceeded".into());
+    }
+    for id in document.columns.values() {
+        if let Some(crate::app::AppNode::MatrixElement(node)) = engine.nodes.get(*id) {
             node.bind_runtime(control.binding());
-            columns.push(ColumnSnapshot {
-                id: ColumnId(node.node_data().meta.uuid),
-                label: node.node_data().meta.label.clone(),
-                definition: definition.clone(),
-            });
         }
     }
-    let columns: Arc<[ColumnSnapshot]> = columns.into();
+    let mut columns = document
+        .snapshot
+        .columns
+        .iter()
+        .map(DemandColumn::from)
+        .collect::<Vec<_>>();
+    super::cell_applications::append(engine, &document, control, &mut columns)?;
+    let columns: Arc<[DemandColumn]> = columns.into();
     control.cache_application_columns(columns.clone());
     Ok(columns)
 }
@@ -108,21 +107,15 @@ impl Applications {
                 column: entry.clip.column,
                 reason,
             });
-            let references = self.clips.entry(entry.clip.id).or_insert_with(|| {
-                index
-                    .columns
-                    .iter()
-                    .find(|column| column.id == entry.clip.column)
-                    .map(|column| {
-                        column
-                            .definition
-                            .applications
-                            .iter()
-                            .map(|entry| entry.application)
-                            .collect()
-                    })
-                    .unwrap_or_default()
-            });
+            let references = self.clips.entry(entry.clip.id).or_default();
+            if let Some(column) = index.columns.iter().find(|column| column.id == entry.clip.column) {
+                references.extend(column.bindings.iter().map(|binding| binding.application));
+                references.sort_by_key(|id| id.0.0);
+                references.dedup();
+                if references.len() > DemandLimits::default().applications {
+                    return Err("Matrix clip app-control retention capacity exceeded".into());
+                }
+            }
             holds.extend(references.iter().map(|application| DemandHold {
                 application: *application,
                 reason,
