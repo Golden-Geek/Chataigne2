@@ -2,12 +2,13 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** M05/6 Screen interaction implemented; native alignment acceptance remains.
-**Next deliverable:** current-binary native image/overlay alignment during smooth zoom to close
-M05/6, reconciling the verified selection, keyboard, Alt-drag and Fill/Fit receipts.
-**Execution:** M04/1–3,7–8 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
+**Current topic:** M05/10 workbench runtime status; M05/6 native alignment capture is Blocked.
+**Next deliverable:** public Golden footer contribution hook and MapGyver actual video runtime
+status through bounded coarse observations outside the engine loop.
+**Execution:** M04/1–3,7–8 accepted; M05/10 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
-**Blocker for next delivery:** none known. Retained source/device/timing/memory/display gates remain below.
+**Blocker for next product:** none known. M05/6 needs usable native-window capture: the supported
+connection is unavailable and the settled fallback returns only black. Other retained gates remain below.
 **Usable now:** backend Fill Screen and centered Fit to Screen preserve cropped-source aspect
 and other Surface settings, with one-step Undo and native automatic Picture sizing;
 Alt-drag from Surface bodies or corners translates the entire quad as one
@@ -46,8 +47,8 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **28/57 accepted gates**; denominators are unchanged. This M05/6 slice adds
-usable behavior without closing a gate.
+There are **28/57 accepted gates**; denominators are unchanged. The current qualification
+checkpoint closes no gate and awards no progress.
 Partial work, planning and unavailable checks earn no gate.
 
 **Scope revision:** the prior plan was 5/10 phases (50%), with 40/48 gates accepted.
@@ -65,12 +66,13 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | All revised Screen interaction behaviors are implemented and functionally verified, including Fill/Fit. Finish current-binary native image/overlay alignment during smooth zoom and reconcile the individual receipts to close this gate. M05/8 retains its complete physical/DPI/latency matrix. |
+| Active   | M05/10           | Deliver public Golden footer contributions and actual MapGyver FPS/GPU/frame-time/resource status from bounded runtime observations, then Screen/Surface outliner supplements. Independent product work proceeds while M05/6 capture is blocked. |
+| Blocked  | M05/6            | [Native capture prerequisite failed](evidence/mapgyver-screen-capture-blocker-2026-11-03.json): supported helper connection unavailable; settled fallback has 1,500,000 black pixels and no UI/native content. Restore usable native-window capture, then verify same-frame image/overlay alignment during real smooth zoom and reconcile all functional receipts. M05/8 keeps its full physical matrix. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
-| Pending  | M05/7,9,10       | After M05/6, finish Surface Source interaction, stable visible output-bounds updates and outliner supplements.                                                                                                                                                           |
+| Pending  | M05/7,9          | After the selected independent runtime-status slice, reconcile Surface Source interaction and stable visible output-bounds updates; retain native alignment/physical proof in its owning gates. |
 | Pending  | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels. Replace the existing global Composition `InspectManager` refresh with bounded owner/catalog reads; Reference's paged query alone does not qualify whole-app scale. |
 | Pending  | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                                 |
 | Pending  | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                          |
@@ -94,16 +96,18 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/6 Fill Screen / Fit to Screen, started 2026-11-03 07:16 CET;
-  cutoff 08:01 CET. [Implemented and functionally verified](evidence/mapgyver-screen-fit-2026-11-03.json)
-  in MapGyver backend/UI. Static/Reference sizing works headlessly; automatic source sizing
-  uses bounded revision/lifetime-checked preparation metadata without engine IO. 331 backend
-  tests (two retained ignored), generated DTO parity, strict Clippy, 21 focused UI tests and
-  both app UI checks pass. Normal bundled Fill/Fit/Undo and retained gesture/navigation flows
-  pass; native WebView2 also fits an automatically decoded portrait Picture after software
-  prerequisites. Owned processes exit normally. No gate closed. Next finish native image-edge/
-  overlay alignment during smooth zoom for M05/6 closure; M05/8 retains its full physical matrix.
-  Counts remain 28/57 gates, M05 3/10 (30%), 3/11 phases (27%); M05/6 alone stays Active.
+- **Current handoff:** M05/6 native alignment qualification, started 2026-11-03 07:42 CET;
+  cutoff 08:27 CET. [Baseline and exact return action](evidence/mapgyver-screen-capture-blocker-2026-11-03.json).
+  Current d4046ebc binary/hash and terminal software receipts were reconciled. The supported
+  capture pipe fails after retry/reset and through the alternate surface. An isolated actual
+  WebView2 fixture reaches native available/installed, but read-only window capture returns an
+  entirely black 1500×1000 image. No product alignment defect or acceptance is inferred.
+  The live zoom experiment was not run; no further capture variants are authorized by this
+  bounded investigation. Minimal scene/capture baseline retained; owned app exits normally 0.
+  M05/6 is Blocked until usable native image/overlay capture returns. M05/10 alone becomes
+  Active for public footer/runtime status; this independent order is recorded in the plan.
+  Last usable capability remains Fill/Fit plus the verified Screen interactions. No gate closed.
+  Counts remain 28/57 gates, M05 3/10 (30%), 3/11 phases (27%).
 
 ## Maintenance rule
 

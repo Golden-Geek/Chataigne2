@@ -1,0 +1,41 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Blocked on usable native-window capture; Screen behavior remains implemented and functionally verified, alignment acceptance is unproven",
+	"build": {
+		"commit": "d4046ebc006d1ba2632f01af87e521ce0a8bd1bb",
+		"executable": "target/debug/MapGyver.exe",
+		"sha256": "4A9B08A8028F18D597FB678B98749840E1CA973882ACCFFE3C76DFB39B785785",
+		"prerequisites": "Reuse the terminal compile, 331 backend tests, strict Clippy, 21 focused UI tests, both UI type checks and actual bundled/native behavioral receipts in mapgyver-screen-fit-2026-11-03.json. No production source changed in this batch."
+	},
+	"required_proof": "Native image edges and actual SVG overlay in the same current-build captured frames during real smooth zoom, supplementing the existing DOM/native-installation evidence. DOM screenshots alone do not prove native-underlay pixel alignment.",
+	"capture_access": {
+		"computer_use_skill": "@oai/sky list_windows failed initially, after its prescribed retry, and after reset/reinitialization: Computer Use native pipe is unavailable: failed to connect native pipe: The system cannot find the file specified. (os error 2)",
+		"alternate_surface": "cua.getState returned apps=[], browsers=[], and the same missing native-pipe error.",
+		"fallback": "Pillow ImageGrab.grab(window=owned_fixture_hwnd), read-only capture of the verified owned MapGyver process. No OS input, settings or user-window interaction."
+	},
+	"baseline": {
+		"fixture": "node apps/mapgyver/tests/browser/native-alignment.mjs target/mapgyver-native-alignment-2026-11-03",
+		"scene": "Solid red source on a centered 0.2..0.8 quad with selected blue SVG outline, enabled 800x600 Spout Screen; actual bundled WebView2 native preview reached available/installed.",
+		"viewport_css": [1200, 800],
+		"reported_device_pixel_ratio": 1.25,
+		"captured_pixels": [1500, 1000],
+		"pixel_count": 1500000,
+		"unique_rgb_colors": 1,
+		"only_color": [0, 0, 0],
+		"native_red_pixels": 0,
+		"overlay_blue_pixels": 0,
+		"rgb_sha256": "c4c97db14be9bc43d2f85ab6de46b253f974477affa0653a7f86c478992ba60e",
+		"result": "Capture is unusable: it omits the entire UI as well as the expected native region. This does not establish a product rendering or alignment defect.",
+		"fixture_shutdown": "Normal exit 0 after the finish marker; owned native process is gone."
+	},
+	"experiment_budget": "One native capture baseline performed. The dependent live-zoom experiment was not run because the capture prerequisite failed. No alternate capture variants or capture framework were added. Remove the unexecuted zoom driver; retain only the minimal owned scene and read-only capture baseline for the return action.",
+	"retained_tools": {
+		"apps/mapgyver/tests/browser/native-alignment.mjs": "Minimal isolated scene with public backend intents, actual editor/native-preview installation, bounded lifetime and normal cleanup. Finish marker is in its output directory.",
+		"apps/mapgyver/tests/native/window_capture.py": "Read-only owned-window capture or --image analysis of an existing capture; reports color counts/hash and always leaves alignment_verified=false. Offline analysis of the preserved baseline correctly reports unusable capture (exit 2).",
+		"checks": "Node syntax, Python compilation, Prettier, root/golden_core cargo fmt and git diff --check. Runtime/DTOs unchanged. Raw baseline is a local target artifact, not a committed evidence archive."
+	},
+	"return_trigger": "Restore the supported native capture connection, or provide a working current-build window-capture route that includes both native image and overlay. Reuse the settled scene first; only after usable pixels, perform the already bounded real-input zoom comparison and reconcile all M05/6 receipts.",
+	"next_product": "M05/10: public Golden footer contribution hook plus MapGyver actual video runtime status, using bounded coarse observations outside the engine loop. Outliner supplements remain part of that gate; no gate is waived.",
+	"gate_changes": "M05/6 Active -> Blocked with return trigger; M05/10 Pending -> Active as independent product work. No acceptance changes: 28/57 gates, M05 3/10 (30%), fully accepted phases 3/11 (27%). M05/8 physical/DPI/latency coverage stays open."
+}

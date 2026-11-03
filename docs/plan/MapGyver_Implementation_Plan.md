@@ -51,6 +51,14 @@ backend receipt fixture supplements its functional evidence; the existing whole-
 larger authored counts, UI, memory and output requirements remain required in their owning gates.
 
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
+
+M05/6's revised behavior is implemented, but its final native image/overlay capture proof is
+blocked as recorded in the [current status](../progress/mapgyver-status.md): the supported
+capture connection is unavailable and the settled fallback capture is entirely black. Resume
+that gate when usable native-window capture returns. While it is blocked, advance independent
+M05/10 runtime/workbench status before returning to M05/7 and M05/9 qualification. This changes
+execution order within M05 only; every gate, physical matrix and acceptance requirement remains.
+
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.
 
