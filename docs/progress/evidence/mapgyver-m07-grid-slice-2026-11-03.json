@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/3",
+  "decision": "Active; partial product slice verified",
+  "batch": { "start_utc": "20:36", "cutoff_utc": "21:21" },
+  "capability": "Full-panel square Matrix grid, contextual owned-media/structural operations, inline rename and generic Inspector",
+  "software": {
+    "rust_library": { "passed": 389, "failed": 0, "ignored": 2, "seconds": 128.63, "log": "target/m07-grid-tests.log" },
+    "strict_native_all_target_clippy": "pass; target/m07-grid-clippy.log",
+    "generated_contract_equality": "pass in Rust suite",
+    "svelte": "0 errors, 0 warnings; target/m07-grid-ui-check-fixed.log",
+    "ui_tests": "29 passed; target/m07-grid-ui-tests.log"
+  },
+  "bundled_browser": {
+    "version": "149.0.7827.55",
+    "executable": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "C961F4C94BA20E2829E31990981D31495D9FDC8010707463218755C4485215BE",
+    "passed": [
+      "--matrix-grid-ui",
+      "--matrix-parameters-ui",
+      "--matrix-defaults-ui",
+      "--column-applications-ui",
+      "--cell-application-ui"
+    ],
+    "screenshot": "target/m07-grid-ui.png",
+    "native_observation": "Unavailable in browser; no native or physical gate inferred"
+  },
+  "remaining": [
+    "Drag sort and reparent Layers/Groups",
+    "Sort Columns",
+    "Complete revised grid/project interaction and caller-parity audit",
+    "Truthful current native playback feedback in the revised grid"
+  ],
+  "gate_changes": "None; 44/57 accepted gates and 5/11 complete phases"
+}

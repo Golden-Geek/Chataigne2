@@ -59,6 +59,12 @@ pub enum MediaKind {
     Matrix,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MediaCreationChoice {
+    pub media_kind: MediaKind,
+    pub label: String,
+}
+
 impl MediaKind {
     pub(crate) fn default_label(self) -> &'static str {
         match self {

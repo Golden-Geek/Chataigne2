@@ -14,6 +14,16 @@ const SOURCES: [(&str, MediaKind); 5] = [
     ("mapgyver.media.matrix", MediaKind::Matrix),
 ];
 
+pub(crate) fn media_choices() -> Vec<super::protocol::MediaCreationChoice> {
+    std::iter::once(MediaKind::Reference)
+        .chain(SOURCES.into_iter().map(|(_, kind)| kind))
+        .map(|media_kind| super::protocol::MediaCreationChoice {
+            media_kind,
+            label: media_kind.default_label().into(),
+        })
+        .collect()
+}
+
 pub(super) fn items() -> Vec<UserCreatableItem> {
     let mut items = vec![UserCreatableItem::new(
         "mapgyver.media.folder",

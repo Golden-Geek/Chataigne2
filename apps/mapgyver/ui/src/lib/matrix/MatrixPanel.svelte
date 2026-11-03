@@ -1,12 +1,17 @@
 <script lang="ts">
-	import { IconButton, type PanelProps, type PanelState } from 'golden_ui';
-	import addIcon from 'golden_ui/style/icons/node/add.svg';
-	import groupIcon from 'golden_ui/style/icons/node/folder.svg';
-	import resetIcon from 'golden_ui/style/icons/reset.svg';
-	import stopIcon from 'golden_ui/style/icons/delete.svg';
+	import {
+		ContextMenu,
+		type ContextMenuAnchor,
+		type ContextMenuItem,
+		type PanelProps,
+		type PanelState
+	} from 'golden_ui';
 	import { useMatrixAuthoring } from './context.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import VirtualGrid from './VirtualGrid.svelte';
+	import { gridActions } from './grid-actions';
+	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
+	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	let props: PanelProps = $props();
 	export const setPanelState = (_next: PanelState) => {};
 	const owner = useMatrixAuthoring();
@@ -14,46 +19,31 @@
 	const matrixWindow = $derived(owner.matrixWindow),
 		busy = $derived(owner.busy),
 		observation = $derived(owner.observation);
-	const { select: selectDocumentNode } = useDocumentSelection();
+	const selection = useDocumentSelection();
+	const selectDocumentNode = selection.select;
+	let anchor = $state<ContextMenuAnchor | null>(null);
+	let items = $state.raw<ContextMenuItem[]>([]);
+	function menu(
+		event: MouseEvent,
+		row?: MatrixViewRow,
+		column?: ColumnSnapshot,
+		creationOnly = false
+	) {
+		if (busy) return;
+		items = gridActions(owner, selection, row, column, creationOnly);
+		anchor = { kind: 'point', x: event.clientX, y: event.clientY };
+	}
+	$effect(() => {
+		void view.media;
+		void owner.session?.snapshotGeneration;
+		anchor = null;
+	});
 </script>
 
 <section
 	class="workbench-editor"
 	aria-label={props.title ?? 'Matrix'}
 	data-panel-id={props.panelId}>
-	<div class="editor-toolbar" aria-label="Matrix actions">
-		<span>{matrixWindow?.final_output.label ?? 'Matrix'}</span>
-		<IconButton icon={addIcon} label="Add Matrix" disabled={busy} onclick={() => owner.create()} />
-		<IconButton
-			icon={resetIcon}
-			label="Refresh Matrix"
-			disabled={busy}
-			onclick={() => controller.observe()} />
-		{#if matrixWindow}
-			<IconButton
-				icon={addIcon}
-				label="Add layer"
-				disabled={busy}
-				onclick={() => owner.edit({ kind: 'AddLayers', parent: null, count: 1 })} />
-			<IconButton
-				icon={groupIcon}
-				label="Add group"
-				disabled={busy}
-				onclick={() => owner.edit({ kind: 'AddGroup', parent: null, label: null })} />
-			<IconButton
-				icon={addIcon}
-				label="Add column"
-				disabled={busy}
-				onclick={() => owner.edit({ kind: 'AddColumns', count: 1 })} />
-			<IconButton
-				icon={stopIcon}
-				label="Unload Matrix"
-				disabled={busy ||
-					(matrixWindow.playback.desired_column === null &&
-						matrixWindow.playback.layers.length === 0)}
-				onclick={() => owner.edit({ kind: 'ClearPlayback' })} />
-		{/if}
-	</div>
 	<div class="editor-canvas matrix-canvas">
 		{#if view.error || view.readError}<p class="editor-error" role="alert">
 				{view.error || view.readError}
@@ -66,6 +56,8 @@
 					{observation}
 					disabled={busy}
 					viewport={(value) => controller.setViewport(value)}
+					{menu}
+					edit={(value) => owner.edit(value)}
 					selectRow={(row) => {
 						controller.select(row.item.id, view.selected?.column ?? null);
 						selectDocumentNode(row.item.id.id);
@@ -110,6 +102,13 @@
 		{:else}<p class="editor-empty">Select a Matrix in Media Manager.</p>{/if}
 	</div>
 </section>
+<ContextMenu
+	open={anchor !== null}
+	{anchor}
+	{items}
+	onClose={() => {
+		anchor = null;
+	}} />
 
 <style>
 	.matrix-canvas {

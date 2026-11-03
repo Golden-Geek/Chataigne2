@@ -265,6 +265,7 @@ pub struct MatrixSelectionSnapshot {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewportSnapshot {
+    pub media_types: Vec<crate::media::protocol::MediaCreationChoice>,
     /// Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
     pub project: uuid::Uuid,
     pub media: MediaId,
@@ -315,6 +316,11 @@ pub struct MatrixTargetPage {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    CreateCellMedia {
+        layer: LayerId,
+        column: ColumnId,
+        media_kind: crate::media::protocol::MediaKind,
+    },
     ConfigureCell {
         layer: LayerId,
         column: ColumnId,

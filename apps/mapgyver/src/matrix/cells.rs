@@ -12,6 +12,54 @@ use golden_core::{
 };
 use std::collections::{HashMap, HashSet};
 
+pub(super) fn create_media(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: ColumnId,
+    kind: MediaKind,
+) -> Result<MediaEditResult, String> {
+    let parent = document.item(MatrixItemId::Layer { id: layer })?;
+    document.column(column)?;
+    let tree = if kind == MediaKind::Reference {
+        NodeTree::new(ReferenceNode::new())
+    } else {
+        crate::media::authoring::media_tree(kind.default_label().into(), ChannelDefinition::for_media(kind)).0
+    };
+    let media = MediaId(tree.node.node_data().meta.uuid);
+    let cell = if let Some(id) = document.cells.get(&(layer, column)) {
+        let Some(AppNode::MatrixCell(node)) = engine.nodes.get(*id) else {
+            unreachable!()
+        };
+        if node.content(engine)?.is_some() {
+            return Err("Cell already owns media; remove it or explicitly replace its source".into());
+        }
+        engine.edits.push(Edit::SetParam {
+            node: node.output_parameter(),
+            value: ParamValue::Reference(NodeReference::empty()),
+            behaviour: ParameterEventBehaviour::Append,
+        });
+        engine.edits.push(Edit::AddUserItemTree {
+            parent: *id,
+            prev_sibling: engine.nodes.get(*id).unwrap().node_data().last_child,
+            tree,
+        });
+        CellId(node.node_data().meta.uuid)
+    } else {
+        document.admit(1)?;
+        let node = CellNode::from_address("Cell".into(), column, None);
+        node.bind_runtime(binding(engine, document));
+        let cell = CellId(node.node_data().meta.uuid);
+        engine.edits.push(Edit::AddUserItemTree {
+            parent,
+            prev_sibling: engine.nodes.get(parent).unwrap().node_data().last_child,
+            tree: NodeTree::new(node).with_child(tree.as_user_item()),
+        });
+        cell
+    };
+    Ok(MediaEditResult::MatrixMediaCreated { cell, media })
+}
+
 pub(super) fn configure(
     engine: &mut AppEngine,
     document: &Document,

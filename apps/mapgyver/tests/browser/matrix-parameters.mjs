@@ -153,8 +153,14 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			element.scrollTop = 0;
 			element.dispatchEvent(new Event('scroll'));
 		});
-		await grid.getByTitle('Layer 1 / Column 1', { exact: true }).first().click();
-		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
+		await grid
+			.getByTitle('Layer 1 / Column 1', { exact: true })
+			.first()
+			.click({ position: { x: 5, y: 5 } });
+		await grid
+			.getByRole('gridcell', { selected: true })
+			.click({ button: 'right', position: { x: 5, y: 5 } });
+		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
 		await parameter('Enabled').locator('input[type=checkbox]').waitFor();
 		const cellSettings = (state) =>
 			state.cells.find((cell) => cell.layer === layers[0].id).definition.settings;

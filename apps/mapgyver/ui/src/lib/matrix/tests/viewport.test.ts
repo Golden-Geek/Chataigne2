@@ -2,6 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gridSize, projectGrid } from '../viewport.ts';
 
+test('cells retain equal row and column spans at every viewport scale', () => {
+	assert.equal(gridSize.row, gridSize.column);
+	for (const rem of [12, 16, 24, 32]) {
+		const view = projectGrid({ top: 0, left: 0, width: 1200, height: 800, rem }, 100000, 100000);
+		assert.ok(view.viewport.row_count * view.viewport.column_count <= 2048);
+	}
+});
+
 test('large Matrix scroll ranges stay finite and mount only a bounded window, including the last address', () => {
 	const metrics = { top: 0, left: 0, width: 1200, height: 800, rem: 16 };
 	const first = projectGrid(metrics, 100000, 100000);

@@ -7,7 +7,7 @@ mod catalog;
 mod channel_node;
 pub mod commands;
 pub mod composition;
-mod creation;
+pub(crate) mod creation;
 pub(crate) mod dependencies;
 pub(crate) mod folders;
 mod importing;

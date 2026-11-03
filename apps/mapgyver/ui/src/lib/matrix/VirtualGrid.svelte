@@ -2,14 +2,19 @@
 	import { IconButton } from 'golden_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
+	import addIcon from 'golden_ui/style/icons/node/add.svg';
+	import groupIcon from 'golden_ui/style/icons/node/folder.svg';
+	import deleteIcon from 'golden_ui/style/icons/delete.svg';
 	import { onMount, untrack } from 'svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 	import type { MatrixViewport } from '../media/generated/MatrixViewport';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
+	import type { MatrixEdit } from '../media/generated/MatrixEdit';
 	import type { MatrixState } from './authoring';
 	import { gridSize, projectGrid } from './viewport';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
+	import GridLabel from './GridLabel.svelte';
 	let {
 		snapshot,
 		selected,
@@ -21,7 +26,9 @@
 		selectColumn,
 		launch,
 		trigger,
-		drop
+		drop,
+		edit,
+		menu
 	}: {
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
@@ -34,6 +41,13 @@
 		launch(column: string): void;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
+		edit(value: MatrixEdit): Promise<unknown>;
+		menu(
+			event: MouseEvent,
+			row?: MatrixViewRow,
+			column?: ColumnSnapshot,
+			creationOnly?: boolean
+		): void;
 	} = $props();
 	const layerRequests = $derived(
 		new Map(snapshot.playback.layers.map((request) => [request.layer, request] as const))
@@ -41,14 +55,14 @@
 	const submittedLayers = $derived(
 		new Map((observation?.submitted?.layers ?? []).map((entry) => [entry.layer, entry] as const))
 	);
-	let element: HTMLDivElement;
-	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
-	const projection = $derived(projectGrid(metrics, snapshot.row_total, snapshot.column_total));
 	const cells = $derived(
 		new Map(
 			snapshot.cells.map((value) => [`${value.cell.layer}:${value.cell.definition.column}`, value])
 		)
 	);
+	let element: HTMLDivElement;
+	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
+	const projection = $derived(projectGrid(metrics, snapshot.row_total, snapshot.column_total));
 	function measure() {
 		if (!element) return;
 		metrics = {
@@ -61,13 +75,11 @@
 	}
 	function navigate(event: KeyboardEvent) {
 		if (event.target !== element) return;
-		const row = gridSize.row * metrics.rem,
-			column = gridSize.column * metrics.rem;
 		const delta: Record<string, ScrollToOptions> = {
-			ArrowDown: { top: row },
-			ArrowUp: { top: -row },
-			ArrowRight: { left: column },
-			ArrowLeft: { left: -column },
+			ArrowDown: { top: gridSize.row * metrics.rem },
+			ArrowUp: { top: -gridSize.row * metrics.rem },
+			ArrowRight: { left: gridSize.column * metrics.rem },
+			ArrowLeft: { left: -gridSize.column * metrics.rem },
 			PageDown: { top: element.clientHeight },
 			PageUp: { top: -element.clientHeight }
 		};
@@ -75,6 +87,19 @@
 			event.preventDefault();
 			element.scrollBy(delta[event.key]);
 		}
+	}
+	function context(event: MouseEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		if (disabled) return;
+		const target = event.target instanceof Element ? event.target : null;
+		const row = snapshot.rows.find(
+			(row) => row.item.id.id === target?.closest('[data-row-id]')?.getAttribute('data-row-id')
+		);
+		const column = snapshot.columns.find(
+			(column) => column.id === target?.closest('[data-column-id]')?.getAttribute('data-column-id')
+		);
+		menu(event, row, column);
 	}
 	$effect(() => {
 		const wanted = projection.viewport;
@@ -90,9 +115,11 @@
 
 <div
 	class="viewport"
+	data-local-context-menu
 	bind:this={element}
 	onscroll={measure}
 	onkeydown={navigate}
+	oncontextmenu={context}
 	role="grid"
 	aria-label="Scrollable Matrix grid"
 	aria-rowcount={snapshot.row_total + 1}
@@ -106,39 +133,73 @@
 		class="canvas"
 		style:height={`${projection.canvasHeight}rem`}
 		style:width={`${projection.canvasWidth}rem`}>
-		<div class="corner" style:top={`${projection.top}rem`} style:left={`${projection.left}rem`}>
-			Layers / columns
+		<div
+			class="corner"
+			role="toolbar"
+			aria-label="Matrix actions"
+			style:top={`${projection.top}rem`}
+			style:left={`${projection.left}rem`}>
+			<IconButton
+				icon={addIcon}
+				label="Add layer"
+				{disabled}
+				onclick={() => edit({ kind: 'AddLayers', parent: null, count: 1 })} />
+			<IconButton
+				icon={groupIcon}
+				label="Add group"
+				{disabled}
+				onclick={() => edit({ kind: 'AddGroup', parent: null, label: null })} />
+			<IconButton
+				icon={addIcon}
+				label="Add column"
+				{disabled}
+				onclick={() => edit({ kind: 'AddColumns', count: 1 })} />
+			<IconButton
+				icon={deleteIcon}
+				label="Unload Matrix"
+				disabled={disabled ||
+					(!snapshot.playback.desired_column && !snapshot.playback.layers.length)}
+				onclick={() => edit({ kind: 'ClearPlayback' })} />
 		</div>
 		<div role="row" aria-rowindex="1">
 			{#each snapshot.columns as column, index (column.id)}
 				<div
 					class="heading"
 					role="columnheader"
+					data-column-id={column.id}
 					aria-colindex={snapshot.column_start + index + 2}
 					class:requested={snapshot.playback.desired_column === column.id}
 					class:installed={observation?.installed?.columns.includes(column.id) === true}
 					class:submitted={observation?.submitted?.columns.includes(column.id) === true}
 					style:top={`${projection.top}rem`}
 					style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
-					<button
+					<GridLabel
+						label={column.label}
+						selected={selected?.column === column.id}
 						{disabled}
-						aria-pressed={selected?.column === column.id}
-						onclick={() => selectColumn(column)}
-						title={`Select ${column.label}`}>{column.label}</button>
+						select={() => selectColumn(column)}
+						rename={async (label) =>
+							Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
 					<IconButton
 						{disabled}
 						icon={playIcon}
 						label={`Launch ${column.label}`}
 						onclick={() => launch(column.id)} />
-					{#if snapshot.playback.desired_column === column.id}<small>Requested</small>{/if}
-					{#if observation?.submitted?.columns.includes(column.id)}<small>Submitted mix</small>{/if}
+					{#if snapshot.playback.desired_column === column.id}<small title="Requested column"
+							>Requested</small
+						>{/if}
+					{#if observation?.submitted?.columns.includes(column.id)}<small
+							title="Renderer submitted this mix">Submitted mix</small
+						>{/if}
 				</div>
 			{/each}
 		</div>
 		{#each snapshot.rows as row, index (row.item.id.id)}
 			<div
 				class="row"
+				class:group={row.item.id.kind === 'Group'}
 				role="row"
+				data-row-id={row.item.id.id}
 				aria-rowindex={snapshot.row_start + index + 2}
 				style:top={`${projection.rowOrigin + (snapshot.row_start + index) * gridSize.row}rem`}>
 				<div
@@ -147,13 +208,14 @@
 					style:left={`${projection.left}rem`}
 					style:padding-left={`${0.5 + row.depth * 0.8}rem`}
 					title={row.item.label}>
-					<button
+					{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" /><small>Group</small>{/if}
+					<GridLabel
+						label={row.item.label}
+						selected={selected?.item?.id === row.item.id.id}
 						{disabled}
-						aria-pressed={selected?.item?.id === row.item.id.id}
-						onclick={() => selectRow(row)}
-						title={`Select ${row.item.label}`}>
-						{row.item.id.kind === 'Group' ? '▾ ' : ''}{row.item.label}
-					</button>
+						select={() => selectRow(row)}
+						rename={async (label) =>
+							Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
 				</div>
 				{#each snapshot.columns as column, columnIndex (column.id)}
 					{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
@@ -161,10 +223,12 @@
 						disabled={disabled || row.item.id.kind !== 'Layer'}
 						addLabel="Set media"
 						replaceOnly={cell?.cell.media ? column.id : null}
+						data-column-id={column.id}
 						style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
 						onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 						<button
 							class="cell"
+							class:group-cell={row.item.id.kind === 'Group'}
 							role="gridcell"
 							{disabled}
 							aria-selected={selected?.item?.id === row.item.id.id &&
@@ -186,11 +250,35 @@
 							).includes(column.id)}
 							title={`${row.item.label} / ${column.label}`}>
 							{row.item.id.kind === 'Group'
-								? 'Group'
+								? ''
 								: cell?.source_missing
 									? 'Missing source'
-									: (cell?.source_label ?? 'Empty')}
+									: (cell?.source_label ?? '')}
 						</button>
+						{#if row.item.id.kind === 'Layer'}
+							{#if cell?.cell.media}
+								<span class="remove"
+									><IconButton
+										icon={deleteIcon}
+										label={`Remove media from ${row.item.label} / ${column.label}`}
+										{disabled}
+										onclick={() =>
+											edit({
+												kind: 'SetCells',
+												assignments: [{ layer: row.item.id.id, column: column.id, source: null }]
+											})} /></span>
+							{:else}
+								<span class="add"
+									><IconButton
+										icon={addIcon}
+										label={`Add Media to ${row.item.label} / ${column.label}`}
+										{disabled}
+										onclick={(event) => {
+											select(row, column);
+											menu(event, row, column, true);
+										}} /></span>
+							{/if}
+						{/if}
 					</SourceDropZone>
 				{/each}
 			</div>
@@ -206,7 +294,8 @@
 		min-width: 0;
 		overflow: auto;
 		position: relative;
-		background: var(--mapgyver-panel-background, #191b20);
+		background: var(--gc-color-background);
+		color: var(--gc-color-text);
 	}
 	.canvas {
 		position: relative;
@@ -218,38 +307,36 @@
 		position: absolute;
 		height: var(--header);
 		box-sizing: border-box;
-		background: #292d36;
+		background: var(--gc-color-header);
 		z-index: 3;
 		padding: 0.25rem;
+		border: 0.05rem solid var(--gc-color-border);
 	}
 	.corner {
 		width: var(--label);
 		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 	.heading {
 		width: var(--column);
 		display: flex;
-		flex-direction: column;
+		align-items: center;
+		gap: 0.2rem;
+		flex-wrap: wrap;
 	}
-	.heading button {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.row-label button {
+	.heading :global(button) {
 		max-width: 100%;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	.requested {
-		background: #364c69;
+		background: color-mix(in srgb, var(--gc-color-selection) 20%, var(--gc-color-header));
 	}
 	.installed {
-		box-shadow: inset 0 -0.15rem #d9b45d;
+		box-shadow: inset 0 -0.15rem var(--gc-color-node-inactive);
 	}
 	.submitted {
-		box-shadow: inset 0 -0.2rem #68cb94;
+		box-shadow: inset 0 -0.2rem var(--gc-color-node-enabled);
 	}
 	.row {
 		position: absolute;
@@ -262,44 +349,81 @@
 		box-sizing: border-box;
 		width: var(--label);
 		height: var(--row);
-		background: #292d36;
+		background: var(--gc-color-header);
 		padding: 0.5rem;
 		overflow: hidden;
-		white-space: nowrap;
-		text-overflow: ellipsis;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.3rem;
+		border: 0.05rem solid var(--gc-color-border);
+	}
+	.row-label img {
+		width: 1.2em;
+		height: 1.2em;
+	}
+	.group .row-label {
+		border-left: 0.2rem solid var(--gc-color-accent);
 	}
 	.cell {
 		position: absolute;
+		inset: 0;
 		box-sizing: border-box;
 		height: var(--row);
 		width: var(--column);
 		overflow: hidden;
-		white-space: nowrap;
-		text-overflow: ellipsis;
-		background: #20242c;
+		overflow-wrap: anywhere;
+		white-space: normal;
+		background: var(--gc-color-panel);
 		color: inherit;
-		border: 0.05rem solid #414754;
+		border: 0.05rem solid var(--gc-color-border);
+		padding: 1.25rem 0.5rem;
+	}
+	.group-cell {
+		background: repeating-linear-gradient(
+			135deg,
+			var(--gc-color-header),
+			var(--gc-color-header) 0.5rem,
+			var(--gc-color-panel) 0.5rem,
+			var(--gc-color-panel) 1rem
+		);
+		opacity: 0.6;
 	}
 	.cell[data-requested='true']::before,
 	.cell[data-submitted='true']::after {
 		content: '';
 		position: absolute;
-		top: 0.25rem;
+		top: 0.35rem;
 		width: 0.35rem;
 		height: 0.35rem;
-		border: 0.08rem solid currentColor;
+		border: 0.08rem solid var(--gc-color-focus);
 		border-radius: 50%;
 	}
 	.cell[data-requested='true']::before {
-		left: 0.25rem;
+		left: 0.35rem;
 	}
 	.cell[data-submitted='true']::after {
-		right: 0.25rem;
-		background: currentColor;
+		left: 1rem;
+		background: var(--gc-color-node-enabled);
+		border-color: var(--gc-color-node-enabled);
 	}
 	.cell.selected {
-		outline: 0.15rem solid #93b9eb;
+		outline: 0.15rem solid var(--gc-color-focus);
 		outline-offset: -0.2rem;
+	}
+	.add,
+	.remove {
+		position: absolute;
+		z-index: 1;
+	}
+	.add {
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+	}
+	.remove {
+		right: 0.25rem;
+		top: 0.25rem;
 	}
 	small {
 		font-size: 0.7em;

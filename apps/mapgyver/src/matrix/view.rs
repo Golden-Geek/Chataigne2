@@ -294,6 +294,7 @@ pub(super) fn inspect(
     }
     Ok(MediaEditResult::MatrixViewport {
         snapshot: MatrixViewportSnapshot {
+            media_types: crate::media::creation::media_choices(),
             project: crate::media::authoring::project_instance(engine)?,
             media,
             final_output: crate::media::channel(

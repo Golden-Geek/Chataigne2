@@ -60,8 +60,13 @@ export async function verifyCellApplicationsUi({ base, edit }) {
 			.filter({ hasText: /^Matrix$/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
-		await grid.getByTitle('Layer 1 / Column 3', { exact: true }).click();
-		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
+		await grid
+			.getByTitle('Layer 1 / Column 3', { exact: true })
+			.click({ position: { x: 5, y: 5 } });
+		await grid
+			.getByRole('gridcell', { selected: true })
+			.click({ button: 'right', position: { x: 5, y: 5 } });
+		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
 		const state = await wait(inspect, (value) => value.cells.length === 1);
 		const cell = state.cells[0];
 		assert.equal(cell.layer, items[0].id);

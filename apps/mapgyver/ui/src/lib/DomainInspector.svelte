@@ -3,7 +3,7 @@
 	import type { UiNodeDto } from 'golden_ui';
 	import MediaInspector from './media/MediaInspector.svelte';
 	import ScreenInspector from './screens/ScreenInspector.svelte';
-	import MatrixProperties from './matrix/MatrixProperties.svelte';
+	import MatrixRuntimeInspector from './matrix/MatrixRuntimeInspector.svelte';
 	import ApplicationInspector from './applications/ApplicationInspector.svelte';
 	import type { NodeInspectorChildFilter } from 'golden_ui';
 	let {
@@ -29,7 +29,7 @@
 {:else if node.node_type.startsWith('mapgyver.matrix.')}{@render defaultHeader?.()}
 	{#snippet matrixContent()}
 		{@render defaultChildren?.('', (child) => child.decl_id === 'parameters')}
-		<MatrixProperties />
+		<MatrixRuntimeInspector />
 	{/snippet}
 	{@render defaultContent?.(matrixContent)}
 {:else if node.node_type === 'mapgyver.app_control.v1'}<ApplicationInspector

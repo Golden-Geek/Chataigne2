@@ -82,6 +82,16 @@ ordinary project and checks the same authoring/playback contracts through the he
 Selection, requested launch and actual renderer feedback are separate states; only real editor
 observations qualify the grid interaction checks.
 
+The revised Matrix grid uses bounded square Cells and Golden context menus. Double-click a
+Layer/Group or Column label to rename it; row and Column menus own structural operations.
+The centered empty-Cell plus uses the backend media catalog. `MatrixEdit::CreateCellMedia`
+creates the actual owned media subtree with shared backend defaults, one history step and no
+implicit playback. Removing media preserves the Cell and its typed settings/app control.
+Ordinary settings stay in the generic Inspector; the Matrix supplement only presents runtime
+observations. `--matrix-grid-ui`, `--matrix-parameters-ui` and `--matrix-defaults-ui` verify this
+slice. [Grid evidence](../../docs/progress/mapgyver-m07-grid.md) retains the remaining drag
+sorting and final native-feedback acceptance requirements.
+
 Application definitions, availability, column associations and lifecycle policy live under
 `src/applications`; Golden IO owns the operating-system process mechanism. UI intents, QuickJS
 and hosted scripts share the same application operations and committed history. Caller-parity

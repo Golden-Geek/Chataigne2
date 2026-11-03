@@ -74,6 +74,7 @@ const withUi = [
 	'--matrix-ui',
 	'--matrix-parameters-ui',
 	'--matrix-defaults-ui',
+	'--matrix-grid-ui',
 	'--matrix-project-ui',
 	'--composition-project-ui',
 	'--column-applications-ui',
@@ -427,6 +428,10 @@ try {
 	if (process.argv.includes('--matrix-defaults-ui')) {
 		const { verifyMatrixDefaultsUi } = await import('../browser/matrix-defaults.mjs');
 		await verifyMatrixDefaultsUi({ base, edit, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--matrix-grid-ui')) {
+		const { verifyMatrixGridUi } = await import('../browser/matrix-grid.mjs');
+		await verifyMatrixGridUi({ base, edit });
 	}
 	if (process.argv.includes('--workbench-ui')) {
 		const { verifyWorkbenchUi } = await import('../browser/workbench.mjs');

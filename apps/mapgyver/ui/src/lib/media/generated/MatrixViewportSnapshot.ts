@@ -5,9 +5,10 @@ import type { MatrixPlaybackSnapshot } from "./MatrixPlaybackSnapshot";
 import type { MatrixSelectionSnapshot } from "./MatrixSelectionSnapshot";
 import type { MatrixViewCell } from "./MatrixViewCell";
 import type { MatrixViewRow } from "./MatrixViewRow";
+import type { MediaCreationChoice } from "./MediaCreationChoice";
 import type { MediaId } from "./MediaId";
 
-export type MatrixViewportSnapshot = {
+export type MatrixViewportSnapshot = { media_types: Array<MediaCreationChoice>,
 /**
  * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
  */

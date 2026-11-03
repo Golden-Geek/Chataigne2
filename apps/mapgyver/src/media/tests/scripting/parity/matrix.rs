@@ -2,6 +2,50 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn contextual_cell_creation_is_backend_owned_for_all_media_kinds_and_public_callers() {
+    let scene = scene();
+    let row = scene
+        .snapshot
+        .items
+        .iter()
+        .rev()
+        .find_map(|row| match row.id {
+            MatrixItemId::Layer { id } => Some(id),
+            _ => None,
+        })
+        .unwrap();
+    let column = scene.snapshot.columns[1].id;
+    for caller in CALLERS {
+        for choice in crate::media::creation::media_choices() {
+            let mut engine = loaded(&scene.document);
+            let reply = run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: scene.root.media,
+                    edit: MatrixEdit::CreateCellMedia {
+                        layer: row,
+                        column,
+                        media_kind: choice.media_kind,
+                    },
+                },
+            )
+            .unwrap();
+            let MediaEditResult::MatrixMediaCreated { cell, media } = serde_json::from_value(reply).unwrap() else {
+                panic!()
+            };
+            let snapshot = crate::matrix::inspect(&engine, scene.root.media).unwrap();
+            let created = snapshot.cells.iter().find(|entry| entry.id == cell).unwrap();
+            assert_eq!(created.media, Some(media));
+            assert_eq!(
+                crate::media::authoring::media(&engine, media).unwrap().1,
+                choice.media_kind
+            );
+        }
+    }
+}
+
+#[test]
 fn new_matrix_three_by_three_sparse_defaults_match_every_public_caller() {
     for caller in CALLERS {
         let mut engine = fixture();

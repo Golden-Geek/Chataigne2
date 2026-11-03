@@ -5,7 +5,7 @@
 	import type { MediaEdit } from './generated/MediaEdit';
 	import { invokeMediaEdit } from './operations';
 	import { MEDIA_NAMESPACE } from './generated/constants';
-	import MatrixProperties from '../matrix/MatrixProperties.svelte';
+	import MatrixRuntimeInspector from '../matrix/MatrixRuntimeInspector.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
 	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
@@ -220,7 +220,7 @@
 								behaviour: 'Append'
 							});
 					}} />
-			{:else if channel.definition.source.kind === 'Matrix'}<MatrixProperties />{/if}
+			{:else if channel.definition.source.kind === 'Matrix'}<MatrixRuntimeInspector />{/if}
 		{/if}
 		{#if node.node_type === 'mapgyver.media.asset'}
 			<IconButton

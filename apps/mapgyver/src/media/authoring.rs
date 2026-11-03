@@ -411,7 +411,7 @@ pub(super) fn locator_label(locator: &AssetLocator) -> &str {
     .unwrap_or("Asset")
 }
 
-pub(super) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
+pub(crate) fn media_tree(label: String, definition: ChannelDefinition) -> (NodeTree, ChannelReference) {
     let matrix_canvas = match &definition.source {
         ChannelSource::Matrix {
             output: crate::matrix::protocol::MatrixOutput::Final { definition },

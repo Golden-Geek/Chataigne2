@@ -94,6 +94,11 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     }
     let document = Document::load(engine, media)?;
     match edit {
+        MatrixEdit::CreateCellMedia {
+            layer,
+            column,
+            media_kind,
+        } => return super::cells::create_media(engine, &document, layer, column, media_kind),
         MatrixEdit::ConfigureCell {
             layer,
             column,
