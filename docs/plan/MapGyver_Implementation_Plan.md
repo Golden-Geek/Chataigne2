@@ -28,7 +28,7 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
    and M07 Matrix redesign together → M11 feedback corrections → M10 Video tiers → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   From the current checkout, retain **M07/4 → M08/3–4 → M11/1–10 → M10 → M09**;
+   From the current checkout, retain **M08/3–4 → M11/1–10 → M10 → M09**;
    retained M03/M05 qualification stays in its named return lane. A reproduced blocking defect
    still takes precedence. Do not start M10 or M09 while any M11 gate remains unaccepted.
 5. The unrestricted finite Surface-warp correction is already delivered and manually accepted.
@@ -63,9 +63,12 @@ demand pass, with current native fade observations on both GPUs. [M07/3 grid
 acceptance](../progress/mapgyver-m07-grid.md) is complete: actual contextual creation/removal,
 inline rename, structural copy/delete and virtualized drag sorting/reparenting, bounded shared
 Inspector/keyboard/resize/project lifetime and truthful native submission/retirement feedback pass.
-M07/4 is the single active gate for full native pixels/scale/lifetime qualification. M07 native/scale
-and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
-dependencies above without waiving physical/timing gates or changing qualification budgets.
+[M07/4 native/scale/lifetime acceptance](../progress/mapgyver-m07-native.md) completes M07 at 4/4:
+both GPUs pass the complete current raster, source recovery/sharing, sparse bursts/reload,
+interruption and final-retirement matrix. App Control lifecycle requirements now avoid per-owner
+whole-document snapshots during bulk typed creation. M08/3 is the single active gate; complete
+M08/3–4 runtime/UI/access qualification remains required before M11. Retained physical/timing
+qualification and the original Matrix fixture budgets are unchanged.
 
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
 the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,

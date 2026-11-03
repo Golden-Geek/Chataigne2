@@ -84,6 +84,13 @@ entries, applies one atomic Parameter proposal and appends missing subtrees in o
 Entry changes invalidate the owner's runtime revision through a snapshot-free mutation.
 Obsolete `mapgyver.application` records are rejected before recoverable decoding.
 
+App-control lifecycle snapshot requirements follow the work each stage performs. Fresh controls
+materialize and bind their declared Parameters through child events; attachment requests a tree
+snapshot only when descendants already exist and need rebinding. Empty init/ready callbacks do
+not request snapshots. This keeps bulk Column/Cell creation from cloning the whole document
+three times per settings owner while retaining loaded/replaced subtree binding. Inbox processing
+keeps its existing shared snapshot contract for declaration reconciliation.
+
 These settings stay materialized when inactive. Params DSL dependencies deliberately control
 materialization and cannot represent reversible presentation toggles without missing write
 targets. The generic Inspector's app visibility filter only chooses which existing widgets to

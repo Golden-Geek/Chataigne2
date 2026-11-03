@@ -1,0 +1,108 @@
+{
+	"date": "2026-11-03",
+	"gate": "M07/4",
+	"decision": "Accepted; complete current original M07 scope",
+	"next_active_gate": "M08/3",
+	"batch": {
+		"start_utc": "22:44",
+		"cutoff_utc": "23:12",
+		"original_investigation_start_utc": "22:12"
+	},
+	"production_change": "AppControlNode declares snapshot-free fresh attachment and empty init/ready stages; attachment with existing descendants and inbox reconciliation retain snapshots. No ownership/history/callback/protocol bypass.",
+	"software": {
+		"library": { "passed": 393, "failed": 0, "ignored": 2, "seconds": 14.83 },
+		"raster_preflight": { "passed": 12, "failed": 0, "explicit_native_exclusions": 5 },
+		"log": "target/m07-bulk-authoring-software.log",
+		"strict_clippy": "pass; target/m07-bulk-authoring-clippy.log; all targets; native-qualification,application-process-fixture; -D warnings",
+		"terminal_pipeline_exit": 0,
+		"generated_equality": "pass in current library suite; DTOs unchanged",
+		"bulk_regression": {
+			"created_columns": 997,
+			"total_columns": 1000,
+			"lifecycle_snapshots": 3,
+			"authoring_ms": 554,
+			"typed_controls_history_project": "pass"
+		},
+		"formatting": "root and golden_core pass"
+	},
+	"native": {
+		"binary": "target/debug/deps/matrix_rendering-747d7712cce9733c.exe",
+		"sha256": "678C6335C66E3BD68734D37247DDF6D8980503F0E472FD1293B758580FC31CA1",
+		"profile": "optimized test",
+		"command": "--ignored --nocapture --test-threads=1",
+		"log": "target/m07-bulk-authoring-native.log",
+		"terminal_exit": 0,
+		"passed": 4,
+		"failed": 0,
+		"ignored": 0,
+		"seconds": 230.89,
+		"full_image_captures": 192,
+		"max_outside_legal_unorm_error_255": 0,
+		"residual_tolerance_255": 2,
+		"interrupted_observation_groups": 12,
+		"layer_group_final_mixtures": 36,
+		"balanced_fixture_retirements": 12,
+		"final_live_plan_allocations_each": 0,
+		"final_output_and_source_inventories_each": "empty"
+	},
+	"adapters": [
+		{
+			"name": "Intel(R) Graphics",
+			"luid": "89313:0",
+			"main_complete": true,
+			"bulk_layer_ms": 347,
+			"bulk_layer_column_ms": 960,
+			"launch_requests": 1000,
+			"admitted": 8,
+			"launch_span_ms": 10054,
+			"burst_and_recovery_ms": 10637
+		},
+		{
+			"name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+			"luid": "90608:0",
+			"main_complete": true,
+			"bulk_layer_ms": 314,
+			"bulk_layer_column_ms": 885,
+			"launch_requests": 1000,
+			"admitted": 8,
+			"launch_span_ms": 10038,
+			"burst_and_recovery_ms": 16113
+		}
+	],
+	"coverage": [
+		"typed Cell position/opacity/enabled/Undo",
+		"Layer position/canvas/resize/Undo and native media size",
+		"Layer/Group/Final plus actual preview pixels",
+		"all four blends, alpha, post-composite Group opacity, ordering/Undo",
+		"distinct owned References with one prepared shared producer",
+		"source deletion/Undo, empty Column, exact sparse reload/recreation",
+		"1000x1000 sparse plan with six Cells, configured burst bounds/recovery and unchanged history",
+		"interrupted RGB weights/ratios/monotonicity, endpoint and final outgoing demand",
+		"completion-safe renderer/output/source retirement"
+	],
+	"unchanged_fixture_limits": {
+		"resource_and_texture_bytes": 67108864,
+		"in_flight": 2,
+		"retiring": 2,
+		"prepared": 1,
+		"outstanding": 8,
+		"prepared_channels": 16,
+		"main_watchdog_seconds": 180,
+		"separate_watchdog_seconds": 90,
+		"preview_lease_seconds": 60,
+		"scheduled_launch_period_ms": 10
+	},
+	"prior_attempts": "Both failed attempts remain in mapgyver-m07-native-checkpoint-2026-11-03.json. New bounded software evidence after a production correction satisfied the return trigger; no unchanged retry or budget relaxation.",
+	"counts": {
+		"accepted_gates": 46,
+		"total_gates": 67,
+		"gate_percent": 69,
+		"m07_accepted": 4,
+		"m07_total": 4,
+		"complete_phases": 6,
+		"total_phases": 12,
+		"phase_percent": 50
+	},
+	"remaining": "M08 runtime/UI/access, M11 feedback, Video, retained M03/M05 and M09 qualification. Actual launch span is not a global cadence, CPU/GPU, physical latency or process-memory qualification.",
+	"checkout_limits": "Concurrent manager-label/theme/app/browser/architecture edits were present and are preserved/excluded. Current native harness and software proofs cover the lifecycle change; prior grid/UI acceptance remains separately scoped. Named stash remains un-restored."
+}

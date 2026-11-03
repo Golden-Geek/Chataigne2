@@ -1,5 +1,8 @@
 # Matrix native raster/runtime acceptance
 
+[Current revised M07/4 acceptance](../../../../docs/progress/mapgyver-m07-native.md) records
+the complete both-adapter run, original limits and bulk typed-authoring correction.
+
 Matrix owns document/playback and Layer/Group/Final production. The shared `../support` fixture
 uses public ChannelRenderer, production preview compositing, explicit D3D11 adapters and finite
 SDK/device readbacks. Its raster oracle propagates documented UNORM conversion ranges per pass.

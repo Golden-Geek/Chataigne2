@@ -11,6 +11,7 @@ use golden_core::{
 
 mod applications;
 mod bindings;
+mod bulk_authoring;
 mod cell_creation;
 mod cell_playback;
 mod cell_settings;

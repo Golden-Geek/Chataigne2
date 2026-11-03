@@ -299,6 +299,17 @@ fn deadline(handle: &ParameterHandle<f64>, change: Option<&ParameterValidationCo
 
 #[node("mapgyver.app_control.v1", from_struct)]
 impl Node for AppControlNode {
+    fn attached_requires_tree_snapshot(&self) -> bool {
+        // Fresh declarations bind from their generated child events. Existing descendants
+        // (load/replacement) need the snapshot to recover their identities and values.
+        self.node_data().first_child.is_some()
+    }
+    fn init_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+    fn ready_requires_tree_snapshot(&self) -> bool {
+        false
+    }
     fn needs_update(&self) -> bool {
         false
     }
