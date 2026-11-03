@@ -211,6 +211,11 @@ pub enum ScreenEdit {
         reference: SurfaceReference,
         edit: SurfaceGeometryEdit,
     },
+    /// Backend computes the quad from current output/source dimensions; other settings stay authored.
+    FitSurface {
+        reference: SurfaceReference,
+        mode: SurfaceFitMode,
+    },
     RenameSurface {
         reference: SurfaceReference,
         label: String,
@@ -258,6 +263,12 @@ pub enum SurfaceGeometryEdit {
 pub struct PixelOffset {
     pub x: i32,
     pub y: i32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum SurfaceFitMode {
+    Fill,
+    Fit,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

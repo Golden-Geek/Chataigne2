@@ -2,6 +2,9 @@
 	import { onMount } from 'svelte';
 	import { IconButton, type PanelProps, type PanelState } from 'golden_ui';
 	import refreshIcon from 'golden_ui/style/icons/reset.svg';
+	import fillIcon from './icons/fill.svg';
+	import fitIcon from './icons/fit.svg';
+	import type { SurfaceFitMode } from './generated/SurfaceFitMode';
 	import { useScreenAuthoring } from './context.svelte';
 	import ScreenPreview from './ScreenPreview.svelte';
 	import SurfaceSourcePreview from './SurfaceSourcePreview.svelte';
@@ -38,6 +41,10 @@
 		else controller.selectScreen(screen.id);
 		selection.select(uuid ?? screen.id);
 	}
+	function fitSurface(mode: SurfaceFitMode) {
+		if (!surface || gestureState.active) return;
+		void controller.edit({ kind: 'FitSurface', reference: surface.reference, mode });
+	}
 </script>
 
 <section
@@ -47,6 +54,20 @@
 	data-panel-type={panelType}>
 	<div class="editor-toolbar">
 		<span>{editor === 'source' ? surface?.label : screen?.label}</span>
+		{#if editor === 'screen'}
+			<IconButton
+				icon={fillIcon}
+				label="Fill Screen"
+				title="Stretch Surface to Screen bounds"
+				disabled={controller.busy || gestureState.active || !surface}
+				onclick={() => fitSurface('Fill')} />
+			<IconButton
+				icon={fitIcon}
+				label="Fit to Screen"
+				title="Center Surface with cropped-source aspect preserved"
+				disabled={controller.busy || gestureState.active || !surface}
+				onclick={() => fitSurface('Fit')} />
+		{/if}
 		<IconButton
 			icon={refreshIcon}
 			label="Refresh preview"

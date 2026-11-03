@@ -1,0 +1,46 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/6",
+	"state": "Backend Fill/Fit implemented and functionally verified; native image/overlay alignment acceptance still required before full gate closure",
+	"ownership": {
+		"MapGyver Screen backend": "FitSurface Fill restores the full normalized quad without requiring source/output availability. Fit uses current backend output dimensions and effective cropped-source aspect to center an upright quad. Both preserve every non-quad setting, return the same typed SurfaceChanged result and use atomic typed Parameter edits with ordinary history.",
+		"MapGyver media": "channel_extent resolves fixed/static dimensions and intermediate Reference overrides without repeated full-chain resolution. Automatic IO/derived dimensions use the renderer's admitted preparation metadata: at most 4096 CPU-only resolution records, bounded revision guards for sources/assets/project and weak renderer ownership. Retry/relocation/project change/close invalidate metadata. No pixels, GPU leases or native handles are retained; metadata is not persisted or installed-frame evidence.",
+		"MapGyver UI": "Compact icon actions send only selected Surface identity and Fit/Fill mode. UI computes no dimensions, aspect, defaults or corner values. Generic controller error/history/project handling is reused.",
+		"Golden": "No Golden source changes; existing engine Parameters/history, workbench controls, video preparation and native presentation are reused."
+	},
+	"checks": {
+		"cargo run --locked -p MapGyver --bin generate_screen_protocol -- apps/mapgyver/ui/src/lib/screens/generated": "exit 0; public generator with GC_SKIP_UI_BUILD=1 for that process only; ScreenEdit and SurfaceFitMode generated with consumers",
+		"cargo test --locked -p MapGyver --lib": {
+			"passed": 331,
+			"failed": 0,
+			"ignored": 2,
+			"generated_contract_match": true
+		},
+		"cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings": "exit 0",
+		"node --experimental-strip-types --test apps/mapgyver/ui/src/lib/screens/tests/surface-keyboard.test.ts apps/mapgyver/ui/src/lib/screens/tests/surface-gesture.test.ts apps/mapgyver/ui/src/lib/screens/tests/authoring.test.ts": {
+			"passed": 21,
+			"failed": 0
+		},
+		"npm run check:mapgyver": "0 errors, 0 warnings",
+		"npm run check --workspace chataigne-ui": "0 errors, 0 warnings",
+		"cargo build --locked -p MapGyver --bin MapGyver": "exit 0 with ordinary bundled frontend",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-fit-ui": "exit 0; actual icon Fit preserves cropped 1600x900 source aspect on 800x600 output (corners x=1/6..5/6), Fill restores full bounds, other settings are exact, each action is one Undo and selection controls availability; no page errors/rejected intents; owned host exit 0",
+		"node apps/mapgyver/tests/headless/media.mjs --screen-translation-ui --screen-keyboard-ui --screen-selection-ui --free-warp-ui": "exit 0; retained Alt body/corner/zoom/Undo/cancel/New, 100-key/Shift/chord/focus/New, shared selection/two editors/pointer Undo and invalid-warp/upside-down recovery; owned host exit 0",
+		"node apps/mapgyver/tests/headless/media.mjs --navigation-ui": "exit 0 in isolated host; all three editors retain nine sampled intermediate frames, anchor/image-overlay DOM geometry, pointer cancellation and same-UUID project replacement; owned host exit 0",
+		"node apps/mapgyver/tests/browser/native-navigation.mjs --fit": "exit 0; same actual bundled WebView2 Fill/Fit actions with installed native preview, plus automatic 2x4 PNG Picture preparation, full-source native preview at aspect 0.5, backend Fit to x=0.3125..0.6875, unchanged other settings and one-step Undo; no page errors/rejected intents; owned app exit 0",
+		"formatting": "root and golden_core cargo fmt, touched authored UI/tests/icon/evidence formatting and git diff --check pass"
+	},
+	"backend_cases": [
+		"Landscape, portrait and cropped sources fit a Spout output; negative-origin rectangle and cached intended fullscreen dimensions follow the same backend sizing. Other parameters remain exact and invalid finite input quads can be restored through Fit/Fill.",
+		"Automatic Reference sizing follows its source; a pinned Reference Resolution overrides it. Missing source, unknown automatic dimensions, unconfigured target and lost fullscreen display reject without project/history mutation. Fill works without source availability.",
+		"Save/Load reproduces final authored geometry. Hosted manager.editScreens uses identical Fit and Fill behavior and exactly one Undo step each.",
+		"Resolution view rejects over 4096 records, stale revisions, expired ownership and removed records. A real bounded Picture worker publishes automatic 8x16 dimensions; reload invalidates them, relocation re-prepares 4x4 dimensions, close expires them, and a loaded project has no persisted runtime observations."
+	],
+	"test_execution_note": "Combining navigation after the free-warp flow left two default Surface 1 buttons and triggered navigation fixture strict-locator ambiguity. Navigation passes in its isolated host; the other compatible gesture flows pass together. No production change or acceptance claim is based on that failed composition.",
+	"limits": "Known dimensions are required for Fit: automatic sources not yet prepared reject without guessing; fixed/static dimensions work headlessly. Native tests verify source preparation, installed preview interaction and backend geometry/history, not independent native image-edge pixel readback during zoom. Finish that current-binary image/overlay alignment acceptance for M05/6; M05/8 still owns the complete physical-pixel/DPI/latency matrix. Retained source/device/timing/memory/display debts and both ignored tests remain open.",
+	"remaining": [
+		"Close M05/6 with current-binary native image/overlay alignment evidence during smooth zoom, reconciling the already verified selection, keyboard, Alt translation and Fill/Fit receipts.",
+		"Then continue M05/7 Surface Source interaction and retained M05/9-10 output/workbench requirements; M05/8 physical qualification remains in its return queue."
+	],
+	"gate_changes": "None. M05/6 alone stays Active; 28/57 accepted gates, M04 5/8 (63%), M05 3/10 (30%), fully accepted phases 3/11 (27%)."
+}

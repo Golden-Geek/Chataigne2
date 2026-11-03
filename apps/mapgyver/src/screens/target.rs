@@ -43,6 +43,6 @@ pub(super) fn output_extent(engine: &AppEngine, screen: ScreenId) -> Result<Exte
                 .map(|found| found.bounds.extent)
                 .ok_or_else(|| "output pixel extent is unavailable for the intended fullscreen display".into())
         }
-        None => Err("output pixel movement requires a configured Screen target".into()),
+        None => Err("output dimensions require a configured Screen target".into()),
     }
 }

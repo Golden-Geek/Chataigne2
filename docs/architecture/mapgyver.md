@@ -194,6 +194,16 @@ translate authored geometry. Pointer cancellation closes the existing gesture an
 unsent input; completed edits retain ordinary history. Finite invalid and offscreen quads
 remain editable with the same shape, source, crop and other Surface settings.
 
+Screen-editor Fill/Fit are typed `FitSurface` intents. Fill restores the full normalized quad
+without changing crop or requiring a source/output. Fit centers an upright quad using the
+Screen output dimensions and effective cropped-source aspect; all other parameters remain
+unchanged. Missing dimensions reject atomically rather than guessing an aspect.
+Media resolution resolves fixed/static dimensions and Reference overrides headlessly. For
+automatic Picture/Spout/derived sizes, the preparation owner publishes at most 4096 CPU-only
+resolution records per snapshot, fenced by source/asset/project revisions and renderer lifetime.
+The engine reads this metadata without file/device work. Preparation metadata is not evidence
+of installed GPU output, is never persisted and expires on renderer close or project replacement.
+
 Surface Source uses the full uncropped source preview with independent crop overlays and the
 same typed authoring/history. Source loss preserves routing; it never substitutes another channel.
 

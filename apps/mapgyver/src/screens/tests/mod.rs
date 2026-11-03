@@ -3,6 +3,7 @@ mod catalog_runtime;
 mod creation;
 mod crop_gestures;
 mod drop_sources;
+mod fit;
 mod free_warp;
 mod geometry;
 mod gestures;

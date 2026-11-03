@@ -1,4 +1,8 @@
 //! Backend source validation and size policy; observations are separate from project data.
+mod observations;
+pub(crate) use observations::{ResolutionSnapshot, RuntimeResolutions};
+#[cfg(test)]
+mod tests;
 
 use golden_video::plan::SampleFilter;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, LinearColor, TextureDescriptor};
@@ -11,6 +15,43 @@ pub const MAX_CHANNEL_DIMENSION: u32 = 16_384;
 
 pub fn default_canvas() -> Extent2D {
     Extent2D::new(1920, 1080).expect("nonempty backend canvas")
+}
+
+/// Authored sizing first; automatic IO sources use fenced preparation metadata, never engine IO.
+pub(crate) fn channel_extent(
+    engine: &crate::app::AppEngine,
+    mut reference: super::protocol::ChannelReference,
+) -> Result<Extent2D, String> {
+    let mut seen = std::collections::HashSet::new();
+    // Validate virtual channel membership once; do not resolve the full Reference chain per hop.
+    let mut definition = super::channel(engine, reference)?.definition;
+    loop {
+        if seen.len() == 4096 || !seen.insert(reference) {
+            return Err("source resolution dependency limit or cycle".into());
+        }
+        if let SizePolicy::Fixed { extent } = definition.size {
+            return Ok(extent);
+        }
+        if let ChannelSource::Reference { target: Some(target) } = definition.source {
+            reference = target;
+            let (id, _) = super::authoring::media(engine, reference.media)?;
+            definition = match engine.nodes.get(id) {
+                Some(crate::app::AppNode::ReferenceMedia(node)) => node.definition(engine, reference.channel),
+                _ => super::channel(engine, reference)?.definition,
+            };
+            continue;
+        }
+        if let Some(extent) = resolve(&definition, SourceObservation::Unavailable)?.extent {
+            return Ok(extent);
+        }
+        let manager = super::authoring::manager(engine)?;
+        let Some(crate::app::AppNode::MediaManager(manager)) = engine.nodes.get(manager) else {
+            unreachable!()
+        };
+        return manager.resolutions.extent(reference).ok_or_else(|| {
+            "source dimensions are unavailable; wait for source preparation or configure its Resolution".into()
+        });
+    }
 }
 
 impl Default for ChannelDefinition {

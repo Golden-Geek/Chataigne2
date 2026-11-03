@@ -17,6 +17,7 @@ pub struct CapturedChannels {
     pub(super) channels: Vec<CapturedChannel>,
     pub(super) assets: Vec<CapturedAsset>,
     sources: Arc<super::retention::RuntimeSources>,
+    pub(super) resolutions: Arc<super::resolution::RuntimeResolutions>,
     source_guard: RevisionGuard,
 }
 
@@ -451,6 +452,7 @@ pub(crate) fn capture_channels_with_time(
     let mut captured = CapturedChannels {
         source_guard: sources.guard(),
         sources: sources.clone(),
+        resolutions: manager.resolutions.clone(),
         project: manager.instance,
         guards: Arc::from(guards),
         channels,

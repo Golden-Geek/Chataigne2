@@ -266,12 +266,24 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             };
             let mut definition = current.definition();
             edit.apply(&mut definition, extent)?;
-            let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition.clone());
-            engine.edits.push(Edit::SetParamsAtomic {
-                values: current.parameter_values(definition),
-                behaviour: ParameterEventBehaviour::Append,
-            });
-            ScreenEditResult::SurfaceChanged { snapshot }
+            set_geometry(engine, reference, node, definition)
+        }
+        ScreenEdit::FitSurface { reference, mode } => {
+            let node = surface_id(engine, reference)?;
+            let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
+                unreachable!()
+            };
+            let mut definition = current.definition();
+            match mode {
+                SurfaceFitMode::Fill => definition.quad = Quad::default(),
+                SurfaceFitMode::Fit => {
+                    let output = super::target::output_extent(engine, reference.screen)?;
+                    let source = definition.source.ok_or("Fit to Screen requires a Surface source")?;
+                    let source = crate::media::resolution::channel_extent(engine, source)?;
+                    super::geometry::fit(&mut definition, output, source)?;
+                }
+            }
+            set_geometry(engine, reference, node, definition)
         }
         ScreenEdit::ReorderSurface { reference, after } => {
             let node = surface_id(engine, reference)?;
@@ -293,6 +305,23 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         engine.edits.push(Edit::EmitCustomEvent { event });
     }
     serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+fn set_geometry(
+    engine: &mut AppEngine,
+    reference: SurfaceReference,
+    node: NodeId,
+    definition: SurfaceDefinition,
+) -> ScreenEditResult {
+    let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
+        unreachable!()
+    };
+    let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition.clone());
+    engine.edits.push(Edit::SetParamsAtomic {
+        values: current.parameter_values(definition),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    ScreenEditResult::SurfaceChanged { snapshot }
 }
 
 fn add_surface(

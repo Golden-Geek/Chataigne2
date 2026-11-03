@@ -1,5 +1,36 @@
 use super::protocol::{SurfaceDefinition, SurfaceGeometryEdit, UnitRect};
 
+pub(super) fn fit(
+    definition: &mut SurfaceDefinition,
+    output: golden_video::Extent2D,
+    source: golden_video::Extent2D,
+) -> Result<(), String> {
+    definition.validate()?;
+    let aspect = f64::from(source.width()) * f64::from(definition.crop.width)
+        / (f64::from(source.height()) * f64::from(definition.crop.height));
+    let output_aspect = f64::from(output.width()) / f64::from(output.height());
+    let width = (aspect / output_aspect).min(1.0) as f32;
+    let height = (output_aspect / aspect).min(1.0) as f32;
+    let left = (1.0 - width) * 0.5;
+    let top = (1.0 - height) * 0.5;
+    definition.quad.corners = [
+        super::protocol::Point { x: left, y: top },
+        super::protocol::Point {
+            x: left + width,
+            y: top,
+        },
+        super::protocol::Point {
+            x: left + width,
+            y: top + height,
+        },
+        super::protocol::Point {
+            x: left,
+            y: top + height,
+        },
+    ];
+    definition.validate()
+}
+
 impl SurfaceGeometryEdit {
     /// Only the cloned candidate changes before validation; callers commit it atomically.
     pub(super) fn apply(

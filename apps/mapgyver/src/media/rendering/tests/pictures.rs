@@ -295,6 +295,56 @@ fn finish(mut renderer: ChannelRenderer) {
 }
 
 #[test]
+fn automatic_picture_extent_is_shared_with_backend_and_rejects_stale_reload_close_and_loaded_project() {
+    let root = tempfile::tempdir().unwrap();
+    png(root.path(), "extent.png", 8, 16, [255, 0, 0, 255]);
+    let mut engine = engine();
+    let asset = import(&mut engine, "extent.png");
+    let reference = create(&mut engine, MediaKind::Picture);
+    select(&mut engine, reference, asset);
+    assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
+    let mut renderer = picture_renderer(root.path());
+    renderer
+        .publish(capture_channels(&engine, &[reference], 16).unwrap(), routes(reference))
+        .unwrap();
+    wait(|| {
+        renderer.refresh().unwrap();
+        crate::media::resolution::channel_extent(&engine, reference) == Ok(Extent2D::new(8, 16).unwrap())
+    });
+    let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&saved).unwrap();
+    loaded.apply_edits().unwrap();
+    assert!(crate::media::resolution::channel_extent(&loaded, reference).is_err());
+    edit(&mut engine, MediaEdit::ReloadAsset { asset });
+    assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
+    renderer
+        .publish(capture_channels(&engine, &[reference], 16).unwrap(), routes(reference))
+        .unwrap();
+    wait(|| {
+        renderer.refresh().unwrap();
+        crate::media::resolution::channel_extent(&engine, reference).is_ok()
+    });
+    let moved = tempfile::tempdir().unwrap();
+    png(moved.path(), "extent.png", 4, 4, [0, 255, 0, 255]);
+    assert!(renderer.set_picture_root(moved.path()).unwrap());
+    assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
+    renderer
+        .publish(capture_channels(&engine, &[reference], 16).unwrap(), routes(reference))
+        .unwrap();
+    wait(|| {
+        renderer.refresh().unwrap();
+        crate::media::resolution::channel_extent(&engine, reference) == Ok(Extent2D::new(4, 4).unwrap())
+    });
+    let pictures = renderer.picture_retirement().unwrap();
+    let video = renderer.retirement();
+    renderer.close();
+    assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
+    drop(renderer);
+    assert!(video.wait(Duration::from_secs(5)));
+    assert!(pictures.wait(Duration::from_secs(5)));
+}
+
+#[test]
 fn independent_picture_channels_resolve_share_resize_undo_relink_and_reload_without_identity_changes() {
     let project = tempfile::tempdir().unwrap();
     png(project.path(), "first.png", 2, 2, [255, 0, 0, 128]);

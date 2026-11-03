@@ -11,6 +11,7 @@ pub struct MediaManagerNode {
     data: NodeData,
     pub(crate) instance: uuid::Uuid,
     pub(crate) sources: Arc<super::retention::RuntimeSources>,
+    pub(crate) resolutions: Arc<super::resolution::RuntimeResolutions>,
     pub(crate) applications: crate::applications::runtime::RuntimeView,
     pub(crate) application_revision: Arc<RevisionSource>,
     project: RevisionSource,
@@ -26,6 +27,7 @@ impl MediaManagerNode {
             data,
             instance: uuid::Uuid::new_v4(),
             sources: Default::default(),
+            resolutions: Default::default(),
             applications: Default::default(),
             application_revision: Default::default(),
             project: RevisionSource::default(),
@@ -61,6 +63,7 @@ impl Node for MediaManagerNode {
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
         self.sources = Default::default();
+        self.resolutions = Default::default();
         self.applications = Default::default();
         self.application_revision.advance();
         self.operation_owner = Arc::new(());

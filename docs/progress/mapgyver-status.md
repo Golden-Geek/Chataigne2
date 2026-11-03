@@ -2,13 +2,15 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** M05/6 shared smooth navigation and Screen interaction.
-**Next deliverable:** backend Fill Screen and source-aspect-preserving Fit to Screen,
-then remaining Screen input/native alignment acceptance.
+**Current topic:** M05/6 Screen interaction implemented; native alignment acceptance remains.
+**Next deliverable:** current-binary native image/overlay alignment during smooth zoom to close
+M05/6, reconciling the verified selection, keyboard, Alt-drag and Fill/Fit receipts.
 **Execution:** M04/1–3,7–8 accepted; M05/6 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next delivery:** none known. Retained source/device/timing/memory/display gates remain below.
-**Usable now:** Alt-drag from Surface bodies or corners translates the entire quad as one
+**Usable now:** backend Fill Screen and centered Fit to Screen preserve cropped-source aspect
+and other Surface settings, with one-step Undo and native automatic Picture sizing;
+Alt-drag from Surface bodies or corners translates the entire quad as one
 Undo gesture, including at zoom; 1/Shift-10-output-pixel corner movement with held-repeat/chord grouping into
 one Undo gesture, independent of editor zoom; actual Screen Surface/Inspector and background
 selection, selected/hover handles, independent per-editor corner selection and undoable pointer
@@ -19,11 +21,11 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Alt-drag translation](evidence/mapgyver-screen-translation-2026-11-03.json):
-backend-owned all-corner movement preserving shape and other Surface parameters; actual
-bundled/native body/corner/zoom input, one Undo and cancellation/project fencing. Ordinary
-clicks, jitter and Space+Alt pan do not edit geometry. Existing keyboard, selection and invalid-
-warp recovery remain verified. Physical pixel/alignment qualification stays open.
+**Last delivered capability:** [Backend Fill/Fit](evidence/mapgyver-screen-fit-2026-11-03.json):
+compact actual bundled/native icon actions, cropped-source aspect, Reference sizing, cached
+target/runtime source dimensions and atomic failure when dimensions are unknown. Source/crop/
+opacity/calibration/enabling remain unchanged; Undo restores exact geometry. Alt-drag, keyboard,
+selection, free-warp and shared navigation regressions pass. Native pixel alignment stays open.
 **Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
 including its complete original functional contract. M04/7 Reference remains accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
@@ -63,7 +65,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/6            | Smooth zoom, Screen selection/local handles, grouped output-pixel keys and Alt-drag translation are delivered with bundled/native interaction. Finish backend Fill/Fit, then complete actual pointer/keyboard/native alignment acceptance; retain M05/8 physical matrix. |
+| Active   | M05/6            | All revised Screen interaction behaviors are implemented and functionally verified, including Fill/Fit. Finish current-binary native image/overlay alignment during smooth zoom and reconcile the individual receipts to close this gate. M05/8 retains its complete physical/DPI/latency matrix. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
@@ -92,16 +94,15 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/6 Alt-drag translation, started 2026-11-03 07:03 CET;
-  cutoff 07:48 CET. [Implemented and functionally verified](evidence/mapgyver-screen-translation-2026-11-03.json)
-  in MapGyver backend/UI using the existing Golden gesture. All four corners preserve shape,
-  source/crop and other fields; finite invalid/offscreen geometry remains authored. 325 backend
+- **Current handoff:** M05/6 Fill Screen / Fit to Screen, started 2026-11-03 07:16 CET;
+  cutoff 08:01 CET. [Implemented and functionally verified](evidence/mapgyver-screen-fit-2026-11-03.json)
+  in MapGyver backend/UI. Static/Reference sizing works headlessly; automatic source sizing
+  uses bounded revision/lifetime-checked preparation metadata without engine IO. 331 backend
   tests (two retained ignored), generated DTO parity, strict Clippy, 21 focused UI tests and
-  both app UI checks pass. Normal bundled body/corner/zoom/one-Undo/cancel/New input and
-  retained keyboard/selection/free-warp regressions pass. Native WebView2 passes the same
-  installed-preview translation flow after terminal software prerequisites; owned app exit 0.
-  No gate closed. Next deliver backend Fill/Fit and remaining full input/native alignment;
-  M05/8 retains the physical/DPI/latency matrix. Prior keyboard evidence remains linked above.
+  both app UI checks pass. Normal bundled Fill/Fit/Undo and retained gesture/navigation flows
+  pass; native WebView2 also fits an automatically decoded portrait Picture after software
+  prerequisites. Owned processes exit normally. No gate closed. Next finish native image-edge/
+  overlay alignment during smooth zoom for M05/6 closure; M05/8 retains its full physical matrix.
   Counts remain 28/57 gates, M05 3/10 (30%), 3/11 phases (27%); M05/6 alone stays Active.
 
 ## Maintenance rule

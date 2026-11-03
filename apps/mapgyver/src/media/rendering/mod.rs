@@ -56,6 +56,7 @@ pub struct ChannelRenderer {
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
     pictures: Option<super::picture::Pictures>,
+    resolution_owner: std::sync::Arc<()>,
 }
 
 #[derive(Clone)]
@@ -83,6 +84,7 @@ impl ChannelRenderer {
             channels: Vec::new(),
             latest_request: None,
             pictures: None,
+            resolution_owner: Default::default(),
         }
     }
 
@@ -116,20 +118,26 @@ impl ChannelRenderer {
         self.pictures
             .as_mut()
             .ok_or("picture preparation is not configured")?
-            .retry()
+            .retry()?;
+        self.resolution_owner = Default::default();
+        Ok(())
     }
     /// File-change/relink recovery for one source; healthy prepared sources remain admitted.
     pub fn retry_picture(&mut self, asset: super::protocol::AssetId) -> Result<(), String> {
         self.pictures
             .as_mut()
             .ok_or("picture preparation is not configured")?
-            .retry_asset(asset)
+            .retry_asset(asset)?;
+        self.resolution_owner = Default::default();
+        Ok(())
     }
     pub fn relocate_pictures(&mut self, root: &std::path::Path) -> Result<(), String> {
         self.pictures
             .as_mut()
             .ok_or("picture preparation is not configured")?
-            .relocate(root)
+            .relocate(root)?;
+        self.resolution_owner = Default::default();
+        Ok(())
     }
     pub fn picture_retirement(&self) -> Option<golden_assets::AssetRetirement> {
         self.pictures.as_ref().map(|pictures| pictures.retirement())
@@ -140,11 +148,16 @@ impl ChannelRenderer {
 
     /// Rebase relative source preparation after save-as/project relocation on the owner worker.
     pub fn set_picture_root(&mut self, root: &std::path::Path) -> Result<bool, String> {
-        self.pictures
+        let changed = self
+            .pictures
             .as_mut()
             .map(|pictures| pictures.set_root(root))
             .transpose()
-            .map(|changed| changed.unwrap_or(false))
+            .map(|changed| changed.unwrap_or(false))?;
+        if changed {
+            self.resolution_owner = Default::default();
+        }
+        Ok(changed)
     }
 
     /// Captures metadata only. Its project/device stamps are rechecked before use.
@@ -191,6 +204,7 @@ impl ChannelRenderer {
             self.desired = None;
             self.latest_request = None;
             self.channels.clear();
+            self.resolution_owner = Default::default();
             *self.feedback.lock().expect("Matrix feedback lock poisoned") = Default::default();
         }
         self.project = Some(capture.project);
@@ -276,10 +290,28 @@ impl ChannelRenderer {
         }
         let activation =
             PlanActivation::NextFrame(self.runtime.read_time().map_err(|error| error.to_string())?.epoch());
+        let mut guards = capture.revision_guards().cloned().collect::<Vec<_>>();
+        guards.extend(observations.sources.iter().map(|source| source.guard.clone()));
+        for image in capture
+            .assets
+            .iter()
+            .filter_map(|asset| self.pictures.as_ref()?.get(asset.record.id))
+        {
+            guards.extend(image.guards().iter().cloned());
+        }
+        let resolutions = super::resolution::ResolutionSnapshot::new(
+            prepared
+                .channels
+                .iter()
+                .map(|channel| (channel.reference, channel.resolution)),
+            std::sync::Arc::from(guards),
+            std::sync::Arc::downgrade(&self.resolution_owner),
+        )?;
         let request = self
             .runtime
             .submit(current.project, prepared.submission, activation, LatePolicy::Activate)
             .map_err(|error| error.to_string())?;
+        capture.resolutions.publish(resolutions);
         self.feedback
             .lock()
             .expect("Matrix feedback lock poisoned")
@@ -376,6 +408,7 @@ impl ChannelRenderer {
         self.runtime.retirement()
     }
     pub fn close(&mut self) {
+        self.resolution_owner = Default::default();
         self.runtime.close();
         self.desired = None;
         *self.feedback.lock().expect("Matrix feedback lock poisoned") = Default::default();

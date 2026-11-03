@@ -14,6 +14,7 @@
 // Add --screen-selection-ui for shared Inspector, hover/selected handles and independent corner selection.
 // Add --screen-keyboard-ui for output-pixel repeat, grouped history and focus/project fencing.
 // Add --screen-translation-ui for backend-owned Alt-drag from Surface bodies/corners.
+// Add --screen-fit-ui for backend Fill/Fit icon actions and grouped history.
 // Add --owned-media-ui for Composition Reference/Alt-copy drops and real child-media ownership.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
@@ -61,6 +62,7 @@ const withUi = [
 	'--screen-selection-ui',
 	'--screen-keyboard-ui',
 	'--screen-translation-ui',
+	'--screen-fit-ui',
 	'--owned-media-ui',
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
@@ -362,6 +364,10 @@ try {
 	if (process.argv.includes('--screen-translation-ui')) {
 		const { verifyScreenTranslation } = await import('../browser/screen-translation.mjs');
 		await verifyScreenTranslation({ base, post });
+	}
+	if (process.argv.includes('--screen-fit-ui')) {
+		const { verifyScreenFit } = await import('../browser/screen-fit.mjs');
+		await verifyScreenFit({ base, post, edit, directory });
 	}
 	if (process.argv.includes('--owned-media-ui')) {
 		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');

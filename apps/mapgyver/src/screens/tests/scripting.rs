@@ -207,6 +207,59 @@ fn hosted_quad_translation_uses_the_same_atomic_geometry_and_history() {
 }
 
 #[test]
+fn hosted_fill_and_fit_use_the_same_backend_geometry_and_one_step_history() {
+    for mode in [SurfaceFitMode::Fit, SurfaceFitMode::Fill] {
+        let mut engine = fixture();
+        let (screen, reference) = create(&mut engine);
+        let source = super::drop_sources::source(&mut engine);
+        apply(
+            &mut engine,
+            ScreenEdit::ConfigureScreen {
+                screen,
+                definition: ScreenDefinition {
+                    target: Some(ScreenTarget::Spout {
+                        sender: "Script fit".into(),
+                        extent: golden_video::Extent2D::new(800, 600).unwrap(),
+                    }),
+                    enabled: false,
+                },
+            },
+        );
+        let mut original = definition(&engine, reference);
+        original.source = Some(source);
+        original.quad.corners.swap(1, 2);
+        apply(
+            &mut engine,
+            ScreenEdit::ConfigureSurface {
+                reference,
+                definition: original.clone(),
+            },
+        );
+        let request = serde_json::to_string(&ScreenEdit::FitSurface { reference, mode }).unwrap();
+        script(
+            &mut engine,
+            format!(
+                "function init() {{ local.listen({{level:1}}); local.editScreens('fit', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+            ),
+        );
+        let history = engine.undo_len();
+        service_script_app_operations(&mut engine).unwrap();
+        assert_eq!(replies(&engine)[0]["status"], "applied");
+        assert_eq!(engine.undo_len(), history + 1);
+        let ScreenEditResult::Surface { snapshot } = apply(&mut engine, ScreenEdit::InspectSurface { reference })
+        else {
+            panic!()
+        };
+        match mode {
+            SurfaceFitMode::Fit => assert!((snapshot.definition.quad.corners[0].y - 0.125).abs() < 1e-6),
+            SurfaceFitMode::Fill => assert_eq!(snapshot.definition.quad, Quad::default()),
+        };
+        assert!(engine.undo().unwrap());
+        assert_eq!(definition(&engine, reference), original);
+    }
+}
+
+#[test]
 fn source_drops_use_hosted_manager_methods_with_atomic_history() {
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);
