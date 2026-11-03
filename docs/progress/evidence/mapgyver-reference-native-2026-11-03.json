@@ -1,7 +1,7 @@
 {
   "date": "2026-11-03",
   "gate": "M04/7",
-  "status": "Open; native retirement and NVIDIA coverage unverified",
+  "status": "Accepted: M04/7 functional Reference contract, 2026-11-03",
   "baseline_commit": "d05af1178161e03be58185340a1051a457373ecd",
   "fixture": "apps/mapgyver/tests/shared_texture/reference.rs",
   "test": "shared_texture::reference::references_share_native_production_through_composition_matrix_and_owned_retirement",
@@ -88,22 +88,76 @@
         "observed_entries": "Not recorded; expected count was not observed before the existing 8-second deadline"
       },
       "finding": "Authored copied Source and independent channel identity assertions passed. Waiting for copied input Ready fixed its black-frame failure. The retirement count loop did not service the renderer refresh/outcome path."
+    },
+    {
+      "label": "Production notification servicing correction",
+      "code_commit": "17d4f39b229add2f0c11d14f330ed3d9e6bb3f10",
+      "terminal": "passed: 1 passed, 0 failed, 4 filtered out",
+      "duration_seconds": 136.91,
+      "complete_cases": [
+        {
+          "kind": "SolidColor",
+          "adapter": {
+            "low": 89313,
+            "high": 0,
+            "description": "Intel(R) Graphics"
+          }
+        },
+        {
+          "kind": "Picture",
+          "adapter": {
+            "low": 89313,
+            "high": 0,
+            "description": "Intel(R) Graphics"
+          }
+        },
+        {
+          "kind": "SharedTexture",
+          "adapter": {
+            "low": 89313,
+            "high": 0,
+            "description": "Intel(R) Graphics"
+          }
+        },
+        {
+          "kind": "SolidColor",
+          "adapter": {
+            "low": 90608,
+            "high": 0,
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+          }
+        },
+        {
+          "kind": "Picture",
+          "adapter": {
+            "low": 90608,
+            "high": 0,
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+          }
+        },
+        {
+          "kind": "SharedTexture",
+          "adapter": {
+            "low": 90608,
+            "high": 0,
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+          }
+        }
+      ],
+      "observations": "All nine pixel stages and three outputs pass per hardware/source case. Both Shared Texture final Unload/source-entry retirement assertions pass. No assertion, timeout or budget changed."
     }
   ],
   "verified_cases": {
     "complete": [
-      "Intel SolidColor",
-      "Intel Picture with alpha 128"
+      "Intel(R) Graphics / SolidColor",
+      "Intel(R) Graphics / Picture",
+      "Intel(R) Graphics / SharedTexture",
+      "NVIDIA GeForce RTX 5080 Laptop GPU / SolidColor",
+      "NVIDIA GeForce RTX 5080 Laptop GPU / Picture",
+      "NVIDIA GeForce RTX 5080 Laptop GPU / SharedTexture"
     ],
-    "partial": [
-      "Intel SharedTexture through copied-source removal while playing"
-    ],
-    "not_reached": [
-      "Intel SharedTexture final Unload/retirement pixels",
-      "NVIDIA SolidColor",
-      "NVIDIA Picture",
-      "NVIDIA SharedTexture"
-    ]
+    "partial": [],
+    "not_reached": []
   },
   "verified_behavior": {
     "outputs": 3,
@@ -127,20 +181,95 @@
     "resampling": "Forced Reference target differs without another producer entry",
     "mixed": "Reference chain -> Composition -> launched Matrix plus independent forced Reference",
     "recovery": "Actual authored source deletion clears outputs; Undo restores content; sparse project reload passes",
-    "owned_retention": "Independent copy configuration/identity passes, and content remains after removing a playing copy. Final Shared Texture receiver/cache retirement is not accepted."
+    "owned_retention": "Independent copied source configuration and channel identity match expectations. Removed playing copies retain content until ClearPlayback; Matrix then clears, the independent Reference remains live, and Shared Texture source catalog entries return to one after completion/notification servicing."
   },
-  "pending_fixture_correction": {
+  "cleanup": "After terminal success, inventory showed no native_source_fixture, channel_rendering, cargo or rustc processes remaining. Fixture explicitly retires each renderer and reaps owned producers.",
+  "next_action": "M04/7 accepted; deliver independent dockable Media Preview instances under M04/8. Retain broader source qualification and whole-app Q04/M06/M07/M09 requirements.",
+  "retained_gates": "M03 device removal/timing/private growth, broader M04 source qualification, M05 physical outputs and whole-app Q04/M09 remain unchanged",
+  "fixture_correction": {
     "change": "Drive ChannelRenderer.refresh and drain outcomes in the native source entry count wait, matching production worker-notification servicing. Keep the exact count assertion and existing deadline.",
     "source_evidence": [
       "apps/mapgyver/src/media/rendering/mod.rs: ChannelRenderer.refresh republishes changed source observations",
       "crates/golden_video/src/native/inputs/mod.rs: ensure evicts unused bindings only after prior generations release demand; cleanup is asynchronous",
       "crates/golden_video/src/native/inputs/worker.rs: idle source state and final session cleanup are separate from cached registration metadata"
     ],
-    "execution": "Not run on hardware after the correction. This batch's two attempts are exhausted.",
-    "limits": "Catalog entry count is not itself a count of live SDK objects; no production native leak is claimed from the timeout alone.",
-    "validation": "Selected native target strict Clippy (-D warnings) and exact no-run compilation pass after the notification-pumping correction. No third hardware attempt ran."
+    "validation": "Selected native target strict Clippy and exact compilation passed; the corrected full native matrix now passes on both adapters.",
+    "result": "The original count-only wait omitted required notification servicing. Driving the production path verifies cache eviction and final-use retirement.",
+    "limits": "Catalog entry count is not itself a count of live SDK objects; no production native leak is claimed from the timeout alone."
   },
-  "cleanup": "After both terminal failures, process inventory showed no native_source_fixture or owned channel_rendering test processes remaining",
-  "next_action": "Execute the now compiled/linted corrected fixture to validate Unload/final-use source retirement and all three source kinds on NVIDIA. Keep M04/7 open until the complete native matrix and retained end-to-end requirements pass.",
-  "retained_gates": "M03 device removal/timing/private growth, broader M04 source qualification, M05 physical outputs and whole-app Q04/M09 remain unchanged"
+  "acceptance_requirements": [
+    {
+      "requirement": "Channel add/remove/reorder synchronization and stable target identities",
+      "state": "Verified",
+      "evidence": [
+        "apps/mapgyver/src/media/reference/tests/mod.rs:references_mirror_live_channel_order_with_target_identities_and_no_channel_nodes",
+        "apps/mapgyver/src/media/reference/tests/pages.rs:channel_pages_follow_rename_reorder_remove_retarget_and_project_recovery",
+        "apps/mapgyver/tests/browser/reference.mjs"
+      ]
+    },
+    {
+      "requirement": "Missing and recovered targets",
+      "state": "Verified",
+      "evidence": [
+        "apps/mapgyver/src/media/rendering/tests/unavailable.rs",
+        "apps/mapgyver/tests/browser/unavailable-reference.mjs",
+        "All six native cases: authored source deletion/Undo and sparse project reload"
+      ]
+    },
+    {
+      "requirement": "Mixed Reference/Composition/Matrix cycle rejection",
+      "state": "Verified",
+      "evidence": [
+        "apps/mapgyver/src/media/reference/tests/mod.rs",
+        "apps/mapgyver/src/media/rendering/tests/unavailable.rs:unavailable_auto_outputs_cannot_hide_reference_composition_or_matrix_cycles",
+        "apps/mapgyver/src/matrix/tests/owned_media.rs:owned_reference_targets_reject_matrix_feedback_through_generic_parameters"
+      ]
+    },
+    {
+      "requirement": "Shared rendering/decoder ownership",
+      "state": "Verified for implemented source kinds",
+      "evidence": [
+        "apps/mapgyver/src/media/reference/node.rs:ReferenceNode owns only Target/Resolution/Sampling/revision, no source settings or decoder",
+        "apps/mapgyver/src/media/rendering/tests/references.rs:reference_passthrough_reuses_target_and_forced_resolution_adds_one_shared_pass",
+        "All six native cases: automatic aliases reuse producer TextureId; Shared Texture has one producer source entry"
+      ]
+    },
+    {
+      "requirement": "Explicit Reference Resolution resampling",
+      "state": "Verified",
+      "evidence": [
+        "apps/mapgyver/src/media/rendering/tests/references.rs",
+        "All six native cases: forced 3x2 target differs from automatic source target, with shared producer and correct pixels/alpha"
+      ]
+    },
+    {
+      "requirement": "Default Reference drops and entire independent Alt-copy subtrees",
+      "state": "Verified",
+      "evidence": [
+        "apps/mapgyver/src/media/composition/tests/owned_media.rs",
+        "apps/mapgyver/src/matrix/tests/owned_media.rs",
+        "apps/mapgyver/src/matrix/tests/copying.rs",
+        "Bundled --owned-media-ui --matrix-owned-media-ui --unavailable-reference-ui",
+        "All six native cases: independent source identity/configuration, removal while playing and final-use retirement"
+      ]
+    },
+    {
+      "requirement": "Full Parameter/API/history/project parity",
+      "state": "Verified for M04/7 operations",
+      "evidence": [
+        "MapGyver library: 317 passed including generic Parameters, typed commands, named scripts/callbacks, generated contracts and project/history tests",
+        "Golden engine: 672 passed including query/result admission/history/rollback",
+        "All four bundled Reference workflows plus headless source/history/Save-New-Load pass",
+        "All six native cases: sparse reload, authored deletion/Undo and output content"
+      ]
+    },
+    {
+      "requirement": "Bounded Reference backend read/edit/capture prerequisite",
+      "state": "Verified; scope limited to owning fixture",
+      "evidence": [
+        "mapgyver-reference-scale-2026-11-03.json:10000 References, 54111 actual nodes, read/edit p95 0.1023/22.601 ms, 10726-byte pages, 16 captured records"
+      ]
+    }
+  ],
+  "acceptance_scope": "Original M04/7 Reference authored/API/native functional contract. This does not accept M04/4-6 source qualification, M06/M07 redesigned editor/scale gates or M09 whole-app Q01-Q06."
 }

@@ -96,9 +96,10 @@ activates it. Cell authoring binds invalidation before structural edits so this 
 previously uncaptured Cells. These runtime records never persist; all authored settings stay
 in their typed Parameter children.
 
-This delivers the Composition and Matrix ownership/retirement foundation of M04/7;
-full mixed/scale acceptance, native copying/sharing/resampling and
-end-to-end scale remain open. M06 also retains degree-based Rotation (Placement v1 currently
+The Composition and Matrix ownership/retirement foundation now passes
+[M04/7 functional Reference acceptance](../progress/evidence/mapgyver-reference-native-2026-11-03.json),
+including both-adapter mixed/native copying, sharing, resampling and final-use retirement.
+Whole-app scale remains required under Q04. M06 retains degree-based Rotation (Placement v1 currently
 keeps the prior radian convention), new handles/anchors, bounded independent panels and its
 complete native/editor acceptance. See the [status ledger](../progress/mapgyver-status.md).
 
@@ -122,7 +123,8 @@ Verification for the Matrix ownership/retirement foundation (2026-11-03):
 - Automatic Reference aliases no longer consume render-pass admission credits; the retained
   five-pass bounded Matrix test still rejects the extra group scratch pass without raising budgets.
 
-These software checks do not close M04/7 or qualify the revised Matrix editor or native
-resource use. [Later native attempts](../progress/evidence/mapgyver-reference-native-2026-11-03.json)
-complete Intel Solid Color/Picture and Shared Texture through playing-copy removal, but final
-Shared Texture Unload/receiver retirement and NVIDIA coverage remain unverified.
+These foundation software checks are supplemented by
+[native Reference acceptance](../progress/evidence/mapgyver-reference-native-2026-11-03.json):
+all three source kinds pass the complete matrix on Intel Graphics and NVIDIA RTX 5080,
+including removed-copy playback and Unload/final-use retirement. M06/M07 redesigned editors
+and whole-app resource/performance qualification retain their separate gates.

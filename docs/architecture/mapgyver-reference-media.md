@@ -62,24 +62,32 @@ Reference-target Parameters. Composition/Matrix drop commands use command docume
 schema **`mapgyver.media.command.v4`**; unsupported older records reject explicitly. Existing
 source media remain schema v5; Reference uses its separate v1 schema. No migration is added.
 
-Reference core, paged output presentation, [Composition/Matrix-owned Reference/copy drops](mapgyver-owned-media.md)
-and missing/unconfigured source-drop parity are software/bundled-verified. Full mixed/end-to-end
-scale and native sharing/resampling/recovery remain open. The existing native fixture now includes
-all three source kinds on both hardware adapters, nested Composition/Matrix, missing-target Undo,
-reload and copied-source final-use retirement. [Native attempts](../progress/evidence/mapgyver-reference-native-2026-11-03.json)
-complete the Intel Solid Color/Picture cases, including Picture alpha, and Shared Texture
-through independent-copy removal while playing. Shared Texture final Unload/receiver retirement
-timed out; NVIDIA cases were not reached. The corrected fixture pumps renderer notifications
-while checking source-cache retirement, but that final correction is not hardware-verified.
+## Functional acceptance
 
-The [authored scale fixture and observed runs](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
-cover up to 10k actual References and 512 producer variants. Pages and demanded capture stay
-bounded. Isolated paged reads at 1k/5k/10k References pass at 0.086/0.095/0.104 ms p95;
-fixed Target edits initially failed at 71.0 ms against 50 ms. Sharing immutable graph-event
-payloads across Golden checkpoints reduces that result to 22.6 ms p95 in the unchanged fixture;
-the combined read/edit/capture check passes. Golden checkpoints retain their
-existing copy-on-write parameter values; document-wide transaction work remains outside the
-Reference resolver. Paged Channels reads now use the immutable public Golden query contract;
-full mixed/native and whole-app scale acceptance remain required. This backend fixture does
-not qualify whole-app inactive-count scaling, UI latency, memory or production output budgets.
-The [status ledger](../progress/mapgyver-status.md) keeps the full gate open; this is not Q04 acceptance.
+**M04/7 accepted: 2026-11-03.** The [requirement-by-requirement evidence](../progress/evidence/mapgyver-reference-native-2026-11-03.json)
+links channel synchronization, missing/recovered targets, mixed cycle rejection, source/decoder
+ownership, resampling, default/Alt subtree semantics and Parameter/API/history/project parity
+to their owning tests. Reference core, paged presentation and
+[Composition/Matrix-owned drops](mapgyver-owned-media.md) are verified through typed callers
+and all four bundled Reference workflows.
+
+The complete production native fixture passes Solid Color, Picture (alpha 128) and Shared
+Texture on Intel Graphics and NVIDIA RTX 5080: **six hardware/source cases, 136.91 seconds**.
+Automatic aliases reuse the producer target; forced 3×2 Resolution adds a shared-source pass.
+Three native outputs pass all pixels within 2/255 through nested Composition/Matrix, project
+reload, authored target deletion/Undo, independent copying, playing-copy removal and final-use
+retirement. The fixture waits for copied-input readiness and services the production source
+notification path. Earlier fixture failures remain in the evidence; all owned processes exit.
+
+The [unchanged authored backend fixture](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
+passes at 10k References/54,111 actual nodes and 512 producer variants: read/edit p95
+**0.102/22.6 ms**, 10,726-byte pages and 16 demanded capture records. Golden's immutable app
+queries and shared graph-event payloads preserve history/rollback and wire data. Library
+coverage is 317 MapGyver and 672 Golden engine tests, with strict lint and generated-contract
+checks; native prerequisites compiled before execution.
+
+This closes Reference's functional gate. Whole-app Q04 authored-count scaling, UI latency,
+memory, cadence and output budgets remain under M09 with their M06/M07 dependencies. The native
+fixture uses tiny output probes; broader source lifecycle/cross-adapter qualification, genuine
+device removal and physical display coverage retain their owning gates. M04/8 Media Preview
+is the next product deliverable in the [status ledger](../progress/mapgyver-status.md).

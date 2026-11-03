@@ -44,6 +44,12 @@ containment. Establish that ownership/copy/drop foundation while M04/7 is active
 closing Reference or starting Preview. M06/M07 retain their complete transform, editor,
 playback, scale and native acceptance; this dependency work does not accept those later gates.
 
+M04/7 verifies the Reference contract below through typed callers, bundled app interaction and
+the production native renderer. Whole-app Q04 qualification remains in M09, including M06's
+bounded Composition providers and M07's revised grid/active-demand workloads. Reference's 10k
+backend receipt fixture supplements its functional evidence; the existing whole-app budgets,
+larger authored counts, UI, memory and output requirements remain required in their owning gates.
+
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.
