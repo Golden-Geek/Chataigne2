@@ -33,7 +33,7 @@ export async function openNativeEditor() {
 	const base = `http://127.0.0.1:${hostPort}`;
 	const cdp = `http://127.0.0.1:${cdpPort}`;
 	const app = spawn(
-		path.resolve('target/debug/MapGyver.exe'),
+		path.resolve(process.env.MAPGYVER_TEST_BINARY ?? 'target/debug/MapGyver.exe'),
 		['--no-remote', '--automation-shutdown-file', shutdown],
 		{
 			windowsHide: true,

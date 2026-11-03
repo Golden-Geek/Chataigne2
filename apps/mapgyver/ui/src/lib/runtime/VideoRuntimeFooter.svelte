@@ -1,10 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { createDesktopVideoStatusTransport } from './transport';
-	import { createVideoStatusState, VideoStatusController } from './status';
-	const state = $state(createVideoStatusState());
-	const controller = new VideoStatusController(createDesktopVideoStatusTransport(), state);
-	onMount(() => controller.connect());
+	import { useVideoStatus } from './context.svelte';
+	const state = useVideoStatus();
 	const status = $derived(state.status);
 	const title = $derived(
 		[

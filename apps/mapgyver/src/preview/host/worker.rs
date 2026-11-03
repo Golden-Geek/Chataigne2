@@ -169,6 +169,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let _session = SessionOwner(input.controller.clone());
     let mut owner: Option<Owner> = None;
     let mut status_sampler = crate::preview::runtime_status::StatusSampler::default();
+    let mut output_sampler = super::output_status::OutputSampler::default();
     let mut native: Option<D3d11Control> = None;
     let mut capture: Option<CapturedPreview> = None;
     let mut _capture_subscriptions = Vec::new();
@@ -706,7 +707,19 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 .as_ref()
                 .zip(owner.as_ref())
                 .map(|(snapshot, owner)| (snapshot, owner.gpu.as_str()));
-            if let Some(status) = status_sampler.sample(now, observed, last_error.as_deref()) {
+            if let Some(mut status) = status_sampler.sample(now, observed, last_error.as_deref()) {
+                let routes = owner
+                    .as_ref()
+                    .map(|owner| {
+                        owner
+                            .escapes
+                            .iter()
+                            .map(|(target, _)| (target.screen, target.id, target.descriptor.extent))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let outputs = native.as_ref().map(D3d11Control::output_snapshots).unwrap_or_default();
+                status.screens = output_sampler.sample(now, &routes, &outputs);
                 input.status.publish(status.clone());
                 let _ = input
                     .window

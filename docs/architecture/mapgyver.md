@@ -43,6 +43,13 @@ are public, app-neutral APIs. Persistence formats belong to persistence/protocol
 host bootstrap. Codec libraries are integrated through supported APIs/bindings rather than a
 new handwritten protocol/decoder.
 
+Screen/Surface outliner rows use the bounded `InspectRow` backend projection, independent of
+descendant counts. Mounted rows coalesce reads and fence project/session replacement; they do
+not reconstruct authored policy from UI parameters. One window-owned video status subscription
+feeds both footer and rows. The presentation worker samples actual per-output API-accepted
+delivery counters once a second, fenced by device and endpoint incarnation. These rates are
+separate from renderer submissions and do not claim physical scanout FPS.
+
 ## Authored document and operations
 
 Every setting is a real typed Golden Parameter; editable lists contain real child nodes.

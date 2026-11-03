@@ -26,6 +26,7 @@
 
 <style>
 	.manager {
+		container-type: inline-size;
 		height: 100%;
 		min-height: 0;
 		display: flex;

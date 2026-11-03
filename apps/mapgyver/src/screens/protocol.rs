@@ -157,6 +157,10 @@ impl Default for SurfaceDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEdit {
+    /// Bounded metadata for one mounted outliner row; never includes descendants.
+    InspectRow {
+        node: NodeUuid,
+    },
     InspectManager,
     /// Bounded live editor projection, independent of the full manager catalog.
     InspectSurface {
@@ -305,9 +309,20 @@ pub struct ScreenManagerSnapshot {
     pub screens: Vec<ScreenSnapshot>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct ScreenRowSnapshot {
+    pub node: NodeUuid,
+    pub detail: String,
+    pub extent: Option<Extent2D>,
+    pub enabled: bool,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
+    Row {
+        snapshot: ScreenRowSnapshot,
+    },
     Manager {
         snapshot: ScreenManagerSnapshot,
     },

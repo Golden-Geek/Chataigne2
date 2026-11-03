@@ -50,6 +50,7 @@ fn output_notifications_coalesce_backpressure_and_frame_serials_but_wake_first_r
     publish(OutputState::Recovering, 1, 2, Some(-1));
     assert_eq!(wakes.load(Ordering::SeqCst), 4);
     assert_eq!(control.output_snapshots()[0].last_accepted, None);
+    assert_eq!(control.output_snapshots()[0].accepted_frames, 0);
     publish(OutputState::Ready, 2, 3, None);
     control.observe_output(output(1), token(device, 20), Delivery::Accepted);
     assert_eq!(wakes.load(Ordering::SeqCst), 6);

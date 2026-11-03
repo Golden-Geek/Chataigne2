@@ -10,6 +10,7 @@ mod gestures;
 mod output_input;
 mod parameters;
 mod pixel_gestures;
+mod rows;
 mod scripting;
 mod selection;
 mod translation;

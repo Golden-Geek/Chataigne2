@@ -64,6 +64,8 @@ pub struct OutputSnapshot {
     pub id: OutputId,
     /// Most recent batch accepted by this consumer's API in its current device lifetime.
     pub last_accepted: Option<CompletionToken>,
+    /// API-accepted deliveries in this endpoint incarnation; excludes busy/failed attempts.
+    pub accepted_frames: u64,
     /// Endpoint availability/recovery, separate from the owning device's runtime state.
     pub state: OutputState,
     /// Successful endpoint incarnation within this device; zero before first construction.
@@ -81,6 +83,7 @@ impl OutputSnapshot {
         Self {
             id,
             last_accepted: None,
+            accepted_frames: 0,
             state: OutputState::Starting,
             generation: 0,
             attempts: 0,
@@ -311,6 +314,7 @@ impl D3d11Control {
             {
                 first_acceptance = output.last_accepted.is_none();
                 output.last_accepted = Some(token);
+                output.accepted_frames = output.accepted_frames.saturating_add(1);
             }
             drop(outputs);
             if first_acceptance {
@@ -349,6 +353,7 @@ impl D3d11Control {
                 )
             {
                 output.last_accepted = None;
+                output.accepted_frames = 0;
             }
             output.state = state;
             output.generation = generation;

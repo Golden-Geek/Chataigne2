@@ -1,0 +1,23 @@
+{
+	"date": "2026-11-03",
+	"gate": "M05/10",
+	"state": "Accepted",
+	"contract": {
+		"Screen rows": "Actual Golden manager outliner rows show authored target/output, resolution and individual output API-accepted FPS. Narrow containers retain compact FPS and complete target/resolution/state in a tooltip. Wide containers show secondary columns. Runtime dimensions come from admitted native target metadata.",
+		"Surface rows": "Source media/channel names follow live rename/removal and remain available in narrow rows. Definitions stay real Parameters and selection/add/context/Inspector behavior remains Golden-owned.",
+		"footer": "Public app-neutral MainWindow footer snippet and actual MapGyver renderer submitted FPS, selected adapter, CPU submission duration and tracked allocation charges. Both footer and rows share exactly one window-owned recovering status subscription.",
+		"bounds": "One constant-size InspectRow request per mounted row, one in-flight and one coalesced latest request, session/project/disposal fences. Backend UUID lookup does not materialize Surface or channel collections. Existing bounded presentation-worker output metadata is sampled once a second; counters exclude busy/unavailable/failed deliveries and reset on device/endpoint incarnation. No per-frame engine polls or GPU queries."
+	},
+	"checks": {
+		"software": "cargo test --locked -p MapGyver -p golden_video --lib: terminal exit 0, including both generated-contract parity suites, bounded row projection/history/source/target cases, independent 60/24/0 output rates and device/incarnation/removal reset. Golden Video 176 passed/20 ignored; MapGyver adds two passing tests to the footer baseline. Ignored hardware tests remain open in their owners.",
+		"quality": "Strict MapGyver all-target native-qualification Clippy passed. MapGyver svelte-check 0 errors/0 warnings; 27 focused runtime/row/Screen tests passed. Golden UI 232 tests and Chataigne zero-error UI check remain the unchanged shared-footer baseline in mapgyver-runtime-footer-2026-11-03.json.",
+		"bundled": "Actual bundled headless --screen-details-ui --runtime-footer-ui passed: Spout target/640x360, source rename/remove, 2400/1000 CSS viewport responsiveness without row overflow, disabled negative-origin rectangle/320x240 updates, New project removes obsolete rows, no page errors and owned host exit 0.",
+		"native_rows": "Actual bundled WebView2 --details passed the same interactions with installed native preview and a positive output-specific API-accepted FPS reading; project replacement, no page errors, owned app exit 0.",
+		"native_footer": "Actual bundled WebView2 --footer passed after moving status ownership to one shared context: 60.0 submitted FPS, Intel(R) Graphics, 0.45 ms CPU submit, 293.0 MiB tracked charges, two updates over 2.2 seconds, fresh project observations, no page errors and owned app exit 0.",
+		"build": "Normal bundled frontend rebuilt successfully. The default cargo build executable replacement hit Windows sharing denial because a separate user cargo run --dev app had opened it. cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review completed normally with bundled UI and produced target/debug/deps/MapGyver-codex-review.exe. Both fixtures now accept MAPGYVER_TEST_BINARY; the user's running app was untouched.",
+		"binary_sha256": "C56E6B72F7596BD25D3E15BA9297B3CC1E1F1E6793CD454EEBC2EB5CC420F67E",
+		"formatting": "Root and golden_core cargo fmt, touched authored UI/tests/evidence Prettier and git diff --check passed."
+	},
+	"limits": "The M05 footer shows explicit CPU submission time and logical renderer charges; this does not close M03 GPU critical-path/VRAM/timing/memory qualification. CSS responsive checks and native installation do not prove physical pixel alignment, scanout latency, DPI/hotplug or device removal. All those original gates remain required.",
+	"gate_changes": "M05/10 Active -> Accepted. M05 rises 3/10 to 4/10 (40%); accepted gates 28/57 -> 29/57. Fully accepted phases remain 3/11 (27%). M05/7 is the sole next Active gate. M05/4 concurrent outputs is Pending with known native access and reported two-display setup; M03/9 is Pending corrective qualification for an actual measured failure, not a tool-access blocker. No scope/budget is waived."
+}

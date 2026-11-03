@@ -72,6 +72,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     let edit: ScreenEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
     let pending = engine.edits.pending.len();
     let result = match edit {
+        ScreenEdit::InspectRow { node } => ScreenEditResult::Row {
+            snapshot: super::rows::inspect(engine, node)?,
+        },
         ScreenEdit::InspectManager => ScreenEditResult::Manager {
             snapshot: inspect(engine)?,
         },

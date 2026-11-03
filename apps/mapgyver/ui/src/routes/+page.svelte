@@ -21,6 +21,7 @@
 	import ApplicationPanel from '../lib/applications/ApplicationPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import VideoRuntimeFooter from '../lib/runtime/VideoRuntimeFooter.svelte';
+	import { provideVideoStatus } from '../lib/runtime/context.svelte';
 	import { registerParameterVisibility } from '../lib/parameter-visibility';
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import { registerChannelContextMenu } from '../lib/media/context-menu';
@@ -30,6 +31,7 @@
 	const host = useApplicationHost(),
 		preview = providePreview();
 	provideDocumentSelection();
+	provideVideoStatus();
 	provideScreenAuthoring();
 	provideCompositionAuthoring();
 	provideMatrixAuthoring();

@@ -16,6 +16,7 @@ impl Default for VideoRuntimeStatus {
             gpu: None,
             resources: None,
             error: None,
+            screens: Vec::new(),
         }
     }
 }

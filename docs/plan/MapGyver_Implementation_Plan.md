@@ -58,6 +58,10 @@ capture connection is unavailable and the settled fallback capture is entirely b
 that gate when usable native-window capture returns. While it is blocked, advance independent
 M05/10 runtime/workbench status before returning to M05/7 and M05/9 qualification. This changes
 execution order within M05 only; every gate, physical matrix and acceptance requirement remains.
+M05/10 is now [accepted](../progress/evidence/mapgyver-workbench-status-2026-11-03.json): responsive
+bounded Screen/Surface row supplements and native runtime footer are verified. Resume M05/7
+functional closure, then M05/9 stable output-bounds delivery. Native capture prerequisites apply
+only to the checks requiring captured native pixels, not ordinary native app/CDP verification.
 
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

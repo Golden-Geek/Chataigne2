@@ -2,6 +2,7 @@
 pub(crate) mod config;
 mod discovery;
 mod displays;
+mod output_status;
 mod targets;
 mod worker;
 

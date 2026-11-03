@@ -2,7 +2,8 @@
 import type { ScreenDefinition } from "./ScreenDefinition";
 import type { ScreenId } from "./ScreenId";
 import type { ScreenManagerSnapshot } from "./ScreenManagerSnapshot";
+import type { ScreenRowSnapshot } from "./ScreenRowSnapshot";
 import type { SurfaceReference } from "./SurfaceReference";
 import type { SurfaceSnapshot } from "./SurfaceSnapshot";
 
-export type ScreenEditResult = { "kind": "Manager", snapshot: ScreenManagerSnapshot, } | { "kind": "Surface", snapshot: SurfaceSnapshot, } | { "kind": "ScreenDefinition", screen: ScreenId, definition: ScreenDefinition, } | { "kind": "ScreenCreated", screen: ScreenId, surface: SurfaceReference, } | { "kind": "SurfaceCreated", reference: SurfaceReference, } | { "kind": "SurfaceChanged", snapshot: SurfaceSnapshot, } | { "kind": "Changed" };
+export type ScreenEditResult = { "kind": "Row", snapshot: ScreenRowSnapshot, } | { "kind": "Manager", snapshot: ScreenManagerSnapshot, } | { "kind": "Surface", snapshot: SurfaceSnapshot, } | { "kind": "ScreenDefinition", screen: ScreenId, definition: ScreenDefinition, } | { "kind": "ScreenCreated", screen: ScreenId, surface: SurfaceReference, } | { "kind": "SurfaceCreated", reference: SurfaceReference, } | { "kind": "SurfaceChanged", snapshot: SurfaceSnapshot, } | { "kind": "Changed" };

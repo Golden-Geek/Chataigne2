@@ -16,6 +16,7 @@
 // Add --screen-translation-ui for backend-owned Alt-drag from Surface bodies/corners.
 // Add --screen-fit-ui for backend Fill/Fit icon actions and grouped history.
 // Add --runtime-footer-ui for app footer contribution and explicit unavailable native metrics.
+// Add --screen-details-ui for responsive bounded Screen/Surface outliner supplements.
 // Add --owned-media-ui for Composition Reference/Alt-copy drops and real child-media ownership.
 // Add --source-ui for the complete M04 source authoring matrix in the Golden tree/Inspector.
 // Add --composition-review for M06 parity and a saved ordinary-app review scene.
@@ -65,6 +66,7 @@ const withUi = [
 	'--screen-translation-ui',
 	'--screen-fit-ui',
 	'--runtime-footer-ui',
+	'--screen-details-ui',
 	'--owned-media-ui',
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
@@ -374,6 +376,10 @@ try {
 	if (process.argv.includes('--runtime-footer-ui')) {
 		const { verifyRuntimeFooter } = await import('../browser/runtime-footer.mjs');
 		await verifyRuntimeFooter({ base, post });
+	}
+	if (process.argv.includes('--screen-details-ui')) {
+		const { verifyScreenDetails } = await import('../browser/screen-details.mjs');
+		await verifyScreenDetails({ base, post });
 	}
 	if (process.argv.includes('--owned-media-ui')) {
 		const { verifyOwnedMediaUi } = await import('../browser/owned-media.mjs');

@@ -43,6 +43,16 @@ pub struct VideoRuntimeStatus {
     pub gpu: Option<String>,
     pub resources: Option<VideoResourceUsage>,
     pub error: Option<String>,
+    pub screens: Vec<ScreenRuntimeStatus>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct ScreenRuntimeStatus {
+    pub screen: ScreenId,
+    pub extent: Extent2D,
+    /// Successful deliveries accepted by this specific output's API, not scanout.
+    pub accepted_fps: Option<f64>,
+    pub state: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]

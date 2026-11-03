@@ -19,7 +19,8 @@ const snapshot = (sequence: number): VideoRuntimeStatus => ({
 	cpu_submit_ms: 0.4,
 	gpu: 'Test GPU',
 	resources: { used_bytes: 1024, limit_bytes: 4096, in_flight: 1, retiring: 0 },
-	error: null
+	error: null,
+	screens: []
 });
 function fixture() {
 	const reads: ReturnType<typeof deferred<VideoRuntimeStatus>>[] = [];

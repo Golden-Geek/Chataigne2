@@ -9,6 +9,7 @@ mod geometry;
 mod nodes;
 pub mod protocol;
 pub mod rendering;
+mod rows;
 mod screen_node;
 mod scripting;
 mod surface_node;

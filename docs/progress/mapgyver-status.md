@@ -2,14 +2,17 @@
 
 **Updated: 2026-11-03 · Overall: `███░░░░░░░` 27% · 3/11 phases complete**
 
-**Current topic:** M05/10 workbench runtime status; M05/6 native alignment capture is Blocked.
-**Next deliverable:** finish M05/10 Screen output/target/resolution/FPS and Surface source-media
-outliner supplements; the public footer and actual runtime observations are verified.
-**Execution:** M04/1–3,7–8 accepted; M05/10 alone is Active on `mapgyver`. Source M04/4–6
+**Verified gates: `█████░░░░░` 51% · 29/57 accepted** (phase completion above remains 3/11).
+
+**Current topic:** M05/10 accepted; M05/7 Surface Source functional closure next.
+**Next deliverable:** reconcile and finish Surface Source crop/mapping/calibration, grouped
+history and native/public-caller behavior, then retained M05/9 visible output-bounds updates.
+**Execution:** M04/1–3,7–8 and M05/10 accepted; M05/7 alone is Active on `mapgyver`. Source M04/4–6
 stays in the return queue under the recorded functional order.
 **Blocker for next product:** none known. M05/6 needs usable native-window capture: the supported
 connection is unavailable and the settled fallback returns only black. Other retained gates remain below.
-**Usable now:** actual submitted FPS, selected GPU, CPU submit time and tracked renderer allocations
+**Usable now:** responsive Screen target/resolution/per-output FPS and Surface source-media tree
+supplements; actual submitted FPS, selected GPU, CPU submit time and tracked renderer allocations
 in the shared workbench footer, with coarse observations and automatic stream recovery;
 backend Fill Screen and centered Fit to Screen preserve cropped-source aspect
 and other Surface settings, with one-step Undo and native automatic Picture sizing;
@@ -24,13 +27,12 @@ paged grid, actual reconnect/project recovery and independent output lifetime;
 typed source/variant/Reference authoring, generic Inspector and paged Channels,
 actual Composition child media/Placement and Matrix Cell media, default Reference and independent
 Alt-copy drops, automatic/pinned outputs, unavailable-target recovery and owned-media retirement.
-**Last delivered capability:** [Runtime footer](evidence/mapgyver-runtime-footer-2026-11-03.json):
-public Golden contribution hook, actual bundled/native metrics and project recovery. Backend,
-generated parity, both apps' UI checks and focused lifecycle/shared UI checks pass. Native actual
-values include 60.1 submitted FPS on Intel Graphics; physical presentation/GPU time/VRAM are not
-inferred. Outliner supplements remain required before M05/10 closes.
-**Last accepted:** [M04/8 Media Preview](evidence/mapgyver-media-preview-native-2026-11-03.json),
-including its complete original functional contract. M04/7 Reference remains accepted.
+**Last delivered and accepted:** [M05/10 workbench status](evidence/mapgyver-workbench-status-2026-11-03.json):
+bounded responsive outliner reads, actual per-output counters, one shared recovering subscription
+and public Golden footer hook. Backend/generated parity, 27 focused UI tests, bundled and native
+rows/footer/project replacement pass. Native footer reports 60.0 submitted FPS on Intel Graphics.
+Physical presentation/GPU execution time/VRAM qualification remains separate. M04/8 Media Preview
+and M04/7 Reference remain accepted.
 Whole-app Q04 and broader source/render/display qualification retain their existing gates.
 
 | Phase                                                                                                                                                | State                           | Progress          | Gates | Subphase progression                                                                  |
@@ -40,7 +42,7 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 | <a id="m02-acceptance-items"></a>[M02 Shared shell](mapgyver-m02-shell.md)                                                                           | Accepted                        | `██████████` 100% | 7/7   | Build/identity/discovery/tools/host/isolation 7/7                                     |
 | <a id="m03-acceptance-items"></a>[M03 Rendering](mapgyver-m03-render-foundations.md)                                                                 | Blocked                         | `████████░░` 78%  | 7/9   | Foundations 7/7; recovery 0/1; qualification 0/1                                      |
 | <a id="m04-acceptance-items"></a>[M04 Media](../plan/MapGyver_Implementation_Plan.md#m04--deliver-source-variants-reference-media-and-media-preview) | Pending source qualification    | `██████░░░░` 63%  | 5/8   | Sources 3/6; Reference 1/1; Preview 1/1                                               |
-| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Active; physical gates blocked  | `███░░░░░░░` 30%  | 3/10  | Authoring/warp/calibration 3/3; editors 0/2; physical 0/3; bounds/workbench stats 0/2 |
+| <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)  | Active; physical gates blocked  | `████░░░░░░` 40%  | 4/10  | Authoring/warp/calibration 3/3; editors 0/2; physical 0/3; bounds/workbench stats 1/2 |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)          | Pending                         | `░░░░░░░░░░` 0%   | 0/5   | Child model 0/1; dependencies 0/1; native output 0/1; transforms 0/1; panels 0/1      |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)             | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Model 0/1; playback 0/1; grid 0/1; native/scale 0/1                                   |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)               | Pending                         | `███░░░░░░░` 25%  | 1/4   | Golden process 1/1; config/demand 0/1; runtime 0/1; app acceptance 0/1                |
@@ -49,8 +51,9 @@ Whole-app Q04 and broader source/render/display qualification retain their exist
 
 **Counting:** overall = fully accepted phases / 11, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **28/57 accepted gates**; denominators are unchanged. The current footer
-delivery closes no gate and awards no progress.
+There are **29/57 accepted gates**; denominators are unchanged. M05/10 closes in this delivery.
+The additional gate-progress bar uses accepted gates / 57, rounded; it does not replace or
+inflate the unchanged phase-completion calculation above.
 Partial work, planning and unavailable checks earn no gate.
 
 **Scope revision:** the prior plan was 5/10 phases (50%), with 40/48 gates accepted.
@@ -68,19 +71,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)          | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                      |
 | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active   | M05/10           | Deliver public Golden footer contributions and actual MapGyver FPS/GPU/frame-time/resource status from bounded runtime observations, then Screen/Surface outliner supplements. Independent product work proceeds while M05/6 capture is blocked. |
+| Active   | M05/7            | Reconcile the existing Surface Source implementation and prior native manual/software receipts against the revised complete contract; finish missing full-source/crop/mapping/calibration/history/public-caller checks on the current binary, then accept or record the exact remaining prerequisite. |
+| Accepted | M05/10           | [Complete outliner/footer contract](evidence/mapgyver-workbench-status-2026-11-03.json): bounded responsive target/resolution/source rows, actual individual output FPS and public shared footer with native values and recovery. |
 | Blocked  | M05/6            | [Native capture prerequisite failed](evidence/mapgyver-screen-capture-blocker-2026-11-03.json): supported helper connection unavailable; settled fallback has 1,500,000 black pixels and no UI/native content. Restore usable native-window capture, then verify same-frame image/overlay alignment during real smooth zoom and reconcile all functional receipts. M05/8 keeps its full physical matrix. |
 | Accepted | M04/8            | [Complete original contract verified](evidence/mapgyver-media-preview-native-2026-11-03.json): eight simultaneous native views, independent persisted panel choices, actual reconnect/New/Load, completion-based close/lock retirement and stable independent Screen/Spout output with exact pixel oracles. |
 | Accepted | M04/7            | [Original functional contract audited and passed](evidence/mapgyver-reference-native-2026-11-03.json): typed/API/bundled parity, cycles/identity/history/project, six complete native source/hardware cases and the bounded 10k backend fixture. Whole-app Q04 remains M09 with M06/M07 dependencies. |
 | Accepted | M04/1–2          | [Source authoring/API](mapgyver-m04-source-api.md) and [native variants/Resolution/sharing](mapgyver-m04-variants.md), including both hardware adapters and stable identity through history/reload.                                                                                                                       |
 | Pending  | M04/4–6          | Return after Reference's authored-model/rendering/API/UI product deliveries at the next allocated qualification batch. Finish full Spout lifecycle/cross-adapter/RGBA/declared-capacity cases, audit generic UI/lifetime and broad revised caller/Picture/resource parity. M04/3 Picture worker bounds retain acceptance. |
-| Pending  | M05/7,9          | After the selected independent runtime-status slice, reconcile Surface Source interaction and stable visible output-bounds updates; retain native alignment/physical proof in its owning gates. |
+| Pending  | M05/9            | After Surface Source functional closure, implement/verify stable visible native window identity during rectangle position/size/display updates with completion-safe resize/retirement. |
+| Pending  | M05/4            | Native app access and a local two-display setup are available (external 1080p/100%, laptop UHD/125%). Run concurrent fullscreen/rectangle/Spout editor-close/minimize coverage at the next scheduled physical-output batch; no manual-user dependency is assumed. |
 | Pending  | M06/1–5          | After M04 ownership/Reference and M05 viewport contracts, replace instances with child media, use degrees/new anchors and verify independent follow/lock panels. Replace the existing global Composition `InspectManager` refresh with bounded owner/catalog reads; Reference's paged query alone does not qualify whole-app scale. |
 | Pending  | M08/2–4; M07/1–4 | After M06, establish reusable app-control configuration/runtime keys, then revised Matrix ownership/grid/trigger semantics and aggregate demand. Verify actual picker and retained retirement/access cases; remove Applications workflow.                                                                                 |
 | Pending  | M10/1–4          | After revised M04–M08 contracts, implement common-codec transport, HAP, DXV/WebP and bundled recovery/performance in that order.                                                                                                                                                                                          |
 | Blocked  | M03/4            | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                         |
-| Blocked  | M03/9            | Original GPU critical-path proof/window timing remain unresolved; private-growth criterion failed. Return with supported bounded-error timing evidence or an explicit scope decision, and a concrete ownership correction for the preserved memory failure. No unchanged benchmark reruns or implicit budget revision.    |
-| Blocked  | M05/4,5,8        | Missing physical concurrent-output/hotplug/DPI/presentation coverage. Return with reported display resolution/scaling/layout/available outputs and actual native access; run the exact retained matrix.                                                                                                                   |
+| Pending  | M03/9            | Original GPU critical-path/window timing and reproduced private-growth failure need corrective qualification, not additional user/tool permission. Return in its bounded qualification lane with an ownership correction and supported timing evidence; no unchanged benchmark reruns or budget revision. |
+| Blocked  | M05/5,8          | Full physical hotplug, 150/200% and negative-origin/capture/latency coverage is unverified. Known local displays/native access permit partial automatic cases; retain the exact missing physical matrix and restore native pixels for measured alignment/latency proof. |
 | Waiting  | M09/1            | All revised feature and retained qualification gates; then complete Q01–Q06, actual-app statistics and Windows artifact checks.                                                                                                                                                                                           |
 
 ## Evidence and handoff
@@ -98,15 +103,16 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `mapgyver-pre-revision-matrix-parameters-and-icons-2026-11-02`, object
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically; reconcile its
   typed-row work when revised M07 becomes active and its presentation work separately.
-- **Current handoff:** M05/10 footer delivered, 08:02–08:28 CET (cutoff 08:47).
-  [Checks and ownership](evidence/mapgyver-runtime-footer-2026-11-03.json): backend 334 + 176 pass,
-  strict Clippy, 25 focused UI tests, 232 Golden UI tests, both apps' zero-error UI checks,
-  normal bundled build, actual bundled/native footer and project recovery pass. Native app exits 0.
-  Exactly M05/10 remains Active: next deliver Screen/Surface outliner supplements and verify
-  their bounded updates to close the complete gate. No acceptance count changes. User is away;
-  progress must not wait for manual checks. Available local displays are external 1080p/100% and
-  laptop UHD/125%; that setup information alone verifies no physical gate. M05/6 native capture
-  remains isolated from ordinary native/CDP, backend and independent product delivery.
+- **Current handoff:** M05/10 Accepted, 08:29–08:43 CET (cutoff 09:14).
+  [Complete proof and limits](evidence/mapgyver-workbench-status-2026-11-03.json): backend/generated
+  parity, strict Clippy, zero-error UI check, 27 focused tests and bundled/native responsive rows,
+  actual output FPS, footer and project recovery pass. All owned fixtures exit 0. A separate
+  bundled validation executable avoids the user's live `--dev` executable lock.
+  M05 is 4/10 (40%), gates 29/57 (51%), phases 3/11 (27%). Next Active M05/7: close the existing
+  Surface Source contract, then M05/9 stable output bounds. Native capture blocks only its
+  pixel-dependent checks; M05/4 and M03/9 are queued work rather than user-access blockers.
+  User is away; delivery continues without waiting for manual help. Footer milestone `2fac139b`
+  is already pushed; original physical/timing/memory/device gates remain required.
 
 ## Maintenance rule
 
