@@ -211,6 +211,9 @@ pub enum MediaEdit {
     InspectMediaPreview {
         query: MediaPreviewQuery,
     },
+    InspectCompositionEditor {
+        query: super::composition::protocol::CompositionEditorQuery,
+    },
     Matrix {
         media: MediaId,
         edit: crate::matrix::protocol::MatrixEdit,
@@ -363,6 +366,9 @@ pub struct AssetSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    CompositionEditor {
+        page: super::composition::protocol::CompositionEditorPage,
+    },
     MediaPreview {
         page: MediaPreviewPage,
     },

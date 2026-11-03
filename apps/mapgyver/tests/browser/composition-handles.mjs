@@ -106,10 +106,13 @@ export async function verifyCompositionHandles({ page, edit }) {
 	const svg = view.getByRole('group', { name: 'Composition transform controls', exact: true });
 	const widgets = screenParameterControls(page);
 	const ready = async () => {
-		await panel.getByRole('button', { name: 'Refresh Composition', exact: true }).waitFor();
 		await wait(
-			() => panel.getByRole('button', { name: 'Refresh Composition', exact: true }).isEnabled(),
-			Boolean
+			() => panel.getAttribute('data-composition-busy'),
+			(value) => value === 'false'
+		);
+		await wait(
+			() => panel.getAttribute('data-composition-loading'),
+			(value) => value === 'false'
 		);
 	};
 	await view

@@ -9,7 +9,6 @@
 	} from 'golden_ui';
 	import { providePreview } from '../lib/preview/context.svelte';
 	import { provideScreenAuthoring } from '../lib/screens/context.svelte';
-	import { provideCompositionAuthoring } from '../lib/composition/context.svelte';
 	import { provideMatrixAuthoring } from '../lib/matrix/context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import MediaPreviewPanel from '../lib/media/MediaPreviewPanel.svelte';
@@ -33,7 +32,6 @@
 	provideDocumentSelection();
 	provideVideoStatus();
 	provideScreenAuthoring();
-	provideCompositionAuthoring();
 	provideMatrixAuthoring();
 	registerParameterVisibility();
 	registerMatrixContextMenu();

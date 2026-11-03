@@ -45,6 +45,9 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         MediaEdit::InspectMediaPreview { query } => {
             super::preview_selection::inspect(engine, query).map(|page| MediaEditResult::MediaPreview { page })
         }
+        MediaEdit::InspectCompositionEditor { query } => {
+            super::composition::query::inspect(engine, query).map(|page| MediaEditResult::CompositionEditor { page })
+        }
         MediaEdit::InspectChannels { query } => {
             super::catalog::channels(engine, query).map(|page| MediaEditResult::Channels { page })
         }

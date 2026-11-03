@@ -9,6 +9,7 @@ import { verifyRuntimeFooter } from './runtime-footer.mjs';
 import { verifyScreenDetails } from './screen-details.mjs';
 import { verifySurfaceSourceUi } from './surface-source.mjs';
 import { verifyCompositionHandles } from './composition-handles.mjs';
+import { verifyCompositionUi } from './composition.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -30,6 +31,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--composition-panels', verifyCompositionUi],
 			['--composition', verifyCompositionHandles],
 			[
 				'--source',

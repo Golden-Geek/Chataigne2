@@ -48,6 +48,10 @@ export async function verifyOwnedMediaUi({ base, edit, post, directory, inspectM
 			.filter({ hasText: /^Composition$/ })
 			.click();
 		const manager = page.locator('section[aria-label="Media Manager"]');
+		await manager
+			.getByRole('treeitem', { name: 'Owned media canvas', exact: true })
+			.getByRole('button', { name: 'Owned media canvas', exact: true })
+			.click();
 		const canvas = page.locator('section[aria-label="Composition"] .source-drop-zone');
 		await canvas.locator('svg[aria-label="Composition transform controls"]').waitFor();
 		async function drop(copy, fraction) {

@@ -10,6 +10,35 @@ struct Scene {
     definition: InstanceDefinition,
 }
 
+#[test]
+fn bounded_editor_queries_match_all_public_callers_without_authored_changes() {
+    let scene = scene();
+    for count in [1, 128, 0, 129] {
+        let operation = MediaEdit::InspectCompositionEditor {
+            query: CompositionEditorQuery {
+                selected: Some(scene.instances[1].instance.0),
+                document: None,
+                locked: None,
+                instance: None,
+                start: 1,
+                count,
+            },
+        };
+        let mut canonical = None;
+        for caller in CALLERS {
+            let mut engine = loaded(&scene.document);
+            let before = authored(&engine);
+            let result = run(&mut engine, caller, operation.clone());
+            assert_eq!(authored(&engine), before);
+            if let Some(expected) = &canonical {
+                assert_eq!(&result, expected, "{caller:?}");
+            } else {
+                canonical = Some(result);
+            }
+        }
+    }
+}
+
 fn scene() -> Scene {
     let mut engine = fixture();
     let sources = [

@@ -5,7 +5,6 @@
 	import type { MediaEdit } from './generated/MediaEdit';
 	import { invokeMediaEdit } from './operations';
 	import { MEDIA_NAMESPACE } from './generated/constants';
-	import CompositionProperties from '../composition/CompositionProperties.svelte';
 	import MatrixProperties from '../matrix/MatrixProperties.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
@@ -221,7 +220,6 @@
 								behaviour: 'Append'
 							});
 					}} />
-			{:else if channel.definition.source.kind === 'Composition'}<CompositionProperties {node} />
 			{:else if channel.definition.source.kind === 'Matrix'}<MatrixProperties />{/if}
 		{/if}
 		{#if node.node_type === 'mapgyver.media.asset'}

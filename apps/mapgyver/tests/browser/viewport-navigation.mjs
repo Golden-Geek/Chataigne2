@@ -85,6 +85,14 @@ export async function verifyViewportNavigation({
 			['Surface source view', 'Surface Source'],
 			['Composition view', 'Composition']
 		]) {
+			if (tabName === 'Composition') {
+				await tab('Media Manager').click();
+				await page
+					.locator('section[aria-label="Media Manager"]')
+					.getByRole('treeitem', { name: 'Navigation composition', exact: true })
+					.getByRole('button', { name: 'Navigation composition', exact: true })
+					.click();
+			}
 			await tab(tabName).click();
 			const view = page.getByRole('application', { name: label, exact: true });
 			await view.waitFor();

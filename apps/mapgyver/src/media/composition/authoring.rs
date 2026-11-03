@@ -29,6 +29,14 @@ pub(super) fn channel(
 }
 
 pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<Vec<NodeId>, String> {
+    instance_nodes(engine, parent)?.collect()
+}
+
+/// Walk authored membership without allocating the entire Composition for paged readers.
+pub(super) fn instance_nodes(
+    engine: &AppEngine,
+    parent: NodeId,
+) -> Result<impl Iterator<Item = Result<NodeId, String>> + '_, String> {
     let parent = children::owner(engine, parent)?;
     let mut next = engine
         .nodes
@@ -36,30 +44,35 @@ pub(in crate::media) fn instances(engine: &AppEngine, parent: NodeId) -> Result<
         .ok_or("missing Composition")?
         .node_data()
         .first_child;
-    let mut result = Vec::new();
-    while let Some(id) = next {
-        let child = engine.nodes.get(id).ok_or("missing Composition child")?;
-        next = child.node_data().next_sibling;
-        if crate::parameters::is_parameter_folder(child)
-            || matches!(child, AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_))
-        {
-            continue;
+    let mut count = 0;
+    Ok(std::iter::from_fn(move || {
+        while let Some(id) = next {
+            let Some(child) = engine.nodes.get(id) else {
+                next = None;
+                return Some(Err("missing Composition child".into()));
+            };
+            next = child.node_data().next_sibling;
+            if crate::parameters::is_parameter_folder(child)
+                || matches!(child, AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_))
+            {
+                continue;
+            }
+            if !matches!(child, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {
+                next = None;
+                return Some(Err("Composition children must be media".into()));
+            }
+            if count == MAX_INSTANCES {
+                next = None;
+                return Some(Err("Composition exceeds 100000 authored instances".into()));
+            }
+            count += 1;
+            return Some(Ok(id));
         }
-        if !matches!(
-            engine.nodes.get(id),
-            Some(AppNode::Media(_) | AppNode::ReferenceMedia(_))
-        ) {
-            return Err("Composition children must be media".into());
-        }
-        if result.len() == MAX_INSTANCES {
-            return Err("Composition exceeds 100000 authored instances".into());
-        }
-        result.push(id);
-    }
-    Ok(result)
+        None
+    }))
 }
 
-fn instance(engine: &AppEngine, parent: NodeId, instance: InstanceId) -> Result<NodeId, String> {
+pub(super) fn instance(engine: &AppEngine, parent: NodeId, instance: InstanceId) -> Result<NodeId, String> {
     let parent = children::owner(engine, parent)?;
     let id = engine.node_id_by_uuid(instance.0).ok_or("instance is missing")?;
     match engine.nodes.get(id) {

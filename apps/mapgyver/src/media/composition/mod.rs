@@ -7,6 +7,7 @@ mod drops;
 mod geometry;
 mod node;
 pub mod protocol;
+pub(in crate::media) mod query;
 
 pub(super) use authoring::apply;
 pub use authoring::inspect;

@@ -13,6 +13,7 @@ mod drop_source;
 mod geometry;
 mod owned_media;
 mod parameters;
+mod query;
 
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {
     apply(engine, MediaEdit::Composition { reference, edit })

@@ -315,7 +315,7 @@ try {
 	}
 	if (process.argv.includes('--composition-ui')) {
 		const { verifyCompositionUi } = await import('../browser/composition.mjs');
-		await verifyCompositionUi({ base, edit, inspectMedia: inspect });
+		await verifyCompositionUi({ base, edit, post, directory, inspectMedia: inspect });
 	}
 	if (process.argv.includes('--parameter-ui')) {
 		const { verifyParameterUi } = await import('../browser/parameters.mjs');

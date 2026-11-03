@@ -170,3 +170,27 @@ pub struct CompositionSnapshot {
     pub canvas: Extent2D,
     pub instances: Vec<InstanceSnapshot>,
 }
+
+/// Backend-resolved panel ownership. Locks are scoped to the persisted project root UUID.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct CompositionEditorQuery {
+    pub selected: Option<NodeUuid>,
+    pub document: Option<NodeUuid>,
+    pub locked: Option<ChannelReference>,
+    pub instance: Option<InstanceId>,
+    pub start: u32,
+    pub count: u16,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct CompositionEditorPage {
+    pub document: NodeUuid,
+    pub document_matches: bool,
+    pub channel: Option<crate::media::protocol::ChannelSnapshot>,
+    /// Contains only the requested ordered page; total describes full membership.
+    pub composition: Option<CompositionSnapshot>,
+    pub start: u32,
+    pub total: u32,
+    /// Independent bounded lookup, including when the object is outside the visible page.
+    pub selected: Option<InstanceSnapshot>,
+}

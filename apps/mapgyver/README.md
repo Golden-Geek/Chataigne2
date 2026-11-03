@@ -15,8 +15,9 @@ uses a full-panel grid with compact icon actions. Selecting an item never launch
 
 The three 2D editors share Golden UI's `Viewport2D`: wheel zoom stays under the pointer,
 Space + drag or middle drag pans, **F** frames selection, and **Home** fits the active area.
-The compact view toolbar exposes the same actions. Handles keep their round screen-space
-size at every aspect ratio and zoom. The output area is black; surrounding panels keep the
+The compact view toolbar exposes the same actions. Handles keep their screen-space size at
+every aspect ratio and zoom. Composition has eight square corner/edge resize handles and four
+outside-corner rotation targets; only its move handle sits at the pivot. The output area is black; surrounding panels keep the
 workbench theme. Native preview apertures remain transparent to the shared desktop underlay.
 Pan/zoom updates the installed preview's placement on each GPU frame, without rebuilding its
 resource plan or waiting for gesture release. A stationary black canvas backing and covers outside
@@ -28,13 +29,15 @@ Scenes that cannot fit alongside the active generation still report the actual b
 Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
 for every caller, with typed 0–1 bounds in the generic Inspector.
 
-Drag Media or Channel labels from Media Manager into the editors. Dropping on the Screen editor
+Drag Media labels from Media Manager into the editors. Dropping on the Screen editor
 background creates a Surface; dropping on a Surface replaces its source. Composition background
 drops add an instance at the pointer, including after pan/zoom; drops on existing instances replace
 their source. The Surface Source editor also accepts replacement drops. A Media drop uses its first
 ordered channel, chosen by the backend. Replacement preserves geometry and other settings, and each
 drop is one undoable operation. Invalid sources and Composition feedback cycles reject atomically.
-`node apps/mapgyver/tests/headless/media.mjs --source-drop-ui` verifies the bundled tree/editor flow.
+Use typed Output/reference Parameters to choose a specific variant. The retained cross-editor
+`--source-drop-ui` fixture still assumes channel outliner rows and reference-only instances;
+its reconciliation is tracked under final M09 qualification, not cited as current passing evidence.
 
 The default layout reserves most space for the editor. Existing saved docking layouts are
 retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
@@ -49,10 +52,18 @@ failures live in the ledger. `--screen-ui` and `--surface-source-ui` verify the 
 and crop/form/calibration/history input in the new full-panel layout. Native preview and physical
 display qualification remain separate, explicitly open requirements in the ledger.
 
-Composition's `--composition-ui --composition-project-ui` checks cover the complete shared-Inspector
-editing flow plus New during a drag, fresh history and saved-project upload/history. They use the
-existing [review scene](tests/headless/COMPOSITION_REVIEW.md); native imagery and extent-based
-outlines/shape selection remain open qualification requirements.
+Composition's per-panel `editor.svelte.ts` composes a bounded reader/controller and grouped gesture.
+`media/composition/query.rs` resolves ownership, defaults and project-scoped locks; its generated
+query returns at most 128 ordered children plus an independently selected child. Ordinary settings
+stay in the shared Inspector, including when the selected child is outside the visible page.
+Panels persist independent follow/lock/page choices and release their native views on close.
+The internal heading and creation/refresh controls are removed; create Compositions in Media Manager.
+
+`--composition-ui --composition-project-ui` covers current shared-Inspector editing, simultaneous
+independent panels, persisted lock/page state, real reconnect, New during a drag, fresh history and
+actual File Open upload/history. Generate the [review scene](tests/headless/COMPOSITION_REVIEW.md)
+first with `--composition-review`. [M06's phase audit](../../docs/progress/mapgyver-m06-panels.md)
+links current browser, native pointer/panel and both-adapter raster evidence.
 
 `media::composition::inspect` reads committed Composition instance state without settling queued
 commands or authoring history. UI intents, scripts, command nodes and the headless host share the
@@ -60,10 +71,11 @@ same Composition mutation contracts. The [editor acceptance flow](tests/headless
 generates a normal project for real input verification; native raster acceptance lives in
 [the pixel fixture](tests/composition_pixels/README.md).
 
-From the repository root, run `node apps/mapgyver/tests/browser/native-editor.mjs`. This opt-in native
-WebView2/CDP candidate uses isolated profiles and the ordinary bundled host. Its recorded Windows
-run starts the app but exposes no requested CDP endpoint; it currently provides unavailable-route
-evidence, not a passing editor check. Do not substitute a browser-only preview for native input.
+From the repository root, run `node apps/mapgyver/tests/browser/native-navigation.mjs --composition`
+for real native handles/zoom/history, or `--composition-panels` for independent panel lifecycle.
+These passing WebView2/CDP flows use isolated profiles and the ordinary bundled host, and stop
+only their own app normally. `MAPGYVER_TEST_BINARY` can select an isolated executable.
+Browser-only previews do not qualify native imagery or physical timing.
 
 The [Matrix editor acceptance flow](tests/headless/MATRIX_REVIEW.md) saves an initially unlaunched
 ordinary project and checks the same authoring/playback contracts through the headless transport.

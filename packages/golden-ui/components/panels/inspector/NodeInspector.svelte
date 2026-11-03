@@ -175,6 +175,9 @@
 	};
 
 	const commitRename = async (): Promise<void> => {
+		if (!renamingState.isRenaming) return;
+		// Enter and the blur caused by closing the input must share one commit.
+		renamingState.isRenaming = false;
 		if (!node || !isNameChangeable) {
 			renamingState.isRenaming = false;
 			return;
@@ -187,7 +190,6 @@
 		}
 
 		await sendPatchMetaIntent(node.node_id, { label: nextName });
-		renamingState.isRenaming = false;
 	};
 
 	const persistCollapsed = (target: UiNodeDto, nextCollapsed: boolean): void => {

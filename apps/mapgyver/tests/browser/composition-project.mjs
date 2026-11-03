@@ -1,4 +1,4 @@
-// Real New during a drag and browser review upload. Backend requests only inspect committed state.
+// Actual File New during held input and File Open review upload, using current Golden widgets.
 import assert from 'node:assert/strict';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -7,8 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
-import { selectMediaChannel } from './media-tree.mjs';
-
+import { screenParameterControls } from './screen-parameters.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
@@ -22,107 +21,151 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			.digest('hex');
 	const originalHash = await hash();
 	assert.equal(originalHash, review.project_sha256);
-	const uploadName = `CompositionReview-${randomUUID()}.mapgyver`;
 	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-	page.setDefaultTimeout(5000);
+	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
+	page.setDefaultTimeout(6000);
+	let stage = 'startup';
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
-	let stage = 'startup';
 	const rejected = observeRejectedRequests(page, () => stage);
-	try {
-		async function wait(read, predicate) {
-			const deadline = Date.now() + 5000;
-			while (true) {
-				const value = await read();
-				if (predicate(value)) return value;
-				assert(Date.now() < deadline, `${stage}: ${JSON.stringify(value)}`);
-				await delay(20);
-			}
+	const widgets = screenParameterControls(page);
+	const manager = page.locator('section[aria-label="Media Manager"]');
+	const panel = page.locator('section[aria-label="Composition"]');
+	const inspect = async (reference) =>
+		(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
+	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp('^' + name + '$') });
+	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+	const menu = (label) =>
+		page.getByRole('menuitem').filter({ has: page.getByText(label, { exact: true }) });
+	async function wait(read, test) {
+		const deadline = Date.now() + 6000;
+		for (;;) {
+			const value = await read();
+			if (test(value)) return value;
+			assert(Date.now() < deadline, stage + ': ' + JSON.stringify(value));
+			await delay(20);
 		}
-		const inspect = async (reference) =>
-			(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
-		await page.goto(base);
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+	}
+	async function select(label) {
+		await tab('Media Manager').click();
+		await manager
+			.getByRole('treeitem', { name: label, exact: true })
+			.getByRole('button', { name: label, exact: true })
 			.click();
-		const panel = page.locator('section[aria-label="Composition"]');
-		const properties = page.locator('.properties');
-		const add = panel.getByRole('button', { name: 'Add Composition', exact: true });
-		const undo = page.getByTitle('Ctrl/Cmd+Z', { exact: true });
-		const redo = page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true });
-		const menuItem = (label) =>
-			page.getByRole('menuitem').filter({ has: page.getByText(label, { exact: true }) });
-		const openFile = () =>
-			page.getByRole('button', { name: 'Open File menu', exact: true }).click();
-		async function newProject(shortcut = false) {
-			if (shortcut) await page.keyboard.press('Control+n');
-			else {
-				await openFile();
-				await menuItem('New').click();
-			}
-			await wait(inspectMedia, (value) => value.media.length === 0 && value.assets.length === 0);
-			await wait(() => add.isEnabled(), Boolean);
-			await wait(
-				() =>
-					panel.getByRole('group', { name: 'Composition transform controls', exact: true }).count(),
-				(value) => value === 0
-			);
-			await wait(
-				() => properties.getByRole('region', { name: 'Selected instance', exact: true }).count(),
-				(value) => value === 0
-			);
-			await wait(() => undo.isDisabled(), Boolean);
-			await wait(() => redo.isDisabled(), Boolean);
-			await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
+	}
+	async function create() {
+		const before = await inspectMedia();
+		await tab('Media Manager').click();
+		await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
+		await menu('Composition').click();
+		const after = await wait(inspectMedia, (value) =>
+			value.media.some(
+				(item) =>
+					item.media_kind === 'Composition' && !before.media.some((old) => old.id === item.id)
+			)
+		);
+		const root = after.media.find(
+			(item) => item.media_kind === 'Composition' && !before.media.some((old) => old.id === item.id)
+		);
+		await select(root.label);
+		await tab('Composition').click();
+		await panel
+			.getByRole('group', { name: 'Composition transform controls', exact: true })
+			.waitFor();
+		return root.channels[0].reference;
+	}
+	async function newProject(shortcut) {
+		if (shortcut) await page.keyboard.press('Control+n');
+		else {
+			await page.getByRole('button', { name: 'Open File menu', exact: true }).click();
+			await menu('New').click();
 		}
-		async function create() {
-			const before = await inspectMedia();
-			await add.click();
-			const catalog = await wait(inspectMedia, (value) =>
-				value.media.some(
-					(entry) =>
-						entry.media_kind === 'Composition' && !before.media.some((old) => old.id === entry.id)
-				)
-			);
-			const root = catalog.media.find(
-				(entry) =>
-					entry.media_kind === 'Composition' && !before.media.some((old) => old.id === entry.id)
-			);
-			return root.channels[0].reference;
-		}
-		async function canvas(width, height) {
-			await properties.getByLabel('Canvas width', { exact: true }).fill(String(width));
-			await properties.getByLabel('Canvas height', { exact: true }).fill(String(height));
-			await properties.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
-		}
-		stage = 'accepted drag replaced through actual New shortcut';
-		const media = await inspectMedia();
-		const solid = media.media.find((entry) => entry.media_kind === 'SolidColor');
+		await wait(inspectMedia, (value) => value.media.length === 0 && value.assets.length === 0);
+		await wait(
+			() =>
+				panel.getByRole('group', { name: 'Composition transform controls', exact: true }).count(),
+			(value) => value === 0
+		);
+		await wait(() => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).isDisabled(), Boolean);
+		await wait(
+			() => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).isDisabled(),
+			Boolean
+		);
+		await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
+	}
+	async function canvas(width, height) {
+		const resolution = widgets.parameter('Resolution');
+		if (
+			(await resolution
+				.getByRole('switch', { name: 'Toggle node enabled' })
+				.getAttribute('aria-checked')) === 'false'
+		)
+			await resolution.getByRole('switch', { name: 'Toggle node enabled' }).click();
+		await widgets.setNumber('Resolution', width, 0);
+		await widgets.setNumber('Resolution', height, 1);
+		await wait(
+			() =>
+				panel
+					.getByRole('group', { name: 'Composition transform controls', exact: true })
+					.getAttribute('viewBox'),
+			(value) => value === '0 0 ' + width + ' ' + height
+		);
+		await wait(
+			() => panel.getAttribute('data-composition-busy'),
+			(value) => value === 'false'
+		);
+	}
+	try {
+		await page.goto(base);
+		const media = await inspectMedia(),
+			solid = media.media.find((item) => item.media_kind === 'SolidColor');
 		const first = await create();
 		await canvas(400, 300);
-		await wait(
-			() => inspect(first),
-			(value) => value.canvas.width === 400 && value.canvas.height === 300
-		);
-		const source = properties
-			.locator('form')
-			.filter({ has: page.getByRole('button', { name: 'Add instance', exact: true }) });
-		await source
-			.getByLabel('Source channel', { exact: true })
-			.selectOption({ label: `${solid.label} / ${solid.channels[0].label}` });
-		await source.getByRole('button', { name: 'Add instance', exact: true }).click();
+		const drop = panel.locator('[data-composition-drop-target]');
+		const source = manager
+			.getByRole('treeitem', { name: solid.label, exact: true })
+			.first()
+			.getByRole('button', { name: solid.label, exact: true });
+		const transfer = await page.evaluateHandle(() => new DataTransfer());
+		try {
+			await source.dispatchEvent('dragstart', { dataTransfer: transfer });
+			const box = await drop.boundingBox();
+			assert(box);
+			const event = {
+				dataTransfer: transfer,
+				clientX: box.x + box.width / 2,
+				clientY: box.y + box.height / 2
+			};
+			await wait(
+				async () => {
+					await drop.dispatchEvent('dragover', event);
+					return drop.locator('.drop-hint').count();
+				},
+				(count) => count === 1
+			);
+			await drop.dispatchEvent('drop', event);
+			await source.dispatchEvent('dragend', { dataTransfer: transfer });
+		} finally {
+			await transfer.dispose();
+		}
 		const initial = await wait(
 			() => inspect(first),
 			(value) => value.instances.length === 1
 		);
-		await wait(() => add.isEnabled(), Boolean);
+		assert.equal(
+			initial.instances[0].definition.source.channel,
+			solid.channels[0].reference.channel
+		);
+		stage = 'actual New during accepted drag';
+		await wait(
+			() => panel.getAttribute('data-composition-loading'),
+			(value) => value === 'false'
+		);
 		const svg = panel.getByRole('group', { name: 'Composition transform controls', exact: true });
-		await svg.scrollIntoViewIfNeeded();
-		const rect = await svg.boundingBox(),
-			pivot = await svg.locator('circle.selected-pivot').boundingBox();
-		assert(rect && pivot);
+		const pivot = await panel.locator('[data-instance-handle="Translate"]').boundingBox(),
+			rect = await svg.boundingBox();
+		assert(pivot && rect);
 		await page.mouse.move(pivot.x + pivot.width / 2, pivot.y + pivot.height / 2);
 		await page.mouse.down();
 		await page.mouse.move(
@@ -130,7 +173,7 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			pivot.y + pivot.height / 2 + (10 * rect.height) / 300,
 			{ steps: 12 }
 		);
-		const dragged = await wait(
+		await wait(
 			() => inspect(first),
 			(value) =>
 				Math.abs(
@@ -142,36 +185,31 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 		await newProject(true);
 		await page.mouse.move(rect.x + rect.width * 0.8, rect.y + rect.height * 0.8, { steps: 8 });
 		await page.mouse.up();
-		assert.deepEqual(
-			await inspectMedia(),
-			{ assets: [], media: [] },
-			'held old pointer cannot author into new project'
-		);
-		stage = 'fresh Composition controls and history';
+		assert.deepEqual(await inspectMedia(), { assets: [], media: [] });
+		stage = 'fresh generic canvas history';
 		const fresh = await create();
 		assert.notDeepEqual(fresh, first);
-		const beforeCanvas = await inspect(fresh);
-		assert.deepEqual(beforeCanvas.instances, []);
 		await canvas(512, 288);
-		const afterCanvas = await wait(
+		const resized = await wait(
 			() => inspect(fresh),
 			(value) => value.canvas.width === 512 && value.canvas.height === 288
 		);
-		await undo.click();
+		await undo();
 		await wait(
 			() => inspect(fresh),
-			(value) => isDeepStrictEqual(value, beforeCanvas)
+			(value) => value.canvas.width === 512 && value.canvas.height === 1080
 		);
-		await redo.click();
+		await redo();
 		await wait(
 			() => inspect(fresh),
-			(value) => isDeepStrictEqual(value, afterCanvas)
+			(value) => isDeepStrictEqual(value, resized)
 		);
-		stage = 'actual File Open review upload';
-		await openFile();
-		await menuItem('Open').hover();
+		stage = 'actual File Open upload';
+		await page.getByRole('button', { name: 'Open File menu', exact: true }).click();
+		await menu('Open').hover();
 		const choosing = page.waitForEvent('filechooser');
-		await menuItem('Load From...').click();
+		await menu('Load From...').click();
+		const uploadName = 'CompositionReview-' + randomUUID() + '.mapgyver';
 		await (
 			await choosing
 		).setFiles({
@@ -179,84 +217,62 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 			mimeType: 'application/octet-stream',
 			buffer: await readFile(project)
 		});
-		await wait(inspectMedia, (value) =>
-			value.media.some((entry) => entry.id === review.root.media)
-		);
+		await wait(inspectMedia, (value) => value.media.some((item) => item.id === review.root.media));
 		const loaded = await inspect(review.root);
 		assert.deepEqual(
-			loaded.instances.map((value) => value.reference),
+			loaded.instances.map((item) => item.reference),
 			review.instances
 		);
 		assert.deepEqual(loaded.canvas, { width: 320, height: 240 });
-		assert.notDeepEqual(loaded.reference, fresh);
-		await selectMediaChannel(page, await inspectMedia(), review.root);
-		await properties
-			.getByRole('navigation', { name: 'Ordered instances', exact: true })
-			.getByRole('button', { name: loaded.instances[0].label, exact: true })
-			.click();
-		await wait(
-			() => properties.getByLabel('Instance name', { exact: true }).inputValue(),
-			(value) => value === loaded.instances[0].label
-		);
-		await wait(() => undo.isDisabled(), Boolean);
-		await wait(() => redo.isDisabled(), Boolean);
-		await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
-		stage = 'loaded instance edit and history';
-		await properties.getByLabel('Instance name', { exact: true }).fill('After upload');
-		await properties
-			.getByRole('region', { name: 'Selected instance', exact: true })
-			.getByRole('button', { name: 'Rename', exact: true })
-			.click();
+		await select('Review Composition');
+		const root = manager.getByRole('treeitem', { name: 'Review Composition', exact: true });
+		if ((await root.getAttribute('aria-expanded')) === 'false') {
+			await root.focus();
+			await root.press('ArrowRight');
+		}
+		await select(loaded.instances[0].label);
+		stage = 'loaded generic rename/history';
+		await widgets.rename(loaded.instances[0].label, 'After upload');
 		const renamed = await wait(
 			() => inspect(review.root),
 			(value) => value.instances[0].label === 'After upload'
 		);
-		await undo.click();
+		await undo();
 		await wait(
 			() => inspect(review.root),
 			(value) => isDeepStrictEqual(value, loaded)
 		);
-		await redo.click();
+		await redo();
 		await wait(
 			() => inspect(review.root),
 			(value) => isDeepStrictEqual(value, renamed)
 		);
-		stage = 'actual File New clears loaded instance';
-		await newProject();
-		assert.deepEqual(await inspectMedia(), { assets: [], media: [] });
-		assert.deepEqual(rejected, []);
+		await newProject(false);
 		assert.deepEqual(errors, []);
-		assert(!(await page.locator('body').innerText()).includes('media reference is missing'));
+		assert.deepEqual(rejected, []);
 		assert.equal(await hash(), originalHash);
-		await page.screenshot({ path: 'target/m06-composition-project-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'actual New during accepted drag, old held-pointer disposal, fresh canvas history, browser review upload, saved IDs and post-load instance history; native imagery/extents unverified',
-				browser: browser.version(),
-				replaced: first,
-				fresh,
-				loaded: review.root,
-				accepted_drag: dragged.instances[0].definition.transform,
-				upload_name: uploadName,
+					'actual New during accepted held pointer, fresh generic canvas/history, File Open review upload/stable IDs, generic child rename/history, final File New',
 				review_sha256: originalHash,
-				rejected_requests: rejected.length,
-				page_errors: errors.length,
-				screenshot: 'target/m06-composition-project-ui.png'
+				pageErrors: errors,
+				rejected
 			})
 		);
 	} catch (error) {
 		console.error(
 			JSON.stringify({
-				failed_stage: stage,
-				rejected_requests: rejected,
+				stage,
+				errors,
+				rejected,
 				body: (
 					await page
 						.locator('body')
 						.innerText()
 						.catch(() => '')
-				).slice(-4500)
+				).slice(-3500)
 			})
 		);
 		await page

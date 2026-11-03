@@ -1,402 +1,396 @@
-// Actual bundled Composition input. Public backend operations below only inspect committed state.
+// Current typed Composition panels: real selection, Inspector, follow/lock, history and lifetime.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
+import path from 'node:path';
 import { observeRejectedRequests } from './intent-observer.mjs';
-import { selectMediaChannel } from './media-tree.mjs';
-
+import { screenParameterControls } from './screen-parameters.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
-const near = (actual, expected, epsilon = 0.05) =>
-	actual.every((value, index) => Math.abs(value - expected[index]) < epsilon);
 
-export async function verifyCompositionUi({ base, edit, inspectMedia }) {
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-	page.setDefaultTimeout(5000);
-	const errors = [];
-	page.on('pageerror', (error) => errors.push(String(error)));
+export async function verifyCompositionUi({
+	base,
+	edit,
+	post,
+	directory,
+	page: nativePage = null
+}) {
+	const { reference: source } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'SolidColor',
+		label: 'Panel source'
+	});
+	await edit({
+		kind: 'ConfigureMediaResolution',
+		media: source.media,
+		size: { kind: 'Fixed', extent: { width: 20, height: 16 } }
+	});
+	const owners = [];
+	for (const [label, count] of [
+		['Panel A', 130],
+		['Panel B', 1]
+	]) {
+		const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Composition', label });
+		await edit({
+			kind: 'ConfigureMediaResolution',
+			media: reference.media,
+			size: { kind: 'Fixed', extent: { width: 400, height: 300 } }
+		});
+		await edit({
+			kind: 'Composition',
+			reference,
+			edit: { kind: 'AddInstances', sources: Array(count).fill(source) }
+		});
+		owners.push(reference);
+	}
+	const inspect = async (reference) =>
+		(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
+	const initial = await inspect(owners[0]),
+		selected = initial.instances.at(-1).reference.instance;
+	await edit({
+		kind: 'Composition',
+		reference: owners[0],
+		edit: { kind: 'RenameInstance', instance: selected, label: 'Off-page child' }
+	});
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1100 } }));
+	page.setDefaultTimeout(7000);
+	const errors = [],
+		requests = [];
 	let stage = 'startup';
+	page.on('pageerror', (error) => errors.push(String(error)));
 	const rejected = observeRejectedRequests(page, () => stage);
-	try {
-		async function wait(read, predicate) {
-			const deadline = Date.now() + 5000;
-			while (true) {
-				const value = await read();
-				if (predicate(value)) return value;
-				assert(Date.now() < deadline, `${stage}: ${JSON.stringify(value)}`);
-				await delay(20);
+	page.on('websocket', (socket) =>
+		socket.on('framesent', ({ payload }) => {
+			try {
+				const frame = JSON.parse(String(payload));
+				if (frame.kind === 'intent' && frame.intent?.payload?.kind === 'InspectCompositionEditor')
+					requests.push(frame.intent.payload.query);
+			} catch {}
+		})
+	);
+	await page.addInitScript(() => {
+		window.__compositionSockets = [];
+		const Original = window.WebSocket;
+		window.WebSocket = class extends Original {
+			constructor(...args) {
+				super(...args);
+				window.__compositionSockets.push(this);
 			}
+		};
+	});
+	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp('^' + name + '$') });
+	const panel = (id) =>
+		page.locator('section[data-composition-locked][data-panel-id="' + id + '"]');
+	const main = panel('composition'),
+		widgets = screenParameterControls(page);
+	async function wait(read, test) {
+		const deadline = Date.now() + 7000;
+		for (;;) {
+			const value = await read();
+			if (test(value)) return value;
+			assert(Date.now() < deadline, stage + ': ' + JSON.stringify(value));
+			await delay(20);
 		}
-		await page.goto(base);
-		const tab = page.getByRole('tab').filter({ hasText: /^Composition$/ });
-		await tab.click();
-		const panel = page.locator('section[aria-label="Composition"]');
-		const properties = page.locator('.properties');
-		const addComposition = panel.getByRole('button', { name: 'Add Composition', exact: true });
-		const ready = () => wait(() => addComposition.isEnabled(), Boolean);
-		const media = await inspectMedia();
-		await addComposition.click();
-		const catalog = await wait(inspectMedia, (value) =>
-			value.media.some((entry) => entry.media_kind === 'Composition')
-		);
-		const reference = catalog.media.find((entry) => entry.media_kind === 'Composition').channels[0]
-			.reference;
-		const inspect = async () =>
-			(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
-		const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
-		const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
-		async function restore(before, after) {
-			await undo();
-			await wait(inspect, (value) => isDeepStrictEqual(value, before));
-			await redo();
-			await wait(inspect, (value) => isDeepStrictEqual(value, after));
-			await ready();
-		}
-		stage = 'canvas and cycle rejection';
-		const initial = await inspect();
-		await properties.getByLabel('Canvas width', { exact: true }).fill('400');
-		await properties.getByLabel('Canvas height', { exact: true }).fill('300');
-		await properties.getByRole('button', { name: 'Apply channel settings', exact: true }).click();
-		const resized = await wait(
-			inspect,
-			(value) => value.canvas.width === 400 && value.canvas.height === 300
-		);
-		await ready();
+	}
+	async function target(panel, reference) {
 		await wait(
-			() =>
-				panel
-					.getByRole('group', { name: 'Composition transform controls' })
-					.getAttribute('viewBox'),
-			(value) => value === '0 0 400 300'
+			() => panel.getAttribute('data-composition-channel'),
+			(value) => value === reference.channel
 		);
-		const outer = await panel.boundingBox(),
-			canvas = await panel.locator('.editor-canvas').boundingBox();
-		assert(
-			canvas.width >= outer.width * 0.95 && canvas.height >= outer.height * 0.8,
-			'Composition canvas fills its panel'
+		await wait(
+			() => panel.getAttribute('data-composition-loading'),
+			(value) => value === 'false'
+		);
+	}
+	async function select(label) {
+		await tab('Media Manager').click();
+		const manager = page.locator('section[aria-label="Media Manager"]');
+		const search = manager.locator('input[type="search"]');
+		await search.fill(label);
+		await manager
+			.getByRole('treeitem', { name: label, exact: true })
+			.getByRole('button', { name: label, exact: true })
+			.click();
+		await search.fill('');
+	}
+	async function settled(count) {
+		if (!nativePage) return;
+		await page.waitForFunction((count) => {
+			const views = [
+				...document.querySelectorAll('section[data-composition-locked] .native-preview')
+			].filter((node) => node.getBoundingClientRect().width > 0);
+			return (
+				views.length === count &&
+				views.every(
+					(node) =>
+						node.dataset.previewState === 'available' && node.dataset.previewInstalled === 'true'
+				) &&
+				!document.querySelector('[data-native-preview-retirement]')
+			);
+		}, count);
+	}
+	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+	try {
+		if (nativePage) await page.reload();
+		else await page.goto(base);
+		await select('Panel A');
+		await tab('Composition').click();
+		await target(main, owners[0]);
+		assert.equal(
+			await main.getByRole('button', { name: 'Add Composition', exact: true }).count(),
+			0
 		);
 		assert.equal(
-			await panel.locator('input,select,fieldset').count(),
+			await main.getByRole('button', { name: 'Refresh Composition', exact: true }).count(),
+			0
+		);
+		assert.equal(
+			await main.locator('.editor-toolbar').getByText('Channel 1', { exact: true }).count(),
+			0
+		);
+		assert.equal(
+			await main.locator('input,select,fieldset').count(),
 			0,
-			'Composition parameters belong in Inspector'
+			'ordinary settings stay in Inspector'
 		);
-		const stableBounds = await panel
-			.getByRole('group', { name: 'Composition transform controls' })
-			.boundingBox();
-		const add = properties
-			.locator('form')
-			.filter({ has: page.getByRole('button', { name: 'Add instance', exact: true }) });
-		const root = catalog.media.find((entry) => entry.media_kind === 'Composition');
-		await add
-			.getByLabel('Source channel', { exact: true })
-			.selectOption({ label: `${root.label} / ${root.channels[0].label}` });
-		await add.getByRole('button', { name: 'Add instance', exact: true }).click();
-		await panel.getByRole('alert').waitFor();
-		const rejectedBounds = await panel
-			.getByRole('group', { name: 'Composition transform controls' })
-			.boundingBox();
-		assert(
-			stableBounds &&
-				rejectedBounds &&
-				['x', 'y', 'width', 'height'].every(
-					(key) => Math.abs(stableBounds[key] - rejectedBounds[key]) < 0.01
-				),
-			`Error visibility cannot shift Composition geometry: ${JSON.stringify({ stableBounds, rejectedBounds })}`
+		stage = 'off-page selected child and generic Inspector';
+		await select('Off-page child');
+		await target(main, owners[0]);
+		await widgets.number('Position').waitFor();
+		const before = await inspect(owners[0]);
+		await widgets.setNumber('Position', 123);
+		const changed = await wait(
+			() => inspect(owners[0]),
+			(value) => value.instances.at(-1).definition.transform.position[0] === 123
 		);
-		assert.deepEqual(await inspect(), resized);
-		await restore(initial, resized);
-		const solid = media.media.find((entry) => entry.media_kind === 'SolidColor');
-		const picture = media.media.find((entry) => entry.media_kind === 'Picture');
-		let createdCount = 0;
-		for (const source of [solid, picture]) {
-			await add.getByLabel('Find source channel', { exact: true }).fill(source.label);
-			await add
-				.getByLabel('Source channel', { exact: true })
-				.selectOption({ label: `${source.label} / ${source.channels[0].label}` });
-			await add.getByRole('button', { name: 'Add instance', exact: true }).click();
-			await ready();
-			createdCount++;
-			const created = await wait(inspect, (value) => value.instances.length === createdCount);
-			await wait(
-				() => properties.getByLabel('Instance name', { exact: true }).inputValue(),
-				(value) => value === created.instances.at(-1).label
-			);
-		}
-		let snapshot = await wait(inspect, (value) => value.instances.length === 2);
-		const primary = snapshot.instances[0].reference.instance;
-		const peer = snapshot.instances[1];
-		const navigation = properties.getByRole('navigation', {
-			name: 'Ordered instances',
-			exact: true
-		});
-		await navigation
-			.getByRole('button', { name: snapshot.instances[0].label, exact: true })
-			.click();
-		assert.deepEqual(await inspect(), snapshot, 'selection does not author');
-		const form = properties.getByRole('region', { name: 'Selected instance', exact: true });
-		stage = 'complete instance form';
-		await form.getByLabel('Instance name', { exact: true }).fill('UI Instance');
-		await form.getByRole('button', { name: 'Rename', exact: true }).click();
-		await wait(inspect, (value) => value.instances[0].label === 'UI Instance');
-		snapshot = await inspect();
-		await form
-			.getByLabel('Source channel', { exact: true })
-			.selectOption({ label: `${solid.label} / ${solid.channels[1].label}` });
-		for (const [label, value] of Object.entries({
-			'Position X': 200,
-			'Position Y': 150,
-			'Scale X': -1.2,
-			'Scale Y': 0.8,
-			'Pivot X': 0.3,
-			'Pivot Y': 0.7,
-			'Rotation (radians, clockwise)': 0.25,
-			Opacity: 0.6
-		}))
-			await form.getByLabel(label, { exact: true }).fill(String(value));
-		await form.getByRole('combobox', { name: /^Blend/ }).selectOption('Screen');
-		await form.getByLabel('Enabled', { exact: true }).uncheck();
-		assert.deepEqual(await inspect(), snapshot, 'form edits remain drafts');
-		await form.getByRole('button', { name: 'Apply instance', exact: true }).click();
-		let after = await wait(inspect, (value) => value.instances[0].definition.blend === 'Screen');
-		assert.deepEqual(after.instances[0].definition, {
-			...snapshot.instances[0].definition,
-			source: solid.channels[1].reference,
-			transform: {
-				position: [200, 150],
-				scale: [-1.2, 0.8].map(Math.fround),
-				pivot: [0.3, 0.7].map(Math.fround),
-				rotation_degrees: 15
-			},
-			opacity: Math.fround(0.6),
-			blend: 'Screen',
-			enabled: false
-		});
-		assert.deepEqual(after.instances[1], peer);
-		await restore(snapshot, after);
-		stage = 'order copy removal';
-		snapshot = after;
-		await navigation.getByRole('button', { name: 'Move UI Instance later', exact: true }).click();
-		after = await wait(inspect, (value) => value.instances[1].reference.instance === primary);
-		await restore(snapshot, after);
-		snapshot = after;
-		await properties.getByRole('button', { name: 'Duplicate', exact: true }).click();
-		after = await wait(inspect, (value) => value.instances.length === 3);
-		const copy = after.instances.find(
-			(entry) =>
-				!snapshot.instances.some((before) => before.reference.instance === entry.reference.instance)
-		);
-		assert(copy);
-		assert.deepEqual(copy.definition, snapshot.instances[1].definition);
-		await wait(
-			() => form.getByLabel('Instance name', { exact: true }).inputValue(),
-			(value) => value === copy.label
-		);
-		await properties.getByRole('button', { name: 'Remove', exact: true }).click();
-		await wait(inspect, (value) => value.instances.length === 2);
-		await properties.getByRole('textbox', { name: 'Channel name', exact: true }).waitFor();
+		assert.deepEqual(changed.instances.slice(0, -1), before.instances.slice(0, -1));
 		await undo();
-		await wait(inspect, (value) => isDeepStrictEqual(value, after));
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, before)
+		);
 		await redo();
-		await wait(inspect, (value) => value.instances.length === 2);
-		await undo();
-		await wait(inspect, (value) => isDeepStrictEqual(value, after));
-		await ready();
-		await navigation.getByRole('button', { name: 'UI Instance', exact: true }).click();
-		const current = async () =>
-			(await inspect()).instances.find((entry) => entry.reference.instance === primary);
-		const svg = panel.getByRole('group', { name: 'Composition transform controls', exact: true });
-		async function begin(selector) {
-			await ready();
-			// History commits can reach the public read before the panel has rendered their response.
-			const expected = (await current()).definition.transform;
-			for (const [label, value] of Object.entries({
-				'Position X': expected.position[0],
-				'Position Y': expected.position[1],
-				'Scale X': expected.scale[0],
-				'Scale Y': expected.scale[1],
-				Rotation: expected.rotation_degrees
-			}))
-				await wait(
-					async () => Number(await form.getByLabel(label, { exact: true }).inputValue()),
-					(actual) => Math.fround(actual) === value
-				);
-			await svg.scrollIntoViewIfNeeded();
-			const rect = await svg.boundingBox();
-			const handle = await panel.locator(selector).boundingBox();
-			assert(rect && handle, 'naturally rendered handles need geometry');
-			const point = {
-				x: ((handle.x + handle.width / 2 - rect.x) * 400) / rect.width,
-				y: ((handle.y + handle.height / 2 - rect.y) * 300) / rect.height
-			};
-			await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
-			await page.mouse.down();
-			return { rect: await svg.boundingBox(), point };
-		}
-		const move = async (rect, point, steps = 12) =>
-			page.mouse.move(
-				rect.x + (point.x * rect.width) / 400,
-				rect.y + (point.y * rect.height) / 300,
-				{ steps }
-			);
-		for (const [mode, selector] of [
-			['Translate', 'button[data-instance-handle="Translate"]'],
-			['Rotate', 'button[data-instance-handle="Rotate"]'],
-			['Scale', 'button[data-instance-handle="Scale"]']
-		]) {
-			stage = `${mode} grouped gesture`;
-			snapshot = await inspect();
-			const before = (await current()).definition.transform;
-			const { rect, point } = await begin(selector);
-			const [x, y] = before.position;
-			let target;
-			if (mode === 'Translate') target = { x: point.x + 30, y: point.y + 20 };
-			if (mode === 'Rotate') {
-				const angle = Math.PI / 4;
-				target = {
-					x: x + Math.cos(angle) * (point.x - x) - Math.sin(angle) * (point.y - y),
-					y: y + Math.sin(angle) * (point.x - x) + Math.cos(angle) * (point.y - y)
-				};
-			}
-			if (mode === 'Scale') target = { x: x + 2 * (point.x - x), y: y + 2 * (point.y - y) };
-			await move(rect, target);
-			await page.mouse.up();
-			await ready();
-			const transform = (await current()).definition.transform;
-			if (mode === 'Translate') assert(near(transform.position, [x + 30, y + 20], 2));
-			if (mode === 'Rotate')
-				assert(
-					Math.abs(transform.rotation_degrees - before.rotation_degrees - 45) <
-						(0.05 * 180) / Math.PI
-				);
-			if (mode === 'Scale')
-				assert(
-					near(
-						transform.scale,
-						before.scale.map((value) => value * 2),
-						0.08
-					),
-					JSON.stringify({ mode, before, transform, point, target, rect })
-				);
-			const field = { Translate: 'position', Rotate: 'rotation_degrees', Scale: 'scale' }[mode];
-			assert.deepEqual(transform, { ...before, [field]: transform[field] });
-			after = await inspect();
-			assert.deepEqual(after, {
-				...snapshot,
-				instances: snapshot.instances.map((entry) =>
-					entry.reference.instance === primary
-						? { ...entry, definition: { ...entry.definition, transform } }
-						: entry
-				)
-			});
-			await restore(snapshot, after);
-		}
-		stage = 'Escape and invalid form';
-		snapshot = await inspect();
-		const { rect, point } = await begin('button[data-instance-handle="Translate"]');
-		await move(rect, { x: point.x + 12, y: point.y + 8 });
-		await wait(current, (value) =>
-			near(value.definition.transform.position, [point.x + 12, point.y + 8], 2)
-		);
-		const accepted = (await current()).definition.transform;
-		await page.keyboard.press('Escape');
-		await ready();
-		await move(rect, { x: point.x + 40, y: point.y + 40 });
-		await page.mouse.up();
-		assert.deepEqual(
-			(await current()).definition.transform,
-			accepted,
-			'Escape stops later held-pointer samples'
-		);
-		after = await inspect();
-		await restore(snapshot, after);
-		await form.getByLabel('Scale X', { exact: true }).fill('0');
-		await form.getByRole('button', { name: 'Apply instance', exact: true }).click();
-		await panel.getByRole('alert').waitFor();
-		assert.deepEqual(await inspect(), after);
-		await restore(snapshot, after);
-		stage = 'source loss and panel lifetime';
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
-			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
-		await manager.getByRole('button', { name: solid.label, exact: true }).click();
-		await properties.getByRole('button', { name: 'Delete media', exact: true }).click();
-		await wait(inspectMedia, (value) => !value.media.some((entry) => entry.id === solid.id));
-		await selectMediaChannel(page, await inspectMedia(), reference);
-		await navigation.getByRole('button', { name: 'UI Instance', exact: true }).click();
-		await tab.click();
 		await wait(
-			() =>
-				form
-					.getByLabel('Source channel', { exact: true })
-					.locator('option')
-					.filter({ hasText: 'Missing channel' })
-					.count(),
-			(value) => value === 1
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, changed)
 		);
-		assert.deepEqual(await inspect(), after);
-		await undo();
-		await wait(inspectMedia, (value) => value.media.some((entry) => entry.id === solid.id));
-		assert.deepEqual(await inspect(), after);
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
-			.click();
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
-			.click();
-		await tab.click();
-		await ready();
-		assert.deepEqual(await inspect(), after);
-		const finalCatalog = await inspectMedia();
-		assert.deepEqual(finalCatalog.assets, media.assets);
-		assert.deepEqual(
-			finalCatalog.media.filter((entry) => entry.id !== reference.media),
-			media.media
+		await main.getByRole('button', { name: 'Next instances', exact: true }).click();
+		await target(main, owners[0]);
+		await main.getByText('Page 2 / 2', { exact: true }).waitFor();
+		await widgets.setNumber('Rotation', 90);
+		await wait(
+			() => inspect(owners[0]),
+			(value) => value.instances.at(-1).definition.transform.rotation_degrees === 90
 		);
-		const outlineCount = await svg.locator('polygon').count();
-		await svg.scrollIntoViewIfNeeded();
-		await page.screenshot({ path: 'target/m06-composition-ui.png' });
-		assert.deepEqual(errors, []);
-		assert(rejected.length === 2, 'Cycle and zero-scale edits reject explicitly');
+		await main.getByRole('button', { name: 'Previous instances', exact: true }).click();
+		await target(main, owners[0]);
+		assert.equal(
+			Number(await widgets.number('Position').inputValue()),
+			123,
+			'off-page Inspector remains editable'
+		);
 		assert(
-			rejected.every(
-				(item) =>
-					item.request?.intent?.kind === 'invokeAppOperation' &&
-					item.request.intent.namespace === 'mapgyver.media' &&
-					item.request.intent.payload?.kind === 'Composition' &&
-					((item.request.stage === 'canvas and cycle rejection' &&
-						item.request.intent.payload.edit?.kind === 'AddInstances') ||
-						(item.request.stage === 'Escape and invalid form' &&
-							item.request.intent.payload.edit?.kind === 'ConfigureInstance'))
-			),
-			'No unrelated request may reject'
+			(await main.locator('svg polygon').count()) <= 129,
+			'bounded page plus independent selected object'
 		);
+		await main.getByRole('button', { name: 'Next instances', exact: true }).click();
+		await target(main, owners[0]);
+		await main.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		await select('Panel B');
+		await target(main, owners[0]);
+		stage = 'independent simultaneous panels';
+		const inspectorGroup = page
+			.getByRole('tab')
+			.filter({ hasText: /^Inspector(?:$|:)/ })
+			.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]');
+		await inspectorGroup
+			.getByRole('button', { name: 'Add panel in this group', exact: true })
+			.click();
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('Composition', { exact: true }) })
+			.click();
+		const secondId = await page
+			.locator('section[data-composition-locked]')
+			.evaluateAll(
+				(nodes) => nodes.find((node) => node.dataset.panelId !== 'composition')?.dataset.panelId
+			);
+		assert(secondId);
+		const peer = panel(secondId);
+		await target(peer, owners[1]);
+		await peer.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		await settled(2);
+		const boxes = await Promise.all([main.boundingBox(), peer.boundingBox()]);
+		assert(boxes.every((box) => box.width > 0 && box.height > 0));
+		assert(
+			boxes[0].x + boxes[0].width <= boxes[1].x + 1,
+			'simultaneous side-by-side workbench panels'
+		);
+		await page.waitForFunction(
+			({ id, channel }) =>
+				Object.entries(localStorage).some(
+					([key, value]) =>
+						key.endsWith('layout.v1') && value.includes(id) && value.includes(channel)
+				),
+			{ id: secondId, channel: owners[0].channel }
+		);
+		const project = path.join(directory, 'composition-panels.mapgyver');
+		assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+		stage = 'persisted layout and real reconnect';
+		await page.reload();
+		await target(main, owners[0]);
+		await target(peer, owners[1]);
+		await settled(2);
+		assert.equal(await main.getAttribute('data-composition-locked'), 'true');
+		assert.equal(await peer.getAttribute('data-composition-locked'), 'true');
+		await main.getByText('Page 2 / 2', { exact: true }).waitFor();
+		const sockets = await page.evaluate(() => window.__compositionSockets.length);
+		await page.evaluate(() => {
+			const socket = window.__compositionSockets.findLast(
+				(socket) => socket.readyState === WebSocket.OPEN && socket.url.includes('/api/ui/ws')
+			);
+			if (!socket) throw new Error('missing real application transport');
+			socket.close(4001, 'Composition recovery acceptance');
+		});
+		await page.waitForFunction(
+			(count) =>
+				window.__compositionSockets.length > count &&
+				window.__compositionSockets.some((socket) => socket.readyState === WebSocket.OPEN),
+			sockets
+		);
+		await target(main, owners[0]);
+		await target(peer, owners[1]);
+		await settled(2);
+		stage = 'peer close, unlock follow and structural history';
+		await peer
+			.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
+			.getByRole('tab')
+			.filter({ hasText: /^Composition$/ })
+			.getByRole('button', { name: 'Close panel', exact: true })
+			.click();
+		await settled(1);
+		await select('Panel B');
+		await main.getByRole('button', { name: 'Unlock Composition', exact: true }).click();
+		await target(main, owners[1]);
+		const original = await inspect(owners[1]);
+		await main.getByRole('button', { name: 'Copy instance', exact: true }).click();
+		const copied = await wait(
+			() => inspect(owners[1]),
+			(value) => value.instances.length === 2
+		);
+		assert.notEqual(
+			copied.instances[1].reference.instance,
+			original.instances[0].reference.instance
+		);
+		assert.deepEqual(
+			{ ...copied.instances[1].definition, source: original.instances[0].definition.source },
+			original.instances[0].definition
+		);
+		await wait(
+			() => main.getAttribute('data-composition-selected'),
+			(value) => value === copied.instances[1].reference.instance
+		);
+		await target(main, owners[1]);
+		await main.getByRole('button', { name: 'Remove instance', exact: true }).click();
+		const removed = await wait(
+			() => inspect(owners[1]),
+			(value) => value.instances.length === 1
+		);
+		assert.deepEqual(removed, original, 'remove acts on the newly selected independent copy');
+		await undo();
+		await wait(
+			() => inspect(owners[1]),
+			(value) => isDeepStrictEqual(value, copied)
+		);
+		await redo();
+		await wait(
+			() => inspect(owners[1]),
+			(value) => isDeepStrictEqual(value, removed)
+		);
+		await main.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		await target(main, owners[1]);
+		stage = 'New during held pointer and document-scoped reload';
+		const svg = main.getByRole('group', { name: 'Composition transform controls', exact: true });
+		const handle = main.locator('[data-instance-handle="Translate"]');
+		const bounds = await handle.boundingBox(),
+			canvas = await svg.boundingBox();
+		assert(bounds && canvas);
+		await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(
+			bounds.x + bounds.width / 2 + (canvas.width * 20) / 400,
+			bounds.y + bounds.height / 2 + (canvas.height * 10) / 300,
+			{ steps: 12 }
+		);
+		await wait(
+			() => inspect(owners[1]),
+			(value) =>
+				Math.abs(
+					value.instances[0].definition.transform.position[0] -
+						removed.instances[0].definition.transform.position[0] -
+						20
+				) < 2
+		);
+		assert.equal((await post('/api/ui/project-new', {})).ok, true);
+		await main
+			.getByText('Locked Composition unavailable in this project.', { exact: true })
+			.waitFor();
+		await page.mouse.move(canvas.x + canvas.width * 0.8, canvas.y + canvas.height * 0.8, {
+			steps: 8
+		});
+		await page.mouse.up();
+		assert.deepEqual((await edit({ kind: 'InspectManager' })).snapshot, { assets: [], media: [] });
+		await settled(0);
+		await post('/api/ui/project-load', { path: project });
+		await target(main, owners[1]);
+		await settled(1);
+		assert.deepEqual(
+			await inspect(owners[1]),
+			original,
+			'saved authoring restored, discarded held input cannot cross generations'
+		);
+		stage = 'tab lifetime';
+		await tab('Screen Warping').click();
+		await settled(0);
+		await tab('Composition').click();
+		await target(main, owners[1]);
+		await settled(1);
+		await main
+			.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
+			.getByRole('tab')
+			.filter({ hasText: /^Composition$/ })
+			.getByRole('button', { name: 'Close panel', exact: true })
+			.click();
+		await settled(0);
+		assert(
+			requests.length > 0 &&
+				requests.every((query) => query.count === 128 && (!query.locked || query.document)),
+			'all current Composition reads are bounded and locks are document-scoped'
+		);
+		assert.deepEqual(errors, []);
+		assert.deepEqual(rejected, []);
 		console.log(
 			JSON.stringify({
 				result: 'pass',
+				native: !!nativePage,
 				scope:
-					'actual Composition forms/source/order/copy/removal/translate/rotate/scale/Escape/rejection/source-loss/panel/history input; native preview and extent outlines remain unverified',
-				browser: browser.version(),
-				reference,
-				primary,
-				copy: copy.reference,
-				final_transform: accepted,
-				source_outline_count: outlineCount,
-				page_errors: errors.length,
-				expected_rejections: rejected.length,
-				screenshot: 'target/m06-composition-ui.png'
+					'bounded selected child/Inspector/history, simultaneous independent follow/lock/page state, layout reload, actual reconnect, copy/removal history, peer/tab retirement, New during held pointer and same-document Load',
+				instances: 130,
+				pageLimit: 128,
+				independentSelected: selected,
+				panelQueries: requests.length,
+				pageErrors: errors,
+				rejected
 			})
 		);
 	} catch (error) {
 		console.error(
 			JSON.stringify({
-				failed_stage: stage,
-				page_errors: errors,
-				rejected_requests: rejected,
+				stage,
+				errors,
+				rejected,
 				body: (
 					await page
 						.locator('body')
@@ -405,9 +399,9 @@ export async function verifyCompositionUi({ base, edit, inspectMedia }) {
 				).slice(-3500)
 			})
 		);
-		await page.screenshot({ path: 'target/m06-composition-ui-failure.png' }).catch(() => {});
+		await page.screenshot({ path: 'target/m06-panels-failure.png' }).catch(() => {});
 		throw error;
 	} finally {
-		await browser.close();
+		await browser?.close();
 	}
 }

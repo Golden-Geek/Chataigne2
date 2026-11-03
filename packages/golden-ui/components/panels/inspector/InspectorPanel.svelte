@@ -365,6 +365,9 @@
 	};
 
 	const commitRename = async (): Promise<void> => {
+		if (!renamingState.isRenaming) return;
+		// Closing the input may emit blur before the asynchronous receipt arrives.
+		renamingState.isRenaming = false;
 		if (!node || !isNameChangeable) {
 			renamingState.isRenaming = false;
 			return;
@@ -377,7 +380,6 @@
 		}
 
 		await sendPatchMetaIntent(node.node_id, { label: nextName });
-		renamingState.isRenaming = false;
 	};
 
 	$effect(() => {

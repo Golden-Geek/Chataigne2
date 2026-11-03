@@ -41,8 +41,11 @@ missing/Undo, deep/large graphs and compiled production sharing. The five-produc
 software proof satisfied the retained return trigger. [M06/3 native Composition](../progress/mapgyver-m06-native.md)
 now passes all nine original stages on both GPUs, including the active black preview canvas,
 with unchanged scenes/quantization/error tolerance/budgets. [M06/4's anchored editor](../progress/mapgyver-m06-editor.md)
-also passes actual native resize/rotation/cursor, pointer/history/zoom and tab lifetime. Next is
-M06/5's bounded independent follow/lock panels and persisted state. This follows the functional dependencies
+also passes actual native resize/rotation/cursor, pointer/history/zoom and tab lifetime.
+[M06/5's independent panels](../progress/mapgyver-m06-panels.md) now pass bounded selected lookup,
+persisted follow/lock/page choices, actual reconnect/project/tab/native lifetime and the current
+generic Inspector/File Open/New regressions. M06 is complete. Next is M08/2's reusable typed
+app-control configuration boundary, then revised Matrix integration. This follows the functional dependencies
 above without waiving physical/timing gates or changing qualification budgets.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
