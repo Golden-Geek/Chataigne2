@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-03",
 	"gate": "M05/6",
-	"state": "Active: native image/decorations/frame paint verified; moving-frame native hit routing remains unverified",
+	"state": "Accepted M05/6 and M05/7: native paint, accepted-frame hit/projection and complete native editor input verified; physical/latency qualification remains separate",
 	"baseline": {
 		"fixture": "native-alignment.mjs target/mapgyver-screen-zoom-20261103-0925 --zoom",
 		"native_samples": 24,
@@ -51,6 +51,32 @@
 		"remaining": "M05/6 Active: native paint uses the sampled frame placement, but DOM hits/point conversion still follow the latest browser camera. Implement bounded presented-placement input during animation before accepting it. M05/7 internal-landmark paint proof passes; its shared moving-frame input contract remains Pending. Original physical DPI, latency and performance qualification remains required.",
 		"cleanup": "Both final capture fixtures and all five owned native interaction fixtures exited normally 0; no owned app/capture worker remains. Only owned processes were closed; no action targeted the user's dev app."
 	},
-	"current_binary_note": "Current ordinary bundled target/debug/deps/MapGyver-codex-review.exe SHA256 e07af8e4b560dd788694a58d613a7e076b7169645453a0fae392aaf104a94b3a, built with cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review, exit 0. Contains native/frame painting and missing-row repair; the rejected scheduling candidate is absent.",
-	"gate_changes": "M05/6 stays sole Active gate. M05/7 Accepted -> Pending after evidence audit; M05 returns to 4/10 (40%), accepted gates 29/57 (51%), phases 3/11 (27%). M05/10 remains Accepted. Every original requirement and budget remains unchanged."
+	"native_input_delivery": {
+		"owner": "Golden Video stores desired, sampled and accepted geometry separately, reserving all three bounded decoration/identity arrays. An exact completion token from the bound accepting output alone promotes input geometry. Golden preview UI routes event-driven native projection/hits to accessible DOM controls; MapGyver supplies opaque IDs and uses the public capture adapter.",
+		"protocol": "Preview v3 Pointer request/PreviewPointer response and bounded optional OverlayPrimitive.hit are generated from Rust. Query validates session/source/view, host viewport and finite coordinates without changing layout or leases. Source, session, device and project lifetimes fence obsolete input. Clipped captured motion retains unclamped projection without a new hit.",
+		"event_bounds": "One query in flight, one latest move and one terminal event; no frame polling. Real viewport capture and logical control capture preserve delayed down/up, drag, Escape, blur and disposal. Native input is enabled only for installed decorated views; ordinary keyboard/DOM fallback and Space/middle navigation remain available.",
+		"screen_motion": {
+			"directory": "target/mapgyver-screen-native-hit-final-20261103-1044",
+			"correct_hits": 16,
+			"samples": 16,
+			"max_native_dom_separation_css": 42.0112794877,
+			"scope": "Actual bundled native Pointer queries during smooth zoom, with at least three accepted image widths. Correct corner follows accepted image despite newer DOM camera. This is neither an injected moving-target OS click nor a physical latency measurement."
+		},
+		"source_motion": {
+			"directory": "target/mapgyver-source-native-hit-final-20261103-1044",
+			"correct_hits": 16,
+			"samples": 16,
+			"max_native_dom_separation_css": 36.5307832148,
+			"scope": "Actual bundled native Pointer queries during Source zoom, at least three accepted image widths; uses the internal Picture landmark scene."
+		},
+		"browser": "target/mapgyver-native-input-retention-browser.log: actual browser mouse retargets hidden DOM controls with 250 CSS-pixel image offset; projected down/up, coalesced out-of-aperture drag, Escape and source fences, maximum one concurrent query all pass. Existing lifecycle/scale-3/recovery/continuity checks pass without page errors.",
+		"native": "Selection and keyboard suites pass in target/mapgyver-native-input-selection.log and target/mapgyver-native-input-keyboard.log. Final target/mapgyver-native-input-retention-translation.log, -fit.log and -source.log all exit 0: Alt body/corner at zoom, whole-quad shape preservation, grouped Undo, pan isolation, Escape/New while held, Fill/Fit and automatic Picture sizing, generic Inspector/calibration/crop/live-before-release/source-loss/history input. No page errors or unexpected crop rejections.",
+		"repairs": "Initial Alt-drag caught clearing accepted geometry when a replacement plan was pending. Retain the visible accepted image's input until replacement, loss or lifetime fencing; regression now passes. Space/middle held navigation moves bypass native editing admission. Translation and Fit fixtures now await asynchronous background-selection delivery before asserting immediate UI state; expected product values and budgets are unchanged.",
+		"fixture_correction": "An attempted invoke interception was removed after the installed Tauri primary source confirmed invoke is immutable. Final native fixture uses read-only session/view/source metadata and actual pointer RPC; no production interception or scheduler probe remains.",
+		"software": "Golden Video 181 pass/20 hardware ignores after retention fix, strict golden_video/MapGyver lib+tests Clippy exit 0 and ordinary bundled isolated build exit 0. Earlier unchanged MapGyver suite 338 pass/2 hardware ignores, preview UI 30 and app Screen UI 25 pass; both UI checks have 0 errors/0 warnings. Generated contracts, browser lifecycle/native input and root/golden_core formatting pass.",
+		"scope_limits": "Combines retained actual native paint captures, actual accepted-frame moving-hit queries, browser offset event-routing and actual native interaction suites. It does not claim OS scanout synchronization, input-to-photon latency, physical display-matrix coverage or final renderer performance qualification.",
+		"cleanup": "All final native fixtures exit normally; no owned MapGyver-codex-review process remains. Only isolated owned test apps were targeted. User dev app and unrelated checkout changes remain untouched."
+	},
+	"current_binary_note": "Current ordinary bundled target/debug/deps/MapGyver-codex-review.exe SHA256 3dcaaf49ce75be2787aaebba4ded850a4c36acf48ed57547fc77f1c1b2229195, built with cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review, exit 0. Contains accepted-frame native input, retention/navigation repairs and prior native painting; the rejected scheduling candidate is absent.",
+	"gate_changes": "M05/6 Active -> Accepted and M05/7 Pending -> Accepted. M05 is 6/10 (60%); accepted gates 31/57 (54%); phases 3/11 (27%). M05/9 becomes the sole Active gate for the next product batch after delivery. Denominators, every original requirement and physical/performance budgets remain unchanged. The earlier delivery subsection records its then-open input requirement, superseded by native_input_delivery above."
 }

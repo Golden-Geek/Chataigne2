@@ -5,6 +5,7 @@
 	import { observePreviewLayout } from './observation';
 	import type { PreviewSession, PreviewSessionState, PreviewRegistration } from './session';
 	import type { OverlayPrimitive } from './generated/OverlayPrimitive';
+	import { observeNativeInput } from './native-input';
 
 	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
 		source: string;
@@ -15,6 +16,8 @@
 		overlays?: OverlayPrimitive[];
 		overlayCapacity?: number;
 		onpresentationchange?(nativeOverlays: boolean): void;
+		nativeInput?: boolean;
+		lifetime?: string | number;
 	};
 	let {
 		source,
@@ -25,10 +28,13 @@
 		overlays = [],
 		overlayCapacity = 0,
 		onpresentationchange,
+		nativeInput = false,
+		lifetime = 0,
 		...attributes
 	}: Props = $props();
 	let element: HTMLDivElement;
 	let availability = $state<PreviewSessionState['availability']>('idle');
+	let sessionIdentity = $state<string | null>(null);
 	let installed = $state(false);
 	let presentedViews = $state<readonly string[]>([]);
 	let registrationError = $state(false);
@@ -45,6 +51,15 @@
 	$effect(() => {
 		onpresentationchange?.(nativeOverlays);
 	});
+	$effect(() => {
+		if (!nativeInput || !nativeOverlays || !registration || !element) return;
+		const view = registration;
+		return observeNativeInput(
+			element,
+			(x, y) => view.pointer(x, y),
+			() => nativeOverlays
+		);
+	});
 
 	$effect(() => {
 		if (!element) return;
@@ -57,8 +72,10 @@
 
 	$effect(() => {
 		if (!element || !visible || !inViewport) return;
+		lifetime;
 		const owner = session;
 		const unsubscribe = owner.subscribe((state) => {
+			sessionIdentity = state.session;
 			availability = state.availability;
 			installed = state.installed;
 			presentedViews = state.presentedViews;
@@ -108,6 +125,9 @@
 	class="native-preview {attributes.class ?? ''}"
 	data-preview-state={availability}
 	data-preview-installed={installed}
+	data-preview-view={registration?.id}
+	data-preview-session={sessionIdentity}
+	data-preview-source={source}
 	data-native-overlays={nativeOverlays}
 	aria-label={label}
 >

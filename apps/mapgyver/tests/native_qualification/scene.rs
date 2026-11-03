@@ -134,7 +134,7 @@ pub fn plan(
                 output: texture(4),
                 descriptor: internal(editor),
                 operation: RenderOperation::Regions {
-                    regions: preview.regions(|key| {
+                    regions: preview.regions(output(EDITOR_OUTPUT), |key| {
                         SOURCE_KEYS
                             .iter()
                             .position(|source| *source == key)

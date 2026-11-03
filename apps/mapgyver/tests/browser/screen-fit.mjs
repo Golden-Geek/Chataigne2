@@ -205,6 +205,7 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 		const rect = await main.locator('.active-zone').boundingBox();
 		assert(rect);
 		await page.mouse.click(rect.x + rect.width * 0.95, rect.y + rect.height * 0.05);
+		await page.waitForFunction((element) => element.disabled, await fill.elementHandle());
 		assert(await fill.isDisabled());
 		assert(await fit.isDisabled());
 		assert.deepEqual(await inspect(), before);

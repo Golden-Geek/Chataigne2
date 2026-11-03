@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { ViewportHandle } from 'golden_ui';
-	import type { OverlayPrimitive } from 'golden_video_ui';
+	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
 	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { SurfaceId } from './generated/SurfaceId';
@@ -60,6 +60,7 @@
 			imageFrameOverlay(rem),
 			...visible.map((item) =>
 				quadOverlay(item.definition.quad.corners, rem, {
+					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
 					enabled: item.definition.enabled,
 					valid: item.mapping_valid
@@ -70,7 +71,9 @@
 					handleOverlays(
 						point,
 						rem,
-						item.reference.surface === selected && index === selectedCorner
+						item.reference.surface === selected && index === selectedCorner,
+						false,
+						`${item.reference.surface}:${index}`
 					)
 				)
 			),
@@ -119,7 +122,7 @@
 				(Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) * 0.15,
 			editing: false
 		};
-		canvas.setPointerCapture(pointer.id);
+		capturePreviewPointer(canvas, event);
 	}
 	function update(event: PointerEvent) {
 		const active = pointer;
@@ -200,6 +203,7 @@
 	onlostpointercapture={cancel}>
 	{#each visible as item (item.reference.surface)}
 		<polygon
+			data-native-hit-id={item.reference.surface}
 			data-surface-drop-target={item.reference.surface}
 			data-source-drop-object={item.reference.surface}
 			points={item.definition.quad.corners.map((point) => `${point.x},${point.y}`).join(' ')}
@@ -233,6 +237,7 @@
 	<div class="corners" role="group" aria-label={`Warp handles for ${item.label}`}>
 		{#each item.definition.quad.corners as corner, index}
 			<ViewportHandle
+				data-native-hit-id={`${item.reference.surface}:${index}`}
 				data-native-overlay-control
 				x={corner.x}
 				y={corner.y}

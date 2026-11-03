@@ -72,6 +72,7 @@ pub(crate) struct D3d11Resources {
     textures: BTreeMap<TextureId, Rc<Texture>>,
     scratch: BTreeMap<PassId, Rc<Texture>>,
     outputs: BTreeMap<OutputId, Rc<Texture>>,
+    presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
     _demands: Option<SourceDemands>,
 }
@@ -603,6 +604,11 @@ impl Backend for D3d11Backend {
                     (conversion, delivery, delivered.outcome, delivered.spout_image)
                 }
             };
+            if outcome == super::outputs::Delivery::Accepted {
+                for placement in &resources.presented_regions[&output.id] {
+                    placement.mark_presented(output.id, token);
+                }
+            }
             if let Some(recorder) = recorder {
                 recorder.push(DiagnosticEvent::Output(OutputTrace {
                     token,

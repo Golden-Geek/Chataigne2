@@ -120,6 +120,8 @@
 		label="Screen view"
 		native>
 		<NativePreview
+			nativeInput
+			lifetime={documentIdentity}
 			onpresentationchange={presentationChanged}
 			overlayCapacity={MAX_VIEW_OVERLAYS}
 			session={owner.session}

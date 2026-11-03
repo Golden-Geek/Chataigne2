@@ -6,6 +6,10 @@ import type { OverlayShape } from "./OverlayShape";
  */
 export type OverlayPrimitive = {
 /**
+ * Optional opaque local input identity; absent for noninteractive decoration.
+ */
+hit: string | null,
+/**
  * Image-relative path or screen-sized handle.
  */
 shape: OverlayShape,

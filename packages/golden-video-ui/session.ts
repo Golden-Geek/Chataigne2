@@ -4,6 +4,7 @@ import type { PreviewRequest } from './generated/PreviewRequest';
 import type { PreviewResponse } from './generated/PreviewResponse';
 import type { PreviewTransport } from './transport';
 import type { OverlayPrimitive } from './generated/OverlayPrimitive';
+import type { PreviewPointer } from './generated/PreviewPointer';
 
 export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'> & {
 	overlays?: OverlayPrimitive[];
@@ -25,6 +26,7 @@ export interface PreviewRegistration {
 	update(source: string): void;
 	invalidate(): void;
 	unregister(): void;
+	pointer(x: number, y: number): Promise<PreviewPointer | null>;
 }
 export interface PreviewSession {
 	readonly state: PreviewSessionState;
@@ -471,6 +473,32 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			let active = true;
 			return {
 				id: registration.id,
+				async pointer(x, y) {
+					const session = state.session,
+						epoch = generation,
+						source = registration.source;
+					if (!active || disposed || !session || state.availability !== 'available') return null;
+					try {
+						const reply = await transport.request({
+							kind: 'Pointer',
+							session,
+							view: registration.id,
+							source,
+							point: [x, y]
+						});
+						if (
+							!active ||
+							disposed ||
+							epoch !== generation ||
+							session !== state.session ||
+							source !== registration.source
+						)
+							return null;
+						return reply.kind === 'Pointer' ? reply.sample : null;
+					} catch {
+						return null;
+					}
+				},
 				update(source) {
 					if (!disposed && active && registration.source !== source) {
 						registration.source = source;

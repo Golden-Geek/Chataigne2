@@ -18,7 +18,7 @@ fn at(x: f64) -> PreviewView {
 }
 
 fn guard(snapshot: &PreviewSnapshot, index: usize) -> RevisionGuard {
-    snapshot.regions(|_| Some(TextureId::new(1).unwrap()))[index]
+    snapshot.regions(crate::OutputId::new(1).unwrap(), |_| Some(TextureId::new(1).unwrap()))[index]
         .visibility
         .clone()
         .unwrap()
@@ -140,7 +140,9 @@ fn sustained_pan_zoom_moves_an_installed_region_without_replacing_resource_routi
     let mut a = at(0.);
     layout(&control, session, 1, vec![a.clone()]);
     let installed = reader.snapshot();
-    let region = installed.regions(|_| Some(TextureId::new(1).unwrap())).remove(0);
+    let region = installed
+        .regions(crate::OutputId::new(1).unwrap(), |_| Some(TextureId::new(1).unwrap()))
+        .remove(0);
     let backing = installed.backdrops(TextureId::new(1).unwrap()).remove(0);
     let device = crate::runtime::DeviceGeneration::new(Uuid::new_v4(), 1);
     for step in 2..100 {

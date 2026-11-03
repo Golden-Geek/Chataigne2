@@ -109,6 +109,7 @@ pub(super) fn prepare(
         textures: Default::default(),
         scratch: Default::default(),
         outputs: Default::default(),
+        presented_regions: Default::default(),
         input_sequences: Default::default(),
         _demands: None,
     };
@@ -157,6 +158,19 @@ pub(super) fn prepare(
         }
     }
     for output in plan.outputs() {
+        // Resolve output-specific placements during preparation, never per-frame traversal.
+        let mut needed = std::collections::HashSet::from([output.source]);
+        let mut placements = Vec::new();
+        for pass in plan.passes().iter().rev() {
+            if !needed.contains(&pass.output) {
+                continue;
+            }
+            needed.extend(pass.operation.sources());
+            if let RenderOperation::Regions { regions, .. } = &pass.operation {
+                placements.extend(regions.iter().filter_map(|region| region.placement.clone()));
+            }
+        }
+        resources.presented_regions.insert(output.id, placements);
         if !native.outputs.needs_conversion_texture(output.id) {
             continue;
         }

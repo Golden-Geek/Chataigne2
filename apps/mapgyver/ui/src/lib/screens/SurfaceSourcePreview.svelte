@@ -63,6 +63,8 @@
 		native={identity !== null}>
 		{#if identity}
 			<NativePreview
+				nativeInput
+				lifetime={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 				onpresentationchange={presentationChanged}
 				overlayCapacity={16}
 				session={owner.session}

@@ -113,7 +113,7 @@ impl RenderOperation {
         }
     }
 
-    fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
+    pub(crate) fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
         let (sample, layers, regions) = match self {
             Self::Clear(_) => (None, &[][..], &[][..]),
             Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),

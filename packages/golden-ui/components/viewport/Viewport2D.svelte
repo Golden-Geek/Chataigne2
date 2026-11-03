@@ -228,7 +228,7 @@
 			{@render children()}
 		</div>
 	</div>
-	<div class="navigation" role="toolbar" aria-label="View navigation">
+	<div class="navigation" data-native-preview-input-exclude role="toolbar" aria-label="View navigation">
 		<IconButton
 			icon={zoomOutIcon}
 			label="Zoom out"

@@ -4,7 +4,18 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 /// Current local native-preview negotiation/control schema version.
-pub const PREVIEW_PROTOCOL_VERSION: u32 = 2;
+pub const PREVIEW_PROTOCOL_VERSION: u32 = 3;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+/// Event-driven pointer projection from an output-accepted native frame.
+pub struct PreviewPointer {
+    /// Full image rectangle in host-authenticated WebView CSS coordinates.
+    pub rect: CssRect,
+    /// Unclamped full-image position of the requested point.
+    pub point: [f32; 2],
+    /// Topmost interactive decoration, never an app mutation or native handle.
+    pub hit: Option<String>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Rectangle in WebView client CSS pixels; scaling and native clipping belong to the host.
@@ -42,6 +53,17 @@ pub struct PreviewView {
 #[serde(tag = "kind")]
 /// Local preview negotiation and revisioned layout/control requests.
 pub enum PreviewRequest {
+    /// Resolve one event against the accepted frame without changing layout/leases.
+    Pointer {
+        /// Current negotiated session.
+        session: Uuid,
+        /// Registered presentation view.
+        view: Uuid,
+        /// Expected routing identity; replacements fence queued input.
+        source: String,
+        /// WebView client CSS point.
+        point: [f64; 2],
+    },
     /// Negotiates a session for one frontend document/client lifetime.
     Connect {
         /// Random identity replaced when the frontend document owner is replaced.
@@ -97,6 +119,12 @@ pub enum PreviewRejection {
 #[serde(tag = "kind")]
 /// Metadata-only negotiation, layout/status acknowledgement or rejection.
 pub enum PreviewResponse {
+    /// None while this view has no matching accepted frame. Clipped points have no hit but
+    /// retain unclamped coordinates so captured gestures may continue outside the aperture.
+    Pointer {
+        /// Projection and hit identity from the same accepted placement.
+        sample: Option<PreviewPointer>,
+    },
     /// Session negotiation succeeded; native frames are not yet acknowledged.
     Connected {
         /// Host-issued session identity used by subsequent requests.

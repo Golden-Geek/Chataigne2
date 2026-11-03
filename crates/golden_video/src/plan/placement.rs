@@ -23,6 +23,8 @@ struct State {
     geometry: RegionGeometry,
     sampled: Option<(CompletionToken, RegionGeometry)>,
     first_use: Option<CompletionToken>,
+    presented: Option<(CompletionToken, RegionGeometry)>,
+    presentation_output: Option<crate::OutputId>,
 }
 
 /// One bounded placement shared by all blits of a view, sampled coherently once per GPU batch.
@@ -49,6 +51,8 @@ impl RegionPlacement {
                     },
                     sampled: None,
                     first_use: None,
+                    presented: None,
+                    presentation_output: None,
                 })),
                 capacity,
             )
@@ -111,9 +115,53 @@ impl RegionPlacement {
         let geometry = state.geometry.clone();
         state.sampled = Some((token, geometry.clone()));
         if state.first_use.is_none_or(|first| first.device != token.device) {
+            if state
+                .presented
+                .as_ref()
+                .is_some_and(|(previous, _)| previous.device != token.device)
+            {
+                state.presented = None;
+            }
             state.first_use = Some(token);
         }
         geometry
+    }
+    /// Promote only the geometry sampled for this exact accepted output frame.
+    pub fn mark_presented(&self, output: crate::OutputId, token: CompletionToken) -> bool {
+        let mut state = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        if state.presentation_output != Some(output) {
+            return false;
+        }
+        let Some((sampled, geometry)) = &state.sampled else {
+            return false;
+        };
+        if *sampled != token {
+            return false;
+        }
+        let geometry = geometry.clone();
+        state.presented = Some((token, geometry));
+        true
+    }
+    pub(crate) fn bind_presentation_output(&self, output: crate::OutputId) -> bool {
+        let mut state = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        if state.presentation_output.is_some_and(|bound| bound != output) {
+            return false;
+        }
+        state.presentation_output = Some(output);
+        true
+    }
+    /// Last output-accepted placement, independently of newer desired/rendered geometry.
+    pub fn presented(&self) -> Option<RegionGeometry> {
+        self.0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .presented
+            .as_ref()
+            .map(|(_, geometry)| geometry.clone())
+    }
+    /// Withdraw input when the host/device no longer has an installed presentation.
+    pub fn clear_presented(&self) {
+        self.0.lock().unwrap_or_else(|error| error.into_inner()).presented = None;
     }
     /// Whether the latest geometry was sampled by a batch no later than this accepted output use.
     pub fn presented_through(&self, accepted: CompletionToken) -> bool {
@@ -124,10 +172,9 @@ impl RegionPlacement {
             .is_some_and(|first| first.device == accepted.device && first.serial <= accepted.serial)
     }
     pub(crate) fn retained_heap_bytes(&self) -> usize {
-        // Live metadata can grow after plan admission. Reserve both latest and sampled
-        // bounded arrays, rather than undercounting a later selection/hover update.
+        // Reserve latest, sampled and accepted arrays plus each bounded opaque hit identity.
         std::mem::size_of::<Mutex<State>>()
             + 6 * std::mem::size_of::<usize>()
-            + 2 * self.1 * std::mem::size_of::<OverlayPrimitive>()
+            + 3 * self.1 * (std::mem::size_of::<OverlayPrimitive>() + 128)
     }
 }

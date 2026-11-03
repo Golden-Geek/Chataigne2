@@ -24,9 +24,11 @@ pub enum OverlayShape {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// One filled/stroked primitive. Colors are straight-alpha sRGB components in 0..=1.
 pub struct OverlayPrimitive {
+    /// Optional opaque local input identity; absent for noninteractive decoration.
+    pub hit: Option<String>,
     /// Image-relative path or screen-sized handle.
     pub shape: OverlayShape,
     /// Interior color; zero alpha leaves the image unchanged.
@@ -50,6 +52,10 @@ impl OverlayPrimitive {
             }
         };
         shape
+            && self
+                .hit
+                .as_ref()
+                .is_none_or(|id| !id.is_empty() && id.len() <= 128 && !id.contains('\0'))
             && self
                 .fill
                 .iter()

@@ -53,17 +53,13 @@ larger authored counts, UI, memory and output requirements remain required in th
 The unqualified phrase “implement the plan” still selects Chataigne under AGENTS.md.
 
 M05/10 is [accepted](../progress/evidence/mapgyver-workbench-status-2026-11-03.json): responsive
-bounded Screen/Surface row supplements and native runtime footer are verified. M05/7's
-[input/history evidence](../progress/evidence/mapgyver-source-native-2026-11-03.json) remains valid,
-but its image-motion acceptance is reopened for an internal landmark after the
-[native pixel audit](../progress/evidence/mapgyver-native-zoom-sync-2026-11-03.json). A verified owned-foreground desktop capture route
-restores native pixels despite the unavailable helper/black PrintWindow method. Return to
-M05/6 coherent image/overlay presentation next, then restore M05/7 and deliver M05/9 output bounds. This is execution order
+bounded Screen/Surface row supplements and native runtime footer are verified. M05/6–7 are now
+[accepted](../progress/evidence/mapgyver-native-zoom-sync-2026-11-03.json): native image/decoration
+paint, an internal Source landmark, output-accepted moving-frame hits and projected DOM events
+are verified alongside the complete bundled editor input/history/lifetime suites. A verified
+owned-foreground desktop capture route supplies native pixels; moving-hit metadata is not a
+physical latency measurement. Next is M05/9 stable output-window bounds. This is execution order
 within M05 only; every original physical matrix and acceptance requirement remains unchanged.
-The [native paint delivery](../progress/evidence/mapgyver-native-zoom-sync-2026-11-03.json)
-now verifies frame-coherent Screen/Source decorations and an internal source-image landmark.
-M05/6 stays active for presented-placement native hit routing during animation; M05/7 retains
-that shared input requirement. Passing paint or ordinary pointer suites alone does not close it.
 
 Historical batches, pauses and execution instructions in the
 [evidence archive](../progress/mapgyver-evidence-through-2026-11-02.md) are non-operative.

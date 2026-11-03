@@ -103,7 +103,9 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         None,
     )
     .unwrap();
-    let retained_regions = preview.layout.regions(|_| Some(TextureId::new(1).unwrap()));
+    let retained_regions = preview
+        .layout
+        .regions(preview.output, |_| Some(TextureId::new(1).unwrap()));
     let admission = prepared.submission.guards.clone();
     let time = renderer.runtime.read_time().unwrap();
     let project = renderer.runtime.project_epoch();

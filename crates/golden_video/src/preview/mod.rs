@@ -1,6 +1,7 @@
 //! Coalesced native-preview metadata and admission fences. Drive the receiver on a host/preparation
 //! worker when notified or its lease deadline is due; never poll UI/engine ticks or transport frames.
 mod geometry;
+mod pointer;
 pub mod protocol;
 use crate::{
     TextureId,
@@ -107,10 +108,21 @@ impl PreviewSnapshot {
 
     /// Resolves logical source keys into native-plan inputs outside the UI/engine thread.
     /// Unknown sources are omitted; this does not establish source availability or frame delivery.
-    pub fn regions(&self, mut resolve: impl FnMut(&str) -> Option<TextureId>) -> Vec<BlitRegion> {
+    pub fn regions(
+        &self,
+        output: crate::OutputId,
+        mut resolve: impl FnMut(&str) -> Option<TextureId>,
+    ) -> Vec<BlitRegion> {
         self.views
             .iter()
             .filter_map(|view| {
+                if self
+                    .placements
+                    .get(&view.id)
+                    .is_some_and(|placement| !placement.bind_presentation_output(output))
+                {
+                    return None;
+                }
                 resolve(&view.source).map(|source| BlitRegion {
                     source,
                     destination: view.destination,
@@ -211,11 +223,13 @@ impl State {
             });
         }
         for view in &views {
-            if self
-                .placements
-                .get(&view.id)
-                .is_some_and(|placement| placement.overlay_capacity() != view.overlay_capacity)
-            {
+            if self.placements.get(&view.id).is_some_and(|placement| {
+                placement.overlay_capacity() != view.overlay_capacity
+                    || self
+                        .views
+                        .iter()
+                        .any(|old| old.id == view.id && old.source != view.source)
+            }) {
                 self.placements.remove(&view.id);
             }
             self.backdrops
@@ -353,6 +367,41 @@ impl PreviewController {
             }
         } else {
             match request {
+                PreviewRequest::Pointer {
+                    session,
+                    view,
+                    source,
+                    point,
+                } => {
+                    if state.session.as_ref().is_none_or(|current| current.id != session) {
+                        PreviewResponse::Rejected {
+                            code: PreviewRejection::Session,
+                        }
+                    } else if !viewport.valid()
+                        || state.viewport != Some(viewport)
+                        || !point
+                            .iter()
+                            .all(|value| value.is_finite() && value.abs() <= 1_000_000.0)
+                    {
+                        PreviewResponse::Rejected {
+                            code: PreviewRejection::Geometry,
+                        }
+                    } else {
+                        let sample = state
+                            .views
+                            .iter()
+                            .any(|registered| registered.id == view && registered.source == source)
+                            .then(|| {
+                                state
+                                    .placements
+                                    .get(&view)
+                                    .and_then(crate::plan::RegionPlacement::presented)
+                            })
+                            .flatten()
+                            .and_then(|geometry| pointer::project(geometry, viewport, point));
+                        PreviewResponse::Pointer { sample }
+                    }
+                }
                 PreviewRequest::Connect { client, version } => {
                     if version != PREVIEW_PROTOCOL_VERSION {
                         PreviewResponse::Rejected {

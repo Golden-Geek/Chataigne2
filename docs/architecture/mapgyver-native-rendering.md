@@ -41,12 +41,13 @@ Editor decorations belong to the same native presentation as the image. Golden V
 bounded Quad/Circle metadata, host-authenticated physical scale and aperture clipping, checked
 live placement and premultiplied linear drawing. Placement and decorations are sampled once
 per GPU completion token, so independent WebView/GPU presentation cannot separate their paint
-during navigation. Preview protocol v2 carries metadata only. Each view declares its fixed
+during navigation. Preview protocol v3 carries metadata only. Each view declares its fixed
 decoration capacity before plan admission; ordinary previews and backdrop placements reserve
 zero. Live updates cannot exceed the reserved capacity or bypass retained-input accounting.
 
-MapGyver supplies Screen/Source geometry and styles, including selected, hovered, disabled,
-invalid, crop and pointer presentation. DOM controls retain accessibility and input; Golden's
+MapGyver supplies Screen/Source geometry, styles and opaque local control identities, including
+selected, hovered, disabled, invalid, crop and pointer presentation. DOM controls retain
+accessibility and input; Golden's
 preview component suppresses their marked paint only while an installed native view supplies
 decorations. The public viewport `nativeFrame` hook also withdraws the moving DOM outline and
 surround mask while native paint owns the black canvas and image frame; this permits controls
@@ -54,10 +55,23 @@ outside the image and prevents the WebView aperture from clipping an independent
 image. Browser/unavailable previews keep their DOM paint. This rendering mechanism does
 not by itself establish the retained native interaction, physical alignment or latency gates.
 
+Golden Video retains desired, sampled and output-accepted placements independently. Only the
+bound output accepting the exact sampled completion token promotes pointer geometry; rendering
+alone, a busy output or another output's acceptance cannot do so. A pending replacement retains
+the last accepted image/input. Source, session, viewport and device changes fence obsolete input.
+The read-only pointer query returns the accepted full-image projection and topmost opaque hit;
+captured drags retain coordinates outside the clipped aperture without acquiring new hits.
+Golden preview UI coalesces event-driven queries to one in flight, one latest move and one
+terminal event. It retargets accessible DOM controls and projects coordinates into their current
+image rectangle, with logical control capture backed by real viewport pointer capture. Escape,
+blur, disposal and document/source replacement cancel pending admission. Ordinary DOM fallback
+uses the same public capture helper; navigation toolbar controls remain independent.
+
 Recommended first probe: D3D11 rendering below the existing ordinary Tauri/Wry WebView, following
 the layering pattern in Wry's wgpu example. The example proves the pattern, not this exact
 D3D11/Tauri integration. Use one underlay per editor window and scissored preview regions.
-Svelte owns pointer capture/hit testing; visual transparency does not imply native input routing.
+Svelte owns pointer capture and dispatch; installed decorated previews use output-accepted native
+hit testing. Visual transparency alone does not imply native input routing.
 
 If ordinary hosting cannot satisfy layering/alignment, investigate an explicit DirectComposition
 host provider. A WebView2 composition controller is a different creation/hosting path with input,

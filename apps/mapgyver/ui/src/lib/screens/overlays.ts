@@ -12,6 +12,7 @@ export const overlayRem = () =>
 
 export function imageFrameOverlay(rem: number): OverlayPrimitive {
 	return {
+		hit: null,
 		shape: {
 			kind: 'Quad',
 			corners: [
@@ -31,9 +32,10 @@ export function imageFrameOverlay(rem: number): OverlayPrimitive {
 export function quadOverlay(
 	corners: readonly Point[],
 	rem: number,
-	{ selected = false, enabled = true, valid = true } = {}
+	{ selected = false, enabled = true, valid = true, hit = null as string | null } = {}
 ): OverlayPrimitive {
 	return {
+		hit,
 		shape: {
 			kind: 'Quad',
 			corners: corners.map((p) => [p.x, p.y]) as [
@@ -54,7 +56,8 @@ export function handleOverlays(
 	point: Point,
 	rem: number,
 	selected = false,
-	ghost = false
+	ghost = false,
+	hit: string | null = null
 ): OverlayPrimitive[] {
 	const shape = {
 		kind: 'Circle' as const,
@@ -62,6 +65,7 @@ export function handleOverlays(
 		radius: 0.375 * rem
 	};
 	const handle: OverlayPrimitive = {
+		hit,
 		shape,
 		fill: color(ghost ? '00000000' : selected ? 'a3bfff' : 'dceaff'),
 		stroke: color(ghost ? 'ffe19b' : selected ? 'dddddd' : '467bcc'),
@@ -72,6 +76,7 @@ export function handleOverlays(
 		? [
 				{
 					...handle,
+					hit: null,
 					shape: { ...shape, radius: 0.475 * rem },
 					fill: color('a3bfff'),
 					stroke: color('a3bfff')

@@ -47,6 +47,11 @@ window.addEventListener('unhandledrejection', (event) => fail(event.reason));
 // Install diagnostic listeners before importing/mounting the actual Svelte fixture. Native
 // protocol tests must report startup failures instead of waiting silently for a phase event.
 async function start() {
+	if (new URLSearchParams(location.search).get('mode') === 'input') {
+		const { default: Fixture } = await import('./Input.svelte');
+		mount(Fixture, { target: document.getElementById('app')! });
+		return;
+	}
 	// Keep distinct import sites: each fixture must preload its own extracted stylesheet.
 	if (new URLSearchParams(location.search).get('mode') === 'continuity') {
 		const { default: Fixture } = await import('./Continuity.svelte');

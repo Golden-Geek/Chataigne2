@@ -4,7 +4,23 @@ import type { PreviewView } from "./PreviewView";
 /**
  * Local preview negotiation and revisioned layout/control requests.
  */
-export type PreviewRequest = { "kind": "Connect",
+export type PreviewRequest = { "kind": "Pointer",
+/**
+ * Current negotiated session.
+ */
+session: string,
+/**
+ * Registered presentation view.
+ */
+view: string,
+/**
+ * Expected routing identity; replacements fence queued input.
+ */
+source: string,
+/**
+ * WebView client CSS point.
+ */
+point: [number, number], } | { "kind": "Connect",
 /**
  * Random identity replaced when the frontend document owner is replaced.
  */

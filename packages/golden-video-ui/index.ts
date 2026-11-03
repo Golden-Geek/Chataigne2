@@ -15,3 +15,4 @@ export type { CssRect } from './generated/CssRect';
 export type { OverlayPrimitive } from './generated/OverlayPrimitive';
 export type { OverlayShape } from './generated/OverlayShape';
 export { MAX_VIEW_OVERLAYS } from './generated/constants';
+export { capturePreviewPointer } from './native-input';

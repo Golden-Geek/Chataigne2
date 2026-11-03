@@ -57,12 +57,12 @@ impl PreviewLayout {
             descriptor: self.descriptor,
             operation: RenderOperation::Regions {
                 visibility: None,
-                regions: self
-                    .layout
-                    .regions(|source| match serde_json::from_str::<PreviewSource>(source).ok()? {
+                regions: self.layout.regions(self.output, |source| {
+                    match serde_json::from_str::<PreviewSource>(source).ok()? {
                         PreviewSource::Channel { reference } => channels.get(&reference).copied(),
                         PreviewSource::Screen { screen } => screens.get(&screen).copied(),
-                    }),
+                    }
+                }),
             },
         });
         let background = TextureId::new(2).unwrap();
@@ -99,7 +99,7 @@ impl PreviewLayout {
                     .layout
                     .backdrops(black)
                     .into_iter()
-                    .chain(self.layout.regions(|_| Some(black)))
+                    .chain(self.layout.regions(self.output, |_| Some(black)))
                     .collect(),
             },
         });

@@ -176,7 +176,10 @@ export async function verifyScreenTranslation({ base, post, page: nativePage = n
 		stage = 'Alt body translation';
 		const background = await position(0.95, 0.05);
 		await page.mouse.click(background.x, background.y);
-		assert.equal(await main.locator('.viewport-handle:not(.ghost)').count(), 0);
+		// Native clicks resolve against the accepted image before dispatching selection.
+		await page.waitForFunction(
+			() => !document.querySelector('[data-panel-id="screen-warp"] .viewport-handle:not(.ghost)')
+		);
 		await startAt(body);
 		await page.keyboard.up('Alt');
 		const destination = await position(0.53, 0.51);

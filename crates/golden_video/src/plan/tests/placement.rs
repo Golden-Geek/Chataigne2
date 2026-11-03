@@ -46,6 +46,7 @@ fn decorations_and_image_share_one_batch_sample_and_invalid_updates_are_atomic()
     let device = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);
     let token = CompletionToken { device, serial: 1 };
     let overlay = OverlayPrimitive {
+        hit: None,
         shape: OverlayShape::Quad {
             corners: [[-1.0, 0.0], [0.5, 0.0], [0.5, 1.0], [-1.0, 1.0]],
         },
@@ -54,7 +55,13 @@ fn decorations_and_image_share_one_batch_sample_and_invalid_updates_are_atomic()
         width: 1.6,
         dash: None,
     };
-    assert!(placement.update_decorated(UnitRect::FULL, UnitRect::FULL, UnitRect::FULL, 1.25, &[overlay]));
+    assert!(placement.update_decorated(
+        UnitRect::FULL,
+        UnitRect::FULL,
+        UnitRect::FULL,
+        1.25,
+        std::slice::from_ref(&overlay)
+    ));
     let first = placement.sample(token);
     let moved = UnitRect {
         x: 0.25,
@@ -70,13 +77,19 @@ fn decorations_and_image_share_one_batch_sample_and_invalid_updates_are_atomic()
     let second = placement.sample(CompletionToken { device, serial: 2 });
     assert_eq!(second.destination, moved);
     assert!(second.overlays.is_empty());
-    assert!(!placement.update_decorated(UnitRect::FULL, UnitRect::FULL, UnitRect::FULL, f32::NAN, &[overlay]));
+    assert!(!placement.update_decorated(
+        UnitRect::FULL,
+        UnitRect::FULL,
+        UnitRect::FULL,
+        f32::NAN,
+        std::slice::from_ref(&overlay)
+    ));
     assert!(!placement.update_decorated(
         UnitRect::FULL,
         UnitRect::FULL,
         UnitRect::FULL,
         1.0,
-        &vec![overlay; MAX_VIEW_OVERLAYS + 1]
+        &vec![overlay.clone(); MAX_VIEW_OVERLAYS + 1]
     ));
     let invalid = OverlayPrimitive { width: -1.0, ..overlay };
     assert!(!placement.update_decorated(UnitRect::FULL, UnitRect::FULL, UnitRect::FULL, 1.0, &[invalid]));

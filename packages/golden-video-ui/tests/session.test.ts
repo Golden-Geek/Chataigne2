@@ -129,6 +129,7 @@ describe('window preview session', () => {
 		overlays = [
 			{
 				shape: { kind: 'Circle', center: [0.5, 0.5], radius: 6 },
+				hit: null,
 				fill: [1, 1, 1, 1],
 				stroke: [0, 0, 1, 1],
 				width: 1.6,

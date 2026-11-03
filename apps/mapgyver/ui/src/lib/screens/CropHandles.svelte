@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { ViewportHandle } from 'golden_ui';
-	import type { OverlayPrimitive } from 'golden_video_ui';
+	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
 	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';
@@ -36,8 +36,10 @@
 		const rem = overlayRem();
 		onoverlays([
 			imageFrameOverlay(rem),
-			quadOverlay(corners, rem, { selected: true }),
-			...corners.flatMap((point) => handleOverlays(point, rem)),
+			quadOverlay(corners, rem, { selected: true, hit: 'crop' }),
+			...corners.flatMap((point, index) =>
+				handleOverlays(point, rem, false, false, `crop:${index}`)
+			),
 			...(ghost ? handleOverlays(ghost, rem, false, true) : [])
 		]);
 	});
@@ -63,7 +65,7 @@
 					: { x: 0, y: 0 }
 		};
 		ghost = origin;
-		canvas.setPointerCapture(drag.id);
+		capturePreviewPointer(canvas, event);
 	}
 	function update(event: PointerEvent) {
 		if (event.pointerId !== drag?.id) return;
@@ -119,6 +121,7 @@
 		if (event.pointerId === drag?.id) cancel();
 	}}>
 	<rect
+		data-native-hit-id="crop"
 		x={crop.x}
 		y={crop.y}
 		width={crop.width}
@@ -129,6 +132,7 @@
 
 {#each corners as corner, index}
 	<ViewportHandle
+		data-native-hit-id={`crop:${index}`}
 		data-native-overlay-control
 		x={corner.x}
 		y={corner.y}

@@ -166,7 +166,79 @@ try {
 	};
 	await writeFile(path.join(directory, 'ready.json'), JSON.stringify(metadata, null, 2));
 	console.log(JSON.stringify({ ready: metadata }));
-	if (process.argv.includes('--zoom')) {
+	if (process.argv.includes('--hit')) {
+		const expectedHit = sourceEditor ? 'crop:0' : `${reference.surface}:0`;
+		const preview = view.locator('.native-preview');
+		const identity = await preview.evaluate((element) => ({
+			session: element.dataset.previewSession,
+			view: element.dataset.previewView,
+			source: element.dataset.previewSource
+		}));
+		assert(identity.session && identity.view && identity.source);
+		await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		await page.mouse.wheel(0, 1200);
+		const samples = await page.evaluate(
+			async ({ identity, expectedHit }) => {
+				const samples = [];
+				const query = async (point) =>
+					JSON.parse(
+						await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+							request: JSON.stringify({ kind: 'Pointer', ...identity, point })
+						})
+					);
+				for (let index = 0; index < 16; index++) {
+					const initial = (await query([0, 0])).sample;
+					if (initial) {
+						const point = [
+							initial.rect.x + initial.rect.width * 0.2,
+							initial.rect.y + initial.rect.height * 0.2
+						];
+						const hit = (await query(point)).sample;
+						const rect = document
+							.querySelector(`[data-native-hit-id="${CSS.escape(expectedHit)}"]`)
+							.getBoundingClientRect();
+						samples.push({
+							point,
+							hit,
+							dom: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+						});
+					}
+					await new Promise(requestAnimationFrame);
+				}
+				return samples;
+			},
+			{ identity, expectedHit }
+		);
+		const hits = samples.filter((sample) => sample.hit?.hit === expectedHit);
+		assert(
+			hits.length >= 3,
+			'native accepted frame must resolve its corner throughout sampled motion'
+		);
+		assert(new Set(samples.map((sample) => Math.round(sample.hit?.rect.width ?? 0))).size >= 3);
+		const separation = Math.max(
+			...hits.map((sample) =>
+				Math.hypot(sample.point[0] - sample.dom.x, sample.point[1] - sample.dom.y)
+			)
+		);
+		const report = {
+			editor: sourceEditor ? 'source' : 'screen',
+			expectedHit,
+			samples,
+			correctNativeHits: hits.length,
+			maxNativeDomSeparationCss: separation,
+			scope:
+				'actual native accepted-frame point/hit queries during animation; DOM event retargeting verified by offset browser fixture and real native editor suites'
+		};
+		await writeFile(path.join(directory, 'native-hit.json'), JSON.stringify(report, null, 2));
+		console.log(
+			JSON.stringify({
+				nativeMovingHit: 'pass',
+				editor: report.editor,
+				correctNativeHits: hits.length,
+				separationCss: separation
+			})
+		);
+	} else if (process.argv.includes('--zoom')) {
 		const hwnd = Number(
 			execFileSync(
 				'powershell.exe',
@@ -262,6 +334,25 @@ try {
 			project: (await edit('screens', { kind: 'InspectSurface', reference })).snapshot
 		})
 	);
+} catch (error) {
+	const state = await native.page
+		.evaluate(() => ({
+			pointers: window.__nativeHit?.pointers,
+			previews: [...document.querySelectorAll('.native-preview')].map((element) => ({
+				state: element.dataset.previewState,
+				painted: element.dataset.nativeOverlays,
+				hits: [...element.querySelectorAll('[data-native-hit-id]')].map((control) =>
+					control.getAttribute('data-native-hit-id')
+				)
+			}))
+		}))
+		.catch(() => null);
+	await writeFile(
+		path.join(directory, 'failure.json'),
+		JSON.stringify({ error: String(error), state, log: native.log() }, null, 2)
+	);
+	console.error(JSON.stringify(state));
+	throw error;
 } finally {
 	await native.close();
 }

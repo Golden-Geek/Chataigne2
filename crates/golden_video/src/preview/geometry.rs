@@ -132,7 +132,15 @@ pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<Re
             destination,
             source_rect,
             backdrop,
-            overlays: view.overlays.into(),
+            overlays: view
+                .overlays
+                .into_iter()
+                .map(|mut overlay| {
+                    overlay.hit = overlay.hit.map(|id| id.into_boxed_str().into_string());
+                    overlay
+                })
+                .collect::<Vec<_>>()
+                .into(),
             overlay_scale: host.css_scale as f32,
             overlay_capacity: view.overlay_capacity as usize,
         }))

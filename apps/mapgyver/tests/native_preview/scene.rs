@@ -60,7 +60,7 @@ pub fn plan(snapshot: &PreviewSnapshot) -> PlanSubmission {
             descriptor: canvas,
             operation: RenderOperation::Regions {
                 visibility: Some(snapshot.guard.clone()),
-                regions: snapshot.regions(|source| match source {
+                regions: snapshot.regions(OutputId::new(1).unwrap(), |source| match source {
                     "red" => TextureId::new(1),
                     "green" => TextureId::new(2),
                     _ => None,

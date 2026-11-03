@@ -2,6 +2,7 @@ use super::*;
 use protocol::{CssRect, PreviewView};
 mod continuity;
 mod overlays;
+mod pointer;
 
 fn host() -> HostViewport {
     HostViewport {
@@ -98,11 +99,13 @@ fn host_scale_origin_and_clip_preserve_source_crop_in_normalized_backing_space()
     close(image.source_rect.y, 0.5);
     close(image.source_rect.width, 2. / 3.);
     close(image.source_rect.height, 0.5);
-    let regions = snapshot.regions(|key| (key == "channel/a").then(|| TextureId::new(7).unwrap()));
+    let regions = snapshot.regions(crate::OutputId::new(1).unwrap(), |key| {
+        (key == "channel/a").then(|| TextureId::new(7).unwrap())
+    });
     assert_eq!(regions.len(), 1);
     assert_eq!(regions[0].source.get(), 7);
     assert!(
-        snapshot.regions(|_| None).is_empty(),
+        snapshot.regions(crate::OutputId::new(1).unwrap(), |_| None).is_empty(),
         "missing sources cannot reuse another view's texture"
     );
     let mut resized = host();

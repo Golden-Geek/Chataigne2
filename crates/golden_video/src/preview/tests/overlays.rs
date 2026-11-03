@@ -3,6 +3,7 @@ use crate::plan::{MAX_VIEW_OVERLAYS, OverlayPrimitive, OverlayShape};
 
 fn overlay() -> OverlayPrimitive {
     OverlayPrimitive {
+        hit: Some("center".into()),
         shape: OverlayShape::Circle {
             center: [0.5, 0.5],
             radius: 6.8,
@@ -25,7 +26,9 @@ fn admission_keeps_host_scale_and_aperture_with_bounded_decorations() {
         PreviewResponse::Applied { .. }
     ));
     let first = reader.snapshot();
-    let region = first.regions(|_| TextureId::new(1)).remove(0);
+    let region = first
+        .regions(crate::OutputId::new(1).unwrap(), |_| TextureId::new(1))
+        .remove(0);
     let token = crate::runtime::CompletionToken {
         device: crate::runtime::DeviceGeneration::new(Uuid::new_v4(), 1),
         serial: 1,
