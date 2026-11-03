@@ -2,9 +2,10 @@
 import type { ApplicationId } from "./ApplicationId";
 import type { ChannelReference } from "./ChannelReference";
 import type { ColumnId } from "./ColumnId";
+import type { TransitionDefinition } from "./TransitionDefinition";
 
 export type CellDefinition = { column: ColumnId, source: ChannelReference | null,
 /**
  * This Cell's declared typed settings, including when unconfigured.
  */
-application: ApplicationId, };
+application: ApplicationId, transition: TransitionDefinition | null, };

@@ -75,7 +75,7 @@ impl CapturedChannels {
             .channels
             .iter()
             .filter_map(|channel| channel.matrix.as_ref())
-            .flat_map(|matrix| &matrix.applications.demand)
+            .flat_map(|matrix| matrix.applications.demand.iter())
         {
             result
                 .entry(entry.application)
@@ -91,7 +91,7 @@ impl CapturedChannels {
             .channels
             .iter()
             .filter_map(|channel| channel.matrix.as_ref())
-            .flat_map(|matrix| &matrix.applications.references)
+            .flat_map(|matrix| matrix.applications.references.iter())
             .copied()
             .collect::<Vec<_>>();
         references.sort_by_key(|id| id.0.0);
@@ -474,7 +474,7 @@ pub(crate) fn capture_channels_with_time(
             .channels
             .iter_mut()
             .filter_map(|channel| channel.matrix.as_mut())
-            .flat_map(|matrix| &mut matrix.applications.demand)
+            .flat_map(|matrix| Arc::make_mut(&mut matrix.applications.demand).iter_mut())
         {
             if let Some(available) = availability.get(&entry.application) {
                 entry.availability = *available;

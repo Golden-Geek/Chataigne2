@@ -8,6 +8,7 @@ mod cell_applications;
 pub(crate) mod cell_node;
 pub(crate) mod cells;
 pub(crate) mod column_node;
+pub(crate) mod configuration;
 mod copying;
 pub(crate) mod document;
 pub(crate) mod node;

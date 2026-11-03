@@ -196,6 +196,43 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			)
 		);
 		pid = null;
+		await grid.getByTitle('Layer 1 / Column 3', { exact: true }).dblclick();
+		const direct = await wait(runtime, (s) =>
+			s.applications.some(
+				(a) =>
+					a.phase === 'Ready' && a.consumers.some((c) => c.application === prepared.application)
+			)
+		);
+		const active = direct.applications.find(
+			(a) => a.phase === 'Ready' && a.consumers.some((c) => c.application === prepared.application)
+		);
+		runtimeId = active.runtime;
+		pid = active.process_id;
+		assert.equal(
+			active.consumers.length,
+			1,
+			'Independent Cell does not move the anchor or launch the other Column control'
+		);
+		const playback = (
+			await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'InspectPlayback' } })
+		).snapshot;
+		assert.equal(playback.desired_column, columns[4]);
+		assert.equal(playback.layers[0].column, columns[2]);
+		await wait(
+			() => grid.getByTitle('Layer 1 / Column 3', { exact: true }).getAttribute('data-requested'),
+			(value) => value === 'true'
+		);
+		await wait(
+			() => grid.getByTitle('Layer 1 / Column 5', { exact: true }).getAttribute('data-requested'),
+			(value) => value === 'false'
+		);
+		await page.getByRole('button', { name: 'Unload Matrix', exact: true }).click();
+		await wait(runtime, (s) =>
+			s.applications.some(
+				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null
+			)
+		);
+		pid = null;
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		await page.screenshot({ path: 'target/m08-column-applications-ui.png' });
@@ -203,7 +240,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Column-owned generic settings/history; one actual process for Column/Cell/two Matrices, live three-consumer Inspector status, neighbor/exact same PID/launch and final range retirement',
+					'Shared Column/Cell runtime and generic Inspector; actual double-click independent Cell trigger preserves Column anchor and starts only its own app; requested marker and actual Unload retirement',
 				application: columns[2],
 				browser: browser.version()
 			})

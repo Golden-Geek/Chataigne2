@@ -48,7 +48,9 @@
 			<IconButton
 				icon={stopIcon}
 				label="Unload Matrix"
-				disabled={busy || matrixWindow.playback.desired_column === null}
+				disabled={busy ||
+					(matrixWindow.playback.desired_column === null &&
+						matrixWindow.playback.layers.length === 0)}
 				onclick={() => owner.edit({ kind: 'ClearPlayback' })} />
 		{/if}
 	</div>
@@ -94,7 +96,16 @@
 							selectDocumentNode(result.cell);
 						}
 					}}
-					launch={(column) => owner.edit({ kind: 'LaunchColumn', column, mode: 'Configured' })} />
+					launch={(column) => owner.edit({ kind: 'LaunchColumn', column, mode: 'Configured' })}
+					trigger={(row, column) => {
+						if (row.item.id.kind === 'Layer')
+							void owner.edit({
+								kind: 'LaunchCell',
+								layer: row.item.id.id,
+								column: column.id,
+								mode: 'Configured'
+							});
+					}} />
 			{/key}
 		{:else}<p class="editor-empty">Select a Matrix in Media Manager.</p>{/if}
 	</div>

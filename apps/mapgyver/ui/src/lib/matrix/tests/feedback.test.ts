@@ -16,7 +16,10 @@ const stamp = (column: string, launch: string): MatrixPlanStamp => ({
 	revision: 1,
 	columns: [column],
 	transitioning: false,
+	layers: [],
 	playback: {
+		request_id: launch,
+		layers: [],
 		desired_column: column,
 		launch_id: launch,
 		transition: { duration_ms: 0, curve: 'Linear' }

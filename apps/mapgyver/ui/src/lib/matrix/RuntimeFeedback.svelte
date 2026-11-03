@@ -10,7 +10,7 @@
 			? 'None'
 			: (snapshot.columns.find((column) => column.id === id)?.label ?? 'Outside visible columns');
 	const latest = $derived(
-		observation?.desired.playback.launch_id === snapshot.playback.launch_id &&
+		observation?.desired.playback.request_id === snapshot.playback.request_id &&
 			observation?.desired.revision === snapshot.revision
 	);
 </script>

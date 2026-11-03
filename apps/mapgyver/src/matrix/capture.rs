@@ -1,15 +1,12 @@
 //! Bounded actor capture over the cached authored index; no device, file or frame polling.
-use super::{document::Document, projection::RenderIndex, protocol::*};
+use super::{projection::RenderIndex, protocol::*};
 use crate::{
     app::{AppEngine, AppNode},
     media::protocol::{ChannelReference, MediaId},
 };
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 #[derive(Clone)]
 pub(crate) struct MatrixInput {
     pub source: ChannelReference,
@@ -25,37 +22,56 @@ pub(crate) struct CapturedMatrix {
     pub inputs: Vec<MatrixInput>,
     pub until: Option<golden_video::plan::OpacityEnvelope>,
     pub control: Option<super::playback::PlaybackControl>,
+    pub layer: Option<LayerId>,
 }
 impl CapturedMatrix {
     pub fn settle(&mut self, time: golden_time::TimeSnapshot) -> Result<(), String> {
         if self.until.is_none_or(|until| !until.finished(time)) {
             return Ok(());
         }
+        let availability = self
+            .applications
+            .demand
+            .iter()
+            .map(|entry| (entry.application, entry.availability))
+            .collect::<HashMap<_, _>>();
         if let Some(control) = &self.control {
             control.settle(time);
-            let availability = self
-                .applications
-                .demand
-                .iter()
-                .map(|entry| (entry.application, entry.availability))
-                .collect::<HashMap<_, _>>();
-            self.applications = control.capture_applications(time)?;
-            for entry in &mut self.applications.demand {
-                if let Some(available) = availability.get(&entry.application) {
-                    entry.availability = *available;
-                }
+        }
+        self.inputs.retain(|input| {
+            input
+                .weight
+                .is_none_or(|weight| !weight.finished(time) || weight.target().get() > 0.0)
+        });
+        for input in &mut self.inputs {
+            if input.weight.is_some_and(|weight| weight.finished(time)) {
+                input.weight = None;
             }
         }
-        self.inputs
-            .retain(|input| input.weight.is_none_or(|weight| weight.target().get() > 0.0));
-        for input in &mut self.inputs {
-            input.weight = None;
+        if let Some(control) = &self.control
+            && let Some(index) = control.cached()
+        {
+            control.with_frame(Some(time), |timeline, frame, playback| {
+                self.applications =
+                    timeline
+                        .applications
+                        .capture(&index, frame, playback, control.authoring_revision(), self.layer)?;
+                for entry in std::sync::Arc::make_mut(&mut self.applications.demand) {
+                    if let Some(available) = availability.get(&entry.application) {
+                        entry.availability = *available;
+                    }
+                }
+                let local = self.layer.map_or(frame, |layer| frame.layer(layer));
+                self.until = self
+                    .layer
+                    .map_or(frame.next, |_| local.interval)
+                    .map(|interval| interval.envelope(0.0, 1.0));
+                self.observation.columns = local.columns();
+                self.observation.layers = frame.stamps.clone();
+                self.observation.transitioning = self.until.is_some();
+                Ok(())
+            })?;
         }
-        self.until = None;
-        self.observation.transitioning = false;
-        self.observation
-            .columns
-            .retain(|column| Some(*column) == self.observation.playback.desired_column);
         Ok(())
     }
     pub fn needs_scratch(&self) -> bool {
@@ -83,46 +99,42 @@ pub(crate) fn capture(
         return Err("Matrix export belongs to another media".into());
     }
     let control = root.matrix_playback().ok_or("Matrix runtime owner is missing")?;
-    let index = match control.cached() {
-        Some(index) => index,
-        None => {
-            let document = Document::load(engine, reference.media)?;
-            for id in &document.elements {
-                match engine.nodes.get(*id) {
-                    Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
-                    Some(AppNode::MatrixColumn(node)) => node.bind_runtime(control.binding()),
-                    Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
-                    _ => unreachable!(),
-                }
-            }
-            let index = Arc::new(RenderIndex::build(engine, &document, control)?);
-            control.cache(index.clone());
-            index
-        }
-    };
+    let index = super::projection::index(engine, reference.media, control)?;
     let captured = control
         .with_frame(time, |timeline, frame, playback| {
+            let layer_scope = match output {
+                MatrixOutput::Layer { layer } => Some(*layer),
+                _ => None,
+            };
+            let local = layer_scope.map_or(frame, |layer| frame.layer(layer));
+            let until = layer_scope.map_or(frame.next, |_| local.interval);
             let mut columns = Vec::new();
-            for contribution in &frame.clips {
+            for contribution in &local.clips {
                 if !columns.contains(&contribution.clip.column) {
                     columns.push(contribution.clip.column);
                 }
             }
             let mut captured = CapturedMatrix {
-                applications: timeline
-                    .applications
-                    .capture(&index, frame, playback, control.authoring_revision())?,
+                applications: timeline.applications.capture(
+                    &index,
+                    frame,
+                    playback,
+                    control.authoring_revision(),
+                    layer_scope,
+                )?,
                 observation: MatrixPlanStamp {
                     playback: playback.clone(),
                     revision: control.authoring_revision(),
                     columns,
-                    transitioning: frame.interval.is_some(),
+                    transitioning: until.is_some(),
+                    layers: frame.stamps.clone(),
                 },
                 canvas: index.canvas,
                 opacity: 1.0,
                 inputs: vec![],
-                until: frame.interval.map(|interval| interval.envelope(0.0, 1.0)),
+                until: until.map(|interval| interval.envelope(0.0, 1.0)),
                 control: Some(control.clone()),
+                layer: layer_scope,
             };
             let item = match output {
                 MatrixOutput::Final { .. } => {
@@ -149,7 +161,7 @@ pub(crate) fn capture(
                 let MatrixItemId::Layer { id: layer } = item.unwrap() else {
                     unreachable!()
                 };
-                for entry in &frame.clips {
+                for entry in &local.clips {
                     let candidate = index
                         .cells
                         .get(&entry.clip.column)
@@ -174,7 +186,7 @@ pub(crate) fn capture(
                     captured.inputs.push(MatrixInput {
                         source,
                         blend: golden_video::plan::BlendMode::Add,
-                        weight: frame.interval.map(|interval| interval.envelope(from, to)),
+                        weight: local.interval.map(|interval| interval.envelope(from, to)),
                     });
                 }
             } else {
@@ -217,6 +229,9 @@ pub(crate) fn capture(
                         }
                         *budget -= 1;
                         next = order + 1;
+                        if frame.layers.contains_key(&cell.layer) {
+                            continue;
+                        }
                         let current = MatrixItemId::Layer { id: cell.layer };
                         let owner = index.items[&current].channel;
                         match timeline.bindings.resolve(entry.clip, cell.layer, owner, Some(cell)) {
@@ -224,6 +239,29 @@ pub(crate) fn capture(
                                 if let Some(child) = immediate_child(&index, current, scope, &mut children) {
                                     next = index.items[&child].end;
                                 }
+                            }
+                            Ok(None) => {}
+                            Err(_) => return Ok(None),
+                        }
+                    }
+                }
+                for (layer, local) in frame.layers.iter() {
+                    let current = MatrixItemId::Layer { id: *layer };
+                    let Some(item) = index.items.get(&current).filter(|item| range.contains(&item.order)) else {
+                        continue;
+                    };
+                    for entry in &local.clips {
+                        if *budget == 0 {
+                            return Ok(None);
+                        }
+                        *budget -= 1;
+                        let candidate = index
+                            .cells
+                            .get(&entry.clip.column)
+                            .and_then(|cells| cells.get(&item.order));
+                        match timeline.bindings.resolve(entry.clip, *layer, item.channel, candidate) {
+                            Ok(Some(_)) => {
+                                immediate_child(&index, current, scope, &mut children);
                             }
                             Ok(None) => {}
                             Err(_) => return Ok(None),

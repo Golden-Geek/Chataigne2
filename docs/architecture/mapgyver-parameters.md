@@ -131,5 +131,22 @@ reservation/event bounds independent of consumer count. Rust generates every Typ
 The generic Inspector presents the selected consumer's actual configuration state and runtime
 consumer count. Runtime identities and native observations are not project data.
 
-The complete direct-Cell/disabled-render/outgoing/final-use acceptance remains tracked in M08/2;
-Column embedding, standalone removal and normalized-key sharing are functionally verified.
+`LaunchCell` changes one Layer's ephemeral request without changing the Column anchor. Cell
+transition override Parameters take precedence over the Column override and current Matrix
+fallback; conversion to the required typed Layer duration remains M07 work. Disabled Cells skip
+individual activation and preserve the previous Layer request during Column launches. Empty
+enabled addresses transition toward transparency without creating authored Cell nodes.
+
+Playback retains shared Column mixes plus sparse independent Layer mixes. Source bindings remain
+in one 4,096-entry cache; per-Layer/clip app references retire at their own transition deadline.
+The original 32-way Column interruption limit remains, and independent Layers use the same
+32-contributor limit. Aggregate memory/timing/native scale qualification remains M07/M09; these
+functional changes do not waive those budgets. Immutable Layer maps/stamps and captured app arrays
+avoid copying whole-Matrix binding state for each Layer. A separate authored-policy cache keeps
+logical/headless control independent of render-index construction.
+
+Rust-generated request identity and per-Layer stamps distinguish requested from submitted mixes.
+Double-clicking an actual Layer Cell invokes the backend intent; the grid only presents selection,
+requested/submitted markers and typed responses. Playback requests never enter project/history.
+The complete disabled-render/outgoing/final-use matrix remains tracked in M08/2; direct Cell
+activation, Column/Cell ownership, standalone removal and normalized-key sharing are verified.

@@ -32,8 +32,10 @@ struct Control {
 }
 #[derive(Default)]
 struct State {
+    configuration: Option<(u64, Arc<super::configuration::Configuration>)>,
     current: MatrixPlaybackSnapshot,
     version: u64,
+    epochs: std::collections::HashMap<uuid::Uuid, u64>,
     pending: Option<(MatrixPlaybackSnapshot, EditCompletion, u64)>,
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
@@ -77,6 +79,23 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub(super) fn configuration(&self) -> Option<Arc<super::configuration::Configuration>> {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .configuration
+            .as_ref()
+            .filter(|(revision, _)| *revision == self.authoring_revision())
+            .map(|(_, index)| index.clone())
+    }
+    pub(super) fn cache_configuration(&self, index: Arc<super::configuration::Configuration>) {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .configuration = Some((self.authoring_revision(), index));
+    }
     pub(crate) fn bind_application_parent(&self, source: &Arc<RevisionSource>) {
         let _ = self.0.application_parent.set(Arc::downgrade(source));
     }
@@ -110,20 +129,6 @@ impl PlaybackControl {
             .lock()
             .expect("Matrix playback lock poisoned")
             .application_columns = Some((self.0.columns.reader().current(), columns));
-    }
-    pub(crate) fn capture_applications(
-        &self,
-        time: golden_time::TimeSnapshot,
-    ) -> Result<super::applications::CapturedApplications, String> {
-        let Some(index) = self.cached() else {
-            return Err("Matrix app index is stale".into());
-        };
-        self.with_frame(Some(time), |timeline, frame, playback| {
-            timeline
-                .applications
-                .capture(&index, frame, playback, self.authoring_revision())
-        })
-        .map(|captured| captured.unwrap_or_default())
     }
     pub fn view(&self) -> Option<Arc<super::view::ViewIndex>> {
         self.0
@@ -161,10 +166,11 @@ impl PlaybackControl {
         let desired = self.snapshot();
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let version = state.version;
-        let Some(frame) = state.timeline.frame(&desired, time, version)? else {
+        let State { timeline, epochs, .. } = &mut *state;
+        let Some(frame) = timeline.frame(&desired, time, version, epochs)? else {
             return Ok(None);
         };
-        capture(&mut state.timeline, &frame, &desired).map(Some)
+        capture(timeline, &frame, &desired).map(Some)
     }
     pub(crate) fn bind_sources(
         &self,
@@ -202,8 +208,19 @@ impl PlaybackControl {
             match receipt.status() {
                 EditCompletionStatus::Applied => {
                     let (desired, _, version) = state.pending.take().unwrap();
+                    if state.current.launch_id != desired.launch_id {
+                        state.version = version;
+                    }
+                    let ids = desired
+                        .launch_id
+                        .into_iter()
+                        .chain(desired.layers.iter().filter_map(|request| request.launch_id))
+                        .collect::<std::collections::HashSet<_>>();
+                    state.epochs.retain(|id, _| ids.contains(id));
+                    for id in ids {
+                        state.epochs.entry(id).or_insert(version);
+                    }
                     state.current = desired;
-                    state.version = version;
                     self.0.revision.advance();
                 }
                 EditCompletionStatus::Failed => {
@@ -296,9 +313,55 @@ pub(super) fn launch(
     if mode == LaunchMode::Configured && transition.duration_ms != 0 && !control.admits(column) {
         return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
     }
+    let index = super::configuration::index(engine, media, &control)?;
+    let previous = control.snapshot();
+    let launch = uuid::Uuid::new_v4();
+    let mut layers = Vec::new();
+    let previous_layers = previous
+        .layers
+        .iter()
+        .map(|request| (request.layer, request))
+        .collect::<std::collections::HashMap<_, _>>();
+    let disabled_layers = index
+        .disabled
+        .get(&column)
+        .into_iter()
+        .flatten()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
+    if let Some(disabled) = index.disabled.get(&column) {
+        for layer in disabled {
+            layers.push(
+                previous_layers
+                    .get(layer)
+                    .map(|request| (*request).clone())
+                    .unwrap_or(LayerPlaybackRequest {
+                        layer: *layer,
+                        column: previous.desired_column,
+                        launch_id: previous.launch_id,
+                        transition: previous.transition,
+                        individual: false,
+                    }),
+            );
+        }
+    }
+    for (layer, transition) in index.overrides.get(&column).into_iter().flatten() {
+        if !disabled_layers.contains(layer) {
+            layers.push(LayerPlaybackRequest {
+                layer: *layer,
+                column: Some(column),
+                launch_id: Some(launch),
+                transition: selected_transition(*transition, mode),
+                individual: false,
+            });
+        }
+    }
+    layers.sort_by_key(|request| request.layer.0.0);
     let desired = MatrixPlaybackSnapshot {
+        request_id: Some(launch),
+        layers: layers.into(),
         desired_column: Some(column),
-        launch_id: Some(uuid::Uuid::new_v4()),
+        launch_id: Some(launch),
         transition: if mode == LaunchMode::Cut {
             TransitionDefinition {
                 duration_ms: 0,
@@ -316,15 +379,96 @@ pub(super) fn launch(
     Ok(MediaEditResult::MatrixLaunched { snapshot: desired })
 }
 
+fn selected_transition(mut transition: TransitionDefinition, mode: LaunchMode) -> TransitionDefinition {
+    if mode == LaunchMode::Cut {
+        transition.duration_ms = 0;
+    }
+    transition
+}
+
+pub(super) fn launch_cell(
+    engine: &mut AppEngine,
+    media: MediaId,
+    layer: LayerId,
+    column: ColumnId,
+    mode: LaunchMode,
+) -> Result<MediaEditResult, String> {
+    let root_id = root(engine, media)?;
+    let Some(AppNode::MediaChannel(root)) = engine.nodes.get(root_id) else {
+        unreachable!()
+    };
+    let control = root.matrix_playback().ok_or("Matrix playback is missing")?.clone();
+    let index = super::configuration::index(engine, media, &control)?;
+    if !index.layers.contains(&layer) {
+        return Err("Layer belongs to another Matrix or is missing".into());
+    }
+    let fallback = *index
+        .transitions
+        .get(&column)
+        .ok_or("Column belongs to another Matrix or is missing")?;
+    if index
+        .cell_nodes
+        .get(&(layer, column))
+        .and_then(|id| engine.nodes.get(*id))
+        .is_some_and(|node| !node.node_data().effective_enabled)
+    {
+        return Ok(MediaEditResult::MatrixPlayback {
+            snapshot: control.snapshot(),
+        });
+    }
+    let transition = selected_transition(
+        index
+            .overrides
+            .get(&column)
+            .and_then(|overrides| overrides.get(&layer))
+            .copied()
+            .unwrap_or(fallback),
+        mode,
+    );
+    if transition.duration_ms != 0
+        && !control
+            .0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .timeline
+            .accepts_cell(layer, column, control.authoring_revision())
+    {
+        return Err("Layer interrupted mix retains 32 clips; use Cut or wait for completion".into());
+    }
+    let mut desired = control.snapshot();
+    let launch = uuid::Uuid::new_v4();
+    let mut layers = desired.layers.to_vec();
+    layers.retain(|request| request.layer != layer);
+    layers.push(LayerPlaybackRequest {
+        layer,
+        column: Some(column),
+        launch_id: Some(launch),
+        transition,
+        individual: true,
+    });
+    layers.sort_by_key(|request| request.layer.0.0);
+    desired.layers = layers.into();
+    desired.request_id = Some(launch);
+    let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root_id), &desired)
+        .map_err(|error| error.to_string())?;
+    engine.edits.push(Edit::EmitCustomEvent { event });
+    control.stage(desired.clone(), engine.edits.completion());
+    Ok(MediaEditResult::MatrixLaunched { snapshot: desired })
+}
+
 pub(crate) fn unload(engine: &mut AppEngine, media: MediaId) -> Result<MediaEditResult, String> {
     let parent = root(engine, media)?;
     let Some(AppNode::MediaChannel(node)) = engine.nodes.get(parent) else {
         unreachable!()
     };
     let control = node.matrix_playback().ok_or("Matrix playback is missing")?.clone();
+    let launch = uuid::Uuid::new_v4();
     let desired = MatrixPlaybackSnapshot {
+        request_id: Some(launch),
+        layers: Arc::from([]),
         desired_column: None,
-        launch_id: Some(uuid::Uuid::new_v4()),
+        launch_id: Some(launch),
         transition: TransitionDefinition {
             duration_ms: 0,
             curve: TransitionCurve::Linear,

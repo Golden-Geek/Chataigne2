@@ -2,6 +2,50 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn independent_cell_launch_preserves_anchor_and_authored_history_for_all_callers() {
+    let scene = scene();
+    let row = scene
+        .snapshot
+        .items
+        .iter()
+        .find_map(|item| match item.id {
+            MatrixItemId::Layer { id } => Some(id),
+            _ => None,
+        })
+        .unwrap();
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        matrix_edit(
+            &mut engine,
+            scene.root,
+            MatrixEdit::LaunchColumn {
+                column: scene.snapshot.columns[0].id,
+                mode: LaunchMode::Cut,
+            },
+        );
+        let reply = run(
+            &mut engine,
+            caller,
+            MediaEdit::Matrix {
+                media: scene.root.media,
+                edit: MatrixEdit::LaunchCell {
+                    layer: row,
+                    column: scene.snapshot.columns[1].id,
+                    mode: LaunchMode::Cut,
+                },
+            },
+        )
+        .unwrap();
+        let MediaEditResult::MatrixLaunched { snapshot } = serde_json::from_value(reply).unwrap() else {
+            panic!()
+        };
+        assert_eq!(snapshot.desired_column, Some(scene.snapshot.columns[0].id));
+        assert_eq!(snapshot.layers[0].layer, row);
+        assert_eq!(snapshot.layers[0].column, Some(scene.snapshot.columns[1].id));
+    }
+}
+
+#[test]
 fn sparse_cell_app_control_creation_configuration_and_rejection_match_every_public_caller() {
     let scene = scene();
     let row = scene

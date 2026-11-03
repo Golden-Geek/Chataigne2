@@ -135,7 +135,7 @@ fn curve_name(curve: TransitionCurve) -> &'static str {
         TransitionCurve::SmoothStep => "SmoothStep",
     }
 }
-fn validate(duration: f64, curve: &str) -> Result<(), String> {
+pub(super) fn validate(duration: f64, curve: &str) -> Result<(), String> {
     if !duration.is_finite() || duration.fract() != 0.0 || !(0.0..=f64::from(u32::MAX)).contains(&duration) {
         return Err("Column duration must be a whole number of milliseconds in 0..4294967295".into());
     }

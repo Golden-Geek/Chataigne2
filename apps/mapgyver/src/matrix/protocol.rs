@@ -125,6 +125,7 @@ pub struct CellDefinition {
     pub source: Option<ChannelReference>,
     /// This Cell's declared typed settings, including when unconfigured.
     pub application: crate::applications::protocol::ApplicationId,
+    pub transition: Option<TransitionDefinition>,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
@@ -252,6 +253,11 @@ pub struct MatrixTargetPage {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    LaunchCell {
+        layer: LayerId,
+        column: ColumnId,
+        mode: LaunchMode,
+    },
     DropSource {
         layer: LayerId,
         column: ColumnId,
@@ -356,9 +362,26 @@ pub enum LaunchMode {
 /// Committed desired state, distinct from UI selection and actual renderer installation.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct MatrixPlaybackSnapshot {
+    pub request_id: Option<uuid::Uuid>,
     pub desired_column: Option<ColumnId>,
     pub launch_id: Option<uuid::Uuid>,
     pub transition: TransitionDefinition,
+    pub layers: std::sync::Arc<[LayerPlaybackRequest]>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct LayerPlaybackRequest {
+    pub layer: LayerId,
+    pub column: Option<ColumnId>,
+    pub launch_id: Option<uuid::Uuid>,
+    pub transition: TransitionDefinition,
+    pub individual: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixLayerPlanStamp {
+    pub layer: LayerId,
+    pub columns: Vec<ColumnId>,
+    pub transitioning: bool,
 }
 
 /// Metadata of the Matrix content carried by one renderer plan, never UI selection.
@@ -369,6 +392,7 @@ pub struct MatrixPlanStamp {
     /// Includes transition envelope participants, not a claim of positive opacity in every frame.
     pub columns: Vec<ColumnId>,
     pub transitioning: bool,
+    pub layers: std::sync::Arc<[MatrixLayerPlanStamp]>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]

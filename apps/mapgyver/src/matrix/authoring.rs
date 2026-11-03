@@ -92,6 +92,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if let MatrixEdit::InspectViewport { viewport, selection } = edit {
         return super::view::inspect(engine, media, viewport, selection);
     }
+    if let MatrixEdit::LaunchCell { layer, column, mode } = edit {
+        return super::playback::launch_cell(engine, media, layer, column, mode);
+    }
     if let MatrixEdit::LaunchColumn { column, mode } = edit {
         return super::playback::launch(engine, media, column, mode);
     }
@@ -335,6 +338,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             engine.edits.push(Edit::RemoveNode { node });
         }
         MatrixEdit::DuplicateColumn { column } => return super::copying::column(engine, &document, column),
+        MatrixEdit::LaunchCell { .. } => unreachable!(),
         MatrixEdit::SetCells { assignments } => super::cells::assign(engine, &document, assignments)?,
     }
     Ok(MediaEditResult::Changed)

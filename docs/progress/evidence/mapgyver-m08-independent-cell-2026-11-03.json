@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "scope": "Independent Cell playback and app demand with unchanged Column anchor; full retained-demand acceptance remains open",
+  "software": {
+    "full_command": "cargo test --locked -p MapGyver --lib",
+    "full_passed": 368,
+    "full_failed": 0,
+    "full_ignored": 2,
+    "full_duration_seconds": 75.98,
+    "additional": "After adding one test only, cargo test --locked -p MapGyver --lib matrix::tests::cell_playback passes all 4 cases in 0.03s. Total distinct exercised library cases: 369; do not misreport this as a full 369-case run.",
+    "coverage": "Shared-time midpoint/interruption/source weights and unchanged peer Layer/Column anchor; subsequent atomic Column launch; disabled Cell hold/enable; typed Cell override and no-anchor logical demand; outgoing app reference survives Column deletion until its own deadline; four public caller modes preserve authoring/history",
+    "strict_clippy": "Library/all-test native-qualification,application-process-fixture features: pass",
+    "protocol": "Rust Media and Preview generators updated request identity, Layer requests/stamps and Cell transition projection; both equality tests pass",
+    "svelte": "0 errors, 0 warnings",
+    "ui_tests": "26 application/Matrix tests passed",
+    "format": "Both Cargo formatters, touched UI/browser Prettier and whitespace checks pass"
+  },
+  "native": {
+    "prerequisites": "Inspected passing software/lint and terminal-success integration build before native execution",
+    "build": "cargo rustc --locked -p MapGyver --test application_runtime --features application-process-fixture -- -C extra-filename=-codex-cell-playback: exit 0",
+    "binary": "target/debug/deps/application_runtime-codex-cell-playback.exe",
+    "sha256": "19BD38539737936ED50353497FE454BA4F69CBC2980141AC2E163FF2239AB2F2",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 1,
+    "duration_seconds": 1.15,
+    "new_case": "Actual owned process from a directly triggered media-free Cell with no Column anchor or renderer/time; history/project remain unchanged; Unload completes retirement",
+    "retained_limits": "Pinned-descendant/access/readiness hardware qualification remains open; null-renderer completion proof does not claim native GPU pixels"
+  },
+  "bundled_ui": {
+    "build": "Isolated MapGyver-codex-review build: exit 0",
+    "sha256": "127536B823FFD7ACFD110D7A5A16F73A76D20C5C92A5594F3EE50C8050B1C5A5",
+    "browser": "149.0.7827.55",
+    "result": "pass",
+    "coverage": "Actual grid double-click triggers only the Cell consumer outside the unchanged Column anchor's range; requested markers show the independent Layer target; actual Unload retires it; prior shared-runtime/Inspector/source/history/New-Load behavior passes",
+    "page_errors": 0,
+    "rejected_intents": 0,
+    "cell_regression": "--cell-application-ui passed on the same binary in the initial combined run",
+    "corrected_fixture": "Wait for asynchronous viewport marker updates after backend/runtime settlement; an immediate attribute read initially raced the UI refresh"
+  },
+  "bounds": "One shared 4096 source-binding cache; original 32-way Column mix bound retained and independent Layer mixes capped at 32 contributors. Aggregate memory/timing/native scale qualification remains required without budget waivers.",
+  "logs": "target/m08-cell-playback-{lib-final,scope-tests,clippy,ui-check,ui-tests,native-build,native,app-build,bundled,bundled-final}.log",
+  "remaining": "Complete disabled-render/outgoing/final-use and interruption/reorder/deletion/Undo/project matrix; M07 typed Layer duration/transforms/grid/defaults/native/scale; M08/3-4 complete readiness/access/retirement/picker/commands/scripts/snippets/callback outcomes",
+  "acceptance_awarded": 0
+}

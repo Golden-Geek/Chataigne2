@@ -47,26 +47,28 @@ pub(crate) fn capture_application_columns(
     Ok(columns)
 }
 
-#[derive(Clone, PartialEq, Eq)]
-struct Key {
-    revision: u64,
-    launch: Option<uuid::Uuid>,
-    clips: Vec<(uuid::Uuid, bool)>,
-}
 #[derive(Clone, Default)]
 pub(crate) struct CapturedApplications {
-    pub demand: Vec<ApplicationDemand>,
-    pub references: Vec<ApplicationId>,
+    pub demand: Arc<[ApplicationDemand]>,
+    pub references: Arc<[ApplicationId]>,
 }
 #[derive(Default)]
 pub(crate) struct Applications {
-    clips: HashMap<uuid::Uuid, Vec<ApplicationId>>,
-    cached: Option<(Key, CapturedApplications)>,
+    clips: HashMap<(uuid::Uuid, Option<LayerId>), Vec<ApplicationId>>,
+    key: Option<(u64, u64)>,
+    cached: HashMap<Option<LayerId>, CapturedApplications>,
 }
 impl Applications {
     pub fn retain(&mut self, frame: &Frame) {
-        self.clips
-            .retain(|id, _| frame.clips.iter().any(|clip| clip.clip.id == *id));
+        self.clips.retain(|(id, layer), _| match layer {
+            Some(layer) => frame.layer(*layer).clips.iter().any(|entry| entry.clip.id == *id),
+            None => frame
+                .clips
+                .iter()
+                .chain(frame.layers.values().flat_map(|frame| frame.clips.iter()))
+                .any(|entry| entry.clip.id == *id && !entry.clip.individual),
+        });
+        self.cached.clear();
     }
     pub fn capture(
         &mut self,
@@ -74,60 +76,92 @@ impl Applications {
         frame: &Frame,
         playback: &MatrixPlaybackSnapshot,
         revision: u64,
+        scope: Option<LayerId>,
     ) -> Result<CapturedApplications, String> {
-        let key = Key {
-            revision,
-            launch: playback.launch_id,
-            clips: frame
-                .clips
-                .iter()
-                .map(|entry| (entry.clip.id, entry.to > 0.0))
-                .collect(),
-        };
-        if let Some((previous, captured)) = &self.cached
-            && *previous == key
-        {
+        let key = (revision, frame.generation);
+        if self.key != Some(key) {
+            self.retain(frame);
+            self.key = Some(key);
+        }
+        if let Some(captured) = self.cached.get(&scope) {
             return Ok(captured.clone());
         }
-        self.retain(frame);
-        let mut cursors = Vec::new();
+        let mut layers = index
+            .cell_apps
+            .keys()
+            .map(|(layer, _)| *layer)
+            .collect::<std::collections::HashSet<_>>();
+        layers.extend(self.clips.keys().filter_map(|(_, layer)| *layer));
+        layers.extend(frame.layers.keys().copied());
         let mut holds = Vec::new();
-        if let (Some(column), Some(scope)) = (playback.desired_column, playback.launch_id) {
-            cursors.push(DemandCursor {
-                scope,
-                column,
-                reason: DemandReason::Preparation,
-            });
-        }
-        for entry in &frame.clips {
+        let mut observe = |entry: &super::timeline::Contribution, layer: Option<LayerId>| {
             let reason = if entry.to > 0.0 {
                 DemandReason::Active
             } else {
                 DemandReason::Outgoing
             };
-            cursors.push(DemandCursor {
-                scope: entry.clip.id,
-                column: entry.clip.column,
-                reason,
-            });
-            let references = self.clips.entry(entry.clip.id).or_default();
-            if let Some(column) = index.columns.iter().find(|column| column.id == entry.clip.column) {
-                references.extend(column.bindings.iter().map(|binding| binding.application));
+            if !entry.clip.individual {
+                let references = self.clips.entry((entry.clip.id, None)).or_default();
+                references.extend(index.column_apps.get(&entry.clip.column).copied());
                 references.sort_by_key(|id| id.0.0);
                 references.dedup();
-                if references.len() > DemandLimits::default().applications {
-                    return Err("Matrix clip app-control retention capacity exceeded".into());
+                holds.extend(references.iter().map(|application| DemandHold {
+                    application: *application,
+                    reason,
+                }));
+            }
+            if let Some(layer) = layer {
+                let references = self.clips.entry((entry.clip.id, Some(layer))).or_default();
+                references.extend(index.cell_apps.get(&(layer, entry.clip.column)).copied());
+                references.sort_by_key(|id| id.0.0);
+                references.dedup();
+                holds.extend(references.iter().map(|application| DemandHold {
+                    application: *application,
+                    reason,
+                }));
+            }
+        };
+        if let Some(layer) = scope {
+            for entry in &frame.layer(layer).clips {
+                observe(entry, Some(layer));
+            }
+        } else {
+            for entry in &frame.clips {
+                observe(entry, None);
+            }
+            for layer in layers {
+                for entry in &frame.layer(layer).clips {
+                    observe(entry, Some(layer));
                 }
             }
-            holds.extend(references.iter().map(|application| DemandHold {
-                application: *application,
-                reason,
-            }));
+        }
+        holds.sort_by_key(|hold| (hold.application.0.0, hold.reason));
+        holds.dedup_by_key(|hold| (hold.application, hold.reason));
+        let mut cursors = Vec::new();
+        if scope.is_none() {
+            if let (Some(column), Some(scope)) = (playback.desired_column, playback.launch_id) {
+                cursors.push(DemandCursor {
+                    scope,
+                    column,
+                    reason: DemandReason::Preparation,
+                });
+            }
+            for entry in &frame.clips {
+                cursors.push(DemandCursor {
+                    scope: entry.clip.id,
+                    column: entry.clip.column,
+                    reason: if entry.to > 0.0 {
+                        DemandReason::Active
+                    } else {
+                        DemandReason::Outgoing
+                    },
+                });
+            }
         }
         let demand = resolve(
             &[],
             &[MatrixDemand {
-                columns: &index.columns,
+                columns: if scope.is_none() { &index.columns } else { &[] },
                 cursors: &cursors,
                 holds: &holds,
             }],
@@ -136,8 +170,11 @@ impl Applications {
         let mut references = holds.iter().map(|hold| hold.application).collect::<Vec<_>>();
         references.sort_by_key(|id| id.0.0);
         references.dedup();
-        let captured = CapturedApplications { demand, references };
-        self.cached = Some((key, captured.clone()));
+        let captured = CapturedApplications {
+            demand: demand.into(),
+            references: references.into(),
+        };
+        self.cached.insert(scope, captured.clone());
         Ok(captured)
     }
 }

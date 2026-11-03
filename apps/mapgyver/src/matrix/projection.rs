@@ -15,6 +15,8 @@ pub(crate) struct RenderItem {
     pub end: usize,
 }
 pub(crate) struct RenderIndex {
+    pub cell_apps: HashMap<(LayerId, ColumnId), crate::applications::protocol::ApplicationId>,
+    pub column_apps: HashMap<ColumnId, crate::applications::protocol::ApplicationId>,
     pub columns: Vec<crate::applications::demand::DemandColumn>,
     pub canvas: golden_video::Extent2D,
     pub items: HashMap<MatrixItemId, RenderItem>,
@@ -63,7 +65,23 @@ impl RenderIndex {
             items.get_mut(&id).unwrap().end = document.snapshot.items.len();
         }
         let mut cells = HashMap::<ColumnId, BTreeMap<usize, CellSource>>::new();
+        let mut cell_apps = HashMap::new();
         for cell in &document.snapshot.cells {
+            let AppNode::MatrixCell(node) = engine
+                .nodes
+                .get(document.cells[&(cell.layer, cell.definition.column)])
+                .unwrap()
+            else {
+                unreachable!()
+            };
+            if crate::applications::control_node(engine, cell.definition.application)
+                .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
+            {
+                cell_apps.insert((cell.layer, cell.definition.column), cell.definition.application);
+            }
+            if !node.node_data().effective_enabled {
+                continue;
+            }
             if cell.media.is_some() {
                 let AppNode::MatrixCell(node) = engine
                     .nodes
@@ -97,11 +115,45 @@ impl RenderIndex {
             })
             .collect::<Vec<_>>();
         super::cell_applications::append(engine, document, control, &mut columns)?;
+        let column_apps = document
+            .snapshot
+            .columns
+            .iter()
+            .filter(|column| {
+                crate::applications::control_node(engine, column.application)
+                    .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
+            })
+            .map(|column| (column.id, column.application))
+            .collect();
         Ok(Self {
+            cell_apps,
+            column_apps,
             columns,
             canvas: document.snapshot.definition.canvas,
             items,
             cells,
         })
     }
+}
+
+pub(super) fn index(
+    engine: &AppEngine,
+    media: crate::media::protocol::MediaId,
+    control: &super::playback::PlaybackControl,
+) -> Result<std::sync::Arc<RenderIndex>, String> {
+    if let Some(index) = control.cached() {
+        return Ok(index);
+    }
+    let document = Document::load(engine, media)?;
+    for id in &document.elements {
+        match engine.nodes.get(*id) {
+            Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
+            Some(AppNode::MatrixColumn(node)) => node.bind_runtime(control.binding()),
+            Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
+            _ => unreachable!(),
+        }
+    }
+    let index = std::sync::Arc::new(RenderIndex::build(engine, &document, control)?);
+    control.cache(index.clone());
+    Ok(index)
 }

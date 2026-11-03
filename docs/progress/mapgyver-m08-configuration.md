@@ -5,7 +5,7 @@ verified: equivalent launch definitions preserve the existing owned process rath
 triggering a stop/restart. The typed settings milestone below is also verified. Neither
 milestone alone accepts the full configuration/demand gate. Column/Cell ownership, standalone
 removal and normalized-key runtime sharing are now functionally verified below. Independent
-Cell activation and the complete revised retained-demand matrix remain required.
+Cell activation is now verified below; the complete revised retained-demand matrix remains required.
 
 ## Ownership and behavior
 
@@ -250,10 +250,44 @@ uses the existing Column header launch actions. No product change was needed for
 **No complete M08 gate closes here.** The current key-sharing capability is verified, while the
 independent Cell playback and complete revised demand/retirement acceptance remain required.
 
+## Independent Cell playback — 2026-11-03
+
+`LaunchCell` commits one Layer request while retaining the current Column anchor and other Layers.
+Sparse per-Layer mixes preserve timed/interrupted weights; later Column launches start from each
+Layer's actual mix. Cell transition override is a typed Parameter declaration and precedes Column
+override/current Matrix fallback. The required typed Layer-duration conversion remains M07.
+Disabled Cells skip direct activation and hold previous content on Column launches; enabled empty
+addresses fade toward transparency. Request epochs and source-version fences remain ephemeral.
+
+One bounded source-binding cache serves all mixes. Per-Layer/clip app-reference retention prevents
+an outgoing Cell's app from disappearing when its Column is deleted, and releases it at that
+Layer's own fade deadline. Logical direct demand works with no Column anchor, renderer or clock;
+it does not move neighbor/preload ranges or launch the other Column's control. Immutable cached
+Layer maps/stamps/app arrays avoid whole-Matrix binding copies per Layer. The separate authored
+configuration cache preserves the existing logical no-render-index contract.
+
+[Verification receipt](evidence/mapgyver-m08-independent-cell-2026-11-03.json): the full library
+suite passes **368 cases**, two retained exclusions. An additional outgoing/deletion test and its
+four-case Cell suite pass afterward (**369 distinct library cases exercised**, no product-code
+change between those runs). Strict native-target Clippy, Media/Preview generated equality,
+Svelte (0/0), 26 UI tests and formatting pass. **Ten Windows process tests pass** in **1.15 seconds**,
+one retained pinned-descendant exclusion, including direct no-anchor launch and completed unload.
+
+The bundled app passes actual double-click Cell activation, unchanged Column anchor, only the
+Cell's process consumer, independent requested markers and actual Unload retirement, alongside
+shared-runtime/Cell Inspector/source/history/Save-New-Load regressions. Browser errors/rejected
+intents are zero. The marker check waits for the asynchronous viewport read after backend demand
+settles; its initial immediate DOM read raced that update. Native Layer pixels and complete
+Matrix UI/typed-model qualification are not claimed by these headless/source-weight oracles.
+
+**M08/2 remains Active.** Complete the disabled-render/outgoing/final-use matrix through interruption,
+reorder/deletion/Undo and project changes before closing it. M07 retains typed Layer duration,
+complete Layer/Cell transforms, revised grid/defaults and native/scale acceptance.
+
 ## Exact remaining M08/2 requirement
 
-Preserve the verified clamped/non-wrapping Cell ranges and shared normalized owners while adding
-independent direct Cell activation and complete disabled-render/outgoing/final-use retention through jumps,
+Preserve verified independent activation, clamped/non-wrapping ranges and shared normalized owners;
+finish complete disabled-render/outgoing/final-use retention through jumps,
 reorder/delete and project/history operations. Complete fake-time/process, UI/public caller
 and project verification before accepting M08/2. M08/3–4 retain their complete actual-process,
 picker/API/script/callback/snippet, target-outcome and retirement/access acceptance.

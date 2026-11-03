@@ -57,9 +57,9 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         if !root.node_data().effective_enabled {
             continue;
         }
-        let (Some(column), Some(scope)) = (playback.desired_column, playback.launch_id) else {
+        if playback.launch_id.is_none() && playback.layers.is_empty() {
             continue;
-        };
+        }
         if matrices.len() == 128 {
             return Err("logical Matrix scope capacity exceeded".into());
         }
@@ -67,21 +67,43 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         guards.push(control.application_guard());
         let columns = crate::matrix::capture_application_columns(engine, root_id, control, columns_left)?;
         columns_left -= columns.len();
-        matrices.push((
-            columns,
-            [DemandCursor {
+        let cursors = playback
+            .desired_column
+            .zip(playback.launch_id)
+            .map(|(column, scope)| DemandCursor {
                 scope,
                 column,
                 reason: DemandReason::Preparation,
-            }],
-        ));
+            })
+            .into_iter()
+            .collect::<Vec<_>>();
+        let configuration = crate::matrix::configuration::index(
+            engine,
+            crate::media::protocol::MediaId(media.node_data().meta.uuid),
+            control,
+        )?;
+        let holds = playback
+            .layers
+            .iter()
+            .filter(|request| request.individual)
+            .filter_map(|request| {
+                request
+                    .column
+                    .and_then(|column| configuration.cell_apps.get(&(request.layer, column)))
+                    .map(|application| DemandHold {
+                        application: *application,
+                        reason: DemandReason::Preparation,
+                    })
+            })
+            .collect::<Vec<_>>();
+        matrices.push((columns, cursors, holds));
     }
     let inputs = matrices
         .iter()
-        .map(|(columns, cursors)| MatrixDemand {
+        .map(|(columns, cursors, holds)| MatrixDemand {
             columns,
             cursors,
-            holds: &[],
+            holds,
         })
         .collect::<Vec<_>>();
     let mut demand = resolve(&[], &inputs, DemandLimits::default())?;

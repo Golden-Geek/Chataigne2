@@ -20,6 +20,7 @@
 		selectRow,
 		selectColumn,
 		launch,
+		trigger,
 		drop
 	}: {
 		snapshot: MatrixViewportSnapshot;
@@ -31,8 +32,15 @@
 		selectRow(row: MatrixViewRow): void;
 		selectColumn(column: ColumnSnapshot): void;
 		launch(column: string): void;
+		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
 	} = $props();
+	const layerRequests = $derived(
+		new Map(snapshot.playback.layers.map((request) => [request.layer, request] as const))
+	);
+	const submittedLayers = $derived(
+		new Map((observation?.submitted?.layers ?? []).map((entry) => [entry.layer, entry] as const))
+	);
 	let element: HTMLDivElement;
 	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
 	const projection = $derived(projectGrid(metrics, snapshot.row_total, snapshot.column_total));
@@ -165,6 +173,17 @@
 							class:selected={selected?.item?.id === row.item.id.id &&
 								selected?.column === column.id}
 							onclick={() => select(row, column)}
+							ondblclick={() => {
+								if (row.item.id.kind === 'Layer') trigger(row, column);
+							}}
+							data-requested={(layerRequests.has(row.item.id.id)
+								? layerRequests.get(row.item.id.id)?.column
+								: snapshot.playback.desired_column) === column.id}
+							data-submitted={(
+								submittedLayers.get(row.item.id.id)?.columns ??
+								observation?.submitted?.columns ??
+								[]
+							).includes(column.id)}
 							title={`${row.item.label} / ${column.label}`}>
 							{row.item.id.kind === 'Group'
 								? 'Group'
@@ -260,6 +279,23 @@
 		background: #20242c;
 		color: inherit;
 		border: 0.05rem solid #414754;
+	}
+	.cell[data-requested='true']::before,
+	.cell[data-submitted='true']::after {
+		content: '';
+		position: absolute;
+		top: 0.25rem;
+		width: 0.35rem;
+		height: 0.35rem;
+		border: 0.08rem solid currentColor;
+		border-radius: 50%;
+	}
+	.cell[data-requested='true']::before {
+		left: 0.25rem;
+	}
+	.cell[data-submitted='true']::after {
+		right: 0.25rem;
+		background: currentColor;
 	}
 	.cell.selected {
 		outline: 0.15rem solid #93b9eb;

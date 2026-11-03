@@ -16,6 +16,10 @@ struct Binding {
 }
 pub(crate) struct BindingCapacity;
 impl Bindings {
+    pub fn retain_frame(&mut self, frame: &super::timeline::Frame) {
+        self.entries
+            .retain(|(clip, layer), _| frame.layer(*layer).clips.iter().any(|entry| entry.clip.id == *clip));
+    }
     pub fn resolve(
         &mut self,
         clip: Clip,
@@ -56,10 +60,6 @@ impl Bindings {
             binding.output = output;
         }
         binding.output
-    }
-    pub fn retain(&mut self, clips: impl Iterator<Item = uuid::Uuid>) {
-        let clips = clips.collect::<HashSet<_>>();
-        self.entries.retain(|(clip, _), _| clips.contains(clip));
     }
     pub fn layers(&self) -> HashSet<LayerId> {
         self.entries

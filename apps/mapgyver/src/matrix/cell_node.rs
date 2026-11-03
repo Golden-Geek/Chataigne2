@@ -1,5 +1,5 @@
 //! Typed sparse address and selected output; content is an actual owned media child.
-use super::protocol::{CellDefinition, ColumnId};
+use super::protocol::{CellDefinition, ColumnId, TransitionCurve, TransitionDefinition};
 use crate::{
     app::{AppEngine, AppNode},
     media::protocol::{ChannelId, MediaId},
@@ -7,7 +7,7 @@ use crate::{
 use golden_core::{
     node,
     node::{Node, NodeId, NodeReference, ParameterHandle, ParameterValidationContext, UserContainerRules},
-    parameter::{ParamValue, ReferenceTargetKind},
+    parameter::{Enum, ParamValue, ReferenceTargetKind},
     process_ctx::ProcessCtx,
 };
 use std::sync::{
@@ -22,6 +22,9 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v2";
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
+    transition_override: bool = false (label = "Override transition");
+    duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject");
+    curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
 }
 node app_control: crate::applications::AppControlNode = (self.create_app_control()) (
     label = "App control"
@@ -34,6 +37,16 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    pub(crate) fn transition(&self) -> Option<TransitionDefinition> {
+        self.transition_override.get().then(|| TransitionDefinition {
+            duration_ms: self.duration_ms.get() as u32,
+            curve: if self.curve.get_ref().as_str() == "SmoothStep" {
+                TransitionCurve::SmoothStep
+            } else {
+                TransitionCurve::Linear
+            },
+        })
+    }
     fn create_app_control(&self) -> crate::applications::AppControlNode {
         let node = crate::applications::AppControlNode::embedded();
         if let Some(binding) = self.runtime.get().cloned() {
@@ -95,6 +108,7 @@ impl CellNode {
             column: self.column(),
             source,
             application: crate::applications::protocol::ApplicationId(self.node_data().meta.uuid),
+            transition: self.transition(),
         })
     }
     pub(crate) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
@@ -134,6 +148,12 @@ impl Node for CellNode {
         self.invalidate();
     }
     fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if [self.transition_override.id(), self.duration_ms.id(), self.curve.id()].contains(&parameter) {
+            if let Some(binding) = self.runtime.get() {
+                binding.invalidate();
+            }
+            return;
+        }
         self.invalidate();
         if parameter == self.column.id()
             && let Some(binding) = self.runtime.get()
@@ -147,7 +167,19 @@ impl Node for CellNode {
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)
     }
+    fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        super::column_node::validate(self.duration_ms.get(), self.curve.get_ref().as_str())
+    }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        let duration = match change.parameter_value(self.duration_ms.id()) {
+            Some(ParamValue::Float(value)) => value,
+            _ => self.duration_ms.get(),
+        };
+        let curve = match change.parameter_value(self.curve.id()) {
+            Some(ParamValue::Enum(value)) => value,
+            _ => self.curve.get_ref().as_str().into(),
+        };
+        super::column_node::validate(duration, &curve)?;
         if change.parameter == self.column.id()
             && let ParamValue::Reference(column) = change.value
             && let Some(column) = change.resolve(column.uuid).and_then(|id| change.node(id))

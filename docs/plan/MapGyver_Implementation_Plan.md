@@ -46,10 +46,10 @@ also passes actual native resize/rotation/cursor, pointer/history/zoom and tab l
 persisted follow/lock/page choices, actual reconnect/project/tab/native lifetime and the current
 generic Inspector/File Open/New regressions. M06 is complete. M08/2's typed Column/Cell configuration,
 standalone removal and normalized-key shared runtime boundary are now functionally verified.
-Next, implement Matrix's independent Cell activation against that boundary while M08/2 remains
-the single active acceptance gate, then finish its complete retained-demand matrix. This supplies
-the required direct-activation evidence at the owning Matrix layer; full M07 acceptance remains
-pending. This follows the functional dependencies above without waiving physical/timing gates
+Independent Cell activation now supplies direct-activation evidence at the owning Matrix layer;
+M08/2 remains the single active gate while its complete disabled-render/outgoing/final-use matrix
+is verified. Full M07 acceptance, including typed Layer duration and full model/grid/native/scale,
+remains pending. This follows the functional dependencies above without waiving physical/timing gates
 or changing qualification budgets.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media

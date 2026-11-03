@@ -19,6 +19,7 @@ fn reference() -> ChannelReference {
 fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metadata_bound() {
     let mut bindings = Bindings::default();
     let clip = Clip {
+        individual: false,
         id: uuid::Uuid::new_v4(),
         column: ColumnId(uuid()),
         version: 10,
@@ -79,7 +80,13 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         bindings.resolve(next, row, owner, Some(&edited)).ok().flatten(),
         Some(edited.source)
     );
-    bindings.retain(std::iter::once(next.id));
+    let mut frame = super::super::timeline::Frame::default();
+    frame.clips.push(super::super::timeline::Contribution {
+        clip: next,
+        from: 1.0,
+        to: 1.0,
+    });
+    bindings.retain_frame(&frame);
     assert_eq!(
         bindings.edges(),
         vec![(
@@ -95,7 +102,7 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
     }
     assert_eq!(bindings.edges().len(), MAX_BINDINGS);
     assert!(bindings.resolve(next, LayerId(uuid()), owner, Some(&edited)).is_err());
-    bindings.retain(std::iter::empty());
+    bindings.retain_frame(&super::super::timeline::Frame::default());
     assert!(bindings.edges().is_empty());
     assert!(bindings.resolve(next, row, owner, Some(&edited)).is_ok());
 }

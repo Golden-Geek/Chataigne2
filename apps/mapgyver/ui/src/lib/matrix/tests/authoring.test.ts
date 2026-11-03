@@ -58,6 +58,8 @@ function snapshot(media: string, row = 0): MediaEditResult {
 			cells: [],
 			selected: null,
 			playback: {
+				request_id: null,
+				layers: [],
 				desired_column: null,
 				launch_id: null,
 				transition: { duration_ms: 250, curve: 'Linear' }
