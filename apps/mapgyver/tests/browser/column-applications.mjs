@@ -234,13 +234,66 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		);
 		pid = null;
 		assert.deepEqual(errors, []);
+		await edit({
+			kind: 'Matrix',
+			media: reference.media,
+			edit: {
+				kind: 'ConfigureCellApplication',
+				layer: items[0].id,
+				column: columns[4],
+				definition,
+				pre: 0,
+				post: 0
+			}
+		});
+		await grid.getByTitle('Layer 1 / Column 5', { exact: true }).click();
+		await page.getByRole('button', { name: 'Edit Cell app control', exact: true }).click();
+		await parameter('App file').locator('input.path-input').waitFor();
+		const enabled = page
+			.locator('.inspector-header')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true });
+		await enabled.click();
+		await wait(
+			() => enabled.getAttribute('aria-checked'),
+			(value) => value === 'false'
+		);
+		await grid.getByRole('button', { name: 'Launch Column 3', exact: true }).click();
+		const prior = await wait(runtime, (s) =>
+			s.applications.some((a) => a.phase === 'Ready' && a.consumers.length === 2)
+		);
+		const held = prior.applications.find((a) => a.phase === 'Ready' && a.consumers.length === 2);
+		pid = held.process_id;
+		runtimeId = held.runtime;
+		await grid.getByRole('button', { name: 'Launch Column 5', exact: true }).click();
+		await wait(
+			async () =>
+				(await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'InspectPlayback' } }))
+					.snapshot,
+			(s) =>
+				s.desired_column === columns[4] && s.layers.some((layer) => layer.column === columns[2])
+		);
+		const retained = await wait(runtime, (s) =>
+			s.applications.some(
+				(a) => a.runtime === runtimeId && a.phase === 'Ready' && a.consumers.length === 2
+			)
+		);
+		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).process_id, pid);
+		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).launch, held.launch);
+		await page.getByRole('button', { name: 'Unload Matrix', exact: true }).click();
+		await wait(runtime, (s) =>
+			s.applications.some(
+				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null
+			)
+		);
+		pid = null;
 		assert.deepEqual(rejected, []);
+		assert.deepEqual(errors, []);
 		await page.screenshot({ path: 'target/m08-column-applications-ui.png' });
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Shared Column/Cell runtime and generic Inspector; actual double-click independent Cell trigger preserves Column anchor and starts only its own app; requested marker and actual Unload retirement',
+					'Shared Column/Cell runtime and generic Inspector; independent Cell/anchor/marker; disabled destination preserves held Column/Cell PID without a renderer; actual Unload retirement',
 				application: columns[2],
 				browser: browser.version()
 			})

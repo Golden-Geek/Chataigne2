@@ -85,15 +85,23 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         let holds = playback
             .layers
             .iter()
-            .filter(|request| request.individual)
-            .filter_map(|request| {
-                request
+            .flat_map(|request| {
+                let cell = request
                     .column
-                    .and_then(|column| configuration.cell_apps.get(&(request.layer, column)))
-                    .map(|application| DemandHold {
-                        application: *application,
-                        reason: DemandReason::Preparation,
-                    })
+                    .and_then(|column| configuration.cell_apps.get(&(request.layer, column)));
+                // Disabled destinations retain their previous Layer request, including a
+                // Column-origin control. Individual triggers never activate Column controls.
+                let column = request
+                    .column
+                    .filter(|_| !request.individual)
+                    .and_then(|column| configuration.column_apps.get(&column));
+                cell.into_iter().chain(column).copied()
+            })
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .map(|application| DemandHold {
+                application,
+                reason: DemandReason::Preparation,
             })
             .collect::<Vec<_>>();
         matrices.push((columns, cursors, holds));

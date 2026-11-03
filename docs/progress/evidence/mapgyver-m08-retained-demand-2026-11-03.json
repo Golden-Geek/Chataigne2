@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "result": "Accepted",
+  "batch": { "start_utc": "18:15", "cutoff_utc": "19:00" },
+  "correction": "Logical capture previously discarded Column-origin Layer holds when a disabled destination preserved the prior content. Include held Cell and originating Column controls, deduplicated before admission; direct Cell requests still exclude Column controls and retain the anchor.",
+  "software": {
+    "full_command": "cargo test --locked -p MapGyver --lib",
+    "passed": 372, "failed": 0, "ignored": 2, "seconds": 70.91,
+    "targeted": "After test-only strengthening, all 3 retained-demand cases pass in 0.04s, including cached-capture deadline settlement.",
+    "coverage": "No-render disabled destination; render-disabled/transparent Layers; unchanged anchor and authored history; independent 100/300ms fades, interruption into empty content, outgoing deletion/reorder/Undo and new project fencing; existing normalized-key/grouping/fake-process/caller/Parameter/project suites.",
+    "strict_clippy": "Library/tests, native-qualification,application-process-fixture features, -D warnings: pass",
+    "protocol": "Unchanged DTOs; Media and Preview generated equality passes in the full suite",
+    "ui": "UI sources unchanged; prior 0-error/0-warning Svelte and 26 UI-unit results retained; bundled suites rerun",
+    "format": "Root/Golden Cargo formatting, browser Prettier and whitespace checks pass"
+  },
+  "windows": {
+    "build": "cargo rustc --locked -p MapGyver --test application_runtime --features application-process-fixture -- -C extra-filename=-codex-retained: exit 0",
+    "binary": "target/debug/deps/application_runtime-codex-retained.exe",
+    "sha256": "6D280460D6A0AE56D11F6468525F7A101404749DF04F854AD52D3910CA3EB168",
+    "passed": 12, "failed": 0, "ignored": 1, "seconds": 1.19,
+    "coverage": "Actual shared Column/Cell PID through disabled destination/reorder/deletion-Undo; independent Cell process retained through owner deletion-Undo-deletion/unload/project close until explicit null-renderer completion; existing normalized sharing, process lifecycle, readiness, backoff and project cases.",
+    "limit": "Null completion is deterministic software evidence, not hardware GPU qualification; pinned-descendant case remains M08/4."
+  },
+  "bundled": {
+    "build": "Isolated MapGyver-codex-review build: exit 0",
+    "binary": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "FB8C0CAEE5F0825FDB27B1E76529678CD8952069AF91B9813BABCF70E9EAE522",
+    "command": "MAPGYVER_TEST_BINARY=<isolated binary> node apps/mapgyver/tests/headless/media.mjs --column-applications-ui --cell-application-ui",
+    "result": "pass", "browser": "149.0.7827.55", "elapsed_ms": 12738,
+    "coverage": "Cell/Column generic Inspector and shared-runtime consumer UI; double-click direct Cell/anchor/marker; actual Cell enable switch and Column header launches preserve held Column/Cell PID outside anchor range; actual Unload retirement; source/history/Save-New-Load regression.",
+    "page_errors": 0, "rejected_intents": 0
+  },
+  "validation_repairs": "First browser launch used the wrong isolated artifact directory. A native publish attempt collided with the browser-owned fixture executable; after normal fixture retirement a sequential build passed. New browser fixture initially toggled the Layer still selected after external Cell creation; actual Edit Cell app control selects the intended Cell. An initial fade assertion counted the intentionally unchanged anchor's preparation demand; the outgoing fixture now uses an empty anchor. No acceptance requirement was relaxed.",
+  "logs": "target/m08-retained-{baseline,lib-final,scope-final,clippy-final,native-build-retry,native,app-build,bundled-retry}.log",
+  "remaining": "All M07 revised typed model/duration/grid/native/scale requirements; M08/3-4 aggregate readiness/first-frame, timeout/restart/cancellation/stale-project, picker, command/script/callback/snippet and retirement/access/target-outcome qualification; retained M03/M05/M09 budgets unchanged.",
+  "gate_delta": 1, "accepted_gates": 42, "total_gates": 57, "completed_phases": 5, "total_phases": 11
+}

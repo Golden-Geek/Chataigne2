@@ -145,8 +145,16 @@ functional changes do not waive those budgets. Immutable Layer maps/stamps and c
 avoid copying whole-Matrix binding state for each Layer. A separate authored-policy cache keeps
 logical/headless control independent of render-index construction.
 
+Logical capture includes every committed Layer request, including a Column-origin request held
+by a disabled destination. Such a hold keeps that Cell and its originating Column control;
+an individual trigger keeps only its Cell control. Holds deduplicate consumer identities before
+admission, so many Layers holding one Column do not consume duplicate demand capacity. The
+Column anchor continues to own clamped neighbor preparation independently of these Layer holds.
+
 Rust-generated request identity and per-Layer stamps distinguish requested from submitted mixes.
 Double-clicking an actual Layer Cell invokes the backend intent; the grid only presents selection,
 requested/submitted markers and typed responses. Playback requests never enter project/history.
-The complete disabled-render/outgoing/final-use matrix remains tracked in M08/2; direct Cell
-activation, Column/Cell ownership, standalone removal and normalized-key sharing are verified.
+M08/2's configuration/demand matrix is accepted: render-disabled/transparent Layers, independent
+outgoing deadlines, interruption, reorder/deletion/Undo, project replacement and completion-based
+process retention. Complete revised Matrix model/grid/native/scale and aggregate runtime/access/
+picker/command qualification remain in M07 and M08/3–4.

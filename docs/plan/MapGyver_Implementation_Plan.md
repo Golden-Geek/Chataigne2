@@ -44,13 +44,13 @@ with unchanged scenes/quantization/error tolerance/budgets. [M06/4's anchored ed
 also passes actual native resize/rotation/cursor, pointer/history/zoom and tab lifetime.
 [M06/5's independent panels](../progress/mapgyver-m06-panels.md) now pass bounded selected lookup,
 persisted follow/lock/page choices, actual reconnect/project/tab/native lifetime and the current
-generic Inspector/File Open/New regressions. M06 is complete. M08/2's typed Column/Cell configuration,
-standalone removal and normalized-key shared runtime boundary are now functionally verified.
-Independent Cell activation now supplies direct-activation evidence at the owning Matrix layer;
-M08/2 remains the single active gate while its complete disabled-render/outgoing/final-use matrix
-is verified. Full M07 acceptance, including typed Layer duration and full model/grid/native/scale,
-remains pending. This follows the functional dependencies above without waiving physical/timing gates
-or changing qualification budgets.
+generic Inspector/File Open/New regressions. M06 is complete. [M08/2 configuration/demand](../progress/mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03)
+is now accepted, including typed Column/Cell settings, standalone removal, normalized sharing,
+independent activation and retained demand through disabled rendering, interruption, history,
+project replacement and final-use completion. M07/1 is the next single active gate: complete the
+typed Layer/Group/Cell model and 3×3 defaults on this shared boundary. M07 playback/grid/native/scale
+and complete M08/3–4 runtime/UI/access qualification remain required. This follows the functional
+dependencies above without waiving physical/timing gates or changing qualification budgets.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
 containment before Reference/Preview acceptance. Reuse that ownership/copy/drop foundation.

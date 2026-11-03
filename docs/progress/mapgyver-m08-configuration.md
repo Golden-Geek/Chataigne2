@@ -1,11 +1,11 @@
 # Reusable app-control configuration
 
-**M08/2 remains Active.** The first configuration milestone is implemented and functionally
-verified: equivalent launch definitions preserve the existing owned process rather than
-triggering a stop/restart. The typed settings milestone below is also verified. Neither
-milestone alone accepts the full configuration/demand gate. Column/Cell ownership, standalone
-removal and normalized-key runtime sharing are now functionally verified below. Independent
-Cell activation is now verified below; the complete revised retained-demand matrix remains required.
+**M08/2 Accepted (2026-11-03).** The configuration/demand boundary now passes the revised gate,
+including typed Column/Cell ownership, standalone removal, normalized sharing, independent Cell
+activation and retained demand through render disablement, interruption, history and projects.
+The acceptance audit below combines the preceding milestones with the completed retained-demand
+matrix. M07's complete model/playback/grid/native/scale and M08/3–4 aggregate runtime/access/UI
+qualification remain required; accepting this boundary does not accept those gates.
 
 ## Ownership and behavior
 
@@ -280,14 +280,51 @@ intents are zero. The marker check waits for the asynchronous viewport read afte
 settles; its initial immediate DOM read raced that update. Native Layer pixels and complete
 Matrix UI/typed-model qualification are not claimed by these headless/source-weight oracles.
 
-**M08/2 remains Active.** Complete the disabled-render/outgoing/final-use matrix through interruption,
-reorder/deletion/Undo and project changes before closing it. M07 retains typed Layer duration,
-complete Layer/Cell transforms, revised grid/defaults and native/scale acceptance.
+At that milestone, M08/2 remained Active for the retained-demand matrix completed below.
+M07 retains typed Layer duration, complete Layer/Cell transforms, revised grid/defaults and
+native/scale acceptance.
 
-## Exact remaining M08/2 requirement
+## Configuration and demand acceptance — 2026-11-03
 
-Preserve verified independent activation, clamped/non-wrapping ranges and shared normalized owners;
-finish complete disabled-render/outgoing/final-use retention through jumps,
-reorder/delete and project/history operations. Complete fake-time/process, UI/public caller
-and project verification before accepting M08/2. M08/3–4 retain their complete actual-process,
-picker/API/script/callback/snippet, target-outcome and retirement/access acceptance.
+The final matrix reproduced and fixed a missing logical lease: a disabled destination preserved
+its previous Layer request but dropped its Column-origin Cell app when no renderer was open.
+Logical capture now includes those held requests and their originating Column control. Direct
+Cell activation still starts only the Cell control; it does not move the Column anchor/ranges.
+Repeated held consumers deduplicate before admission. Configuration capture remains independent
+of source/render-index construction.
+
+| M08/2 requirement | Verified evidence |
+| --- | --- |
+| Reusable normalized launch/control key | Configuration equality/hash/distinction/validation tests and fake Agent launch counts; actual equivalent-path/environment PID preservation. |
+| Typed conditional Column/Cell settings; standalone removal | Real Parameter/Argument/Environment children, generic Inspector, four public caller modes, atomic history/copy/project/schema tests and bundled Column/Cell Inspector suites. |
+| Aggregate normalized demand | 4,096 equal-consumer grouping case, stale/missing/change/handoff tests, actual Column/Cell/two-Matrix sharing/split/rejoin and live consumer-count Inspector. |
+| Neighbor/jump/reorder/delete/direct semantics | Clamped/non-wrapping resolver and logical tests; stable independent anchor, render-disabled/transparent Layers, disabled destination holds, reorder/deletion/Undo and no render-index admission. |
+| Interrupted/outgoing/final-use retention | Shared fake time, separate 100/300 ms Layer deadlines, cached-capture settlement, interruption into empty content, deletion/Undo and actual process retention through owner deletion/unload/project close until explicit renderer completion. |
+| History/project and public UI | Playback never changes authored JSON/history; new project instances discard runtime requests/fence old captures. Bundled Inspector enable switch, Column launches and actual Unload preserve/retire the held process. |
+
+[Final receipt](evidence/mapgyver-m08-retained-demand-2026-11-03.json): **372 full library tests
+pass**, zero failures, two retained qualification exclusions, in **70.91 seconds**. After a
+test-only strengthening, the three retained-demand cases pass in **0.04 seconds**. Strict
+library/all-native-test Clippy, both generated-contract equality checks, both Cargo formatters,
+browser Prettier and whitespace checks pass. Product UI sources/DTOs are unchanged; prior
+Svelte (0/0) and 26 UI-unit checks remain valid, and both bundled Inspector suites pass anew.
+
+**Twelve Windows lifecycle cases pass** in **1.19 seconds**, with one retained pinned-descendant
+exclusion. New cases preserve a real shared Column/Cell PID through a disabled destination,
+reorder and deletion/Undo without a renderer; independent Cell final-use survives owner
+deletion/Undo/deletion, unload and project close until explicit null-renderer completion.
+The null renderer is the controlled completion oracle, not a hardware GPU-completion claim.
+
+The isolated bundled app passes generic Cell/Column widgets, shared runtime/Inspector, direct
+Cell/anchor/marker behavior, actual destination disablement and held-PID preservation/unload,
+plus source/history/Save-New-Load regressions. Browser errors/rejected intents are zero.
+The new fixture initially toggled the still-selected Layer after external Cell creation; using
+the actual Edit Cell app control action selects the intended owner before its switch. A native
+build publishing attempt overlapped a live browser fixture executable; after its owned process
+retired, sequential rebuilding succeeded. No user process was terminated to repair validation.
+
+**Gate change: M08/2 Accepted; M08 is 2/4.** M07/1 is next under the recorded functional dependency
+order. Typed Layer duration, full Layer/Cell transforms, 3×3 defaults and the grid/native/scale
+contract remain M07. M08/3–4 retain full readiness/first-frame, timeout/restart/cancellation,
+stale-project/aggregate acceptance, picker, dedicated commands/scripts/callbacks/snippets and
+singleton/external/elevated/launcher/breakaway/retirement/access outcomes. No gate or budget is waived.

@@ -401,6 +401,15 @@ fn owned_process_accepts_only_current_tagged_readiness_evidence_and_project_repl
 
 #[test]
 fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completion_after_project_close() {
+    rendered_process_retention(false);
+}
+
+#[test]
+fn direct_cell_process_survives_owner_deletion_unload_and_project_close_until_renderer_completion() {
+    rendered_process_retention(true);
+}
+
+fn rendered_process_retention(individual: bool) {
     use golden_video::{
         Extent2D, OutputId,
         plan::PlanLimits,
@@ -569,9 +578,17 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     }
     matrix(
         &mut engine,
-        MatrixEdit::LaunchColumn {
-            column: columns[2],
-            mode: LaunchMode::Cut,
+        if individual {
+            MatrixEdit::LaunchCell {
+                layer,
+                column: columns[2],
+                mode: LaunchMode::Cut,
+            }
+        } else {
+            MatrixEdit::LaunchColumn {
+                column: columns[2],
+                mode: LaunchMode::Cut,
+            }
         },
     );
     let capture = capture_channels(&engine, &[reference], 8).unwrap();
@@ -589,11 +606,20 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
         assert!(Instant::now() < until);
         std::thread::sleep(Duration::from_millis(2));
     }
+    if individual {
+        matrix(&mut engine, MatrixEdit::RemoveColumn { column: columns[2] });
+        assert!(engine.undo().unwrap());
+        matrix(&mut engine, MatrixEdit::RemoveColumn { column: columns[2] });
+    }
     matrix(
         &mut engine,
-        MatrixEdit::LaunchColumn {
-            column: columns[0],
-            mode: LaunchMode::Cut,
+        if individual {
+            MatrixEdit::ClearPlayback
+        } else {
+            MatrixEdit::LaunchColumn {
+                column: columns[0],
+                mode: LaunchMode::Cut,
+            }
         },
     );
     let next = capture_channels(&engine, &[reference], 8).unwrap();
