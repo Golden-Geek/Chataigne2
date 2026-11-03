@@ -31,10 +31,7 @@ fn native_pre_resume_cancellation_keeps_suspended_ownership_and_never_executes_t
         ..Default::default()
     };
     let definition = Arc::new(ApplicationRuntimeKey::new(&definition).unwrap());
-    let mut agent = Agent::new(
-        ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
-        Native,
-    );
+    let mut agent = Agent::new(ApplicationRuntimeId(uuid::Uuid::new_v4()), Native);
     let calls = Cell::new(0);
     agent.tick(
         0,

@@ -40,8 +40,8 @@ impl PreparedApplications {
         demand: &[ApplicationDemand],
         admission: Arc<[RevisionGuard]>,
     ) -> Result<Self, String> {
-        if demand.len() > MAX_APPLICATIONS {
-            return Err("application runtime admits at most 64 active/retiring definitions".into());
+        if demand.len() > MAX_CONSUMERS {
+            return Err("application runtime admits at most 4096 consumers".into());
         }
         let context = Context::capture(engine)?;
         let mut targets = HashMap::new();
@@ -64,7 +64,6 @@ impl PreparedApplications {
                         None
                     };
                     Target {
-                        epoch: uuid::Uuid::new_v4(),
                         retain_existing: false,
                         definition,
                         guard: Some(node.guard()),
@@ -74,7 +73,6 @@ impl PreparedApplications {
                     }
                 }
                 _ => Target {
-                    epoch: uuid::Uuid::new_v4(),
                     retain_existing: false,
                     definition: None,
                     guard: None,

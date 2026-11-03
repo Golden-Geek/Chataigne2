@@ -47,12 +47,15 @@
 			>{snapshot.callbacks.pending} lifecycle callbacks pending · acknowledged through {snapshot
 				.callbacks.acknowledged}</small>
 		<small>Observation {snapshot.revision} · {snapshot.elapsed_ms} ms since runtime start</small>
-		{#each snapshot.applications as application (application.application)}
-			<article aria-label={`Runtime ${application.application}`}>
+		{#each snapshot.applications as application (application.runtime)}
+			<article aria-label={`Runtime ${application.runtime}`}>
 				<strong
-					>{(selected?.id === application.application ? selected.label : null) ??
-						application.application}</strong>
+					>{(application.consumers.some((consumer) => consumer.application === selected?.id)
+						? selected?.label
+						: null) ?? application.runtime}</strong>
 				<dl>
+					<dt>Consumers</dt>
+					<dd>{application.consumers.length}</dd>
 					<dt>Phase</dt>
 					<dd>{application.phase}</dd>
 					{#if application.callback_backpressure}<dt>Callback delivery</dt>
@@ -61,7 +64,9 @@
 					<dd>
 						{configurationLabel(
 							application,
-							selected?.id === application.application ? selected : null
+							application.consumers.some((consumer) => consumer.application === selected?.id)
+								? selected
+								: null
 						)}
 					</dd>
 					<dt>Process ID</dt>

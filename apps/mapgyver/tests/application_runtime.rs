@@ -198,9 +198,7 @@ fn observe(
     let deadline = Instant::now() + Duration::from_secs(4);
     loop {
         let snapshot = runtime.snapshot();
-        if let Some(status) = snapshot.applications.first()
-            && expected(status)
-        {
+        if let Some(status) = snapshot.applications.iter().find(|status| expected(status)) {
             return status.clone();
         }
         assert!(
@@ -251,7 +249,7 @@ fn actual_owned_process_shared_demand_missing_definition_and_final_release_prese
     });
     assert_eq!(observed.applications[0].process_id, first.process_id);
     assert_eq!(
-        observed.applications[0].definition_instance,
+        observed.applications[0].consumers[0].definition_instance,
         Some(
             mapgyver::applications::inspect(&engine, application)
                 .unwrap()
@@ -489,6 +487,24 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
         &mut engine,
         MatrixEdit::ConfigureColumnApplication {
             column: columns[2],
+            definition: definition.clone(),
+            pre: 1,
+            post: 1,
+        },
+    );
+    let MediaEditResult::MatrixCreated { items, .. } =
+        matrix(&mut engine, MatrixEdit::AddLayers { parent: None, count: 1 })
+    else {
+        panic!()
+    };
+    let MatrixItemId::Layer { id: layer } = items[0] else {
+        panic!()
+    };
+    matrix(
+        &mut engine,
+        MatrixEdit::ConfigureCellApplication {
+            layer,
+            column: columns[2],
             definition,
             pre: 1,
             post: 1,
@@ -510,6 +526,8 @@ fn matrix_neighbors_and_actual_process_ownership_follow_renderer_final_completio
     );
     runtime.reconcile(&engine, &preload.application_demand()).unwrap();
     let process = wait(&runtime, ApplicationPhase::Ready);
+    assert_eq!(runtime.snapshot().applications.len(), 1);
+    assert_eq!(process.consumers.len(), 2);
     let config = RuntimeConfig {
         plan_limits: PlanLimits {
             max_passes: 16,

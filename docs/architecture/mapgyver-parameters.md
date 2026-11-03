@@ -111,5 +111,25 @@ demand when configured settings activate, change or clear; default unconfigured 
 and source-only Cell edits do not cause application rescans. Live clip retention accumulates
 newly observed Cell controls through that clip's lifetime.
 
-Normalized-key shared ownership and the complete direct-Cell/outgoing/final-use acceptance
-remain tracked in M08/2; Column embedding and standalone-workflow removal are implemented.
+`applications/runtime/grouping` assigns one worker to each immutable normalized launch/control
+key, combining Column/Cell leases across Matrices. `ApplicationRuntimeId` identifies that
+ephemeral physical owner; `ApplicationId` continues to identify the persistent authored consumer.
+Effective setting changes split only the affected lease; equal settings join the existing owner.
+Outgoing consumers retain their previous owner/configuration until their retained demand ends.
+Suspended creation resumes only while at least one matching current consumer is admitted.
+
+The runtime admits 4,096 consumers and at most 64 active/retiring worker keys. Retiring owners
+continue to occupy their bounded process slots. Final render plans resolve consumer bindings
+to runtime identities when retained; later edits cannot redirect those existing plan leases.
+Multiple consumers of one key charge one owner/lifetime entry rather than duplicate holds.
+
+Runtime snapshots flatten the Rust-owned `ApplicationProcessStatus` and add bounded, immutable
+current consumer metadata (identity, revision/instance and per-consumer configuration state).
+Membership updates once per committed reconciliation; process polling never rebuilds it.
+Lifecycle callbacks contain the compact process status once per physical transition, keeping
+reservation/event bounds independent of consumer count. Rust generates every TypeScript shape.
+The generic Inspector presents the selected consumer's actual configuration state and runtime
+consumer count. Runtime identities and native observations are not project data.
+
+The complete direct-Cell/disabled-render/outgoing/final-use acceptance remains tracked in M08/2;
+Column embedding, standalone removal and normalized-key sharing are functionally verified.

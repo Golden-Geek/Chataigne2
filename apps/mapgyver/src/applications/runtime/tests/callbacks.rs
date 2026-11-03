@@ -23,12 +23,12 @@ fn fixture() -> (AppEngine, ApplicationCallbacks, uuid::Uuid) {
         .statuses
         .lock()
         .unwrap()
-        .insert(status.application, (owner, status));
+        .insert(status.runtime, (owner, status));
     (engine, source, owner)
 }
 
 fn phases(source: &ApplicationCallbacks, owner: uuid::Uuid) {
-    let mut status = source.view.snapshot(source.project()).applications[0].clone();
+    let mut status = source.view.snapshot(source.project()).applications[0].process.clone();
     let mut permit = source.view.callbacks.reserve().unwrap();
     status.launch = Some(uuid::Uuid::new_v4());
     for (index, phase) in [
@@ -43,7 +43,7 @@ fn phases(source: &ApplicationCallbacks, owner: uuid::Uuid) {
     {
         status.phase = phase;
         source.view.publish(
-            status.application,
+            status.runtime,
             owner,
             &status,
             Some(&mut permit),

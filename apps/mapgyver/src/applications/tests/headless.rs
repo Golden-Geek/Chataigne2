@@ -143,7 +143,7 @@ fn headless_host_service_observes_launch_unload_and_project_replacement_without_
     let runtime = ProductionRuntime::new(engine, UiProjectFileSpec::default()).unwrap();
     let service = HeadlessApplications::start(runtime.clone()).unwrap();
     let initial = wait(&runtime, ApplicationPhase::Failed);
-    assert_eq!(initial.applications[0].application, application);
+    assert_eq!(initial.applications[0].consumers[0].application, application);
     transaction(
         &runtime,
         MediaEdit::Matrix {
@@ -212,7 +212,7 @@ fn headless_admission_errors_are_visible_without_processes_and_clear_after_deman
         panic!()
     };
     columns.extend(added);
-    for column in &columns {
+    for (index, column) in columns.iter().enumerate() {
         edit(
             &mut engine,
             MediaEdit::Matrix {
@@ -221,6 +221,7 @@ fn headless_admission_errors_are_visible_without_processes_and_clear_after_deman
                     column: *column,
                     definition: ApplicationDefinition {
                         executable: Some("C:\\mapgyver-fixture-missing\\never.exe".into()),
+                        arguments: vec![index.to_string()],
                         ..Default::default()
                     },
                     pre: u16::MAX,

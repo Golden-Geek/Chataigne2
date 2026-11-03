@@ -110,10 +110,7 @@ fn definition() -> Arc<ApplicationRuntimeKey> {
     })
 }
 fn agent() -> Agent<Fake> {
-    Agent::new(
-        ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
-        Fake::default(),
-    )
+    Agent::new(ApplicationRuntimeId(uuid::Uuid::new_v4()), Fake::default())
 }
 fn tick(
     agent: &mut Agent<Fake>,
@@ -332,7 +329,8 @@ fn explicit_disable_and_restore_rearms_a_failed_non_restarting_definition() {
 #[test]
 fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_restarting_creation() {
     let mut agent = agent();
-    let id = agent.status.application;
+    let id = agent.status.runtime;
+    let consumer = ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4()));
     let source = golden_io::RevisionSource::default();
     let scope = golden_io::RevisionSource::default();
     let guard = |source: &golden_io::RevisionSource| {
@@ -342,19 +340,24 @@ fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_res
     let target = Target {
         definition_revision: Some(1),
         definition_instance: Some(uuid::Uuid::new_v4()),
-        epoch: uuid::Uuid::new_v4(),
         retain_existing: false,
         definition: Some(definition()),
         guard: Some(guard(&source)),
         admission: Arc::from([guard(&scope)]),
     };
-    let captured = target.clone();
+    let captured = OwnerTarget {
+        key: OwnerKey::Configured(target.definition.clone().unwrap()),
+        consumers: Arc::from([consumer]),
+        observations: Arc::from([]),
+    };
     let shared = Arc::new(Shared {
         project: uuid::Uuid::new_v4(),
         guard: guard(&source),
         origin: Instant::now(),
         desired: Mutex::new(Request {
-            targets: [(id, target)].into_iter().collect(),
+            targets: [(consumer, target)].into_iter().collect(),
+            owners: [(id, captured.clone())].into_iter().collect(),
+            bindings: [(consumer, id)].into_iter().collect(),
         }),
         readiness: Mutex::new(HashMap::new()),
         final_use: Mutex::new(HashMap::new()),
@@ -367,7 +370,7 @@ fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_res
             .lock()
             .unwrap()
             .targets
-            .get_mut(&id)
+            .get_mut(&consumer)
             .unwrap()
             .admission = Arc::from([guard(&scope)]);
     }));
@@ -375,14 +378,17 @@ fn refreshed_shared_scope_can_resume_the_same_admitted_configuration_without_res
         0,
         Desired {
             demanded: true,
-            definition: captured.definition.clone(),
+            definition: match &captured.key {
+                OwnerKey::Configured(key) => Some(key.clone()),
+                _ => None,
+            },
             retain_existing: false,
         },
         false,
         || worker::current_target_is_admitted(&shared, id, &captured),
         |_| {},
     );
-    assert!(!captured.admission[0].is_current());
+    assert!(worker::current_target_is_admitted(&shared, id, &captured));
     assert_eq!(agent.backend.creates, 1);
     assert_eq!(agent.backend.resumes, 1);
     assert_eq!(agent.backend.closes, 0);

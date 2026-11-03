@@ -5,6 +5,10 @@ use ts_rs::TS;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct ApplicationId(pub NodeUuid);
 
+/// Ephemeral physical runtime identity, distinct from an authored Column/Cell consumer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+pub struct ApplicationRuntimeId(pub uuid::Uuid);
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum ApplicationWindow {
     #[default]
@@ -170,9 +174,9 @@ pub enum ApplicationConfigurationState {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub struct ApplicationRuntimeStatus {
+pub struct ApplicationProcessStatus {
     pub callback_backpressure: bool,
-    pub application: ApplicationId,
+    pub runtime: ApplicationRuntimeId,
     pub launch: Option<uuid::Uuid>,
     pub phase: ApplicationPhase,
     pub process_id: Option<u32>,
@@ -181,9 +185,41 @@ pub struct ApplicationRuntimeStatus {
     pub next_action_ms: Option<u64>,
     pub message: Option<String>,
     pub configuration: ApplicationConfigurationState,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationRuntimeConsumer {
+    pub application: ApplicationId,
+    pub configuration: ApplicationConfigurationState,
     /// Saved definition revision against which this observation was reconciled.
     pub definition_revision: Option<u64>,
     pub definition_instance: Option<uuid::Uuid>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ApplicationRuntimeStatus {
+    #[serde(flatten)]
+    pub process: ApplicationProcessStatus,
+    pub consumers: std::sync::Arc<[ApplicationRuntimeConsumer]>,
+}
+impl std::ops::Deref for ApplicationRuntimeStatus {
+    type Target = ApplicationProcessStatus;
+    fn deref(&self) -> &Self::Target {
+        &self.process
+    }
+}
+impl std::ops::DerefMut for ApplicationRuntimeStatus {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.process
+    }
+}
+impl From<ApplicationProcessStatus> for ApplicationRuntimeStatus {
+    fn from(process: ApplicationProcessStatus) -> Self {
+        Self {
+            process,
+            consumers: std::sync::Arc::from([]),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -236,7 +272,7 @@ pub struct ApplicationLifecycleEvent {
     pub project: uuid::Uuid,
     pub sequence: u64,
     pub elapsed_ms: u64,
-    pub status: ApplicationRuntimeStatus,
+    pub status: ApplicationProcessStatus,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
 pub struct ApplicationCallbackTicket {

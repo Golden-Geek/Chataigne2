@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-03",
+  "gate": "M08/2",
+  "scope": "One physical runtime per normalized launch/control key across Column/Cell/Matrix consumer leases; full gate remains Active",
+  "architecture": {
+    "consumer_identity": "Persistent ApplicationId is the authored Column/Cell UUID",
+    "runtime_identity": "Ephemeral ApplicationRuntimeId identifies one immutable-key physical worker",
+    "bounds": "4096 consumer bindings, 64 active/retiring worker keys; physical worker budget remains 64",
+    "bound_change": "Runtime capture previously miscounted each consumer as a physical process owner. It now accepts the existing demand model's 4096 bindings and applies the unchanged 64-owner budget after normalized grouping. The 65-key rejection fixture now uses distinct arguments, rather than 65 identical definitions.",
+    "callbacks": "One compact ApplicationProcessStatus event per physical transition; no consumer arrays or per-consumer callback reservation fan-out",
+    "observations": "Immutable consumer metadata is published on committed reconciliation; process polling never rebuilds membership",
+    "retention": "Admitted final plans resolve consumer IDs to runtime IDs and deduplicate each shared owner/lifetime; later consumer edits cannot redirect existing plan leases"
+  },
+  "software": {
+    "command": "cargo test --locked -p MapGyver --lib",
+    "passed": 364,
+    "failed": 0,
+    "ignored": 2,
+    "duration_seconds": 101.01,
+    "new_cases": "Five pure grouping cases: 4096 equal consumers and bounded process callback DTO; stable handoff/effective-key split; one invalid lease versus another current lease; retained missing definition without launch admission; outgoing Pending alongside another Current consumer",
+    "preserved": "Fake-time/process lifecycle, stale capture/suspended admission, inherited enablement, history/project/copy, logical/rendered demand and callback/observation tests",
+    "strict_clippy": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings: pass",
+    "protocol": "Exact Rust-generated TypeScript equality passes, including runtime/process/consumer DTOs and compact lifecycle events",
+    "svelte": "0 errors, 0 warnings",
+    "ui_tests": "26 application/Matrix tests passed",
+    "format": "Both Cargo formatters, touched UI/browser Prettier and diff whitespace checks pass"
+  },
+  "native": {
+    "prerequisites": "Inspected successful software suite, strict native-target compilation and actual terminal-success isolated test build before native execution",
+    "build": "cargo rustc --locked -p MapGyver --test application_runtime --features application-process-fixture -vv -- -C extra-filename=-codex-sharing: exit 0",
+    "binary": "target/debug/deps/application_runtime-codex-sharing.exe",
+    "sha256": "30C295DA18876815BCF12F29E3F0444A8151791D5180098C8A9C28BA7B2C705F",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 1,
+    "duration_seconds": 1.42,
+    "new_case": "One PID/runtime/launch across Column, Cell and two Matrices with equivalent path/environment spelling; neighbor/exact handoff and first-Matrix release preserve it; effective Cell change starts only a second distinct-key process; restoring matching settings rejoins the original and retires the split process; final release completes both owners without authoring process state",
+    "render_retention": "Existing explicit unfinished-render/project-close case now has two consumers sharing one process and verifies that the process survives until the null-renderer completion signal; hardware GPU completion is not inferred",
+    "exclusions": "Pinned-descendant fixture remains M08/4; hardware-only qualification cases were not run"
+  },
+  "bundled_ui": {
+    "build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-codex-review: exit 0",
+    "binary": "target/debug/deps/MapGyver-codex-review.exe",
+    "sha256": "F005FCE939D5B62AAAD6222A45A7EC5E1CF521511CF94594CE258CE835EB35B6",
+    "browser": "149.0.7827.55",
+    "column": "--column-applications-ui: pass; actual generic authoring/history, three consumers on one process across two Matrices, live Inspector runtime/count/current-configuration display, grid-header neighbor/exact launch with same PID/launch UUID, final range retirement",
+    "cell": "--cell-application-ui: pass on the same binary; sparse actual Cell action, generic File/pre/post/Argument editing, inactive visibility and Undo/Redo",
+    "page_errors": 0,
+    "rejected_intents": 0,
+    "source_regression": "Ordinary headless source intent/history/Save-New-Load parity passed in the same hosts",
+    "fixture_correction": "Initial combined fixture searched for the legacy Cut form after selecting a now-materialized Cell. Its generic Inspector correctly replaced that form; the fixture now launches through the existing Column header actions. No product code changed for this correction.",
+    "screenshots": ["target/m08-column-applications-ui.png", "target/m08-cell-applications-ui.png"]
+  },
+  "logs": "target/m08-sharing-{codegen,lib-final,clippy,ui-check-final,ui-tests,format-check,native-build,native,app-build,bundled,bundled-final}.log",
+  "remaining": "Independent direct Cell activation with unchanged Column anchor, plus the complete revised disabled-render/outgoing/final-use matrix through jumps/reorder/deletion/history/project. M08/3-4 retain full readiness/hardware/process/access/retirement, picker, dedicated command/named-script/snippet/callback and target-outcome acceptance.",
+  "acceptance_awarded": 0
+}

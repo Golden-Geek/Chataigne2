@@ -86,7 +86,7 @@ pub(super) struct Desired {
 }
 
 pub(super) struct Agent<B: Backend> {
-    pub status: ApplicationRuntimeStatus,
+    pub status: ApplicationProcessStatus,
     pub backend: B,
     process: Option<B::Process>,
     definition: Option<Arc<ApplicationRuntimeKey>>,
@@ -95,11 +95,11 @@ pub(super) struct Agent<B: Backend> {
     failed: bool,
 }
 impl<B: Backend> Agent<B> {
-    pub fn new(application: ApplicationId, backend: B) -> Self {
+    pub fn new(runtime: ApplicationRuntimeId, backend: B) -> Self {
         Self {
-            status: ApplicationRuntimeStatus {
+            status: ApplicationProcessStatus {
                 callback_backpressure: false,
-                application,
+                runtime,
                 launch: None,
                 phase: ApplicationPhase::Idle,
                 process_id: None,
@@ -108,8 +108,6 @@ impl<B: Backend> Agent<B> {
                 next_action_ms: None,
                 message: None,
                 configuration: ApplicationConfigurationState::NotRunning,
-                definition_revision: None,
-                definition_instance: None,
             },
             backend,
             process: None,
@@ -183,7 +181,7 @@ impl<B: Backend> Agent<B> {
         desired: Desired,
         ready: bool,
         admitted: impl Fn() -> bool,
-        publish: impl Fn(&ApplicationRuntimeStatus),
+        publish: impl Fn(&ApplicationProcessStatus),
     ) {
         let target = desired.definition.clone();
         self.update_configuration(target.as_deref());
@@ -207,7 +205,7 @@ impl<B: Backend> Agent<B> {
         desired: Desired,
         ready: bool,
         admitted: impl Fn() -> bool,
-        publish: impl Fn(&ApplicationRuntimeStatus),
+        publish: impl Fn(&ApplicationProcessStatus),
     ) {
         let Desired {
             demanded,

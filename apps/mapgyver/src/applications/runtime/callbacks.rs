@@ -74,7 +74,7 @@ impl Journal {
         reservation: Option<&mut Reservation>,
         project: uuid::Uuid,
         elapsed_ms: u64,
-        status: ApplicationRuntimeStatus,
+        status: ApplicationProcessStatus,
     ) {
         let mut state = self.state.lock().unwrap();
         let Some(reservation) = reservation.filter(|permit| permit.remaining > 0) else {

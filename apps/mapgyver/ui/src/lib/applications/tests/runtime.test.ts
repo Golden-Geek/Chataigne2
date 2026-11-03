@@ -31,7 +31,15 @@ function snapshot(project: string, revision: number): ApplicationRuntimeSnapshot
 		applications: [
 			{
 				callback_backpressure: false,
-				application: 'app',
+				runtime: 'runtime',
+				consumers: [
+					{
+						application: 'app',
+						configuration: 'Current',
+						definition_revision: 3,
+						definition_instance: 'definition-lifetime'
+					}
+				],
 				launch: 'launch',
 				phase: 'Ready',
 				process_id: 42,
@@ -39,9 +47,7 @@ function snapshot(project: string, revision: number): ApplicationRuntimeSnapshot
 				failures: 0,
 				next_action_ms: null,
 				message: null,
-				configuration: 'Current',
-				definition_revision: 3,
-				definition_instance: 'definition-lifetime'
+				configuration: 'Current'
 			}
 		]
 	};
@@ -253,14 +259,16 @@ test('configuration presentation uses worker policy and hides stale saved-revisi
 		}
 	};
 	assert.match(configurationLabel(status, saved), /awaiting/);
-	status.definition_revision = 4;
-	status.definition_instance = 'old-definition-lifetime';
+	status.consumers[0].definition_revision = 4;
+	status.consumers[0].definition_instance = 'old-definition-lifetime';
 	assert.match(configurationLabel(status, saved), /awaiting/);
-	status.definition_instance = saved.definition_instance;
+	status.consumers[0].definition_instance = saved.definition_instance;
 	status.configuration = 'Pending';
+	status.consumers[0].configuration = 'Pending';
 	assert.match(configurationLabel(status, saved), /previous configuration/);
 	status.configuration = 'Retained';
-	status.definition_revision = null;
+	status.consumers[0].configuration = 'Retained';
+	status.consumers[0].definition_revision = null;
 	assert.match(configurationLabel(status, saved), /retained/);
 	status.configuration = 'NotRunning';
 	assert.match(configurationLabel(status, saved), /No configuration/);

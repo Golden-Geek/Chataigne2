@@ -12,7 +12,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		media_kind: 'Matrix',
 		label: 'Column app review'
 	});
-	await edit({
+	const { items } = await edit({
 		kind: 'Matrix',
 		media: reference.media,
 		edit: { kind: 'AddLayers', parent: null, count: 1 }
@@ -46,7 +46,9 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 	const rejected = observeRejectedRequests(page, () => 'Column app control');
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
-	let pid = null;
+	let pid = null,
+		runtimeId = null,
+		otherMedia = null;
 	try {
 		await page.goto(base);
 		await page
@@ -98,17 +100,69 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(inspect, (s) => s.columns[2].definition.transition?.duration_ms === 1234);
 		assert((await runtime()).applications.every((s) => s.process_id === null));
+		const definition = (await application()).definition;
+		const prepared = await edit({
+			kind: 'Matrix',
+			media: reference.media,
+			edit: {
+				kind: 'ConfigureCellApplication',
+				layer: items[0].id,
+				column: columns[2],
+				definition,
+				pre: 1,
+				post: 1
+			}
+		});
+		assert.notEqual(prepared.application, columns[2]);
 		await grid.getByTitle('Layer 1 / Column 2', { exact: true }).click();
-		await page.getByRole('button', { name: 'Cut', exact: true }).click();
+		await grid.getByRole('button', { name: 'Launch Column 2', exact: true }).click();
 		let live = await wait(runtime, (s) =>
-			s.applications.some((a) => a.application === columns[2] && a.phase === 'Ready')
+			s.applications.some(
+				(a) => a.consumers.some((c) => c.application === columns[2]) && a.phase === 'Ready'
+			)
 		);
-		const first = live.applications.find((a) => a.application === columns[2]);
+		const first = live.applications.find((a) =>
+			a.consumers.some((c) => c.application === columns[2])
+		);
 		pid = first.process_id;
+		runtimeId = first.runtime;
 		assert(pid);
+		assert.equal(first.consumers.length, 2, 'Column and Cell share one process');
+		const { reference: other } = await edit({
+			kind: 'CreateMedia',
+			media_kind: 'Matrix',
+			label: 'Shared runtime peer'
+		});
+		otherMedia = other.media;
+		const { columns: peers } = await edit({
+			kind: 'Matrix',
+			media: otherMedia,
+			edit: { kind: 'AddColumns', count: 1 }
+		});
+		await edit({
+			kind: 'Matrix',
+			media: otherMedia,
+			edit: { kind: 'ConfigureColumnApplication', column: peers[0], definition, pre: 0, post: 0 }
+		});
+		await edit({
+			kind: 'Matrix',
+			media: otherMedia,
+			edit: { kind: 'LaunchColumn', column: peers[0], mode: 'Cut' }
+		});
+		const shared = await wait(runtime, (s) =>
+			s.applications.some((a) => a.runtime === runtimeId && a.consumers.length === 3)
+		);
+		assert.equal(shared.applications.length, 1);
+		assert.equal(shared.applications[0].process_id, pid);
+		assert.equal(shared.applications[0].launch, first.launch);
+		await page.getByRole('button', { name: 'Inspect Column settings', exact: true }).click();
+		await page.locator('.inspector').getByText('Runtime', { exact: true }).click();
+		const card = page.getByRole('article', { name: `Runtime ${runtimeId}`, exact: true });
+		await card.getByText('3', { exact: true }).waitFor();
+		await card.getByText('Using reconciled saved settings', { exact: true }).waitFor();
 		assert.equal((await inspect()).columns[2].application, columns[2]);
 		await grid.getByTitle('Layer 1 / Column 3', { exact: true }).click();
-		await page.getByRole('button', { name: 'Cut', exact: true }).click();
+		await grid.getByRole('button', { name: 'Launch Column 3', exact: true }).click();
 		await wait(
 			async () =>
 				(await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'InspectPlayback' } }))
@@ -117,15 +171,28 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		);
 		await delay(100);
 		live = await wait(runtime, (s) =>
-			s.applications.some((a) => a.application === columns[2] && a.phase === 'Ready')
+			s.applications.some(
+				(a) => a.consumers.some((c) => c.application === columns[2]) && a.phase === 'Ready'
+			)
 		);
-		assert.equal(live.applications.find((a) => a.application === columns[2]).process_id, pid);
-		assert.equal(live.applications.find((a) => a.application === columns[2]).launch, first.launch);
+		assert.equal(
+			live.applications.find((a) => a.consumers.some((c) => c.application === columns[2]))
+				.process_id,
+			pid
+		);
+		assert.equal(
+			live.applications.find((a) => a.consumers.some((c) => c.application === columns[2])).launch,
+			first.launch
+		);
+		await edit({ kind: 'Matrix', media: otherMedia, edit: { kind: 'ClearPlayback' } });
+		await wait(runtime, (s) =>
+			s.applications.some((a) => a.runtime === runtimeId && a.consumers.length === 2)
+		);
 		await grid.getByTitle('Layer 1 / Column 5', { exact: true }).click();
-		await page.getByRole('button', { name: 'Cut', exact: true }).click();
+		await grid.getByRole('button', { name: 'Launch Column 5', exact: true }).click();
 		await wait(runtime, (s) =>
 			s.applications.some(
-				(a) => a.application === columns[2] && a.phase === 'Idle' && a.process_id === null
+				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null
 			)
 		);
 		pid = null;
@@ -136,7 +203,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Column-owned generic File/pre/post/transition, exact Undo/Redo, no Applications panel, actual neighbor/exact same-PID launch and final range retirement',
+					'Column-owned generic settings/history; one actual process for Column/Cell/two Matrices, live three-consumer Inspector status, neighbor/exact same PID/launch and final range retirement',
 				application: columns[2],
 				browser: browser.version()
 			})
@@ -154,13 +221,17 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		);
 		throw error;
 	} finally {
+		if (otherMedia)
+			await edit({ kind: 'Matrix', media: otherMedia, edit: { kind: 'ClearPlayback' } }).catch(
+				() => {}
+			);
 		await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'ClearPlayback' } }).catch(
 			() => {}
 		);
 		await browser.close();
 		if (pid) {
 			await wait(runtime, (s) =>
-				s.applications.every((a) => a.application !== columns[2] || a.process_id === null)
+				s.applications.every((a) => a.runtime !== runtimeId || a.process_id === null)
 			).catch(() => {});
 		}
 	}

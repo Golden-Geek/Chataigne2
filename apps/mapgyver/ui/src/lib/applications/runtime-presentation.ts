@@ -22,14 +22,21 @@ export function configurationLabel(
 	status: ApplicationRuntimeStatus,
 	selected: ApplicationSnapshot | null
 ) {
+	const consumer =
+		selected && status.consumers.find((consumer) => consumer.application === selected.id);
+	const configuration =
+		status.configuration === 'NotRunning'
+			? status.configuration
+			: (consumer?.configuration ?? status.configuration);
 	if (
 		selected &&
-		(status.configuration === 'Current' || status.configuration === 'Pending') &&
-		(status.definition_revision !== selected.revision ||
-			status.definition_instance !== selected.definition_instance)
+		(configuration === 'Current' || configuration === 'Pending') &&
+		(!consumer ||
+			consumer.definition_revision !== selected.revision ||
+			consumer.definition_instance !== selected.definition_instance)
 	)
 		return 'Saved settings awaiting runtime reconciliation';
-	switch (status.configuration) {
+	switch (configuration) {
 		case 'NotRunning':
 			return 'No configuration in use';
 		case 'Current':

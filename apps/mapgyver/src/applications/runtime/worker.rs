@@ -5,26 +5,19 @@ use super::{
 use golden_io::{WorkerContext, WorkerWake};
 use std::time::Duration;
 
-pub(super) fn current_target_is_admitted(shared: &Shared, id: ApplicationId, captured: &Target) -> bool {
-    captured.guard.as_ref().is_some_and(RevisionGuard::is_current)
-        && shared
-            .desired
-            .lock()
-            .expect("application demand lock poisoned")
-            .targets
-            .get(&id)
-            .is_some_and(|current| {
-                current.epoch == captured.epoch
-                    && current.guard.as_ref().is_some_and(RevisionGuard::is_current)
-                    && current.admission.iter().all(RevisionGuard::is_current)
-            })
+pub(super) fn current_target_is_admitted(shared: &Shared, id: ApplicationRuntimeId, captured: &OwnerTarget) -> bool {
+    let request = shared.desired.lock().expect("application demand lock poisoned");
+    request
+        .owners
+        .get(&id)
+        .is_some_and(|owner| owner.key == captured.key && owner.admitted(&request.targets))
 }
 
 pub(super) fn run(
-    id: ApplicationId,
+    id: ApplicationRuntimeId,
     owner: uuid::Uuid,
     shared: Arc<Shared>,
-    output: Arc<Mutex<ApplicationRuntimeStatus>>,
+    output: Arc<Mutex<ApplicationProcessStatus>>,
     observations: RuntimeView,
     notifier: Option<WorkerNotifier>,
     context: WorkerContext<(), ()>,
@@ -32,7 +25,7 @@ pub(super) fn run(
     let mut agent = Agent::new(id, Native);
     let mut readiness = super::readiness::Observer::default();
     let lifecycle = std::cell::RefCell::new(None);
-    let publish = |status: &ApplicationRuntimeStatus| {
+    let publish = |status: &ApplicationProcessStatus| {
         let mut current = output.lock().expect("application status lock poisoned");
         if *current != *status {
             *current = status.clone();
@@ -57,7 +50,7 @@ pub(super) fn run(
             .desired
             .lock()
             .expect("application demand lock poisoned")
-            .targets
+            .owners
             .get(&id)
             .cloned();
         let final_use = shared
@@ -80,11 +73,23 @@ pub(super) fn run(
             }
         }
         agent.status.callback_backpressure = false;
-        agent.status.definition_revision = target.as_ref().and_then(|target| target.definition_revision);
-        agent.status.definition_instance = target.as_ref().and_then(|target| target.definition_instance);
-        let definition = (!cancelled)
-            .then(|| target.as_ref().and_then(|target| target.definition.clone()))
-            .flatten();
+        let definition = target.as_ref().filter(|_| !cancelled).and_then(|target| {
+            if current_target_is_admitted(&shared, id, target) {
+                match &target.key {
+                    OwnerKey::Configured(key) => Some(key.clone()),
+                    OwnerKey::Unavailable(_) => None,
+                }
+            } else {
+                // A changed outgoing consumer can observe Pending, but cannot authorize a new launch.
+                let request = shared.desired.lock().expect("application demand lock poisoned");
+                target
+                    .consumers
+                    .iter()
+                    .filter_map(|id| request.targets.get(id))
+                    .find(|target| target.retain_existing)
+                    .and_then(|target| target.definition.clone())
+            }
+        });
         if !cancelled
             && agent.status.phase == ApplicationPhase::WaitingForSender
             && target
@@ -106,7 +111,7 @@ pub(super) fn run(
                     id,
                     ReadinessEvidence {
                         project: shared.project,
-                        application: id,
+                        application: target.as_ref().unwrap().consumers[0],
                         launch,
                         sender,
                         first_frame,
@@ -146,7 +151,14 @@ pub(super) fn run(
             Desired {
                 demanded,
                 definition,
-                retain_existing: final_use || target.as_ref().is_some_and(|target| target.retain_existing),
+                retain_existing: final_use
+                    || target.as_ref().is_some_and(|target| {
+                        let request = shared.desired.lock().expect("application demand lock poisoned");
+                        target
+                            .consumers
+                            .iter()
+                            .any(|id| request.targets.get(id).is_some_and(|target| target.retain_existing))
+                    }),
             },
             ready,
             admitted,
@@ -174,9 +186,9 @@ pub(super) fn run(
         let delay = match agent.status.phase {
             ApplicationPhase::RetirementUnverified => 250,
             ApplicationPhase::Idle
-                if target.as_ref().is_some_and(|target| {
-                    target.definition.is_some() && target.guard.as_ref().is_some_and(RevisionGuard::is_current)
-                }) =>
+                if target
+                    .as_ref()
+                    .is_some_and(|target| current_target_is_admitted(&shared, id, target)) =>
             {
                 1
             }

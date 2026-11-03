@@ -3,9 +3,9 @@
 **M08/2 remains Active.** The first configuration milestone is implemented and functionally
 verified: equivalent launch definitions preserve the existing owned process rather than
 triggering a stop/restart. The typed settings milestone below is also verified. Neither
-milestone alone accepts the full configuration/demand gate. Cell ownership is verified below;
-Column ownership/standalone removal is the current milestone. The complete aggregate-demand
-contract remains required.
+milestone alone accepts the full configuration/demand gate. Column/Cell ownership, standalone
+removal and normalized-key runtime sharing are now functionally verified below. Independent
+Cell activation and the complete revised retained-demand matrix remain required.
 
 ## Ownership and behavior
 
@@ -25,9 +25,8 @@ document rewrite or history entry. Key hashes are in-memory collection keys, not
 
 Semantically equivalent path/environment-order edits now keep configuration state Current
 and retain the same native PID and launch UUID. Effective argument or control changes retain
-the existing stop/retirement/readiness/backoff rules. The runtime remains keyed by existing
-consumer identities at this milestone; different consumers do not yet share one owner merely
-because their normalized keys match.
+the existing stop/retirement/readiness/backoff rules. At that first milestone, runtime owners
+were still keyed by consumer identity; the shared-runtime milestone below supersedes that limit.
 
 ## Verification — 2026-11-03
 
@@ -200,11 +199,61 @@ native two-Matrix/same-standalone-ID fixture becomes a Column neighbor/exact act
 runtime tests still cover multiple reasons for one consumer. Cross-consumer/cross-Matrix sharing
 is explicitly unaccepted until the next implementation slice supplies it.
 
+## Shared normalized runtime ownership — 2026-11-03
+
+`runtime/grouping` now assigns immutable normalized keys to physical workers and reconciles
+the entire committed consumer set together. Equal Column/Cell settings across Matrices use one
+process. A consumer handoff preserves runtime/PID/launch identity; an effective setting change
+splits only the changed lease, and matching settings rejoin the existing owner. Outgoing changed
+settings retain the previous key and report Pending for that consumer without misreporting
+another consumer still using Current settings. Missing retained definitions cannot authorize
+new process creation. Admission after suspended creation checks for a current matching lease,
+preserving project, source and capture fencing without tying a shared launch to a removed founder.
+
+The limits now distinguish **4,096 consumer bindings** from **64 active/retiring runtime keys**.
+This changes the previous incorrect one-worker-per-consumer accounting, not the physical worker
+budget. The admission fixture uses 65 genuinely different keys and still rejects before any
+worker/process is started. Five pure grouping cases exercise 4,096 equal consumers, independent
+setting changes/handoff, invalid versus current leases, missing retained settings and per-consumer
+Pending/Current projection. Existing fake-process/time and stale-scope coverage remains in place.
+
+`ApplicationRuntimeId` is separate from authored `ApplicationId`. Process status/callbacks identify
+the ephemeral worker; runtime snapshots add current consumer IDs, saved revisions/instances and
+configuration states. Immutable membership is captured once per reconciliation, not rebuilt in
+the process polling loop. Lifecycle events carry only `ApplicationProcessStatus`, preserving
+the fixed per-launch callback reservation and preventing consumer-count event fan-out. Rust owns
+and generates all changed DTOs. The Inspector shows the selected binding's state and total users.
+
+Final-plan retention resolves consumer IDs into runtime IDs at the admitted render boundary.
+Several matching consumers charge one owner/lifetime entry; subsequent consumer edits cannot
+redirect an unfinished plan's lease. A physically retained owner can have zero current consumers.
+Runtime identities/observations remain absent from authored project/history data.
+
+[Verification receipt](evidence/mapgyver-m08-runtime-sharing-2026-11-03.json): **364 library
+tests pass**, two retained qualification exclusions; strict library/all-native-target Clippy,
+exact Rust-generated TypeScript, Svelte (zero errors/warnings), 26 app/Matrix UI tests and formatting
+pass. **Nine actual Windows process tests pass** in **1.42 seconds**, one pinned-descendant case
+still excluded. The new case shares one PID across a Column/Cell/two Matrices with equivalent
+path/environment spelling, preserves it through neighbor/exact and cross-Matrix release, splits
+one changed consumer into a second process and rejoins the original without restarting its peer.
+The existing unfinished-render/project-close case now has two consumers sharing one process and
+proves it survives until the renderer's explicit completion signal. This uses the existing null
+renderer completion oracle; it does not claim hardware GPU completion qualification.
+
+The isolated bundled app passes the same three-consumer/one-PID contract, live Inspector runtime
+identity/count/configuration, actual grid-header launches and final range retirement. Cell generic
+authoring and source/history/Save-New-Load regressions pass on the same binary, with zero browser
+errors/rejected intents. The initial combined fixture expected a legacy Cut button after selecting
+a materialized Cell; the generic Cell Inspector correctly replaced that form, so the fixture now
+uses the existing Column header launch actions. No product change was needed for that correction.
+
+**No complete M08 gate closes here.** The current key-sharing capability is verified, while the
+independent Cell playback and complete revised demand/retirement acceptance remain required.
+
 ## Exact remaining M08/2 requirement
 
-Aggregate identical normalized keys across consumers, Cells, Columns and Matrices without
-transient process restarts. Preserve the verified clamped/non-wrapping Cell ranges while adding
-direct activation and complete outgoing/final-use retention through jumps,
+Preserve the verified clamped/non-wrapping Cell ranges and shared normalized owners while adding
+independent direct Cell activation and complete disabled-render/outgoing/final-use retention through jumps,
 reorder/delete and project/history operations. Complete fake-time/process, UI/public caller
 and project verification before accepting M08/2. M08/3–4 retain their complete actual-process,
 picker/API/script/callback/snippet, target-outcome and retirement/access acceptance.

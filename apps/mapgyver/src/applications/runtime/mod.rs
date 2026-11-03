@@ -2,7 +2,9 @@
 //! Matrix capture/renderer integration supplies complete committed demand, including final-use holds.
 mod agent;
 mod capture;
+mod grouping;
 pub(crate) use capture::PreparedApplications;
+use grouping::{OwnerKey, OwnerTarget};
 pub(crate) mod callbacks;
 pub use callbacks::{ApplicationCallbackSubscription, ApplicationCallbacks};
 mod observation;
@@ -25,9 +27,9 @@ use std::{
 };
 
 const MAX_APPLICATIONS: usize = 64;
+const MAX_CONSUMERS: usize = 4096;
 #[derive(Clone)]
 struct Target {
-    epoch: uuid::Uuid,
     retain_existing: bool,
     definition: Option<Arc<ApplicationRuntimeKey>>,
     guard: Option<RevisionGuard>,
@@ -35,16 +37,19 @@ struct Target {
     definition_revision: Option<u64>,
     definition_instance: Option<uuid::Uuid>,
 }
+#[derive(Clone, Default)]
 struct Request {
     targets: HashMap<ApplicationId, Target>,
+    owners: HashMap<ApplicationRuntimeId, OwnerTarget>,
+    bindings: HashMap<ApplicationId, ApplicationRuntimeId>,
 }
 struct Shared {
     project: uuid::Uuid,
     guard: RevisionGuard,
     origin: Instant,
     desired: Mutex<Request>,
-    readiness: Mutex<HashMap<ApplicationId, ReadinessEvidence>>,
-    final_use: Mutex<HashMap<ApplicationId, Vec<golden_video::runtime::PlanLifetimeObserver>>>,
+    readiness: Mutex<HashMap<ApplicationRuntimeId, ReadinessEvidence>>,
+    final_use: Mutex<HashMap<ApplicationRuntimeId, Vec<golden_video::runtime::PlanLifetimeObserver>>>,
 }
 
 /// Evidence must come from the actual sender/first-frame observer, never process-running inference.
@@ -57,7 +62,7 @@ pub struct ReadinessEvidence {
     pub first_frame: bool,
 }
 
-type Statuses = HashMap<ApplicationId, (uuid::Uuid, ApplicationRuntimeStatus)>;
+type Statuses = HashMap<ApplicationRuntimeId, (uuid::Uuid, ApplicationProcessStatus)>;
 
 #[derive(Clone, Default)]
 pub(crate) struct RuntimeView {
@@ -66,6 +71,7 @@ pub(crate) struct RuntimeView {
     claimed: Arc<std::sync::atomic::AtomicBool>,
     origin: Arc<OnceLock<Instant>>,
     statuses: Arc<Mutex<Statuses>>,
+    consumers: Arc<Mutex<HashMap<ApplicationRuntimeId, Arc<[ApplicationRuntimeConsumer]>>>>,
     revision: Arc<std::sync::atomic::AtomicU64>,
     observer: Arc<Mutex<Option<(uuid::Uuid, WorkerNotifier)>>>,
 }
@@ -93,11 +99,19 @@ impl RuntimeView {
             };
         }
         let revision = self.revision.load(std::sync::atomic::Ordering::Acquire);
-        let mut applications = statuses.values().map(|(_, status)| status.clone()).collect::<Vec<_>>();
+        let consumers = self.consumers.lock().expect("application consumers lock poisoned");
+        let mut applications = statuses
+            .iter()
+            .map(|(id, (_, process))| ApplicationRuntimeStatus {
+                process: process.clone(),
+                consumers: consumers.get(id).cloned().unwrap_or_else(|| Arc::from([])),
+            })
+            .collect::<Vec<_>>();
+        drop(consumers);
         drop(statuses);
         drop(callbacks);
         drop(supervision);
-        applications.sort_by_key(|entry| entry.application.0.0);
+        applications.sort_by_key(|entry| entry.runtime.0);
         let elapsed_ms = self.origin.get().map_or(0, |origin| {
             u64::try_from(origin.elapsed().as_millis()).unwrap_or(u64::MAX)
         });
@@ -125,9 +139,9 @@ impl RuntimeView {
     }
     fn publish(
         &self,
-        id: ApplicationId,
+        id: ApplicationRuntimeId,
         owner: uuid::Uuid,
-        status: &ApplicationRuntimeStatus,
+        status: &ApplicationProcessStatus,
         lifecycle: Option<&mut callbacks::Reservation>,
         project: uuid::Uuid,
         elapsed_ms: u64,
@@ -146,16 +160,17 @@ impl RuntimeView {
     }
 }
 struct Handle {
+    key: OwnerKey,
     owner: uuid::Uuid,
     worker: BoundedWorker<(), ()>,
-    view: Arc<Mutex<ApplicationRuntimeStatus>>,
+    view: Arc<Mutex<ApplicationProcessStatus>>,
 }
 
 /// A sole controller for one live Media Manager. Drop cancels without joining native cleanup.
 pub struct ApplicationRuntime {
     shared: Arc<Shared>,
     view: RuntimeView,
-    handles: HashMap<ApplicationId, Handle>,
+    handles: HashMap<ApplicationRuntimeId, Handle>,
     pool: RetirementPool,
     notifier: Option<WorkerNotifier>,
 }
@@ -185,9 +200,7 @@ impl ApplicationRuntime {
                 project: context.project,
                 guard: context.guard,
                 origin,
-                desired: Mutex::new(Request {
-                    targets: HashMap::new(),
-                }),
+                desired: Mutex::new(Request::default()),
                 readiness: Mutex::new(HashMap::new()),
                 final_use: Mutex::new(HashMap::new()),
             }),
@@ -231,39 +244,41 @@ impl ApplicationRuntime {
             .desired
             .lock()
             .expect("application demand lock poisoned")
-            .targets
             .clone();
-        let mut targets = capture.targets;
-        for (id, target) in &mut targets {
-            if let Some(previous) = old.get(id)
-                && previous.definition == target.definition
-                && previous.guard.as_ref().is_some_and(RevisionGuard::is_current)
-            {
-                target.epoch = previous.epoch;
-            }
-        }
-        // Prune only owners already idle under the old set; cancellation fences an in-flight create.
+        let request = grouping::request(
+            capture.targets,
+            &old,
+            self.handles.iter().map(|(id, handle)| (*id, handle.key.clone())),
+        );
+        // Only an already-idle, unrequested owner can release its global worker slot.
         self.handles.retain(|id, handle| {
-            let prune = !targets.contains_key(id)
-                && !old.contains_key(id)
+            let prune = !request.owners.contains_key(id)
+                && !old.owners.contains_key(id)
                 && handle.view.lock().expect("application status lock poisoned").phase == ApplicationPhase::Idle;
             if prune {
-                let mut statuses = self
-                    .view
+                self.view
                     .statuses
                     .lock()
-                    .expect("application observation lock poisoned");
-                statuses.remove(id);
+                    .expect("application observation lock poisoned")
+                    .remove(id);
                 self.view.changed();
             }
             !prune
         });
-        if self.handles.len() + targets.keys().filter(|id| !self.handles.contains_key(id)).count() > MAX_APPLICATIONS {
-            return Err("application runtime capacity remains held by retiring owners".into());
+        if self.handles.len()
+            + request
+                .owners
+                .keys()
+                .filter(|id| !self.handles.contains_key(id))
+                .count()
+            > MAX_APPLICATIONS
+        {
+            return Err("application runtime admits at most 64 active/retiring normalized keys".into());
         }
         let mut added = Vec::new();
-        for &id in targets.keys().filter(|id| !self.handles.contains_key(id)) {
+        for &id in request.owners.keys().filter(|id| !self.handles.contains_key(id)) {
             let owner = uuid::Uuid::new_v4();
+            let key = request.owners[&id].key.clone();
             let status = agent::Agent::new(id, agent::Native).status;
             let view = Arc::new(Mutex::new(status));
             let shared = self.shared.clone();
@@ -282,7 +297,15 @@ impl ApplicationRuntime {
                 move |context| worker::run(id, owner, shared, output, observations, notifier, context),
             )
             .map_err(|e| e.to_string())?;
-            added.push((id, Handle { owner, worker, view }));
+            added.push((
+                id,
+                Handle {
+                    key,
+                    owner,
+                    worker,
+                    view,
+                },
+            ));
         }
         let registered = added
             .iter()
@@ -306,7 +329,14 @@ impl ApplicationRuntime {
             self.view.changed();
         }
         self.handles.extend(added);
-        *self.shared.desired.lock().expect("application demand lock poisoned") = Request { targets };
+        let consumers = request
+            .owners
+            .iter()
+            .map(|(id, owner)| (*id, owner.observations.clone()))
+            .collect();
+        *self.shared.desired.lock().expect("application demand lock poisoned") = request;
+        *self.view.consumers.lock().expect("application consumers lock poisoned") = consumers;
+        self.view.changed();
         for handle in self.handles.values() {
             handle.worker.wake_notifier().notify();
         }
@@ -330,23 +360,31 @@ impl ApplicationRuntime {
         {
             return Err("readiness belongs to a stale project or exceeds sender bounds".into());
         }
-        let handle = self
-            .handles
-            .get(&evidence.application)
-            .ok_or("readiness application is not admitted")?;
+        let runtime = {
+            let desired = self.shared.desired.lock().expect("application demand lock poisoned");
+            let runtime = *desired
+                .bindings
+                .get(&evidence.application)
+                .ok_or("readiness consumer is not admitted")?;
+            let target = desired
+                .targets
+                .get(&evidence.application)
+                .ok_or("readiness consumer is missing")?;
+            if target.definition.is_none()
+                || !target.guard.as_ref().is_some_and(RevisionGuard::is_current)
+                || !target.admission.iter().all(RevisionGuard::is_current)
+            {
+                return Err("readiness consumer is stale or unavailable".into());
+            }
+            runtime
+        };
+        let handle = self.handles.get(&runtime).ok_or("readiness runtime is not admitted")?;
         let status = handle.view.lock().expect("application status lock poisoned");
         if status.launch != Some(evidence.launch)
             || !matches!(
                 status.phase,
                 ApplicationPhase::WaitingForSender | ApplicationPhase::Ready
             )
-            || !self
-                .shared
-                .desired
-                .lock()
-                .expect("application demand lock poisoned")
-                .targets
-                .contains_key(&evidence.application)
         {
             return Err("readiness belongs to a stale launch".into());
         }
@@ -355,7 +393,7 @@ impl ApplicationRuntime {
             .readiness
             .lock()
             .expect("application readiness lock poisoned")
-            .insert(evidence.application, evidence);
+            .insert(runtime, evidence);
         handle.worker.wake_notifier().notify();
         Ok(())
     }
@@ -366,12 +404,13 @@ impl ApplicationRuntime {
         PlanRetainer(self.shared.clone())
     }
     pub fn close(&mut self) {
-        self.shared
-            .desired
+        *self.shared.desired.lock().expect("application demand lock poisoned") = Request::default();
+        self.view
+            .consumers
             .lock()
-            .expect("application demand lock poisoned")
-            .targets
+            .expect("application consumers lock poisoned")
             .clear();
+        self.view.changed();
         self.shared
             .readiness
             .lock()

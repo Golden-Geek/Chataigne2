@@ -1,4 +1,5 @@
 use super::*;
+mod sharing;
 
 #[test]
 fn cell_owned_control_launches_without_media_and_preserves_pid_across_neighbor_to_exact_demand() {
@@ -165,7 +166,10 @@ fn equivalent_path_and_environment_edits_preserve_the_actual_owned_process() {
         .reconcile(&engine, &demand(application, &[DemandReason::Active]))
         .unwrap();
     let current = observe(&runtime, |status| {
-        status.phase == ApplicationPhase::Ready && status.definition_revision == Some(expected.revision)
+        status.phase == ApplicationPhase::Ready
+            && status.consumers.iter().any(|consumer| {
+                consumer.application == application && consumer.definition_revision == Some(expected.revision)
+            })
     });
     assert_eq!(current.configuration, ApplicationConfigurationState::Current);
     assert_eq!(current.process_id, first.process_id);

@@ -46,7 +46,7 @@ fn configuration_observations_distinguish_retained_pending_current_and_fully_rel
 fn observation_publication_coalesces_backpressure_rejects_old_owners_and_cancels_retired_projects() {
     let view = RuntimeView::default();
     let agent = agent();
-    let id = agent.status.application;
+    let id = agent.status.runtime;
     let owner = uuid::Uuid::new_v4();
     view.statuses.lock().unwrap().insert(id, (owner, agent.status.clone()));
     view.changed();
