@@ -6,7 +6,7 @@ use crate::{
 };
 use golden_script::ScriptAppOperationRequest;
 
-/// Services one bounded turn of script requests through the same atomic app operation route.
+/// Services one bounded turn of script requests through the same app query/mutation route.
 ///
 /// The production runtime calls this after ordinary edits/ticks. Exclusive headless engine
 /// consumers may call it after applying callback edits. Requests emitted by result callbacks
@@ -37,7 +37,7 @@ pub fn service_script_app_operations<T: ProjectLifecycle>(
                 continue;
             }
             EditCompletionStatus::Failed => Err("The originating script callback edits did not commit".into()),
-            EditCompletionStatus::Applied => app_operations::apply_atomic(
+            EditCompletionStatus::Applied => app_operations::execute(
                 engine,
                 pending.request.namespace(),
                 pending.request.operation(),

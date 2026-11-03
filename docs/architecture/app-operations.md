@@ -11,6 +11,7 @@ mutating the document; production UI/transport and `apply_project_intent` share 
 Its default accepts ordinary intents. Pure engine edits remain trusted internal mechanisms.
 
 `UiEditIntent::InvokeAppOperation` carries an app namespace, operation name and JSON request.
+`ProjectLifecycle::query_app_operation` can handle a recognized immutable read; otherwise
 `ProjectLifecycle::apply_app_operation` interprets the app DTO and queues ordinary engine edits.
 App request/result DTOs should generate their TypeScript declarations from Rust. Golden transports
 the payload without interpreting domain fields. Namespace and operation names each require
@@ -22,7 +23,13 @@ engine's generic UI entrypoint rejects app operations because it lacks the proje
 The default project hook rejects unsupported operations; a transport acknowledgement never
 invents support for an app namespace.
 
-The operation joins an existing edit group or receives one implicit history group. Its authored
+A query receives `&Engine` after pending engine edits settle, without an atomic checkpoint or
+history session. `None` means mutation dispatch; `Some(Err(..))` rejects a recognized query
+without fallback. Query handlers must not mutate shared runtime state or perform external
+effects. They do not call post-mutation `settle_pending_operations`. The same request/result
+envelope, actor admission, script result limits and callbacks apply to reads and writes.
+
+A mutation joins an existing edit group or receives one implicit history group. Its authored
 edits, lifecycle callbacks and `settle_pending_operations` run inside the existing atomic edit
 journal. A failure discards the app result and rolls back that operation while retaining an
 already accepted prefix in an outer edit group. A successful `UiAck.result.value` is returned only
@@ -34,7 +41,7 @@ generated declarations.
 Atomic checkpoints retain the engine's existing 256-shard copy-on-write parameter value store.
 Checkpoint creation shares its roots; a write copies only the affected shard. Rollback restores
 the retained roots and resynchronizes bound handles after journal replay. This preserves parameter
-rollback without rebuilding every parameter snapshot for each app operation, including reads.
+rollback without rebuilding every parameter snapshot for each atomic operation.
 Authored changes must continue through engine edits so the value store remains authoritative.
 
 For creates, the backend can allocate detached UUIDs, apply one subtree/forest and return exact
@@ -55,8 +62,9 @@ inherits the generated fields and the transport codec preserves the app result v
 ## Embedded scripts
 
 Golden's script runtime prepares bounded JSON and queues `gc.invokeAppOperation(requestId,
-namespace, operation, payload)`. A true return means admitted, not committed. The same app hook
-and atomic journal apply the request; scripts do not implement their own domain mutation policy.
+namespace, operation, payload)`. A true return means admitted, not completed. The same query/
+mutation dispatch handles the request; mutations use the atomic journal. Scripts do not
+implement their own domain mutation policy.
 The requesting runtime receives `onAppOperationResult(reply)`. Its Rust-defined,
 generated `ScriptAppOperationReply` is either `status: "applied"` with the exact `value`, including
 null, or `status: "rejected"` with `message`; both include the caller's `request_id`.

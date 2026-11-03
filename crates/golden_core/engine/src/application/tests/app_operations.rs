@@ -6,6 +6,7 @@ use crate::{
 };
 use serde_json::{Value, json};
 
+mod queries;
 mod script;
 
 #[crate::node("operation_ready_failure")]
@@ -25,6 +26,34 @@ crate::define_node_enum!(
 );
 
 impl ProjectLifecycle for OperationNode {
+    fn query_app_operation(
+        engine: &Engine<Self>,
+        namespace: &str,
+        operation: &str,
+        payload: &Value,
+    ) -> Option<Result<Value, String>> {
+        if namespace != "fixture" || operation != "inspect" {
+            return None;
+        }
+        assert!(
+            !engine.has_atomic_journal(),
+            "queries never capture a mutation checkpoint"
+        );
+        assert!(engine.edits.pending.is_empty(), "pending edits settle before reading");
+        Some(match payload.as_str() {
+            Some("reject") => Err("query rejected".into()),
+            Some("null") => Ok(Value::Null),
+            Some("deep") => {
+                let mut result = Value::Null;
+                for _ in 0..128 {
+                    result = Value::Array(vec![result]);
+                }
+                Ok(result)
+            }
+            _ => Ok(json!({"nodes":engine.nodes.len(), "active":engine.has_active_edit_session()})),
+        })
+    }
+
     fn apply_app_operation(
         engine: &mut Engine<Self>,
         namespace: &str,

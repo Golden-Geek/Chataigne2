@@ -20,6 +20,9 @@ MissingMedia). It does not report decoder readiness. Reference chains distinguis
 target from a deleted target. Only the requested page projects channel definitions; counting
 walks the terminal target's ordered channel siblings without allocating the full mirrored set.
 The same query supports physical media and never changes history or document identity.
+MapGyver registers it through Golden's immutable `ProjectLifecycle::query_app_operation` hook,
+including typed Inspect Channels commands. UI, scripts and exclusive headless callers use the
+same generated DTO and admitted result, without a document-wide mutation checkpoint.
 
 The Reference Inspector's Channels section requests 32 outputs per page. It reflects current
 target labels/order and navigates to a real target channel's generic Inspector for editing;
@@ -65,9 +68,11 @@ scale and native sharing/resampling/recovery remain open. The existing native fi
 all three source kinds on both hardware adapters, nested Composition/Matrix, missing-target Undo,
 reload and copied-source final-use retirement; it compiles but has not run.
 
-The [authored scale fixture and two observed results](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
+The [authored scale fixture and observed runs](../progress/evidence/mapgyver-reference-scale-2026-11-03.json)
 cover up to 10k actual References and 512 producer variants. Pages and demanded capture stay
-bounded, but no passing isolated 50 ms receipt result exists. Golden checkpoints now retain their
+bounded. Isolated paged reads at 1k/5k/10k References pass at 0.086/0.095/0.104 ms p95;
+fixed Target edits at 10k still fail at 71.0 ms against 50 ms. Golden checkpoints retain their
 existing copy-on-write parameter values; document-wide transaction work remains outside the
-Reference resolver. Next move pure app reads behind an immutable public Golden query contract.
+Reference resolver. Paged Channels reads now use the immutable public Golden query contract;
+fixed-edit checkpoint costs and isolated scale acceptance remain required.
 The [status ledger](../progress/mapgyver-status.md) keeps the full gate open; this is not Q04 acceptance.

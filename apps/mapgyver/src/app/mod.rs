@@ -65,6 +65,19 @@ impl ProjectLifecycle for AppNode {
         Ok(())
     }
 
+    fn query_app_operation(
+        engine: &AppEngine,
+        namespace: &str,
+        operation: &str,
+        payload: &serde_json::Value,
+    ) -> Option<Result<serde_json::Value, String>> {
+        if namespace == crate::media::protocol::MEDIA_NAMESPACE {
+            crate::media::query_operation(engine, operation, payload)
+        } else {
+            None
+        }
+    }
+
     fn apply_app_operation(
         engine: &mut AppEngine,
         namespace: &str,

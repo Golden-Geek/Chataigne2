@@ -32,6 +32,29 @@ fn replies(engine: &Engine<OperationNode>) -> Vec<Value> {
 const CALLBACK: &str = "function onAppOperationResult(reply) { gc.emit('script-operation-reply', reply); }";
 
 #[test]
+fn immutable_queries_keep_script_result_admission_and_do_not_add_history() {
+    for (payload, status) in [("inspect", "applied"), ("reject", "rejected"), ("deep", "rejected")] {
+        let mut engine = engine();
+        script(
+            &mut engine,
+            &format!("function init() {{ gc.invokeAppOperation('read','fixture','inspect','{payload}'); }} {CALLBACK}"),
+        );
+        let history = engine.ui_history_state();
+        let nodes = engine.nodes.len();
+        service_script_app_operations(&mut engine).unwrap();
+        let reply = replies(&engine).pop().unwrap();
+        assert_eq!(reply["status"], status);
+        if status == "applied" {
+            assert_eq!(reply["value"]["nodes"], nodes);
+        } else {
+            assert!(reply.get("value").is_none());
+        }
+        assert_eq!(engine.ui_history_state(), history);
+        assert_eq!(engine.nodes.len(), nodes);
+    }
+}
+
+#[test]
 fn result_callback_parameter_writes_follow_runtime_history_policy() {
     let mut engine = engine();
     let mut param = crate::parameter::Parameter::new(

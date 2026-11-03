@@ -90,6 +90,42 @@
           "capture_ms": 0.0592
         }
       ]
+    },
+    {
+      "label": "Immutable app-query dispatch",
+      "terminal": "failed fixed-edit assertion at 10000; query assertion passes at all sizes",
+      "compilation_overlap": "None during samples. All prior Cargo and app test processes were terminal; this sole Cargo invocation completed its own build before starting the test.",
+      "measurements": [
+        {
+          "references": 1000,
+          "actual_nodes": 9109,
+          "virtual_channels": 512000,
+          "setup_ms": 62.6323,
+          "query_p95_ms": 0.086,
+          "edit_p95_ms": 9.9945,
+          "capture_ms": 0.0978
+        },
+        {
+          "references": 5000,
+          "actual_nodes": 29110,
+          "virtual_channels": 2560000,
+          "setup_ms": 264.5196,
+          "query_p95_ms": 0.0948,
+          "edit_p95_ms": 41.3843,
+          "capture_ms": 0.0634
+        },
+        {
+          "references": 10000,
+          "actual_nodes": 54111,
+          "virtual_channels": 5120000,
+          "setup_ms": 478.2498,
+          "query_p95_ms": 0.1036,
+          "edit_p95_ms": 71.0161,
+          "capture_ms": 0.0689
+        }
+      ],
+      "query_budget_passed": true,
+      "edit_budget_passed": false
     }
   ],
   "verified_in_both_runs": {
@@ -106,9 +142,22 @@
     "intended_cases": "Solid Color/Picture/Shared Texture on both hardware adapters, automatic sharing, forced resampling, Composition/Matrix, reload, deletion/Undo, copied-source final-use retirement"
   },
   "limits": [
-    "No isolated latency result or claimed speedup",
+    "Earlier timing comparisons were contended; only the immutable-query run is isolated. Its fixed-edit assertion failed.",
     "No UI/native throughput, whole-app Q04, memory, device-removal or final qualification acceptance",
-    "Two timing attempts exhausted this batch allowance; no third run or budget change"
+    "The prior batch exhausted its two contended attempts. The next product slice changed query dispatch and ran the same fixture once in isolation; no budget or fixture requirement changed."
   ],
-  "next_action": "Deliver immutable app-owned query dispatch through a public Golden contract so paged Reference reads avoid mutation checkpoints; preserve script/headless/transport parity and history. Then run isolated scale acceptance after terminal prerequisite builds, retain the fixed-edit checkpoint requirement and complete the native fixture only after software success."
+  "next_action": "Reduce fixed Target edit receipts by bounding atomic checkpoint work while preserving rollback/history. The unchanged isolated scale fixture still requires edit p95 <=50 ms. Native mixed fixture remains gated on software success; full end-to-end/Q04 acceptance remains open.",
+  "query_implementation": "ProjectLifecycle::query_app_operation receives an immutable Engine after pending edits settle. MapGyver routes InspectChannels and typed Inspect Channels commands through it; actor/headless/script result, rejection and admission semantics are unchanged.",
+  "checks": {
+    "golden_engine": {
+      "passed": 671,
+      "ignored": 3
+    },
+    "mapgyver": {
+      "passed": 317,
+      "ignored": 2
+    },
+    "strict_clippy": "golden_engine and MapGyver all targets, MapGyver/native-qualification, -D warnings: passed",
+    "bundle": "ordinary MapGyver executable build passed; bundled Reference workflow and ordinary headless source/history/project workflow passed, host exited normally"
+  }
 }

@@ -16,6 +16,7 @@ use golden_core::{
     ui_sync::UiEditIntent,
 };
 
+mod queries;
 mod unavailable;
 
 fn command(engine: &mut AppEngine, kind: MediaCommandKind) -> NodeUuid {

@@ -85,6 +85,25 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         Ok(())
     }
 
+    /// Handles a recognized app-owned read without entering a mutation/history boundary.
+    ///
+    /// Return `None` to route the request to `apply_app_operation`; `Some(Err(..))` rejects
+    /// a recognized query without falling back to mutation. The host settles pending engine
+    /// edits before this call. Queries must not perform external effects or mutate shared
+    /// runtime state through interior mutability. Results use the ordinary admission/callback
+    /// path, including script result limits. No post-mutation settlement hook runs for reads.
+    fn query_app_operation(
+        _engine: &Engine<Self>,
+        _namespace: &str,
+        _operation: &str,
+        _payload: &serde_json::Value,
+    ) -> Option<Result<serde_json::Value, String>>
+    where
+        Self: Sized,
+    {
+        None
+    }
+
     /// Applies one app-owned operation inside the host's atomic edit/history boundary.
     ///
     /// Validate domain policy here, queue authored changes through engine edits, and
