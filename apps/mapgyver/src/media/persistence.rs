@@ -29,7 +29,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         if record.node_type == "mapgyver.app_control.v1"
             && !matches!(
                 parent_type,
-                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.cell.v2")
+                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.cell.v3")
             )
         {
             return Err("Standalone app-control records are unsupported; settings require a Column or Cell".into());
@@ -60,6 +60,11 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             && record.node_type != crate::matrix::cell_node::CELL_TYPE
         {
             return Err(format!("Unsupported Matrix Cell schema '{}'", record.node_type));
+        }
+        if record.node_type == crate::matrix::cell_node::CELL_TYPE
+            && record.data.as_ref().is_some_and(|data| !data.is_null())
+        {
+            return Err("Matrix Cell settings require Parameter children; opaque Cell data is unsupported".into());
         }
         if record.node_type.starts_with("mapgyver.composition.placement")
             && record.node_type != super::composition::PLACEMENT_TYPE

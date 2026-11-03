@@ -26,6 +26,7 @@ pub(crate) struct CellSource {
     pub layer: LayerId,
     pub source: MediaSource,
     pub version: u64,
+    pub settings: CellSettings,
 }
 impl RenderIndex {
     pub(super) fn build(
@@ -80,7 +81,7 @@ impl RenderIndex {
             {
                 cell_apps.insert((cell.layer, cell.definition.column), cell.definition.application);
             }
-            if !node.node_data().effective_enabled {
+            if !node.node_data().effective_enabled || !cell.definition.settings.enabled {
                 continue;
             }
             if cell.media.is_some() {
@@ -102,6 +103,7 @@ impl RenderIndex {
                         layer: cell.layer,
                         source,
                         version: node.source_version(),
+                        settings: cell.definition.settings,
                     },
                 );
             }

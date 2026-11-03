@@ -13,6 +13,7 @@ struct Binding {
     owner: ChannelReference,
     source: Option<MediaSource>,
     output: Option<ChannelReference>,
+    settings: super::protocol::CellSettings,
 }
 pub(crate) struct BindingCapacity;
 impl Bindings {
@@ -28,7 +29,14 @@ impl Bindings {
         candidate: Option<&CellSource>,
     ) -> Result<Option<MediaSource>, BindingCapacity> {
         let key = (clip.id, layer);
-        if let Some(binding) = self.entries.get(&key) {
+        if let Some(binding) = self.entries.get_mut(&key) {
+            // Live edits follow the same authored source; replacement/deletion cannot redirect
+            // settings of retained outgoing content to another Cell's definition.
+            if let Some(cell) =
+                candidate.filter(|cell| cell.version <= clip.version && Some(cell.source) == binding.source)
+            {
+                binding.settings = cell.settings;
+            }
             return Ok(binding.source);
         }
         if self.entries.len() == MAX_BINDINGS {
@@ -44,6 +52,9 @@ impl Bindings {
             Binding {
                 owner,
                 source,
+                settings: candidate
+                    .filter(|cell| cell.version <= clip.version)
+                    .map_or_else(Default::default, |cell| cell.settings),
                 output: source.and_then(|source| {
                     source.channel.map(|channel| ChannelReference {
                         media: source.media,
@@ -60,6 +71,9 @@ impl Bindings {
             binding.output = output;
         }
         binding.output
+    }
+    pub fn settings(&self, clip: Clip, layer: LayerId) -> super::protocol::CellSettings {
+        self.entries[&(clip.id, layer)].settings
     }
     pub fn layers(&self) -> HashSet<LayerId> {
         self.entries

@@ -43,7 +43,7 @@ pub(crate) fn index(
         else {
             unreachable!()
         };
-        if !node.node_data().meta.enabled {
+        if !node.node_data().meta.enabled || !cell.definition.settings.enabled {
             disabled.entry(cell.definition.column).or_default().push(cell.layer);
         }
         if let Some(transition) = cell.definition.transition {

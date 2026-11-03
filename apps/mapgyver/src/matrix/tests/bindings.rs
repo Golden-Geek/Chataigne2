@@ -27,6 +27,11 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
     let row = LayerId(uuid());
     let owner = reference();
     let source = CellSource {
+        settings: CellSettings {
+            position: [2.0, 3.0],
+            opacity: 0.25,
+            ..Default::default()
+        },
         layer: row,
         source: {
             let reference = reference();
@@ -42,6 +47,7 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         Some(source.source)
     );
     let edited = CellSource {
+        settings: CellSettings::default(),
         layer: row,
         source: {
             let reference = reference();
@@ -56,6 +62,21 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         bindings.resolve(clip, row, owner, Some(&edited)).ok().flatten(),
         Some(source.source)
     );
+    assert_eq!(bindings.settings(clip, row), source.settings);
+    let live_edit = CellSource {
+        settings: CellSettings {
+            position: [4.0, -2.0],
+            opacity: 0.5,
+            ..Default::default()
+        },
+        layer: row,
+        source: source.source,
+        version: source.version,
+    };
+    bindings.resolve(clip, row, owner, Some(&live_edit)).ok().unwrap();
+    assert_eq!(bindings.settings(clip, row), live_edit.settings);
+    bindings.resolve(clip, row, owner, None).ok().unwrap();
+    assert_eq!(bindings.settings(clip, row), live_edit.settings);
     let new_row = LayerId(uuid());
     assert!(
         bindings

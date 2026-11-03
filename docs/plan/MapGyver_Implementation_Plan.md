@@ -55,8 +55,10 @@ dependencies above without waiving physical/timing gates or changing qualificati
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
 the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,
 canvas and duration now drive actual rendering and per-Layer playback; native position/resize/
-Undo passes on both GPUs. This is partial M07/1 delivery: Cell transforms/enabling and 3×3
-defaults remain required before model acceptance; full grid/playback/native/scale gates remain unchanged.
+Undo passes on both GPUs. Cell v3 now owns typed relative position/opacity/enabled with no size;
+its complete current verification is recorded in the model report. This remains partial M07/1
+delivery: backend 3×3 defaults and complete model acceptance remain required; full
+grid/playback/native/scale gates remain unchanged.
 
 M04/7's default Reference/Alt-copy drops established actual Composition/Matrix child-media
 containment before Reference/Preview acceptance. Reuse that ownership/copy/drop foundation.

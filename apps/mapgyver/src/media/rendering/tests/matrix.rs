@@ -119,6 +119,54 @@ fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolutio
         mapping.source_coordinate(golden_video::plan::Point { x: 0.0, y: 0.0 }),
         None
     );
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureCell {
+            layer: row,
+            column: columns[0],
+            settings: CellSettings {
+                position: [1.0, 1.0],
+                opacity: 0.5,
+                ..Default::default()
+            },
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureItem {
+            item: MatrixItemId::Layer { id: row },
+            settings: CompositeSettings {
+                opacity: 0.5,
+                ..Default::default()
+            },
+        },
+    );
+    let placed = prepare(&engine, &[layer]);
+    let pass = placed
+        .submission
+        .plan
+        .passes
+        .iter()
+        .find(|pass| pass.output == placed.entries[&layer].target)
+        .unwrap();
+    let RenderOperation::Composite { layers } = &pass.operation else {
+        panic!()
+    };
+    assert_eq!(
+        layers[0].opacity.get(),
+        0.25,
+        "Cell and Layer opacity multiply for a single input"
+    );
+    assert_eq!(
+        layers[0]
+            .mapping
+            .as_ref()
+            .unwrap()
+            .source_coordinate(golden_video::plan::Point { x: 0.375, y: 0.5 }),
+        Some([0.5, 0.5])
+    );
 }
 
 fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {

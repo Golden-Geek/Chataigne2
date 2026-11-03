@@ -353,7 +353,7 @@ fn cell_app_control_duplicates_with_its_column_and_rejects_obsolete_schema() {
     );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v2", "mapgyver.matrix.cell.v1"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v3", "mapgyver.matrix.cell.v1"))
             .is_err()
     );
     assert!(engine.undo().unwrap());

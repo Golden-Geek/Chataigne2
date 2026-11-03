@@ -66,7 +66,7 @@
 				<div class="actions">
 					<IconButton
 						icon={referenceIcon}
-						label="Edit Cell app control"
+						label="Inspect Cell settings"
 						disabled={busy}
 						onclick={async () => {
 							if (selectedRow?.item.id.kind !== 'Layer' || !selectedColumn) return;

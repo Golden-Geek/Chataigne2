@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-03",
+  "gate": "M07/1",
+  "gate_change": "None; remains Active",
+  "batch": {
+    "start_utc": "19:37",
+    "cutoff_utc": "20:22",
+    "deliverable": "Typed Cell relative position, opacity and enabled, no size; public ConfigureCell, retained render projection and generic Inspector",
+    "owner": "MapGyver Matrix/Cell and render preparation"
+  },
+  "implemented": [
+    "Cell v3 declares position Vec2, opacity Float and enabled Bool Parameters; no Cell size",
+    "ConfigureCell validates before atomic edits or one detached configured sparse Cell insertion",
+    "Bindings update placement/opacity for the same source while preserving retained outgoing settings through replacement/deletion",
+    "Cell opacity multiplies fade weight and post-composite Layer opacity, including single-input fast path",
+    "Typed enabled holds active content for Column destinations and skips individual activation; general Golden metadata enablement retained",
+    "Early old Cell v2/opaque data admission rejection; generated CellSettings/CellDefinition/MatrixEdit and UI v3 consumers; contextual Inspect Cell settings"
+  ],
+  "checks": {
+    "format": {
+      "commands": ["cargo fmt --all", "cargo fmt --manifest-path crates/golden_core/Cargo.toml --all", "prettier --check touched UI/browser files", "git diff --check"],
+      "exit": 0,
+      "log": "target/m07-cell-settings-format-check.log"
+    },
+    "library": {
+      "command": "cargo test --locked -p MapGyver --lib",
+      "passed": 380,
+      "failed": 0,
+      "ignored": 2,
+      "seconds": 153.98,
+      "log": "target/m07-cell-settings-tests-final.log",
+      "includes": [
+        "Generated Media/Preview contract equality",
+        "Sparse Cell creation/atomic history/project/Column copy and generic rejection",
+        "Early v2/opaque Cell admission",
+        "Live placement/opacity, disabled direct/Column launch, deleted outgoing settings",
+        "Single-input Cell x Layer opacity and native-size mapping",
+        "Four-caller ConfigureCell parity",
+        "Existing large-grid/source/control suites"
+      ]
+    },
+    "lint": {
+      "command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+      "exit": 0,
+      "log": "target/m07-cell-settings-clippy-final.log"
+    },
+    "svelte": {
+      "errors": 0,
+      "warnings": 0,
+      "log": "target/m07-cell-settings-ui-check.log"
+    },
+    "ui": {
+      "passed": 26,
+      "failed": 0,
+      "log": "target/m07-cell-settings-ui-tests.log"
+    },
+    "windows": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "seconds": 1.42,
+      "log": "target/m07-cell-settings-process.log"
+    },
+    "browser": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-parameters-ui",
+      "exit": 0,
+      "scope": "Layer/Group and Cell generic controls; Cell position/opacity/enabled per-field Undo/Redo; absent size widget; offscreen Layer/Cell editing in 258-row scene; no launch; source/history/Save-New-Load",
+      "log": "target/m07-cell-settings-browser-final.log"
+    },
+    "controls": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+      "exit": 0,
+      "scope": "Column/Cell generic Inspector, normalized sharing, independent Cell/anchor/marker, disabled destination PID hold without renderer, actual Unload",
+      "log": "target/m07-cell-settings-controls.log"
+    },
+    "native": {
+      "command": "target/debug/deps/matrix_rendering-codex-cell.exe --ignored --nocapture native_cell_position_opacity_enabled_and_undo_preserve_child_size_on_each_adapter",
+      "passed": 1,
+      "failed": 0,
+      "seconds": 25.04,
+      "images": 30,
+      "extent": [
+        32,
+        24
+      ],
+      "adapters": [
+        "Intel(R) Graphics",
+        "NVIDIA GeForce RTX 5080 Laptop GPU"
+      ],
+      "stages": [
+        "Native-sized 8x4 source at Cell offset with Cell x Layer alpha",
+        "Live Cell position/opacity",
+        "Undo",
+        "Disabled Column destination holds previous content",
+        "Enabled destination activates"
+      ],
+      "outputs": "Two normal outputs and preview",
+      "maximum_nominal_error": 0,
+      "maximum_residual_error": 0,
+      "retirement": "Fixture Drop: zero live plan allocations, created == released, empty outputs and sources",
+      "log": "target/m07-cell-settings-native.log"
+    }
+  },
+  "repairs": [
+    "First bundled run selected a duplicated nested/root Layer label ambiguously. Focused first matching row is validated by the original Layer UUID in all backend assertions. Repaired browser run passes; product label policy unchanged.",
+    "Review added explicit opaque Cell admission and direct same-source/replacement binding assertions before final current-code full validation."
+  ],
+  "binaries": {
+    "app_sha256": "CCCC30B4A0D405727BAA76D13D4A41420429EC614ED49DC0C6622274EF4C89D7",
+    "native_sha256": "5388DAFAFF892AD9BE382472B9E719AA88BA447A83295820D8FF3FD0600F0A71",
+    "process_sha256": "9C268F5945CC2041D0245AD12D43F9718CB09117E3722C9ABAEFF1D0CCC3F634"
+  },
+  "remaining": [
+    "Backend 3x3 defaults and complete M07/1 model audit",
+    "Full M07/2 playback, M07/3 grid and M07/4 native/scale/memory/timing acceptance",
+    "M08/3-4 and retained physical/final qualification"
+  ],
+  "counts": {
+    "accepted_gates": 42,
+    "total_gates": 57,
+    "gate_percent": 74,
+    "accepted_phases": 5,
+    "total_phases": 11,
+    "phase_percent": 45
+  },
+  "limits": "Spatial slice only; full original Matrix acceptance remains. Native baseline passed without repair. No budget/denominator change; pre-revision stash and unrelated user docs/icons untouched."
+}

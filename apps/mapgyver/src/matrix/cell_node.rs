@@ -1,5 +1,5 @@
 //! Typed sparse address and selected output; content is an actual owned media child.
-use super::protocol::{CellDefinition, ColumnId, TransitionCurve, TransitionDefinition};
+use super::protocol::{CellDefinition, CellSettings, ColumnId, TransitionCurve, TransitionDefinition};
 use crate::{
     app::{AppEngine, AppNode},
     media::protocol::{ChannelId, MediaId},
@@ -7,7 +7,7 @@ use crate::{
 use golden_core::{
     node,
     node::{Node, NodeId, NodeReference, ParameterHandle, ParameterValidationContext, UserContainerRules},
-    parameter::{Enum, ParamValue, ReferenceTargetKind},
+    parameter::{Enum, ParamValue, ParameterEventBehaviour, ReferenceTargetKind, Vec2},
     process_ctx::ProcessCtx,
 };
 use std::sync::{
@@ -15,13 +15,16 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v2";
-#[node("mapgyver.matrix.cell.v2", label = "Cell")]
+pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
+#[node("mapgyver.matrix.cell.v3", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
+    position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
+    opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
+    enabled: bool = true (label = "Enabled");
     transition_override: bool = false (label = "Override transition");
     duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject");
     curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
@@ -37,6 +40,55 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    pub(crate) fn settings(&self) -> CellSettings {
+        let position = self.position.get();
+        CellSettings {
+            position: [position.x as f32, position.y as f32],
+            opacity: self.opacity.get() as f32,
+            enabled: self.enabled.get(),
+        }
+    }
+    pub(crate) fn with_settings(mut self, settings: CellSettings) -> Self {
+        self.position = ParameterHandle::new(Vec2::new(
+            f64::from(settings.position[0]),
+            f64::from(settings.position[1]),
+        ));
+        self.opacity = ParameterHandle::new(f64::from(settings.opacity));
+        self.enabled = ParameterHandle::new(settings.enabled);
+        self
+    }
+    pub(crate) fn configuration_edit(&self, settings: CellSettings) -> golden_core::edit::Edit {
+        golden_core::edit::Edit::SetParamsAtomic {
+            values: vec![
+                (
+                    self.position.id(),
+                    ParamValue::Vec2(f64::from(settings.position[0]), f64::from(settings.position[1])),
+                ),
+                (self.opacity.id(), ParamValue::Float(f64::from(settings.opacity))),
+                (self.enabled.id(), ParamValue::Bool(settings.enabled)),
+            ],
+            behaviour: ParameterEventBehaviour::Append,
+        }
+    }
+    fn validate_settings(&self, change: Option<&ParameterValidationContext<'_>>) -> Result<(), String> {
+        let position = match change.and_then(|change| change.parameter_value(self.position.id())) {
+            Some(ParamValue::Vec2(x, y)) => [x as f32, y as f32],
+            _ => self.settings().position,
+        };
+        let opacity = match change.and_then(|change| change.parameter_value(self.opacity.id())) {
+            Some(ParamValue::Float(value)) => value,
+            _ => self.opacity.get(),
+        };
+        if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
+            return Err("Cell opacity must be finite in 0..1".into());
+        }
+        CellSettings {
+            position,
+            opacity: opacity as f32,
+            enabled: self.enabled.get(),
+        }
+        .validate()
+    }
     pub(crate) fn transition(&self) -> Option<TransitionDefinition> {
         self.transition_override.get().then(|| TransitionDefinition {
             duration_ms: self.duration_ms.get() as u32,
@@ -109,6 +161,7 @@ impl CellNode {
             source,
             application: crate::applications::protocol::ApplicationId(self.node_data().meta.uuid),
             transition: self.transition(),
+            settings: self.settings(),
         })
     }
     pub(crate) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
@@ -127,8 +180,11 @@ impl CellNode {
         }
     }
 }
-#[node("mapgyver.matrix.cell.v2", from_struct)]
+#[node("mapgyver.matrix.cell.v3", from_struct)]
 impl Node for CellNode {
+    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
+        false
+    }
     fn needs_update(&self) -> bool {
         false
     }
@@ -148,7 +204,16 @@ impl Node for CellNode {
         self.invalidate();
     }
     fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
-        if [self.transition_override.id(), self.duration_ms.id(), self.curve.id()].contains(&parameter) {
+        if [
+            self.transition_override.id(),
+            self.duration_ms.id(),
+            self.curve.id(),
+            self.position.id(),
+            self.opacity.id(),
+            self.enabled.id(),
+        ]
+        .contains(&parameter)
+        {
             if let Some(binding) = self.runtime.get() {
                 binding.invalidate();
             }
@@ -168,9 +233,11 @@ impl Node for CellNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        self.validate_settings(None)?;
         super::column_node::validate(self.duration_ms.get(), self.curve.get_ref().as_str())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        self.validate_settings(Some(change))?;
         let duration = match change.parameter_value(self.duration_ms.id()) {
             Some(ParamValue::Float(value)) => value,
             _ => self.duration_ms.get(),

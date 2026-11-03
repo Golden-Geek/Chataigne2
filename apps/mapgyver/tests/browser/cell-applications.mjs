@@ -58,7 +58,7 @@ export async function verifyCellApplicationsUi({ base, edit }) {
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		await grid.getByTitle('Layer 1 / Column 3', { exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Cell app control', exact: true }).click();
+		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
 		const state = await wait(inspect, (value) => value.cells.length === 1);
 		const cell = state.cells[0];
 		assert.equal(cell.layer, items[0].id);

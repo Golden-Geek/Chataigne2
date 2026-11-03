@@ -12,6 +12,33 @@ use golden_core::{
 };
 use std::collections::{HashMap, HashSet};
 
+pub(super) fn configure(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: ColumnId,
+    settings: CellSettings,
+) -> Result<(), String> {
+    settings.validate()?;
+    let parent = document.item(MatrixItemId::Layer { id: layer })?;
+    document.column(column)?;
+    if let Some(id) = document.cells.get(&(layer, column)) {
+        let Some(AppNode::MatrixCell(node)) = engine.nodes.get(*id) else {
+            unreachable!()
+        };
+        engine.edits.push(node.configuration_edit(settings));
+    } else {
+        document.admit(1)?;
+        let node = CellNode::from_address("Cell".into(), column, None).with_settings(settings);
+        engine.edits.push(Edit::AddUserItemTree {
+            parent,
+            prev_sibling: engine.nodes.get(parent).unwrap().node_data().last_child,
+            tree: NodeTree::new(node),
+        });
+    }
+    Ok(())
+}
+
 fn binding(engine: &AppEngine, document: &Document) -> super::playback::RuntimeBinding {
     let AppNode::MediaChannel(node) = engine.nodes.get(document.root).unwrap() else {
         unreachable!()

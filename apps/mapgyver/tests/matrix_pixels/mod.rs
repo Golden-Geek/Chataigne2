@@ -16,6 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod cell_geometry;
 mod layer_geometry;
 mod transitions;
 

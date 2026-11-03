@@ -122,6 +122,36 @@ pub struct CellDefinition {
     /// This Cell's declared typed settings, including when unconfigured.
     pub application: crate::applications::protocol::ApplicationId,
     pub transition: Option<TransitionDefinition>,
+    pub settings: CellSettings,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
+#[serde(default, deny_unknown_fields)]
+pub struct CellSettings {
+    /// Top-left position relative to the Layer canvas, in pixels. Media keeps its own size.
+    pub position: [f32; 2],
+    pub opacity: f32,
+    pub enabled: bool,
+}
+impl Default for CellSettings {
+    fn default() -> Self {
+        Self {
+            position: [0.0; 2],
+            opacity: 1.0,
+            enabled: true,
+        }
+    }
+}
+impl CellSettings {
+    pub fn validate(&self) -> Result<(), String> {
+        if !self.position.into_iter().all(f32::is_finite)
+            || !self.opacity.is_finite()
+            || !(0.0..=1.0).contains(&self.opacity)
+        {
+            return Err("Cell position must be finite and opacity must be in 0..1".into());
+        }
+        Ok(())
+    }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
@@ -285,6 +315,11 @@ pub struct MatrixTargetPage {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    ConfigureCell {
+        layer: LayerId,
+        column: ColumnId,
+        settings: CellSettings,
+    },
     LaunchCell {
         layer: LayerId,
         column: ColumnId,

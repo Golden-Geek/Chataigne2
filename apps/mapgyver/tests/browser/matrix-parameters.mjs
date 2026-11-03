@@ -146,6 +146,57 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			inspect,
 			(state) => state.items.find((row) => row.id.id === layers[0].id).settings.opacity === 0.625
 		);
+		await grid.evaluate((element) => {
+			element.scrollTop = 0;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await grid.getByTitle('Layer 1 / Column 1', { exact: true }).first().click();
+		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
+		await parameter('Enabled').locator('input[type=checkbox]').waitFor();
+		const cellSettings = (state) =>
+			state.cells.find((cell) => cell.layer === layers[0].id).definition.settings;
+		for (const [label, component, value, field] of [
+			['Position', 0, 3.5, 'position'],
+			['Position', 1, -2, 'position'],
+			['Opacity', 0, 0.375, 'opacity'],
+			['Enabled', 0, false, 'enabled'],
+			['Enabled', 0, true, 'enabled']
+		]) {
+			const before = await inspect();
+			if (field === 'enabled') {
+				const input = parameter(label).locator('input[type=checkbox]');
+				await wait(
+					() => input.isChecked(),
+					(checked) => checked === cellSettings(before).enabled
+				);
+				await input.setChecked(value);
+			} else {
+				const input = parameter(label).locator('input.number-field').nth(component);
+				await input.fill(String(value));
+				await input.press('Tab');
+			}
+			const after = await wait(inspect, (state) =>
+				field === 'position'
+					? cellSettings(state).position[component] === value
+					: cellSettings(state)[field] === value
+			);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(inspect, (state) => isDeepStrictEqual(state, before));
+			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+			await wait(inspect, (state) => isDeepStrictEqual(state, after));
+		}
+		assert.equal(await parameter('Canvas size').count(), 0);
+		await grid.evaluate((element) => {
+			element.scrollTop = element.scrollHeight;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await wait(
+			() => grid.getByTitle('Layer 1 / Column 1', { exact: true }).count(),
+			(count) => count === 0
+		);
+		await parameter('Opacity').locator('input.number-field').fill('0.625');
+		await parameter('Opacity').locator('input.number-field').press('Tab');
+		await wait(inspect, (state) => cellSettings(state).opacity === 0.625);
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
@@ -154,7 +205,7 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Typed Layer/Group generic blending/enabling; Layer position/canvas/duration; Group has no spatial controls; exact per-field Undo/Redo; offscreen Inspector edits; no playback side effects',
+					'Typed Layer/Group and Cell settings; native-sized Cell has no size; exact per-field Undo/Redo; offscreen Layer and Cell Inspector; no playback side effects',
 				browser: browser.version()
 			})
 		);

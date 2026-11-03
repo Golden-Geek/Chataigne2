@@ -12,6 +12,7 @@ pub(crate) struct MatrixInput {
     pub source: ChannelReference,
     pub blend: golden_video::plan::BlendMode,
     pub weight: Option<golden_video::plan::OpacityEnvelope>,
+    pub opacity: f32,
     pub placement: Option<MatrixPlacement>,
 }
 #[derive(Clone, Copy)]
@@ -170,7 +171,7 @@ pub(crate) fn capture(
                 }
             }
             if let Some(MatrixItemId::Layer { .. }) = item {
-                let mut sources = Vec::<(ChannelReference, f32, f32)>::new();
+                let mut sources = Vec::<(ChannelReference, CellSettings, f32, f32)>::new();
                 let MatrixItemId::Layer { id: layer } = item.unwrap() else {
                     unreachable!()
                 };
@@ -188,20 +189,25 @@ pub(crate) fn capture(
                     let Some(source) = timeline.bindings.output(entry.clip, layer, output) else {
                         continue;
                     };
-                    if let Some((_, current_from, current_to)) = sources.iter_mut().find(|(id, _, _)| *id == source) {
+                    let settings = timeline.bindings.settings(entry.clip, layer);
+                    if let Some((_, _, current_from, current_to)) = sources
+                        .iter_mut()
+                        .find(|(id, current, _, _)| *id == source && *current == settings)
+                    {
                         *current_from += entry.from;
                         *current_to += entry.to;
                     } else {
-                        sources.push((source, entry.from, entry.to));
+                        sources.push((source, settings, entry.from, entry.to));
                     }
                 }
-                for (source, from, to) in sources {
+                for (source, settings, from, to) in sources {
                     captured.inputs.push(MatrixInput {
                         source,
                         blend: golden_video::plan::BlendMode::Add,
                         weight: local.interval.map(|interval| interval.envelope(from, to)),
+                        opacity: settings.opacity,
                         placement: Some(MatrixPlacement {
-                            position: [0.0; 2],
+                            position: settings.position,
                             size: None,
                         }),
                     });
@@ -294,6 +300,7 @@ pub(crate) fn capture(
                             source: entry.channel,
                             blend: entry.settings.blend,
                             weight: None,
+                            opacity: 1.0,
                             placement: entry.layer.map(|layer| MatrixPlacement {
                                 position: layer.position,
                                 size: Some(layer.size),

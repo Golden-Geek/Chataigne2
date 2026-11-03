@@ -101,14 +101,14 @@ the old custom blending form and opaque row codec are removed. Layer-only positi
 canvas size and transition duration are also declared Parameters. `ConfigureLayer` writes them
 atomically; Group nodes do not materialize them. Layer v2 and obsolete Matrix-wide transition
 Parameter records reject before recoverable decoding; there is no compatibility migration.
-Cell transforms and the full Matrix model/default/grid conversion remain in M07.
+The full Matrix model/default/grid conversion remains in M07.
 
 Layer position is the top-left in its parent canvas's pixels. Its own canvas clips children at
 their native size; optional Media Resolution resamples the exported texture without changing
 the authored logical placement. Render preparation builds the mapping off the engine thread.
 Final/Group capture reads the current Media canvas rather than caching a stale Resolution.
 
-Cell v2 and Column v2 declare this subtree directly and own their application identities. The public
+Cell v3 and Column v2 declare this subtree directly and own their application identities. The public
 `ApplicationId` equals the persistent consumer UUID; the default settings child's internal UUID
 may be omitted by sparse persistence and must not escape as a consumer identity. `EnsureCell`
 materializes an empty address using backend defaults; `ConfigureCellApplication` configures it
@@ -119,6 +119,19 @@ disabled. Old standalone records and opaque Column schemas reject before recover
 Cell and Column copy operations retain their normal fresh-identity semantics. Column v2 also
 declares transition override, whole-millisecond duration and curve Parameters; `ColumnDefinition`
 is their projection. The generic Inspector owns ordinary editing of both subtrees.
+
+Cell v3 declares relative position, opacity and enabled Parameters, with no Cell size. Its owned
+media retains its own dimensions. `ConfigureCell` atomically edits existing Parameters or inserts
+one detached, fully configured sparse Cell subtree; validation precedes any materialization.
+Cell v2 and opaque Cell data reject before recoverable decoding. Ordinary controls are available
+through the shared Inspector's contextual Inspect Cell settings action.
+
+Source bindings retain each clip's Cell placement/opacity with its source. Live settings edits
+update the same authored source without changing its source epoch; replacement/deletion cannot
+redirect retained outgoing content to a new source's settings. Cell alpha multiplies transition
+weight and post-composite Layer opacity, including the one-input fast path. Disabled destinations
+hold previous content for Column launches and skip individual activation; general hierarchy
+enablement remains an independent Golden node capability.
 
 Typed pre/post distances stay outside the process runtime key. Matrix projects configured Cell
 controls into the same plain demand input used by Column consumers, regardless of media content

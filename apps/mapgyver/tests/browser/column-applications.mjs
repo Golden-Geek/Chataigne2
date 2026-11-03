@@ -247,7 +247,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			}
 		});
 		await grid.getByTitle('Layer 1 / Column 5', { exact: true }).click();
-		await page.getByRole('button', { name: 'Edit Cell app control', exact: true }).click();
+		await page.getByRole('button', { name: 'Inspect Cell settings', exact: true }).click();
 		await parameter('App file').locator('input.path-input').waitFor();
 		const enabled = page
 			.locator('.inspector-header')

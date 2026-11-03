@@ -302,7 +302,7 @@ pub(super) fn build(
                             } else {
                                 entry.scratch = None;
                                 if let Some(layer) = layers.first_mut() {
-                                    layer.opacity = golden_video::Opacity::new(matrix.opacity)
+                                    layer.opacity = golden_video::Opacity::new(matrix.opacity * layer.opacity.get())
                                         .map_err(|error| error.to_string())?;
                                 }
                             }

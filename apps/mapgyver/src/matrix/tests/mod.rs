@@ -12,6 +12,7 @@ use golden_core::{
 mod applications;
 mod bindings;
 mod cell_playback;
+mod cell_settings;
 mod copying;
 mod layer_settings;
 mod owned_media;

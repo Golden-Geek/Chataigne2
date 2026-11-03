@@ -201,13 +201,15 @@ pub(super) fn matrix_layers(
                     ProjectiveMapping::new(UnitRect::FULL, Quad { corners }).map_err(|error| error.to_string())
                 })
                 .transpose();
-            Some(mapping.map(|mapping| Layer {
-                source: source.target.into(),
-                opacity: Opacity::OPAQUE,
-                opacity_envelope: input.weight,
-                blend: input.blend,
-                filter,
-                mapping,
+            Some(mapping.and_then(|mapping| {
+                Ok(Layer {
+                    source: source.target.into(),
+                    opacity: Opacity::new(input.opacity).map_err(|error| error.to_string())?,
+                    opacity_envelope: input.weight,
+                    blend: input.blend,
+                    filter,
+                    mapping,
+                })
             }))
         })
         .collect()

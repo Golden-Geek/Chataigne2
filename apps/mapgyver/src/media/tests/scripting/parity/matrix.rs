@@ -222,6 +222,15 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
         source,
     };
     let cases = vec![
+        MatrixEdit::ConfigureCell {
+            layer: id,
+            column: b,
+            settings: CellSettings {
+                position: [-2.0, 8.5],
+                opacity: 0.25,
+                enabled: false,
+            },
+        },
         MatrixEdit::Inspect,
         MatrixEdit::ConfigureLayer {
             layer: id,

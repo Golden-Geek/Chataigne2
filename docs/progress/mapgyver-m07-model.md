@@ -86,10 +86,43 @@ checks both outputs plus preview. The only repaired native rerun passed. A brows
 action raced history updates; waiting for the displayed prior state fixed the test without
 changing product behavior. No gate or qualification budget is changed.
 
+## Typed Cell placement, opacity and enabled — 2026-11-03
+
+Cell v3 owns three real Parameters: relative pixel position, opacity and enabled. There is no
+Cell size; child media keeps its own dimensions. Public ConfigureCell validates before editing
+an existing Cell atomically or inserting one detached configured Cell subtree at an empty
+address. Ordinary controls use the generic Inspector, including offscreen selection. The action
+is now named Inspect Cell settings and retains access to the same owned app controls.
+
+Position/opacity edits invalidate runtime projections without changing the source epoch.
+Bindings update settings for the same authored source; replacement/deletion retains outgoing
+placement/opacity until that clip retires. Cell opacity multiplies fade weight and Layer opacity,
+including the single-input path. Disabled destinations hold current content on Column launch
+and skip individual activation. Cell v2 and opaque Cell data reject before recoverable decoding.
+Rust-generated DTOs and all consumer/type checks follow the v3 ownership.
+
+[Cell receipt](evidence/mapgyver-m07-cell-settings-2026-11-03.json): **380 library tests pass**,
+two retained exclusions, in **153.98 seconds**, including typed sparse creation, atomic history,
+copy/project/schema admission, live placement/opacity, disabled direct/Column activation, retained
+outgoing settings, opacity multiplication and four public callers. Strict all-target/native
+Clippy and generated-contract equality pass. Svelte reports zero errors/warnings; 26 UI tests pass.
+Twelve Windows lifecycle regressions pass, one retained exclusion.
+
+The actual bundled generic Inspector passes Cell X/Y, opacity and enabled edits with exact
+per-field Undo/Redo, no size widget, offscreen editing in the 258-row scene and no playback side
+effects. Layer/Group controls and source/history/Save-New-Load regressions also pass. The first
+browser attempt had an ambiguous selector because nested and root Layers shared a label; the
+focused intended-row selector passes without changing product behavior.
+
+The native Cell case passes on Intel Graphics and NVIDIA GeForce RTX 5080 Laptop GPU:
+**30 complete 32×24 images**, zero nominal/residual pixel error, through source-native size,
+Cell × Layer opacity, live placement/opacity edits, Undo, disabled destination hold and enabled
+destination activation. Both normal outputs and preview are checked, with existing completion-safe
+resource-retirement assertions. The baseline passes without a native repair experiment. This is
+the Cell slice's spatial acceptance; full M07/4 is still required.
+
 ## Remaining M07/1 contract
 
-- Typed Cell relative position, opacity and enabled behavior, with no Cell size; preserve actual
-  child-media size, optional transition/app controls and sparse empty addresses.
 - New Matrix 3×3 defaults through backend-owned batched structure creation; complete typed
   Parameter/API/copy/history/project behavior and current caller/schema coverage.
 
