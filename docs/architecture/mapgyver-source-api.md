@@ -36,6 +36,7 @@ types or ownership still reject. Neither reads nor their rejections add history 
 | `addChannel`               | media UUID, label; backend rejects derived outputs                              |
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
 | `configureMediaSampling`   | media UUID, `Linear` or `Nearest`                                               |
+| `configureMediaFitMode`    | Picture, Shared Texture or Reference media UUID; `Fit`, `Fill` or `Stretch`       |
 | `configureSolidColor`      | media UUID, channel UUID, straight linear R, G, B, A                            |
 | `configurePicture`         | media UUID, channel UUID, asset UUID or empty string                            |
 | `configureSharedTexture`   | media UUID, channel UUID, exact sender or empty string                          |
@@ -50,6 +51,9 @@ pixel values and projects source-native/procedural sizing. Width/height argument
 finite numbers when disabled. Sampling and Resolution apply to all channels; named source
 methods configure only the selected variant. Import queues detached asset/media creation;
 file access and decoding remain on workers.
+Fit Mode applies only at forced Resolution; Auto retains its choice and preserves intrinsic
+source dimensions. The intent and named script method edit the same typed media Parameter.
+Solid Color and authored Composition/Matrix canvases reject this operation without mutation.
 
 `onAppOperationResult(reply)` runs after the operation commits or rejects. `request_id`
 correlates the call; `status` is `applied` or `rejected`. Applied replies contain the same

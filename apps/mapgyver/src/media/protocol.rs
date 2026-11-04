@@ -192,6 +192,34 @@ pub struct ChannelDefinition {
     pub size: SizePolicy,
     /// Effective projection of the owning media Sampling, never channel-authored state.
     pub filter: SampleFilter,
+    /// Source placement projected from the owning media; ignored at intrinsic resolution.
+    pub fit_mode: MediaFitMode,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum MediaFitMode {
+    #[default]
+    Fit,
+    Fill,
+    Stretch,
+}
+
+impl MediaFitMode {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Fit => "Fit",
+            Self::Fill => "Fill",
+            Self::Stretch => "Stretch",
+        }
+    }
+    pub(crate) fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "Fit" => Ok(Self::Fit),
+            "Fill" => Ok(Self::Fill),
+            "Stretch" => Ok(Self::Stretch),
+            _ => Err("unknown media Fit Mode".into()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -313,6 +341,10 @@ pub enum MediaEdit {
     ConfigureMediaSampling {
         media: MediaId,
         filter: SampleFilter,
+    },
+    ConfigureMediaFitMode {
+        media: MediaId,
+        mode: MediaFitMode,
     },
     RenameMedia {
         media: MediaId,

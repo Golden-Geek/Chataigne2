@@ -106,6 +106,7 @@ fn named_invocation(operation: &MediaEdit) -> String {
         MediaEdit::ConfigureMediaSampling { media, filter } => {
             ("configureMediaSampling", serde_json::json!([media, filter]))
         }
+        MediaEdit::ConfigureMediaFitMode { media, mode } => ("configureMediaFitMode", serde_json::json!([media, mode])),
         MediaEdit::ConfigureMediaResolution { media, size } => {
             let (enabled, width, height) = match size {
                 SizePolicy::Automatic => (false, 0, 0),
@@ -405,6 +406,10 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             _ => unreachable!(),
         }
         cases.extend([
+            MediaEdit::ConfigureMediaFitMode {
+                media: first.media,
+                mode: MediaFitMode::Fill,
+            },
             MediaEdit::ConfigureMediaSampling {
                 media: first.media,
                 filter: golden_video::plan::SampleFilter::Nearest,

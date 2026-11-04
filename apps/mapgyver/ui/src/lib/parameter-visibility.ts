@@ -14,6 +14,15 @@ function visible(child: UiNodeDto) {
 		session = appState.session;
 	if (!folder || !owner || !session) return true;
 	const field = child.decl_id.split('/').at(-1);
+	if (
+		field === 'fit_mode' &&
+		(owner.node_type === 'mapgyver.media.v6' || owner.node_type === 'mapgyver.media.reference.v2')
+	) {
+		return folder.children.some((id) => {
+			const parameter = session.getNodeData(id);
+			return parameter?.decl_id === 'parameters/resolution' && parameter.meta.enabled;
+		});
+	}
 	function choice(name: string) {
 		for (const id of folder!.children) {
 			const node = session!.getNodeData(id);
@@ -70,7 +79,7 @@ function visible(child: UiNodeDto) {
 		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
-	if (owner.node_type === 'mapgyver.media.v5') {
+	if (owner.node_type === 'mapgyver.media.v6') {
 		return (
 			!['empty_cell', 'transition_ms', 'transition_curve'].includes(field ?? '') ||
 			choice('media_kind') === 'Matrix'

@@ -42,7 +42,8 @@ Parameters advance its schema to `mapgyver.media.command.v4`. Older command reco
 Placement v2 is versioned separately; radian Placement v1 and old reference-only
 `mapgyver.composition.instance` records reject explicitly before recoverable node decoding.
 Legacy `rotation` operation fields also reject rather than silently defaulting an angle to zero.
-Source media v5 and Reference v1 retain their existing source-setting formats.
+Source media v6 and Reference v2 add media-owned Fit Mode for variable-size sampled sources;
+the [source-sizing contract](mapgyver.md) owns its behavior. Their source-setting formats are unchanged.
 No persisted-data migration or alternate compatibility model is introduced.
 
 Matrix Cells are real `mapgyver.matrix.cell.v1` nodes under their Layer, with typed Column

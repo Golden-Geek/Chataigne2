@@ -14,6 +14,7 @@ pub(super) const METHODS: &[&str] = &[
     "addChannel",
     "configureMediaResolution",
     "configureMediaSampling",
+    "configureMediaFitMode",
     "configureSolidColor",
     "configurePicture",
     "configureSharedTexture",
@@ -60,7 +61,7 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 /// Arguments exclude the request id; invalid argument shapes never enqueue partial operations.
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
-        "createMedia" | "addChannel" | "configureMediaSampling" | "inspectChannel" => 2,
+        "createMedia" | "addChannel" | "configureMediaSampling" | "configureMediaFitMode" | "inspectChannel" => 2,
         "configureMediaResolution" => 4,
         "configureSolidColor" => 6,
         "configurePicture" | "configureSharedTexture" => 3,
@@ -155,6 +156,10 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "addChannel" => MediaEdit::AddChannel {
             media: MediaId(uuid(args, 0)?),
             label: optional_text(args, 1)?,
+        },
+        "configureMediaFitMode" => MediaEdit::ConfigureMediaFitMode {
+            media: MediaId(uuid(args, 0)?),
+            mode: choice(args, 1)?,
         },
         "configureMediaSampling" => MediaEdit::ConfigureMediaSampling {
             media: MediaId(uuid(args, 0)?),

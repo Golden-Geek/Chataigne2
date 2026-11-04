@@ -152,6 +152,7 @@ impl ChannelNode {
             source,
             size,
             filter: media.sampling(),
+            fit_mode: media.fit_mode(),
         }
     }
     pub(crate) fn parameter_edits(&self, source: ChannelSource) -> Result<Vec<Edit>, String> {

@@ -20,7 +20,7 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
@@ -29,9 +29,9 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]);
+            reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -50,7 +50,7 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",

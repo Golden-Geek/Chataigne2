@@ -51,7 +51,8 @@ const page = (id = 'owner'): CompositionEditorPage => ({
 		definition: {
 			source: { kind: 'Composition', canvas: { width: 400, height: 300 } },
 			size: { kind: 'Automatic' },
-			filter: 'Linear'
+			filter: 'Linear',
+			fit_mode: 'Fit'
 		}
 	},
 	composition: {

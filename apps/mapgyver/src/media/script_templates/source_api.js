@@ -22,6 +22,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.configureMediaResolution("size", mediaId, true, 1920, 1080);
 	// local.configureMediaResolution("native-size", mediaId, false, 1920, 1080);
 	// local.configureMediaSampling("sampling", mediaId, "Linear"); // or "Nearest"
+	// local.configureMediaFitMode("fit", mediaId, "Fit"); // Picture/Shared Texture/Reference: Fit, Fill, Stretch
 	// local.configureSolidColor("color", mediaId, channelId, 1, 0, 0, 1); // straight linear RGBA
 	// local.configurePicture("asset", mediaId, channelId, assetId); // "" clears the asset
 	// local.configureSharedTexture("sender", mediaId, channelId, "Exact sender"); // "" clears

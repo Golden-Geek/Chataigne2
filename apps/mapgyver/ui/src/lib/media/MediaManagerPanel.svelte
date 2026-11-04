@@ -30,9 +30,9 @@
 			appState.session.hasActiveEditSession}
 		isTreeNode={isMediaTreeNode}
 		nodeSourceDraggable={(node) =>
-			['mapgyver.media.v5', 'mapgyver.media.reference.v1'].includes(node.node_type)}
+			['mapgyver.media.v6', 'mapgyver.media.reference.v2'].includes(node.node_type)}
 		canRenderNodeChildren={(node) =>
-			['mapgyver.media.folder', 'mapgyver.media.v5'].includes(node.node_type)}
+			['mapgyver.media.folder', 'mapgyver.media.v6'].includes(node.node_type)}
 		canCreateNodeChildren={(node) => node.node_type === 'mapgyver.media.folder'}
 		rowSupplementComponent={MediaTreeActions} />
 </section>

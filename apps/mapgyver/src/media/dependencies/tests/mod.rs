@@ -94,8 +94,8 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
     });
     engine.apply_edits().unwrap();
     // Media/channel each have six Parameters plus their folder; two full instances per branch.
-    // Media no longer materializes the two retired Matrix-wide transition Parameters.
-    assert_eq!(engine.nodes.len(), before_nodes + 14 + DEPTH * 44);
+    // The two Reference children each own Fit Mode; generated Composition canvases omit it.
+    assert_eq!(engine.nodes.len(), before_nodes + 14 + DEPTH * 46);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

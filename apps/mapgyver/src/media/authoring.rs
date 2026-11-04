@@ -336,6 +336,21 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             });
             MediaEditResult::Changed
         }
+        MediaEdit::ConfigureMediaFitMode { media: owner, mode } => {
+            let (id, _) = media(engine, owner)?;
+            let parameter = match engine.nodes.get(id) {
+                Some(AppNode::Media(media)) => media.fit_mode_parameter(),
+                Some(AppNode::ReferenceMedia(media)) => Some(media.fit_mode_parameter()),
+                _ => unreachable!(),
+            }
+            .ok_or("Fit Mode requires a Picture, Shared Texture or Reference media")?;
+            engine.edits.push(Edit::SetParam {
+                node: parameter,
+                value: golden_core::parameter::ParamValue::Enum(mode.name().into()),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            });
+            MediaEditResult::Changed
+        }
         MediaEdit::ConfigureMediaResolution { media: owner, size } => {
             configure_resolution(engine, owner, size)?;
             MediaEditResult::Changed

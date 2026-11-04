@@ -61,6 +61,15 @@ fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independe
                     filter: SampleFilter::Nearest,
                 },
             );
+            if kind != MediaKind::SolidColor {
+                apply(
+                    &mut engine,
+                    MediaEdit::ConfigureMediaFitMode {
+                        media: first.media,
+                        mode: MediaFitMode::Fill,
+                    },
+                );
+            }
             let before = catalog::inspect(&engine).unwrap();
             let owner = engine.node_id_by_uuid(first.media.0).unwrap();
             let source = engine

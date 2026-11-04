@@ -80,6 +80,7 @@ impl ChannelDefinition {
             source,
             size: SizePolicy::Automatic,
             filter: SampleFilter::Linear,
+            fit_mode: super::protocol::MediaFitMode::Fit,
         }
     }
 

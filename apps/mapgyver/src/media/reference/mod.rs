@@ -7,7 +7,7 @@ use crate::{
 use golden_core::node::Node;
 pub use node::ReferenceNode;
 use std::collections::{HashMap, HashSet};
-pub(crate) const NODE_TYPE: &str = "mapgyver.media.reference.v1";
+pub(crate) const NODE_TYPE: &str = "mapgyver.media.reference.v2";
 
 #[derive(Clone, Copy)]
 pub(super) enum Target {

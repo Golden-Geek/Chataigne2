@@ -53,7 +53,14 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let media = engine.node_id_by_uuid(reference.media.0).unwrap();
         let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
         let media_fields = parameters(&engine, media);
-        assert_eq!(media_fields.len(), 4);
+        assert_eq!(
+            media_fields.len(),
+            if matches!(kind, MediaKind::Picture | MediaKind::SharedTexture) {
+                5
+            } else {
+                4
+            }
+        );
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
         assert_eq!(fields.len(), 6, "{fields:?}");

@@ -203,9 +203,9 @@ fn named_drop_method_delivers_committed_reference_and_independent_copy_callbacks
         assert_eq!(
             node.get_type(),
             if index == 0 {
-                "mapgyver.media.reference.v1"
+                "mapgyver.media.reference.v2"
             } else {
-                "mapgyver.media.v5"
+                "mapgyver.media.v6"
             }
         );
     }

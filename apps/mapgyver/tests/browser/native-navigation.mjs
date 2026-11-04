@@ -18,6 +18,7 @@ import { verifyNativeInputStability } from './native-input-stability.mjs';
 import { verifyNativeProjectTransitions } from './native-project-transitions.mjs';
 import { verifyNativeCapacity } from './native-capacity.mjs';
 import { verifyNativeTimeControls } from './native-time-controls.mjs';
+import { verifyNativeMediaFit } from './native-media-fit.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -39,6 +40,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--media-fit', verifyNativeMediaFit],
 			['--time-controls', verifyNativeTimeControls],
 			['--capacity', verifyNativeCapacity],
 			['--project-transitions', verifyNativeProjectTransitions],

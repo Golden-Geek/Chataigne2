@@ -93,10 +93,10 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             ));
         }
         if record.node_type == "mapgyver.media"
-            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v5")
+            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v6")
         {
             return Err(format!(
-                "Unsupported MapGyver media schema '{}': media-owned procedural settings require mapgyver.media.v5",
+                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v6",
                 record.node_type
             ));
         }

@@ -4,6 +4,7 @@ mod catalog;
 mod channels;
 mod creation;
 mod duplication;
+mod fit_mode;
 mod folders;
 mod parameters;
 mod picture_import;

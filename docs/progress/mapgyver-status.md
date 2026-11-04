@@ -4,8 +4,8 @@
 
 **Verified gates: `████████░░` 75% · 50/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M11/4 unit-preserving time controls across Matrix and app control.
-**Next deliverable:** M11/4 compact typed channel/File Inspector and media Fit Mode with native aspect/caller parity.
+**Current topic:** M11/4 Fit Mode verified; compact channel/File Inspector remains.
+**Next deliverable:** remove visible kind/sampling controls and deliver compact typed Color/File channel rows, preserving verified Fit Mode and clocks.
 **Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5, M07/1–4 and M11/1–3 are Accepted; M11/4 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -16,15 +16,16 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Unit-preserving clock controls](mapgyver-m11-inspector.md#time-controls).
-All eight Matrix/app-control duration types use Golden clocks while preserving stored/API
-milliseconds. Actual native edits, raw backend values and Layer Undo/Redo pass. Typed GPU
-Preferences remain accepted in M11/3. M11/4 stays open for compact channels/File controls and Fit Mode.
+**Newly usable:** [Typed media Fit Mode](mapgyver-m11-inspector.md#media-fit-mode).
+Picture/shared-texture/Reference media share Fit/Fill/Stretch across channels; Auto preserves
+intrinsic sizes and hides the retained choice. Both GPUs pass all Picture modes and native
+Inspector/history checks pass. Unit-preserving clocks and typed GPU Preferences remain delivered.
+M11/4 stays open for compact Color/File rows and removal of visible kind/sampling controls.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** Golden unit-aware clocks and typed MapGyver time metadata, with
-403 app tests, the public DSL fixture, 236 UI tests, strict lint and all eight native edits passing.
+**Last delivered capability:** typed media Fit Mode with 406 app tests, strict lint, 17 affected
+UI tests, 24 complete native output images on both GPUs and native Inspector/history checks passing.
 This slice closes no gate; verified progress remains 50/67. Retained physical/device-removal/timing
 qualification remains required.
 M08 remains 3/4 and Blocked on its separate retirement barrier.
@@ -71,7 +72,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active   | M11/4    | [Time controls delivered](mapgyver-m11-inspector.md). Remaining: remove visible kind/sampling controls, compact expanded Color/File rows, media Fit/Fill/Stretch where relevant, native aspect handling and backend/API/script/headless/history/copy/project parity. No implementation blocker. |
+| Active   | M11/4    | [Clocks and Fit Mode delivered](mapgyver-m11-inspector.md). Both GPUs pass different-aspect Picture modes/Auto and the actual Inspector passes hide/history/retained-choice checks. Remaining: remove visible kind/sampling controls, compact expanded Color/File rows and final command/catalog/browser/caller parity. No implementation blocker. |
 | Accepted | M11/3    | [Typed GPU Preferences and native acceptance](mapgyver-m11-gpu.md#native-preferences-acceptance): five cold starts, both explicit GPUs, separate persisted choice, truthful restart requirement, pinned renderer recreation, missing choice without fallback and recovery. Eight full pixel checks and 447 independent copies pass. |
 | Accepted | M11/2    | [Complete capacity acceptance](mapgyver-m11-capacity.md#m112-acceptance--quiescence-releases-context-bindings): both GPUs pass eight 4K producers/two aliases, 56 complete images, bounded native ownership, reuse and real pressure/recovery. NVIDIA/Intel retire in 61.721/260.242 ms; pressure cases 49.990/93.013 ms, within the original two-second bound. |
 | Accepted | M11/1    | [Native stability acceptance](mapgyver-m11-stability.md#m111-acceptance--native-input-and-project-transitions): recorded selection/reconnect fixes, actual Inspector/Matrix input, independent outputs, guarded desktop pixels, three close/reopen cycles and New/Load with old imagery retired. No prior brief-unavailable waiver used. |
@@ -102,18 +103,20 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M11/4 time controls, started 08:49 CET / stopping time 09:34 CET
-  (2026-11-04). Delivered Golden unit-aware clocks and all eight typed MapGyver timing fields;
-  no stored/API unit change. 403 app tests, one public DSL/attribute fixture, all 236 Golden UI
-  tests, strict macro/Core/app all-target lint, generated contracts and Svelte zero errors/warnings
-  pass. Actual native edits verify all eight raw millisecond values, Layer Undo/Redo, unchanged
-  playback and zero launched app processes; screenshot inspection and normal host exit pass.
-  [Evidence and remaining acceptance](mapgyver-m11-inspector.md). **No gate closes this slice.**
-  Next deliverable/sole Active gate M11/4: compact typed channel/File rows and media Fit Mode,
-  including native aspect behavior and full caller/history/copy/project parity. M11/3 was closed
-  in pushed/verified `3c827170`; retained M08/4, physical/removal/timing and no-native lint limits
-  remain in their owning reports. Totals: 50/67 (75%), 6/12 phases (50%), M11 3/10 (30%). Preserve
-  concurrent label/theme work and the named stash.
+- **Current batch/handoff:** M11/4 Fit Mode, started 09:31 CET / stopping time 10:16 CET
+  (2026-11-04), delivered before cutoff. MapGyver owns typed media/Reference schemas, intents,
+  projection and sizing; Golden supplies the existing compositor. Media v6/Reference v2 and
+  generated consumers agree. 406 app tests, generated checks, strict all-target native lint,
+  17 affected UI tests and Svelte 0/0 pass. Intel/NVIDIA pass 24 complete images / 12,096 pixels
+  for two different-aspect Picture channels, one forced Resolution, all modes and intrinsic Auto;
+  both images upload once across mode changes and owners retire normally. Actual native Inspector
+  passes mode/history/Auto retention/omission and Shared Texture/Reference edits, with normal exit.
+  [Receipt and exact limits](mapgyver-m11-inspector.md#media-fit-mode). Gate change: none; M11/4
+  remains the sole Active gate. Next exact requirement: remove visible kind/sampling, fix Linear
+  sampling, expanded compact real Color/File rows, then final command/catalog/browser/caller parity.
+  No blocker. Totals remain 50/67 (75%), 6/12 phases (50%), M11 3/10 (30%). Preserve concurrent
+  label/theme work, retained gates and the named stash. This coherent capability is the current
+  milestone; commit/push verification follows before the next implementation batch.
 
 ## Maintenance rule
 

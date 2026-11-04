@@ -112,6 +112,10 @@ fn named_method_argument_rejection_never_queues_work_or_changes_history() {
                 ParamValue::Int(10),
             ],
         ),
+        (
+            "configureMediaFitMode",
+            vec![media.clone(), ParamValue::Str("invalid".into())],
+        ),
         ("configureMediaSampling", vec![media, ParamValue::Str("invalid".into())]),
         (
             "importPicture",

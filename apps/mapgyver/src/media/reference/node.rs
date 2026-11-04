@@ -8,18 +8,20 @@ use golden_core::{
 use golden_io::{RevisionGuard, RevisionSource};
 use golden_video::{Extent2D, plan::SampleFilter};
 
-#[node("mapgyver.media.reference.v1", label = "Reference", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.reference.v2", label = "Reference", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(folder(parameters, label = "Parameters") {
     target: NodeReference = NodeReference::empty() (
         label = "Target", reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.media.v5".into(), "mapgyver.media.reference.v1".into()]
+        reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
     );
     resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Resolution", enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject"
     );
     filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
+    fit_mode: Enum = "Fit" (label = "Fit Mode",
+        enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
 })]
 pub struct ReferenceNode {
     #[state(default = RevisionSource::default())]
@@ -43,6 +45,9 @@ impl ReferenceNode {
     }
     pub(crate) fn sampling_parameter(&self) -> NodeId {
         self.filter.id()
+    }
+    pub(crate) fn fit_mode_parameter(&self) -> NodeId {
+        self.fit_mode.id()
     }
     pub(crate) fn target_for_validation(
         &self,
@@ -71,6 +76,7 @@ impl ReferenceNode {
             SizePolicy::Automatic
         };
         ChannelDefinition {
+            fit_mode: MediaFitMode::parse(self.fit_mode.get_ref().as_str()).expect("validated Reference Fit Mode"),
             source: ChannelSource::Reference {
                 target: self.target().map(|media| ChannelReference { media, channel }),
             },
@@ -83,7 +89,7 @@ impl ReferenceNode {
         }
     }
 }
-#[node("mapgyver.media.reference.v1", from_struct)]
+#[node("mapgyver.media.reference.v2", from_struct)]
 impl Node for ReferenceNode {
     fn needs_update(&self) -> bool {
         false
@@ -114,6 +120,7 @@ impl Node for ReferenceNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         super::super::media_node::validate_resolution(self.resolution.get())?;
+        MediaFitMode::parse(self.fit_mode.get_ref().as_str())?;
         if !["Linear", "Nearest"].contains(&self.filter.get_ref().as_str()) {
             return Err("unknown Reference sampling filter".into());
         }

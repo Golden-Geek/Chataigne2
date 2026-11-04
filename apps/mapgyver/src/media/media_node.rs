@@ -1,7 +1,7 @@
 //! Media identity and kind use Golden metadata and a declared typed parameter.
 use super::{
     ChannelNode,
-    protocol::{ChannelDefinition, MediaKind},
+    protocol::{ChannelDefinition, MediaFitMode, MediaKind},
 };
 use crate::matrix::protocol::{EmptyCellPolicy, MatrixSettings};
 use golden_core::{
@@ -15,7 +15,7 @@ use golden_video::plan::SampleFilter;
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v5",
+    "mapgyver.media.v6",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -31,6 +31,8 @@ use std::sync::OnceLock;
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
         filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
+        fit_mode: Enum = "Fit" (label = "Fit Mode", dependency = |node: &Self| node.supports_fit_mode(),
+            enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
     }
 )]
@@ -57,7 +59,21 @@ impl MediaNode {
     pub(super) fn from_definition(label: String, definition: &ChannelDefinition) -> Self {
         let mut node = Self::from_kind(label, definition.media_kind());
         node.filter = ParameterHandle::new(Enum::new(filter_name(definition.filter)));
+        node.fit_mode = ParameterHandle::new(Enum::new(definition.fit_mode.name()));
         node
+    }
+    pub(crate) fn supports_fit_mode(&self) -> bool {
+        matches!(self.kind(), MediaKind::Picture | MediaKind::SharedTexture)
+    }
+    pub(crate) fn fit_mode_parameter(&self) -> Option<golden_core::node::NodeId> {
+        self.supports_fit_mode().then(|| self.fit_mode.id())
+    }
+    pub(crate) fn fit_mode(&self) -> MediaFitMode {
+        if self.supports_fit_mode() {
+            MediaFitMode::parse(self.fit_mode.get_ref().as_str()).expect("validated media Fit Mode")
+        } else {
+            MediaFitMode::Fit
+        }
     }
     pub(crate) fn sampling_parameter(&self) -> golden_core::node::NodeId {
         self.filter.id()
@@ -123,7 +139,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v5", from_struct)]
+#[node("mapgyver.media.v6", from_struct)]
 impl Node for MediaNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
@@ -149,7 +165,7 @@ impl Node for MediaNode {
         // Catalog creation and app admission apply the source-specific policy.
         Some(UserContainerRules::new(&[
             "mapgyver.media.channel",
-            "mapgyver.media.v5",
+            "mapgyver.media.v6",
             super::reference::NODE_TYPE,
             super::composition::PLACEMENT_TYPE,
         ]))
@@ -204,6 +220,9 @@ impl Node for MediaNode {
         }
         if !["Linear", "Nearest"].contains(&self.filter.get_ref().as_str()) {
             return Err("unknown media sampling filter".into());
+        }
+        if self.supports_fit_mode() {
+            MediaFitMode::parse(self.fit_mode.get_ref().as_str())?;
         }
         if !["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]
             .contains(&self.media_kind.get_ref().as_str())

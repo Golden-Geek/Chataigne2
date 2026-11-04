@@ -192,10 +192,13 @@ pub(super) fn build(
                             crate::media::protocol::SizePolicy::Fixed { extent } => {
                                 resolution.extent = Some(extent);
                                 if resolution.availability == ChannelAvailability::Ready {
-                                    operation = RenderOperation::Sample {
-                                        source: target.target,
-                                        filter: definition.filter,
-                                    };
+                                    operation = super::fit::operation(
+                                        target.target,
+                                        target.resolution.extent.expect("ready Reference target"),
+                                        extent,
+                                        definition.fit_mode,
+                                        definition.filter,
+                                    )?;
                                 }
                             }
                         }
@@ -232,10 +235,14 @@ pub(super) fn build(
                             id
                         };
                         entry.source = Some((id, source.clone()));
-                        operation = RenderOperation::Sample {
-                            source: id,
-                            filter: channel.definition.as_ref().unwrap().filter,
-                        };
+                        let definition = channel.definition.as_ref().unwrap();
+                        operation = super::fit::operation(
+                            id,
+                            value.value().descriptor().extent,
+                            resolution.extent.expect("prepared Picture extent"),
+                            definition.fit_mode,
+                            definition.filter,
+                        )?;
                     } else if asset
                         .and_then(|id| pictures.and_then(|pictures| pictures.failure(id)))
                         .is_some_and(|error| {
@@ -395,10 +402,13 @@ pub(super) fn build(
                     });
                     submission.source_demands.push(id);
                     if resolution.availability == ChannelAvailability::Ready {
-                        operation = RenderOperation::Sample {
-                            source: id,
-                            filter: definition.filter,
-                        };
+                        operation = super::fit::operation(
+                            id,
+                            actual.expect("ready shared texture descriptor").extent,
+                            resolution.extent.expect("ready shared texture extent"),
+                            definition.fit_mode,
+                            definition.filter,
+                        )?;
                     }
                 }
                 Some(ChannelSource::Spout { sender: None, .. }) => {

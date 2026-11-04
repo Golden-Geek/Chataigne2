@@ -43,7 +43,11 @@ fn source_drop_adds_at_canvas_position_with_backend_defaults_and_one_history_ste
     };
     assert_eq!(instances.len(), 1);
     assert_eq!(engine.undo_len(), history + 1);
-    assert_eq!(engine.nodes.len(), count + 15, "one complete detached instance subtree");
+    assert_eq!(
+        engine.nodes.len(),
+        count + 16,
+        "one complete detached instance subtree including Fit Mode"
+    );
     let after = inspect(&mut engine, composition);
     assert_eq!(after.instances[0], before.instances[0]);
     assert_eq!(after.instances[1].reference, instances[0]);

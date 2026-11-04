@@ -38,8 +38,8 @@
 	onMount(() => preview.mount());
 	for (const type of [
 		'mapgyver.media.manager',
-		'mapgyver.media.v5',
-		'mapgyver.media.reference.v1',
+		'mapgyver.media.v6',
+		'mapgyver.media.reference.v2',
 		'mapgyver.media.channel',
 		'mapgyver.media.asset',
 		'mapgyver.media.folder',

@@ -33,7 +33,9 @@ struct Fixture {
 }
 impl Fixture {
     fn new(adapter: AdapterId, root: &Path, first: Extent2D) -> Self {
-        let extents = [first, Extent2D::new(3, 2).unwrap()];
+        Self::with_extents(adapter, root, [first, Extent2D::new(3, 2).unwrap()])
+    }
+    fn with_extents(adapter: AdapterId, root: &Path, extents: [Extent2D; 2]) -> Self {
         let names = std::array::from_fn(|index| format!("MapGyverPicturePixels-{}-{index}", uuid::Uuid::new_v4()));
         let limits = PlanLimits {
             max_passes: 8,
@@ -265,6 +267,8 @@ fn ready(width: u32, height: u32) -> (ChannelAvailability, Extent2D) {
     (ChannelAvailability::Ready, Extent2D::new(width, height).unwrap())
 }
 
+mod fit_modes;
+
 #[test]
 #[ignore = "explicit M04 Picture color/alpha, asset lifecycle and 4K/native sharing qualification"]
 fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_4k() {
@@ -312,6 +316,15 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         };
         configure(&mut engine, first, first_asset);
         configure(&mut engine, second, second_asset);
+        // This asset-lifecycle fixture predates Fit Mode and deliberately checks stretched
+        // uniform colors. Aspect policy has its own full-image fixture above.
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureMediaFitMode {
+                media: second.media,
+                mode: MediaFitMode::Stretch,
+            },
+        );
         let size = SizePolicy::Fixed {
             extent: Extent2D::new(3, 2).unwrap(),
         };

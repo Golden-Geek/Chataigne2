@@ -3,6 +3,7 @@
 
 mod derived;
 mod feedback;
+mod fit;
 mod plan;
 mod sources;
 pub use crate::preview::layout::PreviewLayout;
