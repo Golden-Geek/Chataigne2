@@ -1,28 +1,32 @@
 {
   "date": "2026-11-04",
   "gate": "M11/6",
-  "state": "Active",
-  "binary": "target/debug/deps/MapGyver-codex-m11-canvas.exe",
-  "sha256": "D66E3CFA4D85F7F4D530DC8E6E2FD4A0980390778A2FD35211CF9C53F9567549",
+  "state": "Accepted",
+  "binary": "target/debug/deps/MapGyver-codex-m11-canvas-history.exe",
+  "sha256": "7BD9A18CDAB3D31279A42084777BA49865E68213546D3AE7E89495CB94970D39",
   "software": {
     "rust_app_lib": { "passed": 419, "explicitly_ignored": 2 },
     "strict_clippy_all_targets": "pass",
     "svelte": "0 errors, 0 warnings",
     "golden_graph_tests": 60,
     "golden_ui_tests": 236,
-    "mapgyver_ui_node_tests": 90,
+    "mapgyver_ui_node_tests": 91,
+    "history_projection_regression": "pass; 13 Screen authoring tests include delayed pre-Undo reply; unchanged-history background reads remain interactive",
     "graph_mounted_browser": "pass",
     "graph_production_keyboard": "pass; target/qualification/p11-graph-keyboard-2026-11-04T14-34-54-355Z.jsonl",
     "protocol_generation": "pass; Rust-generated nullable global Matrix row/column positions",
     "formatting": "both Rust workspaces and scoped Prettier pass"
   },
   "native_final": {
-    "log": "target/m11-canvas-native-final.log",
+    "logs": ["target/m11-history-native-final.log", "target/m11-history-selection.log", "target/m11-history-navigation.log", "target/m11-history-source.log"],
     "anchored_navigation": "pass; Screen, Surface Source and Composition, 38 intermediate frames each; project replacement and reduced motion",
-    "composition_handles": "pass; eight anchored resizes, four rotations, grouped history, Escape and tab lifetime; 43 zoom samples; no page errors",
-    "screen_keyboard": "FAIL: screen-keyboard.mjs:119, ArrowLeft after Undo/Home did not reach expected original corner minus one pixel",
-    "matrix_and_narrow_peer": "not reached in final aggregate; earlier native Matrix header interception corrected by reserving toolbar clearance, revalidation required",
-    "aggregate_exit": 1
+    "composition_handles": "pass on preceding D66E3CFA4D85F7F4D530DC8E6E2FD4A0980390778A2FD35211CF9C53F9567549 binary; unchanged Composition implementation; eight anchored resizes, four rotations, grouped history, Escape and tab lifetime; 43 zoom samples; no page errors; target/m11-canvas-native-final.log",
+    "screen_keyboard": "pass; 100 repeats, Shift ten pixels, chord lifetime, exact one-step Undo, blur, toolbar/modifier isolation and New while held",
+    "matrix": "pass; 64x64 bounded scrolling, offscreen selected Column Inspector/history, Frame, font scaling, no launch; toolbar no longer intercepts headers",
+    "narrow_peer": "pass; toolbar centered and bounded, local corners across two editors, selected-only handles, Escape/pan isolation, unchanged authored geometry/history, one pointer drag equals one Undo",
+    "surface_source": "pass; actual generic Parameters, crop/origin/clamping/live-before-release/Escape/source-loss/history; no page errors or unexpected rejection",
+    "owned_host_shutdown": "all final flows close normally with exit 0; harness asserts this",
+    "split_flow_results": "navigation 0; source 0; selection 0; keyboard and Matrix passed in retained aggregate before its immediate peer-state assertion was corrected to wait for the actual settled selection"
   },
   "other_checks": {
     "headless_surface_source": "pass; actual generic Parameters, calibration, crop, origin, clamping, live-before-release, Escape, source loss and history; no page errors; host exit 0",
@@ -31,8 +35,12 @@
     "invalid_quad_browser": "pass; invalid corners, upside-down recovery, history, red outline and selected alpha 0.094; no page errors"
   },
   "limits": [
-    "No M11/6 acceptance credit until the native keyboard, corrected Matrix placement and narrow-peer checks pass.",
     "DOM geometry and CDP screenshots do not establish native underlay pixel or scanout timing.",
     "Original physical, timing and process-retirement gates remain open."
-  ]
+  ],
+  "repairs": [
+    "Screen history projection identity prevents a new key gesture from using the pre-Undo 100-pixel origin.",
+    "Native Matrix receipt uses its connected browser; peer selection waits for the asserted actual state without changing its expected value."
+  ],
+  "reviewed_screenshots": ["target/m06-composition-handles.png", "target/m07-viewport-inspector.png", "target/free-warp-ui-invalid.png"]
 }

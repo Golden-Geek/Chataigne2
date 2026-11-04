@@ -199,6 +199,13 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			exact: true
 		});
 		await peerCorner.click();
+		await page.waitForFunction(
+			(id) =>
+				document
+					.querySelector(`[data-panel-id="${id}"] [aria-label="Warp corner 3"]`)
+					?.getAttribute('aria-pressed') === 'true',
+			secondId
+		);
 		assert.equal(await corner.getAttribute('aria-pressed'), 'true');
 		assert.equal(await peerCorner.getAttribute('aria-pressed'), 'true');
 		assert.equal(

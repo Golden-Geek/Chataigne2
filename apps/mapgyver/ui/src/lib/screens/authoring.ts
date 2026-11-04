@@ -10,6 +10,7 @@ import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 interface Connection {
 	readonly status: string;
 	readonly snapshotGeneration: number;
+	readonly currentHistoryStateId: number;
 	readonly loading: { readonly visible: boolean };
 }
 
@@ -29,6 +30,7 @@ export interface ScreenAuthoringState {
 	refreshing: boolean;
 	error: string;
 	interacting: boolean;
+	projectedHistoryStateId: number | null;
 }
 
 export const createScreenAuthoringState = (): ScreenAuthoringState => ({
@@ -39,7 +41,8 @@ export const createScreenAuthoringState = (): ScreenAuthoringState => ({
 	pending: false,
 	refreshing: false,
 	error: '',
-	interacting: false
+	interacting: false,
+	projectedHistoryStateId: null
 });
 
 /** Presentation state only. Session/project fences discard stale reads and edit replies. */
@@ -79,6 +82,8 @@ export class ScreenAuthoringController<S extends Connection> {
 		return (
 			this.disposed ||
 			this.state.pending ||
+			(!this.state.interacting &&
+				this.state.projectedHistoryStateId !== session?.currentHistoryStateId) ||
 			!this.state.catalog ||
 			session?.status !== 'connected' ||
 			session.loading.visible
@@ -106,6 +111,7 @@ export class ScreenAuthoringController<S extends Connection> {
 			return;
 		}
 		const generation = session.snapshotGeneration;
+		const historyStateId = session.currentHistoryStateId;
 		if (this.context?.session !== session || this.context.generation !== generation) this.reset();
 		this.context = { session, generation };
 		this.state.refreshing = true;
@@ -119,6 +125,7 @@ export class ScreenAuthoringController<S extends Connection> {
 			if (result.kind !== 'Manager')
 				throw new Error('Screen inspection returned an unexpected result');
 			this.state.catalog = result.snapshot;
+			this.state.projectedHistoryStateId = historyStateId;
 			this.state.media = media;
 			if (!this.screen) this.state.selectedScreen = result.snapshot.screens[0]?.id ?? null;
 			if (!this.surface) this.state.selectedSurface = null;

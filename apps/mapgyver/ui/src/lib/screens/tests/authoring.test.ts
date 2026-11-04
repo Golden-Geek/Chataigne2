@@ -14,7 +14,12 @@ const deferred = <T>() => {
 	});
 	return { promise, resolve, reject };
 };
-const session = () => ({ status: 'connected', snapshotGeneration: 1, loading: { visible: false } });
+const session = () => ({
+	status: 'connected',
+	snapshotGeneration: 1,
+	currentHistoryStateId: 1,
+	loading: { visible: false }
+});
 const screen = (id: string): ScreenSnapshot => ({
 	id,
 	label: id,
@@ -114,6 +119,29 @@ test('background catalog refresh leaves loaded controls usable and cannot overwr
 	assert.equal(state.catalog?.screens[0].surfaces[0].definition.crop.width, 0.5);
 	controller.setInteracting(false);
 	controller.dispose();
+});
+
+test('history replacement fences geometry until its projection arrives', async () => {
+	const current = session(),
+		state = createScreenAuthoringState();
+	let reply = Promise.resolve(ownedCatalog());
+	const controller = new ScreenAuthoringController(() => current, state, {
+		screens: () => reply,
+		media
+	});
+	await controller.refresh();
+	assert.equal(controller.busy, false);
+	const old = deferred<ScreenEditResult>();
+	reply = old.promise;
+	const stale = controller.refresh();
+	current.currentHistoryStateId++;
+	assert.equal(controller.busy, true, 'Undo must not admit input against the old geometry');
+	old.resolve(ownedCatalog());
+	await stale;
+	assert.equal(controller.busy, true, 'a pre-Undo reply cannot unlock the stale origin');
+	reply = Promise.resolve(ownedCatalog());
+	await controller.refresh();
+	assert.equal(controller.busy, false);
 });
 
 test('a late catalog cannot replace a newer inspection or selection', async () => {

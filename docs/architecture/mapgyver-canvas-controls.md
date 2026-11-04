@@ -15,11 +15,16 @@ Unselected Surfaces have a thin transparent outline and no handles or hover fill
 adds a light fill, stronger outline and handles. Invalid mapping retains a red outline with
 only a light selected fill; unrelated areas remain clear.
 
-## Current acceptance
+Screen authoring tracks the history identity represented by its projected geometry. After
+Undo/Redo, a new gesture waits for the matching projection instead of copying a stale corner
+origin into an edit. Ordinary background refresh remains interactive; an admitted gesture
+keeps its ownership until it closes.
 
-The shared controls are implemented. M11/6 remains **Active**. Software suites, native
-anchored/reduced-motion navigation, Composition handles and browser Surface Source and
-invalid-quad checks pass. The final native aggregate fails the Screen keyboard sequence
-after Undo/Home; its later Matrix and narrow-peer checks therefore did not run. Resolve
-that input/history failure and verify the corrected native Matrix toolbar placement and
-narrow peer before accepting the gate. See the [receipt](../progress/evidence/mapgyver-m11-canvas-controls-2026-11-04.json).
+## Acceptance
+
+M11/6 is **Accepted**. Software suites and native anchored/reduced-motion navigation,
+Composition handles, keyboard/history, Surface Source input, bounded Matrix Frame and
+two-editor selection in narrow panes pass. The Matrix toolbar reserves header clearance.
+Browser invalid-quad checks preserve the red cue without covering unrelated areas. Native
+input and DOM alignment do not establish scanout timing or close retained physical gates.
+See the [receipt](../progress/evidence/mapgyver-m11-canvas-controls-2026-11-04.json).

@@ -140,7 +140,8 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 					'64x64 bounded keyboard scroll, offscreen Column Inspector/history without scrolling selection, tab lifetime, resize and narrow 125% Inspector geometry; no launch',
 				initialRows: initial.items.length,
 				initialColumns: initial.columns.length,
-				browser: browser.version()
+				native: !!nativePage,
+				browser: (browser ?? page.context().browser()).version()
 			})
 		);
 	} catch (error) {

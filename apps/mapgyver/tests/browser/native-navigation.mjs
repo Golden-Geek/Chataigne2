@@ -47,6 +47,14 @@ try {
 	const flow =
 		[
 			[
+				'--canvas-remaining',
+				async (options) => {
+					await verifyScreenKeyboard(options);
+					await verifyMatrixViewportUi(options);
+					await verifyScreenSelection(options);
+				}
+			],
+			[
 				'--canvas-acceptance',
 				async (options) => {
 					await verifyViewportNavigation(options);
