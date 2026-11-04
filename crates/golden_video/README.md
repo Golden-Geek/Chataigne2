@@ -69,6 +69,13 @@ The implemented foundations are:
   marker programs retain their explicit test compiler path.
   Public `SpoutProbe` observes an exact sender on an IO worker without a renderer/window.
   Read-only `adapters()` reports PCI identity, memory capacities and adapter-owned GDI outputs.
+  `preferred_adapters()` preserves Windows' high-performance order independently of raw
+  enumeration indices. `select_adapter(AdapterPreference)` resolves automatic hardware selection
+  or an exact explicit LUID; an absent/software explicit choice never falls back. Hosts pin the
+  selected identity through renderer recreation so shared textures cannot silently cross GPUs.
+  `AdapterId::key` / `from_key` expose exact `dxgi:hhhhhhhh:llllllll` tokens for host preferences
+  and observations. A LUID can change after OS/device re-enumeration; such a saved choice becomes
+  unavailable and requires explicit re-selection rather than a label/index-based substitution.
   Display enumeration errors are explicit and do not prevent device creation or masquerade as
   an empty/headless output list. DXGI rectangles follow the caller's DPI awareness; the host's
   DisplayConfig catalog and actual window bounds own physical-placement verification. Reported

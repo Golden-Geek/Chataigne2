@@ -175,7 +175,7 @@ try {
 		});
 		surfaces.push({ reference: surface, label });
 	}
-	observer = await createPreviewOutputObserver(post, path.join(directory, 'spout'));
+	observer = await createPreviewOutputObserver(post, path.join(directory, 'spout'), native.page);
 	await observer.observe('first-grid', { first: source });
 	const tab = (name) => native.page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
 	await tab('Screen Manager').click();

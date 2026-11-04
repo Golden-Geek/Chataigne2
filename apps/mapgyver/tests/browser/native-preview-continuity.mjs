@@ -8,7 +8,7 @@ import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 export async function verifyNativePreviewContinuity(options) {
 	const directory = path.resolve(process.env.MAPGYVER_CONTINUITY_DIRECTORY);
 	await mkdir(directory, { recursive: true });
-	const output = await createPreviewOutputObserver(options.post, directory);
+	const output = await createPreviewOutputObserver(options.post, directory, options.page);
 	let reconnect;
 	const capture = process.env.MAPGYVER_CONTINUITY_CAPTURE === '1';
 	async function waitCapture(name) {

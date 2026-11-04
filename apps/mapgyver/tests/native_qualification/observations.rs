@@ -26,6 +26,7 @@ pub fn hardware(args: Arguments) -> io::Result<()> {
         "{}",
         serde_json::json!({
             "adapters": golden_video::native::adapters().map_err(Error::other)?,
+            "preferred_adapters": golden_video::native::preferred_adapters().map_err(Error::other)?,
             "displays": displays()?,
             "webview_default_runtime_version": tauri::webview_version().map_err(Error::other)?,
             "ac_line_status": power.ACLineStatus,

@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { observeNativeAdapter } from './native-adapter.mjs';
 
 async function run(executable, args) {
 	const child = spawn(executable, args, {
@@ -22,11 +23,13 @@ async function run(executable, args) {
 	assert.equal(code, 0, error);
 	return out;
 }
-export async function createPreviewOutputObserver(post, directory) {
+export async function createPreviewOutputObserver(post, directory, page) {
 	await mkdir(directory, { recursive: true });
 	const executable = path.resolve('target/debug/native_qualification.exe');
 	const sender = `MapGyverPreviewAcceptance-${randomUUID()}`;
 	const observations = [];
+	const hardware = JSON.parse(await run(executable, ['--role', 'hardware']));
+	let adapter;
 	let consumer = null,
 		exited = null,
 		stderr = '',
@@ -42,13 +45,16 @@ export async function createPreviewOutputObserver(post, directory) {
 		return ack.result.value;
 	}
 	async function pixels(phase, expected) {
+		const actual = await observeNativeAdapter(page, hardware);
+		adapter ??= actual;
+		assert.equal(actual.key, adapter.key, 'shared-texture connection retains its exact GPU');
 		const target = path.join(directory, phase);
 		const image = JSON.parse(
 			await run(executable, [
 				'--role',
 				'pixels',
 				'--adapter',
-				'0',
+				String(adapter.index),
 				'--name',
 				sender,
 				'--directory',
@@ -106,6 +112,7 @@ export async function createPreviewOutputObserver(post, directory) {
 					((frame.receive_begin_qpc - frames[index].receive_begin_qpc) * 1000) / frequency
 			);
 		summary = {
+			adapter,
 			copies: final.receive_copies,
 			loggedFrames: frames.length,
 			absent: final.absent,
@@ -169,7 +176,7 @@ export async function createPreviewOutputObserver(post, directory) {
 						'--role',
 						'consumer',
 						'--adapter',
-						'0',
+						String(adapter.index),
 						'--name',
 						sender,
 						'--width',

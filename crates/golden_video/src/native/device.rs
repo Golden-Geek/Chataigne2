@@ -8,8 +8,8 @@ use windows::Win32::Graphics::Direct3D11::{
     D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_SDK_VERSION, D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext,
 };
 use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_ERROR_NOT_FOUND, DXGI_ERROR_UNSUPPORTED, IDXGIAdapter1,
-    IDXGIFactory1,
+    CreateDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_ERROR_NOT_FOUND, DXGI_ERROR_UNSUPPORTED,
+    DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IDXGIAdapter1, IDXGIFactory1, IDXGIFactory6,
 };
 use windows::core::{Error, HRESULT, Result};
 
@@ -66,6 +66,25 @@ pub fn adapters() -> Result<Vec<AdapterInfo>> {
     let mut found = Vec::new();
     for index in 0.. {
         let adapter = match unsafe { factory.EnumAdapters1(index) } {
+            Ok(adapter) => adapter,
+            Err(error) if error.code() == DXGI_ERROR_NOT_FOUND => break,
+            Err(error) => return Err(error),
+        };
+        found.push(describe(&adapter)?);
+    }
+    Ok(found)
+}
+
+/// Enumerates adapters in Windows' high-performance order: external, discrete, integrated.
+/// The raw enumeration indices returned by [`adapters`] retain their original meaning.
+pub fn preferred_adapters() -> Result<Vec<AdapterInfo>> {
+    // SAFETY: read-only DXGI enumeration, with owned COM outputs and no device creation.
+    let factory: IDXGIFactory6 = unsafe { CreateDXGIFactory1()? };
+    let mut found = Vec::new();
+    for index in 0.. {
+        let adapter = match unsafe {
+            factory.EnumAdapterByGpuPreference::<IDXGIAdapter1>(index, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)
+        } {
             Ok(adapter) => adapter,
             Err(error) if error.code() == DXGI_ERROR_NOT_FOUND => break,
             Err(error) => return Err(error),

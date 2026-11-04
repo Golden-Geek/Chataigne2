@@ -33,7 +33,8 @@ try {
 	if (process.argv.includes('--continuity'))
 		output = await createPreviewOutputObserver(
 			post,
-			path.resolve(`target/mapgyver-preview-acceptance-${Date.now()}`)
+			path.resolve(`target/mapgyver-preview-acceptance-${Date.now()}`),
+			native.page
 		);
 	await flow({
 		base: native.base,

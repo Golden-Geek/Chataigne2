@@ -14,6 +14,7 @@ impl Default for VideoRuntimeStatus {
             submitted_fps: None,
             cpu_submit_ms: None,
             gpu: None,
+            gpu_adapter: None,
             resources: None,
             error: None,
             screens: Vec::new(),

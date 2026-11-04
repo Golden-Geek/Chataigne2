@@ -9,7 +9,8 @@ use crate::{
 use golden_core::{app::NativePresentationStop, application::ProductionRuntime};
 use golden_io::WorkerNotifier;
 use golden_video::native::{
-    D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, adapters, query_adapter_memory,
+    AdapterInfo, AdapterPreference, D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget,
+    query_adapter_memory, select_adapter,
 };
 use golden_video::preview::{HostViewport, PreviewController, PreviewReceiver};
 use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, VideoRuntime};
@@ -79,17 +80,13 @@ impl Drop for SessionOwner {
 }
 
 fn create(
+    adapter: &AdapterInfo,
     hwnd: isize,
     extent: Extent2D,
     targets: &[super::targets::Target],
     output_windows: &mut super::output_windows::OutputWindows,
     notifier: WorkerNotifier,
 ) -> io::Result<(Owner, D3d11Control)> {
-    let adapter = adapters()
-        .map_err(io::Error::other)?
-        .into_iter()
-        .find(|adapter| !adapter.software)
-        .ok_or_else(|| io::Error::other("no native preview adapter"))?;
     // A renderer recreation follows complete old-owner retirement. Query this process on
     // the selected adapter; unknown/zero budgets fail truthfully and retry on this worker.
     let admission = query_adapter_memory(adapter.id)
@@ -129,7 +126,7 @@ fn create(
     .map_err(io::Error::other)?;
     let mut owner = Owner {
         renderer: ChannelRenderer::new(runtime, limits),
-        gpu: adapter.description,
+        gpu: adapter.description.clone(),
         escapes: super::output_windows::escape_targets(targets, &windows),
         windows,
     };
@@ -164,6 +161,9 @@ pub(super) struct Input {
 pub(super) fn run(input: Input) -> io::Result<()> {
     let _session = SessionOwner(input.controller.clone());
     let mut owner: Option<Owner> = None;
+    // Pin even automatic selection for this presentation task. Recreating outputs must not
+    // silently reconnect existing shared textures on a different GPU.
+    let mut adapter = None;
     let mut status_sampler = crate::preview::runtime_status::StatusSampler::default();
     let mut output_sampler = super::output_status::OutputSampler::default();
     let mut native: Option<D3d11Control> = None;
@@ -487,7 +487,11 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         })?;
                         return Ok(());
                     }
+                    if adapter.is_none() {
+                        adapter = Some(select_adapter(AdapterPreference::Automatic).map_err(|e| e.to_string())?);
+                    }
                     let (created, control) = create(
+                        adapter.as_ref().unwrap(),
                         input.hwnd,
                         extent,
                         &topology,
@@ -735,6 +739,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 .zip(owner.as_ref())
                 .map(|(snapshot, owner)| (snapshot, owner.gpu.as_str()));
             if let Some(mut status) = status_sampler.sample(now, observed, last_error.as_deref()) {
+                status.gpu_adapter = native
+                    .as_ref()
+                    .and_then(|native| native.snapshot().adapter)
+                    .map(|adapter| adapter.key());
                 let routes = owner
                     .as_ref()
                     .map(|owner| {

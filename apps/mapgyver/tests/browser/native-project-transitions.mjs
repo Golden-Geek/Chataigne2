@@ -13,7 +13,7 @@ export async function verifyNativeProjectTransitions({
 }) {
 	const directory = path.resolve(process.env.MAPGYVER_TRANSITION_DIRECTORY);
 	await mkdir(directory);
-	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'));
+	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
 	const panel = (id) => page.locator(`.media-preview-panel[data-panel-id="${id}"]`);
 	const group = (element) =>

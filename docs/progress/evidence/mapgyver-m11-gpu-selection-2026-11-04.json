@@ -1,0 +1,87 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/3",
+	"state": "Active",
+	"scope": "Automatic high-performance selection and pinned exact native adapter; typed persisted app choice remains pending",
+	"sourceBaseline": "dca00e1ddffc506352f9267ea74178cdea3eeecb",
+	"concurrentUserChanges": "Uncommitted label/theme work present in the development binary; excluded from this milestone",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-gpu-default.exe",
+		"sha256": "F77965F5BCD629DCFF29187FCD1BDE2C6463539676637A1E450AD040FD50324C",
+		"qualificationSha256": "8A745BD9E1FD218B300DCC38CEBF08410CCE1395B86B4E4A71B3BEF0932D6926"
+	},
+	"hardware": {
+		"rawOrder": [
+			"Intel(R) Graphics",
+			"NVIDIA GeForce RTX 5080 Laptop GPU",
+			"Microsoft Basic Render Driver"
+		],
+		"highPerformanceOrder": [
+			"NVIDIA GeForce RTX 5080 Laptop GPU",
+			"Intel(R) Graphics",
+			"Microsoft Basic Render Driver"
+		],
+		"activeGpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"activeIdentity": "dxgi:00000000:00016022",
+		"activeRawIndex": 1,
+		"displayOwner": "Intel(R) Graphics"
+	},
+	"software": {
+		"appPassed": 399,
+		"appExplicitlyIgnored": 3,
+		"goldenVideoPassed": 191,
+		"goldenVideoExplicitlyIgnored": 24,
+		"runtimeUiPassed": 4,
+		"generatedContract": "pass after regeneration; initial stale TypeScript check failed",
+		"strictAllTargetClippy": "pass",
+		"svelteErrors": 0,
+		"svelteWarnings": 0,
+		"bothCargoFormatters": "pass",
+		"scopedPrettier": "pass"
+	},
+	"native": {
+		"coldStarts": 2,
+		"first": {
+			"artifact": "target/mapgyver-m11-gpu-default-2026-11-04/cold-start-1/capacity.json",
+			"sha256": "43C37C2710B793C022F873E3748841B6650563798493F40A9A1848A95E897304",
+			"installed4kChannelCounts": [1, 2, 3],
+			"allSamplesMatchPreferredIdentity": true,
+			"unavailableOrBudgetMessages": 0,
+			"normalHostExit": true
+		},
+		"continuity": {
+			"artifact": "target/mapgyver-m11-gpu-default-2026-11-04/continuity-fixed/native-continuity.json",
+			"sha256": "CD44FC43FE030A1D141BF946DB0DF53BD339E1D13D2D8BAEBE26CDDD33ED66D1",
+			"concurrentViews": 8,
+			"actualTransportReconnect": true,
+			"layoutReload": true,
+			"allPreviewClose": true,
+			"projectNewLoadLockRecovery": true,
+			"pageErrors": [],
+			"reconnectSamples": 472,
+			"removedViews": 0,
+			"missingViews": 0,
+			"unavailableViews": 0,
+			"independentCopies": 770,
+			"absent": 0,
+			"failedReceives": 0,
+			"descriptorMismatch": 0,
+			"stableSharedHandle": 1073746626,
+			"firstFrame": 173,
+			"lastFrame": 943,
+			"fullPixelChecks": 8,
+			"pixelExtent": [96, 64],
+			"exactAdapterRetained": true,
+			"normalHostAndConsumerExit": true,
+			"initialAttempt": "Test helper returned null from asynchronous wait; bounded explicit RPC reads corrected it before the passing full rerun"
+		}
+	},
+	"remaining": [
+		"Real typed app Preferences enum and separate persistence",
+		"Explicit selection on both GPUs, restart reporting and cold-start persistence",
+		"Missing selected device retention and exact-device recovery"
+	],
+	"gatesClosedByThisSlice": 0,
+	"verifiedGates": "49/67",
+	"m11": "2/10"
+}

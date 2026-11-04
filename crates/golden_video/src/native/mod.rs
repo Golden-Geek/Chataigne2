@@ -20,6 +20,7 @@ mod outputs;
 mod pipeline;
 mod probe;
 mod process;
+mod selection;
 mod texture;
 pub(crate) mod timing;
 
@@ -28,7 +29,7 @@ pub use allocations::{
     SourceTextureSnapshot,
 };
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
-pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters};
+pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters, preferred_adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{
@@ -43,6 +44,7 @@ pub use probe::{SpoutProbe, SpoutProbeSnapshot};
 pub use process::{
     ProcessMemorySnapshot, ProcessQueryError, ProcessResourceSnapshot, ProcessTimeSnapshot, query_process_resources,
 };
+pub use selection::{AdapterPreference, AdapterSelectionError, select_adapter};
 pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
     FrameCpuTrace, GpuSampleStatus, GpuTrace, OutputQueueBound, OutputTrace, PublicationTiming, ScheduleClock,

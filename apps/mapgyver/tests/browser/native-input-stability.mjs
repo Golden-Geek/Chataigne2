@@ -9,7 +9,7 @@ export async function verifyNativeInputStability(options) {
 	const { page, edit, post, nativePid } = options;
 	const directory = path.resolve(process.env.MAPGYVER_INPUT_STABILITY_DIRECTORY);
 	await mkdir(directory, { recursive: true });
-	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'));
+	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
 	const main = page.locator('.media-preview-panel[data-panel-id="media-preview"]');
 	const captures = {};

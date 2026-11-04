@@ -81,5 +81,8 @@ export async function verifyNativeCapacity({ page, edit, nativePid }) {
 			samples.at(-1).status.resources.limit_bytes > 512 * 1024 * 1024,
 			'actual adapter-aware ceiling must replace the fixed cap'
 		);
+		if (process.env.MAPGYVER_CAPACITY_EXPECTED_ADAPTER)
+			for (const sample of samples)
+				assert.equal(sample.status.gpu_adapter, process.env.MAPGYVER_CAPACITY_EXPECTED_ADAPTER);
 	}
 }

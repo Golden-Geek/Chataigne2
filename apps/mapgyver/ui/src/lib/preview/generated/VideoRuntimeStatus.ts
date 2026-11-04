@@ -11,4 +11,8 @@ submitted_fps: number | null,
 /**
  * Latest successful CPU submit call, excluding asynchronous GPU work.
  */
-cpu_submit_ms: number | null, gpu: string | null, resources: VideoResourceUsage | null, error: string | null, screens: Array<ScreenRuntimeStatus>, };
+cpu_submit_ms: number | null, gpu: string | null,
+/**
+ * Exact active DXGI identity; a display label or enumeration index is not identity.
+ */
+gpu_adapter: string | null, resources: VideoResourceUsage | null, error: string | null, screens: Array<ScreenRuntimeStatus>, };

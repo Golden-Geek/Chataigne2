@@ -41,6 +41,8 @@ pub struct VideoRuntimeStatus {
     /// Latest successful CPU submit call, excluding asynchronous GPU work.
     pub cpu_submit_ms: Option<f64>,
     pub gpu: Option<String>,
+    /// Exact active DXGI identity; a display label or enumeration index is not identity.
+    pub gpu_adapter: Option<String>,
     pub resources: Option<VideoResourceUsage>,
     pub error: Option<String>,
     pub screens: Vec<ScreenRuntimeStatus>,
