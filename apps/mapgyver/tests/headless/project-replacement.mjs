@@ -13,20 +13,19 @@ export async function verifyProjectReplacement({
 	fixture,
 	alive,
 	directory,
-	application,
-	prior,
-	external
+	external,
+	shutdown
 }) {
 	const treeFixture = path.resolve('target/debug/golden_io_process_fixture.exe');
 	const projectPath = path.join(directory, 'before-replacement.mapgyver');
-	async function snapshot(predicate) {
+	async function snapshot(predicate, demand = 'Running') {
 		const deadline = Date.now() + 7000;
 		while (true) {
 			const { snapshot } = await applications({ kind: 'InspectRuntime' });
 			assert.equal(snapshot.callbacks.fault, null);
 			if (
 				snapshot.supervision.host === 'Headless' &&
-				snapshot.supervision.demand.kind === 'Running' &&
+				snapshot.supervision.demand.kind === demand &&
 				snapshot.supervision.callbacks.kind === 'Running' &&
 				snapshot.callbacks.pending === 0 &&
 				predicate(snapshot)
@@ -39,11 +38,15 @@ export async function verifyProjectReplacement({
 	const ready = (application) =>
 		snapshot((snapshot) =>
 			snapshot.applications.some(
-				(entry) => entry.application === application && entry.phase === 'Ready'
+				(entry) =>
+					entry.consumers.some((consumer) => consumer.application === application) &&
+					entry.phase === 'Ready'
 			)
 		);
 	async function target(label, executable, argumentsValue) {
-		const { application } = await applications({ kind: 'Create', label });
+		const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label });
+		const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
+		const application = columns[0];
 		const { snapshot } = await applications({ kind: 'Inspect', application });
 		const definition = {
 			...snapshot.definition,
@@ -54,13 +57,6 @@ export async function verifyProjectReplacement({
 			restart: { ...snapshot.definition.restart, enabled: false }
 		};
 		await applications({ kind: 'Configure', application, definition });
-		const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label });
-		const { columns } = await matrix(reference.media, { kind: 'AddColumns', count: 1 });
-		await matrix(reference.media, {
-			kind: 'ConfigureColumn',
-			column: columns[0],
-			definition: { transition: null, applications: [{ application, pre: 0, post: 0 }] }
-		});
 		return { application, definition, media: reference.media, column: columns[0] };
 	}
 	async function launch(target) {
@@ -115,7 +111,53 @@ export async function verifyProjectReplacement({
 			/lifecycle callback belongs to a stale project/
 		);
 	}
-	const initial = await ready(application);
+	const initialTarget = await target('Replacement initial owner', fixture, []);
+	const application = initialTarget.application;
+	const initial = await launch(initialTarget);
+	const prior = initial.applications.find((entry) =>
+		entry.consumers.some((consumer) => consumer.application === application)
+	);
+	// Reject an entire over-capacity demand set before creating any of its process workers.
+	const { reference: overflow } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Matrix',
+		label: 'Admission recovery'
+	});
+	const { columns: overflowColumns } = await matrix(overflow.media, {
+		kind: 'AddColumns',
+		count: 65
+	});
+	const { snapshot: initialSettings } = await applications({ kind: 'Inspect', application });
+	for (const [index, column] of overflowColumns.entries()) {
+		await matrix(overflow.media, {
+			kind: 'ConfigureColumnApplication',
+			column,
+			pre: 65,
+			post: 65,
+			definition: {
+				...initialSettings.definition,
+				executable: path.join(directory, 'missing-admission.exe'),
+				arguments: [String(index)]
+			}
+		});
+	}
+	await matrix(overflow.media, { kind: 'LaunchColumn', column: overflowColumns[0], mode: 'Cut' });
+	const rejected = await snapshot(
+		(state) => state.supervision.demand.message.includes('at most 64'),
+		'Retrying'
+	);
+	assert.equal(
+		rejected.applications.length,
+		1,
+		'failed aggregate admission preserves the existing owner set'
+	);
+	assert.equal(rejected.applications[0].process_id, prior.process_id);
+	assert.equal(rejected.applications[0].launch, prior.launch);
+	await matrix(overflow.media, { kind: 'ClearPlayback' });
+	const recovered = await ready(application);
+	assert.equal(recovered.applications[0].process_id, prior.process_id);
+	assert.equal(recovered.applications[0].launch, prior.launch);
+	await edit({ kind: 'RemoveMedia', media: overflow.media });
 	const authored = (await applications({ kind: 'Inspect', application })).snapshot;
 	const oldTree = await target('Replacement owned tree', treeFixture, [
 		'tree',
@@ -133,14 +175,11 @@ export async function verifyProjectReplacement({
 	assert.equal(fresh.callbacks.acknowledged, 0);
 	await retired(oldPids);
 	await rejectOldCallback(initial.project);
-	await assert.rejects(() => applications({ kind: 'Inspect', application }), /application/i);
-	const emptyCatalog = await applications({
-		kind: 'InspectCatalog',
-		search: '',
-		start: 0,
-		count: 64
+	assert.deepEqual(await applications({ kind: 'Inspect', application }), {
+		kind: 'ApplicationMissing',
+		application
 	});
-	assert.equal(emptyCatalog.page.total, 0);
+	assert.deepEqual((await edit({ kind: 'InspectManager' })).snapshot, { assets: [], media: [] });
 	console.log(
 		JSON.stringify({
 			project_replacement_stage: 'new',
@@ -153,8 +192,8 @@ export async function verifyProjectReplacement({
 
 	const interimTarget = await target('Interim project owner', fixture, []);
 	const interim = await launch(interimTarget);
-	const interimStatus = interim.applications.find(
-		(entry) => entry.application === interimTarget.application
+	const interimStatus = interim.applications.find((entry) =>
+		entry.consumers.some((consumer) => consumer.application === interimTarget.application)
 	);
 	assert(interimStatus.process_id && interimStatus.launch);
 	await post('/api/ui/project-load', { path: projectPath });
@@ -182,7 +221,7 @@ export async function verifyProjectReplacement({
 		})
 	);
 
-	// The saved Matrix has authored associations, not an implicitly resumed OS process.
+	// The saved Matrix has typed owner settings, not an implicitly resumed OS process.
 	const newReport = path.join(directory, 'shutdown.txt');
 	await applications({
 		kind: 'Configure',
@@ -193,19 +232,32 @@ export async function verifyProjectReplacement({
 		}
 	});
 	const final = await launch(oldTree);
-	const finalStatus = final.applications.find((entry) => entry.application === oldTree.application);
+	const finalStatus = final.applications.find((entry) =>
+		entry.consumers.some((consumer) => consumer.application === oldTree.application)
+	);
 	const shutdownPids = await treeIds('shutdown');
 	assert.equal(finalStatus.process_id, shutdownPids[0]);
 	assert.notEqual(finalStatus.launch, interimStatus.launch);
 	assert.equal(final.project, loaded.project);
 	assert(final.callbacks.acknowledged >= 2);
-	assert(final.applications.every((entry) => entry.application !== interimTarget.application));
+	assert(
+		final.applications.every((entry) =>
+			entry.consumers.every((consumer) => consumer.application !== interimTarget.application)
+		)
+	);
+	await shutdown();
+	await retired(shutdownPids);
+	assert(!alive(prior.process_id));
 	return {
 		projects: [initial.project, fresh.project, loaded.project],
 		replaced_pids: oldPids,
 		interim_pid: interimStatus.process_id,
 		shutdown_pids: shutdownPids,
 		stale_callbacks_rejected: 3,
-		fresh_callbacks: final.callbacks.acknowledged
+		fresh_callbacks: final.callbacks.acknowledged,
+		admission_recovered: true,
+		admission_message: rejected.supervision.demand.message,
+		normal_shutdown: true,
+		external_survived_shutdown: alive(external.pid)
 	};
 }

@@ -1,0 +1,70 @@
+{
+	"date": "2026-11-04",
+	"gate": "M08/4",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"production_code_changed": false,
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m08-control.exe",
+		"sha256": "15E200A47A359834DADFC2BABE73D2B5437D8AD6622F32510E05756786D6FF52"
+	},
+	"script_ui": {
+		"result": "pass",
+		"pid": 34792,
+		"project": "da7281c6-918f-46c6-ab6b-44ee8279445a",
+		"named_app_methods": 8,
+		"phases": ["Starting", "Ready", "Stopping", "Idle"],
+		"column_cell_same_pid_and_launch": true,
+		"typed_unload_command_executed_from_script": true,
+		"named_unload_executed": true,
+		"owned_process_absent_after_unload": true,
+		"callbacks": { "acknowledged": 4, "fault": null, "pending": 0 },
+		"combined_host_elapsed_ms": 2922,
+		"normal_host_exit": 0
+	},
+	"project_recovery": {
+		"result": "pass",
+		"projects": [
+			"2d1776f8-4d5d-4047-8b02-0812e5463b6e",
+			"2eff57c0-3317-4282-9160-e68a3124fa13",
+			"24e98609-a1c3-40fc-9b4b-d98b0dd8f47c"
+		],
+		"replaced_pids": [33416, 16740, 4196, 40572],
+		"interim_pid": 35428,
+		"shutdown_pids": [44488, 28356, 9100],
+		"stable_application": "5d62aa1b-c4c2-479e-ab71-90d472dfa95a",
+		"fresh_definition_instance": "a9bb0a95-847d-4bbc-80f4-8fea0412412d",
+		"stale_callbacks_rejected": 3,
+		"fresh_callbacks": 2,
+		"loaded_settings_do_not_launch": true,
+		"admission": {
+			"additional_unique_keys": 65,
+			"message": "application runtime admits at most 64 active/retiring normalized keys",
+			"existing_pid_and_launch_preserved": true,
+			"recovered": true,
+			"overflow_executables_missing": true
+		},
+		"external_pid": 29988,
+		"external_survived_shutdown": true,
+		"combined_host_elapsed_ms": 2382,
+		"normal_host_exit": 0
+	},
+	"validation": {
+		"prerequisites": "396 passing Rust library tests, strict all-target Clippy, generated equality, Svelte 0/0 and fresh app build from prior API milestone",
+		"javascript_syntax_and_prettier": "pass",
+		"formatting": "root and golden_core Cargo formatters",
+		"source_regression": "pass in both ordinary hosts",
+		"ui_setup_failures": "Two pre-launch field-lookup failures; corrected to the declared parameters/media path before actual process verification"
+	},
+	"logs": [
+		"target/m08-project-lifecycle-baseline.log",
+		"target/m08-project-lifecycle-recovery.log",
+		"target/m08-script-lifecycle-baseline.log",
+		"target/m08-script-lifecycle-final.log",
+		"target/m08-script-lifecycle-native.log"
+	],
+	"remaining": [
+		"Reproduced singleton complete-retirement barrier",
+		"Exact retained elevated/access-denial and other unverified retirement acceptance"
+	]
+}

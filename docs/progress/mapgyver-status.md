@@ -4,8 +4,8 @@
 
 **Verified gates: `███████░░░` 70% · 47/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M08/4 native Column/Cell picker passes; full lifecycle/target/access qualification is Active.
-**Next deliverable:** Complete ordinary-app script/callback/command lifecycle and current project/shutdown/recovery, retaining the reproduced singleton retirement barrier.
+**Current topic:** M08/4 ordinary-app lifecycle/project/recovery passes; retained target/access/retirement qualification is Active.
+**Next deliverable:** Resolve the reproduced singleton retirement barrier and audit exact retained elevated/access-denial outcomes.
 **Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5 and M07/1–4 are Accepted; M08/4 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -14,16 +14,16 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** final app-control UI/script/target/access qualification, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly verified:** [Actual Column/Cell App file picker](mapgyver-m08-picker-targets.md), with
-native selection/Cancel and toolbar Undo/Redo. Current target tests also verify launcher-child
-cleanup, denied breakaway, invalid/missing images and elevation-required denial without a prompt.
-The singleton duplicate's complete retirement remains explicitly unverified.
+**Newly verified:** [Ordinary-app script and project integration](mapgyver-m08-app-integration.md):
+eight named methods, ordered actual lifecycle callbacks, shared Column/Cell PID, typed unload,
+65-key atomic admission failure/recovery, Save/New/Load and normal owned-tree shutdown.
+The external fixture survives; singleton duplicate complete retirement remains unverified.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
 **Last delivered capability:** seven typed app-control commands/eight named script methods,
-now accompanied by actual native picker and current target-outcome evidence. Passing 396-test/
-strict lint/Svelte prerequisites are reused. This partial qualification adds no gate; M08 is 3/4.
+with actual native picker, hosted lifecycle/project/recovery and target-outcome evidence.
+Passing 396-test/strict lint/Svelte prerequisites are reused. No gate added; M08 remains 3/4.
 M08/4 and retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
 | Phase                                                                                                                                                              | State                           | Progress          | Gates | Subphase progression                                                                                                                                                                                                         |
@@ -43,7 +43,7 @@ M08/4 and retained physical/timing requirements remain open; M11 owns changed fe
 
 **Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **47/67 accepted gates**. This native picker/target milestone adds no gate; M08 stays 3/4. M07 remains
+There are **47/67 accepted gates**. This app integration milestone adds no gate; M08 stays 3/4. M07 remains
 complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
 The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
 and phase denominator 11 → 12. Planning itself added no acceptance. M11 owns changed-contract
@@ -66,7 +66,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active   | M08/4    | Native Column/Cell picker and command/script API are verified. Finish complete ordinary-app script/callback/command lifecycle and current project/shutdown/recovery. Resolve reproduced singleton RetirementUnverified; retain running-elevated/access-denial and other unverified retirement cases. Reuse M08/3's verified pinned-tree cleanup and the current target receipt; distinguish authored Undo from OS side effects. |
+| Active   | M08/4    | Native picker, command/script API and ordinary-app lifecycle/project/recovery are verified. Resolve reproduced singleton RetirementUnverified and audit exact retained elevated/access-denial/retirement requirements against actual outcomes. Reuse M08/3's pinned-tree cleanup and current target/integration receipts; distinguish authored Undo from OS side effects. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
 | Pending  | M11/1–10 | After M08/4 closure, resolve stable UI/previews, 4K resource capacity, GPU preference/options, minimal typed Channels/Fit Mode/time UI, Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially; reproduce stability first. All ten precede M10 and M09. |
@@ -93,25 +93,25 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M08/4 native picker and target outcomes, started 00:42 CET /
-  stopping time 01:27 CET (2026-11-04). Owner: MapGyver application UI/integration tests over
-  Golden's shared File picker and owned-process boundary. Deliverable: actual native App file
-  selection and current Column-owned target-outcome verification. Hypothesis: the historical
-  fixture is blocked by removed standalone Application/association calls; projecting it to real
-  Column owners and aggregate runtime consumers should exercise the unchanged production path.
-  [Result](mapgyver-m08-picker-targets.md): actual Column/Cell native selection, Cancel, conditional
-  controls and Undo/Redo pass, with zero UI errors/rejections and normal shutdown. Current public
-  Column-owned target tests verify external preservation, launcher-child cleanup, breakaway error
-  5, missing/invalid errors 2/216 and non-elevated requireAdministrator denial 740 without fallback.
-  Two target experiments are complete: strict baseline exposed singleton RetirementUnverified;
-  final observation records it explicitly, not as complete cleanup. No production semantics or
-  budgets changed. Do not rerun unchanged target experiments. Exact remaining requirement:
-  full ordinary-app script/callback/command lifecycle and current project/shutdown/recovery,
-  reproduced singleton retirement barrier, running-elevated and retained access/retirement cases.
-  Next deliverable: reconcile and finish the current project/lifecycle route, then return to
-  ownership proof with a bounded corrective decision. Prior API milestone `1292c17c` is pushed/
-  verified (remote equal, 0/0). Exactly M08/4 stays Active; 47/67 gates (70%), 6/12 phases (50%).
-  Preserve concurrent work, pending documentation cleanup and the named stash.
+- **Current batch/handoff:** M08/4 ordinary-app lifecycle and project replacement, started
+  00:54 CET / stopping time 01:39 CET (2026-11-04). Deliverable: real named script/callback/
+  command lifecycle plus Save/New/Load and normal shutdown of Column-owned processes/trees.
+  Owner: MapGyver app integration tests over the public media/script/project APIs.
+  [Result](mapgyver-m08-app-integration.md): all eight named methods execute in the bundled editor;
+  actual Starting/Ready/Stopping/Idle callbacks are ordered, Column/Cell share PID/launch and a
+  script-executed typed unload command retires it. The ordinary host rejects 65 extra unique keys
+  atomically, preserves its existing process and recovers. Save/New/Load gives fresh lifetimes,
+  rejects three stale tickets and never auto-launches saved settings; normal shutdown retires a
+  three-member tree while preserving the external fixture. JS syntax/Prettier and both Cargo
+  formatters pass; unchanged 396-test/strict lint/Svelte/build prerequisites are reused.
+  Two UI setup checks failed before launch on an incomplete declared field path; static source
+  inspection corrected it before the actual process check passed. No native failure is hidden.
+  Exact remaining requirement: reproduced singleton complete-retirement barrier and retained
+  elevated/access-denial/retirement qualification. Do not rerun the prior singleton experiments
+  unchanged. Next deliverable is a bounded corrective ownership decision using that reproduction,
+  plus an exact contract audit of target outcomes. `d9d0c736` is pushed/verified (remote equal,
+  0/0). Exactly M08/4 is Active; 47/67 gates (70%), 6/12 phases (50%). Preserve concurrent work,
+  pending documentation cleanup and the named stash.
 
 ## Maintenance rule
 

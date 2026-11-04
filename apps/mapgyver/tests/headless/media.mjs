@@ -6,6 +6,7 @@
 // Add --resolution-ui to verify shared Resolution through the generic Golden Inspector.
 // Add --channels-ui to verify the media-only manager and typed Channels collection.
 // Add --media-script-ui for app-template script creation and named source API callbacks.
+// Add --application-lifecycle-ui for real app script callbacks and command-driven owned-process lifecycle.
 // Add --media-command-ui for typed command creation, generic editing and firing/history.
 // Add --reference-ui for Reference creation, generic target/resolution and live mirrored identities.
 // Add --media-preview-ui for independent follow/lock/grid/persisted Media Preview panels.
@@ -34,6 +35,7 @@
 // Add --free-warp-ui for held invalid-shape editing and upside-down recovery.
 // Add --application-target-outcomes for actual owned singleton/launcher/breakaway/invalid-image cases.
 // Add --application-elevation-required after application_process/prepare-elevation.ps1.
+// Add --application-project-replacement for Save/New/Load, fresh lifetimes and normal owned-tree shutdown.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -59,6 +61,7 @@ const withUi = [
 	'--resolution-ui',
 	'--channels-ui',
 	'--media-script-ui',
+	'--application-lifecycle-ui',
 	'--media-command-ui',
 	'--reference-ui',
 	'--media-preview-ui',
@@ -345,9 +348,19 @@ try {
 		const { verifySharedTextureUi } = await import('../browser/shared-texture.mjs');
 		await verifySharedTextureUi({ base, edit, inspectMedia: inspect });
 	}
-	if (process.argv.includes('--media-script-ui')) {
+	if (
+		process.argv.includes('--media-script-ui') ||
+		process.argv.includes('--application-lifecycle-ui')
+	) {
 		const { verifyMediaScriptUi } = await import('../browser/media-script.mjs');
-		await verifyMediaScriptUi({ base, inspectMedia: inspect });
+		await verifyMediaScriptUi({
+			base,
+			inspectMedia: inspect,
+			edit,
+			post,
+			intent,
+			applicationLifecycle: process.argv.includes('--application-lifecycle-ui')
+		});
 	}
 	if (process.argv.includes('--media-command-ui')) {
 		const { verifyMediaCommandUi } = await import('../browser/media-command.mjs');
@@ -459,7 +472,8 @@ try {
 	}
 	if (
 		process.argv.includes('--application-target-outcomes') ||
-		process.argv.includes('--application-elevation-required')
+		process.argv.includes('--application-elevation-required') ||
+		process.argv.includes('--application-project-replacement')
 	) {
 		const applications = (value) => edit({ kind: 'Applications', edit: value });
 		const matrix = (media, value) => edit({ kind: 'Matrix', media, edit: value });
@@ -507,6 +521,30 @@ try {
 						})
 					})
 				);
+			}
+			if (process.argv.includes('--application-project-replacement')) {
+				const { verifyProjectReplacement } = await import('./project-replacement.mjs');
+				const replacement = await verifyProjectReplacement({
+					post,
+					applications,
+					matrix,
+					edit,
+					fixture,
+					alive,
+					directory,
+					external,
+					shutdown: async () => {
+						await writeFile(shutdown, 'stop');
+						const code = await Promise.race([
+							exited,
+							delay(7000, null, { ref: false }).then(() => {
+								throw new Error('normal project host shutdown timed out');
+							})
+						]);
+						assert.equal(code, 0, 'project host must exit normally');
+					}
+				});
+				console.log(JSON.stringify({ result: 'pass', project_replacement: replacement }));
 			}
 			assert(
 				alive(external.pid),

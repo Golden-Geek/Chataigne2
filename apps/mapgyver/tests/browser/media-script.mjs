@@ -2,10 +2,18 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { verifyApplicationScriptUi } from './application-script.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMediaScriptUi({ base, inspectMedia }) {
+export async function verifyMediaScriptUi({
+	base,
+	inspectMedia,
+	edit,
+	post,
+	intent,
+	applicationLifecycle = false
+}) {
 	const browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
 	page.setDefaultTimeout(5000);
@@ -32,6 +40,8 @@ export async function verifyMediaScriptUi({ base, inspectMedia }) {
 		assert.equal(state.config.source.kind, 'inline');
 		assert(state.config.source.text.includes('local.configureMediaResolution'));
 		assert(state.config.source.text.includes('onAppOperationResult'));
+		assert(state.config.source.text.includes('local.setApplicationFile'));
+		assert(state.config.source.text.includes('onApplicationLifecycle'));
 		assert.equal(state.config.source.text.includes('function update('), false);
 		const editor = page.locator('.source-editor .cm-content');
 		await editor.waitFor();
@@ -78,6 +88,8 @@ function onAppOperationResult(reply) {
 			);
 			await delay(20);
 		}
+		if (applicationLifecycle)
+			await verifyApplicationScriptUi({ page, editor, edit, post, intent, inspectMedia });
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(
