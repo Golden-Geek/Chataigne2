@@ -7,6 +7,9 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 
 use super::device::Device;
 
+mod fence;
+pub(super) use fence::FenceCompletion;
+
 struct Slot {
     query: ID3D11Query,
     token: Option<CompletionToken>,

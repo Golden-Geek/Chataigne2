@@ -4,6 +4,10 @@ Golden Video owns app-neutral video execution contracts. MapGyver owns media/cha
 authored size policy, source selection, mapping policy and editor behavior. The desktop host owns native
 window construction and WebView UI-thread access. Video plans depend on neither app nodes nor Tauri.
 
+Copy-only D3D11 input workers use explicit GPU fences for source completion; the selected
+device must expose `ID3D11Device5` / `ID3D11DeviceContext4`. This production path must progress
+without GPU timing diagnostics. Renderer/output completion is a separate event-query owner.
+
 The implemented foundations are:
 
 - `identity.rs` names logical textures, passes and output bindings. These are plan identities,

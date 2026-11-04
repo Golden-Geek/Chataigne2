@@ -55,7 +55,9 @@ fn hardware_live_unversioned_source_cadence() {
         let recorder = Recorder::new(DiagnosticsConfig {
             capacity: NonZeroUsize::new(4096).unwrap(),
         });
-        *control.diagnostics.lock().unwrap() = Some(recorder.clone());
+        if std::env::var("GOLDEN_LIVE_SPOUT_DIAGNOSTICS").as_deref() == Ok("1") {
+            *control.diagnostics.lock().unwrap() = Some(recorder.clone());
+        }
         let mut pool = SourcePool::new(
             adapter.id,
             InputLimits {
@@ -97,13 +99,27 @@ fn hardware_live_unversioned_source_cadence() {
                 .unwrap_or_default()
         );
         if let Some(descriptor) = state.observed_descriptor {
+            assert!(
+                descriptor.extent.width() >= 8 && descriptor.extent.height() >= 8,
+                "live cadence fixture requires a moving image of at least 8x8"
+            );
             use crate::native::{completion::EventCompletion, device::Device, texture::Texture};
             use crate::runtime::CompletionToken;
             let device = Device::new(adapter.id).unwrap();
             let target = Texture::new(&device.device, descriptor).unwrap();
+            let patch = Texture::new(
+                &device.device,
+                TextureDescriptor {
+                    extent: Extent2D::new(8, 8).unwrap(),
+                    ..descriptor
+                },
+            )
+            .unwrap();
             let mut completion = EventCompletion::new(&device).unwrap();
             let mut previous = CopyFrame::default();
             let mut serial = 0;
+            let mut image_changes = 0;
+            let mut previous_pixels = None;
             let consumed = Instant::now();
             while consumed.elapsed() < Duration::from_secs(3) {
                 let completed = completion.completed(&device, pool.device).unwrap();
@@ -119,6 +135,33 @@ fn hardware_live_unversioned_source_cadence() {
                     );
                     if let Some(frame) = pool.copy(id, &device, &target, serial, previous).unwrap() {
                         previous = frame;
+                        let left = descriptor.extent.width().saturating_sub(8) / 2;
+                        let top = descriptor.extent.height().saturating_sub(8) / 2;
+                        // SAFETY: finite diagnostic center patch; production never reads pixels back.
+                        unsafe {
+                            device.context.CopySubresourceRegion(
+                                &patch.texture,
+                                0,
+                                0,
+                                0,
+                                0,
+                                &target.texture,
+                                0,
+                                Some(&windows::Win32::Graphics::Direct3D11::D3D11_BOX {
+                                    left,
+                                    top,
+                                    front: 0,
+                                    right: left + 8,
+                                    bottom: top + 8,
+                                    back: 1,
+                                }),
+                            );
+                        }
+                        let pixels = crate::native::tests::pixels::readback(&device, &patch);
+                        if previous_pixels.as_ref().is_some_and(|previous| *previous != pixels) {
+                            image_changes += 1;
+                        }
+                        previous_pixels = Some(pixels);
                     }
                 }
                 std::thread::sleep(Duration::from_millis(16));
@@ -128,11 +171,15 @@ fn hardware_live_unversioned_source_cadence() {
             }
             pool.retire(serial);
             eprintln!(
-                "LIVE with_renderer adapter={} elapsed={:?} renderer_submissions={serial} last_sequence={} state={:?}",
+                "LIVE with_renderer adapter={} elapsed={:?} renderer_submissions={serial} image_changes={image_changes} last_sequence={} state={:?}",
                 adapter.description,
                 consumed.elapsed(),
                 previous.sequence,
                 *shared.status.lock().unwrap()
+            );
+            assert!(
+                image_changes >= 90,
+                "fast live source repeated pixels: {image_changes} changes in three seconds"
             );
         }
         drop(demand);

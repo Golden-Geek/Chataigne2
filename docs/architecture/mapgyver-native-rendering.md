@@ -107,6 +107,12 @@ must not block it. [WebView2 threading model](https://learn.microsoft.com/en-us/
 
 ## D3D11 and Spout
 
+Golden's copy-only input workers use explicit D3D11 fences (`ID3D11Device5` /
+`ID3D11DeviceContext4`) to certify source GPU completion before reuse or retirement.
+This path must sustain moving content with GPU diagnostics disabled; timestamp collection
+previously hid a production completion-query stall. Renderer/output queries and the ordinary
+native underlay are separate owners. See the [cadence repair evidence](../progress/mapgyver-shared-texture-cadence.md).
+
 Upstream Spout exposes `spoutDX` with D3D11 texture APIs, sender size/format updates, connection
 state, frame information and adapter selection/discovery. Use its supported SDK rather than
 reimplementing sharing/discovery. [SpoutDX API](https://github.com/leadedge/Spout2/blob/master/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h).

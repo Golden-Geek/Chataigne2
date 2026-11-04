@@ -11,7 +11,7 @@ use super::super::config::INPUT_BRIDGE_SLOTS;
 use super::super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, GpuTiming, PublicationTiming, Recorder, SourceCpuTrace,
 };
-use super::super::{AdapterId, completion::EventCompletion, device::Device};
+use super::super::{AdapterId, completion::FenceCompletion, device::Device};
 use super::SourceState;
 use super::receiver::{Received, Receiver};
 use super::shared::{Publication, Shared};
@@ -26,7 +26,7 @@ struct Session {
     receiver: Receiver,
     descriptor: Option<TextureDescriptor>,
     slots: Vec<Slot>,
-    completion: EventCompletion,
+    completion: FenceCompletion,
     device: Device,
     generation: DeviceGeneration,
     submitted: u64,
@@ -65,7 +65,7 @@ impl Session {
     fn new(adapter: AdapterId, config: &SpoutSource, shared: Arc<Shared>) -> Result<Self> {
         let device = Device::new(adapter)?;
         let receiver = Receiver::new(&device.device, config)?;
-        let completion = EventCompletion::new(&device)?;
+        let completion = FenceCompletion::new(&device)?;
         let slots = Vec::new();
         let generation = DeviceGeneration::new(Uuid::new_v4(), 0);
         let next = shared

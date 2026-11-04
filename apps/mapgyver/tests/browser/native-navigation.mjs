@@ -22,6 +22,7 @@ import { verifyNativeMediaFit } from './native-media-fit.mjs';
 import { verifyNativeCompactChannels } from './native-compact-channels.mjs';
 import { verifyNativeAssetFile } from './native-asset-file.mjs';
 import { verifyNativeChannelFile } from './native-channel-file.mjs';
+import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -43,6 +44,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--preview-cadence', verifyNativePreviewCadence],
 			['--channel-file', verifyNativeChannelFile],
 			['--asset-file', verifyNativeAssetFile],
 			['--compact-channels', verifyNativeCompactChannels],
@@ -79,6 +81,7 @@ try {
 		].find(([flag]) => process.argv.includes(flag))?.[1] ?? verifyViewportNavigation;
 	await flow({
 		nativePid: native.app.pid,
+		nativeLog: native.log,
 		base: native.base,
 		page: native.page,
 		post,
