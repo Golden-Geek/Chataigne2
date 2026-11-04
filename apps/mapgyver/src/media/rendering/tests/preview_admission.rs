@@ -59,6 +59,8 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         visible: true,
         overlays: Vec::new(),
         overlay_capacity: 0,
+        tiles: None,
+        tile_capacity: 0,
     };
     controller.handle(
         PreviewRequest::Layout {

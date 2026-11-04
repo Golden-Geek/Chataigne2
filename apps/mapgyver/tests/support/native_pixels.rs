@@ -175,6 +175,8 @@ impl Fixture {
                     visible: true,
                     overlays: Vec::new(),
                     overlay_capacity: 0,
+                    tiles: None,
+                    tile_capacity: 0,
                 }],
             },
             Self::viewport(self.extent),

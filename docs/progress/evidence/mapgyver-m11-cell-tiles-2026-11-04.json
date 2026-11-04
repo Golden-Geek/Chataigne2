@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/8",
+  "gate_state": "Active",
+  "delivered": "Native visible Matrix Cell thumbnails grouped by canonical source, with backend media [channel] labels",
+  "binary": "target/debug/deps/MapGyver-codex-m118-cell-tiles.exe",
+  "sha256": "649458D9928A8BFB9C4262BBC1CF250D4E3BE1854724A24D493DF5742096F8FA",
+  "software": {
+    "mapgyver": "428 passed, 3 explicit ignores",
+    "golden_video": "195 passed, 26 explicit ignores",
+    "strict_clippy": "Both crates, all targets and qualification/native/process/smoke features pass with -D warnings",
+    "svelte": "MapGyver and Golden Video UI each have 0 errors and 0 warnings",
+    "ui": "94 app tests and 31 preview-session tests pass",
+    "contracts": "Preview protocol version 4 and qualification DTOs generated; fresh preview export matches checked-in declarations; Rust qualification contract check passes",
+    "coverage": "Source grouping vs independent identities, Reference resolution/enablement/history/project preservation, partial/offscreen and missing-source geometry, host clipping, coherent same-routing tile updates, bounded metadata, lease withdrawal and unchanged distinct-source admission",
+    "checker_repair": "Golden Video UI checker target ES2023 matches its existing Golden UI findLast dependency"
+  },
+  "native": {
+    "command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-cell-previews",
+    "result": "pass; owned native host exits normally",
+    "adapter_scope": "Ordinary configured native adapter, not pinned by this cohort; both-adapter full-grid acceptance remains open",
+    "images": 6,
+    "samples": "Four Cell centers per guarded foreground image plus a transformed Reference's black Fit area; unchanged 2/255 component tolerance for expected RGB colors",
+    "coverage": "Four Cells share two source registrations; actual red/blue images, live green source edit, selection without playback launch, source loss with blue peer retained, exact Undo recovery, fixed-resolution Reference identity and black Fit pixels with peers preserved, horizontal scroll lease withdrawal/recovery and New",
+    "observer_repair": "Select the captioned owned app HWND; the same process also owns an uncaptioned native presentation window. PID and foreground guards remain mandatory.",
+    "evidence": "target/m118-grid-native/result.json and per-phase cells.png",
+    "log": "target/m118-grid-native.log",
+    "regression": "All three Golden native region tests pass; repeated-image primitive runs on both adapters; actual headless Matrix ownership/labels/history/project check passes"
+  },
+  "remaining": [
+    "Mixed and large distinct-source snapshot admission within retained producer/pass/memory limits; more than eight simultaneous source roots is not qualified by this slice.",
+    "Actual generic Inspector output exposure/discovery, complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
+  ],
+  "acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
+}

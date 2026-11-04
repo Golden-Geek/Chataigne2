@@ -4,6 +4,6 @@ import type { ChannelReference } from "./ChannelReference";
 
 export type MatrixViewCell = { cell: CellSnapshot, source_label: string | null,
 /**
- * Effective leaf identity, shared by cells that resolve through References.
+ * Rendered identity; transparent Reference aliases share their effective target.
  */
 source_preview: ChannelReference | null, source_missing: boolean, };

@@ -51,6 +51,10 @@ pub struct ResolvedView {
     pub overlay_scale: f32,
     /// Fixed retained decoration capacity for this view's plan lifetime.
     pub overlay_capacity: usize,
+    /// Passive repeated image geometry sharing this source binding.
+    pub tiles: Option<Arc<[crate::plan::RegionTile]>>,
+    /// Immutable admitted repetition capacity for this binding.
+    pub tile_capacity: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -76,21 +80,9 @@ impl PreviewSnapshot {
     pub fn new(generation: u64, views: Vec<ResolvedView>, guard: RevisionGuard) -> Self {
         let placements = views
             .iter()
-            .filter(|view| !view.overlays.is_empty())
+            .filter(|view| !view.overlays.is_empty() || view.tiles.is_some())
             .map(|view| {
-                let placement = crate::plan::RegionPlacement::with_overlay_capacity(
-                    view.destination,
-                    view.source_rect,
-                    view.overlay_capacity,
-                )
-                .expect("resolved preview geometry");
-                assert!(placement.update_decorated(
-                    view.destination,
-                    view.source_rect,
-                    view.backdrop,
-                    view.overlay_scale,
-                    &view.overlays
-                ));
+                let placement = create_placement(view);
                 (view.id, placement)
             })
             .collect();
@@ -145,7 +137,11 @@ impl PreviewSnapshot {
                 source_rect: UnitRect::FULL,
                 filter: SampleFilter::Nearest,
                 visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
-                placement: self.backdrops.get(&view.id).cloned(),
+                placement: if view.tiles.is_some() {
+                    self.placements.get(&view.id).cloned()
+                } else {
+                    self.backdrops.get(&view.id).cloned()
+                },
             })
             .collect()
     }
@@ -183,7 +179,10 @@ impl State {
         let routing_changed = self.viewport != Some(viewport)
             || self.views.len() != views.len()
             || self.views.iter().zip(&views).any(|(old, new)| {
-                old.id != new.id || old.source != new.source || old.overlay_capacity != new.overlay_capacity
+                old.id != new.id
+                    || old.source != new.source
+                    || old.overlay_capacity != new.overlay_capacity
+                    || old.tile_capacity != new.tile_capacity
             });
         if routing_changed {
             self.routing.advance();
@@ -225,6 +224,7 @@ impl State {
         for view in &views {
             if self.placements.get(&view.id).is_some_and(|placement| {
                 placement.overlay_capacity() != view.overlay_capacity
+                    || placement.tile_capacity() != view.tile_capacity
                     || self
                         .views
                         .iter()
@@ -244,30 +244,9 @@ impl State {
             self.placements
                 .entry(view.id)
                 .and_modify(|placement| {
-                    assert!(placement.update_decorated(
-                        view.destination,
-                        view.source_rect,
-                        view.backdrop,
-                        view.overlay_scale,
-                        &view.overlays
-                    ));
+                    update_placement(placement, view);
                 })
-                .or_insert_with(|| {
-                    let placement = crate::plan::RegionPlacement::with_overlay_capacity(
-                        view.destination,
-                        view.source_rect,
-                        view.overlay_capacity,
-                    )
-                    .expect("resolved preview geometry");
-                    assert!(placement.update_decorated(
-                        view.destination,
-                        view.source_rect,
-                        view.backdrop,
-                        view.overlay_scale,
-                        &view.overlays
-                    ));
-                    placement
-                });
+                .or_insert_with(|| create_placement(view));
         }
         self.placements.retain(|id, _| views.iter().any(|view| view.id == *id));
         self.backdrops.retain(|id, _| views.iter().any(|view| view.id == *id));
@@ -284,6 +263,30 @@ impl State {
         } else {
             false
         }
+    }
+}
+
+fn create_placement(view: &ResolvedView) -> crate::plan::RegionPlacement {
+    let placement = if view.tile_capacity > 0 {
+        crate::plan::RegionPlacement::with_tile_capacity(view.destination, view.source_rect, view.tile_capacity)
+    } else {
+        crate::plan::RegionPlacement::with_overlay_capacity(view.destination, view.source_rect, view.overlay_capacity)
+    }
+    .expect("resolved preview geometry");
+    update_placement(&placement, view);
+    placement
+}
+
+fn update_placement(placement: &crate::plan::RegionPlacement, view: &ResolvedView) {
+    assert!(placement.update_decorated(
+        view.destination,
+        view.source_rect,
+        view.backdrop,
+        view.overlay_scale,
+        &view.overlays
+    ));
+    if let Some(tiles) = &view.tiles {
+        assert!(placement.update_tiles(tiles));
     }
 }
 
@@ -390,7 +393,9 @@ impl PreviewController {
                         let sample = state
                             .views
                             .iter()
-                            .any(|registered| registered.id == view && registered.source == source)
+                            .any(|registered| {
+                                registered.id == view && registered.source == source && registered.tiles.is_none()
+                            })
                             .then(|| {
                                 state
                                     .placements
@@ -482,6 +487,13 @@ impl PreviewController {
                     } else {
                         let resolved = (|| {
                             if views.len() > self.0.limits.max_views as usize {
+                                return Err(PreviewRejection::Capacity);
+                            }
+                            let tiles: usize = views.iter().map(|view| view.tiles.as_ref().map_or(0, Vec::len)).sum();
+                            let capacity: u64 = views.iter().map(|view| u64::from(view.tile_capacity)).sum();
+                            if tiles > crate::plan::MAX_REGION_TILES
+                                || capacity > (2 * crate::plan::MAX_REGION_TILES) as u64
+                            {
                                 return Err(PreviewRejection::Capacity);
                             }
                             if !viewport.valid() {

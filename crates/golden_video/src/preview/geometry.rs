@@ -3,6 +3,7 @@ use super::{
     protocol::{CssRect, PreviewRejection, PreviewView},
 };
 use crate::plan::UnitRect;
+use std::sync::Arc;
 
 /// Authenticated host observations. CSS scale includes WebView rasterization and zoom; clients
 /// cannot provide it. Native WebView bounds are relative to the borrowed window's client area.
@@ -56,7 +57,72 @@ fn unit(left: f64, top: f64, right: f64, bottom: f64) -> Option<UnitRect> {
     rect.is_valid().then_some(rect)
 }
 
-pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<ResolvedView>, PreviewRejection> {
+pub(super) fn resolve(mut view: PreviewView, host: HostViewport) -> Result<Option<ResolvedView>, PreviewRejection> {
+    if view.source.is_empty() || view.source.len() > 255 || view.source.contains('\0') {
+        return Err(PreviewRejection::Source);
+    }
+    if !valid(view.rect)
+        || !valid(view.clip)
+        || view.tile_capacity as usize > crate::plan::MAX_REGION_TILES
+        || view
+            .tiles
+            .as_ref()
+            .is_some_and(|tiles| tiles.len() > view.tile_capacity as usize)
+        || (view.tiles.is_some() != (view.tile_capacity > 0))
+        || (view.tiles.is_some() && (view.overlay_capacity > 0 || !view.overlays.is_empty()))
+    {
+        return Err(PreviewRejection::Geometry);
+    }
+    let tiles = view
+        .tiles
+        .take()
+        .map(|tiles| {
+            let left = view.rect.x.max(view.clip.x);
+            let top = view.rect.y.max(view.clip.y);
+            let clip = CssRect {
+                x: left,
+                y: top,
+                width: ((view.rect.x + view.rect.width).min(view.clip.x + view.clip.width) - left).max(0.),
+                height: ((view.rect.y + view.rect.height).min(view.clip.y + view.clip.height) - top).max(0.),
+            };
+            let mut resolved = Vec::with_capacity(tiles.len());
+            for tile in tiles {
+                if !valid(tile) {
+                    return Err(PreviewRejection::Geometry);
+                }
+                let tile_view = PreviewView {
+                    id: view.id,
+                    source: view.source.clone(),
+                    rect: CssRect {
+                        x: view.rect.x + tile.x,
+                        y: view.rect.y + tile.y,
+                        ..tile
+                    },
+                    clip,
+                    visible: view.visible,
+                    overlays: Vec::new(),
+                    overlay_capacity: 0,
+                    tiles: None,
+                    tile_capacity: 0,
+                };
+                if let Some(tile) = resolve_plain(tile_view, host)? {
+                    resolved.push(crate::plan::RegionTile {
+                        destination: tile.destination,
+                        source_rect: tile.source_rect,
+                    });
+                }
+            }
+            Ok::<Arc<[crate::plan::RegionTile]>, PreviewRejection>(resolved.into())
+        })
+        .transpose()?;
+    let mut result = resolve_plain(view, host)?;
+    if let Some(view) = &mut result {
+        view.tiles = tiles;
+    }
+    Ok(result)
+}
+
+fn resolve_plain(view: PreviewView, host: HostViewport) -> Result<Option<ResolvedView>, PreviewRejection> {
     if !host.valid() || !valid(view.rect) || !valid(view.clip) {
         return Err(PreviewRejection::Geometry);
     }
@@ -143,5 +209,7 @@ pub(super) fn resolve(view: PreviewView, host: HostViewport) -> Result<Option<Re
                 .into(),
             overlay_scale: host.css_scale as f32,
             overlay_capacity: view.overlay_capacity as usize,
+            tiles: None,
+            tile_capacity: view.tile_capacity as usize,
         }))
 }

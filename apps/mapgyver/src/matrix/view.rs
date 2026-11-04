@@ -191,6 +191,7 @@ fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<
     };
     let definition = cell.definition(engine)?;
     let mut source = None;
+    let mut preview = None;
     let mut next = definition.source;
     let mut seen = std::collections::HashSet::new();
     while let Some(reference) = next {
@@ -200,6 +201,17 @@ fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<
         let Ok(channel) = crate::media::channel(engine, reference) else {
             break;
         };
+        let transparent_alias = matches!(
+            channel.definition.source,
+            crate::media::protocol::ChannelSource::Reference { .. }
+        ) && matches!(channel.definition.size, crate::media::protocol::SizePolicy::Automatic)
+            && engine
+                .node_id_by_uuid(reference.media.0)
+                .and_then(|id| engine.nodes.get(id))
+                .is_some_and(|node| node.node_data().effective_enabled);
+        if preview.is_none() && !transparent_alias {
+            preview = Some(reference);
+        }
         if let crate::media::protocol::ChannelSource::Reference { target } = channel.definition.source {
             next = target;
         } else {
@@ -218,7 +230,7 @@ fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<
             let media = engine.nodes.get(engine.node_id_by_uuid(source.reference.media.0)?)?;
             Some(format!("{} [{}]", media.node_data().meta.label, source.label))
         }),
-        source_preview: source.as_ref().map(|source| source.reference),
+        source_preview: source.as_ref().and(preview),
         source_missing: cell.content(engine)?.is_some() && source.is_none(),
     })
 }

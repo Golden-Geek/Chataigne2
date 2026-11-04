@@ -17,6 +17,7 @@
 	import { sameSelection } from './selection';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import GridLabel from './GridLabel.svelte';
+	import CellPreviews from './CellPreviews.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	let {
 		snapshot,
@@ -285,6 +286,7 @@
 		style:--column={`${gridSize.column}rem`}
 		style:--header={`${gridSize.header}rem`}
 		style:--label={`${gridSize.label}rem`}>
+		<CellPreviews {snapshot} {metrics} />
 		<div
 			class="canvas"
 			style:height={`${projection.canvasHeight}rem`}
@@ -385,6 +387,7 @@
 							onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 							<button
 								class="cell"
+								class:has-preview={cell?.source_preview != null && !cell?.source_missing}
 								class:group-cell={row.item.id.kind === 'Group'}
 								role="gridcell"
 								{disabled}
@@ -406,11 +409,12 @@
 									[]
 								).includes(column.id)}
 								title={`${row.item.label} / ${column.label}`}>
-								{row.item.id.kind === 'Group'
-									? ''
-									: cell?.source_missing
-										? 'Missing source'
-										: (cell?.source_label ?? '')}
+								<span class="source-label"
+									>{row.item.id.kind === 'Group'
+										? ''
+										: cell?.source_missing
+											? 'Missing source'
+											: (cell?.source_label ?? '')}</span>
 							</button>
 							{#if row.item.id.kind === 'Layer'}
 								{#if cell?.cell.media}
@@ -460,7 +464,7 @@
 		min-width: 0;
 		overflow: auto;
 		position: relative;
-		background: var(--gc-color-background);
+		background: transparent;
 		color: var(--gc-color-text);
 	}
 	.canvas {
@@ -593,6 +597,17 @@
 	.cell.selected {
 		outline: 0.15rem solid var(--gc-color-focus);
 		outline-offset: -0.2rem;
+	}
+	.cell.has-preview {
+		background: transparent;
+	}
+	.source-label {
+		position: absolute;
+		inset: auto 0.15rem 0.15rem;
+		max-height: 1.4rem;
+		overflow: hidden;
+		font-size: 0.8em;
+		background: var(--gc-color-panel);
 	}
 	.add,
 	.remove {

@@ -2,6 +2,82 @@ use super::*;
 use std::sync::Arc;
 
 #[test]
+fn preview_sharing_preserves_reference_resolution_and_enablement() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let row = layer(layers(&mut engine, matrix.media, None, 1)[0]);
+    let cols = columns(&mut engine, matrix.media, 2);
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::SetCells {
+            assignments: cols
+                .iter()
+                .map(|column| CellAssignment {
+                    layer: row,
+                    column: *column,
+                    source: Some(source),
+                })
+                .collect(),
+        },
+    );
+    let initial = viewport(&mut engine, matrix.media, 0, 0);
+    let alias = initial.cells[0].cell.definition.source.unwrap();
+    assert!(initial.cells.iter().all(|cell| cell.source_preview == Some(source)));
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureMediaResolution {
+            media: alias.media,
+            size: SizePolicy::Fixed {
+                extent: golden_video::Extent2D::new(32, 16).unwrap(),
+            },
+        },
+    );
+    let fixed = viewport(&mut engine, matrix.media, 0, 0);
+    assert_eq!(fixed.cells[0].source_preview, Some(alias));
+    assert_eq!(fixed.cells[1].source_preview, Some(source));
+    let mut loaded = from_sparse_project_json::<AppNode>(&to_sparse_project_json_pretty(&engine).unwrap()).unwrap();
+    loaded.apply_edits().unwrap();
+    assert_eq!(
+        viewport(&mut loaded, matrix.media, 0, 0).cells[0].source_preview,
+        Some(alias)
+    );
+    assert!(engine.undo().unwrap());
+    assert!(
+        viewport(&mut engine, matrix.media, 0, 0)
+            .cells
+            .iter()
+            .all(|cell| cell.source_preview == Some(source))
+    );
+    let owner = engine.node_id_by_uuid(alias.media.0).unwrap();
+    assert!(
+        apply_project_intent(
+            &mut engine,
+            UiEditIntent::PatchMeta {
+                node: owner,
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(false),
+                    ..Default::default()
+                }
+                .into(),
+            }
+        )
+        .success
+    );
+    let disabled = viewport(&mut engine, matrix.media, 0, 0);
+    assert_eq!(disabled.cells[0].source_preview, Some(alias));
+    assert_eq!(disabled.cells[1].source_preview, Some(source));
+    assert!(engine.undo().unwrap());
+    assert!(
+        viewport(&mut engine, matrix.media, 0, 0)
+            .cells
+            .iter()
+            .all(|cell| cell.source_preview == Some(source))
+    );
+}
+
+#[test]
 fn deleted_viewport_reports_typed_absence_without_history_and_recovers_on_undo() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);

@@ -144,6 +144,37 @@ describe('window preview session', () => {
 		expect(session.state.presentedViews).toContain(view.id);
 	});
 
+	it('coalesces passive tile geometry on one source registration and retires it on removal', async () => {
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		let tiles = [{ x: 0, y: 0, width: 10, height: 10 }];
+		const view = session.register('shared-channel', () => ({
+			...geometry(),
+			tiles,
+			tile_capacity: 4
+		}));
+		await session.connect();
+		await flush();
+		await session.whenSettled();
+		tiles = [
+			{ x: -5, y: 0, width: 10, height: 10 },
+			{ x: 8, y: 0, width: 10, height: 10 }
+		];
+		view.invalidate();
+		await flush();
+		await session.whenSettled();
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts.at(-1)?.views).toEqual([
+			expect.objectContaining({ id: view.id, source: 'shared-channel', tiles, tile_capacity: 4 })
+		]);
+		view.unregister();
+		await flush();
+		await session.whenSettled();
+		expect(endpoint.requests.filter((request) => request.kind === 'Layout').at(-1)?.views).toEqual(
+			[]
+		);
+	});
+
 	it('retains only the newest desired geometry while one IPC is in flight', async () => {
 		const blocked = deferred<PreviewResponse>();
 		let block = false;

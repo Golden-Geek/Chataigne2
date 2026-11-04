@@ -136,6 +136,8 @@ fn fixture_actions_and_reports_keep_their_generated_wire_shape() {
                 visible: true,
                 overlays: Vec::new(),
                 overlay_capacity: 0,
+                tiles: None,
+                tile_capacity: 0,
             }
         })
         .collect();

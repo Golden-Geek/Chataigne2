@@ -5,6 +5,7 @@
 	import { observePreviewLayout } from './observation';
 	import type { PreviewSession, PreviewSessionState, PreviewRegistration } from './session';
 	import type { OverlayPrimitive } from './generated/OverlayPrimitive';
+	import type { CssRect } from './generated/CssRect';
 	import { observeNativeInput } from './native-input';
 
 	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
@@ -15,6 +16,8 @@
 		children?: Snippet;
 		overlays?: OverlayPrimitive[];
 		overlayCapacity?: number;
+		tiles?: CssRect[] | null;
+		tileCapacity?: number;
 		onpresentationchange?(nativeOverlays: boolean): void;
 		nativeInput?: boolean;
 		lifetime?: string | number;
@@ -27,6 +30,8 @@
 		children,
 		overlays = [],
 		overlayCapacity = 0,
+		tiles = null,
+		tileCapacity = 0,
 		onpresentationchange,
 		nativeInput = false,
 		lifetime = 0,
@@ -91,7 +96,9 @@
 					return {
 						...geometry,
 						overlays: untrack(() => overlays),
-						overlay_capacity: untrack(() => overlayCapacity)
+						overlay_capacity: untrack(() => overlayCapacity),
+						tiles: untrack(() => tiles),
+						tile_capacity: untrack(() => tileCapacity)
 					};
 				}
 			);
@@ -114,6 +121,8 @@
 		visible;
 		overlays;
 		overlayCapacity;
+		tiles;
+		tileCapacity;
 		registration?.update(source);
 		registration?.invalidate();
 	});
@@ -132,10 +141,23 @@
 	aria-label={label}
 >
 	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
-		<div class="unavailable">
-			{#if availability === 'unavailable' || availability === 'disposed' || registrationError}Preview
-				unavailable{/if}
-		</div>
+		{#if tiles !== null}
+			{#each tiles as tile}
+				<div
+					class="tile-unavailable"
+					style:left={`${tile.x}px`}
+					style:top={`${tile.y}px`}
+					style:width={`${tile.width}px`}
+					style:height={`${tile.height}px`}
+					title="Native preview unavailable"
+				></div>
+			{/each}
+		{:else}
+			<div class="unavailable">
+				{#if availability === 'unavailable' || availability === 'disposed' || registrationError}Preview
+					unavailable{/if}
+			</div>
+		{/if}
 	{/if}
 	{#if children}<div class="overlay">{@render children()}</div>{/if}
 </div>
@@ -161,6 +183,10 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
+	}
+	.tile-unavailable {
+		position: absolute;
+		background: var(--preview-unavailable-background, #000);
 	}
 	.native-preview[data-native-overlays='true'] :global([data-native-overlay-control]) {
 		opacity: 0;

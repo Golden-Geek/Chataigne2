@@ -48,6 +48,31 @@ fn color_parameter(engine: &AppEngine, reference: ChannelReference) -> NodeId {
 }
 
 #[test]
+fn repeated_views_share_one_capture_source_without_relaxing_distinct_source_admission() {
+    let mut engine = create_new_project_engine().unwrap();
+    engine.apply_edits().unwrap();
+    let create = |engine: &mut AppEngine| {
+        let MediaEditResult::Created { reference } = invoke(
+            engine,
+            MEDIA_NAMESPACE,
+            MEDIA_OPERATION,
+            MediaEdit::CreateMedia {
+                media_kind: MediaKind::SolidColor,
+                label: None,
+            },
+        ) else {
+            panic!()
+        };
+        PreviewSource::Channel { reference }
+    };
+    let first = create(&mut engine);
+    let capture = capture_presentation(&engine, &vec![first; 64], 1, 128, &[]).unwrap();
+    assert!(capture.channels.is_current());
+    let second = create(&mut engine);
+    assert!(capture_presentation(&engine, &[first, second], 1, 128, &[]).is_err());
+}
+
+#[test]
 fn authored_color_and_warp_edits_wake_presentation_without_polling_or_source_frames() {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();

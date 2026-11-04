@@ -3,6 +3,7 @@ use protocol::{CssRect, PreviewView};
 mod continuity;
 mod overlays;
 mod pointer;
+mod tiles;
 
 fn host() -> HostViewport {
     HostViewport {
@@ -34,6 +35,8 @@ fn view() -> PreviewView {
         visible: true,
         overlays: Vec::new(),
         overlay_capacity: 0,
+        tiles: None,
+        tile_capacity: 0,
     }
 }
 fn fixture() -> (PreviewController, PreviewReceiver, Uuid) {

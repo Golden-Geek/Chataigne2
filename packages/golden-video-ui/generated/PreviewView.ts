@@ -33,4 +33,12 @@ overlays: Array<OverlayPrimitive>,
 /**
  * Fixed admitted primitive capacity; zero for ordinary image-only previews.
  */
-overlay_capacity: number, };
+overlay_capacity: number,
+/**
+ * Optional passive image repetitions, relative to the preview element's CSS origin.
+ */
+tiles: Array<CssRect> | null,
+/**
+ * Fixed admitted repetition capacity; zero for an ordinary single-image view.
+ */
+tile_capacity: number, };

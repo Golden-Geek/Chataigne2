@@ -26,6 +26,8 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
         overlays: std::sync::Arc::from([]),
         overlay_scale: 1.0,
         overlay_capacity: 0,
+        tiles: None,
+        tile_capacity: 0,
         source_rect: UnitRect { width: 1., ..rect },
     };
     let preview = PreviewLayout {
@@ -121,6 +123,8 @@ fn malformed_preview_reference_cannot_publish_a_plan() {
                 overlays: std::sync::Arc::from([]),
                 overlay_scale: 1.0,
                 overlay_capacity: 0,
+                tiles: None,
+                tile_capacity: 0,
                 destination: UnitRect {
                     x: 0.,
                     y: 0.,
@@ -213,6 +217,8 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
                     overlays: std::sync::Arc::from([]),
                     overlay_scale: 1.0,
                     overlay_capacity: 0,
+                    tiles: None,
+                    tile_capacity: 0,
                     destination: UnitRect {
                         x: index as f32 * 0.25,
                         y: 0.0,

@@ -26,23 +26,40 @@ unexposed internal channel public while an outgoing clip keeps it alive.
 
 Matrix viewport DTOs resolve Reference chains at the app boundary. `source_label` is the
 effective media label followed by `[channel]`; the grid displays that backend-owned value.
-`source_preview` is the effective leaf ChannelReference, so cells sharing a Reference target
-identify one preview source. Independent copies keep their own identities. These fields are
+`source_preview` is the effective rendered ChannelReference. Enabled intrinsic-resolution
+Reference aliases share their target; fixed-resolution or disabled References retain their
+own rendered identity, preserving Fit Mode and enablement. Independent copies keep their own
+identities. These fields are
 runtime projections, never authored settings or persisted preview handles. Source loss clears
 both fields; rename, Undo and project reload resolve current metadata through the bounded
 viewport query. The authored Cell source remains unchanged.
 
-Golden's bounded repeated-image placement can draw many Cell rectangles from one texture
-binding. Its immutable repetition capacity, coherent completion sample and visibility guard
-avoid per-Cell source, decoder, upload or dependency duplication. Both hardware adapters pass
-crop, changing/empty tile sets and withdrawal while preserving an independent output. The
-Matrix viewport is not wired to this primitive yet: preview negotiation must carry bounded
-source groups and CSS rectangles, project host clipping into those placements and retain one
-logical grid lease. Unique-source admission and snapshot scheduling beyond an active producer
-set remain part of the full requirement; the primitive does not waive them.
+`CellPreviews.svelte` groups visible Cells by that effective identity, using one native preview
+registration per source and Golden's bounded repeated-image placement. Each tile reserves a
+label strip and follows the grid's existing compressed scroll projection. CSS-relative image
+rectangles are measured presentation coordinates, not authored fixed-pixel layout settings;
+row/column/label spacing remains in rem. Negative partial rectangles stay intact until the
+host clips them, preserving the corresponding source crop. Native thumbnails do not launch
+Cells or change their authored source.
 
-M11/8 remains **Active**. Backend exposure and Cell labels/preview identities are implemented.
-Visible native Cell snapshots, actual app Inspector/grid exposure acceptance, complete sparse
-source-loss/preview retirement and the revised full native cohort remain required. The
-window's 64-view budget is unchanged. Native thumbnails must reuse bounded presentation rather
-than create one independent live source/decoder for every visible Cell.
+Golden preview version 4 carries passive tile rectangles and fixed repetition capacity. Its
+completion sample and visibility guard avoid per-Cell source, decoder, upload or dependency
+duplication. Geometry-only updates reuse bindings; backing and image passes share the tile
+set instead of covering the full grid. The existing 64-view limit, eight distinct source
+capture limit and GPU pass/dependency/producer limits remain unchanged. Duplicate views of
+one channel count once for source admission. Host metadata separately admits at most 2,048
+tile rectangles and 4,096 reserved slots per layout. UI fallback is confined to each tile.
+
+The actual native grid passes guarded foreground captures for two shared sources/four Cells,
+live color changes, source loss and Undo, scroll withdrawal/recovery and project New. Source
+grouping, clipping and same-generation updates pass software checks; both GPUs pass the native
+repeated-image primitive. This is an admitted-scene checkpoint, not full Matrix qualification.
+Mixed/large distinct-source snapshot admission, retained GPU completion and the full revised
+native cohort remain required; a viewport beyond the active source budget is not accepted by
+this evidence. Generic Inspector exposure/discovery still needs actual-app acceptance.
+
+M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented and
+verified within the admitted scene. Mixed/large distinct-source snapshots, actual Inspector
+exposure acceptance, complete sparse/source-loss/preview retirement and the revised full
+native cohort remain required. The window's 64-view budget is unchanged. Thumbnail admission
+must continue sharing sources/decoders rather than duplicating them per Cell.

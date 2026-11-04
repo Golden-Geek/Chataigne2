@@ -101,9 +101,6 @@ fn capture_preview_with_time(
     maximum_surfaces: usize,
     time: Option<golden_time::TimeSnapshot>,
 ) -> Result<CapturedPreview, String> {
-    if sources.len() > maximum_sources {
-        return Err("preview exceeds admitted view count".into());
-    }
     let mut seen = HashSet::new();
     let mut channels = Vec::new();
     let mut screens = Vec::new();
@@ -112,6 +109,9 @@ fn capture_preview_with_time(
     for &source in sources {
         if !seen.insert(source) {
             continue;
+        }
+        if seen.len() > maximum_sources {
+            return Err("preview exceeds admitted distinct source count".into());
         }
         match source {
             PreviewSource::Channel { reference } => channels.push(reference),
