@@ -4,8 +4,8 @@
 
 **Verified gates: `███████░░░` 70% · 47/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M11/1 Media Preview selection teardown is fixed; full native stability acceptance continues.
-**Next deliverable:** Verify the remaining native Inspector/Matrix, independent-output, tab/reconnect and New/Load transitions, fixing any reproduced lifetime defects.
+**Current topic:** M11/1 selection and graph-reconnect teardown are fixed; native stability acceptance continues.
+**Next deliverable:** Complete native-frame Inspector/Matrix and tab/New-Load transition acceptance with independent live output, fixing any reproduced defects.
 **Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5 and M07/1–4 are Accepted; M11/1 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -16,16 +16,17 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Stable Media Preview selection](mapgyver-m11-stability.md): valid content and
-native slot registrations survive selection changes. Sixteen actual native grid switches have
-zero loading/view teardowns; 94 guarded desktop frames show red/blue in both preview regions,
-with no blank/other samples. Project/connection fences remain immediate.
+**Newly usable:** [Stable Media Preview selection and reconnect](mapgyver-m11-stability.md):
+valid native content survives selection and graph-socket recovery. Reconnect preserves five
+registrations with zero changed/blank regions across 13 guarded desktop frames; independent
+Spout output receives 1551 frames without failures. Project/session fences remain strict.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** Media Preview selection retains valid native content instead of
-clearing/re-registering it. Reader/preview-session tests, strict lint, Svelte 0/0 and browser
-continuity pass. No gate added; M11/1 is Active and M08 remains 3/4 and Blocked.
+**Last delivered capability:** Media Preview keeps native registrations across graph reconnect
+and same-project snapshots; stale reads and project replacement remain fenced. Five reader/
+30 preview-session tests, strict lint, Svelte 0/0 and actual native continuity pass. No gate added;
+M11/1 is Active and M08 remains 3/4 and Blocked.
 Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
 | Phase                                                                                                                                                              | State                           | Progress          | Gates | Subphase progression                                                                                                                                                                                                         |
@@ -68,7 +69,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active   | M11/1    | [Selection teardown fixed](mapgyver-m11-stability.md). Complete native-frame qualification of reported Inspector/Matrix input, independent live outputs, rapid selection, tab close/reopen, reconnect and New/Load. Browser continuity and two-region native selection evidence do not close the entire gate. Independent of external process retirement. |
+| Active   | M11/1    | [Selection/reconnect teardown fixed](mapgyver-m11-stability.md). Complete native-frame Inspector/Matrix input and tab/New-Load transitions with independent live output. Native selection/reconnect pixels and actual continuity/output flow pass; their bounded region coverage does not close the full gate. Independent of external process retirement. |
 | Blocked  | M08/4    | [Exact native barrier](mapgyver-m08-retirement.md): singleton root exited, active/pending zero, one uncaptured lifetime. Functional UI/script/project/access paths pass. Return with a documented identity-preserving completion mechanism for that lifetime, or an explicit user contract revision, then verify the retained exact fixture with original budgets. No unchanged probes or cleanup claim. Still required before M10/M09. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
@@ -96,24 +97,20 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M11/1 stable Inspector and preview transitions, started 01:16 CET /
-  stopping time 02:01 CET (2026-11-04). Deliverable: remove reproduced flashes on ordinary
-  Inspector/Matrix interaction and media selection, preserving native content and generation
-  fences. Owner: shared Golden workbench/Inspector/native-preview lifetime with MapGyver
-  integration. [Delivered](mapgyver-m11-stability.md): keep valid same-document pages pending
-  selection reads and preserve grid registrations by viewport slot. Recorded native baseline had
-  eight loading insertions/original-view teardown; corrected grid has sixteen switches and zero
-  loading/removal/missing-view samples. Actual guarded desktop pixels: 94 frames × two center
-  regions, 49 red/45 blue, zero other/blank. Tightened native Inspector input has two mounted
-  sibling Parameters, twelve actions and no remount/fade across 1020 animation samples.
-  Four reader tests, 30 preview-session tests, strict Clippy, Svelte 0/0, formatting and browser
-  continuity/reconnect/New-Load pass. Initial fixture setup/runner mistakes were corrected;
-  no DOM-only or two-region result is inflated to full native gate acceptance.
-  Exact remaining requirement/next deliverable: full native Inspector/Matrix interaction,
-  independent live outputs, rapid/tab/reconnect/New-Load transitions, with stale-project fences.
-  Do not repeat the fixed selection probe unchanged. `3046a741` is pushed/verified (remote equal,
-  0/0); M08/4 stays Blocked on its exact lifetime barrier. M11/1 alone is Active; 47/67 gates
-  (70%), 6/12 phases (50%). Preserve concurrent presentation/label/theme work and named stash.
+- **Current batch/handoff:** M11/1 native lifecycle continuity, started 01:37 CET / stopping
+  time 02:22 CET (2026-11-04). [Delivered](mapgyver-m11-stability.md#native-graph-reconnect-correction):
+  project-lifetime display fencing preserves five native views across a real graph reconnect;
+  exact snapshot/history/request fencing still rejects stale reads. Native baseline reproduced
+  teardown; repaired run has zero removals/missing/unavailable samples, 13 actual desktop frames
+  × five 7×7 regions with no changed/blank region. Independent output: 1551 frames, no failed/
+  absent/mismatched receives, stable handle; eight complete output-pixel checkpoints include
+  no-preview editing and Save/New/Load recovery. Native host exits normally. Five reader and
+  30 preview-session tests, strict all-target Clippy, fresh app build, Svelte 0/0 and both Cargo
+  formatters pass. No additional gate closed. Exact remaining requirement/next deliverable:
+  native-frame Inspector/Matrix input and tab/New-Load transitions with live output. Reuse
+  verified selection/reconnect evidence; do not rerun those probes unchanged. M08/4 stays
+  Blocked on its exact lifetime barrier. M11/1 alone is Active; 47/67 gates (70%), 6/12 phases
+  (50%). Preserve concurrent work and named stash.
 
 ## Maintenance rule
 

@@ -22,6 +22,7 @@ test('preview reads serialize rapid selections and fence project/history changes
 	const session = {
 		status: 'connected',
 		snapshotGeneration: 1,
+		projectGeneration: 1,
 		currentHistoryStateId: 1,
 		loading: { visible: false },
 		hasActiveEditSession: false
@@ -77,6 +78,8 @@ test('preview reads serialize rapid selections and fence project/history changes
 	await delay(0);
 	assert.equal(state.page?.label, 'Media');
 	session.snapshotGeneration++;
+	assert(reader.page, 'same-project snapshot preserves the accepted presentation');
+	session.projectGeneration++;
 	assert.equal(reader.page, null);
 	reader.dispose();
 	assert.equal(state.page, null);
@@ -86,6 +89,7 @@ test('selection changes retain valid content until the latest reply and never ac
 	const session = {
 		status: 'connected',
 		snapshotGeneration: 1,
+		projectGeneration: 1,
 		currentHistoryStateId: 1,
 		loading: { visible: false }
 	};
@@ -117,10 +121,60 @@ test('selection changes retain valid content until the latest reply and never ac
 	reader.dispose();
 });
 
-test('retained selection content is hidden immediately when its document or connection changes', async () => {
+test('presentation never crosses session identity or an unknown project lifetime', async () => {
+	let session = {
+		status: 'connected',
+		snapshotGeneration: 1,
+		projectGeneration: null as number | null,
+		currentHistoryStateId: 1,
+		loading: { visible: false }
+	};
+	const calls: { resolve: (reply: MediaEditResult) => void }[] = [];
+	const state = previewReadState();
+	const reader = new MediaPreviewReader(
+		() => session,
+		state,
+		() => new Promise((resolve) => calls.push({ resolve }))
+	);
+	const query = { selected: id, document: null, channel: null, start: 0, count: 4 };
+	const reply: MediaEditResult = {
+		kind: 'MediaPreview',
+		page: {
+			document: id,
+			document_matches: true,
+			media: id,
+			label: 'Original',
+			channels: null,
+			selected: null
+		}
+	};
+	reader.refresh(query);
+	assert.equal(calls.length, 0, 'unknown backend project cannot establish a view lifetime');
+	session.projectGeneration = 1;
+	reader.refresh(query);
+	calls[0].resolve(reply);
+	await delay(0);
+	assert(reader.page);
+	reader.refresh(query);
+	session = { ...session };
+	assert.equal(reader.page, null, 'equal epoch numbers do not make a different session identical');
+	calls[1].resolve(reply);
+	await delay(0);
+	assert.equal(reader.page, null);
+	reader.refresh(query);
+	calls[2].resolve(reply);
+	await delay(0);
+	assert(reader.page);
+	session.projectGeneration = null;
+	assert.equal(reader.page, null);
+	reader.dispose();
+});
+
+test('reconnect preserves presentation while stale reads and project replacement remain fenced', async () => {
 	const session = {
 		status: 'connected',
 		snapshotGeneration: 1,
+		projectGeneration: 1,
 		currentHistoryStateId: 1,
 		loading: { visible: false }
 	};
@@ -149,15 +203,32 @@ test('retained selection content is hidden immediately when its document or conn
 	reader.refresh({ ...query, start: 4 });
 	assert(reader.page);
 	session.snapshotGeneration++;
-	assert.equal(reader.page, null);
-	calls[1].resolve(reply);
+	assert(reader.page, 'same-project snapshot does not unregister the native view');
+	calls[1].resolve({ ...reply, page: { ...reply.page, label: 'Stale snapshot' } });
 	await delay(0);
-	assert.equal(reader.page, null, 'old response cannot revive a prior document');
+	assert.equal(reader.page?.label, 'Original', 'snapshot still fences a pending read');
+	session.status = 'disconnected';
+	reader.refresh(query);
+	assert(reader.page, 'graph socket loss does not end native presentation');
+	assert.equal(calls.length, 2, 'no read dispatched while disconnected');
+	session.status = 'connected';
 	reader.refresh(query);
 	calls[2].resolve(reply);
 	await delay(0);
 	assert(reader.page);
-	session.status = 'disconnected';
+	reader.refresh(query);
+	session.projectGeneration++;
 	assert.equal(reader.page, null);
+	calls[3].resolve(reply);
+	await delay(0);
+	assert.equal(reader.page, null, 'old response cannot revive a prior project');
+	reader.refresh(query);
+	calls[4].resolve(reply);
+	await delay(0);
+	assert(reader.page);
+	session.loading.visible = true;
+	assert.equal(reader.page, null, 'explicit project loading immediately hides prior content');
+	reader.refresh(query);
+	assert.equal(state.page, null);
 	reader.dispose();
 });

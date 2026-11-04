@@ -13,6 +13,7 @@ import { verifyCompositionUi } from './composition.mjs';
 import { verifyMatrixFeedback } from './matrix-feedback.mjs';
 import { verifyInspectorStability } from './inspector-stability.mjs';
 import { verifyPreviewSelectionStability } from './preview-selection-stability.mjs';
+import { verifyNativePreviewContinuity } from './native-preview-continuity.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -34,6 +35,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--preview-continuity', verifyNativePreviewContinuity],
 			['--preview-selection-stability', verifyPreviewSelectionStability],
 			['--inspector-stability', verifyInspectorStability],
 			['--matrix-feedback', verifyMatrixFeedback],

@@ -49,6 +49,7 @@
 			void current.status;
 			void current.loading.visible;
 			void current.snapshotGeneration;
+			void current.projectGeneration;
 			void current.currentHistoryStateId;
 			void current.hasActiveEditSession;
 			void current.editSessionEpoch;

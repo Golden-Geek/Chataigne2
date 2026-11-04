@@ -1,0 +1,106 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/1",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"capability": "Native Media Preview presentation survives graph transport reconnect and same-project snapshots, with strict stale-read and project/session fencing",
+	"baseline": {
+		"binary": "target/debug/deps/MapGyver-codex-m11-stability.exe",
+		"sha256": "44308536C2E71D2E6DCFD7F9F897FB1ADC76BD296566D853CEC1F941DDE1B7DA",
+		"native_views": 5,
+		"removed_subtrees": 2,
+		"missing_original_samples": 201,
+		"animation_samples": 201,
+		"native_blank_frames_claimed": false,
+		"independent_receiver_copies": 271,
+		"failed_or_absent_receives": 0
+	},
+	"corrected": {
+		"binary": "target/debug/deps/MapGyver-codex-m11-reconnect.exe",
+		"sha256": "2AFD45155A5AE2968D0D4D526623B8D168B888A4C64595AF9DB9550B24E46661",
+		"pid": 41092,
+		"hwnd": 2952678,
+		"device_pixel_ratio": 1.25,
+		"native_views": 5,
+		"removed_subtrees": 0,
+		"missing_original_samples": 0,
+		"unavailable_overlay_samples": 0,
+		"animation_samples": 147,
+		"native_pixels": {
+			"composited_frames": 13,
+			"regions_per_frame": 5,
+			"pixels_per_region": 49,
+			"changed_or_blank_regions": 0,
+			"initial_rgb": [
+				[255, 255, 255],
+				[0, 0, 255],
+				[255, 255, 255],
+				[255, 255, 255],
+				[255, 255, 255]
+			],
+			"foreground_pid_guarded": true,
+			"full_raster_or_latency_claimed": false
+		},
+		"normal_host_exit": 0
+	},
+	"independent_output": {
+		"copies": 1551,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_shared_handle": 2147490114,
+		"first_frame": 60,
+		"last_frame": 1611,
+		"maximum_observed_receive_gap_ms": 38.4871,
+		"timing_budget_acceptance_claimed": false,
+		"complete_96x64_pixel_checkpoints": 8,
+		"consumer_stopped_before_intentional_new": true,
+		"restored_output_verified_after_load": true
+	},
+	"native_flow": [
+		"eight concurrent previews",
+		"independent channel choice",
+		"actual WebSocket reconnect",
+		"persisted layout reload",
+		"peer close",
+		"lock change",
+		"all previews closed",
+		"output edit without previews",
+		"Save/New/Load locked recovery"
+	],
+	"software": {
+		"reader_tests": 5,
+		"golden_video_ui_tests": 30,
+		"svelte_errors": 0,
+		"svelte_warnings": 0,
+		"strict_all_target_clippy": "pass; native-qualification,application-process-fixture; -D warnings",
+		"fresh_native_app_build": "pass",
+		"unchanged_rust_behavior_tests_reused": 398,
+		"both_cargo_formatters": "pass"
+	},
+	"artifacts": {
+		"directory": "target/m11-reconnect-native-2026-11-04",
+		"first_png_sha256": "3C9931194DF7542B15CA6931AE601C37313A016A72C93E677441DB27027597F7",
+		"last_png_sha256": "AA300AF1427E2A6C97CE7DE759023CA6DE71316BA5D988B38348E929AAE7A10D"
+	},
+	"logs": [
+		"target/m11-reconnect-baseline.log",
+		"target/m11-reconnect-native.log",
+		"target/m11-reconnect-pixels.log",
+		"target/m11-reconnect-clippy.log",
+		"target/m11-reconnect-build.log",
+		"target/m11-reconnect-svelte.log",
+		"target/m11-reconnect-session-tests.log"
+	],
+	"remaining": [
+		"Inspector/Matrix input native-frame acceptance with independent outputs",
+		"Full native transition-frame coverage of tab close/reopen and New/Load"
+	],
+	"progress": {
+		"accepted_gates": 47,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m11": "0/10"
+	}
+}

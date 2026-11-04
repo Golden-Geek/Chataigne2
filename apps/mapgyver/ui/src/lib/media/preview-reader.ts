@@ -10,7 +10,11 @@ export const previewReadState = () => ({
 	loading: false,
 	error: ''
 });
-export class MediaPreviewReader<S extends Connection> {
+interface PreviewConnection extends Connection {
+	readonly projectGeneration: number | null;
+}
+
+export class MediaPreviewReader<S extends PreviewConnection> {
 	private reads = new ReadQueue();
 	private disposed = false;
 	private current: (() => boolean) | null = null;
@@ -32,33 +36,41 @@ export class MediaPreviewReader<S extends Connection> {
 		return this.displayed?.() ? page : null;
 	}
 	refresh(query: MediaPreviewQuery) {
-		// Keep the last valid page in this document while a new selection resolves. The
-		// existing native view can then replace its source without unregistering its frame.
+		// The native renderer outlives the graph transport. Preserve its valid presentation
+		// through selection, reconnect and same-project snapshots, independently of reads.
 		const retain = this.displayed?.() && this.state.page?.document_matches;
 		this.reads.invalidate();
 		this.current = null;
 		if (!retain) this.state.page = null;
-		this.displayed = null;
+		if (!retain) this.displayed = null;
 		this.state.loading = false;
 		this.state.error = '';
 		const session = this.session();
-		if (this.disposed || !session || session.status !== 'connected' || session.loading.visible)
+		if (
+			this.disposed ||
+			!session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.projectGeneration === null
+		)
 			return;
 		const generation = session.snapshotGeneration,
+			project = session.projectGeneration,
 			history = session.currentHistoryStateId;
-		// Replies require the exact history/selection request. Displayed content has a
-		// separate document fence; reconnects and project replacement still hide it at once.
+		// Project replacement/loading still fences the old view. A snapshot refresh or
+		// lost graph socket alone does not end the backend's project/native-view lifetime.
 		const displayed = () =>
 			!this.disposed &&
 			this.session() === session &&
-			session.status === 'connected' &&
 			!session.loading.visible &&
-			session.snapshotGeneration === generation;
+			session.projectGeneration === project;
 		this.displayed = displayed;
 		if (session.hasActiveEditSession) return;
 		const current = () =>
 			this.current === current &&
 			displayed() &&
+			session.status === 'connected' &&
+			session.snapshotGeneration === generation &&
 			!session.hasActiveEditSession &&
 			session.currentHistoryStateId === history;
 		this.current = current;
