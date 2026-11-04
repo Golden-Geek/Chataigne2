@@ -377,7 +377,14 @@ test('selection changes coalesce with viewport reads and suppress superseded Ins
 	});
 	const current = snapshot('matrix');
 	assert(current.kind === 'MatrixViewport');
-	current.snapshot.selected = { selection: last, row: null, column: null, cell: null };
+	current.snapshot.selected = {
+		selection: last,
+		row_index: null,
+		column_index: null,
+		row: null,
+		column: null,
+		cell: null
+	};
 	reads[1].reply.resolve(current);
 	await flush();
 	assert.deepEqual(controller.window?.selected?.selection, last);

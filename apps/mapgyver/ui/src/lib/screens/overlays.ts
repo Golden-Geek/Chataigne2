@@ -45,9 +45,9 @@ export function quadOverlay(
 				[number, number]
 			]
 		},
-		fill: color(!valid ? 'a51d2c55' : selected ? '78aafa12' : '78aafa08'),
+		fill: color(selected ? (!valid ? 'a51d2c18' : '78aafa18') : '00000000'),
 		stroke: color(!valid ? 'ff5364' : selected ? '70aaff' : 'a2b0c5'),
-		width: 0.1 * rem,
+		width: (selected ? 0.125 : 0.0625) * rem,
 		dash: enabled ? null : [0.3 * rem, 0.2 * rem]
 	};
 }

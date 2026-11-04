@@ -198,16 +198,7 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
 
 	const setZoom = (zoom: number): void => {
 		const center = visibleViewportCenter();
-		zoomAt(zoom, center.x, center.y);
-	};
-
-	const resetZoom = (): void => {
-		const center = visibleViewportCenter();
-		animateCamera(cameraAtZoom(1, center.x, center.y));
-	};
-
-	const handleZoomInput = (event: Event): void => {
-		setZoom((event.currentTarget as HTMLInputElement).valueAsNumber / 100);
+		animateCamera(cameraAtZoom(zoom, center.x, center.y));
 	};
 
 	const frameBounds = (bounds: GraphWorldBounds | null): boolean => {
@@ -436,13 +427,12 @@ export function createCanvasViewport(props: CanvasProps, scene: ViewportScene) {
 		setCamera,
 		panBy,
 		zoomAt,
+		setZoom,
 		stopAnimation: cancelCameraAnimation,
 		navigationState() {
 			return { camera: { ...camera }, animating };
 		},
 		clientToWorldPx,
-		resetZoom,
-		handleZoomInput,
 		frameSelection,
 		revealNode,
 		revealBounds,

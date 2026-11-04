@@ -12,6 +12,7 @@ pub(crate) struct ViewIndex {
     row_positions: HashMap<MatrixItemId, usize>,
     columns: Vec<(ColumnId, NodeId)>,
     column_nodes: HashMap<ColumnId, NodeId>,
+    column_positions: HashMap<ColumnId, usize>,
     cells: HashMap<(LayerId, ColumnId), NodeId>,
 }
 struct ViewRow {
@@ -42,13 +43,18 @@ impl ViewIndex {
                 }
             })
             .collect();
-        let columns = document
+        let columns: Vec<_> = document
             .snapshot
             .columns
             .iter()
             .map(|column| (column.id, document.columns[&column.id]))
             .collect();
         Self {
+            column_positions: columns
+                .iter()
+                .enumerate()
+                .map(|(index, (id, _))| (*id, index))
+                .collect(),
             row_positions: rows
                 .iter()
                 .enumerate()
@@ -237,6 +243,14 @@ fn selected_snapshot(
         _ => None,
     };
     Ok(MatrixSelectionSnapshot {
+        row_index: selection
+            .item
+            .and_then(|id| index.row_positions.get(&id))
+            .map(|value| *value as u32),
+        column_index: selection
+            .column
+            .and_then(|id| index.column_positions.get(&id))
+            .map(|value| *value as u32),
         selection,
         row,
         column,

@@ -24,6 +24,7 @@ import { verifyNativeAssetFile } from './native-asset-file.mjs';
 import { verifyNativeChannelFile } from './native-channel-file.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
+import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -45,6 +46,16 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			[
+				'--canvas-acceptance',
+				async (options) => {
+					await verifyViewportNavigation(options);
+					await verifyCompositionHandles(options);
+					await verifyScreenKeyboard(options);
+					await verifyMatrixViewportUi(options);
+					await verifyScreenSelection(options);
+				}
+			],
 			['--sender-selection', verifyNativeSenderSelection],
 			[
 				'--inspector-acceptance',

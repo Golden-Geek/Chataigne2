@@ -172,8 +172,8 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		const svg = editor.getByRole('group', { name: 'Surface mapping controls', exact: true });
 		const ready = () =>
 			wait(
-				() => editor.getByRole('button', { name: 'Refresh preview', exact: true }).isEnabled(),
-				Boolean
+				() => editor.getAttribute('aria-busy'),
+				(value) => value === 'false'
 			);
 		const corner = async (index = 0) =>
 			(await screens()).screens[0].surfaces[0].definition.quad.corners[index];

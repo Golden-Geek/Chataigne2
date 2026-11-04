@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
@@ -21,7 +22,8 @@
 		start,
 		move,
 		finish,
-		stop
+		stop,
+		actions
 	}: {
 		channel: ChannelSnapshot;
 		composition: CompositionSnapshot;
@@ -33,6 +35,7 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		actions?: Snippet;
 	} = $props();
 	const owner = usePreview();
 	const instance = $derived(
@@ -64,6 +67,7 @@
 </script>
 
 <Viewport2D
+	{actions}
 	aspect={composition.canvas.width / composition.canvas.height}
 	identity={`${appState.session?.projectGeneration ?? 0}:${channel.reference.channel}`}
 	{selection}

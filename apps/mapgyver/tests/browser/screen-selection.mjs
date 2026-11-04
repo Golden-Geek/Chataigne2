@@ -110,12 +110,12 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		await mouse(main, 0.48, 0.15);
 		await count(main, 0);
 		await mouse(main, 0.25, 0.25);
-		await handles(main, 'A').waitFor();
-		assert.equal(await groups(main).count(), 1);
+		await count(main, 0);
 		await mouse(main, 0.25, 0.25, true);
+		await handles(main, 'A').waitFor();
 		await inspector('Selection A');
 		await mouse(main, 0.7, 0.7);
-		await count(main, 8);
+		await count(main, 4);
 		await mouse(main, 0.48, 0.15);
 		await count(main, 4);
 		const corner = handles(main, 'A').getByRole('button', { name: 'Warp corner 2', exact: true });
@@ -137,12 +137,11 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		await mouse(main, 0.48, 0.15, true);
 		await count(main, 0);
 		await inspector('Selection screen');
-		await main.getByRole('button', { name: 'Refresh preview', exact: true }).click();
-		await page.waitForFunction(
-			() =>
-				document.querySelector('[data-panel-id="screen-warp"] button[aria-label="Refresh preview"]')
-					?.disabled === false
+		assert.equal(
+			await main.getByRole('button', { name: 'Refresh preview', exact: true }).count(),
+			0
 		);
+		await main.getByRole('button', { name: 'Home view', exact: true }).click();
 		await count(main, 0);
 		await mouse(main, 0.25, 0.25, true);
 		await corner.click();
@@ -177,6 +176,16 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			);
 		assert(secondId);
 		const peer = page.locator(`[data-panel-id="${secondId}"]`);
+		const toolbar = peer.locator('.canvas-toolbar');
+		const panelBox = await peer.boundingBox(),
+			toolbarBox = await toolbar.boundingBox();
+		assert(
+			panelBox &&
+				toolbarBox &&
+				toolbarBox.width <= panelBox.width &&
+				Math.abs(toolbarBox.x + toolbarBox.width / 2 - panelBox.x - panelBox.width / 2) < 1,
+			'narrow peer toolbar remains inside its canvas and centered'
+		);
 		await handles(peer, 'A').waitFor();
 		if (nativePage) {
 			await peer
@@ -264,7 +273,7 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		console.log(
 			JSON.stringify({
 				screenSelection:
-					'Surface/Inspector and background, hover-only handles, persistent deselection, local per-editor corners, Escape and pan isolation',
+					'Surface/Inspector and background, selected-only handles, persistent deselection, local per-editor corners, Escape and pan isolation',
 				selectionGeometryAndHistoryUnchanged: true,
 				pointerDragOneUndo: true,
 				native: !!nativePage,

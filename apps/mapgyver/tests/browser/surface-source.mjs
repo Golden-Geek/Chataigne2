@@ -83,7 +83,7 @@ export async function verifySurfaceSourceUi({
 			'Source canvas fills its own panel'
 		);
 		assert.equal(
-			await panel.locator('input,select,fieldset').count(),
+			await panel.locator('input:not([type=range]),select,fieldset').count(),
 			0,
 			'Source parameters belong in Inspector'
 		);
@@ -102,8 +102,8 @@ export async function verifySurfaceSourceUi({
 		const crop = async () => (await definition()).crop;
 		const ready = () =>
 			wait(
-				() => panel.getByRole('button', { name: 'Refresh preview', exact: true }).isEnabled(),
-				Boolean
+				() => panel.getAttribute('aria-busy'),
+				(value) => value === 'false'
 			);
 		const parameterHistory = new Map();
 		async function remember() {

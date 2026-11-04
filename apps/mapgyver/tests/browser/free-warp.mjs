@@ -56,8 +56,8 @@ export async function verifyFreeWarpUi({ base, post }) {
 		const shape = svg.locator(`[data-surface-drop-target="${reference.surface}"]`);
 		const ready = () =>
 			wait(
-				() => editor.getByRole('button', { name: 'Refresh preview', exact: true }).isEnabled(),
-				Boolean
+				() => editor.getAttribute('aria-busy'),
+				(value) => value === 'false'
 			);
 		const rotated = [
 			{ x: 0.85, y: 0.85 },
@@ -93,7 +93,9 @@ export async function verifyFreeWarpUi({ base, post }) {
 					return { stroke: style.stroke, fill: style.fill };
 				});
 				assert.equal(redStyle.stroke, 'rgb(255, 83, 100)');
-				assert.match(redStyle.fill, /^rgba\(165, 29, 44, 0\.33/);
+				assert.match(redStyle.fill, /^rgba\(165, 29, 44, /);
+				const alpha = Number.parseFloat(redStyle.fill.split(',').at(-1));
+				assert(alpha > 0 && alpha < 0.15, 'selected invalid shape has a light local overlay');
 				if (index === 1) await page.screenshot({ path: 'target/free-warp-ui-invalid.png' });
 			}
 			await page.mouse.up();

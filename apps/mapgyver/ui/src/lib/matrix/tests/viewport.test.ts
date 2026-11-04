@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gridSize, projectGrid } from '../viewport.ts';
+import { gridSize, projectGrid, selectionScroll } from '../viewport.ts';
 
 test('cells retain equal row and column spans at every viewport scale', () => {
 	assert.equal(gridSize.row, gridSize.column);
@@ -39,5 +39,18 @@ test('empty and oversized viewports keep positive protocol counts at different f
 		assert.equal(view.viewport.column_start, 0);
 		assert.ok(view.viewport.row_count >= 1 && view.viewport.row_count <= 64);
 		assert.ok(view.viewport.column_count >= 1 && view.viewport.column_count <= 32);
+	}
+});
+
+test('Frame selection reveals a distant address through compressed ranges without enlarging the window', () => {
+	for (const rem of [12, 16, 24, 32]) {
+		const metrics = { top: 0, left: 0, width: 1200, height: 800, rem };
+		for (const address of [0, 50000, 99999]) {
+			const scroll = selectionScroll(metrics, 100000, 100000, address, address);
+			const view = projectGrid({ ...metrics, ...scroll }, 100000, 100000).viewport;
+			assert(view.row_start <= address && view.row_start + view.row_count > address);
+			assert(view.column_start <= address && view.column_start + view.column_count > address);
+			assert(view.row_count * view.column_count <= 2048);
+		}
 	}
 });

@@ -259,6 +259,8 @@ pub struct MatrixSelection {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixSelectionSnapshot {
     pub selection: MatrixSelection,
+    pub row_index: Option<u32>,
+    pub column_index: Option<u32>,
     pub row: Option<MatrixViewRow>,
     pub column: Option<ColumnSnapshot>,
     pub cell: Option<MatrixViewCell>,

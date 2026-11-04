@@ -1,4 +1,6 @@
 export { default as GraphCanvas } from './components/GraphCanvas.svelte';
+export { default as CanvasToolbar } from './components/CanvasToolbar.svelte';
+export { canvasNavigationCommand, type CanvasNavigationCommand } from './canvas-shortcuts';
 export { SpatialIndex, type SpatialBounds } from './spatial-index';
 export { GraphPresentationAdapter } from './presentation-document';
 export {

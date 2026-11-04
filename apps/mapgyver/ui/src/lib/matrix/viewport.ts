@@ -7,6 +7,41 @@ export interface Metrics {
 	height: number;
 	rem: number;
 }
+
+/** Map a selected address through the same compressed scroll ranges as visible rows. */
+export function selectionScroll(
+	metrics: Metrics,
+	rows: number,
+	columns: number,
+	row: number | null,
+	column: number | null
+) {
+	const rem = metrics.rem > 0 ? metrics.rem : 1;
+	const width = metrics.width / rem,
+		height = metrics.height / rem;
+	const logicalWidth = gridSize.label + columns * gridSize.column;
+	const logicalHeight = gridSize.header + rows * gridSize.row;
+	const logicalLeft =
+		column == null
+			? null
+			: Math.max(0, gridSize.label + (column + 0.5) * gridSize.column - width / 2);
+	const logicalTop =
+		row == null ? null : Math.max(0, gridSize.header + (row + 0.5) * gridSize.row - height / 2);
+	return {
+		left:
+			logicalLeft == null
+				? metrics.left
+				: Math.min(1, logicalLeft / Math.max(1, logicalWidth - width)) *
+					Math.max(0, Math.min(gridSize.maximum, logicalWidth) - width) *
+					rem,
+		top:
+			logicalTop == null
+				? metrics.top
+				: Math.min(1, logicalTop / Math.max(1, logicalHeight - height)) *
+					Math.max(0, Math.min(gridSize.maximum, logicalHeight) - height) *
+					rem
+	};
+}
 /** Rem-based geometry with compressed scroll ranges below browser layout limits. */
 export function projectGrid(metrics: Metrics, rows: number, columns: number) {
 	const { row, column, label, header, maximum } = gridSize;

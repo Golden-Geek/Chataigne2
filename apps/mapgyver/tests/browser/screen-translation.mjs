@@ -76,8 +76,8 @@ export async function verifyScreenTranslation({ base, post, page: nativePage = n
 	async function ready() {
 		await page.waitForFunction(
 			() =>
-				document.querySelector('[data-panel-id="screen-warp"] button[aria-label="Refresh preview"]')
-					?.disabled === false
+				document.querySelector('[data-panel-id="screen-warp"]')?.getAttribute('aria-busy') ===
+				'false'
 		);
 	}
 	async function position(x, y) {

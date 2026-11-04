@@ -45,10 +45,9 @@
 		editing: boolean;
 	} | null>(null);
 	let ghost = $state<Point | null>(null);
-	let hovered = $state<SurfaceId | null>(null);
 	const visible = $derived(screen.surfaces.slice(0, 128));
 	const handles = $derived(
-		[selected, hovered].flatMap((id, index, all) => {
+		[selected].flatMap((id, index, all) => {
 			if (!id || all.indexOf(id) !== index) return [];
 			const item = screen.surfaces.find((item) => item.reference.surface === id);
 			return item ? [item] : [];
@@ -160,14 +159,6 @@
 		if (canvas.hasPointerCapture(active.id)) canvas.releasePointerCapture(active.id);
 		if (active.editing) stop();
 	}
-	function leave(event: PointerEvent, id: SurfaceId) {
-		const next =
-			event.relatedTarget instanceof Element
-				? event.relatedTarget.closest('[data-surface-drop-target]')
-				: null;
-		if (next?.getAttribute('data-surface-drop-target') === id) return;
-		if (hovered === id) hovered = null;
-	}
 	$effect(() => {
 		const current = selected;
 		if (pointer && pointer.reference.surface !== current) cancel();
@@ -215,10 +206,6 @@
 			aria-label={`Select ${item.label}${item.mapping_valid ? '' : ' (invalid warp shape)'}`}
 			aria-disabled={disabled}
 			onpointerdown={(event) => down(event, item.reference, null)}
-			onpointerenter={() => {
-				hovered = item.reference.surface;
-			}}
-			onpointerleave={(event) => leave(event, item.reference.surface)}
 			onclick={(event) => {
 				event.stopPropagation();
 				if (!disabled) select(item.reference.surface);
@@ -247,10 +234,6 @@
 				data-surface-drop-target={item.reference.surface}
 				data-source-drop-object={item.reference.surface}
 				{disabled}
-				onpointerenter={() => {
-					hovered = item.reference.surface;
-				}}
-				onpointerleave={(event) => leave(event, item.reference.surface)}
 				onpointerdown={(event) => down(event, item.reference, index)}
 				onclick={(event) => {
 					event.stopPropagation();
@@ -293,21 +276,25 @@
 		pointer-events: all;
 	}
 	polygon {
-		fill: #78aafa08;
+		fill: transparent;
 		stroke: #a2b0c5;
-		stroke-width: 0.1rem;
+		stroke-width: 0.0625rem;
 		vector-effect: non-scaling-stroke;
 		cursor: pointer;
 	}
 	polygon.selected {
-		fill: #78aafa12;
+		fill: #78aafa18;
 		stroke: #70aaff;
+		stroke-width: 0.125rem;
 	}
 	polygon.inactive {
 		stroke-dasharray: 0.3rem 0.2rem;
 	}
 	polygon.invalid {
-		fill: #a51d2c55;
+		fill: transparent;
 		stroke: #ff5364;
+	}
+	polygon.invalid.selected {
+		fill: #a51d2c18;
 	}
 </style>

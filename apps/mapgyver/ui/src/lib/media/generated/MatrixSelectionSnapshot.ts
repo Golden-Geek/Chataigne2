@@ -4,4 +4,4 @@ import type { MatrixSelection } from "./MatrixSelection";
 import type { MatrixViewCell } from "./MatrixViewCell";
 import type { MatrixViewRow } from "./MatrixViewRow";
 
-export type MatrixSelectionSnapshot = { selection: MatrixSelection, row: MatrixViewRow | null, column: ColumnSnapshot | null, cell: MatrixViewCell | null, };
+export type MatrixSelectionSnapshot = { selection: MatrixSelection, row_index: number | null, column_index: number | null, row: MatrixViewRow | null, column: ColumnSnapshot | null, cell: MatrixViewCell | null, };

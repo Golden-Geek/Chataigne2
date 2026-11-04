@@ -214,6 +214,8 @@ fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_sou
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
     let selected = read(&mut engine, selection);
     assert_eq!(selected.selection, selection);
+    assert_eq!(selected.row_index, Some(127));
+    assert_eq!(selected.column_index, Some(127));
     assert_eq!(selected.row.as_ref().unwrap().item.id, items[127]);
     assert_eq!(selected.column.as_ref().unwrap().id, columns[127]);
     assert_ne!(

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { CanvasToolbar } from 'golden_graph_ui';
 	import { untrack } from 'svelte';
 	import {
 		appState,
@@ -119,7 +120,7 @@
 	data-composition-locked={!!choice.locked}
 	data-composition-loading={view.refreshing}
 	data-composition-busy={busy}>
-	<div class="editor-toolbar">
+	{#snippet actions()}
 		<IconButton
 			icon={lockIcon}
 			label={choice.locked ? 'Unlock Composition' : 'Lock Composition'}
@@ -165,7 +166,7 @@
 					persist();
 				}} />
 		{/if}
-	</div>
+	{/snippet}
 	<SourceDropZone
 		class="editor-canvas"
 		data-composition-drop-target=""
@@ -193,6 +194,7 @@
 			</p>{/if}
 		{#if channel && composition}
 			<CompositionPreview
+				{actions}
 				{channel}
 				{composition}
 				selected={instance?.reference.instance ?? null}
@@ -210,6 +212,7 @@
 		{:else if choice.locked}<p class="editor-empty">
 				Locked Composition unavailable in this project.
 			</p>
+			<CanvasToolbar {actions} disabled frame={() => {}} home={() => {}} />
 		{:else}<p class="editor-empty">Select a Composition in Media Manager.</p>{/if}
 	</SourceDropZone>
 </section>

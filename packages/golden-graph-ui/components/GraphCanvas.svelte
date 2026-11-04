@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CanvasToolbar from './CanvasToolbar.svelte';
 	import {
 		DEFAULT_MIN_ZOOM,
 		DEFAULT_MAX_ZOOM,
@@ -318,8 +319,6 @@
 		void navigation.restoreFocus();
 	});
 	const draftPath = geometry.draftPath;
-	const resetZoom = viewport.resetZoom;
-	const handleZoomInput = viewport.handleZoomInput;
 	const selectEdge = gestures.selectEdge;
 	const selectEdgeWithKeyboard = gestures.selectEdgeWithKeyboard;
 	const startPan = gestures.startPan;
@@ -366,13 +365,7 @@
 	onwheel={handleWheel}
 	oncontextmenu={handleContextMenu}
 	ondblclick={handleDoubleClick}>
-	<div
-		class="toolbar"
-		role="group"
-		aria-label="Graph view controls"
-		onpointerdown={(event) => event.stopPropagation()}>
-		<button type="button" title="Frame selection (F)" onclick={frameSelection}>Frame</button>
-		<button type="button" title="Home (H)" onclick={home}>Home</button>
+	{#snippet finder()}
 		<button
 			bind:this={finderTrigger}
 			type="button"
@@ -380,31 +373,19 @@
 			aria-controls={finderId}
 			onclick={() => (navigation.open ? navigation.close() : navigation.show())}
 			>{worldNavigation?.findLabel ?? 'Nodes'}</button>
-		<div class="zoom-control">
-			<input
-				class="zoom-slider"
-				type="range"
-				min={effectiveMinZoom * 100}
-				max={effectiveMaxZoom * 100}
-				step="any"
-				value={camera.zoom * 100}
-				aria-label="Zoom"
-				title="Zoom"
-				oninput={handleZoomInput} />
-			<button
-				type="button"
-				class="zoom-reset"
-				aria-label="Reset zoom to 100%"
-				title="Reset zoom to 100%"
-				onclick={resetZoom}>
-				{Math.round(camera.zoom * 100)}%
-			</button>
-		</div>
-		{#if toolbarEnd}
-			<span class="toolbar-divider" aria-hidden="true"></span>
-			{@render toolbarEnd()}
-		{/if}
-	</div>
+	{/snippet}
+	<CanvasToolbar
+		zoom={camera.zoom}
+		minZoom={effectiveMinZoom}
+		maxZoom={effectiveMaxZoom}
+		frame={frameSelection}
+		{home}
+		frameLabel="Frame"
+		homeLabel="Home"
+		label="Graph view controls"
+		setZoom={viewport.setZoom}
+		navigation={finder}
+		actions={toolbarEnd} />
 	<NodeNavigator
 		{navigation}
 		panelId={finderId}
@@ -583,98 +564,6 @@
 		border: solid 0.08rem color-mix(in srgb, var(--ga-selection) 82%, transparent);
 		background: color-mix(in srgb, var(--ga-selection) 14%, transparent);
 		pointer-events: none;
-	}
-
-	.toolbar {
-		position: absolute;
-		inset-block-start: 0.7rem;
-		inset-inline-end: 0.7rem;
-		z-index: 20;
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		padding: 0.28rem;
-		border: solid 0.06rem color-mix(in srgb, var(--ga-outline) 55%, transparent);
-		border-radius: 0.5rem;
-		background: color-mix(in srgb, var(--ga-bg) 84%, transparent);
-		backdrop-filter: blur(0.5rem);
-	}
-
-	.toolbar button {
-		min-block-size: 1.65rem;
-		padding: 0.25rem 0.55rem;
-		border: 0;
-		border-radius: 0.35rem;
-		background: color-mix(in srgb, var(--ga-outline) 18%, transparent);
-		color: inherit;
-		font: inherit;
-		font-size: 0.67rem;
-	}
-
-	.toolbar button {
-		cursor: pointer;
-	}
-
-	.toolbar button:hover {
-		background: color-mix(in srgb, var(--ga-selection) 28%, transparent);
-	}
-
-	.zoom-control {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding-inline-start: 0.2rem;
-	}
-
-	.zoom-slider {
-		appearance: none;
-		inline-size: 4.8rem;
-		block-size: 0.16rem;
-		margin: 0;
-		padding: 0;
-		border: 0;
-		border-radius: 999rem;
-		background: color-mix(in srgb, var(--ga-outline) 42%, transparent);
-		opacity: 0.62;
-		cursor: pointer;
-		transition: opacity 120ms ease;
-	}
-
-	.zoom-slider:hover,
-	.zoom-slider:focus-visible {
-		opacity: 1;
-	}
-
-	.zoom-slider::-webkit-slider-thumb {
-		appearance: none;
-		inline-size: 0.62rem;
-		block-size: 0.62rem;
-		border: solid 0.08rem color-mix(in srgb, var(--ga-bg) 70%, transparent);
-		border-radius: 50%;
-		background: var(--ga-outline);
-	}
-
-	.zoom-slider::-moz-range-thumb {
-		inline-size: 0.52rem;
-		block-size: 0.52rem;
-		border: solid 0.08rem color-mix(in srgb, var(--ga-bg) 70%, transparent);
-		border-radius: 50%;
-		background: var(--ga-outline);
-	}
-
-	.toolbar .zoom-reset {
-		min-inline-size: 3.15rem;
-		padding-inline: 0.4rem;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.toolbar-divider {
-		display: inline-block;
-		inline-size: 0.06rem;
-		block-size: 1rem;
-		background: color-mix(in srgb, var(--ga-outline) 55%, transparent);
-		margin-inline: 0.1rem;
-		align-self: center;
 	}
 
 	.empty {

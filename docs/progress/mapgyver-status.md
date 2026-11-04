@@ -4,8 +4,8 @@
 
 **Verified acceptance: 52/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/5 Accepted: live Manual Detect/Auto selection, exact recovery and post-load controls.
-**Next action:** M11/6 shared Golden canvas/navigation controls and Surface selection styling; retain all remaining acceptance in the return queue.
+**Current topic:** M11/6 shared canvas controls implemented; native keyboard/history acceptance remains open.
+**Next action:** repair the native Screen keyboard sequence after Undo/Home, then verify corrected Matrix toolbar placement and the narrow peer.
 **Blocker:** none for M11/6. Original physical/timing and app-control retirement gates remain unaccepted.
 **Execution:** M11/6 alone is selected Active; M11/1–5 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
@@ -17,7 +17,8 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
+**Newly usable:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): top-center navigation/context actions and selected-only Surface styling; M11/6 remains unaccepted pending native keyboard/history, Matrix and narrow-peer checks.
+**Previously delivered:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
 **Previously delivered:** [Direct channel File controls](mapgyver-m11-inspector.md#direct-channel-file-controls): one File per Picture channel forwards the real catalog Parameter; initial assignment is one atomic import, shared editing/clear/history and the secondary asset picker work without permanent import forms.
 [Expanded typed channel controls](mapgyver-m11-inspector.md#expanded-typed-channel-controls) remain delivered.
 Color edits need no nested Parameters folder; kind/sampling controls are gone and sampling is
@@ -115,21 +116,18 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch handoff (2026-11-04):** started 14:30 CET; cutoff 15:15 CET.
-  Delivered the host-owned live catalog and inline Manual Detect; M11/5 is Accepted.
-  Golden owns Parameter adornments, lifecycle membership identity and declaration metadata
-  restoration; MapGyver owns sender policy/catalog projection. Native baseline exposed missing
-  conditional Enum metadata after load; policy/options restoration and post-load regression
-  coverage repair both the disappearance failure and the static mode widget.
-  Checks: 419 app tests pass (two explicit native/process ignores), generated contracts/four
-  callers, four catalog tests, Golden membership and constraint checks, strict all-target
-  native/process/smoke Clippy, 236 Golden UI tests, Svelte 0/0 and both formatters. Real headless
-  live metadata/mode/history/source/project flows pass, host exit 0. Native: 279/279 settled
-  receipts, no unexpected rejection, 11 independent output images, mode changes and exact
-  recovery after reload, reviewed screenshots, normal host/four owned-sender exits.
-  [Pinned receipt](evidence/mapgyver-m11-sender-selection-2026-11-04.json).
-  Progress: 52/67 gates (78%), M11 5/10 (50%), 6/12 phases. M11/6 is next selected; push this
-  milestone before its implementation batch. Original physical/timing/retirement gates remain open.
+- **Current batch (2026-11-04):** 15:13–15:58 CET; shared Golden toolbar and shortcut mapper,
+  editor action composition, selected-only Surface paint, bounded Matrix Frame metadata and
+  header clearance are implemented. Owners: Golden graph/viewport and MapGyver editors/backend.
+  Rust 419 passed/2 ignored, strict Clippy, generated contracts, Svelte 0/0, graph 60/UI 236/
+  MapGyver 90 tests, graph browser/keyboard and both Rust formatters pass. Native anchored
+  navigation and Composition manipulation pass; browser Surface Source, Matrix and invalid
+  quads pass. Final native aggregate fails ArrowLeft after Undo/Home in Screen keyboard;
+  later Matrix/narrow-peer checks were not reached. Exact next deliverable: resolve that input/
+  history sequence and verify Matrix header access plus narrow-peer controls. No gate closed;
+  M11/6 remains the only Active gate, 52/67 (78%), M11 5/10, phases 6/12. The current
+  [receipt](evidence/mapgyver-m11-canvas-controls-2026-11-04.json) pins the binary and remaining
+  checks. This checkpoint preserves useful product work without awarding partial acceptance.
 
 ## Maintenance rule
 

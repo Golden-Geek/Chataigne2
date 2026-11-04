@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, type Snippet } from 'svelte';
 	import { NativePreview, MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
@@ -21,7 +21,8 @@
 		pixelsActive,
 		move,
 		finish,
-		stop
+		stop,
+		actions
 	}: {
 		screen: ScreenSnapshot;
 		selected: SurfaceId | null;
@@ -32,6 +33,7 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		actions?: Snippet;
 	} = $props();
 	const owner = usePreview();
 	let overlays = $state<OverlayPrimitive[]>([]);
@@ -97,6 +99,7 @@
 
 <section aria-label="Screen preview">
 	<Viewport2D
+		{actions}
 		{nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={documentIdentity}

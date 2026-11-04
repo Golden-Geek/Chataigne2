@@ -96,6 +96,16 @@ export async function verifyViewportNavigation({
 			await tab(tabName).click();
 			const view = page.getByRole('application', { name: label, exact: true });
 			await view.waitFor();
+			const toolbar = view.locator('.canvas-toolbar');
+			const viewBox = await view.boundingBox(),
+				toolbarBox = await toolbar.boundingBox();
+			assert(
+				viewBox &&
+					toolbarBox &&
+					Math.abs(toolbarBox.x + toolbarBox.width / 2 - viewBox.x - viewBox.width / 2) < 1,
+				`${label} toolbar is centered`
+			);
+			assert.equal(await view.locator('.editor-toolbar').count(), 0);
 			const active = view.locator('.active-zone');
 			if (nativePage)
 				await view
@@ -162,16 +172,13 @@ export async function verifyViewportNavigation({
 			}
 			// Domain pointer input freezes any unfinished camera before hit testing.
 			await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
-			await active.dispatchEvent('pointerdown', {
-				pointerId: 99,
-				button: 0,
-				clientX: anchor.x,
-				clientY: anchor.y
-			});
+			await page.mouse.move(anchor.x, anchor.y);
+			await page.mouse.down();
 			const frozen = await view.locator('output[data-zoom]').getAttribute('data-zoom');
 			await page.waitForTimeout(180);
 			assert.equal(await view.locator('output[data-zoom]').getAttribute('data-zoom'), frozen);
-			await active.dispatchEvent('pointerup', { pointerId: 99, button: 0 });
+			await page.keyboard.press('Escape');
+			await page.mouse.up();
 			if (nativePage)
 				await view
 					.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
@@ -183,6 +190,15 @@ export async function verifyViewportNavigation({
 				domImageOverlayGeometry: true,
 				editCancelsMotion: true
 			});
+			await page.emulateMedia({ reducedMotion: 'reduce' });
+			await view.getByRole('button', { name: 'Home view', exact: true }).click();
+			await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
+			assert(
+				Math.abs(Number(await view.locator('output[data-zoom]').getAttribute('data-zoom')) - 1.2) <
+					1e-9,
+				`${label} reduced motion applies immediately`
+			);
+			await page.emulateMedia({ reducedMotion: 'no-preference' });
 		}
 		assert.deepEqual(
 			(await screens({ kind: 'InspectManager' })).snapshot,
@@ -196,6 +212,12 @@ export async function verifyViewportNavigation({
 		await post('/api/ui/project-new', {});
 		await composition.waitFor({ state: 'detached' });
 		await post('/api/ui/project-load', { path: project });
+		await page.getByRole('tab').first().click();
+		await page
+			.locator('[data-panel-id="media-manager"]')
+			.getByRole('button', { name: 'Navigation composition', exact: true })
+			.click();
+		await tab('Composition').click();
 		await composition.waitFor();
 		await page.waitForTimeout(200);
 		assert.equal(

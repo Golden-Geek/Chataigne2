@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { cameraZoomFactor } from 'golden_graph_ui/camera-geometry';
-	import IconButton from '../common/IconButton.svelte';
-	import homeIcon from '../../style/icons/viewport/home.svg';
-	import frameIcon from '../../style/icons/viewport/frame.svg';
-	import zoomInIcon from '../../style/icons/viewport/zoom-in.svg';
-	import zoomOutIcon from '../../style/icons/viewport/zoom-out.svg';
+	import { CanvasToolbar, canvasNavigationCommand } from 'golden_graph_ui';
 	import { fitSize, frameBounds, type ViewBounds, type ViewCamera } from './geometry';
 	import { createZoomMotion } from './zoom-motion';
 	let {
@@ -18,7 +14,8 @@
 		onbackgroundclick,
 		onkeydown: onEditorKeyDown,
 		onfocusout,
-		children
+		children,
+		actions
 	}: {
 		aspect: number;
 		identity: string;
@@ -33,6 +30,7 @@
 		onkeydown?(event: KeyboardEvent): void;
 		onfocusout?(event: FocusEvent): void;
 		children: Snippet;
+		actions?: Snippet;
 	} = $props();
 	let element: HTMLDivElement;
 	let width = $state(0),
@@ -127,11 +125,14 @@
 			if (event.target instanceof Element && event.target.closest('button, a, [role="button"]'))
 				return;
 			space = true;
-		} else if (event.key === 'Home' || event.key.toLowerCase() === 'h') home();
-		else if (event.key.toLowerCase() === 'f') frame();
-		else if (event.key === '+' || event.key === '=') zoom(1.2);
-		else if (event.key === '-') zoom(1 / 1.2);
-		else return;
+		} else {
+			const command = canvasNavigationCommand(event);
+			if (command === 'home') home();
+			else if (command === 'frame') frame();
+			else if (command === 'zoom-in') zoom(1.2);
+			else if (command === 'zoom-out') zoom(1 / 1.2);
+			else return;
+		}
 		event.preventDefault();
 		event.stopPropagation();
 	}
@@ -228,22 +229,15 @@
 			{@render children()}
 		</div>
 	</div>
-	<div class="navigation" data-native-preview-input-exclude role="toolbar" aria-label="View navigation">
-		<IconButton
-			icon={zoomOutIcon}
-			label="Zoom out"
-			title="Zoom out (-)"
-			onclick={() => zoom(1 / 1.2)} />
-		<output aria-label="View zoom" data-zoom={camera.zoom}>{Math.round(camera.zoom * 100)}%</output>
-		<IconButton icon={zoomInIcon} label="Zoom in" title="Zoom in (+)" onclick={() => zoom(1.2)} />
-		<IconButton
-			icon={frameIcon}
-			label="Frame selection"
-			title="Frame selection (F)"
-			disabled={!selection}
-			onclick={frame} />
-		<IconButton icon={homeIcon} label="Home view" title="Home view (H / Home)" onclick={home} />
-	</div>
+	<CanvasToolbar
+		zoom={camera.zoom}
+		minZoom={0.1}
+		maxZoom={16}
+		{frame}
+		{home}
+		canFrame={!!selection}
+		setZoom={(next) => zoom(next / camera.zoom)}
+		{actions} />
 </div>
 
 <style>
@@ -292,22 +286,5 @@
 	.dragging,
 	.dragging :global(*) {
 		cursor: grabbing !important;
-	}
-	.navigation {
-		position: absolute;
-		inset: 0.35rem 0.35rem auto auto;
-		display: flex;
-		align-items: center;
-		gap: 0.1rem;
-		padding: 0.15rem;
-		border-radius: 0.3rem;
-		background: var(--gc-color-panel, #252525);
-		color: var(--gc-color-text, #ddd);
-	}
-	output {
-		min-width: 3em;
-		text-align: center;
-		font-size: 0.75rem;
-		font-variant-numeric: tabular-nums;
 	}
 </style>

@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/6",
+  "state": "Active",
+  "binary": "target/debug/deps/MapGyver-codex-m11-canvas.exe",
+  "sha256": "D66E3CFA4D85F7F4D530DC8E6E2FD4A0980390778A2FD35211CF9C53F9567549",
+  "software": {
+    "rust_app_lib": { "passed": 419, "explicitly_ignored": 2 },
+    "strict_clippy_all_targets": "pass",
+    "svelte": "0 errors, 0 warnings",
+    "golden_graph_tests": 60,
+    "golden_ui_tests": 236,
+    "mapgyver_ui_node_tests": 90,
+    "graph_mounted_browser": "pass",
+    "graph_production_keyboard": "pass; target/qualification/p11-graph-keyboard-2026-11-04T14-34-54-355Z.jsonl",
+    "protocol_generation": "pass; Rust-generated nullable global Matrix row/column positions",
+    "formatting": "both Rust workspaces and scoped Prettier pass"
+  },
+  "native_final": {
+    "log": "target/m11-canvas-native-final.log",
+    "anchored_navigation": "pass; Screen, Surface Source and Composition, 38 intermediate frames each; project replacement and reduced motion",
+    "composition_handles": "pass; eight anchored resizes, four rotations, grouped history, Escape and tab lifetime; 43 zoom samples; no page errors",
+    "screen_keyboard": "FAIL: screen-keyboard.mjs:119, ArrowLeft after Undo/Home did not reach expected original corner minus one pixel",
+    "matrix_and_narrow_peer": "not reached in final aggregate; earlier native Matrix header interception corrected by reserving toolbar clearance, revalidation required",
+    "aggregate_exit": 1
+  },
+  "other_checks": {
+    "headless_surface_source": "pass; actual generic Parameters, calibration, crop, origin, clamping, live-before-release, Escape, source loss and history; no page errors; host exit 0",
+    "surface_source_log": "target/m11-canvas-source-final.log",
+    "headless_matrix": "pass; 64x64 bounded scroll, offscreen Inspector, history, selected Frame and font scaling",
+    "invalid_quad_browser": "pass; invalid corners, upside-down recovery, history, red outline and selected alpha 0.094; no page errors"
+  },
+  "limits": [
+    "No M11/6 acceptance credit until the native keyboard, corrected Matrix placement and narrow-peer checks pass.",
+    "DOM geometry and CDP screenshots do not establish native underlay pixel or scanout timing.",
+    "Original physical, timing and process-retirement gates remain open."
+  ]
+}

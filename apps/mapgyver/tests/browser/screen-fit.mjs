@@ -119,8 +119,8 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 	async function ready() {
 		await page.waitForFunction(
 			() =>
-				document.querySelector('[data-panel-id="screen-warp"] button[aria-label="Refresh preview"]')
-					?.disabled === false
+				document.querySelector('[data-panel-id="screen-warp"]')?.getAttribute('aria-busy') ===
+				'false'
 		);
 	}
 	async function visible(expected) {

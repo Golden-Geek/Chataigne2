@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { IconButton, type PanelProps, type PanelState } from 'golden_ui';
-	import refreshIcon from 'golden_ui/style/icons/reset.svg';
 	import fillIcon from './icons/fill.svg';
 	import fitIcon from './icons/fit.svg';
 	import type { SurfaceFitMode } from './generated/SurfaceFitMode';
@@ -51,9 +50,9 @@
 	class="workbench-editor"
 	aria-label={panel?.title ?? title ?? (editor === 'screen' ? 'Screen Warping' : 'Surface Source')}
 	data-panel-id={panelId}
-	data-panel-type={panelType}>
-	<div class="editor-toolbar">
-		<span>{editor === 'source' ? surface?.label : screen?.label}</span>
+	data-panel-type={panelType}
+	aria-busy={controller.busy || gestureState.active}>
+	{#snippet actions()}
 		{#if editor === 'screen'}
 			<IconButton
 				icon={fillIcon}
@@ -68,12 +67,7 @@
 				disabled={controller.busy || gestureState.active || !surface}
 				onclick={() => fitSurface('Fit')} />
 		{/if}
-		<IconButton
-			icon={refreshIcon}
-			label="Refresh preview"
-			disabled={controller.busy || gestureState.active}
-			onclick={() => controller.refresh()} />
-	</div>
+	{/snippet}
 	<SourceDropZone
 		class="editor-canvas"
 		data-screen-drop-target={editor === 'screen' ? '' : undefined}
@@ -101,6 +95,7 @@
 			</p>{/if}
 		{#if editor === 'screen' && screen}
 			<ScreenPreview
+				{actions}
 				{screen}
 				selected={view.selectedSurface}
 				disabled={controller.busy}

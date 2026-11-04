@@ -106,8 +106,8 @@ export async function verifyScreenKeyboard({ base, post, page: nativePage = null
 		// History replacement rebuilds the projection; start the next interaction only once ready.
 		await page.waitForFunction(
 			() =>
-				document.querySelector('[data-panel-id="screen-warp"] button[aria-label="Refresh preview"]')
-					?.disabled === false
+				document.querySelector('[data-panel-id="screen-warp"]')?.getAttribute('aria-busy') ===
+				'false'
 		);
 		await main.getByRole('button', { name: 'Home view', exact: true }).click();
 		const restored = await main.locator('.active-zone').boundingBox();

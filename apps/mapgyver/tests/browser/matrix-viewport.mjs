@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixViewportUi({ base, edit }) {
+export async function verifyMatrixViewportUi({ base, edit, page: nativePage = null }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -16,8 +16,8 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 	await matrix({ kind: 'AddColumns', count: 61 });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
 	const initial = await inspect();
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1100 } }));
 	page.setDefaultTimeout(7000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
@@ -34,7 +34,7 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	try {
-		await page.goto(base);
+		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
 			.filter({ hasText: /^Media Manager$/ })
@@ -91,12 +91,14 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 			.click();
 		await tab.click();
 		await duration.waitFor();
-		assert.equal(await duration.inputValue(), '4321.000');
-		for (const viewport of [
-			{ width: 2560, height: 1200 },
-			{ width: 1440, height: 1000 },
-			{ width: 1300, height: 900 }
-		]) {
+		assert.equal(await duration.inputValue(), '00:00:04.321');
+		for (const viewport of nativePage
+			? []
+			: [
+					{ width: 2560, height: 1200 },
+					{ width: 1440, height: 1000 },
+					{ width: 1300, height: 900 }
+				]) {
 			await page.setViewportSize(viewport);
 			await grid.waitFor();
 			assert((await grid.getByRole('gridcell').count()) <= 2048);
@@ -115,6 +117,18 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 			input.x >= outer.x && input.x + input.width <= outer.x + outer.width,
 			'narrow Inspector input stays inside its panel'
 		);
+		const toolbar = page.locator('[data-panel-id="matrix"] .canvas-toolbar');
+		await toolbar.getByRole('button', { name: 'Frame selection', exact: true }).click();
+		await grid.getByTitle('Select Column 1', { exact: true }).waitFor();
+		await grid.getByTitle('Select Layer 1', { exact: true }).waitFor();
+		assert.deepEqual(
+			await inspect(),
+			edited,
+			'Frame uses bounded selection coordinates without authoring changes'
+		);
+		assert.equal(await page.locator('[data-panel-id="matrix"] > .editor-toolbar').count(), 0);
+		assert((await grid.getByRole('gridcell').count()) <= 2048);
+		await page.evaluate(() => (document.documentElement.style.fontSize = ''));
 		await page.screenshot({ path: 'target/m07-viewport-inspector.png' });
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
 		assert.deepEqual(errors, []);
@@ -140,6 +154,8 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 		);
 		throw error;
 	} finally {
-		await browser.close();
+		if (nativePage)
+			await page.evaluate(() => (document.documentElement.style.fontSize = '')).catch(() => {});
+		await browser?.close();
 	}
 }
