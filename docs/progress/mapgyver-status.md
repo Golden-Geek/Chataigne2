@@ -4,8 +4,8 @@
 
 **Verified acceptance: 54/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/8 Active: typed output exposure implemented and native nested Group pixels verified; Cell previews remain open.
-**Next action:** bounded visible Cell previews and media/channel labels, then actual Inspector/grid and full revised native acceptance.
+**Current topic:** M11/8 Active: typed output exposure, Cell labels and shared preview identities implemented; native Cell snapshots remain open.
+**Next action:** bounded native Cell snapshots, then actual Inspector/grid exposure and full revised native acceptance.
 **Blocker:** none for M11/8. Original physical/timing and app-control retirement gates remain unaccepted.
 **Execution:** M11/8 alone is selected Active; M11/1–7 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
@@ -17,7 +17,8 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Typed Matrix output exposure](../architecture/mapgyver-matrix-output-exposure.md): Layer/Group opt-in channels preserve internal Final rendering; discovery, References, demand and retired identities honor exposure. M11/8 stays Active.
+**Newly usable:** [Matrix Cell labels](evidence/mapgyver-m11-cell-labels-2026-11-04.json) show effective `media [channel]`, follow renames and source recovery, and expose shared preview identities. Native Cell snapshots remain open; M11/8 stays Active.
+**Previously delivered:** [Typed Matrix output exposure](../architecture/mapgyver-matrix-output-exposure.md): Layer/Group opt-in channels preserve internal Final rendering; discovery, References, demand and retired identities honor exposure.
 **Previously delivered:** [Composition-owned creation](../architecture/mapgyver-owned-media.md): right-click the canvas for all supported media types; real typed children, placement, selection and single-step history need no source object in the catalog.
 **Previously delivered:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): centered navigation and contextual actions, bounded offscreen Matrix Frame, selected-only Surface paint and history-safe geometry input.
 **Previously delivered:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
@@ -30,7 +31,7 @@ M11/4 is Accepted with complete native/browser/caller/history coverage; see the 
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** actual Composition canvas creation of Reference, Solid Color,
+**Last fully accepted capability:** actual Composition canvas creation of Reference, Solid Color,
 Picture, Shared Texture, Composition and Matrix children. Backend defaults, unique labels,
 finite placement, detached subtree ownership and returned selection are shared by the typed
 command, named/generic scripts and UI. Native/browser menus, one-step Undo/Redo, toolbar
@@ -92,7 +93,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M11/5 | [Live sender control acceptance](../architecture/mapgyver-sender-selection.md): Manual String + inline Detect, Auto Enum, live metadata, exact recovery, independent GPU outputs, adapter mismatch, history and post-load mode/absence/recovery. |
 | Accepted | M11/6 | [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): public toolbar/shortcuts, contextual actions, bounded Matrix Frame, selected-only paint, native navigation/Composition/keyboard/history/source and narrow-peer checks pass. |
 | Accepted | M11/7 | [Owned creation](evidence/mapgyver-m11-composition-creation-2026-11-04.json): complete backend/catalog/command/script/template contract, actual native/headless menus and history, toolbar copy/delete, reorder, project identity and independent GPU pixels before/after reload. |
-| Active | M11/8 | Backend exposure and both-GPU nested Group/export/reload pixels pass. Next: visible Cell snapshots/labels, actual Inspector/grid, revised full native cohort and sparse/source-loss/preview retirement. [Partial evidence](evidence/mapgyver-m11-matrix-exposure-2026-11-04.json). |
+| Active | M11/8 | Backend exposure and both-GPU nested Group/export/reload pixels pass; [Cell labels/shared preview identities](evidence/mapgyver-m11-cell-labels-2026-11-04.json) pass software/browser checks. Next: native Cell snapshots, actual Inspector exposure, revised full native cohort and sparse/source-loss/preview retirement. [Exposure evidence](evidence/mapgyver-m11-matrix-exposure-2026-11-04.json). |
 | Pending | M11/9–10 | After M11/8: identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
@@ -120,18 +121,17 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch handoff (2026-11-04):** output-exposure slice delivered within the 16:33–17:18
-  CET batch. Real Expose Channel Parameters default off; stable internal Group/Layer identities,
-  authored cycle edges and Final rendering remain. Public discovery/capture/routing honors
-  visibility, including retired producers. A launch-settlement guard repair removes a reproduced
-  post-load stale capture. Checks: 425 Rust tests pass/2 ignored, strict all-target Clippy,
-  generation, Svelte 0/0, 91 UI tests and both Rust formatters. Native nested Group blends/alpha,
-  Reference export, hide/show and reload pass on both GPUs: 48 full images and normal test exit.
-  [Pinned receipt](evidence/mapgyver-m11-matrix-exposure-2026-11-04.json). No gate closed:
-  M11/8 alone remains Active, 54/67 (81%), M11 7/10, phases 6/12. Push this coherent milestone
-  before the next slice: bounded visible Cell previews and media/channel labels. Actual app
-  Inspector/grid, complete revised native fixtures and sparse/source-loss/preview retirement
-  remain required. Keep the 64-view budget and original qualification requirements intact.
+- **Current batch (2026-11-04):** 17:19–18:04 CET cutoff. Delivered the backend/grid label
+  slice and canonical preview identities; native tiles remain unfinished. Owners: Matrix view
+  DTO and grid consumer. [Evidence](evidence/mapgyver-m11-cell-labels-2026-11-04.json): 426 Rust
+  tests, 7 viewport cases, 91 UI tests, strict all-target Clippy, generation, Svelte and both
+  Rust formatters pass. Actual bundled browser checks pass labels, rename/Undo, Reference vs
+  independent copy, loss/recovery, replacement history and project roundtrip; host exits 0.
+  Next deliverable: bounded native Cell snapshots using shared textures and one presentation
+  lease; preserve the 64-view limit and existing GPU admission bounds. Actual Inspector
+  exposure, full revised native cohort, scrolling and preview retirement remain required.
+  No acceptance gate closed: 54/67 (81%), M11 7/10, phases 6/12. Previous exposure milestone
+  `0411f75e` is pushed and independently verified; this slice is ready for scoped delivery.
 
 ## Maintenance rule
 

@@ -214,7 +214,11 @@ fn cell_snapshot(engine: &AppEngine, layer: LayerId, node_id: NodeId) -> Result<
             layer,
             definition: definition.clone(),
         },
-        source_label: source.as_ref().map(|source| source.label.clone()),
+        source_label: source.as_ref().and_then(|source| {
+            let media = engine.nodes.get(engine.node_id_by_uuid(source.reference.media.0)?)?;
+            Some(format!("{} [{}]", media.node_data().meta.label, source.label))
+        }),
+        source_preview: source.as_ref().map(|source| source.reference),
         source_missing: cell.content(engine)?.is_some() && source.is_none(),
     })
 }

@@ -24,8 +24,16 @@ missing pass is charged to the existing plan limits. Internal passes still compo
 Retired producer metadata preserves its captured exposure policy: deletion cannot make an
 unexposed internal channel public while an outgoing clip keeps it alive.
 
-M11/8 remains **Active**. This slice implements backend exposure; visible Cell preview
-snapshots and `media [channel]` labels, actual app Inspector/grid acceptance, complete sparse
+Matrix viewport DTOs resolve Reference chains at the app boundary. `source_label` is the
+effective media label followed by `[channel]`; the grid displays that backend-owned value.
+`source_preview` is the effective leaf ChannelReference, so cells sharing a Reference target
+identify one preview source. Independent copies keep their own identities. These fields are
+runtime projections, never authored settings or persisted preview handles. Source loss clears
+both fields; rename, Undo and project reload resolve current metadata through the bounded
+viewport query. The authored Cell source remains unchanged.
+
+M11/8 remains **Active**. Backend exposure and Cell labels/preview identities are implemented.
+Visible native Cell snapshots, actual app Inspector/grid exposure acceptance, complete sparse
 source-loss/preview retirement and the revised full native cohort remain required. The
-window's 64-view budget is unchanged. The next slice must reuse bounded presentation rather
+window's 64-view budget is unchanged. Native thumbnails must reuse bounded presentation rather
 than create one independent live source/decoder for every visible Cell.

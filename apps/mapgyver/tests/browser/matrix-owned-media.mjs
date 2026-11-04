@@ -91,6 +91,21 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		}
 		await drop(0, false);
 		const first = await wait(inspect, (value) => value.cells.length === 1);
+		const sourceLabel = `Matrix drop source [${(await inspectMedia()).media.find((entry) => entry.id === source.media).channels[0].label}]`;
+		await wait(
+			() => panel.getByRole('gridcell').nth(0).innerText(),
+			(text) => text === sourceLabel
+		);
+		await edit({ kind: 'RenameMedia', media: source.media, label: 'Renamed source' });
+		await wait(
+			() => panel.getByRole('gridcell').nth(0).innerText(),
+			(text) => text === sourceLabel.replace('Matrix drop source', 'Renamed source')
+		);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(
+			() => panel.getByRole('gridcell').nth(0).innerText(),
+			(text) => text === sourceLabel
+		);
 		await page
 			.locator('.parameter-inspector')
 			.filter({ has: page.getByText('Column', { exact: true }) })
@@ -111,6 +126,10 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		assert.equal(copy.media_kind, 'SolidColor');
 		assert.equal(copy.channels.length, 2);
 		assert.notEqual(copy.channels[0].reference.channel, source.channel);
+		await wait(
+			() => panel.getByRole('gridcell').nth(1).innerText(),
+			(text) => text === `${copy.label} [${copy.channels[0].label}]`
+		);
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(inspect, (value) => value.cells.length === 1);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
@@ -140,7 +159,7 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		await wait(inspect, (state) => JSON.stringify(state) === JSON.stringify(second));
 		await wait(
 			() => panel.getByRole('gridcell').nth(0).innerText(),
-			(text) => !text.includes('Missing source')
+			(text) => text === sourceLabel
 		);
 		stage = 'Launched-cell replacement';
 		await panel

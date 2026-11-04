@@ -51,6 +51,96 @@ fn viewport(engine: &mut AppEngine, media: MediaId, row: u32, column: u32) -> Ma
 }
 
 #[test]
+fn cell_labels_and_previews_follow_effective_sources_without_duplicating_reference_identities() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    apply(
+        &mut engine,
+        MediaEdit::RenameMedia {
+            media: source.media,
+            label: "Red".into(),
+        },
+    );
+    apply(
+        &mut engine,
+        MediaEdit::RenameChannel {
+            reference: source,
+            label: "Main".into(),
+        },
+    );
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let row = layer(layers(&mut engine, matrix.media, None, 1)[0]);
+    let cols = columns(&mut engine, matrix.media, 3);
+    for (index, column) in cols.iter().enumerate() {
+        edit(
+            &mut engine,
+            matrix.media,
+            MatrixEdit::DropSource {
+                layer: row,
+                column: *column,
+                source: source.media.0,
+                copy: index == 2,
+            },
+        );
+    }
+    let initial = viewport(&mut engine, matrix.media, 0, 0);
+    let at = |snapshot: &MatrixViewportSnapshot, column| {
+        snapshot
+            .cells
+            .iter()
+            .find(|cell| cell.cell.definition.column == column)
+            .unwrap()
+            .clone()
+    };
+    let first = at(&initial, cols[0]);
+    let second = at(&initial, cols[1]);
+    let copy = at(&initial, cols[2]);
+    assert_eq!(first.source_label.as_deref(), Some("Red [Main]"));
+    assert_eq!(first.source_preview, Some(source));
+    assert_eq!(second.source_preview, Some(source));
+    assert_ne!(first.cell.definition.source, second.cell.definition.source);
+    let copied_source = copy.source_preview.unwrap();
+    assert_ne!(copied_source.media, source.media);
+    assert_eq!(copy.source_label.as_deref(), Some("Red [Main]"));
+    apply(
+        &mut engine,
+        MediaEdit::RenameMedia {
+            media: source.media,
+            label: "Live".into(),
+        },
+    );
+    apply(
+        &mut engine,
+        MediaEdit::RenameChannel {
+            reference: source,
+            label: "Fill".into(),
+        },
+    );
+    let history = engine.undo_len();
+    let renamed = viewport(&mut engine, matrix.media, 0, 0);
+    assert_eq!(at(&renamed, cols[0]).source_label.as_deref(), Some("Live [Fill]"));
+    assert_eq!(at(&renamed, cols[1]).source_preview, Some(source));
+    assert_eq!(at(&renamed, cols[2]).source_label.as_deref(), Some("Red [Main]"));
+    assert_eq!(engine.undo_len(), history);
+    let mut loaded = from_sparse_project_json::<AppNode>(&to_sparse_project_json_pretty(&engine).unwrap()).unwrap();
+    loaded.apply_edits().unwrap();
+    let restored = viewport(&mut loaded, matrix.media, 0, 0);
+    assert_eq!(at(&restored, cols[0]).source_preview, Some(source));
+    assert_eq!(at(&restored, cols[2]).source_preview, Some(copied_source));
+    apply(&mut engine, MediaEdit::RemoveMedia { media: source.media });
+    let missing = viewport(&mut engine, matrix.media, 0, 0);
+    assert!(at(&missing, cols[0]).source_missing);
+    assert!(at(&missing, cols[0]).source_preview.is_none());
+    assert!(at(&missing, cols[1]).source_label.is_none());
+    assert_eq!(at(&missing, cols[2]).source_preview, Some(copied_source));
+    assert!(engine.undo().unwrap());
+    assert_eq!(
+        at(&viewport(&mut engine, matrix.media, 0, 0), cols[0]).source_preview,
+        Some(source)
+    );
+}
+
+#[test]
 fn viewport_reads_are_bounded_sparse_cached_and_do_not_launch_or_change_authored_history() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);
@@ -83,6 +173,7 @@ fn viewport_reads_are_bounded_sparse_cached_and_do_not_launch_or_change_authored
     assert_ne!(last.cells[0].cell.definition.source.unwrap().media, source.media);
     assert_eq!(last.cells[0].cell.definition.source.unwrap().channel, source.channel);
     assert!(!last.cells[0].source_missing);
+    assert_eq!(last.cells[0].source_preview, Some(source));
     assert_eq!(last.playback.desired_column, None);
     let AppNode::MediaChannel(node) = engine.nodes.get(root).unwrap() else {
         panic!()
@@ -156,6 +247,7 @@ fn viewport_refreshes_structure_payload_labels_history_and_missing_source_withou
     let missing = viewport(&mut engine, matrix.media, 0, 0);
     assert!(missing.cells[0].source_missing);
     assert!(missing.cells[0].source_label.is_none());
+    assert!(missing.cells[0].source_preview.is_none());
     assert!(engine.undo().unwrap());
     assert!(!viewport(&mut engine, matrix.media, 0, 0).cells[0].source_missing);
     let mut restored = from_sparse_project_json::<AppNode>(&to_sparse_project_json_pretty(&engine).unwrap()).unwrap();

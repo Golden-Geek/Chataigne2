@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/8",
+  "gate_state": "Active",
+  "delivered": "Backend-owned media [channel] Cell labels and canonical effective preview source identities",
+  "binary": "target/debug/deps/MapGyver-codex-m118-cell-labels.exe",
+  "sha256": "5CEC5D7F584E4C5EE7C0FBBA07F44A8BCC34CD1A90550832AD79376AE6A01CD2",
+  "software": {
+    "rust": "426 passed, 3 explicit ignores; full compiled library suite after protocol generation",
+    "viewport": "7 passed, including Reference deduplication, independent copy, live renames, loss/Undo/reload, bounded 1000 x 1000 sparse viewport and history/playback neutrality",
+    "clippy": "all targets with native-qualification,application-process-fixture,native-video-smoke; -D warnings passed",
+    "svelte": "0 errors, 0 warnings",
+    "ui": "91 passed",
+    "contract": "Rust-generated MatrixViewCell and checked-in contract test passed",
+    "formatting": "root and Golden Core cargo fmt, browser Prettier and scoped diff checks passed"
+  },
+  "browser": {
+    "command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/headless/media.mjs --matrix-owned-media-ui",
+    "result": "pass; host exited normally (0)",
+    "coverage": "Actual bundled grid labels, rename/Undo refresh, Reference/Alt-copy labels, source-loss/recovery, typed Cell Inspector, cycle rejection, launched-cell replacement history and project roundtrip",
+    "log": "target/m118-cell-labels-browser.log",
+    "limitation": "Headless browser verifies DOM and host behavior; native thumbnail rendering is not implemented by this slice."
+  },
+  "remaining": [
+    "Bounded native Cell snapshot presentation and scrolling/loss/preview retirement, sharing textures instead of per-cell producers.",
+    "Actual Inspector output-exposure flows and complete revised sparse/native cohort."
+  ],
+  "acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
+}

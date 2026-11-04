@@ -251,6 +251,8 @@ pub struct MatrixViewRow {
 pub struct MatrixViewCell {
     pub cell: CellSnapshot,
     pub source_label: Option<String>,
+    /// Effective leaf identity, shared by cells that resolve through References.
+    pub source_preview: Option<crate::media::protocol::ChannelReference>,
     pub source_missing: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
