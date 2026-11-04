@@ -24,6 +24,9 @@ uuid.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 
+[build-dependencies]
+font8x8 = "=0.3.1"
+
 [target.'cfg(windows)'.build-dependencies]
 windows = { version = "=0.61.3", features = ["Win32_Graphics_Direct3D_Fxc"] }
 
@@ -44,5 +47,6 @@ windows = { version = "=0.61.3", optional = true, features = [
     "Win32_System_Threading",
     "Win32_System_Performance",
     "Win32_System_ProcessStatus",
+    "Win32_System_SystemInformation",
     "Win32_UI_WindowsAndMessaging",
 ] }

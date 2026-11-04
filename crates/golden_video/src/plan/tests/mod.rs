@@ -7,6 +7,7 @@ mod mapping;
 mod pattern;
 mod placement;
 mod regions;
+mod text;
 mod topology;
 mod validation;
 

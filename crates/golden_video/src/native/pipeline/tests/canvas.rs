@@ -9,6 +9,73 @@ fn color(rgb: [f32; 3]) -> LinearColor {
     LinearColor::from_straight(rgb[0], rgb[1], rgb[2], 1.).unwrap()
 }
 
+#[test]
+#[ignore = "requires explicitly available hardware D3D11 adapters"]
+fn hardware_canvas_text_matches_bitmap_rows_tile_lookup_spacing_and_alpha() {
+    use crate::plan::{CanvasText, CanvasTextStyle};
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let gpu = Device::new(adapter.id).unwrap();
+        let pipeline = Pipeline::new(&gpu.device).unwrap();
+        let target = Texture::new(
+            &gpu.device,
+            TextureDescriptor {
+                extent: Extent2D::new(18, 8).unwrap(),
+                format: PixelFormat::Rgba8Unorm,
+                color_encoding: ColorEncoding::Linear,
+                alpha_mode: AlphaMode::Premultiplied,
+            },
+        )
+        .unwrap();
+        let canvas = CanvasPattern::new(vec![
+            CanvasPrimitive::rectangle(UnitRect::FULL, CanvasPaint::solid(color([0., 0., 1.]))).unwrap(),
+            CanvasPrimitive::text(
+                UnitRect::FULL,
+                CanvasText::tiles(&["A", "B"]).unwrap(),
+                CanvasTextStyle {
+                    cells: [2., 1.],
+                    glyph: [0.5, 1.],
+                    inset: [0.; 2],
+                    centered: false,
+                },
+                CanvasPaint::solid(LinearColor::from_straight(1., 1., 1., 0.5).unwrap()),
+            )
+            .unwrap(),
+        ])
+        .unwrap();
+        // Independent known Basic Latin glyph rows, least-significant bit on the left.
+        for (column, rows) in [
+            (0, [12u8, 30, 51, 51, 63, 51, 51, 0]),
+            (1, [63u8, 102, 102, 62, 102, 102, 63, 0]),
+        ] {
+            let samples: Vec<_> = (0..8)
+                .flat_map(|y| {
+                    (0..8).map(move |x| {
+                        let ink = (rows[y] >> x) & 1 != 0;
+                        (
+                            [x as u32 + column * 9, y as u32],
+                            if ink { [128, 128, 255, 255] } else { [0, 0, 255, 255] },
+                        )
+                    })
+                })
+                .collect();
+            check(&gpu, &pipeline, &target, canvas.clone(), &samples);
+        }
+        check(
+            &gpu,
+            &pipeline,
+            &target,
+            canvas,
+            &[([8, 0], [0, 0, 255, 255]), ([17, 3], [0, 0, 255, 255])],
+        );
+    }
+}
+
 fn check(gpu: &Device, pipeline: &Pipeline, target: &Texture, canvas: CanvasPattern, samples: &[([u32; 2], [u8; 4])]) {
     assert!(!samples.is_empty() && samples.len() <= 64);
     let layer = Layer {

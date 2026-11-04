@@ -450,6 +450,7 @@ impl Backend for D3d11Backend {
         let mut gpu = native.timing.as_mut().map(|timing| timing.begin(context, token));
         let inputs_begin = recorder.and_then(Recorder::stamp);
         let pipeline = &native.pipeline;
+        pipeline.begin_frame(time);
         for external in plan.external_textures() {
             if !matches!(external.source, Some(ExternalSource::Spout(_))) {
                 continue;
@@ -666,6 +667,9 @@ impl Backend for D3d11Backend {
         self.control
             .update(|state| state.submitted = state.submitted.saturating_add(1));
         let removed = native.device.removed();
+        if !removed {
+            pipeline.submitted(time);
+        }
         if let Some(cpu) = cpu {
             let measured = cpu.finish();
             recorder.unwrap().push(DiagnosticEvent::FrameCpu(FrameCpuTrace {

@@ -1,6 +1,6 @@
 //! Immutable, app-neutral render plans prepared before any backend resources are created.
 
-mod canvas;
+pub(crate) mod canvas;
 mod compile;
 mod envelope;
 mod error;
@@ -11,7 +11,10 @@ mod placement;
 mod region;
 mod weight;
 
-pub use canvas::{CanvasPaint, CanvasPattern, CanvasPrimitive, CanvasShape, MAX_CANVAS_PRIMITIVES};
+pub use canvas::{
+    CanvasPaint, CanvasPattern, CanvasPrimitive, CanvasShape, CanvasText, CanvasTextStyle, MAX_CANVAS_PRIMITIVES,
+    MAX_CANVAS_TEXT_BYTES,
+};
 pub use envelope::{InterpolationCurve, OpacityEnvelope};
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};

@@ -34,6 +34,7 @@ cbuffer PatternParameters : register(b1) {
     uint3 pattern_reserved;
     float4 pattern_colors[8];
     CanvasPrimitive canvas_primitives[32];
+    uint4 canvas_text[512];
 };
 
 cbuffer OverlayParameters : register(b2) {
@@ -186,11 +187,31 @@ float4 ps_mapped(Vertex input) : SV_Target {
     return finish_pixel(input, source);
 }
 
+float4 canvas_glyph(CanvasPrimitive item, float2 p) {
+    float2 tile = floor(p * item.geometry0.xy);
+    if (any(tile >= ceil(item.geometry0.xy))) return 0;
+    float2 local = p - tile / item.geometry0.xy - item.geometry1.xy;
+    if (any(local < 0) || local.y >= item.geometry0.w) return 0;
+    uint character = (uint)floor(local.x / item.geometry0.z);
+    if (character >= item.metadata.w) return 0;
+    uint columns = (uint)ceil(item.geometry0.x);
+    uint offset = item.metadata.z + ((uint)tile.y * columns + (uint)tile.x) * item.metadata.w + character;
+    if (offset >= 8192) return 0;
+    uint word = canvas_text[offset / 16][(offset / 4) % 4];
+    uint code = (word >> ((offset % 4) * 8)) & 127;
+    uint2 pixel = (uint2)floor(float2(frac(local.x / item.geometry0.z) * 9, local.y / item.geometry0.w * 8));
+    if (pixel.x >= 8 || pixel.y >= 8) return 0;
+    uint2 glyph = canvas_font[code];
+    uint row = ((pixel.y < 4 ? glyph.x : glyph.y) >> ((pixel.y % 4) * 8)) & 255;
+    return ((row >> pixel.x) & 1) != 0 ? item.colors[0] : 0;
+}
+
 float4 canvas_primitive(CanvasPrimitive item, float2 uv) {
     float2 p = (uv - item.bounds.xy) / item.bounds.zw;
     if (any(p < 0) || any(p > 1)) return 0;
     uint kind = item.metadata.x;
     if (kind == 6) return sample_source(p) * item.colors[0].a;
+    if (kind == 7) return canvas_glyph(item, p);
     if (kind == 1) {
         uint2 cell = (uint2)floor(p * item.geometry0.xy);
         return item.colors[(cell.x + cell.y) & 1];

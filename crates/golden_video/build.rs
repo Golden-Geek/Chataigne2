@@ -22,8 +22,23 @@ fn compile_native_shaders() {
         unsafe { std::slice::from_raw_parts(blob.GetBufferPointer().cast(), blob.GetBufferSize()) }
     }
 
-    let source = std::fs::read("src/native/shader.hlsl").expect("read Golden Video HLSL");
+    use font8x8::UnicodeFonts;
+    // font8x8's public-domain Basic Latin ROM; no runtime font/device allocation.
+    let mut source = String::from("static const uint2 canvas_font[128] = {\n");
+    for code in 0..128u8 {
+        let rows = font8x8::BASIC_FONTS.get(char::from(code)).unwrap_or([0; 8]);
+        writeln!(
+            source,
+            "uint2({}u, {}u),",
+            u32::from_le_bytes(rows[..4].try_into().unwrap()),
+            u32::from_le_bytes(rows[4..].try_into().unwrap())
+        )
+        .unwrap();
+    }
+    source.push_str("};\n");
+    source.push_str(&std::fs::read_to_string("src/native/shader.hlsl").expect("read Golden Video HLSL"));
     let output = PathBuf::from(std::env::var_os("OUT_DIR").expect("Cargo sets OUT_DIR"));
+    std::fs::write(output.join("native_shader.hlsl"), &source).expect("write combined shader source");
     let mut generated = String::from("// Generated fixed shader bytecode; no native object ownership.\n");
     for (name, entry, profile, file) in [
         ("VERTEX", s!("vs_main"), s!("vs_5_0"), "vs_main.dxbc"),

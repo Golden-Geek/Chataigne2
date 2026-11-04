@@ -10,7 +10,7 @@ pub(in crate::native) mod pixels;
 
 #[test]
 fn embedded_native_shader_compiles_all_real_entrypoints() {
-    let source = include_str!("../shader.hlsl");
+    let source = include_str!(concat!(env!("OUT_DIR"), "/native_shader.hlsl"));
     for (entry, profile) in [
         (s!("vs_main"), s!("vs_5_0")),
         (s!("ps_main"), s!("ps_5_0")),

@@ -27,7 +27,7 @@ fn bitmap() -> std::sync::Arc<crate::image::ImageData> {
 fn immutable_canvas_bitmap_binding_budget_and_lifetime_are_explicit() {
     let image = bitmap();
     let command = CanvasPrimitive::image(UnitRect::FULL, crate::Opacity::OPAQUE).unwrap();
-    assert!(CanvasPattern::new(vec![command]).is_none());
+    assert!(CanvasPattern::new(vec![command.clone()]).is_none());
     assert!(
         CanvasPattern::with_image(
             vec![CanvasPrimitive::rectangle(UnitRect::FULL, CanvasPaint::solid(LinearColor::TRANSPARENT)).unwrap()],
@@ -84,7 +84,7 @@ fn canvas_bitmap_metadata_and_pixels_are_charged_once_per_shared_image() {
     let command = CanvasPrimitive::image(UnitRect::FULL, crate::Opacity::OPAQUE).unwrap();
     let make = |image| Layer {
         source: LayerSource::Pattern(Pattern::Canvas(
-            CanvasPattern::with_image(vec![command], image).unwrap(),
+            CanvasPattern::with_image(vec![command.clone()], image).unwrap(),
         )),
         opacity: crate::Opacity::OPAQUE,
         opacity_envelope: None,
@@ -166,7 +166,7 @@ fn canvas_rejects_unbounded_nonfinite_and_singular_commands_before_retention() {
     let paint = CanvasPaint::solid(LinearColor::TRANSPARENT);
     let primitive = CanvasPrimitive::rectangle(UnitRect::FULL, paint).unwrap();
     assert!(CanvasPattern::new(vec![]).is_none());
-    assert!(CanvasPattern::new(vec![primitive; MAX_CANVAS_PRIMITIVES]).is_some());
+    assert!(CanvasPattern::new(vec![primitive.clone(); MAX_CANVAS_PRIMITIVES]).is_some());
     assert!(CanvasPattern::new(vec![primitive; MAX_CANVAS_PRIMITIVES + 1]).is_none());
     assert!(CanvasPrimitive::grid(UnitRect::FULL, [f32::NAN, 1.], [0.1; 2], paint).is_none());
     assert!(CanvasPrimitive::line(UnitRect::FULL, [0.; 2], [0.; 2], 0.1, 1., paint).is_none());

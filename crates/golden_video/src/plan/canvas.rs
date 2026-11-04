@@ -2,6 +2,9 @@
 use super::UnitRect;
 use crate::{LinearColor, Opacity};
 use std::{sync::Arc, time::Duration};
+mod text;
+pub(crate) use text::TextSource;
+pub use text::{CANVAS_LABEL_BYTES, CanvasText, CanvasTextStyle, MAX_CANVAS_TEXT_BYTES};
 
 /// Maximum primitive count in one admitted procedural canvas.
 pub const MAX_CANVAS_PRIMITIVES: usize = 32;
@@ -24,6 +27,8 @@ pub enum CanvasShape {
     Bars,
     /// An immutable bitmap sampled inside the rectangle.
     Image,
+    /// Fixed-font text, optionally tiled or resolved from render-boundary telemetry.
+    Text,
 }
 
 /// A finite color or shared-clock rainbow; product layout and timing policy remain app-owned.
@@ -50,13 +55,14 @@ impl CanvasPaint {
 }
 
 /// An admitted shape; geometry and paint are immutable after construction.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CanvasPrimitive {
     pub(crate) shape: CanvasShape,
     pub(crate) bounds: UnitRect,
     pub(crate) geometry: [[f32; 4]; 2],
     pub(crate) paint: CanvasPaint,
     pub(crate) colors: [LinearColor; 8],
+    pub(crate) text: Option<CanvasText>,
 }
 impl CanvasPrimitive {
     fn new(shape: CanvasShape, bounds: UnitRect, paint: CanvasPaint) -> Option<Self> {
@@ -66,6 +72,7 @@ impl CanvasPrimitive {
             geometry: [[0.; 4]; 2],
             paint,
             colors: [LinearColor::TRANSPARENT; 8],
+            text: None,
         })
     }
     /// A filled rectangle.
@@ -154,6 +161,19 @@ impl CanvasPrimitive {
             CanvasPaint::solid(LinearColor::from_straight(1., 1., 1., opacity.get()).expect("checked opacity")),
         )
     }
+    /// A bounded text run or tiled label field, evaluated in the same draw as other shapes.
+    pub fn text(bounds: UnitRect, text: CanvasText, style: CanvasTextStyle, paint: CanvasPaint) -> Option<Self> {
+        if !style.valid(&text) {
+            return None;
+        }
+        let mut result = Self::new(CanvasShape::Text, bounds, paint)?;
+        result.geometry = [
+            [style.cells[0], style.cells[1], style.glyph[0], style.glyph[1]],
+            [style.inset[0], style.inset[1], u8::from(style.centered) as f32, 0.],
+        ];
+        result.text = Some(text);
+        Some(result)
+    }
     /// The admitted normalized placement.
     pub fn bounds(&self) -> UnitRect {
         self.bounds
@@ -190,6 +210,15 @@ impl CanvasPattern {
         if primitives.is_empty() || primitives.len() > MAX_CANVAS_PRIMITIVES {
             return None;
         }
+        if primitives
+            .iter()
+            .filter_map(|item| item.text.as_ref())
+            .map(CanvasText::reserved_bytes)
+            .sum::<usize>()
+            > MAX_CANVAS_TEXT_BYTES
+        {
+            return None;
+        }
         let needs_image = primitives.iter().any(|primitive| primitive.shape == CanvasShape::Image);
         (needs_image == image.is_some()).then(|| Self {
             primitives: primitives.into(),
@@ -212,7 +241,14 @@ impl CanvasPattern {
         self.primitives.as_ptr() as usize
     }
     pub(crate) fn retained_bytes(&self) -> usize {
-        self.primitives.len() * size_of::<CanvasPrimitive>() + 2 * size_of::<usize>()
+        self.primitives.len() * size_of::<CanvasPrimitive>()
+            + 2 * size_of::<usize>()
+            + self
+                .primitives
+                .iter()
+                .filter_map(|item| item.text.as_ref())
+                .map(CanvasText::retained_bytes)
+                .sum::<usize>()
     }
 }
 

@@ -3,7 +3,7 @@
 use super::protocol::Calibration;
 use golden_video::{
     Extent2D, LinearColor, Opacity,
-    plan::{CanvasPaint, CanvasPattern, CanvasPrimitive, Pattern, UnitRect},
+    plan::{CanvasPaint, CanvasPattern, CanvasPrimitive, CanvasText, CanvasTextStyle, Pattern, UnitRect},
 };
 use std::time::Duration;
 mod assets;
@@ -67,7 +67,7 @@ pub(super) fn work_count(mode: Calibration, extent: Extent2D) -> usize {
         return 1;
     }
     let layout = layout(extent);
-    6 + usize::from(layout.brightness.is_some()) + usize::from(layout.colors.is_some())
+    10 + usize::from(layout.brightness.is_some()) + usize::from(layout.colors.is_some())
 }
 
 fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>) -> Pattern {
@@ -97,6 +97,7 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
     if let Some(bounds) = layout.colors {
         primitives.push(CanvasPrimitive::bars(bounds, palette()).unwrap());
     }
+    primitives.push(cell_labels(&layout, width, height));
     let stroke = CanvasPaint::solid(color(0.65, 0.65, 0.65));
     primitives.push(
         CanvasPrimitive::ellipse(layout.circle, (2. * line_pixels / width.min(height)).min(0.25), stroke).unwrap(),
@@ -125,7 +126,78 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
         .unwrap(),
     );
     primitives.push(CanvasPrimitive::image(layout.logo, Opacity::OPAQUE).expect("checked logo placement"));
+    let diameter = width.min(height);
+    let text_width = diameter * 0.6;
+    let text_height = diameter * 0.035;
+    let label = |y: f32, text: CanvasText| {
+        let bounds = UnitRect {
+            x: (width - text_width) / (2. * width),
+            y: y / height,
+            width: text_width / width,
+            height: text_height / height,
+        };
+        CanvasPrimitive::text(
+            bounds,
+            text,
+            CanvasTextStyle {
+                cells: [1.; 2],
+                glyph: [diameter * 0.02 * 9. / 8. / text_width, diameter * 0.02 / text_height],
+                inset: [0., 0.],
+                centered: true,
+            },
+            CanvasPaint::solid(color(0.95, 0.95, 0.95)),
+        )
+        .expect("bounded centered calibration text")
+    };
+    primitives.push(label(
+        layout.logo.y * height - diameter * 0.05,
+        CanvasText::local_time(),
+    ));
+    let below = (layout.logo.y + layout.logo.height) * height + diameter * 0.025;
+    primitives.push(label(
+        below,
+        CanvasText::literal(&format!("{} x {}", extent.width(), extent.height())).unwrap(),
+    ));
+    primitives.push(label(below + text_height, CanvasText::frame_rate()));
     Pattern::Canvas(CanvasPattern::with_image(primitives, image).expect("bounded calibration geometry/bitmap"))
+}
+
+fn cell_labels(layout: &CalibrationLayout, width: f32, height: f32) -> CanvasPrimitive {
+    let labels = cell_names(layout.cells);
+    let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
+    let glyph_height = (layout.cell_pixels * 0.12).min(width.min(height) * 0.05);
+    CanvasPrimitive::text(
+        UnitRect::FULL,
+        CanvasText::tiles(&refs).expect("at most 32 by 32 labels"),
+        CanvasTextStyle {
+            cells: layout.cells,
+            glyph: [glyph_height * 9. / 8. / width, glyph_height / height],
+            inset: [
+                (layout.cell_pixels * 0.06 / width).min(1.),
+                (layout.cell_pixels * 0.06 / height).min(1.),
+            ],
+            centered: false,
+        },
+        CanvasPaint::solid(LinearColor::from_straight(0.5, 0.5, 0.5, 0.55).unwrap()),
+    )
+    .expect("bounded cell label geometry")
+}
+
+fn cell_names(cells: [f32; 2]) -> Vec<String> {
+    let columns = cells[0].ceil() as usize;
+    let rows = cells[1].ceil() as usize;
+    (0..rows)
+        .flat_map(|row| {
+            (0..columns).map(move |column| {
+                let letter = char::from(b'A' + (column % 26) as u8);
+                if column < 26 {
+                    format!("{letter}{}", row + 1)
+                } else {
+                    format!("A{letter}{}", row + 1)
+                }
+            })
+        })
+        .collect()
 }
 
 fn palette() -> [LinearColor; 8] {

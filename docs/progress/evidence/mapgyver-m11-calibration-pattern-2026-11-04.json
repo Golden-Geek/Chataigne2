@@ -3,8 +3,8 @@
 	"state": "Active",
 	"accepted": false,
 	"date": "2026-11-04",
-	"scope": "Geometry and centered immutable bitmap slices of the full official Surface calibration pattern",
-	"source_base": "a90a2f3d414e297b92f5e93c43e413bfff41dabe",
+	"scope": "Complete calibration drawing implementation; full actual-app/native qualification remains open",
+	"source_base": "c1599dba21c2d3d282e1cb9b942aaf2b28baad71",
 	"implemented": [
 		"App-owned grey square checker cells adapted to actual Screen pass extent, including fractional edge cells",
 		"Second row from top black-to-white palette and second row from bottom color palette",
@@ -14,22 +14,25 @@
 		"At most 32 primitives; existing work/dependency admission charges actual primitive counts in Golden and app preparation",
 		"Shared retained display-list storage charged once, heap-free frame sampling, and unchanged authored source/crop restoration when calibration is Off",
 		"Centered supplied 512x512 MapGyver logo through an app-neutral immutable Canvas bitmap operand; proper aspect at every calibrated canvas size",
-		"Scoped weak app memoization, bounded PNG preparation, deduplicated CPU/GPU image storage, and native texture lifetime leases without a media producer or receiver"
+		"Scoped weak app memoization, bounded PNG preparation, deduplicated CPU/GPU image storage, and native texture lifetime leases without a media producer or receiver",
+		"Bounded printable ASCII and tiled labels using a compiled public-domain bitmap font; no per-frame image upload",
+		"Subtle A1/B2 cell labels, local HH:MM:SS.mmm above the logo, logical resolution and measured successful renderer FPS below",
+		"Render-worker local clock sampling and allocation-free live text formatting; measured monotonic FPS windows with unavailable/reset behavior and no additional timer or render demand"
 	],
 	"software": {
 		"mapgyver_library": {
-			"passed": 437,
-			"ignored": 2,
-			"log": "target/m1110-logo-software-final.log"
+			"passed": 438,
+			"ignored": 3,
+			"log": "target/m1110-text-software-final.log"
 		},
 		"golden_video_d3d11_library": {
-			"passed": 195,
-			"ignored": 25,
-			"log": "target/m1110-logo-software-final.log"
+			"passed": 208,
+			"ignored": 30,
+			"log": "target/m1110-text-software-final.log"
 		},
 		"strict_all_targets": {
 			"passed": true,
-			"log": "target/m1110-logo-clippy-final.log",
+			"log": "target/m1110-text-clippy.log",
 			"features": "native-qualification,application-process-fixture,native-video-smoke,golden_video/d3d11"
 		},
 		"contracts": "No transport or authored protocol change; generated contracts and UI consumers unchanged",
@@ -77,18 +80,18 @@
 	},
 	"app_build": {
 		"passed": true,
-		"binary": "target/debug/MapGyver-codex-m1110-logo.exe",
-		"sha256": "E903F1C1346ED190BB639297045AC410DBBC700742D30D61E199C4A0C8DF8440",
-		"log": "target/m1110-logo-build.log",
+		"binary": "target/debug/MapGyver-codex-m1110-text.exe",
+		"sha256": "0A1CA53C61D1A6E1C6E42483C718D56C64709D7E7514F652F04CB96DFB5A9A0F",
+		"log": "target/m1110-text-build.log",
 		"limit": "Isolated native executable; user's running app and sender preserved. No release or package qualification claimed"
 	},
 	"resource_change": {
 		"pattern_constant_bytes_before": 160,
-		"pattern_constant_bytes_after": 6816,
-		"additional_fixed_bytes_per_renderer": 6656,
+		"pattern_constant_bytes_after": 15008,
+		"additional_fixed_bytes_per_renderer": 14848,
 		"charged": true,
 		"existing_budgets_increased": "GPU/work/producer and retained production qualification budgets unchanged; image-bearing functional fixture has explicit CPU capacities, with old small-capacity rejection retained",
-		"normal_calibration_primitives": 8,
+		"normal_calibration_primitives": 12,
 		"immutable_bitmap": {
 			"rgba_bytes": 1048576,
 			"source": "apps/mapgyver/assets/mapgyver-icon.png",
@@ -103,9 +106,6 @@
 		}
 	},
 	"remaining": [
-		"Subtle row/column labels such as A1/B2 through bounded reusable text primitives",
-		"Surface resolution and actual measured FPS below the logo",
-		"Current local system time with milliseconds above the logo, sampled at an IO/render boundary",
 		"Complete app/native landscape, portrait, square, 4K and resize/warp output checks, including text readability, live timing, routing restoration and bounded animation demand"
 	],
 	"progress": {
@@ -114,6 +114,29 @@
 		"percent": 84,
 		"m11_verified": 9,
 		"m11_total": 10
+	},
+	"text_slice": {
+		"accepted_full_gate": false,
+		"max_characters_per_canvas": 8192,
+		"max_line_characters": 64,
+		"max_tile_labels": 1024,
+		"max_label_characters": 8,
+		"pattern_constant_bytes": 15008,
+		"normal_app_primitive_count": 12,
+		"native_tests_passed": 4,
+		"native_log": "target/m1110-text-native.log",
+		"glyph_landmarks": 260,
+		"glyph_tolerance": "1/255",
+		"adapters": ["dxgi:00000000:00015b69", "dxgi:00000000:00016022"],
+		"legacy_pixels": 448,
+		"legacy_log": "target/m1110-text-legacy-native.log",
+		"native_build_log": "target/m1110-text-build.log",
+		"app_binary": "target/debug/MapGyver-codex-m1110-text.exe",
+		"app_sha256": "0A1CA53C61D1A6E1C6E42483C718D56C64709D7E7514F652F04CB96DFB5A9A0F",
+		"test_binary": "target/debug/deps/golden_video-cae939cf777f67be.exe",
+		"test_sha256": "6E5A070CC0FD63F6D15C54A66D9BD533213628290E9097E19609AD6D0B36B837",
+		"initial_failure": "One test compiled the raw HLSL without its generated font ROM; corrected to use the same combined source as production; final entrypoint and bytecode-parity tests pass",
+		"limits": "Kernel pixels and deterministic app layout/binding tests establish implementation. Complete branded actual-app output/readability/live telemetry/warp/resize/routing/demand remains required. No retained qualification budget changed."
 	},
 	"native_bitmap": {
 		"passed": true,

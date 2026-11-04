@@ -17,11 +17,12 @@ mod overlay;
 mod pattern;
 use crate::{AlphaMode, ColorEncoding, LinearColor};
 use pattern::PatternParameters;
+use std::cell::Cell;
 
 use super::texture::Texture;
 
 #[cfg(test)]
-const SHADER: &str = include_str!("shader.hlsl");
+const SHADER: &str = include_str!(concat!(env!("OUT_DIR"), "/native_shader.hlsl"));
 
 mod shaders {
     include!(concat!(env!("OUT_DIR"), "/native_shaders.rs"));
@@ -81,6 +82,8 @@ struct DrawSettings {
 
 /// All fallible shader/state allocation precedes frame submission.
 pub(super) struct Pipeline {
+    frame_sampler: Cell<pattern::frame::FrameSampler>,
+    frame_text: Cell<pattern::frame::FrameText>,
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
     mapped_pixel: ID3D11PixelShader,
@@ -95,6 +98,16 @@ pub(super) struct Pipeline {
 }
 
 impl Pipeline {
+    pub(super) fn begin_frame(&self, time: golden_time::TimeSnapshot) {
+        let mut sampler = self.frame_sampler.get();
+        self.frame_text.set(sampler.begin(time));
+        self.frame_sampler.set(sampler);
+    }
+    pub(super) fn submitted(&self, time: golden_time::TimeSnapshot) {
+        let mut sampler = self.frame_sampler.get();
+        sampler.submitted(time);
+        self.frame_sampler.set(sampler);
+    }
     pub(super) fn new(device: &ID3D11Device) -> Result<Self> {
         let mut vertex = None;
         let mut pixel = None;
@@ -143,6 +156,8 @@ impl Pipeline {
         }
         let (overlay_pixel, overlay_constants, overlay_blend) = overlay::prepare(device)?;
         Ok(Self {
+            frame_sampler: Cell::default(),
+            frame_text: Cell::default(),
             overlay_pixel,
             overlay_constants,
             overlay_blend,
@@ -300,7 +315,7 @@ impl Pipeline {
         // Every resource view is unbound before returning, avoiding read/write/retirement hazards.
         unsafe {
             if let Some(pattern) = &pattern {
-                let data = PatternParameters::new(pattern, mapping.is_some());
+                let data = PatternParameters::with_frame(pattern, mapping.is_some(), self.frame_text.get());
                 context.UpdateSubresource(
                     &self.pattern_constants,
                     0,

@@ -1,4 +1,7 @@
+use crate::plan::canvas::{CANVAS_LABEL_BYTES, MAX_CANVAS_TEXT_BYTES, TextSource};
 use crate::plan::{CanvasPrimitive, CanvasShape, MAX_CANVAS_PRIMITIVES, Pattern};
+pub(super) mod frame;
+use frame::{AsciiLine, FrameText};
 
 #[cfg(test)]
 mod tests;
@@ -51,10 +54,15 @@ pub(super) struct PatternParameters {
     reserved: [u32; 3],
     colors: [[f32; 4]; 8],
     primitives: [PrimitiveParameters; MAX_CANVAS_PRIMITIVES],
+    text: [[u32; 4]; MAX_CANVAS_TEXT_BYTES / 16],
 }
 
 impl PatternParameters {
+    #[cfg(test)]
     pub(super) fn new(pattern: &Pattern, mapped: bool) -> Self {
+        Self::with_frame(pattern, mapped, FrameText::default())
+    }
+    pub(super) fn with_frame(pattern: &Pattern, mapped: bool, frame: FrameText) -> Self {
         match pattern {
             Pattern::Grid(grid) => {
                 let mut colors = [[0.0; 4]; 8];
@@ -68,6 +76,7 @@ impl PatternParameters {
                     reserved: [0; 3],
                     colors,
                     primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
+                    text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
                 }
             }
             Pattern::Bars(colors) => Self {
@@ -78,6 +87,7 @@ impl PatternParameters {
                 reserved: [0; 3],
                 colors: colors.map(|color| color.components()),
                 primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
+                text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
             },
             Pattern::Canvas(canvas) => {
                 let mut result = Self {
@@ -88,9 +98,38 @@ impl PatternParameters {
                     reserved: [canvas.primitives().len() as u32, 0, 0],
                     colors: [[0.; 4]; 8],
                     primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
+                    text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
                 };
+                let mut offset = 0;
                 for (target, primitive) in result.primitives.iter_mut().zip(canvas.primitives()) {
                     *target = PrimitiveParameters::new(primitive, canvas.monotonic_nanos);
+                    if let Some(text) = &primitive.text {
+                        let line;
+                        let bytes = match text.source {
+                            TextSource::LocalTime => {
+                                line = AsciiLine::clock(frame);
+                                &line.bytes[..line.len]
+                            }
+                            TextSource::FrameRate => {
+                                line = AsciiLine::fps(frame);
+                                &line.bytes[..line.len]
+                            }
+                            _ => &text.bytes,
+                        };
+                        target.metadata[2] = offset as u32;
+                        target.metadata[3] = if text.source == TextSource::Tiles {
+                            CANVAS_LABEL_BYTES as u32
+                        } else {
+                            bytes.len() as u32
+                        };
+                        if target.geometry[1][2] != 0. {
+                            target.geometry[1][0] = (1. - bytes.len() as f32 * target.geometry[0][2]) * 0.5;
+                        }
+                        for &byte in bytes {
+                            result.text[offset / 16][(offset / 4) % 4] |= u32::from(byte) << ((offset % 4) * 8);
+                            offset += 1;
+                        }
+                    }
                 }
                 result
             }
@@ -99,4 +138,4 @@ impl PatternParameters {
 }
 
 const _: () = assert!(size_of::<PrimitiveParameters>() == 208);
-const _: () = assert!(size_of::<PatternParameters>() == 6816);
+const _: () = assert!(size_of::<PatternParameters>() == 15008);
