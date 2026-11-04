@@ -82,7 +82,7 @@ export async function verifyNativePreviewCadence({ page, edit, post, nativePid, 
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		const screenView = page.locator('[data-panel-id="screen-warp"] .native-preview').first();
 		await page.waitForFunction(() => {

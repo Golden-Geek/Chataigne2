@@ -100,9 +100,9 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 	}
 	try {
 		if (!nativePage) await page.goto(base);
-		await tab('Screen Manager').click();
+		await tab('Screens').click();
 		await page
-			.locator('section[aria-label="Screen Manager"]')
+			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: 'Selection screen', exact: true })
 			.click();
 		await tab('Screen Warping').click();

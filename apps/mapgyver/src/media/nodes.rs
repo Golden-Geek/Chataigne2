@@ -22,7 +22,7 @@ pub struct MediaManagerNode {
 
 impl MediaManagerNode {
     pub(crate) fn new() -> Self {
-        let mut data = NodeData::new("Media Manager".into());
+        let mut data = NodeData::new("Medias".into());
         data.meta.decl_id = golden_core::node::DeclId("mapgyver_media_manager".into());
         Self {
             data,

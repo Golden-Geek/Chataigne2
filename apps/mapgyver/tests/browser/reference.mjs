@@ -48,9 +48,9 @@ export async function verifyReferenceUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
 		await page.getByRole('menuitem', { name: 'Reference', exact: true }).click();
 		await parameter('Target').waitFor();

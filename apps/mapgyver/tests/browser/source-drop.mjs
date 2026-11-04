@@ -58,8 +58,8 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 		await wait(read, (value) => isDeepStrictEqual(value, after));
 	}
 	async function mediaLabel(media, channel = null) {
-		await tab('Media Manager').click();
-		const manager = panel('Media Manager');
+		await tab('Medias').click();
+		const manager = panel('Medias');
 		const parent = manager.getByRole('treeitem', { name: media.label, exact: true });
 		const parentLabel = parent.getByRole('button', { name: media.label, exact: true });
 		if (!channel) return parentLabel;
@@ -151,8 +151,8 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 		const first = solid.channels[0].reference,
 			second = solid.channels[1].reference;
 		stage = 'Screen Media background drop';
-		await tab('Screen Manager').click();
-		await panel('Screen Manager')
+		await tab('Screens').click();
+		await panel('Screens')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.click();
 		await page.getByRole('menuitem', { name: 'Screen', exact: true }).click();
@@ -192,8 +192,8 @@ export async function verifySourceDropUi({ base, post, edit, inspectMedia }) {
 		assert.deepEqual(snapshot.screens[0].surfaces[2].definition.source, second);
 		await history(screens, beforeChannel, snapshot);
 		stage = 'Surface source replacement preserves Parameters and peers';
-		await tab('Screen Manager').click();
-		await panel('Screen Manager')
+		await tab('Screens').click();
+		await panel('Screens')
 			.getByRole('button', { name: mediaSurface.label, exact: true })
 			.click();
 		await parameters.parameter('Opacity').waitFor();

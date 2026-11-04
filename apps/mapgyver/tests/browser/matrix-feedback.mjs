@@ -72,15 +72,15 @@ export async function verifyMatrixFeedback({ page, post, edit }) {
 		await page.reload();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
-			.getByRole('region', { name: 'Media Manager', exact: true })
+			.getByRole('region', { name: 'Medias', exact: true })
 			.getByRole('button', { name: 'Native Matrix feedback', exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		const column = (index) =>

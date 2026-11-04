@@ -63,7 +63,7 @@ export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) 
 				viewport: { row_start: 0, row_count: 16, column_start: 0, column_count: 8 }
 			});
 		await page.goto(base);
-		const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
+		const tab = page.getByRole('tab').filter({ hasText: /^Matrix(?::|$)/ });
 		await tab.click();
 		const panel = page.locator('section[aria-label="Matrix"]');
 		const properties = page.locator('.inspector');
@@ -97,9 +97,9 @@ export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) 
 			const before = await inspectMedia();
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Media Manager$/ })
+				.filter({ hasText: /^Medias$/ })
 				.click();
-			const manager = page.getByRole('region', { name: 'Media Manager', exact: true });
+			const manager = page.getByRole('region', { name: 'Medias', exact: true });
 			await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
 			await page.getByRole('menuitem', { name: 'Matrix', exact: true }).click();
 			const catalog = await wait(inspectMedia, (state) =>
@@ -184,10 +184,10 @@ export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) 
 		);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
-			.getByRole('region', { name: 'Media Manager', exact: true })
+			.getByRole('region', { name: 'Medias', exact: true })
 			.getByRole('button', { name: 'Review Matrix', exact: true })
 			.click();
 		await tab.click();

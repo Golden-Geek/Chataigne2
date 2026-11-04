@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href="/favicon.svg" />
+	<link rel="icon" type="image/png" href="/favicon.png" />
 </svelte:head>
 
 <ApplicationRoot expectedApplicationId="mapgyver" development={dev} {developmentBackendPort}>

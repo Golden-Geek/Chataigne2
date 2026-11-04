@@ -43,7 +43,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		await page.getByRole('menuitem', { name: 'Composition', exact: true }).click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		const catalog = await wait(inspectMedia, (value) =>
 			value.media.some((item) => !beforeCreation.media.some((old) => old.id === item.id))

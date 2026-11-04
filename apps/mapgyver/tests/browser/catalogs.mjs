@@ -23,7 +23,7 @@ export async function verifyCreationCatalogsUi({ base }) {
 		'Matrix'
 	];
 	async function mediaMenu() {
-		await panel('Media Manager')
+		await panel('Medias')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.first()
 			.click();
@@ -35,11 +35,11 @@ export async function verifyCreationCatalogsUi({ base }) {
 	}
 	try {
 		await page.goto(base);
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await mediaMenu();
 		await page.getByRole('menuitem', { name: 'Folder', exact: true }).click();
-		await panel('Media Manager').getByRole('button', { name: 'Folder', exact: true }).click();
-		await panel('Media Manager')
+		await panel('Medias').getByRole('button', { name: 'Folder', exact: true }).click();
+		await panel('Medias')
 			.getByRole('button', { name: 'Folder', exact: true })
 			.click({ button: 'right' });
 		await page.getByRole('menuitem', { name: /^Add(?:\s|$)/ }).hover();
@@ -48,11 +48,11 @@ export async function verifyCreationCatalogsUi({ base }) {
 		await page.keyboard.press('Escape');
 		await mediaMenu();
 		await page.getByRole('menuitem', { name: 'Solid Color', exact: true }).click();
-		await tab('Screen Manager').click();
-		await panel('Screen Manager')
+		await tab('Screens').click();
+		await panel('Screens')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.click();
-		await panel('Screen Manager').getByRole('button', { name: 'Screen', exact: true }).waitFor();
+		await panel('Screens').getByRole('button', { name: 'Screen', exact: true }).waitFor();
 		assert.equal(
 			await page
 				.getByText(/^(Create Screen|Screen Operation|Screen Script|Media Operation|Media Script)$/)

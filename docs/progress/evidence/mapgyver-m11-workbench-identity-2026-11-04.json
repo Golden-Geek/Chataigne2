@@ -1,0 +1,67 @@
+{
+	"gate": "M11/9",
+	"state": "Active",
+	"accepted": false,
+	"date": "2026-11-04",
+	"capability": "Supplied media and app icons, displayed-object titles, readable display rows, compact decimal runtime footer",
+	"software": {
+		"rust_library": { "passed": 432, "ignored": 2, "log": "target/m119-rust.log" },
+		"strict_all_target_clippy": {
+			"passed": true,
+			"log": "target/m119-clippy.log",
+			"features": "native-qualification,application-process-fixture,native-video-smoke"
+		},
+		"svelte": { "errors": 0, "warnings": 0, "log": "target/m119-svelte-final.log" },
+		"app_ui": { "passed": 96, "log": "target/m119-ui-final.log" },
+		"golden_ui": { "passed": 236, "files": 45, "log": "target/m119-golden-ui.log" },
+		"protocol_generation": { "passed": true, "log": "target/m119-codegen.log" },
+		"native_build": { "passed": true, "log": "target/m119-native-build-final.log" },
+		"format": "Root and golden_core cargo fmt; scoped Prettier"
+	},
+	"native_workbench": {
+		"passed": true,
+		"binary": "target/debug/MapGyver-codex-m119.exe",
+		"command": "MAPGYVER_TEST_BINARY=target/debug/MapGyver-codex-m119.exe node apps/mapgyver/tests/browser/native-navigation.mjs --workbench-identity",
+		"log": "target/m119-native-identity.log",
+		"verified": [
+			"Five distinct, loaded supplied Picture/SolidColor/SharedTexture/Composition/Matrix row icons",
+			"Loaded 128-pixel app-header branding",
+			"Matrix and Composition titles follow displayed selection and rename",
+			"Matrix title resets after New",
+			"Real native Screen output produces truthful FPS, CPU API call milliseconds and decimal MB",
+			"Coarse observations continue and recover across New",
+			"Footer fits 700- and 500-pixel emulated WebView layouts",
+			"No page errors"
+		],
+		"sample": {
+			"fps": 59.6,
+			"cpu_call_ms": 0.29,
+			"tracked_MB": 307.2,
+			"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU"
+		}
+	},
+	"package": {
+		"local_debug_nsis_build": true,
+		"signed": false,
+		"released": false,
+		"log": "target/m119-package.log",
+		"artifact": "target/debug/bundle/nsis/MapGyver_0.1.0_x64-setup.exe",
+		"binary_override": "MapGyver-codex-m119",
+		"limit": "Installer generation passed; OS icon and installed identity inspection remain open"
+	},
+	"remaining": [
+		"Composition independent panels and locked displayed-object titles through selection, rename and project replacement",
+		"Screen and Surface title selection, rename, deletion and document lifetime cases",
+		"Supplied corresponding tab icons and Reference fallback in actual workbench",
+		"Actual human-readable native display row, including truthful missing recovery",
+		"OS app/window/taskbar and local installed/package icon inspection",
+		"Footer unavailable/error/recovery and active engine activity layout cases"
+	],
+	"progress": {
+		"verified_gates": 55,
+		"total_gates": 67,
+		"percent": 82,
+		"m11_verified": 8,
+		"m11_total": 10
+	}
+}

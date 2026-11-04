@@ -33,7 +33,7 @@ impl ScreenNode {
         let mut peers = Vec::new();
         let mut next = parent.node_data().first_child;
         while let Some(id) = next {
-            let node = change.node(id).ok_or("Screen Manager child is missing")?;
+            let node = change.node(id).ok_or("Screens child is missing")?;
             next = node.node_data().next_sibling;
             if id != self.id()
                 && let Some(peer) = node.as_any().downcast_ref::<ScreenNode>()

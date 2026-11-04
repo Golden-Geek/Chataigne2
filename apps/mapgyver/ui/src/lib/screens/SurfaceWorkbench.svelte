@@ -10,9 +10,11 @@
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import { pickSurfaceSource } from '../media/source-hit';
+	import { followPanelTitle } from '../panel-title.svelte';
 	let {
 		panelId,
 		panelType,
+		panelApi,
 		title,
 		panel,
 		editor
@@ -23,6 +25,11 @@
 	const { view, controller, gestureState, gesture } = owner;
 	const screen = $derived(controller.screen),
 		surface = $derived(controller.surface);
+	followPanelTitle(
+		() => panelApi,
+		() => (editor === 'screen' ? 'Screen Warping' : 'Surface Source'),
+		() => (editor === 'screen' ? screen?.label : surface?.label)
+	);
 	function pickDropTarget(event: DragEvent) {
 		const controls = (event.currentTarget as HTMLElement).querySelector(
 			'svg[aria-label="Surface mapping controls"]'
@@ -114,7 +121,7 @@
 				finish={() => gesture.finish()}
 				stop={() => gesture.stop()} />
 		{:else}<p class="editor-empty">
-				Select {editor === 'screen' ? 'a Screen' : 'a Surface'} in Screen Manager.
+				Select {editor === 'screen' ? 'a Screen' : 'a Surface'} in Screens.
 			</p>{/if}
 	</SourceDropZone>
 </section>

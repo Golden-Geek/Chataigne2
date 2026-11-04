@@ -190,6 +190,7 @@ pub struct CompositionEditorQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CompositionEditorPage {
+    pub label: Option<String>,
     pub media_types: Vec<super::super::protocol::MediaCreationChoice>,
     pub document: NodeUuid,
     pub document_matches: bool,

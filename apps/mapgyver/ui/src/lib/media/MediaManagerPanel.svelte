@@ -18,7 +18,7 @@
 	});
 </script>
 
-<section class="manager" aria-label={props.title ?? 'Media Manager'} data-panel-id={props.panelId}>
+<section class="manager" aria-label={props.title ?? 'Medias'} data-panel-id={props.panelId}>
 	<ManagerListPanel
 		managerNodeType="mapgyver.media.manager"
 		addTargetNode={selectedFolder}

@@ -53,15 +53,15 @@ export async function verifyScreenKeyboard({ base, post, page: nativePage = null
 		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
 		await page
-			.locator('section[aria-label="Screen Manager"]')
+			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: 'Keyboard screen', exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		if (nativePage)
 			await main

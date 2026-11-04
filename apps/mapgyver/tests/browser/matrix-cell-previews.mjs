@@ -115,7 +115,7 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		.click();
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Matrix$/ })
+		.filter({ hasText: /^Matrix(?::|$)/ })
 		.click();
 	const panel = page.locator('[data-panel-id="matrix"]');
 	const viewport = panel.getByRole('grid');

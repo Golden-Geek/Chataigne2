@@ -64,7 +64,7 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 		await selectMedia('Exposed Matrix');
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		await page.getByRole('grid').getByTitle(`Select ${item.label}`, { exact: true }).click();
 		const expose = parameter('Expose Channel').locator('input[type=checkbox]');
@@ -104,7 +104,7 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 		await selectMedia('Exposed Matrix');
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		await page.getByRole('grid').getByTitle(`Select ${item.label}`, { exact: true }).click();
 		await expose.uncheck();

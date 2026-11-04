@@ -14,6 +14,7 @@
 
 	const props = $props<{
 		application: UiApplicationInfoDto;
+		appIcon?: string;
 		wsUrl?: string;
 		httpBaseUrl?: string;
 		bootstrapRetryMs?: number;
@@ -36,7 +37,7 @@
 			class="gc-main os-{platform.name}"
 			data-graph-node-count={session.graph.state.nodesById.size}
 			data-graph-event-tick={session.graph.state.lastEventTime?.tick ?? 0}>
-			<AppHeader {session} application={props.application} />
+			<AppHeader {session} application={props.application} icon={props.appIcon} />
 			<MainComponent
 				userPanels={props.userPanels}
 				initialPanels={props.initialPanels}

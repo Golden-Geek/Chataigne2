@@ -49,9 +49,9 @@ export async function verifyPreviewContinuity({
 	const panel = (id) => page.locator(`.media-preview-panel[data-panel-id="${id}"]`);
 	const main = panel('media-preview');
 	async function select(label) {
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await page
-			.locator('section[aria-label="Media Manager"]')
+			.locator('section[aria-label="Medias"]')
 			.getByRole('button', { name: label, exact: true })
 			.click();
 	}

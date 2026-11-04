@@ -122,6 +122,7 @@
 					accumulator[panelType] = {
 						panelType,
 						title: entry.title ?? formatPanelTypeTitle(panelType),
+						icon: entry.icon,
 						component: entry.component,
 						description: entry.description,
 						defaultParams: entry.defaultParams,
@@ -648,7 +649,9 @@
 			createComponent: createPanelRenderer,
 			defaultTabComponent: 'golden-tab',
 			createTabComponent: (options) =>
-				options.name === 'golden-tab' ? createGoldenTabRenderer() : undefined,
+				options.name === 'golden-tab'
+					? createGoldenTabRenderer((type) => panelDefinitions[type]?.icon)
+					: undefined,
 			createLeftHeaderActionComponent: (group) => createGroupAddRenderer(group),
 			theme: goldenDockviewTheme
 		});

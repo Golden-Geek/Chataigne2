@@ -21,7 +21,7 @@ pub(crate) fn operation(
         return Err("reference is not a media command".into());
     };
     if node.node_data().parent != Some(super::authoring::manager(engine)?) {
-        return Err("command is outside Media Manager".into());
+        return Err("command is outside Medias".into());
     }
     node.operation()
 }

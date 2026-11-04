@@ -1,5 +1,53 @@
 use super::*;
 use golden_video::Extent2D;
+
+#[test]
+fn fullscreen_row_uses_human_name_and_truthful_missing_state_without_changing_identity() {
+    let mut engine = fixture();
+    let identity = r"\\?\DISPLAY#INTERNAL_DEVICE_PATH#LONG_STABLE_ID";
+    let manager = crate::screens::authoring::manager(&engine).unwrap();
+    let crate::app::AppNode::ScreenManager(node) = engine.nodes.get_mut(manager).unwrap() else {
+        panic!()
+    };
+    node.set_displays(std::sync::Arc::from([DisplayInfo {
+        id: identity.into(),
+        name: "Studio projector".into(),
+        index: 2,
+        primary: false,
+        edid: None,
+        bounds: PhysicalRectangle {
+            left: 0,
+            top: 0,
+            extent: Extent2D::new(1920, 1080).unwrap(),
+        },
+    }]));
+    let (screen, _) = create(&mut engine);
+    assert_eq!(row(&mut engine, screen.0).detail, "Fullscreen · Studio projector");
+    let authored = super::super::inspect(&engine)
+        .unwrap()
+        .screens
+        .into_iter()
+        .find(|value| value.id == screen)
+        .unwrap()
+        .definition;
+    assert!(matches!(&authored.target, Some(ScreenTarget::Fullscreen { display }) if display == identity));
+    let crate::app::AppNode::ScreenManager(node) = engine.nodes.get_mut(manager).unwrap() else {
+        panic!()
+    };
+    node.set_displays(std::sync::Arc::from([]));
+    let missing = row(&mut engine, screen.0).detail;
+    assert!(missing.contains("missing") && !missing.contains(identity));
+    assert_eq!(
+        super::super::inspect(&engine)
+            .unwrap()
+            .screens
+            .into_iter()
+            .find(|value| value.id == screen)
+            .unwrap()
+            .definition,
+        authored
+    );
+}
 fn row(engine: &mut AppEngine, node: golden_core::model::NodeUuid) -> ScreenRowSnapshot {
     let ScreenEditResult::Row { snapshot } = apply(engine, ScreenEdit::InspectRow { node }) else {
         panic!()

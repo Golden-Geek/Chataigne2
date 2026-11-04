@@ -79,7 +79,7 @@ pub fn capture_outputs(
     displays: &[DisplayInfo],
 ) -> Result<CapturedOutputs, String> {
     let manager = authoring::manager(engine)?;
-    let owner = engine.nodes.get(manager).ok_or("Screen Manager is missing")?;
+    let owner = engine.nodes.get(manager).ok_or("Screens is missing")?;
     let AppNode::ScreenManager(screen_manager) = owner else {
         unreachable!()
     };
@@ -94,7 +94,7 @@ pub fn capture_outputs(
     let mut allocation_pending = false;
     let pending = screen_manager.allocation_pending(displays);
     while let Some(id) = child {
-        let node = engine.nodes.get(id).ok_or("Screen Manager child is missing")?;
+        let node = engine.nodes.get(id).ok_or("Screens child is missing")?;
         child = node.node_data().next_sibling;
         let AppNode::Screen(node) = node else { continue };
         if screens.len() == maximum_screens {

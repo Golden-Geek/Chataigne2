@@ -38,10 +38,10 @@ export async function verifyMediaResolutionUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
-			.locator('section[aria-label="Media Manager"]')
+			.locator('section[aria-label="Medias"]')
 			.getByRole('treeitem', { name: 'Resolution review', exact: true })
 			.getByRole('button', { name: 'Resolution review', exact: true })
 			.click();

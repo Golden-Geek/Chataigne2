@@ -24,9 +24,9 @@ export async function verifyMediaPreviewUi({ base, edit, page: nativePage = null
 	page.on('pageerror', (error) => errors.push(String(error)));
 	const rejected = observeRejectedRequests(page, () => 'Media Preview panels');
 	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
-	const manager = page.locator('section[aria-label="Media Manager"]');
+	const manager = page.locator('section[aria-label="Medias"]');
 	async function select(label) {
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await manager.getByRole('button', { name: label, exact: true }).click();
 	}
 	async function installed(count) {

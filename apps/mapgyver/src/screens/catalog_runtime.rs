@@ -128,7 +128,7 @@ impl Source {
         let mut requests = Vec::new();
         let mut child = manager.node_data().first_child;
         while let Some(id) = child {
-            let node = engine.nodes.get(id).ok_or("Screen Manager child missing")?;
+            let node = engine.nodes.get(id).ok_or("Screens child missing")?;
             child = node.node_data().next_sibling;
             let AppNode::Screen(screen) = node else { continue };
             if selections.len() == super::rendering::MAX_SCREEN_CATALOG {

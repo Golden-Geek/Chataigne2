@@ -271,6 +271,7 @@ pub struct MatrixSelectionSnapshot {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewportSnapshot {
+    pub label: String,
     pub media_types: Vec<crate::media::protocol::MediaCreationChoice>,
     /// Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
     pub project: uuid::Uuid,

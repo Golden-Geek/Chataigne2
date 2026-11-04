@@ -29,7 +29,7 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 	page.on('pageerror', (error) => errors.push(String(error)));
 	const rejected = observeRejectedRequests(page, () => stage);
 	const widgets = screenParameterControls(page);
-	const manager = page.locator('section[aria-label="Media Manager"]');
+	const manager = page.locator('section[aria-label="Medias"]');
 	const panel = page.locator('section[aria-label="Composition"]');
 	const inspect = async (reference) =>
 		(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
@@ -48,7 +48,7 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 		}
 	}
 	async function select(label) {
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await manager
 			.getByRole('treeitem', { name: label, exact: true })
 			.getByRole('button', { name: label, exact: true })
@@ -56,7 +56,7 @@ export async function verifyCompositionProjectUi({ base, edit, inspectMedia }) {
 	}
 	async function create() {
 		const before = await inspectMedia();
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
 		await menu('Composition').click();
 		const after = await wait(inspectMedia, (value) =>

@@ -141,7 +141,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
 		const before = await inspect();
 		await native.page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		const panel = native.page.locator('section.composition');
 		await panel.waitFor();

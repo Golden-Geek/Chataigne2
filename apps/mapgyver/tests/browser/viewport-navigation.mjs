@@ -75,9 +75,9 @@ export async function verifyViewportNavigation({
 	const beforeNavigation = (await screens({ kind: 'InspectManager' })).snapshot;
 	try {
 		if (!nativePage) await page.goto(base);
-		await tab('Screen Manager').click();
+		await tab('Screens').click();
 		await page
-			.locator('section[aria-label="Screen Manager"]')
+			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: authoredSurface.label, exact: true })
 			.click();
 		for (const [label, tabName] of [
@@ -86,9 +86,9 @@ export async function verifyViewportNavigation({
 			['Composition view', 'Composition']
 		]) {
 			if (tabName === 'Composition') {
-				await tab('Media Manager').click();
+				await tab('Medias').click();
 				await page
-					.locator('section[aria-label="Media Manager"]')
+					.locator('section[aria-label="Medias"]')
 					.getByRole('treeitem', { name: 'Navigation composition', exact: true })
 					.getByRole('button', { name: 'Navigation composition', exact: true })
 					.click();

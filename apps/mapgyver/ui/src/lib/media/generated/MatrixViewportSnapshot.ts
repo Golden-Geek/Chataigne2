@@ -8,7 +8,7 @@ import type { MatrixViewRow } from "./MatrixViewRow";
 import type { MediaCreationChoice } from "./MediaCreationChoice";
 import type { MediaId } from "./MediaId";
 
-export type MatrixViewportSnapshot = { media_types: Array<MediaCreationChoice>,
+export type MatrixViewportSnapshot = { label: string, media_types: Array<MediaCreationChoice>,
 /**
  * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
  */

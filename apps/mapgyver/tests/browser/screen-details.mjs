@@ -42,9 +42,9 @@ export async function verifyScreenDetails({ base, post, page: nativePage = null 
 		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Screen Manager"]');
+		const manager = page.locator('section[aria-label="Screens"]');
 		const row = manager
 			.locator('.outliner-item-content[data-node-id]')
 			.filter({ has: page.getByRole('button', { name: 'Details screen', exact: true }) })
@@ -73,7 +73,7 @@ export async function verifyScreenDetails({ base, post, page: nativePage = null 
 			await page.getByRole('button', { name: 'Details screen', exact: true }).click();
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Screen Warping$/ })
+				.filter({ hasText: /^Screen Warping(?::|$)/ })
 				.click();
 			await page
 				.locator(
@@ -82,7 +82,7 @@ export async function verifyScreenDetails({ base, post, page: nativePage = null 
 				.waitFor();
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Screen Manager$/ })
+				.filter({ hasText: /^Screens$/ })
 				.click();
 			await page.waitForFunction(() =>
 				[...document.querySelectorAll('[aria-label="Screen output details"]')].some((element) =>

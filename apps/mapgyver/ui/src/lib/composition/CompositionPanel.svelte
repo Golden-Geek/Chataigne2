@@ -24,6 +24,7 @@
 	} from './panel-state';
 	import { useDocumentSelection } from '../selection.svelte';
 	import CompositionPreview from './CompositionPreview.svelte';
+	import { followPanelTitle } from '../panel-title.svelte';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import { pickCompositionSource } from '../media/source-hit';
 	import { usePreview } from '../preview/context.svelte';
@@ -55,6 +56,11 @@
 		composition = $derived(owner.composition),
 		instance = $derived(owner.instance),
 		busy = $derived(owner.busy);
+	followPanelTitle(
+		() => props.panelApi,
+		() => 'Composition',
+		() => (composition ? view.page?.label : null)
+	);
 	const pages = $derived(Math.max(1, Math.ceil((view.page?.total ?? 0) / COMPOSITION_PAGE_SIZE)));
 	const selection = useDocumentSelection(),
 		preview = usePreview();
@@ -258,7 +264,7 @@
 				Locked Composition unavailable in this project.
 			</p>
 			<CanvasToolbar {actions} disabled frame={() => {}} home={() => {}} />
-		{:else}<p class="editor-empty">Select a Composition in Media Manager.</p>{/if}
+		{:else}<p class="editor-empty">Select a Composition in Medias.</p>{/if}
 	</SourceDropZone>
 </section>
 <ContextMenu

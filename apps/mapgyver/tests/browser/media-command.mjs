@@ -57,9 +57,9 @@ export async function verifyMediaCommandUi({ base, edit, intent, post, inspectMe
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		const background = manager.locator('.manager-list-content');
 		const bounds = await background.boundingBox();
 		await background.click({ position: { x: bounds.width / 2, y: bounds.height - 5 } });

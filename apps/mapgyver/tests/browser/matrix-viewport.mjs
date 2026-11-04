@@ -37,13 +37,13 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
-			.getByRole('region', { name: 'Media Manager', exact: true })
+			.getByRole('region', { name: 'Medias', exact: true })
 			.getByRole('button', { name: 'Viewport Matrix', exact: true })
 			.click();
-		const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
+		const tab = page.getByRole('tab').filter({ hasText: /^Matrix(?::|$)/ });
 		await tab.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		await grid.getByTitle('Select Layer 1', { exact: true }).click();
@@ -87,7 +87,7 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		await tab.click();
 		await duration.waitFor();

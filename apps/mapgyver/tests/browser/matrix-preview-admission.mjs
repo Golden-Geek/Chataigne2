@@ -76,7 +76,7 @@ export async function verifyMatrixPreviewAdmission({ page, edit, post, nativePid
 		.click();
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Matrix$/ })
+		.filter({ hasText: /^Matrix(?::|$)/ })
 		.click();
 	const panel = page.locator('[data-panel-id="matrix"]');
 	const surface = panel.locator('.cell-previews');

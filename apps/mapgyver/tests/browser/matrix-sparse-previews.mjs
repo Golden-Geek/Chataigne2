@@ -78,7 +78,7 @@ export async function verifyMatrixSparsePreviews({ page, edit, post }) {
 		.getByRole('region', { name: 'Medias', exact: true })
 		.getByRole('button', { name: 'Sparse preview Matrix', exact: true })
 		.click();
-	const tab = page.getByRole('tab').filter({ hasText: /^Matrix$/ });
+	const tab = page.getByRole('tab').filter({ hasText: /^Matrix(?::|$)/ });
 	await tab.click();
 	const panel = page.locator('[data-panel-id="matrix"]');
 	const grid = panel.getByRole('grid');
@@ -213,7 +213,7 @@ export async function verifyMatrixSparsePreviews({ page, edit, post }) {
 	await observe('scroll-recovery');
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Composition$/ })
+		.filter({ hasText: /^Composition(?::|$)/ })
 		.click();
 	await wait(
 		() => panel.locator('.native-preview').count(),

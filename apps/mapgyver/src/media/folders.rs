@@ -110,7 +110,7 @@ pub(crate) fn parent(engine: &AppEngine, folder: Option<NodeUuid>) -> Result<Nod
     };
     let id = engine.node_id_by_uuid(uuid).ok_or("media folder is missing")?;
     if !matches!(engine.nodes.get(id), Some(AppNode::MediaFolder(_))) || !contains_parent(engine, Some(id), manager) {
-        return Err("folder is outside Media Manager".into());
+        return Err("folder is outside Medias".into());
     }
     Ok(id)
 }

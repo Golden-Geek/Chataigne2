@@ -30,6 +30,7 @@ export interface PanelExports {
 export type PanelComponent = Component<PanelProps, PanelExports>;
 
 export interface PanelDefinition {
+	icon?: string;
 	panelType: string;
 	title: string;
 	component: PanelComponent;
@@ -42,6 +43,7 @@ export interface PanelDefinition {
 }
 
 export interface UserPanelDefinition {
+	icon?: string;
 	title?: string;
 	component: PanelComponent;
 	description?: string;

@@ -9,6 +9,7 @@
 	import { useMatrixAuthoring } from './context.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import VirtualGrid from './VirtualGrid.svelte';
+	import { followPanelTitle } from '../panel-title.svelte';
 	import { gridActions } from './grid-actions';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
@@ -19,6 +20,11 @@
 	const matrixWindow = $derived(owner.matrixWindow),
 		busy = $derived(owner.busy),
 		observation = $derived(owner.observation);
+	followPanelTitle(
+		() => props.panelApi,
+		() => 'Matrix',
+		() => matrixWindow?.label
+	);
 	const selection = useDocumentSelection();
 	const selectDocumentNode = selection.select;
 	let anchor = $state<ContextMenuAnchor | null>(null);
@@ -99,7 +105,7 @@
 							});
 					}} />
 			{/key}
-		{:else}<p class="editor-empty">Select a Matrix in Media Manager.</p>{/if}
+		{:else}<p class="editor-empty">Select a Matrix in Medias.</p>{/if}
 	</div>
 </section>
 <ContextMenu

@@ -38,12 +38,12 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			}
 		}
 		await page.goto(base);
-		const tab = page.getByRole('tab').filter({ hasText: /^Screen Manager$/ });
+		const tab = page.getByRole('tab').filter({ hasText: /^Screens$/ });
 		await tab.click();
-		const manager = page.locator('section[aria-label="Screen Manager"]');
+		const manager = page.locator('section[aria-label="Screens"]');
 		const editor = page.locator('section[aria-label="Screen Warping"]');
 		const controls = screenParameterControls(page);
-		const warpTab = page.getByRole('tab').filter({ hasText: /^Screen Warping$/ });
+		const warpTab = page.getByRole('tab').filter({ hasText: /^Screen Warping(?::|$)/ });
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).click();
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const id = snapshot.screens[0].id;
@@ -61,7 +61,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			app.append(theme);
 			try {
 				const background = (element) => getComputedStyle(element).backgroundColor;
-				const manager = document.querySelector('section[aria-label="Screen Manager"]');
+				const manager = document.querySelector('section[aria-label="Screens"]');
 				const editor = document.querySelector('section[aria-label="Screen Warping"]');
 				return {
 					theme: background(theme),
@@ -313,11 +313,11 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		stage = 'panel lifetime';
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		await tab.click();
 		await warpTab.click();

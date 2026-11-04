@@ -72,7 +72,7 @@
 </script>
 
 <div class="engine-status">
-	<div class="activity-slot">
+	<div class="activity-slot" class:active={activityVisible}>
 		<div
 			class="user-action-activity"
 			class:visible={activityVisible}
@@ -109,8 +109,13 @@
 	.activity-slot {
 		display: flex;
 		justify-content: flex-end;
-		width: min(28vw, 18rem);
+		width: 0;
 		min-width: 0;
+		overflow: hidden;
+		transition: width 180ms ease;
+	}
+	.activity-slot.active {
+		width: min(28vw, 18rem);
 	}
 
 	.user-action-activity {

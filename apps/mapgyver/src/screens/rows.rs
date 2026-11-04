@@ -3,6 +3,19 @@ use super::protocol::{ScreenId, ScreenRowSnapshot, ScreenTarget};
 use crate::app::{AppEngine, AppNode};
 use golden_core::{model::NodeUuid, node::Node};
 
+fn display_name(name: &str, identity: &str, index: u32) -> String {
+    let name = name.trim();
+    if name.is_empty() || name == identity || name.contains('\\') {
+        if index > 0 {
+            format!("Display {index}")
+        } else {
+            "Display".into()
+        }
+    } else {
+        name.into()
+    }
+}
+
 pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<ScreenRowSnapshot>, String> {
     // A mounted outliner row can outlive deletion/project replacement until its next UI
     // snapshot. Missing data is a normal bounded query result, not a rejected edit.
@@ -13,7 +26,27 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
         AppNode::Screen(screen) => {
             let definition = screen.definition();
             let detail = match &definition.target {
-                Some(ScreenTarget::Fullscreen { display }) => format!("Fullscreen · {display}"),
+                Some(ScreenTarget::Fullscreen { display }) => {
+                    let hint = screen.display_hint();
+                    let manager = screen.node_data().parent.and_then(|id| engine.nodes.get(id));
+                    let resolved = match manager {
+                        Some(AppNode::ScreenManager(manager)) => {
+                            super::target::fullscreen_display(screen, manager, &manager.displays()).cloned()
+                        }
+                        _ => None,
+                    };
+                    match resolved {
+                        Some(found) => format!(
+                            "Fullscreen · {}{}",
+                            display_name(&found.name, &found.id, found.index),
+                            if found.id == *display { "" } else { " (recovered)" }
+                        ),
+                        None => format!(
+                            "Fullscreen · {} (missing)",
+                            display_name(&hint.name, display, hint.index)
+                        ),
+                    }
+                }
                 Some(ScreenTarget::Rectangle { bounds }) => format!("Rectangle · {}, {}", bounds.left, bounds.top),
                 Some(ScreenTarget::Spout { sender, .. }) => format!("Spout · {sender}"),
                 None => "Unconfigured".into(),

@@ -50,9 +50,9 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		const mediaRow = manager.getByRole('treeitem', { name: 'Channel review', exact: true });
 		await mediaRow.getByRole('button', { name: 'Channel review', exact: true }).click();
 		const channels = page.getByRole('region', { name: 'Channels', exact: true });

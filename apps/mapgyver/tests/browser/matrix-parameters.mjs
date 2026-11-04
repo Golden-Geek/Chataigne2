@@ -40,15 +40,15 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
-			.getByRole('region', { name: 'Media Manager', exact: true })
+			.getByRole('region', { name: 'Medias', exact: true })
 			.getByRole('button', { name: 'Typed Matrix rows', exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		for (const item of [groups[0], layers[0]]) {

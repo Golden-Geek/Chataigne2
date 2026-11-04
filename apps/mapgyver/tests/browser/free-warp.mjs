@@ -38,9 +38,9 @@ export async function verifyFreeWarpUi({ base, post }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Screen Manager"]');
+		const manager = page.locator('section[aria-label="Screens"]');
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).click();
 		const original = await wait(screens, (value) => value.screens.length === 1);
 		const reference = original.screens[0].surfaces[0].reference;
@@ -49,7 +49,7 @@ export async function verifyFreeWarpUi({ base, post }) {
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		const editor = page.locator('section[aria-label="Screen Warping"]');
 		const svg = editor.getByRole('group', { name: 'Surface mapping controls', exact: true });

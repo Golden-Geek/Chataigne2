@@ -26,19 +26,19 @@ pub(crate) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
         let node = engine.nodes.get(id).ok_or("missing root child")?;
         if node.node_data().meta.decl_id.0 == MANAGER_DECL && matches!(node, AppNode::MediaManager(_)) {
             if found.is_some() {
-                return Err("duplicate Media Manager".into());
+                return Err("duplicate Medias".into());
             }
             found = Some(id);
         }
         child = node.node_data().next_sibling;
     }
-    found.ok_or_else(|| "Media Manager is missing".into())
+    found.ok_or_else(|| "Medias is missing".into())
 }
 
 pub(crate) fn project_instance(engine: &AppEngine) -> Result<uuid::Uuid, String> {
     match engine.nodes.get(manager(engine)?) {
         Some(AppNode::MediaManager(manager)) => Ok(manager.instance),
-        _ => Err("media manager is missing".into()),
+        _ => Err("Medias is missing".into()),
     }
 }
 
@@ -286,7 +286,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             }
             let manager = super::folders::parent(engine, None)?;
             if !super::folders::contains_parent(engine, entry_node.node_data().parent, manager) {
-                return Err("media entry is outside Media Manager".into());
+                return Err("media entry is outside Medias".into());
             }
             let new_parent = super::folders::parent(engine, parent)?;
             super::structure::validate_move(engine, node, new_parent)?;
@@ -602,7 +602,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
             }
             AppNode::MediaCommand(node) => {
                 if node.node_data().parent != Some(manager) || crate::parameters::has_domain_children(engine, id) {
-                    return Err("commands belong to Media Manager and contain only declared Parameters".into());
+                    return Err("commands belong to Medias and contain only declared Parameters".into());
                 }
             }
             AppNode::MediaFolder(_) if !managed.contains(&id) => {

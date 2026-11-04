@@ -22,7 +22,7 @@
 		"shortDescription": "Native video composition and projection mapping",
 		"longDescription": "MapGyver is a video composition and projection mapping application built on the shared Golden runtime.",
 		"licenseFile": "../../LICENSE",
-		"icon": ["icons/icon.png", "icons/icon.ico"],
+		"icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
 		"windows": {
 			"digestAlgorithm": "sha256",
 			"signCommand": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ../../tools/release/sign-windows.ps1 %1",

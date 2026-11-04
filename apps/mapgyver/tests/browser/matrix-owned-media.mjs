@@ -45,16 +45,16 @@ export async function verifyMatrixOwnedMediaUi({ base, edit, post, directory, in
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		await manager
 			.getByRole('treeitem', { name: 'Owned Matrix', exact: true })
 			.getByRole('button', { name: 'Owned Matrix', exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const panel = page.locator('section[aria-label="Matrix"]');
 		await panel.getByRole('gridcell').first().waitFor();

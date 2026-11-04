@@ -9,17 +9,17 @@ use golden_core::{
 use std::collections::HashSet;
 
 pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Result<NodeTree, String> {
-    let manager = manager(context, "mapgyver.screen.manager").ok_or("Screen Manager is missing")?;
+    let manager = manager(context, "mapgyver.screen.manager").ok_or("Screens is missing")?;
     let owner = context
         .node(manager)
         .and_then(|node| node.as_any().downcast_ref::<ScreenManagerNode>())
-        .ok_or("Screen Manager is missing")?;
+        .ok_or("Screens is missing")?;
     let displays = owner.displays();
     let mut requested = Vec::new();
     let mut senders = HashSet::new();
     let mut next = context.node(manager).and_then(|node| node.node_data().first_child);
     while let Some(id) = next {
-        let node = context.node(id).ok_or("Screen Manager child is missing")?;
+        let node = context.node(id).ok_or("Screens child is missing")?;
         next = node.node_data().next_sibling;
         let Some(screen) = node.as_any().downcast_ref::<ScreenNode>() else {
             continue;
@@ -109,7 +109,7 @@ fn manager(context: &UserItemCreationContext<'_>, kind: &str) -> Option<NodeId> 
 }
 
 fn first_source(context: &UserItemCreationContext<'_>) -> Result<Option<ChannelReference>, String> {
-    let manager = manager(context, "mapgyver.media.manager").ok_or("Media Manager is missing")?;
+    let manager = manager(context, "mapgyver.media.manager").ok_or("Medias is missing")?;
     let mut pending = context
         .node(manager)
         .and_then(|node| node.node_data().first_child)

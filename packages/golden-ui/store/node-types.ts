@@ -42,6 +42,8 @@ const DEFAULT_MANAGER_ICON = nodeManagerIcon;
 const DEFAULT_PARAMETER_ICON = parameterTriggerIcon;
 
 export interface NodeIconSet {
+	/** App-owned presentation from a live typed node, with ordinary fallbacks on null. */
+	resolve?: (node: UiNodeDto) => string | null | undefined;
 	manager?: string;
 	parameter?: string;
 	fallback?: string;
@@ -51,6 +53,7 @@ export interface NodeIconSet {
 }
 
 type ResolvedNodeIconSet = {
+	resolve?: NodeIconSet['resolve'];
 	manager: string;
 	parameter: string;
 	fallback: string;
@@ -92,6 +95,7 @@ const defaultNodeIcons: ResolvedNodeIconSet = {
 };
 
 const resolveNodeIcons = (overrides?: NodeIconSet): ResolvedNodeIconSet => ({
+	resolve: overrides?.resolve,
 	manager: overrides?.manager ?? defaultNodeIcons.manager,
 	parameter: overrides?.parameter ?? defaultNodeIcons.parameter,
 	fallback: overrides?.fallback ?? defaultNodeIcons.fallback,
@@ -148,6 +152,8 @@ export const getIconURLForNode = (node: UiNodeDto | null): string => {
 	if (node.meta.presentation?.icon) {
 		return node.meta.presentation.icon;
 	}
+	const resolved = activeNodeIcons.resolve?.(node);
+	if (resolved) return resolved;
 
 	const isManager = (node.creatable_user_items?.length ?? 0) > 0;
 

@@ -25,7 +25,7 @@ pub struct ScreenManagerNode {
 
 impl ScreenManagerNode {
     pub(crate) fn new() -> Self {
-        let mut data = NodeData::new("Screen Manager".into());
+        let mut data = NodeData::new("Screens".into());
         data.meta.decl_id = golden_core::node::DeclId("mapgyver_screen_manager".into());
         Self {
             data,
@@ -209,7 +209,7 @@ impl Node for ScreenManagerNode {
         args: &[ParamValue],
     ) -> Result<bool, String> {
         if matches!(method, "editScreens" | "inspectScreens") && !self.node_data().effective_enabled {
-            return Err("Screen Manager is disabled".into());
+            return Err("Screens is disabled".into());
         }
         scripting::manager_method(ctx, self.id(), &self.owner, method, args)
     }

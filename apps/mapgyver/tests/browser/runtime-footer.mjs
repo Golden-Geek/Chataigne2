@@ -38,16 +38,13 @@ export async function verifyRuntimeFooter({ base, post, page: nativePage = null 
 			});
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Screen Manager$/ })
+				.filter({ hasText: /^Screens$/ })
 				.click();
 			await page
-				.locator('section[aria-label="Screen Manager"]')
+				.locator('section[aria-label="Screens"]')
 				.getByRole('button', { name: 'Footer screen', exact: true })
 				.click();
-			await page
-				.getByRole('tab')
-				.filter({ hasText: /^Screen Warping$/ })
-				.click();
+			await page.locator('.gc-dv-tab[data-panel-type="screenWarp"]').click();
 			await page
 				.locator(
 					'[data-panel-id="screen-warp"] .native-preview[data-preview-state="available"][data-preview-installed="true"]'
@@ -67,8 +64,9 @@ export async function verifyRuntimeFooter({ base, post, page: nativePage = null 
 			const text = await status.innerText(),
 				title = await status.getAttribute('title');
 			assert(Number(text.match(/([\d.]+) fps/)?.[1]) > 0, text);
-			assert.match(text, /[\d.]+ ms submit/);
-			assert.match(text, /[\d.]+ MiB/);
+			assert.match(text, /[\d.]+ ms CPU/);
+			assert.match(text, /[\d.]+ (MB|GB)/);
+			assert(!/submit|\.\.\.|…|MiB/.test(text), text);
 			assert(!text.includes('Test GPU') && !text.includes('GPU —'), text);
 			assert.match(title, /not display presentation/);
 			assert.match(title, /not physical VRAM/);
@@ -100,6 +98,19 @@ export async function verifyRuntimeFooter({ base, post, page: nativePage = null 
 		const box = await status.boundingBox(),
 			footer = await page.locator('footer.gc-footer').boundingBox();
 		assert(box && footer && box.x >= footer.x && box.x + box.width <= footer.x + footer.width + 1);
+		for (const width of [700, 500]) {
+			await page.setViewportSize({ width, height: 850 });
+			const bounds = await status.boundingBox();
+			const narrowFooter = await page.locator('footer.gc-footer').boundingBox();
+			assert(
+				bounds &&
+					narrowFooter &&
+					bounds.x >= narrowFooter.x &&
+					bounds.x + bounds.width <= narrowFooter.x + narrowFooter.width + 1,
+				`footer fits ${width}`
+			);
+			assert(!/submit|\.\.\.|…|MiB/.test(await status.innerText()));
+		}
 		assert.deepEqual(errors, []);
 		console.log(
 			JSON.stringify({

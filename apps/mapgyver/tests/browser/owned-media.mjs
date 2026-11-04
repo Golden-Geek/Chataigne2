@@ -41,13 +41,13 @@ export async function verifyOwnedMediaUi({ base, edit, post, directory, inspectM
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		await manager
 			.getByRole('treeitem', { name: 'Owned media canvas', exact: true })
 			.getByRole('button', { name: 'Owned media canvas', exact: true })

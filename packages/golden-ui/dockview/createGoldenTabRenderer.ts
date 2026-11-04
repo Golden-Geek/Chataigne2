@@ -1,6 +1,8 @@
 import type { DockviewIDisposable, ITabRenderer, TabPartInitParameters } from 'dockview-core';
 
-export const createGoldenTabRenderer = (): ITabRenderer => {
+export const createGoldenTabRenderer = (
+	iconForType: (type: string) => string | undefined = () => undefined
+): ITabRenderer => {
 	const element = document.createElement('div');
 	element.className = 'gc-dv-tab';
 
@@ -21,6 +23,22 @@ export const createGoldenTabRenderer = (): ITabRenderer => {
 		element,
 		init: (parameters: TabPartInitParameters): void => {
 			label.textContent = parameters.title;
+			element.dataset.panelType = parameters.api.component;
+			const source = iconForType(parameters.api.component);
+			if (source) {
+				const icon = document.createElement('img');
+				icon.className = 'gc-dv-tab-icon';
+				icon.src = source;
+				icon.alt = '';
+				icon.draggable = false;
+				Object.assign(icon.style, {
+					width: '1em',
+					height: '1em',
+					objectFit: 'contain',
+					flex: '0 0 auto'
+				});
+				element.insertBefore(icon, label);
+			}
 
 			const onTitleChange = parameters.api.onDidTitleChange((event) => {
 				label.textContent = event.title;

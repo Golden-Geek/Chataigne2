@@ -53,7 +53,7 @@ export async function verifyNativeTimeControls({ page, edit, nativePid }) {
 		await page.getByRole('button', { name: 'Clock parameters', exact: true }).click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		await grid.getByTitle(`Select ${layer.label}`, { exact: true }).click();

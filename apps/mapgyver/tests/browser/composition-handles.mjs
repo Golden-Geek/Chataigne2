@@ -90,9 +90,9 @@ export async function verifyCompositionHandles({ page, edit }) {
 	});
 	const baseline = await inspect();
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
-	await tab('Media Manager').click();
+	await tab('Medias').click();
 	await tab('Composition').click();
-	const manager = page.locator('section[aria-label="Media Manager"]');
+	const manager = page.locator('section[aria-label="Medias"]');
 	const parent = manager.getByRole('treeitem', { name: 'Handle canvas', exact: true });
 	await parent.getByRole('button', { name: 'Handle canvas', exact: true }).click();
 	if ((await parent.getAttribute('aria-expanded')) === 'false') {
@@ -299,7 +299,7 @@ export async function verifyCompositionHandles({ page, edit }) {
 	await page.mouse.up();
 	assert.deepEqual(await inspect(), stopped, 'Escape discards later held samples');
 	await history(baseline, stopped);
-	await tab('Screen Manager').click();
+	await tab('Screens').click();
 	await tab('Screen Warping').click();
 	await tab('Composition').click();
 	await ready();

@@ -24,9 +24,9 @@ export async function verifyMatrixDefaultsUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.getByRole('region', { name: 'Media Manager', exact: true });
+		const manager = page.getByRole('region', { name: 'Medias', exact: true });
 		await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
 		await page.getByRole('menuitem', { name: 'Matrix', exact: true }).click();
 		const media = (
@@ -52,7 +52,7 @@ export async function verifyMatrixDefaultsUi({ base, edit, inspectMedia }) {
 		await manager.getByRole('button', { name: media.label, exact: true }).click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Matrix$/ })
+			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		await wait(

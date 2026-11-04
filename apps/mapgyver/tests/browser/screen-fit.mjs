@@ -150,15 +150,15 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 	async function selectSurface() {
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
 		await page
-			.locator('section[aria-label="Screen Manager"]')
+			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: snapshot.label, exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		await ready();
 	}
@@ -239,7 +239,7 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 			await selectSurface();
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Surface Source$/ })
+				.filter({ hasText: /^Surface Source(?::|$)/ })
 				.click();
 			await page.waitForFunction(() => {
 				const active = document
@@ -253,7 +253,7 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 				.waitFor();
 			await page
 				.getByRole('tab')
-				.filter({ hasText: /^Screen Warping$/ })
+				.filter({ hasText: /^Screen Warping(?::|$)/ })
 				.click();
 			await ready();
 			const portrait = await inspect();

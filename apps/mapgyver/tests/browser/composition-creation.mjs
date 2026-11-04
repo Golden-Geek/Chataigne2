@@ -63,7 +63,7 @@ export async function verifyCompositionCreation({
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		await wait(
 			() => main.getAttribute('data-composition-channel'),
@@ -158,7 +158,7 @@ export async function verifyCompositionCreation({
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
 		await wait(
 			() => main.getAttribute('data-composition-selected'),

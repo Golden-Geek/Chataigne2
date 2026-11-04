@@ -66,7 +66,7 @@ try {
 		.click();
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Matrix$/ })
+		.filter({ hasText: /^Matrix(?::|$)/ })
 		.click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 	const fixture = path.resolve('target/debug/application_process_fixture.exe');

@@ -53,10 +53,10 @@ export async function verifySurfaceSourceUi({
 			}
 		}
 		if (!nativePage) await page.goto(base);
-		const tab = page.getByRole('tab').filter({ hasText: /^Surface Source$/ });
-		const screenTab = page.getByRole('tab').filter({ hasText: /^Screen Manager$/ });
+		const tab = page.getByRole('tab').filter({ hasText: /^Surface Source(?::|$)/ });
+		const screenTab = page.getByRole('tab').filter({ hasText: /^Screens$/ });
 		const panel = page.locator('section[aria-label="Surface Source"]');
-		const tree = page.locator('section[aria-label="Screen Manager"]');
+		const tree = page.locator('section[aria-label="Screens"]');
 		const inspector = page.locator('.inspector');
 		const controls = screenParameterControls(page);
 		await screenTab.click();
@@ -90,7 +90,7 @@ export async function verifySurfaceSourceUi({
 		assert.equal(
 			await tree.locator('input:not([type=search]),select,fieldset').count(),
 			0,
-			'Screen Manager stays a filtered outliner'
+			'Screens stays a filtered outliner'
 		);
 		const sourceMedia = media.media.find((value) => value.media_kind === 'SolidColor');
 		assert(sourceMedia);
@@ -502,9 +502,9 @@ export async function verifySurfaceSourceUi({
 		stage = 'source loss and Undo';
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		await manager.getByRole('button', { name: sourceMedia.label, exact: true }).click();
 		await wait(
 			() => inspector.locator('.inspector-header .title-text').innerText(),
@@ -535,11 +535,11 @@ export async function verifySurfaceSourceUi({
 		await tree.getByRole('button', { name: first.label, exact: true }).click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		await tab.click();
 		await ready();

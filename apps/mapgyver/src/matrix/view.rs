@@ -324,6 +324,14 @@ pub(super) fn inspect(
     }
     Ok(MediaEditResult::MatrixViewport {
         snapshot: MatrixViewportSnapshot {
+            label: engine
+                .nodes
+                .get(engine.node_id_by_uuid(media.0).ok_or("Matrix media missing")?)
+                .ok_or("Matrix media missing")?
+                .node_data()
+                .meta
+                .label
+                .clone(),
             media_types: crate::media::creation::media_choices(),
             project: crate::media::authoring::project_instance(engine)?,
             media,

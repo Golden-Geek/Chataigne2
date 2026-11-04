@@ -90,7 +90,7 @@ pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> R
                     }
                     return Ok(());
                 }
-                _ => return Err("media and folders belong in Media Manager or its folders".into()),
+                _ => return Err("media and folders belong in Medias or its folders".into()),
             };
             super::folders::parent(engine, folder)? == parent
         }

@@ -40,7 +40,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 		await field.press('Enter');
 	}
 	async function createMenu(name) {
-		await region('Media Manager')
+		await region('Medias')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.first()
 			.click();
@@ -63,9 +63,9 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 	try {
 		await page.goto(base);
 		stage = 'media tree folder creation and inspector';
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await createMenu('Folder');
-		const mediaTree = region('Media Manager');
+		const mediaTree = region('Medias');
 		await mediaTree
 			.getByRole('treeitem')
 			.filter({ hasText: /Folder/ })
@@ -133,12 +133,12 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 				reordered.reference.channel
 		);
 
-		stage = 'screen manager tree and full-panel warping';
-		await tab('Screen Manager').click();
-		await region('Screen Manager')
+		stage = 'Screens tree and full-panel warping';
+		await tab('Screens').click();
+		await region('Screens')
 			.getByRole('button', { name: 'Add child item', exact: true })
 			.click();
-		await region('Screen Manager')
+		await region('Screens')
 			.getByRole('treeitem')
 			.filter({ hasText: /Screen/ })
 			.first()
@@ -147,7 +147,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 		await page.getByRole('combobox', { name: /^Target/ }).waitFor();
 		await rename('Screen name', 'Main output');
 		await wait(inspectScreens, (value) => value.screens[0]?.label === 'Main output');
-		await region('Screen Manager')
+		await region('Screens')
 			.getByRole('treeitem')
 			.filter({ hasText: /Surface/ })
 			.first()
@@ -157,7 +157,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 			.click();
 		await page.locator('.properties fieldset').first().waitFor();
 		await tab('Screen Warping').click();
-		const managerBounds = await region('Screen Manager').boundingBox();
+		const managerBounds = await region('Screens').boundingBox();
 		const editorBounds = await region('Screen Warping').boundingBox();
 		assert(editorBounds.width > managerBounds.width * 1.5, 'Default layout prioritizes the editor');
 		await assertCanvas('Screen Warping');
@@ -169,7 +169,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 			inspectScreens,
 			(value) => value.screens[0]?.surfaces[0]?.label === 'Mapped surface'
 		);
-		await region('Screen Manager')
+		await region('Screens')
 			.getByRole('button', { name: 'Add Surface', exact: true })
 			.click();
 		let screenSnapshot = await wait(
@@ -184,7 +184,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 		);
 		await page.getByRole('button', { name: 'Delete surface', exact: true }).click();
 		await wait(inspectScreens, (value) => value.screens[0]?.surfaces.length === 1);
-		await region('Screen Manager')
+		await region('Screens')
 			.getByRole('button', { name: 'Mapped surface', exact: true })
 			.click();
 
@@ -197,7 +197,7 @@ export async function verifyWorkbenchUi({ base, post, edit, inspectMedia }) {
 			value.media.some((media) => media.media_kind === 'Composition')
 		);
 		const composition = withComposition.media.find((media) => media.media_kind === 'Composition');
-		await tab('Media Manager').click();
+		await tab('Medias').click();
 		await mediaTree
 			.getByRole('treeitem')
 			.filter({ hasText: new RegExp(`${composition.channels[0].label}`) })

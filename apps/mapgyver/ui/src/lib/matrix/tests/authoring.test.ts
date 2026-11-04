@@ -97,6 +97,7 @@ function snapshot(media: string, row = 0): MediaEditResult {
 	return {
 		kind: 'MatrixViewport',
 		snapshot: {
+			label: media,
 			media_types: [],
 			project: 'project-1',
 			media,

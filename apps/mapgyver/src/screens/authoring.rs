@@ -23,13 +23,13 @@ pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {
         let node = engine.nodes.get(id).ok_or("missing root child")?;
         if matches!(node, AppNode::ScreenManager(_)) {
             if found.is_some() {
-                return Err("duplicate Screen Manager".into());
+                return Err("duplicate Screens".into());
             }
             found = Some(id);
         }
         child = node.node_data().next_sibling;
     }
-    found.ok_or_else(|| "Screen Manager is missing".into())
+    found.ok_or_else(|| "Screens is missing".into())
 }
 
 pub(super) fn screen_id(engine: &AppEngine, screen: ScreenId) -> Result<NodeId, String> {
@@ -115,7 +115,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                     .get(manager(engine)?)
                     .and_then(|node| node.node_data().first_child);
                 while let Some(other) = child {
-                    let candidate = engine.nodes.get(other).ok_or("Screen Manager child is missing")?;
+                    let candidate = engine.nodes.get(other).ok_or("Screens child is missing")?;
                     child = candidate.node_data().next_sibling;
                     if other != node
                         && let AppNode::Screen(candidate) = candidate
@@ -384,7 +384,7 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
         match node {
             AppNode::ScreenManager(node) => {
                 if node.node_data().parent != Some(engine.root) {
-                    return Err("Screen Manager must be a root child".into());
+                    return Err("Screens must be a root child".into());
                 }
             }
             AppNode::Screen(node) => {

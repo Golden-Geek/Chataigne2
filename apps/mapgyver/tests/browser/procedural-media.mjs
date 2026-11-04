@@ -16,7 +16,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 		await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
+			.filter({ hasText: /^Medias$/ })
 			.click();
 		for (const kind of ['Composition', 'Matrix']) {
 			const label = `${kind} sizing`;
@@ -45,7 +45,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 				}
 			}
 			await page
-				.locator('section[aria-label="Media Manager"]')
+				.locator('section[aria-label="Medias"]')
 				.getByRole('treeitem', { name: label, exact: true })
 				.getByRole('button', { name: label, exact: true })
 				.click();
@@ -97,7 +97,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 				const layer = document.items.find((item) => item.id.kind === 'Layer');
 				await page
 					.getByRole('tab')
-					.filter({ hasText: /^Matrix$/ })
+					.filter({ hasText: /^Matrix(?::|$)/ })
 					.click();
 				await page
 					.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true })

@@ -26,7 +26,7 @@
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import { registerChannelContextMenu } from '../lib/media/context-menu';
 	import '../lib/workbench.css';
-	import { treeIcons } from '../lib/icons/tree';
+	import { treeIcons, panelIcons } from '../lib/icons/tree';
 	import { provideDocumentSelection } from '../lib/selection.svelte';
 	const host = useApplicationHost(),
 		preview = providePreview();
@@ -54,13 +54,21 @@
 	])
 		registerNodeInspector(type, { component: DomainInspector });
 	const userPanels: UserPanelDefinitionMap = {
-		mediaManager: { title: 'Media Manager', component: MediaManagerPanel },
-		mediaPreview: { title: 'Media Preview', component: MediaPreviewPanel },
-		screenManager: { title: 'Screen Manager', component: ScreenManagerPanel },
-		screenWarp: { title: 'Screen Warping', component: ScreenWarpPanel },
-		surfaceSource: { title: 'Surface Source', component: SurfaceSourcePanel },
-		composition: { title: 'Composition', component: CompositionPanel },
-		matrix: { title: 'Matrix', component: MatrixPanel }
+		mediaManager: { title: 'Medias', icon: panelIcons.media, component: MediaManagerPanel },
+		mediaPreview: { title: 'Media Preview', icon: panelIcons.media, component: MediaPreviewPanel },
+		screenManager: { title: 'Screens', icon: panelIcons.screen, component: ScreenManagerPanel },
+		screenWarp: { title: 'Screen Warping', icon: panelIcons.screen, component: ScreenWarpPanel },
+		surfaceSource: {
+			title: 'Surface Source',
+			icon: panelIcons.surface,
+			component: SurfaceSourcePanel
+		},
+		composition: {
+			title: 'Composition',
+			icon: panelIcons.composition,
+			component: CompositionPanel
+		},
+		matrix: { title: 'Matrix', icon: panelIcons.matrix, component: MatrixPanel }
 	};
 	const initialPanels: PanelSpawnRequest[] = [
 		{
@@ -119,6 +127,7 @@
 	style:--gc-workbench-background={preview.state.transparent ? 'transparent' : undefined}>
 	<MainWindow
 		application={host.application}
+		appIcon="/mapgyver-icon.png"
 		{initialPanels}
 		{userPanels}
 		nodeIcons={treeIcons}

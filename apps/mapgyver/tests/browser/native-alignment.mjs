@@ -122,20 +122,20 @@ try {
 	const page = native.page;
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Screen Manager$/ })
+		.filter({ hasText: /^Screens$/ })
 		.click();
 	await page
-		.locator('section[aria-label="Screen Manager"]')
+		.locator('section[aria-label="Screens"]')
 		.getByRole('button', { name: snapshot.label, exact: true })
 		.click();
 	await page
 		.getByRole('tab')
-		.filter({ hasText: /^Screen Warping$/ })
+		.filter({ hasText: /^Screen Warping(?::|$)/ })
 		.click();
 	if (sourceEditor)
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Surface Source$/ })
+			.filter({ hasText: /^Surface Source(?::|$)/ })
 			.click();
 	const view = page.getByRole('application', {
 		name: sourceEditor ? 'Surface source view' : 'Screen view',

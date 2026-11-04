@@ -74,7 +74,7 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 			.getByRole('tab')
 			.filter({ hasText: new RegExp(`^${name}$`) })
 			.click();
-	const manager = page.locator('section[aria-label="Media Manager"]');
+	const manager = page.locator('section[aria-label="Medias"]');
 	const select = (label) =>
 		manager
 			.getByRole('treeitem', { name: label, exact: true })
@@ -114,7 +114,7 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 	const pins = [];
 	try {
 		await page.goto(base);
-		await tab('Media Manager');
+		await tab('Medias');
 		for (const [index, source] of [
 			{ media: blank, label: 'Unconfigured source' },
 			{ media: missing, label: 'Missing source' }

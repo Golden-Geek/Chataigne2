@@ -104,8 +104,8 @@ export async function verifyCompositionUi({
 		);
 	}
 	async function select(label) {
-		await tab('Media Manager').click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		await tab('Medias').click();
+		const manager = page.locator('section[aria-label="Medias"]');
 		const search = manager.locator('input[type="search"]');
 		await search.fill(label);
 		await manager
@@ -267,7 +267,7 @@ export async function verifyCompositionUi({
 		await peer
 			.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.getByRole('button', { name: 'Close panel', exact: true })
 			.click();
 		await settled(1);
@@ -360,7 +360,7 @@ export async function verifyCompositionUi({
 		await main
 			.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
 			.getByRole('tab')
-			.filter({ hasText: /^Composition$/ })
+			.filter({ hasText: /^Composition(?::|$)/ })
 			.getByRole('button', { name: 'Close panel', exact: true })
 			.click();
 		await settled(0);

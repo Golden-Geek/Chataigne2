@@ -76,6 +76,7 @@ pub(in crate::media) fn inspect(
         .meta
         .uuid;
     let mut page = CompositionEditorPage {
+        label: None,
         media_types: crate::media::creation::media_choices(),
         document,
         document_matches: query.document.is_none_or(|expected| expected == document),
@@ -96,6 +97,10 @@ pub(in crate::media) fn inspect(
         return Ok(page);
     };
     let (parent, canvas) = authoring::channel(engine, reference)?;
+    page.label = engine
+        .node_id_by_uuid(reference.media.0)
+        .and_then(|id| engine.nodes.get(id))
+        .map(|node| node.node_data().meta.label.clone());
     let mut first = None;
     let mut instances = Vec::with_capacity(usize::from(query.count));
     for id in authoring::instance_nodes(engine, parent)? {

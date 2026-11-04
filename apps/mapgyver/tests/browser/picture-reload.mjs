@@ -22,9 +22,9 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 			});
 		});
 		await page.goto(base);
-		const tab = page.getByRole('tab').filter({ hasText: /^Media Manager$/ });
+		const tab = page.getByRole('tab').filter({ hasText: /^Medias$/ });
 		await tab.click();
-		const manager = page.locator('section[aria-label="Media Manager"]');
+		const manager = page.locator('section[aria-label="Medias"]');
 		async function wait(read, accept) {
 			const deadline = Date.now() + 5000;
 			for (;;) {

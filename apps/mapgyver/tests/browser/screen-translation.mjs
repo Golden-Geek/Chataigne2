@@ -144,15 +144,15 @@ export async function verifyScreenTranslation({ base, post, page: nativePage = n
 		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Manager$/ })
+			.filter({ hasText: /^Screens$/ })
 			.click();
 		await page
-			.locator('section[aria-label="Screen Manager"]')
+			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: 'Translation screen', exact: true })
 			.click();
 		await page
 			.getByRole('tab')
-			.filter({ hasText: /^Screen Warping$/ })
+			.filter({ hasText: /^Screen Warping(?::|$)/ })
 			.click();
 		if (nativePage)
 			await main

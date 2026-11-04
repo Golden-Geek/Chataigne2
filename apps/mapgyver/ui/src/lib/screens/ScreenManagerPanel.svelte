@@ -11,7 +11,7 @@
 		!!node && ['mapgyver.screen', 'mapgyver.surface'].includes(node.node_type);
 </script>
 
-<section class="manager" aria-label={props.title ?? 'Screen Manager'} data-panel-id={props.panelId}>
+<section class="manager" aria-label={props.title ?? 'Screens'} data-panel-id={props.panelId}>
 	{#if owner.view.error}<p role="alert">{owner.view.error}</p>{/if}
 	<ManagerListPanel
 		managerNodeType="mapgyver.screen.manager"

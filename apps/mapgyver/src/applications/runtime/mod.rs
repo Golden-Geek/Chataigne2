@@ -166,7 +166,7 @@ struct Handle {
     view: Arc<Mutex<ApplicationProcessStatus>>,
 }
 
-/// A sole controller for one live Media Manager. Drop cancels without joining native cleanup.
+/// A sole controller for one live Medias. Drop cancels without joining native cleanup.
 pub struct ApplicationRuntime {
     shared: Arc<Shared>,
     view: RuntimeView,

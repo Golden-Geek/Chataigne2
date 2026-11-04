@@ -286,7 +286,7 @@ pub enum MediaEdit {
         #[ts(type = "string")]
         command: NodeUuid,
     },
-    /// Creates an app-template source script under Media Manager, outside its object catalog.
+    /// Creates an app-template source script under Medias, outside its object catalog.
     CreateScript {
         label: Option<String>,
     },

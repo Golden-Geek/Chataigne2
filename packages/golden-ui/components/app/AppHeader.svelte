@@ -16,8 +16,9 @@
 
 	const DRAG_EXCLUDED_SELECTOR = 'button, input, textarea, select, a, [data-no-drag]';
 
-	const { session, application } = $props<{
+	const { session, application, icon } = $props<{
 		application: UiApplicationInfoDto;
+		icon?: string;
 		session?: WorkbenchSession | null;
 	}>();
 
@@ -151,6 +152,7 @@
 	use:bindHeaderInteraction>
 	<div class="header-start">
 		<FileMenu />
+		{#if icon}<img class="app-icon" src={icon} alt="" draggable="false" />{/if}
 		<div class="app-title">
 			<span class="project-title">{projectTitle}</span>
 			<span class="app-title-app">{application.display_name} {application.version}</span>
@@ -221,6 +223,12 @@
 </div>
 
 <style>
+	.app-icon {
+		width: 1.4rem;
+		height: 1.4rem;
+		object-fit: contain;
+		flex: 0 0 auto;
+	}
 	.header-start {
 		display: flex;
 		align-items: center;
