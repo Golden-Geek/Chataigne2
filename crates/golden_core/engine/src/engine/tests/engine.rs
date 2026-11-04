@@ -4484,6 +4484,7 @@ fn apply_edits_set_param_updates_parameter_node() {
 fn apply_set_param_value_change_ignores_normalized_noop() {
     let mut root = Parameter::new("root_param", ParamValue::Float(10.0), ParameterChangeCheck::ValueChange);
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(10.0)),
         step: None,
         step_base: None,
@@ -4520,6 +4521,7 @@ fn apply_set_param_value_change_ignores_normalized_noop() {
 fn parameter_set_normalizes_before_change_check() {
     let mut parameter = Parameter::new("param", ParamValue::Float(10.0), ParameterChangeCheck::ValueChange);
     parameter.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(10.0)),
         step: None,
         step_base: None,
@@ -4616,6 +4618,7 @@ fn parameter_set_append_behaviour_keeps_all_pending_set_param_edits() {
 fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: Some(0.25),
         step_base: Some(0.0),
@@ -4650,6 +4653,7 @@ fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
 fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: Some(0.5),
         step_base: Some(0.0),
@@ -4674,6 +4678,7 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
 fn apply_set_param_clamps_vec2_components_when_constraints_use_clamp_adapt_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Vec2(0.0, 0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: Some(0.25),
         step_base: Some(0.0),
@@ -4714,6 +4719,7 @@ fn apply_set_param_rejects_vec3_components_when_constraints_use_reject_policy() 
         ParameterChangeCheck::None,
     );
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
         step: None,
         step_base: None,
@@ -4742,6 +4748,7 @@ fn apply_set_param_clamps_vec3_components_with_component_specific_bounds() {
         ParameterChangeCheck::None,
     );
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: RangeConstraint::components(Some(vec![0.0, -1.0, 5.0]), Some(vec![1.0, 2.0, 6.0])),
         step: None,
         step_base: None,
@@ -4778,6 +4785,7 @@ fn apply_set_param_clamps_vec3_components_with_component_specific_bounds() {
 fn apply_set_param_rejects_values_outside_enum_constraints() {
     let mut root = Parameter::new("mode", ParamValue::Enum("a".to_string()), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: None,
         step: None,
         step_base: None,
@@ -4822,6 +4830,7 @@ fn apply_set_param_accepts_enum_variant_ids_with_legacy_string_enum_values() {
         ParameterChangeCheck::None,
     );
     root.constraints = ParameterConstraints {
+        enum_domain: None,
         range: None,
         step: None,
         step_base: None,

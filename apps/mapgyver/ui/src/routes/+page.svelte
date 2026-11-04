@@ -21,6 +21,7 @@
 	import VideoRuntimeFooter from '../lib/runtime/VideoRuntimeFooter.svelte';
 	import { provideVideoStatus } from '../lib/runtime/context.svelte';
 	import { registerParameterVisibility } from '../lib/parameter-visibility';
+	import { registerSenderAdornment } from '../lib/media/sender-adornment';
 	import { ASSET_NODE_TYPE } from '../lib/media/generated/constants';
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import { registerChannelContextMenu } from '../lib/media/context-menu';
@@ -34,6 +35,7 @@
 	provideScreenAuthoring();
 	provideMatrixAuthoring();
 	registerParameterVisibility();
+	registerSenderAdornment();
 	registerMatrixContextMenu();
 	registerChannelContextMenu();
 	onMount(() => preview.mount());

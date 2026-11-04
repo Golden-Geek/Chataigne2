@@ -22,6 +22,7 @@
 	import NodeWarningBadge from '../../common/NodeWarningBadge.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from '../../common/context-menu';
 	import { resolveParameterEditor } from './inspector.svelte';
+	import { resolveParameterAdornment } from './parameter-adornments';
 	import { resolveParameterContextPreview } from './parameter-preview-registry';
 	import { shouldFetchParameterControlInfo } from './parameter-control-info';
 	import { projectionLabel } from '../../../projection-labels';
@@ -86,6 +87,7 @@
 	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
 	let editorInfos: any = $derived(resolveParameterEditor(liveNode, graphNodesById));
 	let EditorComponent = $derived(editorInfos ? editorInfos.component : null);
+	let AdornmentComponent = $derived(resolveParameterAdornment(liveNode, graphNodesById));
 	let isValueOverridden = $derived.by((): boolean => {
 		if (!param) {
 			return false;
@@ -770,6 +772,9 @@
 							{/if}
 						</div>
 
+						{#if AdornmentComponent}<AdornmentComponent
+								node={liveNode}
+								readOnly={valueEditorReadOnly || !enabled} />{/if}
 						{#if !readOnly && !onlyOneAvailableControlMode && !isControlNode}
 							<div class="control-mode-menu">
 								<button

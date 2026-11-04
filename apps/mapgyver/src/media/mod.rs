@@ -25,6 +25,7 @@ pub mod resolution;
 pub(crate) mod retention;
 mod script_templates;
 mod scripting;
+pub(crate) mod sender_catalog;
 mod source_api;
 mod source_node;
 pub(crate) mod structure;

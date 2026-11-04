@@ -15,6 +15,7 @@ mod incremental_process_snapshot;
 mod intent_atomicity;
 mod lifecycle;
 mod local_events;
+mod node_store;
 mod node_wakes;
 mod opaque_edits;
 mod param_constraints;

@@ -9,7 +9,6 @@
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
 	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
-	import SpoutSenderPicker from './SpoutSenderPicker.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
 	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
@@ -33,21 +32,6 @@
 	const parametersOnly = (child: UiNodeDto) =>
 		child.decl_id === 'parameters' || child.node_type === 'mapgyver.composition.placement.v2';
 	const session = $derived(appState.session);
-	const senderAuto = $derived.by(() => {
-		const parentId = session?.graph.state.parentById.get(node.node_id);
-		const media = parentId == null ? null : session?.getNodeData(parentId);
-		const folder = media?.children
-			.map((id) => session?.getNodeData(id))
-			.find((child) => child?.decl_id === 'parameters');
-		const mode = folder?.children
-			.map((id) => session?.getNodeData(id))
-			.find((child) => child?.decl_id === 'parameters/sender_selection');
-		return (
-			mode?.data.kind === 'parameter' &&
-			mode.data.param.value.kind === 'enum' &&
-			mode.data.param.value.value === 'Auto'
-		);
-	});
 	let snapshot = $state<ChannelSnapshot | null>(null),
 		pending = $state(false),
 		error = $state('');
@@ -229,25 +213,6 @@
 					{busy}
 					{edit}
 					chooseExisting={chooseExistingFor === node.uuid} />
-			{:else if channel.definition.source.kind === 'Spout' && !senderAuto}
-				<SpoutSenderPicker
-					sender={channel.definition.source.sender ?? ''}
-					disabled={busy}
-					onSelect={async (sender) => {
-						const folder = node.children
-							.map((id) => session?.getNodeData(id))
-							.find((child) => child?.decl_id === 'parameters');
-						const parameter = folder?.children
-							.map((id) => session?.getNodeData(id))
-							.find((child) => child?.decl_id === 'parameters/sender');
-						if (parameter)
-							await session?.sendIntent({
-								kind: 'setParam',
-								node: parameter.node_id,
-								value: { kind: 'str', value: sender },
-								behaviour: 'Append'
-							});
-					}} />
 			{:else if channel.definition.source.kind === 'Matrix'}<MatrixRuntimeInspector />{/if}
 		{/if}
 		{#if node.node_type === ASSET_NODE_TYPE}

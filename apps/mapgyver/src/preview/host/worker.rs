@@ -174,6 +174,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut confirmed = None;
     let mut retry = Instant::now();
     let mut discovery = None;
+    let mut sender_catalog = crate::media::sender_catalog::native::Catalog::default();
     let mut targets = super::targets::Targets::default();
     let mut topology = Vec::new();
     let mut output_windows = super::output_windows::OutputWindows::default();
@@ -201,6 +202,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     )> = None;
     while !input.stop.is_requested() {
         adapter.service(&input.runtime);
+        sender_catalog.service(&input.runtime);
         if let Some(owner) = &owner {
             owner.process_input(&input.runtime);
         }

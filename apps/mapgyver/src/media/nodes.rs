@@ -17,6 +17,7 @@ pub struct MediaManagerNode {
     project: RevisionSource,
     membership: RevisionSource,
     operation_owner: Arc<()>,
+    pub(crate) sender_catalog: super::sender_catalog::Inbox,
 }
 
 impl MediaManagerNode {
@@ -33,6 +34,7 @@ impl MediaManagerNode {
             project: RevisionSource::default(),
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
+            sender_catalog: Default::default(),
         }
     }
     pub(crate) fn project_guard(&self) -> RevisionGuard {
@@ -59,6 +61,7 @@ impl Node for MediaManagerNode {
     }
 
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.sender_catalog = Default::default();
         self.project.advance();
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
@@ -88,6 +91,18 @@ impl Node for MediaManagerNode {
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
+    }
+
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        if let Err(error) = self.sender_catalog.register(ctx) {
+            ctx.set_node_warning(self.id(), error);
+        }
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.sender_catalog.apply(ctx);
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
     }
 
     fn script_host_policy(&self) -> Option<ScriptHostPolicy> {

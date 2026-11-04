@@ -1,13 +1,13 @@
 # MapGyver implementation status
 
-**Updated: 2026-11-04 · Overall: `█████░░░░░` 50% · 6/12 phases complete**
+**Updated: 2026-11-04 · Overall: `████████░░` 78% · 6/12 phases complete**
 
-**Verified gates: `████████░░` 76% · 51/67 accepted** (phase completion above remains 6/12).
+**Verified acceptance: 52/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/5 Active: typed Manual/Auto mode and exact sender carry-over verified; live discovery remains open.
-**Next action:** project the host-owned sender catalog into Auto Enum options and replace the Manual picker with inline Detect; then run native recovery acceptance.
-**Blocker:** none for M11/5. Original physical/timing qualification remains unaccepted in its return queue.
-**Execution:** M11/5 alone is Active; M11/4 is Accepted. M03/9 retains its original qualification in Pending. Existing accepted gates retain their tested limits.
+**Current topic:** M11/5 Accepted: live Manual Detect/Auto selection, exact recovery and post-load controls.
+**Next action:** M11/6 shared Golden canvas/navigation controls and Surface selection styling; retain all remaining acceptance in the return queue.
+**Blocker:** none for M11/6. Original physical/timing and app-control retirement gates remain unaccepted.
+**Execution:** M11/6 alone is selected Active; M11/1–5 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
 adds ten gates, **all ahead of M10 and M09**. Current functional order: M11 → M10 → M09;
@@ -17,7 +17,8 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Direct channel File controls](mapgyver-m11-inspector.md#direct-channel-file-controls): one File per Picture channel forwards the real catalog Parameter; initial assignment is one atomic import, shared editing/clear/history and the secondary asset picker work without permanent import forms.
+**Newly usable:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
+**Previously delivered:** [Direct channel File controls](mapgyver-m11-inspector.md#direct-channel-file-controls): one File per Picture channel forwards the real catalog Parameter; initial assignment is one atomic import, shared editing/clear/history and the secondary asset picker work without permanent import forms.
 [Expanded typed channel controls](mapgyver-m11-inspector.md#expanded-typed-channel-controls) remain delivered.
 Color edits need no nested Parameters folder; kind/sampling controls are gone and sampling is
 fixed to Linear. Native editing/CRUD/history/paging and both-GPU Fit/Composition pixels pass.
@@ -26,13 +27,14 @@ M11/4 is Accepted with complete native/browser/caller/history coverage; see the 
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** compact Picture File controls, contextual channel header actions
-and stable File/Color drafts under asynchronous backend updates. The complete Inspector gate
-passes 413 app tests, 236 Golden UI tests, Svelte 0/0, strict lint, both full browser flows and
-native File/catalog/Color/history/paging/project checks. Screenshots are reviewed and owned hosts
-exit normally. [Evidence](evidence/mapgyver-m11-inspector-acceptance-2026-11-04.json).
+**Last delivered capability:** live Shared Texture sender controls. Manual has one String with
+inline Detect; Auto has one live Enum, retains missing names and recovers the exact sender.
+Native appearance/disappearance/restart/rename, foreign-adapter isolation, mode/history,
+Save/New/Load and post-load recovery pass: 11 GPU images, 279/279 settled receipts, no
+unexpected rejection, normal owned-process exit. The declaration binding fix also restores
+missing static mode options after reload. [Evidence](evidence/mapgyver-m11-sender-selection-2026-11-04.json).
 The [Shared Texture cadence hotfix](mapgyver-shared-texture-cadence.md) remains verified and pushed.
-This closes M11/4: 51/67 verified gates (76%); phase completion stays 6/12 (50%).
+This closes M11/5: 52/67 verified gates (78%); phase completion stays 6/12 (50%).
 M08 remains 3/4 and Blocked on its separate retirement barrier.
 Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
@@ -47,19 +49,18 @@ Retained physical/timing requirements remain open; M11 owns changed feedback sco
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Accepted                        | `██████████` 100% | 4/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 1/1](mapgyver-m07-native.md)                                       |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Blocked: complete retirement    | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); [remaining acceptance 0/1](mapgyver-m08-retirement.md) |
-| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active Shared Texture discovery     | `████░░░░░░` 40%  | 4/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); [media 1/1](mapgyver-m11-inspector.md#m114-acceptance); discovery 0/1; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
+| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active shared canvas controls     | `█████░░░░░` 50%  | 5/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); [media 1/1](mapgyver-m11-inspector.md#m114-acceptance); [discovery 1/1](../architecture/mapgyver-sender-selection.md); canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                         |
 
-**Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
-Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **51/67 accepted gates**. M11/4's complete Inspector acceptance adds one verified gate; M11/3's typed Preferences/native adapter acceptance is retained.
-M08 stays 3/4. M07 remains
-complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
-The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
-and phase denominator 11 → 12. Planning itself added no acceptance. M11 owns changed-contract
-verification; prior evidence is reusable only where its tested behavior remains applicable.
-The additional bar uses accepted gates / 67.
+**Counting:** overall = verified acceptance gates / 67, rounded to the nearest percent.
+Phase/subphase progress uses its fixed gate count; bars round to tenths. Overall now uses the
+existing acceptance fraction instead of phase completion so accepted subphases are visible;
+phase completion remains separately shown as 6/12 (50%). Gate and phase denominators are unchanged.
+There are **52/67 accepted gates**. M11/5 adds one verified gate; M11/1–4 remain accepted.
+M08 stays 3/4; M07 remains complete at 4/4. The 2026-11-03 feedback added M11's ten fixed gates,
+changing the gate denominator 57 → 67 and phase denominator 11 → 12. Planning added no acceptance.
+M11 owns changed-contract verification; prior evidence is reused only within its tested scope.
 Partial work, planning and unavailable checks earn no gate.
 
 **2026-11-02 scope revision:** the prior plan was 5/10 phases (50%), with 40/48 gates accepted.
@@ -85,8 +86,9 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Blocked  | M08/4    | [Exact native barrier](mapgyver-m08-retirement.md): singleton root exited, active/pending zero, one uncaptured lifetime. Functional UI/script/project/access paths pass. Return with a documented identity-preserving completion mechanism for that lifetime, or an explicit user contract revision, then verify the retained exact fixture with original budgets. No unchanged probes or cleanup claim. Still required before M10/M09. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
-| Active   | M11/5    | Typed media-level Manual/Auto Shared Texture selection, String + Detect versus dynamic enum, live sender-list updates, exact missing-choice retention and recovery; verify independent channels and caller/history/project parity. Follow the numbered feedback gate without reopening cadence probes. |
-| Pending  | M11/6–10 | After M11/5 closure: shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the remaining numbered feedback gates sequentially; all precede M10 and M09. |
+| Accepted | M11/5 | [Live sender control acceptance](../architecture/mapgyver-sender-selection.md): Manual String + inline Detect, Auto Enum, live metadata, exact recovery, independent GPU outputs, adapter mismatch, history and post-load mode/absence/recovery. |
+| Active | M11/6 | Reuse Golden canvas/navigation controls across Matrix, Composition, Surface and Screen; top-center contextual actions, Surface selection styling, native alignment and history/keyboard acceptance. |
+| Pending | M11/7–10 | After M11/6: Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
 | Blocked  | M05/5,8  | Full physical hotplug, 150/200% and negative-origin/latency coverage is unverified. Native pixels and the known local displays now permit automatic cases; run the retained exact physical matrix, preserving missing configurations and measurement requirements.                                                                                                                                                                                                                                                                                           |
@@ -113,21 +115,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch handoff (2026-11-04):** started 13:54 CET; cutoff 14:39 CET.
-  Delivered typed media-owned Manual/Auto selection and per-channel String/Enum controls,
-  exact sender carry-over as one atomic Undo, and command/named-script entrypoints.
-  Owners: MapGyver Params/authoring; Golden open Enum constraints, generated protocol and
-  unavailable-choice rendering. Checks: 415 app tests pass (two explicit native/process
-  ignores), including four-caller parity, independent missing names, mode/history/project
-  roundtrip, command execution and contract generation; 27 Golden Parameter tests pass
-  (one diagnostic ignored), strict all-target native/process Clippy, 236 Golden UI tests,
-  Svelte 0 errors/0 warnings and both Rust formatters.
-  [Ownership and exact limits](../architecture/mapgyver-sender-selection.md).
-  M11/5 remains Active: Auto retains the current exact sender but live Enum options are not
-  populated yet; Manual still uses the existing picker. Remaining requirement: host-owned
-  live catalog delivery in desktop/headless, inline Detect, and native multi-channel mode,
-  appearance/disappearance/restart/rename, recovery and isolated-failure acceptance.
-  No gate closes in this checkpoint: progress stays 51/67 verified gates, 6/12 phases.
+- **Current batch handoff (2026-11-04):** started 14:30 CET; cutoff 15:15 CET.
+  Delivered the host-owned live catalog and inline Manual Detect; M11/5 is Accepted.
+  Golden owns Parameter adornments, lifecycle membership identity and declaration metadata
+  restoration; MapGyver owns sender policy/catalog projection. Native baseline exposed missing
+  conditional Enum metadata after load; policy/options restoration and post-load regression
+  coverage repair both the disappearance failure and the static mode widget.
+  Checks: 419 app tests pass (two explicit native/process ignores), generated contracts/four
+  callers, four catalog tests, Golden membership and constraint checks, strict all-target
+  native/process/smoke Clippy, 236 Golden UI tests, Svelte 0/0 and both formatters. Real headless
+  live metadata/mode/history/source/project flows pass, host exit 0. Native: 279/279 settled
+  receipts, no unexpected rejection, 11 independent output images, mode changes and exact
+  recovery after reload, reviewed screenshots, normal host/four owned-sender exits.
+  [Pinned receipt](evidence/mapgyver-m11-sender-selection-2026-11-04.json).
+  Progress: 52/67 gates (78%), M11 5/10 (50%), 6/12 phases. M11/6 is next selected; push this
+  milestone before its implementation batch. Original physical/timing/retirement gates remain open.
 
 ## Maintenance rule
 

@@ -43,12 +43,9 @@ export async function verifySharedTextureUi({ base, edit, inspectMedia }) {
 	}
 	try {
 		await page.goto(base);
+		await page.getByRole('tab').first().click();
 		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
-			.click();
-		await page
-			.locator('section[aria-label="Media Manager"]')
+			.locator('section[data-panel-id="media-manager"]')
 			.getByRole('treeitem', { name: 'Sender ownership', exact: true })
 			.getByRole('button', { name: 'Sender ownership', exact: true })
 			.click();
@@ -82,12 +79,43 @@ export async function verifySharedTextureUi({ base, edit, inspectMedia }) {
 		await wait(null);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait('Exact user sender');
+		assert.equal(
+			await entry.getByRole('button', { name: 'Detect sender', exact: true }).count(),
+			1
+		);
+		const mode = page
+			.locator('.parameter-inspector')
+			.filter({ has: page.getByText('Sender selection', { exact: true }) })
+			.locator('select');
+		await mode.selectOption('Auto');
+		await input.waitFor({ state: 'detached' });
+		const auto = entry.locator('select.dropdown-editor');
+		await auto.waitFor();
+		await auto
+			.locator('option')
+			.filter({ hasText: /^Unconfigured$/ })
+			.waitFor({ state: 'attached' });
+		assert.equal(await auto.inputValue(), 'Exact user sender');
+		assert.match(await auto.locator('option:checked').textContent(), /unavailable/);
+		assert.equal(
+			await entry.getByRole('button', { name: 'Detect sender', exact: true }).count(),
+			0
+		);
+		assert.equal((await read()).sender_selection, 'Auto');
+		await mode.selectOption('Manual');
+		await input.waitFor();
+		assert.equal(await input.inputValue(), 'Exact user sender');
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await auto.waitFor();
+		assert.equal(await auto.inputValue(), 'Exact user sender');
+		await wait('Exact user sender');
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(
 			JSON.stringify({
 				result: 'pass',
-				scope: 'bundled sender-only Shared Texture Parameters, independent variants and Undo/Redo'
+				scope:
+					'bundled Shared Texture Manual/Auto Parameters, headless live catalog metadata, missing selection, independent variants and Undo/Redo'
 			})
 		);
 	} finally {

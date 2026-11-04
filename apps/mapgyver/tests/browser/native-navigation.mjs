@@ -23,6 +23,7 @@ import { verifyNativeCompactChannels } from './native-compact-channels.mjs';
 import { verifyNativeAssetFile } from './native-asset-file.mjs';
 import { verifyNativeChannelFile } from './native-channel-file.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
+import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -44,6 +45,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--sender-selection', verifyNativeSenderSelection],
 			[
 				'--inspector-acceptance',
 				async (options) => {

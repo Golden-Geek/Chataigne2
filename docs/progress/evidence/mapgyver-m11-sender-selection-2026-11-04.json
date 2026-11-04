@@ -1,0 +1,145 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/5",
+	"state": "Accepted",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-senders.exe",
+		"sha256": "E57876053E51DA6F53CD0BE80A89C94DA488D9E24294B545492290F1264DDC4E"
+	},
+	"software": {
+		"mapgyver": {
+			"passed": 419,
+			"ignored": 2
+		},
+		"golden_node_membership": 1,
+		"golden_constraint_tests": 8,
+		"golden_ui": 236,
+		"svelte": {
+			"errors": 0,
+			"warnings": 0
+		},
+		"strict_clippy": "MapGyver all-targets; native-qualification, application-process-fixture, native-video-smoke",
+		"formatters": [
+			"cargo fmt --all",
+			"cargo fmt --manifest-path crates/golden_core/Cargo.toml --all"
+		],
+		"contracts": "Rust-owned generated DTOs and four-caller script parity pass in the app suite"
+	},
+	"headless": {
+		"command": "node apps/mapgyver/tests/headless/media.mjs --channels-ui",
+		"live_catalog_metadata": true,
+		"manual_auto_missing_choice_history": true,
+		"source_history_and_save_new_load": true,
+		"exit_code": 0
+	},
+	"native": {
+		"result": "pass",
+		"nativePid": 42952,
+		"adapter": {
+			"key": "dxgi:00000000:00016022",
+			"index": 1,
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+		},
+		"sources": [
+			{
+				"name": "MapGyver-Detect-A-42952",
+				"pid": 38560
+			},
+			{
+				"name": "MapGyver-Detect-B-42952",
+				"pid": 11784
+			},
+			{
+				"name": "MapGyver-Detect-A-42952-renamed",
+				"pid": 8444
+			},
+			{
+				"name": "MapGyver-Foreign-42952",
+				"pid": 33660
+			}
+		],
+		"checks": [
+			"Manual inline Detect updates while open and writes the real String only",
+			"Auto uses only real Enum widgets; channels render independent live senders",
+			"Disappearance retains exact selection, peer keeps rendering, exact-name restart recovers",
+			"Rename never retargets implicitly; selection and mode changes undo atomically",
+			"Foreign-adapter input leaves the exact choice and renderer GPU intact; peer and recovery verified",
+			"Save/New/Load preserves typed mode, exact independent choices and GPU output"
+		],
+		"observed": {
+			"requests": 279,
+			"receipts": 279
+		},
+		"pixelChecks": [
+			{
+				"phase": "initial-red",
+				"rgba": [255, 0, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "exact-restart-red",
+				"rgba": [255, 0, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "renamed-green",
+				"rgba": [0, 255, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "restored-after-adapter-mismatch",
+				"rgba": [0, 255, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "project-reload-green",
+				"rgba": [0, 255, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "post-load-exact-recovery-green",
+				"rgba": [0, 255, 0, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "initial-blue",
+				"rgba": [0, 0, 255, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "peer-survives-absence",
+				"rgba": [0, 0, 255, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "peer-survives-adapter-mismatch",
+				"rgba": [0, 0, 255, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "project-reload-blue",
+				"rgba": [0, 0, 255, 255],
+				"extent": [96, 64]
+			},
+			{
+				"phase": "peer-survives-post-load-absence",
+				"rgba": [0, 0, 255, 255],
+				"extent": [96, 64]
+			}
+		],
+		"post_load_mode_switching": true,
+		"post_load_absence_and_exact_recovery": true,
+		"action_activity_idle": true,
+		"page_errors": [],
+		"unexpected_rejections": [],
+		"host_exit_code": 0,
+		"owned_sender_exit_codes": [0, 0, 0, 0],
+		"screenshots_reviewed": true,
+		"directory": "target/mapgyver-m11-senders-settled-2026-11-04"
+	},
+	"regression_fixed": "Conditional sparse Parameter children restore the declared Enum domain policy and missing static options when rebinding; existing live catalog options are preserved.",
+	"limits": [
+		"Up to 64 live sender names per existing bounded SDK catalog; unlisted exact selections remain authored.",
+		"No M03 original timing/device-removal gate or M08 retirement gate is closed by this acceptance."
+	]
+}

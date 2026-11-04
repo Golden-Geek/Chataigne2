@@ -120,6 +120,10 @@ export { default as NodeInspector } from './components/panels/inspector/NodeInsp
 export { default as FileInput } from './components/common/FileInput.svelte';
 export { resolveParameterEditor } from './components/panels/inspector/inspector.svelte';
 export {
+	registerParameterAdornment,
+	type ParameterAdornment
+} from './components/panels/inspector/parameter-adornments';
+export {
 	registerParameterContextPreviewResolver,
 	resolveParameterContextPreview,
 	type ParameterContextPreview,

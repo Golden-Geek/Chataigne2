@@ -2500,12 +2500,12 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     __param_node.constraints.step_base = Some((#expr) as f64);
                 }
             });
-            let set_enum_options = args.enum_options.map(|expr| {
+            let set_enum_options = args.enum_options.as_ref().map(|expr| {
                 quote! {
                     __param_node.constraints.enum_options = (#expr).into();
                 }
             });
-            let set_enum_domain = args.enum_domain.map(|expr| {
+            let set_enum_domain = args.enum_domain.as_ref().map(|expr| {
                 quote! {
                     __param_node.constraints.enum_domain = Some(#expr);
                 }
@@ -2575,6 +2575,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     ctx.add_child(__golden_node_owner_id, __param_node, #insert_after);
                 }
             };
+            let sync_enum_domain = sync_declared_enum_metadata_tokens(
+                quote!(__golden_existing_node_id),
+                args.enum_domain.as_ref(),
+                args.enum_options.as_ref(),
+            );
             let bind_existing_param_node = quote! {
                 if let Some(__golden_snapshot) = ctx.tree_snapshot() {
                     if let Some(__golden_existing_node_id) =
@@ -2587,6 +2592,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                         {
                             let _ = self.#field_ident.apply_runtime_value(__golden_existing_value);
                         }
+                        #sync_enum_domain
                     } else if self.#field_ident.is_bound()
                         && __golden_snapshot.node(self.#field_ident.id()).is_none()
                     {
@@ -2862,6 +2868,8 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             let field = &param.field;
             let decl_id = &param.decl_id;
             let parent = declared_parent_id_tokens(plan, &param.path);
+            let sync_enum_domain =
+                sync_declared_enum_metadata_tokens(quote!(id), param.enum_domain.as_ref(), param.enum_options.as_ref());
             generated_init_statements.push(quote! {
                 if let Some(snapshot) = ctx.tree_snapshot()
                     && let Some(parent) = #parent
@@ -2871,6 +2879,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     if let Some(value) = snapshot.node(id).and_then(|node| node.param_value.as_ref()) {
                         let _ = self.#field.apply_runtime_value(value);
                     }
+                    #sync_enum_domain
                 }
             });
         }
@@ -4476,6 +4485,48 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             }
         }
     }
+}
+
+fn sync_declared_enum_metadata_tokens(
+    id: proc_macro2::TokenStream,
+    domain: Option<&Expr>,
+    options: Option<&Expr>,
+) -> Option<proc_macro2::TokenStream> {
+    if domain.is_none() && options.is_none() {
+        return None;
+    }
+    let sync_domain = domain.map(|domain| {
+        quote! {
+            if constraints.enum_domain != Some(#domain) {
+                constraints.enum_domain = Some(#domain);
+                changed = true;
+            }
+        }
+    });
+    let sync_options = options.map(|options| {
+        quote! {
+            if constraints.enum_options.is_empty() {
+                let options: golden_core::parameter::ParameterEnumOptions = (#options).into();
+                if constraints.enum_options != options {
+                    constraints.enum_options = options;
+                    changed = true;
+                }
+            }
+        }
+    });
+    Some(quote! {
+            let __golden_constraints = ctx.tree_snapshot()
+                .and_then(|snapshot| snapshot.node(#id))
+                .and_then(|node| node.param_constraints.clone());
+            if let Some(mut constraints) = __golden_constraints {
+                let mut changed = false;
+                #sync_domain
+                #sync_options
+                if changed {
+                    ctx.edits.push(golden_core::edit::Edit::SetParamConstraints { node: #id, constraints });
+                }
+            }
+    })
 }
 
 fn build_params_plan_param_create_tokens(

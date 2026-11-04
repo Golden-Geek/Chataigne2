@@ -11,6 +11,7 @@ pub struct NodeStore<T: Node> {
     /// Slotmap storage keyed by internal node keys.
     inner: SlotMap<NodeKey, T>,
     snapshot_epoch: uuid::Uuid,
+    membership_sequence: u64,
     snapshot_changes: Option<HashSet<NodeId>>,
 }
 
@@ -26,6 +27,7 @@ impl<T: Node> NodeStore<T> {
         Self {
             inner: SlotMap::with_key(),
             snapshot_epoch: uuid::Uuid::new_v4(),
+            membership_sequence: 0,
             snapshot_changes: None,
         }
     }
@@ -39,6 +41,7 @@ impl<T: Node> NodeStore<T> {
             inserted.node_data_mut().id = id;
         }
         record_snapshot_change(&mut self.snapshot_changes, id, self.inner.len());
+        self.advance_membership();
         id
     }
 
@@ -60,6 +63,7 @@ impl<T: Node> NodeStore<T> {
         let removed = self.inner.remove(Self::key_from_id(id));
         if removed.is_some() {
             self.snapshot_changes = None;
+            self.advance_membership();
         }
         removed
     }
@@ -69,6 +73,7 @@ impl<T: Node> NodeStore<T> {
         let removed = self.inner.detach(Self::key_from_id(id));
         if removed.is_some() {
             self.snapshot_changes = None;
+            self.advance_membership();
         }
         removed
     }
@@ -80,12 +85,26 @@ impl<T: Node> NodeStore<T> {
     pub fn reattach(&mut self, id: NodeId, mut node: T) {
         node.node_data_mut().id = id;
         self.inner.reattach(Self::key_from_id(id), node);
+        self.advance_membership();
         record_snapshot_change(&mut self.snapshot_changes, id, self.inner.len());
     }
 
     /// Returns `true` when an id exists in the store.
     pub fn contains(&self, id: NodeId) -> bool {
         self.inner.contains_key(Self::key_from_id(id))
+    }
+
+    /// Constant-time identity of live store membership, including detach/reattach and
+    /// equal-size replacement. Values, metadata and parent moves do not invalidate it.
+    pub fn membership_revision(&self) -> (uuid::Uuid, u64) {
+        (self.snapshot_epoch, self.membership_sequence)
+    }
+
+    fn advance_membership(&mut self) {
+        self.membership_sequence = self
+            .membership_sequence
+            .checked_add(1)
+            .expect("node membership revision exhausted");
     }
 
     /// Returns the number of nodes in the store.
