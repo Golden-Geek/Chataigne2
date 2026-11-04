@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/8",
+  "gate_state": "Active",
+  "scope": "Generic bounded repeated native image placement; Matrix viewport wiring remains required",
+  "binary": "target/debug/deps/golden_video-461e8949489e4251.exe",
+  "sha256": "5BC7EBD0C62B0F46DF466FEC613D98CEC784ED9C444500800579070C167BAD7F",
+  "software": {
+    "golden_video": "193 passed, 26 explicit hardware/qualification ignores",
+    "mapgyver": "426 passed, 3 explicit ignores",
+    "strict_clippy": "Golden Video qualification and MapGyver native/process/smoke all-targets pass with -D warnings",
+    "coverage": "2048-tile bound, invalid/oversized update atomicity, empty recovery, completion-token coherence, one dependency/source for repeated images and reservation of latest/sampled/presented metadata",
+    "formatting": "root and Golden Core cargo fmt and scoped diff checks pass"
+  },
+  "native": {
+    "result": "3 tests passed; exit 0",
+    "command": "cargo test --locked -p golden_video --features qualification --lib native::backend::tests::regions:: -- --ignored --nocapture --test-threads=1",
+    "adapters": ["Intel(R) Graphics, LUID low 88937", "NVIDIA GeForce RTX 5080 Laptop GPU, LUID low 90146"],
+    "new_test_images": 20,
+    "coverage": "256, 7, 0 and 128 repeated image rectangles from one uploaded source; independent red/blue source crops, lifetime withdrawal, independent green output and completed image retirement on each adapter",
+    "regression": "Existing native live pan/zoom and region crop/removal/independent-output tests pass",
+    "oracle": "Complete 4 x 4 RGBA images, existing 2/255 component tolerance unchanged",
+    "log": "target/m118-tiles-native.log"
+  },
+  "remaining": [
+    "Wire bounded source groups and viewport rectangles through generated native preview negotiation and the Matrix grid, preserving one logical grid lease and the 64-view limit.",
+    "Complete unique-source snapshot scheduling/admission, actual grid input/scrolling/source-loss/lease retirement, Inspector exposure and full revised native acceptance."
+  ],
+  "acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
+}

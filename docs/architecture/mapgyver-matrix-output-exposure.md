@@ -32,6 +32,15 @@ runtime projections, never authored settings or persisted preview handles. Sourc
 both fields; rename, Undo and project reload resolve current metadata through the bounded
 viewport query. The authored Cell source remains unchanged.
 
+Golden's bounded repeated-image placement can draw many Cell rectangles from one texture
+binding. Its immutable repetition capacity, coherent completion sample and visibility guard
+avoid per-Cell source, decoder, upload or dependency duplication. Both hardware adapters pass
+crop, changing/empty tile sets and withdrawal while preserving an independent output. The
+Matrix viewport is not wired to this primitive yet: preview negotiation must carry bounded
+source groups and CSS rectangles, project host clipping into those placements and retain one
+logical grid lease. Unique-source admission and snapshot scheduling beyond an active producer
+set remain part of the full requirement; the primitive does not waive them.
+
 M11/8 remains **Active**. Backend exposure and Cell labels/preview identities are implemented.
 Visible native Cell snapshots, actual app Inspector/grid exposure acceptance, complete sparse
 source-loss/preview retirement and the revised full native cohort remain required. The

@@ -2,6 +2,89 @@ use super::*;
 use crate::runtime::{CompletionToken, DeviceGeneration};
 
 #[test]
+fn repeated_images_are_bounded_atomic_and_sampled_once_per_completion() {
+    let full = RegionTile {
+        destination: UnitRect::FULL,
+        source_rect: UnitRect::FULL,
+    };
+    assert!(RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, 0).is_none());
+    assert!(RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES + 1).is_none());
+    let placement = RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES).unwrap();
+    assert!(placement.update_tiles(&vec![full; MAX_REGION_TILES]));
+    let device = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);
+    let first = CompletionToken { device, serial: 1 };
+    let sampled = placement.sample(first);
+    assert_eq!(sampled.tiles.len(), MAX_REGION_TILES);
+    assert!(!placement.update_tiles(&vec![full; MAX_REGION_TILES + 1]));
+    assert!(!placement.update_tiles(&[RegionTile {
+        destination: UnitRect {
+            width: f32::NAN,
+            ..UnitRect::FULL
+        },
+        ..full
+    }]));
+    assert!(placement.update_tiles(&[]));
+    assert_eq!(
+        placement.sample(first),
+        sampled,
+        "passes in one batch see one repetition set"
+    );
+    assert!(placement.sample(CompletionToken { device, serial: 2 }).tiles.is_empty());
+    assert!(placement.update_tiles(&[full]));
+    assert!(placement.update(UnitRect::FULL, UnitRect::FULL));
+    assert_eq!(
+        placement.sample(CompletionToken { device, serial: 3 }).tiles.as_ref(),
+        &[full]
+    );
+    assert!(
+        !RegionPlacement::new(UnitRect::FULL, UnitRect::FULL)
+            .unwrap()
+            .update_tiles(&[full])
+    );
+    assert!(placement.retained_heap_bytes() >= 3 * MAX_REGION_TILES * std::mem::size_of::<RegionTile>());
+}
+
+#[test]
+fn repeated_images_retain_one_source_dependency_and_charge_reserved_metadata() {
+    let placement = RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES).unwrap();
+    let tiles = vec![
+        RegionTile {
+            destination: UnitRect::FULL,
+            source_rect: UnitRect::FULL
+        };
+        MAX_REGION_TILES
+    ];
+    assert!(placement.update_tiles(&tiles));
+    let plan = RenderPlan {
+        external_textures: vec![external(1)],
+        passes: vec![RenderPass {
+            operation: RenderOperation::Regions {
+                regions: vec![BlitRegion {
+                    source: texture(1),
+                    destination: UnitRect::FULL,
+                    source_rect: UnitRect::FULL,
+                    filter: SampleFilter::Nearest,
+                    visibility: None,
+                    placement: Some(placement),
+                }],
+                visibility: None,
+            },
+            ..clear(1, 2)
+        }],
+        outputs: vec![output(1, 2)],
+    };
+    assert!(plan.retained_bytes().unwrap() >= 3 * MAX_REGION_TILES * std::mem::size_of::<RegionTile>());
+    let compiled = plan
+        .compile(&PlanLimits {
+            max_dependencies: 1,
+            ..limits()
+        })
+        .unwrap();
+    assert_eq!(compiled.external_textures().len(), 1);
+    assert_eq!(compiled.passes().len(), 1);
+}
+
+#[test]
 fn live_placement_is_checked_and_coherent_across_passes_in_one_frame() {
     let placement = RegionPlacement::new(UnitRect::FULL, UnitRect::FULL).unwrap();
     let device = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);

@@ -15,7 +15,7 @@ pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
 pub use overlay::{MAX_VIEW_OVERLAYS, OverlayPrimitive, OverlayShape};
 pub use pattern::{GridPattern, LayerSource, Pattern};
-pub use placement::{RegionGeometry, RegionPlacement};
+pub use placement::{MAX_REGION_TILES, RegionGeometry, RegionPlacement, RegionTile};
 pub use region::{BlitRegion, UnitRect};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};

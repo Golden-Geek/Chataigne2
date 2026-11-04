@@ -3,6 +3,18 @@ use super::{MAX_VIEW_OVERLAYS, OverlayPrimitive, UnitRect};
 use crate::runtime::CompletionToken;
 use std::sync::{Arc, Mutex};
 
+/// Fixed metadata bound for repeated image rectangles sharing one texture binding.
+pub const MAX_REGION_TILES: usize = 2048;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+/// One checked image repetition; it owns no texture, source or decoder.
+pub struct RegionTile {
+    /// Normalized output placement.
+    pub destination: UnitRect,
+    /// Corresponding normalized source crop.
+    pub source_rect: UnitRect,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 /// Validated source and destination fractions sampled together.
 pub struct RegionGeometry {
@@ -16,6 +28,8 @@ pub struct RegionGeometry {
     pub overlay_scale: f32,
     /// Decorations sampled atomically with the image placement.
     pub overlays: Arc<[OverlayPrimitive]>,
+    /// Repeated image rectangles, sampled with the same completion token as this placement.
+    pub tiles: Arc<[RegionTile]>,
 }
 
 #[derive(Debug)]
@@ -29,7 +43,7 @@ struct State {
 
 /// One bounded placement shared by all blits of a view, sampled coherently once per GPU batch.
 #[derive(Clone, Debug)]
-pub struct RegionPlacement(Arc<Mutex<State>>, usize);
+pub struct RegionPlacement(Arc<Mutex<State>>, usize, usize);
 
 impl RegionPlacement {
     /// Reject invalid initial normalized rectangles before publication.
@@ -39,6 +53,22 @@ impl RegionPlacement {
     /// Reserve a fixed bounded decoration capacity before plan admission. Plain image/backing
     /// placements retain zero capacity; later updates cannot silently grow admitted memory.
     pub fn with_overlay_capacity(destination: UnitRect, source_rect: UnitRect, capacity: usize) -> Option<Self> {
+        Self::with_capacities(destination, source_rect, capacity, 0)
+    }
+    /// Reserve repeated-image metadata without increasing source/dependency admission.
+    /// A positive capacity selects tiled drawing, including when the current tile set is empty.
+    pub fn with_tile_capacity(destination: UnitRect, source_rect: UnitRect, capacity: usize) -> Option<Self> {
+        if capacity == 0 || capacity > MAX_REGION_TILES {
+            return None;
+        }
+        Self::with_capacities(destination, source_rect, 0, capacity)
+    }
+    fn with_capacities(
+        destination: UnitRect,
+        source_rect: UnitRect,
+        capacity: usize,
+        tile_capacity: usize,
+    ) -> Option<Self> {
         (destination.is_valid() && source_rect.is_valid() && capacity <= MAX_VIEW_OVERLAYS).then(|| {
             Self(
                 Arc::new(Mutex::new(State {
@@ -48,6 +78,7 @@ impl RegionPlacement {
                         overlay_clip: destination,
                         overlay_scale: 1.0,
                         overlays: Arc::from([]),
+                        tiles: Arc::from([]),
                     },
                     sampled: None,
                     first_use: None,
@@ -55,12 +86,33 @@ impl RegionPlacement {
                     presentation_output: None,
                 })),
                 capacity,
+                tile_capacity,
             )
         })
     }
     /// Immutable admitted decoration capacity.
     pub fn overlay_capacity(&self) -> usize {
         self.1
+    }
+    /// Immutable admitted repetition capacity. Zero retains ordinary single-image drawing.
+    pub fn tile_capacity(&self) -> usize {
+        self.2
+    }
+    /// Atomically publish a bounded repetition set. Failed updates retain the old geometry.
+    pub fn update_tiles(&self, tiles: &[RegionTile]) -> bool {
+        if tiles.len() > self.2
+            || !tiles
+                .iter()
+                .all(|tile| tile.destination.is_valid() && tile.source_rect.is_valid())
+        {
+            return false;
+        }
+        let mut state = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        if state.geometry.tiles.as_ref() != tiles {
+            state.geometry.tiles = Arc::from(tiles);
+            state.first_use = None;
+        }
+        true
     }
     /// Publish valid latest geometry without allocating or changing resource/admission lifetimes.
     pub fn update(&self, destination: UnitRect, source_rect: UnitRect) -> bool {
@@ -96,6 +148,7 @@ impl RegionPlacement {
             } else {
                 Arc::from(overlays)
             },
+            tiles: state.geometry.tiles.clone(),
         };
         if state.geometry == geometry {
             return true;
@@ -174,7 +227,8 @@ impl RegionPlacement {
     pub(crate) fn retained_heap_bytes(&self) -> usize {
         // Reserve latest, sampled and accepted arrays plus each bounded opaque hit identity.
         std::mem::size_of::<Mutex<State>>()
-            + 6 * std::mem::size_of::<usize>()
+            + 12 * std::mem::size_of::<usize>()
             + 3 * self.1 * (std::mem::size_of::<OverlayPrimitive>() + 128)
+            + 3 * self.2 * std::mem::size_of::<RegionTile>()
     }
 }

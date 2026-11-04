@@ -557,7 +557,23 @@ impl Backend for D3d11Backend {
                         for region in regions {
                             if region.visibility.as_ref().is_none_or(|guard| guard.is_current()) {
                                 let region = region.for_frame(token);
-                                pipeline.draw_region(context, &resources.textures[&region.source], output, &region);
+                                if let Some(placement) = &region.placement
+                                    && placement.tile_capacity() > 0
+                                {
+                                    let mut repeated = region.clone();
+                                    for tile in placement.sample(token).tiles.iter() {
+                                        repeated.destination = tile.destination;
+                                        repeated.source_rect = tile.source_rect;
+                                        pipeline.draw_region(
+                                            context,
+                                            &resources.textures[&region.source],
+                                            output,
+                                            &repeated,
+                                        );
+                                    }
+                                } else {
+                                    pipeline.draw_region(context, &resources.textures[&region.source], output, &region);
+                                }
                                 if let Some(placement) = &region.placement {
                                     pipeline.draw_overlays(context, output, &placement.sample(token));
                                 }

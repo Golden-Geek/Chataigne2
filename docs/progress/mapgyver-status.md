@@ -5,7 +5,7 @@
 **Verified acceptance: 54/67 gates. Phase completion: 6/12 (50%).**
 
 **Current topic:** M11/8 Active: typed output exposure, Cell labels and shared preview identities implemented; native Cell snapshots remain open.
-**Next action:** bounded native Cell snapshots, then actual Inspector/grid exposure and full revised native acceptance.
+**Next action:** wire the verified repeated-image primitive into bounded native preview negotiation and the Matrix viewport; then complete snapshot scheduling and acceptance.
 **Blocker:** none for M11/8. Original physical/timing and app-control retirement gates remain unaccepted.
 **Execution:** M11/8 alone is selected Active; M11/1–7 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
@@ -18,6 +18,7 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
 **Newly usable:** [Matrix Cell labels](evidence/mapgyver-m11-cell-labels-2026-11-04.json) show effective `media [channel]`, follow renames and source recovery, and expose shared preview identities. Native Cell snapshots remain open; M11/8 stays Active.
+**Implementation checkpoint:** [Native repeated-image placement](evidence/mapgyver-m11-native-tiles-2026-11-04.json) passes both GPUs with shared source upload, per-tile crops and withdrawal. This primitive is not yet wired to Matrix Cells and earns no gate.
 **Previously delivered:** [Typed Matrix output exposure](../architecture/mapgyver-matrix-output-exposure.md): Layer/Group opt-in channels preserve internal Final rendering; discovery, References, demand and retired identities honor exposure.
 **Previously delivered:** [Composition-owned creation](../architecture/mapgyver-owned-media.md): right-click the canvas for all supported media types; real typed children, placement, selection and single-step history need no source object in the catalog.
 **Previously delivered:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): centered navigation and contextual actions, bounded offscreen Matrix Frame, selected-only Surface paint and history-safe geometry input.
@@ -121,17 +122,18 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch (2026-11-04):** 17:19–18:04 CET cutoff. Delivered the backend/grid label
-  slice and canonical preview identities; native tiles remain unfinished. Owners: Matrix view
-  DTO and grid consumer. [Evidence](evidence/mapgyver-m11-cell-labels-2026-11-04.json): 426 Rust
-  tests, 7 viewport cases, 91 UI tests, strict all-target Clippy, generation, Svelte and both
-  Rust formatters pass. Actual bundled browser checks pass labels, rename/Undo, Reference vs
-  independent copy, loss/recovery, replacement history and project roundtrip; host exits 0.
-  Next deliverable: bounded native Cell snapshots using shared textures and one presentation
-  lease; preserve the 64-view limit and existing GPU admission bounds. Actual Inspector
-  exposure, full revised native cohort, scrolling and preview retirement remain required.
-  No acceptance gate closed: 54/67 (81%), M11 7/10, phases 6/12. Previous exposure milestone
-  `0411f75e` is pushed and independently verified; this slice is ready for scoped delivery.
+- **Current batch (2026-11-04):** native primitive checkpoint before the retained 18:04 CET
+  cutoff; investigation started 17:19 CET and concluded with the shared-binding design and
+  both-GPU pixel result. [Evidence](evidence/mapgyver-m11-native-tiles-2026-11-04.json): Golden
+  Video 193 software tests, MapGyver 426, strict all-target Clippy on both crates, root/Golden
+  Core formatting and all three native region tests pass. Both GPUs verify repeated source
+  crops, changing/empty tiles, visibility withdrawal, independent output and completed asset
+  retirement. Producer/pass/dependency and 64-view limits are unchanged. This checkpoint
+  delivers the renderer primitive only; Cell thumbnails remain unfinished. Next code slice:
+  generated preview source-group geometry and one Matrix grid lease using that primitive.
+  Unique-source snapshot scheduling, actual grid input/scrolling/loss/retirement, Inspector
+  exposure and the full revised native cohort remain required. Label slice `b431e4b9` is
+  pushed/verified. No gate closed: 54/67 (81%), M11 7/10, phases 6/12.
 
 ## Maintenance rule
 

@@ -60,6 +60,15 @@ The implemented foundations are:
   Host geometry, session replacement, lease expiry and close withdraw every destination. Region
   fences are checked by the render worker independently of source admission and other outputs.
   Live placement storage is fixed per admitted view and charged to retained plan metadata.
+- `RegionPlacement::with_tile_capacity` reserves up to 2,048 checked image rectangles sharing
+  one `BlitRegion` texture binding. `update_tiles` atomically replaces the bounded set; empty
+  tiled placements draw no image. Each tile has its own normalized destination and source crop.
+  The render worker samples the set once per completion token, without resource preparation,
+  another source upload or decoder. Tiles retain their declared painter order and the binding's
+  visibility lifetime. Latest, sampled and output-accepted arrays are charged at the reserved
+  capacity; source, pass, dependency and texture-memory limits retain their existing meanings.
+  This is a generic native draw primitive; preview negotiation and app viewport policy own
+  admission and projection into it.
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.

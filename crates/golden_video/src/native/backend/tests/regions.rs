@@ -227,6 +227,86 @@ struct Renderer {
     serial: u64,
 }
 
+#[test]
+#[ignore = "requires explicitly available Windows hardware D3D11"]
+fn hardware_repeated_images_share_one_source_and_clear_retired_tiles_on_each_adapter() {
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(60)).is_err() {
+            eprintln!("repeated-image hardware watchdog expired");
+            std::process::exit(1);
+        }
+    });
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        eprintln!("repeated-image adapter {:?} {}", adapter.id, adapter.description);
+        let image = prepared_image(descriptor(2, 1), &[255, 0, 0, 255, 0, 0, 255, 255]);
+        let retirement = image.retirement();
+        let placement = crate::plan::RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, 256).unwrap();
+        let visibility = golden_io::RevisionSource::default();
+        let plan = scene_with_placement(
+            &image,
+            0,
+            None,
+            Some(visibility.reader().guard_at(visibility.reader().current())),
+            Some(placement.clone()),
+        );
+        let mut renderer = Renderer::new(adapter.id, &plan);
+        for count in [256, 7, 0, 128] {
+            let tiles = (0..count)
+                .map(|index| crate::plan::RegionTile {
+                    destination: UnitRect {
+                        x: (index % 4) as f32 / 4.,
+                        y: ((index / 4) % 4) as f32 / 4.,
+                        width: 0.25,
+                        height: 0.25,
+                    },
+                    source_rect: UnitRect {
+                        x: (index % 2) as f32 / 2.,
+                        y: 0.,
+                        width: 0.5,
+                        height: 1.,
+                    },
+                })
+                .collect::<Vec<_>>();
+            assert!(placement.update_tiles(&tiles));
+            let actual = renderer.frame(&plan);
+            let mut expected = [TRANSPARENT; 16];
+            for (index, pixel) in expected.iter_mut().take(count.min(16)).enumerate() {
+                *pixel = if index % 2 == 0 {
+                    [255, 0, 0, 255]
+                } else {
+                    [0, 0, 255, 255]
+                };
+            }
+            for index in [10, 11, 14, 15] {
+                expected[index] = GREEN;
+            }
+            expect(&actual[0], &expected);
+            expect(&actual[1], &[GREEN; 16]);
+        }
+        visibility.advance();
+        let actual = renderer.frame(&plan);
+        let mut expected = [TRANSPARENT; 16];
+        for index in [10, 11, 14, 15] {
+            expected[index] = GREEN;
+        }
+        expect(&actual[0], &expected);
+        expect(&actual[1], &[GREEN; 16]);
+        assert_eq!(renderer.backend.control.snapshot().uploaded_images, 1);
+        drop(renderer);
+        drop(plan);
+        drop(image);
+        assert!(retirement.wait(WAIT));
+    }
+    done.send(()).unwrap();
+}
+
 impl Renderer {
     fn new(adapter: AdapterId, plan: &CompiledPlan) -> Self {
         let identity = Uuid::new_v4();
