@@ -29,8 +29,9 @@ import { verifyCompositionCreation } from './composition-creation.mjs';
 import { verifyMatrixCellPreviews } from './matrix-cell-previews.mjs';
 import { verifyMatrixPreviewAdmission } from './matrix-preview-admission.mjs';
 import { verifyMatrixOutputExposure } from './matrix-output-exposure.mjs';
+import { verifyMatrixSparsePreviews } from './matrix-sparse-previews.mjs';
 
-const native = await openNativeEditor();
+const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
 	let token;
 	async function post(route, body) {
@@ -50,6 +51,15 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			[
+				'--matrix-native-acceptance',
+				async (options) => {
+					await verifyMatrixPreviewAdmission(options);
+					await verifyMatrixCellPreviews(options);
+					await verifyMatrixSparsePreviews(options);
+				}
+			],
+			['--matrix-sparse-previews', verifyMatrixSparsePreviews],
 			['--matrix-output-exposure', verifyMatrixOutputExposure],
 			['--matrix-preview-admission', verifyMatrixPreviewAdmission],
 			['--matrix-cell-previews', verifyMatrixCellPreviews],

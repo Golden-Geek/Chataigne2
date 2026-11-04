@@ -86,6 +86,22 @@ fn color(engine: &mut AppEngine, rgba: [f32; 4]) -> ChannelReference {
 fn launch(engine: &mut AppEngine, root: ChannelReference, column: ColumnId, mode: LaunchMode) {
     matrix(engine, root.media, MatrixEdit::LaunchColumn { column, mode });
 }
+fn expose_outputs(engine: &mut AppEngine, root: ChannelReference, outputs: &[ChannelReference]) {
+    let snapshot = inspect(engine, root.media);
+    for row in snapshot.items.iter().filter(|row| outputs.contains(&row.channel)) {
+        matrix(
+            engine,
+            root.media,
+            MatrixEdit::ConfigureItem {
+                item: row.id,
+                settings: CompositeSettings {
+                    expose_channel: true,
+                    ..row.settings
+                },
+            },
+        );
+    }
+}
 fn image(color: [f64; 4]) -> Image {
     Image::solid(32, 24, color)
 }
@@ -400,6 +416,7 @@ fn native_matrix_pixels_cover_exports_blends_order_recovery_scale_and_interrupti
         let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
         engine.apply_edits().unwrap();
         let mut scene = Scene::new(&mut engine);
+        expose_outputs(&mut engine, scene.root, &scene.routes());
         let mut fixture = Fixture::with_outputs(adapter.id, 3);
         for (blend, label) in [
             (BlendMode::Normal, "normal"),

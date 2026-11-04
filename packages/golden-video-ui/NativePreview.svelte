@@ -45,6 +45,8 @@
 	// Register in component order; intersection delivery can otherwise reorder
 	// overlapping native surfaces. Hidden/clipped surfaces retire on observation.
 	let inViewport = $state(true);
+	// A parent DTO can refresh its prop getter without changing the lease's lifetime value.
+	const registrationLifetime = $derived(lifetime);
 	const nativeOverlays = $derived(
 		overlays.length > 0 &&
 			registration !== null &&
@@ -75,7 +77,7 @@
 
 	$effect(() => {
 		if (!element || !visible || !inViewport) return;
-		lifetime;
+		registrationLifetime;
 		const owner = session;
 		const unsubscribe = owner.subscribe((state) => {
 			sessionIdentity = state.session;

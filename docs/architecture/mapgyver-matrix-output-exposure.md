@@ -55,6 +55,9 @@ Golden preview version 5 carries typed source groups, passive tile rectangles an
 repetition capacity inside one registration. The parent source identifies the owner without
 creating image demand. Completion waits for the parent geometry marker and every child source
 placement. Geometry-only updates reuse bindings; withdrawn groups clear retained placements.
+The generic UI normalizes the supplied lifetime value through a Svelte derived boundary:
+refreshing a parent viewport DTO with the same project identity does not recreate its lease.
+Actual sparse-grid loss/Undo and guarded native Fit/source-loss checks verify this lifetime.
 The parent paints no full-grid opaque backing. This avoids per-Cell source, decoder, upload
 or dependency duplication. Host metadata admits at most 2,048 groups and tile rectangles and
 4,096 reserved slots per layout. UI fallback is confined to each tile.
@@ -71,21 +74,24 @@ desktop host explicitly negotiates **eight**. Earlier Cell-tile notes incorrectl
 the shared default as the app's limit. This limit has not been raised. The former one-source-
 per-registration grid failed to install its ninth source. The grouped implementation now
 admits all nine sources in one installed registration with no fallback in the actual app.
-The exact nine-source native pixel/Matrix Final cohort remains unaccepted: the capture helper
-cannot foreground its owned test window, and the supported computer-use helper reports its
-native pipe unavailable. Ownership, foreground and pixel guards have not been relaxed.
+The exact nine-source/twelve-Cell pixel cohort now passes on explicitly selected Intel and
+NVIDIA adapters, alongside independent complete Matrix Final output. Both pass live edits,
+source loss/Undo, fixed-resolution Reference Fit black areas, scroll and New. Eighteen guarded
+native screenshots retain the original PID/foreground and pixel-tolerance checks. Source
+labels have two complete lines and a full tooltip, with the same reserved strip in native
+tile geometry. The probe follows the image center when that strip changes.
 
-The preceding per-source implementation passes guarded foreground captures for two shared sources/four Cells,
-live color changes, source loss and Undo, scroll withdrawal/recovery and project New. Source
-grouping, clipping and same-generation updates pass software checks; both GPUs pass the native
-repeated-image primitive. This is an admitted-scene checkpoint, not full Matrix qualification.
-Mixed/large distinct-source snapshot admission, retained GPU completion and the full revised
-native cohort remain required; a viewport beyond the active source budget is not accepted by
-this evidence. Generic Inspector exposure/discovery now passes actual-app acceptance.
+Actual native WebView checks on both adapters keep a 1,000×1,000 document sparse at six Cells,
+mount only 64–100 addresses and share two source bindings in one lease. Source-loss/Undo
+retains that lease; scroll and tab changes withdraw/recover it. New removes the preview and
+receives a newer empty backend observation set. The host retains its clearing presentation
+window; UI lease withdrawal does not imply runtime destruction.
 
-M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented;
-protocol-v5 grouping passes software checks and actual-app registration admission. Its full
-pixel acceptance is still required, including the prior loss/Undo/Fit/scroll cohort. Mixed/large distinct-source snapshots,
-complete sparse/source-loss/preview retirement and the revised full
-native cohort remain required. The desktop's eight-registration budget is unchanged. Thumbnail admission
-must continue sharing sources/decoders rather than duplicating them per Cell.
+The complete five-test native Matrix suite separately passes 240 complete images, original
+large-grid/burst/fade checks and all 16 balanced GPU owner retirements on both adapters.
+Public export observations opt in explicitly while default-hidden exposure retains its own
+native test. Original pixel, admission, resource and watchdog limits remain unchanged.
+
+**M11/8 Accepted.** The [acceptance receipt](../progress/evidence/mapgyver-m11-cell-tiles-2026-11-04.json)
+maps each requirement to its proof. Global physical/timing/process and final product
+qualification retain their separate open gates; this feature acceptance does not close them.

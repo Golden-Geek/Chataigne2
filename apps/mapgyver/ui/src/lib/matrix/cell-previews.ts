@@ -38,7 +38,7 @@ export function cellPreviewGroups(
 				rem,
 			y: (projection.rowOrigin + row * gridSize.row - projection.top - gridSize.header + 0.2) * rem,
 			width: (gridSize.column - 0.4) * rem,
-			height: (gridSize.row - 1.8) * rem
+			height: (gridSize.row - (gridSize.previewLabel + 0.4)) * rem
 		};
 		if (
 			tile.x + tile.width <= 0 ||

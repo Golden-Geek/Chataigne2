@@ -148,6 +148,7 @@ pub(super) fn check(adapter: AdapterId) {
         snapshot.items.iter().find(|i| i.id == group).unwrap().channel,
         root,
     ];
+    expose_outputs(&mut engine, root, &routes);
     let mut fixture = Fixture::with_outputs(adapter, 3);
     launch(&mut engine, root, columns[0], LaunchMode::Cut);
     fixture.publish_channels(&engine, &routes, root, Some(4));

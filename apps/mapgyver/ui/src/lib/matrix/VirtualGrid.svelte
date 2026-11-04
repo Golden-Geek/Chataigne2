@@ -285,6 +285,7 @@
 		style:--row={`${gridSize.row}rem`}
 		style:--column={`${gridSize.column}rem`}
 		style:--header={`${gridSize.header}rem`}
+		style:--preview-label-height={`${gridSize.previewLabel}rem`}
 		style:--label={`${gridSize.label}rem`}>
 		<CellPreviews {snapshot} {metrics} />
 		<div
@@ -409,7 +410,7 @@
 									[]
 								).includes(column.id)}
 								title={`${row.item.label} / ${column.label}`}>
-								<span class="source-label"
+								<span class="source-label" title={cell?.source_label ?? undefined}
 									>{row.item.id.kind === 'Group'
 										? ''
 										: cell?.source_missing
@@ -604,9 +605,14 @@
 	.source-label {
 		position: absolute;
 		inset: auto 0.15rem 0.15rem;
-		max-height: 1.4rem;
+		max-height: var(--preview-label-height);
 		overflow: hidden;
 		font-size: 0.8em;
+		line-height: calc(var(--preview-label-height) / 2);
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		background: var(--gc-color-panel);
 	}
 	.add,

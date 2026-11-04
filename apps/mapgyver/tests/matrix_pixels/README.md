@@ -13,10 +13,17 @@ cargo clippy --locked -p MapGyver --all-targets --features native-qualification,
 cargo test --locked -p MapGyver --features native-qualification --test matrix_rendering -- --ignored --nocapture --test-threads=1
 ```
 
-Run the complete four-test native suite serially, after inspecting terminal software and strict
-lint success. Use Cargo's optimized **test** profile, including `cargo rustc --profile test` when
+Run the complete native suite (four retained tests plus M11/8 exposure) serially, after
+inspecting terminal software and strict lint success. Use Cargo's optimized **test** profile,
+including `cargo rustc --profile test` when
 building an isolated executable. The dev profile and `test-fast` are not equivalent qualification
 builds. Keep the original 180/90-second watchdogs and 60-second preview lease unchanged.
+
+M11/8 makes Layer/Group outputs opt-in. The retained export/fade observations explicitly
+expose only their public output routes through typed Matrix intents. Scene defaults stay
+hidden; the separate nested exposure test verifies Final rendering while hidden and exact
+Reference/export recovery. The software preflight checks exposure, unchanged identities and
+project preservation before native qualification. No raster oracle or runtime limit changes.
 
 The main scene reuses the actual three-Layer/three-Column defaults and authors 32×24 source
 media and Layer canvases explicitly. The software preflight checks ownership, sparse defaults,

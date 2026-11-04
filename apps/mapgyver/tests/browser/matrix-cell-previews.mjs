@@ -8,19 +8,72 @@ import { clearMatrixScene } from './matrix-scene.mjs';
 const run = promisify(execFile);
 
 export async function captureMatrixCellPixels({ directory, phase, page, nativePid, cells }) {
+	const manual = process.env.MAPGYVER_MATRIX_MANUAL_FOREGROUND === '1';
 	const target = path.join(directory, phase);
 	await mkdir(target, { recursive: true });
 	assert(cells.every((cell) => cell.box));
+	const labelHeight = await page
+		.locator('[data-panel-id="matrix"] .source-label')
+		.first()
+		.evaluate((label) => parseFloat(getComputedStyle(label).maxHeight));
+	assert(Number.isFinite(labelHeight) && labelHeight > 0);
+	const probes = cells.map((cell) => ({
+		...cell,
+		fraction_y: cell.fraction_y ?? (cell.box.height - labelHeight) / (2 * cell.box.height)
+	}));
 	await writeFile(
 		path.join(target, 'ready.json'),
-		JSON.stringify({ pid: nativePid, dpr: await page.evaluate(() => devicePixelRatio), cells })
+		JSON.stringify({
+			pid: nativePid,
+			dpr: await page.evaluate(() => devicePixelRatio),
+			cells: probes
+		})
 	);
-	const result = await run('python', ['apps/mapgyver/tests/native/matrix_cell_pixels.py', target], {
-		timeout: 10000,
-		windowsHide: true
-	});
+	if (manual)
+		console.log(
+			JSON.stringify({
+				action: 'activate-owned-grid-verification-window',
+				nativePid,
+				phase,
+				title: 'MapGyver',
+				scene: 'Nine colors in the Matrix grid, or four shared-source Cells'
+			})
+		);
+	const result = await run(
+		'python',
+		[
+			'apps/mapgyver/tests/native/matrix_cell_pixels.py',
+			target,
+			...(manual ? ['--foreground-wait-seconds', '480'] : [])
+		],
+		{
+			timeout: manual ? 490000 : 10000,
+			windowsHide: true
+		}
+	);
 	assert.equal(JSON.parse(result.stdout).result, 'pass', result.stdout);
-	return JSON.parse(result.stdout);
+	let adapter = null;
+	const expected = process.env.MAPGYVER_MATRIX_EXPECTED_ADAPTER;
+	if (expected) {
+		const deadline = Date.now() + 8000;
+		while (true) {
+			const status = await page.evaluate(async () =>
+				JSON.parse(
+					await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+						request: JSON.stringify({ kind: 'mapgyverRuntimeStatus' })
+					})
+				)
+			);
+			if (status.state === 'Running' && status.gpu_adapter) {
+				assert.equal(status.gpu_adapter, expected);
+				adapter = status.gpu_adapter;
+				break;
+			}
+			assert(Date.now() < deadline, JSON.stringify(status));
+			await delay(40);
+		}
+	}
+	return { ...JSON.parse(result.stdout), adapter };
 }
 
 export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) {

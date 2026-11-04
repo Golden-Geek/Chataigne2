@@ -1,11 +1,54 @@
 {
 	"date": "2026-11-04",
 	"gate": "M11/8",
-	"gate_state": "Active",
+	"gate_state": "Accepted",
 	"delivered": "Native visible Matrix Cell thumbnails grouped by canonical source, with backend media [channel] labels",
-	"binary": "target/debug/deps/MapGyver-codex-m118-cell-tiles.exe",
-	"sha256": "649458D9928A8BFB9C4262BBC1CF250D4E3BE1854724A24D493DF5742096F8FA",
-	"software": {
+	"current_acceptance": {
+		"binary": "target/debug/deps/MapGyver-codex-m118-labels.exe",
+		"sha256": "0153E7486884E3386832AA6A27D74A340360AB57CF4A227D1460BFB3ED68D0B3",
+		"protocol": 5,
+		"software": "431 app / 195 video library passes retained for unchanged Rust runtime; current raster preflight has 13 passes, strict all-target native/process/smoke Clippy passes; final app Svelte check has zero errors/warnings, 94 app UI tests pass; Golden preview Svelte and 31 session tests pass.",
+		"raster": {
+			"binary": "target/debug/deps/matrix_rendering-31f145310bf4e7bd.exe",
+			"sha256": "B0B426BA40B0847EB3366F5AAD2259DA7BE0EC5D34DC8AA7917D3C911ABE172A",
+			"result": "All five native tests pass in 271.39s; 240 complete images on Intel and NVIDIA, zero error outside legal UNORM bounds under unchanged 2/255 residual tolerance; all 16 fixture owners retire with zero live plan allocations, balanced creation/release and empty output/source inventories.",
+			"coverage": "Nested hidden Group Normal/Add/Multiply/Screen and alpha, public export/Reference recovery, geometry, source loss/Undo, copy/project identities, 1000x1000 sparse document, 1000 launches on original 10ms schedule and interrupted blends. Observed exports explicitly opt in; defaults remain hidden.",
+			"log": "target/m118-native-full.log"
+		},
+		"actual_app": {
+			"nvidia": {
+				"adapter": "dxgi:00000000:00016022",
+				"log": "target/m118-nvidia-final-accepted.log",
+				"artifacts": "target/m118-nvidia-final-accepted",
+				"exit": 0
+			},
+			"intel": {
+				"adapter": "dxgi:00000000:00015b69",
+				"log": "target/m118-intel-accepted.log",
+				"artifacts": "target/m118-intel-accepted",
+				"exit": 0
+			},
+			"pixels": "Both exact pinned adapters pass the nine-source/twelve-Cell cohort and prior live-edit/loss/Undo/fixed-Reference-Fit/scroll cohort on the final binary. Eighteen guarded native window captures check 3x3 probes, including black Fit areas and no stale green on source loss; two independent complete 96x64 Matrix Final outputs are white. Foreground/PID guards and 2/255 component tolerance remain unchanged.",
+			"sparse": "Both adapters pass actual native WebView 1000x1000 sparse feedback with six authored Cells, 64-100 mounted addresses, two shared bindings in one lease, source-loss/Undo stable lease, scroll withdrawal/recovery and tab lifetime. New removes the preview and receives a newer empty backend observation set. Physical owner retirement is proved separately by the native raster fixtures.",
+			"labels": "Two complete source-label lines and full tooltip; thumbnail geometry reserves the same strip. Actual DOM checks reject clipped glyphs and visual native capture confirms legibility. Probe positions follow the measured reserved label strip instead of a stale row fraction.",
+			"inspector": "The separately recorded native Inspector checkpoint verifies typed Layer/Group exposure, Blend Mode, backend/Reference discovery, stable identities and history; ordinary channel editing/CRUD/paging remains verified."
+		},
+		"repairs": "Lifetime prop normalization prevents parent viewport DTO refreshes from replacing a lease. One grouped registration retains the actual eight-registration desktop cap; logical capture remains separate from eight physical producers. Source labels no longer clip through the channel line.",
+		"limits": "No producer/pass/dependency/memory/admission/retirement/watchdog or pixel budget is increased. Optional manual foreground setup waits are outside product readiness timing and the existing ten-minute app watchdog remains intact.",
+		"fixture_corrections": "A final Idle/no-resources assertion was invalid: the host intentionally retains its clearing presentation window. The actual backend empty-observation event proves UI lease withdrawal; complete native owners still prove physical retirement. A two-line capacity assertion now checks max-height, allowing short one-line labels. Failed fixture runs remain in target/m118-sparse-fixed-native.log and target/m118-nvidia-accepted.log.",
+		"audit": [
+			"Visible source snapshots and backend media [channel] labels: pinned actual native pixels, visual and bounded DOM checks.",
+			"No per-Cell binding/producer duplication: canonical source groups, nine-source/twelve-Cell one-lease cohort, source identity/Reference alias tests and native repeated-image primitive.",
+			"Real nested Group blending/alpha and internal Final while hidden: complete both-GPU native suite.",
+			"Typed default-off Layer/Group exposure and existing Blend Mode: native generic Inspector plus public backend/caller tests.",
+			"Discovery, References and demand honor exposure: native export recovery, hidden Final pixels, retired visibility and authored dependency tests.",
+			"Stable identities/history/copy/projects and missing Reference recovery: app library checks, current raster preflight/native reload, Inspector and source-loss/Undo cohorts.",
+			"Large sparse viewport/source loss/preview retirement: actual both-adapter 1000x1000 UI lifetime and complete native sparse/burst/retirement suite."
+		]
+	},
+	"historical_v4_binary": "target/debug/deps/MapGyver-codex-m118-cell-tiles.exe",
+	"historical_v4_sha256": "649458D9928A8BFB9C4262BBC1CF250D4E3BE1854724A24D493DF5742096F8FA",
+	"historical_v4_software": {
 		"mapgyver": "428 passed, 3 explicit ignores",
 		"golden_video": "195 passed, 26 explicit ignores",
 		"strict_clippy": "Both crates, all targets and qualification/native/process/smoke features pass with -D warnings",
@@ -15,7 +58,7 @@
 		"coverage": "Source grouping vs independent identities, Reference resolution/enablement/history/project preservation, partial/offscreen and missing-source geometry, host clipping, coherent same-routing tile updates, bounded metadata, lease withdrawal and unchanged distinct-source admission",
 		"checker_repair": "Golden Video UI checker target ES2023 matches its existing Golden UI findLast dependency"
 	},
-	"native": {
+	"historical_v4_native": {
 		"command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-cell-previews",
 		"result": "pass; owned native host exits normally",
 		"adapter_scope": "Ordinary configured native adapter, not pinned by this cohort; both-adapter full-grid acceptance remains open",
@@ -81,10 +124,6 @@
 		],
 		"scope": "Inspector/discovery requirement verified; grouped native pixels and remaining M11/8 qualification are still open. No full gate credit."
 	},
-	"remaining": [
-		"Complete guarded native nine-source/Matrix Final and prior loss/Undo/Fit/scroll pixels for grouped protocol v5 after foreground activation is restored.",
-		"Mixed and large distinct-source snapshot admission within retained producer/pass/memory limits; more than eight simultaneous source roots is not qualified by this slice.",
-		"Complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
-	],
-	"acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
+	"remaining": [],
+	"acceptance_credit": "M11/8 closes: 55/67 (82%), M11 8/10 (80%), phases 6/12. Historical checkpoints below current_acceptance retain their original limited scopes. Retained global timing/physical/process and final product qualification remain separate open gates."
 }

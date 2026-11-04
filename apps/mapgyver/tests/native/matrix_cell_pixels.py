@@ -4,6 +4,7 @@ import ctypes
 from ctypes import wintypes
 import json
 from pathlib import Path
+import time
 
 from window_capture import visible_owned_window
 
@@ -11,6 +12,7 @@ from window_capture import visible_owned_window
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--foreground-wait-seconds", type=int, default=0, choices=(0, 180, 480))
     args = parser.parse_args()
     ready = json.loads((args.directory / "ready.json").read_text())
     user = ctypes.windll.user32
@@ -35,6 +37,10 @@ def main():
     assert len(matches) == 1, "exactly one visible owned native test window required"
     hwnd = matches[0]
     user.SetForegroundWindow(hwnd)
+    # Optional human setup wait, separate from render readiness and unchanged pixel guards.
+    deadline = time.monotonic() + args.foreground_wait_seconds
+    while user.GetForegroundWindow() != hwnd and time.monotonic() < deadline:
+        time.sleep(.1)
     image, bounds = visible_owned_window(hwnd, ready["pid"])
     origin = wintypes.POINT(0, 0)
     user.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]

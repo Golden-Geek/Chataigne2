@@ -33,7 +33,7 @@ test('visible cells share canonical source groups while independent copies keep 
 	)!;
 	assert.equal(shared.tiles.length, 2);
 	assert.equal(shared.capacity, 2);
-	assert.deepEqual(shared.tiles[0], { x: 3.2, y: 3.2, width: 113.6, height: 91.2 });
+	assert.deepEqual(shared.tiles[0], { x: 3.2, y: 3.2, width: 113.6, height: 78.4 });
 	assert.ok(shared.tiles[1].x > shared.tiles[0].x);
 	assert.equal(
 		groups.find((group) => JSON.parse(group.source).reference.media === 'copy')!.tiles.length,
