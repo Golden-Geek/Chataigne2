@@ -2,5 +2,6 @@
 import type { ChannelSnapshot } from "./ChannelSnapshot";
 import type { MediaId } from "./MediaId";
 import type { MediaKind } from "./MediaKind";
+import type { SenderSelectionMode } from "./SenderSelectionMode";
 
-export type MediaSnapshot = { id: MediaId, label: string, media_kind: MediaKind, channels: Array<ChannelSnapshot>, };
+export type MediaSnapshot = { id: MediaId, label: string, media_kind: MediaKind, sender_selection: SenderSelectionMode | null, channels: Array<ChannelSnapshot>, };

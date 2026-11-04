@@ -22,6 +22,9 @@ use std::sync::OnceLock;
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec![crate::media::protocol::ASSET_NODE_TYPE.into()]);
         sender: String = String::new() (label = "Spout sender");
+        sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
+            enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+            enum_options = crate::parameters::enum_options(&[""]));
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into(), "mapgyver.matrix.group.v2".into()]);
     }
@@ -33,6 +36,18 @@ pub struct ChannelNode {
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
 }
 impl ChannelNode {
+    pub(crate) fn sender_parameter(&self, mode: super::protocol::SenderSelectionMode) -> NodeId {
+        match mode {
+            super::protocol::SenderSelectionMode::Manual => self.sender.id(),
+            super::protocol::SenderSelectionMode::Auto => self.sender_choice.id(),
+        }
+    }
+    pub(crate) fn sender_name(&self, mode: super::protocol::SenderSelectionMode) -> String {
+        match mode {
+            super::protocol::SenderSelectionMode::Manual => self.sender.get_ref().clone(),
+            super::protocol::SenderSelectionMode::Auto => self.sender_choice.get_ref().as_str().to_owned(),
+        }
+    }
     pub(crate) fn from_definition(label: String, definition: ChannelDefinition) -> Self {
         let mut node = Self::new();
         let presentation = node.node_data().meta.presentation.clone();
@@ -123,7 +138,10 @@ impl ChannelNode {
             },
             "Composition" => ChannelSource::Composition { canvas },
             "SharedTexture" => ChannelSource::Spout {
-                sender: (!self.sender.get_ref().is_empty()).then(|| self.sender.get_ref().clone()),
+                sender: {
+                    let name = self.sender_name(media.sender_selection().unwrap());
+                    (!name.is_empty()).then_some(name)
+                },
             },
             "Matrix" => ChannelSource::Matrix {
                 output: match self.output_kind.get_ref().as_str() {
@@ -154,7 +172,11 @@ impl ChannelNode {
             fit_mode: media.fit_mode(),
         }
     }
-    pub(crate) fn parameter_edits(&self, source: ChannelSource) -> Result<Vec<Edit>, String> {
+    pub(crate) fn parameter_edits(
+        &self,
+        source: ChannelSource,
+        mode: super::protocol::SenderSelectionMode,
+    ) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
             ChannelSource::SolidColor { rgba } => values.push((
@@ -171,7 +193,14 @@ impl ChannelNode {
                 return Err("derived outputs have no authored channel settings".into());
             }
             ChannelSource::Spout { sender } => {
-                values.push((self.sender.id(), ParamValue::Str(sender.unwrap_or_default())))
+                let sender = sender.unwrap_or_default();
+                values.push((
+                    self.sender_parameter(mode),
+                    match mode {
+                        super::protocol::SenderSelectionMode::Manual => ParamValue::Str(sender),
+                        super::protocol::SenderSelectionMode::Auto => ParamValue::Enum(sender),
+                    },
+                ))
             }
         }
         Ok(values
@@ -236,6 +265,7 @@ impl Node for ChannelNode {
             self.output_item.id(),
         ]
         .contains(&parameter)
+            || (self.kind() == super::protocol::MediaKind::SharedTexture && parameter == self.sender_choice.id())
         {
             self.revision.advance();
             if let Some(control) = self.matrix_playback.get() {
@@ -301,6 +331,12 @@ impl Node for ChannelNode {
         if self.sender.get_ref().len() > 255 || self.sender.get_ref().contains('\0') {
             return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
         }
+        if self.kind() == super::protocol::MediaKind::SharedTexture {
+            let name = self.sender_choice.get_ref().as_str();
+            if name.len() > 255 || name.contains('\0') {
+                return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
+            }
+        }
         Ok(())
     }
 
@@ -324,10 +360,15 @@ impl Node for ChannelNode {
             }
         }
         if change.parameter == self.sender.id()
-            && let ParamValue::Str(value) = change.value
-            && (value.len() > 255 || value.contains('\0'))
+            || (self.kind() == super::protocol::MediaKind::SharedTexture && change.parameter == self.sender_choice.id())
         {
-            return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
+            let value = match change.value {
+                ParamValue::Str(value) | ParamValue::Enum(value) => value,
+                _ => return Err("sender selector must be a String or Enum".into()),
+            };
+            if value.len() > 255 || value.contains('\0') {
+                return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
+            }
         }
         Ok(())
     }

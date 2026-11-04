@@ -113,6 +113,9 @@ fn named_invocation(operation: &MediaEdit) -> String {
             ("addChannel", serde_json::json!([media, label.as_deref().unwrap_or("")]))
         }
         MediaEdit::ConfigureMediaFitMode { media, mode } => ("configureMediaFitMode", serde_json::json!([media, mode])),
+        MediaEdit::ConfigureMediaSenderSelection { media, mode } => {
+            ("configureMediaSenderSelection", serde_json::json!([media, mode]))
+        }
         MediaEdit::ConfigureMediaResolution { media, size } => {
             let (enabled, width, height) = match size {
                 SizePolicy::Automatic => (false, 0, 0),
@@ -461,6 +464,10 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
             MediaEdit::InspectChannel { reference: first },
         ]);
     }
+    cases.push(MediaEdit::ConfigureMediaSenderSelection {
+        media: baseline.references[2][0].media,
+        mode: SenderSelectionMode::Auto,
+    });
     cases.push(MediaEdit::ConfigureChannel {
         reference: baseline.references[0][0],
         source: ChannelDefinition::for_media(MediaKind::Picture).source,

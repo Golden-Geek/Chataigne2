@@ -381,6 +381,7 @@ export const fromRustConstraints = (
 		step,
 		step_base: stepBase,
 		enum_options: enumOptions,
+		enum_domain: payload.enum_domain,
 		policy: payload.policy === 'Reject' ? 'Reject' : 'ClampAdapt',
 		reference: fromRustReferenceConstraints(payload.reference),
 		file: fromRustFileConstraints(payload.file)
@@ -426,6 +427,7 @@ export const toRustConstraints = (
 		tags: [...option.tags],
 		ordering: option.ordering
 	})),
+	enum_domain: constraints.enum_domain,
 	policy: constraints.policy,
 	reference: constraints.reference
 		? {

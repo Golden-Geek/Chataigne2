@@ -329,6 +329,20 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectPictureFile { reference } => MediaEditResult::PictureFile {
             binding: super::picture_file::inspect(engine, reference)?,
         },
+        MediaEdit::ConfigureMediaSenderSelection { media: owner, mode } => {
+            let (id, _) = media(engine, owner)?;
+            let parameter = match engine.nodes.get(id) {
+                Some(AppNode::Media(media)) => media.sender_selection_parameter(),
+                _ => None,
+            }
+            .ok_or("sender selection requires Shared Texture media")?;
+            engine.edits.push(Edit::SetParam {
+                node: parameter,
+                value: golden_core::parameter::ParamValue::Enum(mode.name().into()),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            });
+            MediaEditResult::Changed
+        }
         MediaEdit::ConfigureMediaFitMode { media: owner, mode } => {
             let (id, _) = media(engine, owner)?;
             let parameter = match engine.nodes.get(id) {
@@ -455,7 +469,7 @@ pub(super) fn configure_channel(
     source: ChannelSource,
 ) -> Result<(), String> {
     let id = channel_id(engine, reference)?;
-    let (_, kind) = media(engine, reference.media)?;
+    let (owner, kind) = media(engine, reference.media)?;
     let definition = ChannelDefinition {
         source,
         ..ChannelDefinition::default()
@@ -470,7 +484,11 @@ pub(super) fn configure_channel(
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(id) else {
         unreachable!()
     };
-    for edit in channel.parameter_edits(definition.source)? {
+    let mode = match engine.nodes.get(owner) {
+        Some(AppNode::Media(media)) => media.sender_selection().unwrap_or_default(),
+        _ => SenderSelectionMode::default(),
+    };
+    for edit in channel.parameter_edits(definition.source, mode)? {
         engine.edits.push(edit);
     }
     Ok(())

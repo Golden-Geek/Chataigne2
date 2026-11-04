@@ -6,6 +6,7 @@ import type { UiDataPlane } from './generated/rust_protocol/UiDataPlane';
 import type { UiGraphOp as GeneratedUiGraphOp } from './generated/rust_protocol/UiGraphOp';
 import type { UiSnapshot as RustUiSnapshot } from './generated/rust_protocol/UiSnapshot';
 import type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
+import type { ParameterConstraints as RustParameterConstraints } from './generated/rust_protocol/ParameterConstraints';
 export type { UiReplayCursor } from './generated/rust_protocol/UiReplayCursor';
 export type { UiApplicationInfoDto } from './generated/rust_protocol/UiApplicationInfoDto';
 export type { UiDiscoveryDto } from './generated/rust_protocol/UiDiscoveryDto';
@@ -175,6 +176,7 @@ export type UiRangeConstraint =
 	| { kind: 'components'; min?: number[]; max?: number[] };
 
 export interface UiParamConstraints {
+	enum_domain?: RustParameterConstraints['enum_domain'];
 	range?: UiRangeConstraint;
 	step?: number;
 	step_base?: number;

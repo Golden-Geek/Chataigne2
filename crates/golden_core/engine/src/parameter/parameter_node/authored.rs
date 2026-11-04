@@ -118,6 +118,7 @@ fn constraints_eq(left: &ParameterConstraints, right: &ParameterConstraints) -> 
         step,
         step_base,
         enum_options,
+        enum_domain,
         policy,
         reference,
         file,
@@ -126,6 +127,7 @@ fn constraints_eq(left: &ParameterConstraints, right: &ParameterConstraints) -> 
         && optional_number_eq(*step, right.step)
         && optional_number_eq(*step_base, right.step_base)
         && domain_eq(enum_options, &right.enum_options)
+        && enum_domain == &right.enum_domain
         && policy == &right.policy
         && reference == &right.reference
         && file == &right.file

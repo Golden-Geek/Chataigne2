@@ -20,7 +20,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 )]
 #[children(
     folder(parameters, label = "Parameters") {
-        source_media: NodeReference = NodeReference::empty() (label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]);
+        source_media: NodeReference = NodeReference::empty() (label = "Source media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]);
         source_channel: NodeReference = NodeReference::empty() (label = "Source channel", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
         crop_origin: Vec2 = Vec2::new(0.0, 0.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop origin");
         crop_size: Vec2 = Vec2::new(1.0, 1.0) [(0.0, 0.0)..(1.0, 1.0)] (label = "Crop size");

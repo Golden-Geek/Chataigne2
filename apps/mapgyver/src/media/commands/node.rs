@@ -20,7 +20,7 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
@@ -29,9 +29,9 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]);
+            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -50,7 +50,7 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
@@ -76,6 +76,7 @@ use std::sync::Arc;
         );
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", constraint_policy = "reject");
         sender: String = "" (label = "Sender");
+        sender_selection: Enum = "Manual" (label = "Sender selection", enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         locator_kind: Enum = "ProjectRelative" (
             label = "Location",
             enum_options = crate::parameters::enum_options(&["ProjectRelative", "Absolute"]),
@@ -248,6 +249,10 @@ impl MediaCommandNode {
             MediaCommandKind::ConfigureFitMode => MediaEdit::ConfigureMediaFitMode {
                 media,
                 mode: choice::<MediaFitMode>(self.fit_mode.get_ref().as_str())?,
+            },
+            MediaCommandKind::ConfigureSenderSelection => MediaEdit::ConfigureMediaSenderSelection {
+                media,
+                mode: choice::<SenderSelectionMode>(self.sender_selection.get_ref().as_str())?,
             },
             MediaCommandKind::SolidColor => {
                 let color = self.rgba.get();
@@ -440,6 +445,7 @@ impl Node for MediaCommandNode {
         self.kind()?;
         choice::<MediaKind>(self.media_kind.get_ref().as_str())?;
         choice::<MediaFitMode>(self.fit_mode.get_ref().as_str())?;
+        choice::<SenderSelectionMode>(self.sender_selection.get_ref().as_str())?;
         choice::<ChannelMoveDirection>(self.direction.get_ref().as_str())?;
         choice::<ChannelChoiceScope>(self.choice_scope.get_ref().as_str())?;
         choice::<crate::matrix::protocol::LaunchMode>(self.launch_mode.get_ref().as_str())?;

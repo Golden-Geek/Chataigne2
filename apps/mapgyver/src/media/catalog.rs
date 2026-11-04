@@ -114,6 +114,10 @@ pub(super) fn inspect(engine: &AppEngine) -> Result<MediaManagerSnapshot, String
             id: media_id,
             label: data.meta.label.clone(),
             media_kind: kind,
+            sender_selection: match node {
+                AppNode::Media(media) => media.sender_selection(),
+                _ => None,
+            },
             channels: Vec::new(),
         };
         for channel in resolver.channels(media_id)? {

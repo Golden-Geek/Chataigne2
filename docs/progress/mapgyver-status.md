@@ -4,8 +4,8 @@
 
 **Verified gates: `████████░░` 76% · 51/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M11/4 Accepted: compact typed channels and stable File/Color editing.
-**Next action:** implement M11/5 typed media-level Manual/Auto Shared Texture selection and live channel sender controls.
+**Current topic:** M11/5 Active: typed Manual/Auto mode and exact sender carry-over verified; live discovery remains open.
+**Next action:** project the host-owned sender catalog into Auto Enum options and replace the Manual picker with inline Detect; then run native recovery acceptance.
 **Blocker:** none for M11/5. Original physical/timing qualification remains unaccepted in its return queue.
 **Execution:** M11/5 alone is Active; M11/4 is Accepted. M03/9 retains its original qualification in Pending. Existing accepted gates retain their tested limits.
 Retained physical/timing gates stay in the explicit return queue.
@@ -113,21 +113,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch handoff (13:50 CET, 2026-11-04):** M11/4 Accepted within the 13:57 cutoff.
-  New capability: compact one-line File controls and contextual header actions, with focused File
-  drafts and acknowledged Color drafts protected against older backend echoes. Final checks:
-  413 app tests (three explicit native/process ignores), generated contracts/four-caller parity,
-  strict all-target native/process Clippy, 236 Golden UI tests, Svelte 0/0 and both formatters.
-  Complete generic/browser and source flows pass. Native File: 316/316 receipts, three Enter/
-  Undo/Redo cycles, Escape, shared clear and Save/New/Load; original catalog: 77/77; native rapid
-  RGBA/hex/history/CRUD and 37-channel paging: 665/665. No unexpected rejection or final client
-  error; activity idle and hosts exit normally. Final opaque/unclipped screenshots were inspected.
-  The original Undo fixture is requalified; its historical timeout cause is not retroactively
-  asserted. Previous Fit/Linear and all eight clock checks retain their scoped evidence.
-  [Acceptance receipt](evidence/mapgyver-m11-inspector-acceptance-2026-11-04.json) pins the isolated
-  binary; the user's running executable remains untouched. Progress: 51/67, 6/12 phases.
-  Next selected product deliverable is M11/5 Manual/Auto discovery; push this milestone before
-  starting that implementation batch.
+- **Current batch handoff (2026-11-04):** started 13:54 CET; cutoff 14:39 CET.
+  Delivered typed media-owned Manual/Auto selection and per-channel String/Enum controls,
+  exact sender carry-over as one atomic Undo, and command/named-script entrypoints.
+  Owners: MapGyver Params/authoring; Golden open Enum constraints, generated protocol and
+  unavailable-choice rendering. Checks: 415 app tests pass (two explicit native/process
+  ignores), including four-caller parity, independent missing names, mode/history/project
+  roundtrip, command execution and contract generation; 27 Golden Parameter tests pass
+  (one diagnostic ignored), strict all-target native/process Clippy, 236 Golden UI tests,
+  Svelte 0 errors/0 warnings and both Rust formatters.
+  [Ownership and exact limits](../architecture/mapgyver-sender-selection.md).
+  M11/5 remains Active: Auto retains the current exact sender but live Enum options are not
+  populated yet; Manual still uses the existing picker. Remaining requirement: host-owned
+  live catalog delivery in desktop/headless, inline Detect, and native multi-channel mode,
+  appearance/disappearance/restart/rename, recovery and isolated-failure acceptance.
+  No gate closes in this checkpoint: progress stays 51/67 verified gates, 6/12 phases.
 
 ## Maintenance rule
 

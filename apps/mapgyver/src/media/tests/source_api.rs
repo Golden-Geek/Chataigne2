@@ -117,6 +117,10 @@ fn named_method_argument_rejection_never_queues_work_or_changes_history() {
             vec![media.clone(), ParamValue::Str("invalid".into())],
         ),
         (
+            "configureMediaSenderSelection",
+            vec![media.clone(), ParamValue::Str("invalid".into())],
+        ),
+        (
             "importPicture",
             vec![ParamValue::Str("../escape.png".into()), ParamValue::Bool(false)],
         ),

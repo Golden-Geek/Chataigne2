@@ -17,6 +17,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "resolution_enabled",
     "resolution"
   ],
+  "ConfigureSenderSelection": [
+    "media",
+    "sender_selection"
+  ],
   "CreateFolder": [
     "target_folder",
     "label"

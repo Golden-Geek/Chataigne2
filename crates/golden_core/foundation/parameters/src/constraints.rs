@@ -275,6 +275,15 @@ impl RangeConstraint {
     }
 }
 
+/// Whether live enum options also restrict the authored value domain.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ParameterEnumDomainPolicy {
+    /// Only listed variants are valid; this remains the default.
+    Closed,
+    /// Options describe current availability; exact unlisted selections remain authored.
+    Open,
+}
+
 /// Runtime data constraints for parameter values.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct ParameterConstraints {
@@ -295,6 +304,9 @@ pub struct ParameterConstraints {
     #[serde(default, skip_serializing_if = "ParameterEnumOptions::is_empty")]
     #[ts(as = "Vec<ParameterEnumOption>")]
     pub enum_options: ParameterEnumOptions,
+    /// An absent policy keeps the ordinary closed enum domain.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enum_domain: Option<ParameterEnumDomainPolicy>,
     /// Enforcement strategy for invalid incoming values.
     #[serde(default)]
     pub policy: ParameterConstraintPolicy,
@@ -402,7 +414,10 @@ impl ParameterConstraints {
                 _ => false,
             };
 
-            if !matches_variant_id && !self.enum_options.contains_value(normalized.as_ref()) {
+            if self.enum_domain != Some(ParameterEnumDomainPolicy::Open)
+                && !matches_variant_id
+                && !self.enum_options.contains_value(normalized.as_ref())
+            {
                 return Err(format!(
                     "value is not in enum options ({} variants)",
                     self.enum_options.len()

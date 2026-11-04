@@ -31,6 +31,28 @@ pub struct SenderDiscoverySnapshot {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum SenderSelectionMode {
+    #[default]
+    Manual,
+    Auto,
+}
+impl SenderSelectionMode {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "Manual" => Ok(Self::Manual),
+            "Auto" => Ok(Self::Auto),
+            _ => Err("sender selection must be Manual or Auto".into()),
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Manual => "Manual",
+            Self::Auto => "Auto",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub struct MediaId(pub NodeUuid);
 
@@ -347,6 +369,10 @@ pub enum MediaEdit {
         media: MediaId,
         mode: MediaFitMode,
     },
+    ConfigureMediaSenderSelection {
+        media: MediaId,
+        mode: SenderSelectionMode,
+    },
     RenameMedia {
         media: MediaId,
         label: String,
@@ -386,6 +412,7 @@ pub struct MediaSnapshot {
     pub id: MediaId,
     pub label: String,
     pub media_kind: MediaKind,
+    pub sender_selection: Option<SenderSelectionMode>,
     pub channels: Vec<ChannelSnapshot>,
 }
 

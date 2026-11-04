@@ -22,6 +22,9 @@
 	let enabled = $derived(liveNode.meta.enabled);
 	let value = $derived(param?.value.kind === 'enum' ? param.value.value : '');
 	let options = $derived(param?.constraints.enum_options ?? []);
+	let unavailable = $derived(
+		!options.some((option: { variant_id: string }) => option.variant_id === draftValue)
+	);
 	let inlineLabel = $derived(typeof insideLabel === 'string' ? insideLabel.trim() : '');
 	let showsInlineLabel = $derived(layoutMode === 'widget' && inlineLabel.length > 0);
 
@@ -64,6 +67,7 @@
 			{#each options as { variant_id, label }}
 				<option value={variant_id}>{label}</option>
 			{/each}
+			{#if unavailable}<option value={draftValue}>{draftValue || 'None'} (unavailable)</option>{/if}
 		</select>
 	</div>
 {:else}
@@ -79,6 +83,7 @@
 		{#each options as { variant_id, label }}
 			<option value={variant_id}>{label}</option>
 		{/each}
+		{#if unavailable}<option value={draftValue}>{draftValue || 'None'} (unavailable)</option>{/if}
 	</select>
 {/if}
 

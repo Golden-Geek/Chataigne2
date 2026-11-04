@@ -4,6 +4,30 @@ use super::{
 };
 
 #[test]
+fn open_enum_retains_an_exact_unlisted_selection_without_relaxing_closed_enums() {
+    use crate::{ParameterEnumDomainPolicy, ParameterEnumOption};
+    let mut constraints = ParameterConstraints {
+        enum_options: vec![ParameterEnumOption {
+            variant_id: "Online".into(),
+            value: ParamValue::Enum("Online".into()),
+            label: "Online".into(),
+            tags: vec![],
+            ordering: None,
+        }]
+        .into(),
+        ..Default::default()
+    };
+    let missing = ParamValue::Enum("Offline exact name".into());
+    assert!(constraints.normalize(missing.clone()).is_err());
+    constraints.enum_domain = Some(ParameterEnumDomainPolicy::Open);
+    assert_eq!(constraints.normalize(missing.clone()).unwrap(), missing);
+    let loaded: ParameterConstraints = serde_json::from_value(serde_json::to_value(&constraints).unwrap()).unwrap();
+    assert_eq!(loaded.enum_domain, constraints.enum_domain);
+    constraints.enum_domain = Some(ParameterEnumDomainPolicy::Closed);
+    assert!(constraints.normalize(missing).is_err());
+}
+
+#[test]
 fn extracted_constraints_preserve_normalization_behavior() {
     let constraints = ParameterConstraints {
         range: RangeConstraint::uniform(Some(0.0), Some(1.0)),

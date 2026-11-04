@@ -463,6 +463,7 @@ struct ParamFieldArgs {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    enum_domain: Option<Expr>,
     file_allowed_types: Option<Expr>,
     file_allowed_extensions: Option<Expr>,
     dependency: Option<Expr>,
@@ -549,6 +550,11 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `policy`"));
                     }
                     out.policy = Some(input.parse::<LitStr>()?);
+                } else if key == "enum_domain" {
+                    if out.enum_domain.is_some() {
+                        return Err(Error::new(key.span(), "duplicate enum_domain"));
+                    }
+                    out.enum_domain = Some(input.parse::<Expr>()?);
                 } else if key == "enum_options" || key == "enumOptions" {
                     if out.enum_options.is_some() {
                         return Err(Error::new(key.span(), "duplicate `enum_options`"));
@@ -585,7 +591,7 @@ impl Parse for ParamFieldArgs {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, widget, unit, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, dependency, default_callback, callback)",
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, widget, unit, min, max, step, step_base, policy, enum_options, enum_domain, file_allowed_types, file_allowed_extensions, dependency, default_callback, callback)",
                     ));
                 }
             }
@@ -741,6 +747,7 @@ struct ParamsDslParamOptions {
     step_base: Option<Expr>,
     policy: Option<LitStr>,
     enum_options: Option<Expr>,
+    enum_domain: Option<Expr>,
     enum_default: Option<LitStr>,
     file_allowed_types: Option<Expr>,
     file_allowed_extensions: Option<Expr>,
@@ -1171,6 +1178,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `policy` option"));
                 }
                 out.policy = Some(input.parse::<LitStr>()?);
+            } else if key == "enum_domain" {
+                if out.enum_domain.is_some() {
+                    return Err(Error::new(key.span(), "duplicate enum_domain"));
+                }
+                out.enum_domain = Some(input.parse::<Expr>()?);
             } else if key == "enum_options" || key == "enumOptions" {
                 if out.enum_options.is_some() {
                     return Err(Error::new(key.span(), "duplicate `enum_options` option"));
@@ -1255,7 +1267,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, unit, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, unit, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_domain, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1726,6 +1738,7 @@ struct ParamsParamSpec {
     step: Option<Expr>,
     step_base: Option<Expr>,
     enum_options: Option<Expr>,
+    enum_domain: Option<Expr>,
     constraint_policy: Option<ParamConstraintPolicySpec>,
     file_allowed_types: Option<Expr>,
     file_allowed_extensions: Option<Expr>,
@@ -1989,6 +2002,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     step: param.options.step.clone(),
                     step_base: param.options.step_base.clone(),
                     enum_options: resolved_enum_options,
+                    enum_domain: param.options.enum_domain.clone(),
                     constraint_policy,
                     file_allowed_types: param.options.file_allowed_types.clone(),
                     file_allowed_extensions: param.options.file_allowed_extensions.clone(),
@@ -2491,6 +2505,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     __param_node.constraints.enum_options = (#expr).into();
                 }
             });
+            let set_enum_domain = args.enum_domain.map(|expr| {
+                quote! {
+                    __param_node.constraints.enum_domain = Some(#expr);
+                }
+            });
             let set_file_allowed_types = match args.file_allowed_types.as_ref() {
                 Some(expr) => match build_file_allowed_types_assignment(expr) {
                     Ok(tokens) => Some(tokens),
@@ -2546,6 +2565,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     #set_step
                     #set_step_base
                     #set_enum_options
+                    #set_enum_domain
                     #set_file_allowed_types
                     #set_file_allowed_extensions
                     #set_constraint_policy
@@ -4333,6 +4353,11 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             __param_node.constraints.enum_options = (#expr).into();
         }
     });
+    let set_enum_domain = param.enum_domain.as_ref().map(|expr| {
+        quote! {
+            __param_node.constraints.enum_domain = Some(#expr);
+        }
+    });
     let set_file_allowed_types = match param.file_allowed_types.as_ref() {
         Some(expr) => match build_file_allowed_types_assignment(expr) {
             Ok(tokens) => Some(tokens),
@@ -4426,6 +4451,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
                     #set_step
                     #set_step_base
                     #set_enum_options
+                    #set_enum_domain
                     #set_file_allowed_types
                     #set_file_allowed_extensions
                     #set_constraint_policy

@@ -14,7 +14,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v7",
+    "mapgyver.media.v8",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -31,6 +31,8 @@ use std::sync::OnceLock;
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
         fit_mode: Enum = "Fit" (label = "Fit Mode", dependency = |node: &Self| node.supports_fit_mode(),
             enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
+        sender_selection: Enum = "Manual" (label = "Sender selection", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
+            enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
     }
 )]
@@ -41,6 +43,15 @@ pub struct MediaNode {
     matrix_root: OnceLock<golden_core::node::NodeUuid>,
 }
 impl MediaNode {
+    pub(crate) fn sender_selection(&self) -> Option<super::protocol::SenderSelectionMode> {
+        (self.kind() == super::protocol::MediaKind::SharedTexture).then(|| {
+            super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())
+                .expect("validated sender selection")
+        })
+    }
+    pub(crate) fn sender_selection_parameter(&self) -> Option<golden_core::node::NodeId> {
+        (self.kind() == super::protocol::MediaKind::SharedTexture).then(|| self.sender_selection.id())
+    }
     pub(crate) fn from_kind(label: String, kind: MediaKind) -> Self {
         let mut node = Self::new();
         let permissions = node.node_data().meta.user_permissions.clone();
@@ -127,7 +138,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v7", from_struct)]
+#[node("mapgyver.media.v8", from_struct)]
 impl Node for MediaNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
@@ -153,7 +164,7 @@ impl Node for MediaNode {
         // Catalog creation and app admission apply the source-specific policy.
         Some(UserContainerRules::new(&[
             "mapgyver.media.channel",
-            "mapgyver.media.v7",
+            "mapgyver.media.v8",
             super::reference::NODE_TYPE,
             super::composition::PLACEMENT_TYPE,
         ]))
@@ -202,6 +213,9 @@ impl Node for MediaNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        if self.kind() == super::protocol::MediaKind::SharedTexture {
+            super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())?;
+        }
         validate_resolution(self.resolution.get())?;
         if self.empty_cell.get_ref().as_str() != "Transparent" {
             return Err("invalid shared Matrix settings".into());
@@ -217,6 +231,12 @@ impl Node for MediaNode {
         Ok(())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.sender_selection_parameter() == Some(change.parameter) {
+            let ParamValue::Enum(mode) = change.value else {
+                return Err("sender selection must be an Enum".into());
+            };
+            super::protocol::SenderSelectionMode::parse(mode)?;
+        }
         if change.parameter == self.resolution.id() {
             let ParamValue::Vec2(x, y) = change.value else {
                 return Err("Resolution must be a Vec2 in pixels".into());
@@ -228,6 +248,42 @@ impl Node for MediaNode {
             return Err("Media kind is immutable; create another media node".into());
         }
         Ok(())
+    }
+    fn parameter_companion_changes(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Vec<(golden_core::node::NodeId, ParamValue)>, String> {
+        if self.sender_selection_parameter() != Some(change.parameter) {
+            return Ok(Vec::new());
+        }
+        let ParamValue::Enum(value) = change.value else {
+            return Err("sender selection must be an Enum".into());
+        };
+        let mode = super::protocol::SenderSelectionMode::parse(value)?;
+        let previous = self.sender_selection().unwrap();
+        if mode == previous {
+            return Ok(Vec::new());
+        }
+        let mut values = Vec::new();
+        let mut child = self.node_data().first_child;
+        while let Some(id) = child {
+            let node = change.node(id).ok_or("media child missing")?;
+            child = node.node_data().next_sibling;
+            if let Some(channel) = node.as_any().downcast_ref::<super::ChannelNode>() {
+                let destination = channel.sender_parameter(mode);
+                if !change.is_proposed(destination) {
+                    let name = channel.sender_name(previous);
+                    values.push((
+                        destination,
+                        match mode {
+                            super::protocol::SenderSelectionMode::Manual => ParamValue::Str(name),
+                            super::protocol::SenderSelectionMode::Auto => ParamValue::Enum(name),
+                        },
+                    ));
+                }
+            }
+        }
+        Ok(values)
     }
 }
 pub(super) fn validate_resolution(value: Vec2) -> Result<(), String> {

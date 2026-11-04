@@ -17,7 +17,7 @@ function visible(child: UiNodeDto) {
 	const field = child.decl_id.split('/').at(-1);
 	if (
 		field === 'fit_mode' &&
-		(owner.node_type === 'mapgyver.media.v7' || owner.node_type === 'mapgyver.media.reference.v3')
+		(owner.node_type === 'mapgyver.media.v8' || owner.node_type === 'mapgyver.media.reference.v3')
 	) {
 		return folder.children.some((id) => {
 			const parameter = session.getNodeData(id);
@@ -70,7 +70,7 @@ function visible(child: UiNodeDto) {
 		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
-	if (owner.node_type === 'mapgyver.media.v7') {
+	if (owner.node_type === 'mapgyver.media.v8') {
 		if (field === 'media_kind') return false;
 		return (
 			!['empty_cell', 'transition_ms', 'transition_curve'].includes(field ?? '') ||
@@ -82,7 +82,20 @@ function visible(child: UiNodeDto) {
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Picture') return false;
-	if (source === 'SharedTexture') return field === 'sender';
+	if (source === 'SharedTexture') {
+		const media = parent(owner);
+		const parameters = media?.children
+			.map((id) => session.getNodeData(id))
+			.find((node) => node?.decl_id === 'parameters');
+		const mode = parameters?.children
+			.map((id) => session.getNodeData(id))
+			.find((node) => node?.decl_id === 'parameters/sender_selection');
+		const auto =
+			mode?.data.kind === 'parameter' &&
+			mode.data.param.value.kind === 'enum' &&
+			mode.data.param.value.value === 'Auto';
+		return field === (auto ? 'sender_choice' : 'sender');
+	}
 	if (source === 'Composition') return false;
 	if (source === 'Matrix') {
 		if (field === 'output_kind') return true;

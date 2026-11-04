@@ -27,7 +27,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         }
         if matches!(
             record.node_type.as_str(),
-            "mapgyver.media.v7" | "mapgyver.media.reference.v3" | super::commands::NODE_TYPE
+            "mapgyver.media.v8" | "mapgyver.media.reference.v3" | super::commands::NODE_TYPE
         ) && record.children.iter().any(|folder| {
             folder.children.iter().any(|parameter| {
                 parameter
@@ -128,10 +128,10 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             ));
         }
         if record.node_type == "mapgyver.media"
-            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v7")
+            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v8")
         {
             return Err(format!(
-                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v7",
+                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v8",
                 record.node_type
             ));
         }

@@ -55,15 +55,19 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let media_fields = parameters(&engine, media);
         assert_eq!(
             media_fields.len(),
-            if matches!(kind, MediaKind::Picture | MediaKind::SharedTexture) {
-                4
-            } else {
-                3
+            match kind {
+                MediaKind::SharedTexture => 5,
+                MediaKind::Picture => 4,
+                _ => 3,
             }
         );
         let resolution = media_fields["parameters/resolution"];
         let fields = parameters(&engine, root);
-        assert_eq!(fields.len(), 6, "{fields:?}");
+        assert_eq!(
+            fields.len(),
+            if kind == MediaKind::SharedTexture { 7 } else { 6 },
+            "{fields:?}"
+        );
         for removed in [
             "maximum_width",
             "maximum_height",

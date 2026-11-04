@@ -54,11 +54,12 @@ pub(super) fn constraints(constraints: &ParameterConstraints) -> usize {
         step,
         step_base,
         enum_options,
+        enum_domain,
         policy,
         reference,
         file,
     } = constraints;
-    inline_only!(step, step_base, policy);
+    inline_only!(step, step_base, policy, enum_domain);
     let range = match range {
         Some(RangeConstraint::Components { min, max }) => {
             sum([min.as_ref().map_or(0, vector), max.as_ref().map_or(0, vector)])

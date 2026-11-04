@@ -193,7 +193,7 @@ impl Node for CellNode {
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            "mapgyver.media.v7",
+            "mapgyver.media.v8",
             "mapgyver.media.reference.v3",
         ]))
     }

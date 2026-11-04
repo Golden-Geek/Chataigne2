@@ -14,7 +14,7 @@ use golden_video::Extent2D;
 #[children(folder(parameters, label = "Parameters") {
     target: NodeReference = NodeReference::empty() (
         label = "Target", reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
+        reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]
     );
     resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Resolution", enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject"
