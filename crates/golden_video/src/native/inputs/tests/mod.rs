@@ -14,6 +14,7 @@ use crate::runtime::DeviceGeneration;
 
 mod freshness;
 mod hardware_freshness;
+mod live_cadence;
 mod metadata;
 mod retirement;
 
