@@ -1,6 +1,7 @@
 # M11 interface and native preview stability
 
-Updated: 2026-11-04. **M11/1 remains Active; selection and graph-reconnect teardown are fixed.**
+Updated: 2026-11-04. **M11/1 Accepted.** Selection and graph-reconnect teardown are fixed;
+recorded native input, lifecycle, desktop pixels and independent live output verification pass.
 
 Media Preview no longer discards valid same-document content while a new selection resolves.
 Its bounded reader keeps the displayed page, accepts only the latest request and immediately
@@ -41,15 +42,13 @@ local logs. The native pixel observer performs no input; Computer Use owns foreg
 and the fixture uses documented CDP input in its isolated native app. Capture directories must
 be fresh. No capture or native check is inferred from DOM data alone.
 
-## Exact remaining M11/1 acceptance
+## Retained limits of the selection/reconnect checkpoints
 
-Verify the complete reported Inspector/Matrix Cell interaction with native-frame observations
-and independent live outputs. Selection and reconnect now have actual native pixel evidence;
-tab close/reopen and New/Load run in the native continuity flow, with intentional retirement and
-eventual recovery verified. Full transition-frame coverage for those latter cases remains open.
-Continue the same gate with these current fixtures; do not repeat the fixed selection probe
-without a new change or required regression purpose. No gate closes in this milestone.
-Counts remain **47/67 gates (70%), 6/12 phases (50%), M11 0/10**.
+The first two checkpoints did not independently establish complete Inspector/Matrix or native
+project-transition acceptance. Their receipts preserve that limit. The additional input and
+project-transition verification below completes those requirements; no earlier DOM-only result
+is retroactively described as native pixels. Native sampling is bounded regional evidence, not
+a claim of exhaustive raster coverage or acceptance of unrelated retained timing budgets.
 
 ## Native graph reconnect correction
 
@@ -81,3 +80,37 @@ all-target native/process-feature Clippy and the fresh native app build pass. Ru
 unchanged; the previous 398-test result remains applicable. Both Cargo formatters and scoped
 JS/TS formatting pass. [Reconnect receipt](evidence/mapgyver-m11-preview-reconnect-2026-11-04.json)
 pins binaries, artifacts, checks and limits. This capability checkpoint accepts no additional gate.
+
+## M11/1 acceptance — native input and project transitions
+
+The unchanged corrected app binary was exercised through documented WebView input. Computer Use
+selected and activated each exact returned owned window; the existing foreground/PID-guarded
+read-only capture verified actual composited desktop pixels. Tests use isolated app data and
+projects, normal host shutdown and real backend operations. Product files were unchanged in
+this qualification slice; concurrent unstaged label/theme work remains outside these commits.
+
+| Requirement | Verified acceptance |
+| --- | --- |
+| Ordinary controls and Inspector expansion | Twelve real collapse/expand and Sampling actions. Two mounted unchanged sibling Parameters stay connected, with no fade/removal across 1022 animation samples. **72 desktop frames** preserve both complete Parameter regions (250×59 and 250×56 physical pixels) and a locked red native preview region. No changed UI frames or blank/changed native regions. |
+| Matrix Cell clicks | Sixteen actual alternating Cell clicks, each confirming selected state. **35 desktop frames** preserve the unrelated locked red preview and its complete 282×47 toolbar region. No changed UI frames or blank/changed native regions. The native Inspector/Matrix sequence's independent SDK receiver gets **2708 copies**, zero absent/failed/mismatched receives, one shared handle and advancing frame counters; complete 96×64 red output pixels pass before/after both sequences. |
+| Rapid media selection | Recorded baseline reproduced teardown; corrected **16-switch native grid** preserves both registrations, with 94 actual desktop frames showing red/blue and zero blank/other sampled regions. Latest-selection/history/project fencing is separately covered by reader tests. |
+| Reconnect | Real graph socket loss/recovery preserves five original native views and their five sampled regions across 13 desktop frames. Independent output remains live across the complete native continuity flow. |
+| Tab close/reopen | Three actual close/reopen cycles recover the reopened preview while preserving the peer's original registration and red content. Independent SDK output gets **1430 copies**, zero absent/failed/mismatched receives and a stable handle. Complete output-pixel checks pass after every cycle. |
+| New/Load and stale-project fencing | **87 actual desktop frames**: 56 tab-cycle frames preserve red peer content; 8 settled-New frames contain no old red content; 14 settled-Load frames show restored red; 9 frames straddling intentional replacement are recorded separately. The unrelated File menu region is unchanged throughout. New retires all preview views; locked panels report foreign-document state, then recover the authored media after Load. The old receiver stops before intentional output destruction; restored output is verified by a new receiver and full 96×64 pixels. Both actual New and loaded screenshots were visually inspected. |
+
+All relevant software prerequisites were terminal before native checks: five reader tests,
+30 Golden Video UI tests, Svelte 0 errors/warnings, strict all-target native/process Clippy and
+fresh app build. Rust is unchanged; the existing 398-test result remains applicable. Scoped
+fixture formatting/syntax checks and both Cargo formatters pass. Native hosts exit normally.
+
+Fixture setup corrections are explicit: the File menu's accessible name is `Open File menu`;
+project Load returns a typed path DTO rather than `{ok:true}`. An initial run aborted on the
+incorrect Load assertion and closed its owned window, invalidating that capture; it is not
+product failure or passing evidence. The complete corrected sequence passes unchanged product
+code. Pillow's deprecated pixel iterator was replaced with its supported equivalent after the
+passing Inspector capture emitted a warning; pixel comparison criteria were unchanged.
+
+[Acceptance receipt](evidence/mapgyver-m11-stability-acceptance-2026-11-04.json) pins the two native
+sequences, artifact hashes and scope. **M11/1 is Accepted; M11 is 1/10 (10%), accepted gates are
+48/67 (72%), fully accepted phases remain 6/12 (50%).** No denominator or requirement changed.
+Next dependency-ready gate: M11/2 concurrent 4K capacity and bounded adapter-aware admission.

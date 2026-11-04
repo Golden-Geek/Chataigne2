@@ -1,0 +1,111 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/1",
+	"state": "Accepted",
+	"accepted_gates_added": 1,
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-reconnect.exe",
+		"sha256": "2AFD45155A5AE2968D0D4D526623B8D168B888A4C64595AF9DB9550B24E46661",
+		"concurrent_unstaged_label_theme_work_excluded_from_commit": true,
+		"new_product_code_in_this_qualification_slice": false
+	},
+	"input_sequence": {
+		"pid": 31892,
+		"hwnd": 5571726,
+		"device_pixel_ratio": 1.25,
+		"inspector": {
+			"actual_actions": 12,
+			"parameter_witnesses": 2,
+			"animation_samples": 1022,
+			"removals": 0,
+			"disconnected_samples": 0,
+			"faded_samples": 0,
+			"minimum_opacity": 1,
+			"native_composited_frames": 72,
+			"parameter_region_sizes": [
+				[250, 59],
+				[250, 56]
+			],
+			"changed_ui_frames": 0,
+			"changed_native_regions": 0
+		},
+		"matrix": {
+			"actual_selected_cell_clicks": 16,
+			"native_composited_frames": 35,
+			"unrelated_toolbar_region": [282, 47],
+			"changed_ui_frames": 0,
+			"changed_native_regions": 0
+		},
+		"independent_receiver": {
+			"copies": 2708,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 1073742082,
+			"first_frame": 62,
+			"last_frame": 2769,
+			"maximum_observed_receive_gap_ms": 33.7292,
+			"complete_96x64_red_pixel_checkpoints": 3
+		},
+		"normal_host_exit": 0
+	},
+	"project_transition_sequence": {
+		"pid": 35068,
+		"hwnd": 5178676,
+		"device_pixel_ratio": 1.25,
+		"close_reopen_cycles": 3,
+		"peer_registration_preserved": true,
+		"new_views_retired": true,
+		"locked_load_recovered": true,
+		"native_composited_frames": 87,
+		"native_stage_frames": { "tabs": 56, "new": 8, "loaded": 14, "replacing": 9 },
+		"unexpected_native_regions": 0,
+		"changed_unrelated_menu_frames": 0,
+		"independent_receiver": {
+			"copies": 1430,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 3221235138,
+			"first_frame": 68,
+			"last_frame": 1497,
+			"maximum_observed_receive_gap_ms": 21.0646,
+			"complete_96x64_red_pixel_checkpoints": 5,
+			"consumer_stopped_before_intentional_new": true,
+			"restored_output_verified_by_new_receiver": true
+		},
+		"normal_host_exit": 0
+	},
+	"retained_receipts": [
+		"mapgyver-m11-preview-selection-2026-11-04.json",
+		"mapgyver-m11-preview-reconnect-2026-11-04.json"
+	],
+	"artifacts": {
+		"input_directory": "target/m11-input-native-2026-11-04",
+		"transition_directory": "target/m11-transitions-native-complete-2026-11-04",
+		"inspector_first_sha256": "B6A4D276472EC84B3F8616B5870CEB9B28A34A291255237F2CC1590EE3DCAB27",
+		"matrix_first_sha256": "7FC79ECB2CAD5ACCA346B8B7302B2B0A234B633512D5D7B997913B62D0DCA659",
+		"tabs_sha256": "8203828A525A701122A9623561E53F7FDA734695E10DA3C0FCF734F36B353025",
+		"new_sha256": "A62B674FF3299940308AFC2C598C3759F3283BF50DD14A4B60788211EB3D62E5",
+		"loaded_sha256": "0E9DE653FBA152BED2C552A0939617180088B16CE47B0F88E37B3EFBC80E7581"
+	},
+	"logs": [
+		"target/m11-input-native.log",
+		"target/m11-input-inspector-pixels.log",
+		"target/m11-input-matrix-pixels.log",
+		"target/m11-transitions-native-complete.log",
+		"target/m11-transitions-native-complete-pixels.log"
+	],
+	"limits": [
+		"Actual composited regional/frame sampling, not exhaustive raster correctness or global timing-budget acceptance",
+		"Intentional New destroys old output demand; no continuous old-output claim across project replacement",
+		"Aborted fixture setup/incorrect Load-response assertion runs are excluded from passing evidence"
+	],
+	"progress": {
+		"accepted_gates": 48,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m11": "1/10"
+	}
+}

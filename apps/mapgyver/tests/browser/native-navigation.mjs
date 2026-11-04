@@ -14,6 +14,8 @@ import { verifyMatrixFeedback } from './matrix-feedback.mjs';
 import { verifyInspectorStability } from './inspector-stability.mjs';
 import { verifyPreviewSelectionStability } from './preview-selection-stability.mjs';
 import { verifyNativePreviewContinuity } from './native-preview-continuity.mjs';
+import { verifyNativeInputStability } from './native-input-stability.mjs';
+import { verifyNativeProjectTransitions } from './native-project-transitions.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -35,6 +37,8 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--project-transitions', verifyNativeProjectTransitions],
+			['--input-stability', verifyNativeInputStability],
 			['--preview-continuity', verifyNativePreviewContinuity],
 			['--preview-selection-stability', verifyPreviewSelectionStability],
 			['--inspector-stability', verifyInspectorStability],

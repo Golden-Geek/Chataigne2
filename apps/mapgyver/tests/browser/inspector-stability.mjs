@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // Actual input in the ordinary native WebView; animation samples detect unrelated row re-entry.
-export async function verifyInspectorStability({ page, edit, post }) {
+export async function verifyInspectorStability({ page, edit, post, observe = async () => {} }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'SolidColor',
@@ -11,7 +11,7 @@ export async function verifyInspectorStability({ page, edit, post }) {
 	const { reference: peer } = await edit({
 		kind: 'AddChannel',
 		media: reference.media,
-		label: 'Stable sibling'
+		label: 'Edited sibling'
 	});
 	await edit({
 		kind: 'ConfigureMediaResolution',
@@ -27,8 +27,10 @@ export async function verifyInspectorStability({ page, edit, post }) {
 		.getByRole('button', { name: 'Inspector stability', exact: true })
 		.click();
 	const document = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
-	const channel = document.nodes.find((node) => node.uuid === reference.channel);
-	const sibling = document.nodes.find((node) => node.uuid === peer.channel);
+	// Keep the unchanged sibling above the edited folder, so collapse does not move
+	// its native pixel witness. Both branches still contain actual Parameter controls.
+	const channel = document.nodes.find((node) => node.uuid === peer.channel);
+	const sibling = document.nodes.find((node) => node.uuid === reference.channel);
 	assert(channel && sibling);
 	const root = page.locator(`.inspector .node-inspector[data-node-id="${channel.node_id}"]`);
 	const siblingRoot = page.locator(`.inspector .node-inspector[data-node-id="${sibling.node_id}"]`);
@@ -46,6 +48,11 @@ export async function verifyInspectorStability({ page, edit, post }) {
 		.locator('select.dropdown-editor');
 	await sampling.waitFor();
 	await delay(300);
+	await observe('ready', {
+		uiBoxes: await Promise.all(
+			(await siblingRoot.locator('.parameter-inspector').all()).map((field) => field.boundingBox())
+		)
+	});
 	await page.evaluate(
 		({ sibling }) => {
 			const selector = `.inspector .node-inspector[data-node-id="${sibling}"]`;
@@ -150,4 +157,6 @@ export async function verifyInspectorStability({ page, edit, post }) {
 		0,
 		'unrelated Inspector content must not re-enter its slide animation'
 	);
+	await observe('complete', result);
+	return result;
 }
