@@ -26,6 +26,7 @@ fn main() -> std::process::ExitCode {
             "catalog" => observations::catalog(args),
             "hardware" => observations::hardware(args),
             "pixels" => observations::pixels(args),
+            "calibration-pixels" => observations::calibration_pixels(args),
             "gpu-preferences" => preferences::write(args),
             _ => Err(std::io::Error::other("unknown qualification role")),
         }

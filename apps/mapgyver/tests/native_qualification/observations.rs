@@ -55,13 +55,26 @@ fn displays() -> io::Result<Vec<mapgyver::screens::protocol::DisplayInfo>> {
         .collect()
 }
 
-pub fn pixels(mut args: Arguments) -> io::Result<()> {
+pub fn pixels(args: Arguments) -> io::Result<()> {
+    capture_pixels(args, 4 * 1024 * 1024, false)
+}
+
+/// M11/10 full-image acceptance: receiving, staging and CPU pixels for one 4K frame.
+/// The original small-output observer and every production budget remain unchanged.
+pub fn calibration_pixels(args: Arguments) -> io::Result<()> {
+    capture_pixels(args, 128 * 1024 * 1024, true)
+}
+
+fn capture_pixels(mut args: Arguments, capacity: usize, calibration: bool) -> io::Result<()> {
     let adapter = selected(args.number("adapter", "0")?)?;
     let sender = args.required("name")?;
+    if calibration && !sender.starts_with("MapGyver-M1110-") {
+        return Err(Error::other("calibration capture requires an owned M1110 sender"));
+    }
     let directory = PathBuf::from(args.required("directory")?);
     args.done()?;
     fs::create_dir_all(&directory)?;
-    let budget = PayloadPool::new("finite-output-pixels", 4, 4 * 1024 * 1024).map_err(Error::other)?;
+    let budget = PayloadPool::new("finite-output-pixels", 4, capacity).map_err(Error::other)?;
     let mut probe = SpoutProbe::new(&sender, adapter, budget.clone()).map_err(Error::other)?;
     let deadline = Instant::now() + Duration::from_secs(5);
     let image = loop {

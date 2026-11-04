@@ -10,8 +10,8 @@ cells, second-row brightness/color palettes, a fitted circle, both diagonals and
 rainbow hue flow along thin grid boundaries. `ColorBars` remains the independent plain palette.
 The centered supplied 512x512 logo is an immutable Canvas bitmap. Subtle A1/B2 cell labels
 follow the grid, local system time (`HH:MM:SS.mmm`) sits above the logo, and the logical output
-resolution and measured renderer FPS sit below it. Complete native app qualification remains
-required before the official-pattern gate closes.
+resolution and measured renderer FPS sit below it. M11/10 is accepted with deterministic tests,
+both-GPU kernel/resource checks and full-image actual-app native output qualification.
 
 Layout uses the actual Screen render-pass extent. The complete logical image is projected
 through the Surface homography, so changing a warp does not silently change the source pattern's
@@ -66,5 +66,17 @@ fixture capacities, not revisions to retained production timing, growth or devic
 Deterministic tests cover supported aspects, palette rows, circle/square proportions, extreme
 extents, admission, retained storage and shared-clock sampling. Native kernel qualification
 checks geometry, palette and clock landmarks at landscape, portrait, square and 4K extents.
-Current results and remaining official-pattern acceptance belong to the
+Current acceptance results belong to the
 [active ledger](../progress/mapgyver-status.md).
+
+The actual-app cohort captures 1920x1080, 1080x1920, 1024x1024, 3840x2160 and a 1919x1079 resize,
+then live frames, a perspective warp and calibration with an assigned source. Pixel analysis
+decodes local time/resolution/FPS, checks palette rows and labels, and verifies thin diagonal
+rainbow flow. Initial frames after topology recreation correctly show unavailable FPS; a later
+stable window measures 60.0 FPS. Off restores the retained source/crop and the full output's red
+pixels; disabling the output retires its sender. An independent Media Preview may continue
+rendering its selected source, so output withdrawal does not assert global renderer idleness.
+The full-image observer reserves 128 MiB for receiving/staging/CPU copies of one 4K frame; the
+original small-image observer keeps 4 MiB. Neither changes production or retained qualification
+budgets. Actual-app captures use NVIDIA; the reusable kernels and resource leases pass both
+NVIDIA and Intel. This accepts the changed pattern, not retained physical/device/timing gates.

@@ -1,10 +1,10 @@
 {
 	"gate": "M11/10",
-	"state": "Active",
-	"accepted": false,
+	"state": "Accepted",
+	"accepted": true,
 	"date": "2026-11-04",
-	"scope": "Complete calibration drawing implementation; full actual-app/native qualification remains open",
-	"source_base": "c1599dba21c2d3d282e1cb9b942aaf2b28baad71",
+	"scope": "M11/10 complete official Surface calibration pattern: software, both-GPU kernels/resources and actual-app native output qualification",
+	"source_base": "84121f2dd687d2faa9e4b86165e226e22274311e",
 	"implemented": [
 		"App-owned grey square checker cells adapted to actual Screen pass extent, including fractional edge cells",
 		"Second row from top black-to-white palette and second row from bottom color palette",
@@ -105,18 +105,60 @@
 			"production_qualification_limits": "No timing, private-growth, GPU-memory or physical/device qualification budget revision"
 		}
 	},
-	"remaining": [
-		"Complete app/native landscape, portrait, square, 4K and resize/warp output checks, including text readability, live timing, routing restoration and bounded animation demand"
-	],
+	"remaining": [],
 	"progress": {
-		"verified_gates": 56,
+		"verified_gates": 57,
 		"total_gates": 67,
-		"percent": 84,
-		"m11_verified": 9,
+		"percent": 85,
+		"m11_verified": 10,
 		"m11_total": 10
 	},
+	"actual_app": {
+		"passed": true,
+		"gpu": "dxgi:00000000:00016022",
+		"native_transport": "Actual production app renderer and independent native Spout receiver; no pixel transport in control IPC",
+		"app_sha256": "0A1CA53C61D1A6E1C6E42483C718D56C64709D7E7514F652F04CB96DFB5A9A0F",
+		"observer_sha256": "17E1030274CBED3889C94EEBB670170DF172342B07225582EB0FD4AAF37F724C",
+		"observer_binary": "target/debug/native_qualification-m1110.exe",
+		"observer_software_tests": 6,
+		"observer_strict_clippy": true,
+		"observer_logs": [
+			"target/m1110-acceptance-software.log",
+			"target/m1110-acceptance-clippy.log",
+			"target/m1110-acceptance-build.log"
+		],
+		"core_artifacts": "target/m1110-actual-app-qualification",
+		"core_capture_log": "target/m1110-actual-app-qualification.log",
+		"core_pixel_receipt": "target/m1110-actual-app-qualification/pixel-results.json",
+		"routing_artifacts": "target/m1110-routing-final",
+		"routing_result": "target/m1110-routing-final/results.json",
+		"routing_pixel_receipt": "target/m1110-routing-final/pixel-results.json",
+		"native_captures": 11,
+		"extents": [
+			[1920, 1080],
+			[1080, 1920],
+			[1024, 1024],
+			[3840, 2160],
+			[1919, 1079]
+		],
+		"palette_samples": 160,
+		"checks": [
+			"Full branded landscape, portrait, square, 4K and resized images; proportions also established by deterministic app layout and both-GPU landmark tests",
+			"Exact bitmap-font decoding of local HH:MM:SS.mmm and actual logical resolution; decoded clock lies within each capture's bounded local wall-time interval",
+			"Startup FPS is unavailable after topology recreation; stable and live/warped captures decode 60.0 FPS, consistent with independently sampled renderer submission rates",
+			"Subtle B4 cell labels at unwarped aspects, both eight-entry palette rows, thin boundaries and diagonal hue phase; live hue and millisecond values change",
+			"Perspective-warped time/resolution/FPS and palette positions remain correct, with transparent/black exterior",
+			"Source-free calibration installs channels=0 screens=1 outputs=1; assigned source/crop remains authored while calibration is active",
+			"Off restores exact source identity and f32 crop projection; every restored output pixel is opaque red",
+			"Disable retires a new owned output session and removes its sender; independent Media Preview can retain its red source without calibration demand",
+			"Finite observers release their payload reservations and owned app sessions shut down normally"
+		],
+		"fixture_corrections": "Initial attachment navigation and unsupported footer per-screen assumption failed before image capture. The nine-image cohort reached a strict JavaScript decimal versus f32 crop assertion; its captures were retained and analyzed. Only remaining routing/withdrawal was rerun after fixing f32 comparison and refresh-once discovery. No product code changed during qualification.",
+		"bounds": "Original small-output observer remains 4 MiB; named 4K receiving/staging/CPU pool is explicitly 128 MiB. Production budgets and all retained qualification contracts are unchanged.",
+		"limits": "Actual-app cohort is NVIDIA/Spout; reusable geometry/text/bitmap/resource kernels pass both GPUs. No physical hotplug, device-removal, scanout, private-growth, codec or final Windows release acceptance is inferred."
+	},
 	"text_slice": {
-		"accepted_full_gate": false,
+		"accepted_full_gate_at_text_checkpoint": false,
 		"max_characters_per_canvas": 8192,
 		"max_line_characters": 64,
 		"max_tile_labels": 1024,
@@ -136,7 +178,7 @@
 		"test_binary": "target/debug/deps/golden_video-cae939cf777f67be.exe",
 		"test_sha256": "6E5A070CC0FD63F6D15C54A66D9BD533213628290E9097E19609AD6D0B36B837",
 		"initial_failure": "One test compiled the raw HLSL without its generated font ROM; corrected to use the same combined source as production; final entrypoint and bytecode-parity tests pass",
-		"limits": "Kernel pixels and deterministic app layout/binding tests establish implementation. Complete branded actual-app output/readability/live telemetry/warp/resize/routing/demand remains required. No retained qualification budget changed."
+		"limits": "Kernel pixels and deterministic app layout/binding tests established the text implementation at its checkpoint. Complete branded actual-app acceptance is recorded separately above. No retained qualification budget changed."
 	},
 	"native_bitmap": {
 		"passed": true,
@@ -151,6 +193,6 @@
 			"Zero media receiver slots; max external texture definitions is zero in the image plan",
 			"Actual submitted frame completes; CPU bitmap remains until the last native resource lease drops"
 		],
-		"limit": "Synthetic bitmap kernel/resource tests plus app asset/layout software tests; complete branded app image and text/readability/native-output acceptance remain open"
+		"limit": "Synthetic bitmap kernel/resource tests plus app asset/layout software tests; complete branded actual-app image/text/native-output acceptance is recorded separately above"
 	}
 }
