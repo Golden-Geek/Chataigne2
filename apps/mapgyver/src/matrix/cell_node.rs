@@ -26,7 +26,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     enabled: bool = true (label = "Enabled");
     transition_override: bool = false (label = "Override transition");
-    duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject");
+    duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject");
     curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
 }
 node app_control: crate::applications::AppControlNode = (self.create_app_control()) (

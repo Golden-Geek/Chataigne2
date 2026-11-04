@@ -96,8 +96,8 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			await input.press('Enter');
 		}
 		await parameter('Override transition').locator('input[type=checkbox]').check();
-		const duration = parameter('Transition duration (ms)').locator('input.number-field');
-		await duration.fill('1234');
+		const duration = parameter('Transition duration').locator('input.number-field');
+		await duration.fill('00:00:01.234');
 		await duration.press('Enter');
 		await wait(inspect, (s) => s.columns[2].definition.transition?.duration_ms === 1234);
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();

@@ -22,4 +22,5 @@ golden_script = { path = "runtime/script" }
 golden_transport_server = { path = "hosts/transport" }
 
 [dev-dependencies]
+serde_json.workspace = true
 tauri = "2"

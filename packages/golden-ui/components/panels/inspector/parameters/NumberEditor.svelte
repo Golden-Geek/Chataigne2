@@ -4,6 +4,7 @@
 	import { appState } from '../../../../store/workbench.svelte';
 	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
 	import type { UiNodeDto, UiRangeConstraint } from '../../../../types';
+	import { formatTimeValue, parseTimeValue } from './time-value';
 
 	interface NumberEditorPresentation {
 		show_value_field?: boolean;
@@ -36,6 +37,7 @@
 	let widgetHint = $derived((param?.ui_hints.widget ?? '').trim().toLowerCase());
 	let timeSliderWidget = $derived(widgetHint === 'time_slider');
 	let timeWidget = $derived(widgetHint === 'time' || timeSliderWidget);
+	let timeUnit = $derived(param?.ui_hints.unit);
 
 	let kind = $derived(param?.value.kind ?? 'float');
 	let isInteger = $derived(kind === 'int');
@@ -79,10 +81,10 @@
 	);
 	let showsInlineFieldLabel = $derived(!hasRange && showValueField && sliderLabel.length > 0);
 	let formattedDraftValue = $derived(
-		timeWidget ? formatTimeValue(draftValue) : draftValue.toFixed(fractionDigits)
+		timeWidget ? formatTimeValue(draftValue, timeUnit) : draftValue.toFixed(fractionDigits)
 	);
 	let formattedValue = $derived(
-		timeWidget ? formatTimeValue(value) : value.toFixed(fractionDigits)
+		timeWidget ? formatTimeValue(value, timeUnit) : value.toFixed(fractionDigits)
 	);
 	let displayedSliderValue = $derived.by(() => {
 		if (min !== undefined && draftValue < min) {
@@ -104,71 +106,6 @@
 	onDestroy(() => {
 		void editSession.end();
 	});
-
-	function formatTimeValue(seconds: number): string {
-		if (!Number.isFinite(seconds)) {
-			return '00:00:00.000';
-		}
-
-		const sign = seconds < 0 ? '-' : '';
-		let remainingMs = Math.round(Math.abs(seconds) * 1000);
-		const hours = Math.floor(remainingMs / 3_600_000);
-		remainingMs -= hours * 3_600_000;
-		const minutes = Math.floor(remainingMs / 60_000);
-		remainingMs -= minutes * 60_000;
-		const wholeSeconds = Math.floor(remainingMs / 1000);
-		const milliseconds = remainingMs - wholeSeconds * 1000;
-
-		return `${sign}${hours.toString().padStart(2, '0')}:${minutes
-			.toString()
-			.padStart(2, '0')}:${wholeSeconds.toString().padStart(2, '0')}.${milliseconds
-			.toString()
-			.padStart(3, '0')}`;
-	}
-
-	function parseTimeValue(text: string): number | null {
-		const raw = text.trim();
-		if (raw.length === 0) {
-			return null;
-		}
-
-		const sign = raw.startsWith('-') ? -1 : 1;
-		const unsigned = sign < 0 ? raw.slice(1) : raw;
-		const [clockPart, fractionalPart = ''] = unsigned.split('.');
-		if (unsigned.split('.').length > 2 || !/^\d*$/.test(fractionalPart)) {
-			return null;
-		}
-
-		const segments = clockPart.split(':');
-		if (
-			segments.length === 0 ||
-			segments.length > 3 ||
-			segments.some((segment) => !/^\d+$/.test(segment))
-		) {
-			return null;
-		}
-
-		let hours = 0;
-		let minutes = 0;
-		let wholeSeconds = 0;
-		if (segments.length === 3) {
-			hours = Number(segments[0]);
-			minutes = Number(segments[1]);
-			wholeSeconds = Number(segments[2]);
-		} else if (segments.length === 2) {
-			minutes = Number(segments[0]);
-			wholeSeconds = Number(segments[1]);
-		} else {
-			wholeSeconds = Number(segments[0]);
-		}
-
-		if ((segments.length === 3 && minutes >= 60) || (segments.length >= 2 && wholeSeconds >= 60)) {
-			return null;
-		}
-
-		const milliseconds = Number((fractionalPart + '000').slice(0, 3));
-		return sign * (hours * 3600 + minutes * 60 + wholeSeconds + milliseconds / 1000);
-	}
 
 	const normalizeValue = (candidate: number): number | null => {
 		let nextValue = candidate;
@@ -256,7 +193,9 @@
 		if (!numberInput) {
 			return;
 		}
-		const parsedValue = timeWidget ? parseTimeValue(numberInput.value) : Number(numberInput.value);
+		const parsedValue = timeWidget
+			? parseTimeValue(numberInput.value, timeUnit)
+			: Number(numberInput.value);
 		if (parsedValue !== null && Number.isFinite(parsedValue)) {
 			commitValue(parsedValue);
 		} else {

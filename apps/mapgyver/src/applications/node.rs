@@ -29,21 +29,21 @@ use std::sync::{
     sender: String = "Sender" (label = "Spout sender");
     first_frame: bool = false (label = "Wait for first frame");
     timeout_ms: f64 = 5000.0 [1.0..600000.0] (
-        label = "Ready timeout (ms)", step = 1.0, constraint_policy = "reject"
+        label = "Ready timeout", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
     );
     inherit_environment: bool = true (label = "Inherit environment");
     graceful_ms: f64 = 2000.0 [0.0..600000.0] (
-        label = "Graceful stop (ms)", step = 1.0, constraint_policy = "reject"
+        label = "Graceful stop", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
     );
     retirement_ms: f64 = 5000.0 [1.0..600000.0] (
-        label = "Retirement timeout (ms)", step = 1.0, constraint_policy = "reject"
+        label = "Retirement timeout", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
     );
     restart_enabled: bool = true (label = "Restart on failure");
     initial_ms: f64 = 500.0 [1.0..600000.0] (
-        label = "Initial restart delay (ms)", step = 1.0, constraint_policy = "reject"
+        label = "Initial restart delay", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
     );
     maximum_ms: f64 = 30000.0 [1.0..600000.0] (
-        label = "Maximum restart delay (ms)", step = 1.0, constraint_policy = "reject"
+        label = "Maximum restart delay", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
     );
     pre: i32 = 0 [0..65535] (label = "Preload columns before", constraint_policy = "reject");
     post: i32 = 0 [0..65535] (label = "Keep columns after", constraint_policy = "reject");

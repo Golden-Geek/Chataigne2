@@ -105,11 +105,11 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 					['Position', 1, -3, 'position'],
 					['Canvas size', 0, 8, 'size'],
 					['Canvas size', 1, 4, 'size'],
-					['Transition duration (ms)', 0, 900, 'duration_ms']
+					['Transition duration', 0, 900, 'duration_ms']
 				]) {
 					const before = await inspect();
 					const input = parameter(label).locator('input.number-field').nth(component);
-					await input.fill(String(value));
+					await input.fill(field === 'duration_ms' ? '00:00:00.900' : String(value));
 					await input.press('Tab');
 					const after = await wait(inspect, (state) => {
 						const layer = state.items.find((row) => row.id.id === item.id).layer;

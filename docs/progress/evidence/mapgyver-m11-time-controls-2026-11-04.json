@@ -1,0 +1,57 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/4",
+	"state": "Active",
+	"scope": "Unit-preserving time controls only; channel/File layout and media Fit Mode remain required",
+	"sourceBaseline": "3c827170120fb47553602e3d951913104d787bfb",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-time-controls.exe",
+		"sha256": "34EE186F1BB858A18E9D3F0A985F1E1117D5D71365F6C8FFC1E99252E423CC94",
+		"concurrentUserChanges": "Uncommitted label/theme work present in the development binary, excluded from this milestone"
+	},
+	"software": {
+		"appPassed": 403,
+		"appIgnored": 3,
+		"publicDslAndAttributeFixturePassed": 1,
+		"goldenUiPassed": 236,
+		"fractionalMillisecondsExhausted": "0 through 999",
+		"strictAllTargetMacroCoreAppLint": "pass",
+		"generatedContracts": "pass; existing DTO unit field reused",
+		"svelteErrors": 0,
+		"svelteWarnings": 0
+	},
+	"native": {
+		"artifact": "target/mapgyver-m11-time-controls-2026-11-04/time-controls.json",
+		"sha256": "40B132B445E6993B0A087B1F3BEDB138F768C16705D693DC18983C1A347C93AA",
+		"command": "node apps/mapgyver/tests/browser/native-navigation.mjs --time-controls",
+		"actualNativePid": 25128,
+		"clockControlsEdited": 8,
+		"rawBackendUnit": "milliseconds",
+		"values": {
+			"layer": 1234,
+			"cell": 2345,
+			"column": 3456,
+			"readyTimeout": 4321,
+			"gracefulStop": 2100,
+			"retirementTimeout": 8000,
+			"initialRestartDelay": 1234,
+			"maximumRestartDelay": 9012
+		},
+		"layerUndoRedo": true,
+		"applicationProcesses": 0,
+		"playbackUnchanged": true,
+		"normalHostExit": true,
+		"portableNavigationRerun": {
+			"artifact": "target/mapgyver-m11-time-controls-portable-fixed-2026-11-04/time-controls.json",
+			"sha256": "7E5FB17A6DD1005890ACCF21F1E7E6685C0CE9A58BEC605E75CB651D263341C1",
+			"actualNativePid": 20716,
+			"allEightEditsPass": true,
+			"normalHostExit": true,
+			"initialFailure": "The media-manager tab was not activated; explicit default-tab activation fixes title-independent fixture navigation"
+		},
+		"screenshotInspected": "target/mapgyver-m11-time-controls-2026-11-04/time-controls.png"
+	},
+	"gatesClosed": [],
+	"verifiedGates": "50/67",
+	"nextDeliverable": "Compact typed channel/File Inspector and media Fit Mode with full M11/4 acceptance"
+}

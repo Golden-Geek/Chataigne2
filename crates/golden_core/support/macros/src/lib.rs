@@ -421,6 +421,33 @@ impl Parse for StructDefaultsAttr {
     }
 }
 
+fn parameter_ui_hint_setters(widget: Option<&LitStr>, unit: Option<&LitStr>) -> proc_macro2::TokenStream {
+    let setters = [("widget", widget), ("unit", unit)]
+        .into_iter()
+        .filter_map(|(name, value)| {
+            let value = value?;
+            let field = format_ident!("{name}");
+            Some(quote! {
+                if __param_node.ui_hints.#field.as_deref() != Some(#value) {
+                    __param_node.ui_hints.#field = Some(::std::string::String::from(#value));
+                }
+            })
+        });
+    quote! { #(#setters)* }
+}
+
+fn sync_parameter_ui_hints(field: &Ident, widget: Option<&LitStr>, unit: Option<&LitStr>) -> proc_macro2::TokenStream {
+    if widget.is_none() && unit.is_none() {
+        return proc_macro2::TokenStream::new();
+    }
+    let setters = parameter_ui_hint_setters(widget, unit);
+    quote! {
+        golden_core::node::NodeHandle::new(self.#field.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
+            ctx, |__param_node, _child_ctx| { #setters },
+        );
+    }
+}
+
 #[derive(Default)]
 struct ParamFieldArgs {
     default: Option<Expr>,
@@ -429,6 +456,7 @@ struct ParamFieldArgs {
     description: Option<LitStr>,
     read_only: Option<Expr>,
     widget: Option<LitStr>,
+    unit: Option<LitStr>,
     min: Option<Expr>,
     max: Option<Expr>,
     step: Option<Expr>,
@@ -491,6 +519,11 @@ impl Parse for ParamFieldArgs {
                         return Err(Error::new(key.span(), "duplicate `widget`"));
                     }
                     out.widget = Some(input.parse::<LitStr>()?);
+                } else if key == "unit" {
+                    if out.unit.is_some() {
+                        return Err(Error::new(key.span(), "duplicate `unit`"));
+                    }
+                    out.unit = Some(input.parse::<LitStr>()?);
                 } else if key == "min" {
                     if out.min.is_some() {
                         return Err(Error::new(key.span(), "duplicate `min`"));
@@ -552,7 +585,7 @@ impl Parse for ParamFieldArgs {
                 } else {
                     return Err(Error::new(
                         key.span(),
-                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, widget, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, dependency, default_callback, callback)",
+                        "unsupported #[param(...)] argument (supported: default, decl_id, label, description, read_only, widget, unit, min, max, step, step_base, policy, enum_options, file_allowed_types, file_allowed_extensions, dependency, default_callback, callback)",
                     ));
                 }
             }
@@ -698,6 +731,7 @@ struct ParamsDslParamOptions {
     read_only: Option<Expr>,
     persist_read_only_value: Option<Expr>,
     widget: Option<LitStr>,
+    unit: Option<LitStr>,
     dependency: Option<Expr>,
     meta: ParamsDslMetaOptions,
     behaviour: Option<LitStr>,
@@ -1067,6 +1101,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `widget` option"));
                 }
                 out.widget = Some(input.parse::<LitStr>()?);
+            } else if key == "unit" {
+                if out.unit.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `unit` option"));
+                }
+                out.unit = Some(input.parse::<LitStr>()?);
             } else if key == "dependency" {
                 if out.dependency.is_some() {
                     return Err(Error::new(key.span(), "duplicate `dependency` option"));
@@ -1216,7 +1255,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, unit, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1681,6 +1720,7 @@ struct ParamsParamSpec {
     read_only: Option<Expr>,
     persist_read_only_value: Option<Expr>,
     widget: Option<LitStr>,
+    unit: Option<LitStr>,
     min: Option<Expr>,
     max: Option<Expr>,
     step: Option<Expr>,
@@ -1943,6 +1983,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     read_only: param.options.read_only.clone(),
                     persist_read_only_value: param.options.persist_read_only_value.clone(),
                     widget: param.options.widget.clone(),
+                    unit: param.options.unit.clone(),
                     min: param.options.min.clone(),
                     max: param.options.max.clone(),
                     step: param.options.step.clone(),
@@ -2433,23 +2474,8 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     __param_node.read_only = #expr;
                 }
             });
-            let set_widget = args.widget.as_ref().map(|widget| {
-                quote! {
-                    __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
-                }
-            });
-            let sync_bound_widget = args.widget.as_ref().map(|widget| {
-                quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
-                        ctx,
-                        |__param_node, _child_ctx| {
-                            if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
-                                __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
-                            }
-                        },
-                    );
-                }
-            });
+            let set_ui_hints = parameter_ui_hint_setters(args.widget.as_ref(), args.unit.as_ref());
+            let sync_bound_ui_hints = sync_parameter_ui_hints(&field_ident, args.widget.as_ref(), args.unit.as_ref());
             let set_step = args.step.map(|expr| {
                 quote! {
                     __param_node.constraints.step = Some((#expr) as f64);
@@ -2515,7 +2541,7 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                     );
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
                     #set_read_only
-                    #set_widget
+                    #set_ui_hints
                     #set_range
                     #set_step
                     #set_step_base
@@ -2607,14 +2633,14 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             child_added_decl_statements.push(quote! {
                 if parent == __golden_node_owner_id && decl_id.0 == #decl_id_lit {
                     self.#field_ident.set_node_id(child);
-                    #sync_bound_widget
+                    #sync_bound_ui_hints
                 }
             });
 
             child_replaced_decl_statements.push(quote! {
                 if parent == __golden_node_owner_id && decl_id.0 == #decl_id_lit {
                     self.#field_ident.set_node_id(new);
-                    #sync_bound_widget
+                    #sync_bound_ui_hints
                 }
             });
 
@@ -2850,22 +2876,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             let decl_id_lit = &param.decl_id;
             let field_ident = &param.field;
             let expected_parent = declared_parent_id_tokens(plan, &param.path);
-            let sync_bound_widget = param.widget.as_ref().map(|widget| {
-                quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
-                        ctx,
-                        |__param_node, _child_ctx| {
-                            if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
-                                __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
-                            }
-                        },
-                    );
-                }
-            });
+            let sync_bound_ui_hints = sync_parameter_ui_hints(field_ident, param.widget.as_ref(), param.unit.as_ref());
             child_added_decl_statements.push(quote! {
                 if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
                     self.#field_ident.set_node_id(child);
-                    #sync_bound_widget
+                    #sync_bound_ui_hints
                 }
             });
         }
@@ -2894,22 +2909,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             let decl_id_lit = &param.decl_id;
             let field_ident = &param.field;
             let expected_parent = declared_parent_id_tokens(plan, &param.path);
-            let sync_bound_widget = param.widget.as_ref().map(|widget| {
-                quote! {
-                    golden_core::node::NodeHandle::new(self.#field_ident.id()).with_mut_leaf::<golden_core::parameter::Parameter, _>(
-                        ctx,
-                        |__param_node, _child_ctx| {
-                            if __param_node.ui_hints.widget.as_deref() != Some(#widget) {
-                                __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
-                            }
-                        },
-                    );
-                }
-            });
+            let sync_bound_ui_hints = sync_parameter_ui_hints(field_ident, param.widget.as_ref(), param.unit.as_ref());
             child_replaced_decl_statements.push(quote! {
                 if decl_id.0 == #decl_id_lit && #expected_parent == Some(parent) {
                     self.#field_ident.set_node_id(new);
-                    #sync_bound_widget
+                    #sync_bound_ui_hints
                 }
             });
         }
@@ -4313,11 +4317,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             __param_node.persist_read_only_value = #expr;
         }
     });
-    let set_widget = param.widget.as_ref().map(|widget| {
-        quote! {
-            __param_node.ui_hints.widget = Some(::std::string::String::from(#widget));
-        }
-    });
+    let set_ui_hints = parameter_ui_hint_setters(param.widget.as_ref(), param.unit.as_ref());
     let set_step = param.step.as_ref().map(|expr| {
         quote! {
             __param_node.constraints.step = Some((#expr) as f64);
@@ -4421,7 +4421,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
                     #set_read_only
                     #set_persist_read_only_value
-                    #set_widget
+                    #set_ui_hints
                     #set_range
                     #set_step
                     #set_step_base

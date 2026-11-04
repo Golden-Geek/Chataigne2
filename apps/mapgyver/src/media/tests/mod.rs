@@ -14,6 +14,7 @@ mod script;
 mod scripting;
 mod source_api;
 mod source_node;
+mod time_controls;
 mod typescript;
 
 use golden_core::app::create_new_project_engine;

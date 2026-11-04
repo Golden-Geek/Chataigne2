@@ -31,7 +31,7 @@ enum Kind {
     canvas_size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Canvas size", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
     duration_ms: f64 = 250.0 [0.0..4294967295.0] (
-        label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
+        label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
 })]
 pub struct ElementNode {
     #[state(default = Kind::Layer)]

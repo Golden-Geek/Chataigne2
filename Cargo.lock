@@ -2907,6 +2907,7 @@ dependencies = [
  "golden_script",
  "golden_transport_server",
  "golden_values",
+ "serde_json",
  "tauri",
 ]
 

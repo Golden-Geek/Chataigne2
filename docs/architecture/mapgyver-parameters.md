@@ -12,6 +12,13 @@ Editable collections use real child nodes. Identity, labels, hierarchy and order
 Golden topology/metadata. Selection/zoom, panel locks and native observations are presentation/
 runtime state. Declared Parameter folders must not advertise unsupported Add actions.
 
+Time Parameters keep their stored/API milliseconds and declare `widget = "time", unit = "ms"`.
+Golden's generic numeric editor displays a clock and converts edits back into those same units;
+seconds-based Golden Parameters use `unit = "s"` (or the existing unspecified seconds convention).
+The public Params DSL and `#[param]` forms share hint generation, including rebinding after load.
+Matrix Layer/Column/Cell transition durations and all five app-control timing fields use this
+metadata. No parallel UI store or project/schema conversion owns their values.
+
 ## Ownership inventory
 
 | Owner                     | Required typed settings                                                                                                                   |

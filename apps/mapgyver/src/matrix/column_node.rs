@@ -18,7 +18,7 @@ pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
     folder(parameters, label = "Parameters", can_be_disabled = false) {
         transition_override: bool = false (label = "Override transition");
         duration_ms: f64 = 250.0 [0.0..4294967295.0] (
-            label = "Transition duration (ms)", step = 1.0, constraint_policy = "reject"
+            label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
         );
         curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
     }

@@ -49,8 +49,8 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 		await grid.getByTitle('Select Layer 1', { exact: true }).click();
 		await grid.getByTitle('Select Column 1', { exact: true }).click();
 		await parameter('Override transition').locator('input[type=checkbox]').check();
-		const duration = parameter('Transition duration (ms)').locator('input.number-field');
-		await duration.fill('1234');
+		const duration = parameter('Transition duration').locator('input.number-field');
+		await duration.fill('00:00:01.234');
 		await duration.press('Enter');
 		const beforeScroll = await wait(
 			inspect,
@@ -70,7 +70,7 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 		assert.equal(await grid.getByTitle('Select Layer 1', { exact: true }).count(), 0);
 		assert((await grid.getByRole('gridcell').count()) < 2048);
 		assert.deepEqual(await inspect(), beforeScroll);
-		await duration.fill('4321');
+		await duration.fill('00:00:04.321');
 		await duration.press('Enter');
 		const edited = await wait(
 			inspect,
@@ -104,9 +104,7 @@ export async function verifyMatrixViewportUi({ base, edit }) {
 		}
 		await page.evaluate(() => (document.documentElement.style.fontSize = '125%'));
 		await duration.scrollIntoViewIfNeeded();
-		const label = await parameter('Transition duration (ms)')
-			.locator('.parameter-label')
-			.boundingBox();
+		const label = await parameter('Transition duration').locator('.parameter-label').boundingBox();
 		const input = await duration.boundingBox();
 		const outer = await page.locator('.inspector').boundingBox();
 		assert(
