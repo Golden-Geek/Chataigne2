@@ -31,7 +31,15 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
                     let manager = screen.node_data().parent.and_then(|id| engine.nodes.get(id));
                     let resolved = match manager {
                         Some(AppNode::ScreenManager(manager)) => {
-                            super::target::fullscreen_display(screen, manager, &manager.displays()).cloned()
+                            let displays = manager.displays();
+                            // A connected authored target remains present when output admission is disabled.
+                            displays
+                                .iter()
+                                .find(|found| {
+                                    found.id == *display && super::protocol::DisplayIdentityHint::from(*found) == hint
+                                })
+                                .or_else(|| super::target::fullscreen_display(screen, manager, &displays))
+                                .cloned()
                         }
                         _ => None,
                     };

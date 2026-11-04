@@ -2,6 +2,64 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
+/** Interrupt only native observation delivery; recovery still reads the real host endpoint. */
+export async function verifyRuntimeFooterRecovery({ page }) {
+	const status = page.locator('footer.gc-footer output[aria-label="Video runtime"]');
+	await page.waitForFunction(
+		() =>
+			Number(
+				document
+					.querySelector('footer.gc-footer output[aria-label="Video runtime"]')
+					?.getAttribute('data-sequence')
+			) > 0
+	);
+	await page.evaluate(() => {
+		const host = window.__TAURI_INTERNALS__;
+		// Tauri's debugging callback map is mutable; its runCallback property is read-only.
+		window.__identityVideoCallbacks = [];
+		for (const [id, callback] of host.callbacks) {
+			const wrapper = (payload) => {
+				if (payload?.event === 'mapgyver-video-runtime') return;
+				return callback(payload);
+			};
+			host.callbacks.set(id, wrapper);
+			window.__identityVideoCallbacks.push({ id, callback, wrapper });
+		}
+	});
+	try {
+		await page.waitForFunction(
+			() =>
+				document
+					.querySelector('footer.gc-footer output[aria-label="Video runtime"]')
+					?.getAttribute('data-state') === 'error'
+		);
+		assert.equal(await status.innerText(), 'Video recovering');
+		assert.match(await status.getAttribute('title'), /observation stream expired/);
+	} finally {
+		await page.evaluate(() => {
+			const callbacks = window.__TAURI_INTERNALS__.callbacks;
+			for (const { id, callback, wrapper } of window.__identityVideoCallbacks) {
+				if (callbacks.get(id) === wrapper) callbacks.set(id, callback);
+			}
+			delete window.__identityVideoCallbacks;
+		});
+	}
+	await page.waitForFunction(() => {
+		const output = document.querySelector('footer.gc-footer output[aria-label="Video runtime"]');
+		return (
+			output?.getAttribute('data-state') !== 'error' &&
+			!output?.textContent?.includes('recovering') &&
+			Number(output?.getAttribute('data-sequence')) > 0
+		);
+	});
+	console.log(
+		JSON.stringify({
+			footerRecovery:
+				'expired native event delivery clears stale metrics, shows compact recovery state, then resumes actual host observations'
+		})
+	);
+}
+
 export async function verifyRuntimeFooter({ base, post, page: nativePage = null }) {
 	const browser = nativePage ? null : await chromium.launch({ headless: true });
 	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1200, height: 850 } }));

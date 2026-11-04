@@ -31,6 +31,7 @@ import { verifyMatrixPreviewAdmission } from './matrix-preview-admission.mjs';
 import { verifyMatrixOutputExposure } from './matrix-output-exposure.mjs';
 import { verifyMatrixSparsePreviews } from './matrix-sparse-previews.mjs';
 import { verifyWorkbenchIdentity } from './workbench-identity.mjs';
+import { verifyScreenIdentity } from './screen-identity.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -53,6 +54,7 @@ try {
 	const flow =
 		[
 			['--workbench-identity', verifyWorkbenchIdentity],
+			['--screen-identity', verifyScreenIdentity],
 			[
 				'--matrix-native-acceptance',
 				async (options) => {

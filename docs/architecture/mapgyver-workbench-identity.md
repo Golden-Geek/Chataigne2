@@ -7,7 +7,8 @@ No MapGyver types or assets live in Golden packages.
 `mapgyver_icon.png` is the supplied source. Run `node tools/mapgyver/generate-icons.mjs`
 from the repository root to regenerate desktop ICO/ICNS/PNG, favicon, header and pattern assets
 using the installed Tauri CLI. Intermediate platform variants remain under `target/m119-icons`.
-The Tauri bundle declares these app-owned desktop icons; signing and release delivery remain
+The Tauri bundle declares these app-owned desktop icons and explicitly sets the NSIS installer
+and uninstaller icons. Signing and release delivery remain
 separate from local package validation.
 
 `apps/mapgyver/ui/src/lib/icons/tree.ts` registers supplied SVGs. The resolver reads the
@@ -22,11 +23,15 @@ independent panel state. Structural tab identity is `data-panel-type`, independe
 
 Screen row projections resolve human-readable cached display names and report missing or
 recovered targets without changing the authored backend identifier. Unusable names fall back
-to a display number rather than exposing an internal path.
+to a display number rather than exposing an internal path. Exact connected identity resolution
+precedes output admission, so disabling an output cannot falsely mark its display missing.
 
 The Video footer uses the public app contribution. CPU milliseconds measure the renderer API
 call; FPS does not imply physical presentation. Memory is tracked allocation charge, formatted
 as decimal MB/GB. The adapter label yields space at narrow widths. Golden's invisible idle
 activity slot no longer reserves a permanent gap before the right-hand contribution.
+Expired observation delivery clears stale metrics and shows `Video recovering` until real
+host observations resume. The native fixture verifies expiry/recovery by suppressing delivery
+through Tauri's debugging callback map; it does not invent host metrics.
 
 Current acceptance and remaining checks belong to [the active ledger](../progress/mapgyver-status.md).

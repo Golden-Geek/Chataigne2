@@ -60,6 +60,45 @@ fn publish(engine: &mut AppEngine, displays: Arc<[DisplayInfo]>) {
 }
 
 #[test]
+fn disabled_connected_display_row_is_present_after_runtime_allocation_excludes_output() {
+    let mut engine = runtime();
+    let displays = catalog();
+    publish(&mut engine, displays.clone());
+    let (screen, _) = create(&mut engine);
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: ScreenDefinition {
+                enabled: false,
+                target: Some(ScreenTarget::Fullscreen {
+                    display: displays[0].id.clone(),
+                }),
+            },
+        },
+    );
+    publish(&mut engine, displays.clone());
+    assert!(owner(&engine).has_runtime_allocation());
+    assert!(
+        owner(&engine)
+            .resolved_display(screen, &screen_node(&engine, screen).display_hint())
+            .is_none()
+    );
+    let ScreenEditResult::Row { snapshot: Some(row) } = apply(&mut engine, ScreenEdit::InspectRow { node: screen.0 })
+    else {
+        panic!("connected disabled row expected")
+    };
+    assert!(!row.enabled);
+    assert_eq!(row.detail, format!("Fullscreen · {}", displays[0].name));
+    assert_eq!(
+        screen_node(&engine, screen).definition().target,
+        Some(ScreenTarget::Fullscreen {
+            display: displays[0].id.clone()
+        })
+    );
+}
+
+#[test]
 fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_target_or_absence() {
     let mut engine = runtime();
     let displays = catalog();

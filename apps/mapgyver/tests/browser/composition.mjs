@@ -79,7 +79,11 @@ export async function verifyCompositionUi({
 			}
 		};
 	});
-	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp('^' + name + '$') });
+	const tab = (name) =>
+		page.getByRole('tab').filter({ hasText: new RegExp('^' + name + '(?::|$)') });
+	const displayedNames = new Map(
+		owners.map((owner, index) => [owner.media, `Panel ${index === 0 ? 'A' : 'B'}`])
+	);
 	const panel = (id) =>
 		page.locator('section[data-composition-locked][data-panel-id="' + id + '"]');
 	const main = panel('composition'),
@@ -101,6 +105,14 @@ export async function verifyCompositionUi({
 		await wait(
 			() => panel.getAttribute('data-composition-loading'),
 			(value) => value === 'false'
+		);
+		await wait(
+			() =>
+				panel
+					.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
+					.locator('.gc-dv-tab[data-panel-type="composition"] .gc-dv-tab-label')
+					.innerText(),
+			(value) => value === `Composition: ${displayedNames.get(reference.media)}`
 		);
 	}
 	async function select(label) {
@@ -151,7 +163,7 @@ export async function verifyCompositionUi({
 			0
 		);
 		assert.equal(
-			await main.locator('input,select,fieldset').count(),
+			await main.locator('input:not([aria-label="Zoom"]),select,fieldset').count(),
 			0,
 			'ordinary settings stay in Inspector'
 		);
@@ -221,6 +233,18 @@ export async function verifyCompositionUi({
 		const peer = panel(secondId);
 		await target(peer, owners[1]);
 		await peer.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		for (const [owner, label, currentPanel] of [
+			[owners[0], 'Renamed locked A', main],
+			[owners[1], 'Renamed locked B', peer]
+		]) {
+			const originalName = displayedNames.get(owner.media);
+			await edit({ kind: 'RenameMedia', media: owner.media, label });
+			displayedNames.set(owner.media, label);
+			await target(currentPanel, owner);
+			await edit({ kind: 'RenameMedia', media: owner.media, label: originalName });
+			displayedNames.set(owner.media, originalName);
+			await target(currentPanel, owner);
+		}
 		await settled(2);
 		const boxes = await Promise.all([main.boundingBox(), peer.boundingBox()]);
 		assert(boxes.every((box) => box.width > 0 && box.height > 0));
@@ -337,6 +361,14 @@ export async function verifyCompositionUi({
 		await main
 			.getByText('Locked Composition unavailable in this project.', { exact: true })
 			.waitFor();
+		await wait(
+			() =>
+				main
+					.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]')
+					.locator('.gc-dv-tab[data-panel-type="composition"] .gc-dv-tab-label')
+					.innerText(),
+			(value) => value === 'Composition'
+		);
 		await page.mouse.move(canvas.x + canvas.width * 0.8, canvas.y + canvas.height * 0.8, {
 			steps: 8
 		});

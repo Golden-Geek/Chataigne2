@@ -1,21 +1,42 @@
 {
 	"gate": "M11/9",
-	"state": "Active",
-	"accepted": false,
+	"state": "Accepted",
+	"accepted": true,
 	"date": "2026-11-04",
 	"capability": "Supplied media and app icons, displayed-object titles, readable display rows, compact decimal runtime footer",
 	"software": {
-		"rust_library": { "passed": 432, "ignored": 2, "log": "target/m119-rust.log" },
+		"rust_library": {
+			"passed": 433,
+			"ignored": 2,
+			"log": "target/m119-closure-rust.log"
+		},
 		"strict_all_target_clippy": {
 			"passed": true,
-			"log": "target/m119-clippy.log",
+			"log": "target/m119-closure-clippy.log",
 			"features": "native-qualification,application-process-fixture,native-video-smoke"
 		},
-		"svelte": { "errors": 0, "warnings": 0, "log": "target/m119-svelte-final.log" },
-		"app_ui": { "passed": 96, "log": "target/m119-ui-final.log" },
-		"golden_ui": { "passed": 236, "files": 45, "log": "target/m119-golden-ui.log" },
-		"protocol_generation": { "passed": true, "log": "target/m119-codegen.log" },
-		"native_build": { "passed": true, "log": "target/m119-native-build-final.log" },
+		"svelte": {
+			"errors": 0,
+			"warnings": 0,
+			"log": "target/m119-closure-svelte.log"
+		},
+		"app_ui": {
+			"passed": 96,
+			"log": "target/m119-closure-ui.log"
+		},
+		"golden_ui": {
+			"passed": 236,
+			"files": 45,
+			"log": "target/m119-golden-ui.log"
+		},
+		"protocol_generation": {
+			"passed": true,
+			"log": "target/m119-codegen.log"
+		},
+		"native_build": {
+			"passed": true,
+			"log": "target/m119-closure-build.log"
+		},
 		"format": "Root and golden_core cargo fmt; scoped Prettier"
 	},
 	"native_workbench": {
@@ -44,24 +65,48 @@
 		"local_debug_nsis_build": true,
 		"signed": false,
 		"released": false,
-		"log": "target/m119-package.log",
+		"log": "target/m119-package-closure.log",
 		"artifact": "target/debug/bundle/nsis/MapGyver_0.1.0_x64-setup.exe",
-		"binary_override": "MapGyver-codex-m119",
-		"limit": "Installer generation passed; OS icon and installed identity inspection remain open"
+		"binary_override": "MapGyver-codex-m119-closure",
+		"limit": "Local unsigned package identity only; no installation, signing, release or deployment claimed",
+		"sha256": "FA289017E07872AC25A5187C171A9BE523FB519F226840E224D5CAFE0AC638FF",
+		"installer_icon": "Windows associated 32x32 icon exactly matches the supplied generated ICO entry; explicit installer and uninstaller icon configuration"
 	},
-	"remaining": [
-		"Composition independent panels and locked displayed-object titles through selection, rename and project replacement",
-		"Screen and Surface title selection, rename, deletion and document lifetime cases",
-		"Supplied corresponding tab icons and Reference fallback in actual workbench",
-		"Actual human-readable native display row, including truthful missing recovery",
-		"OS app/window/taskbar and local installed/package icon inspection",
-		"Footer unavailable/error/recovery and active engine activity layout cases"
-	],
+	"remaining": [],
 	"progress": {
-		"verified_gates": 55,
+		"verified_gates": 56,
 		"total_gates": 67,
-		"percent": 82,
-		"m11_verified": 8,
+		"percent": 84,
+		"m11_verified": 9,
 		"m11_total": 10
+	},
+	"closure_checks": {
+		"binary": "target/debug/MapGyver-codex-m119-closure.exe",
+		"sha256": "278030151B7827AFD107A4EB4CDE63674AEB2E2A1C5C5528BA4D14F52BA0AE98",
+		"independent_composition_titles": {
+			"passed": true,
+			"log": "target/m119-independent-titles.log",
+			"instances": 130,
+			"bounded_queries": 66,
+			"verified": "Two independent locked panels, rename while locked, selection, layout reload, reconnect, New and same-document Load, peer/tab retirement; no page errors or rejected requests",
+			"binary": "target/debug/MapGyver-codex-m119.exe",
+			"sha256": "E82C59C2EDD557859D43743BF38974B9F771D4C1DF8B17472E63B2F1E2BE6185"
+		},
+		"screen_surface_and_footer": {
+			"checks_passed": true,
+			"script_state": "Terminal success: exit code 0; owned app closed normally after review",
+			"log": "target/m119-screen-identity-closure.log",
+			"display_name": "Fullscreen · Optoma UHD",
+			"verified": "Connected disabled display remains present; authored backend ID unchanged; Screen/Surface selection, rename, deletion, replacement and New; loaded Reference and seven panel icons; headless unavailable footer; interrupted native event delivery clears stale metrics, shows Video recovering, and resumes actual host observations; no page errors",
+			"window_title": "MapGyver",
+			"window_small_icon": "Actual WM_GETICON small HICON matches supplied generated ICO entry exactly",
+			"window_large_icon": "Tauri/Tao supplies no large HICON; executable resource matches supplied ICO, and the user confirms the actual owned window's taskbar icon matches the header logo"
+		},
+		"manual_taskbar": {
+			"state": "Accepted",
+			"owned_pid": 35612,
+			"user_confirmation": "Yes, the taskbar icon matches",
+			"normal_native_exit_code": 0
+		}
 	}
 }

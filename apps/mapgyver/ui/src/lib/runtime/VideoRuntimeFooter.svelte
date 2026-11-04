@@ -34,7 +34,11 @@
 	{:else}
 		<span
 			>Video {status?.state.toLowerCase() ??
-				(state.connection === 'waiting' ? 'starting' : 'unavailable')}</span>
+				(state.error
+					? 'recovering'
+					: state.connection === 'waiting'
+						? 'starting'
+						: 'unavailable')}</span>
 	{/if}
 	{#if status?.gpu_restart_required}<span>GPU restart required</span>{/if}
 </output>

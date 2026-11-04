@@ -24,6 +24,10 @@
 		"licenseFile": "../../LICENSE",
 		"icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"],
 		"windows": {
+			"nsis": {
+				"installerIcon": "icons/icon.ico",
+				"uninstallerIcon": "icons/icon.ico"
+			},
 			"digestAlgorithm": "sha256",
 			"signCommand": "powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ../../tools/release/sign-windows.ps1 %1",
 			"webviewInstallMode": {
