@@ -1,5 +1,18 @@
 # Production renderer qualification runner
 
+**Current retained result (2026-11-05):** the existing release 100-cycle lifecycle fixture
+completed after current native quiescence corrections. Maximum checkpoint growth is
+**51.828 MiB against 32 MiB**; final growth is 0.730 MiB, handles return exactly to baseline,
+the logical live set is restored and tracked native textures/bridges/outputs release at shutdown.
+All 103 fixed fixture children exit normally; no watchdog cleanup was forced. The original
+peak-growth requirement remains failed, regardless of the final drain.
+
+The surrounding display routes differ and the user stopped Computer Use before the post-run
+overlay observation. Stable-environment qualification is therefore unavailable; the display
+change's timing/cause and its contribution to the memory peaks are unknown. Retain the original
+limits and defer further optimization until a stable paired environment can bracket the same
+fixture. This closes no M03 gate. [Exact evidence and return action](evidence/mapgyver-m03-resource-growth-2026-11-05.json).
+
 ## Environment and GPU/display route
 
 `tools/mapgyver/production_environment.py` owns optional paired environment evidence. Golden
@@ -208,15 +221,15 @@ has no launcher/input fingerprints and fails before warmup; its limitation is pr
 
 The corrected Intel release controls use 1 s warmup, 3 s sample and two 1 s interruption phases:
 
-| Observation | Q01 | Q02 |
-| --- | --- | --- |
-| Actual output client/backing | 1920×1080 | 3840×2160 |
-| Main window accepted / expected attempts | 180 / 180 | 75 / 180 |
-| Spout accepted / expected attempts | 180 / 180 | 139 / 180 |
-| Renderer-context GPU p95 / p99 | 12.051 / 14.296 ms | 25.268 / 30.077 ms |
-| Renderer telemetry contention drops | 286 | 17 |
-| Actual runtime retirement | 0.101 s | 0.139 s |
-| Parent/fixtures forced termination | None | None |
+| Observation                              | Q01                | Q02                |
+| ---------------------------------------- | ------------------ | ------------------ |
+| Actual output client/backing             | 1920×1080          | 3840×2160          |
+| Main window accepted / expected attempts | 180 / 180          | 75 / 180           |
+| Spout accepted / expected attempts       | 180 / 180          | 139 / 180          |
+| Renderer-context GPU p95 / p99           | 12.051 / 14.296 ms | 25.268 / 30.077 ms |
+| Renderer telemetry contention drops      | 286                | 17                 |
+| Actual runtime retirement                | 0.101 s            | 0.139 s            |
+| Parent/fixtures forced termination       | None               | None               |
 
 Both corrected controls complete the functional scenario and preview geometry, with canonical
 producer/consumer marker joins and one final readback. Neither qualifies: durations are short,
@@ -244,14 +257,14 @@ The [schema-2 packet](evidence/mapgyver-m03-measurement-integrity-2026-10-29.jso
 release controls. The reference workload, adapter and 1/3/1-second diagnostic durations remain
 unchanged. No performance gate is awarded from these controls.
 
-| Observation | Q01 | Q02 |
-| --- | --- | --- |
-| Full/clock loss in each of four process traces | 0 / 0 | 0 / 0 |
-| Exactly mapped sample slots / missing slots | 180 / 0 | 180 / 0 |
-| Main window / Spout API acceptance | 177 / 180; 180 / 180 | 172 / 180; 180 / 180 |
-| Renderer valid GPU spans / source-use joins | 180 / 360 | 180 / 360 |
-| Renderer-context GPU p95 / p99 | 16.906 / 26.750 ms | 19.640 / 21.969 ms |
-| Captured source-age p95, A / B | 38.161 / 37.433 ms | 298.980 / 215.542 ms |
+| Observation                                    | Q01                  | Q02                  |
+| ---------------------------------------------- | -------------------- | -------------------- |
+| Full/clock loss in each of four process traces | 0 / 0                | 0 / 0                |
+| Exactly mapped sample slots / missing slots    | 180 / 0              | 180 / 0              |
+| Main window / Spout API acceptance             | 177 / 180; 180 / 180 | 172 / 180; 180 / 180 |
+| Renderer valid GPU spans / source-use joins    | 180 / 360            | 180 / 360            |
+| Renderer-context GPU p95 / p99                 | 16.906 / 26.750 ms   | 19.640 / 21.969 ms   |
+| Captured source-age p95, A / B                 | 38.161 / 37.433 ms   | 298.980 / 215.542 ms |
 
 The bounded queue removes the old mutex-contention loss; written/drained/raw counts agree in
 all four processes, with zero final queued rows. Both samples have one stable exact clock
@@ -310,16 +323,16 @@ The [evidence packet](evidence/mapgyver-m03-output-admission-2026-10-29.json) id
 both analyses and pre/post input fingerprints. The same Intel adapter 0, fixed scenes and
 1/3/1-second diagnostic durations are retained; no display, driver or overlay setting changed.
 
-| Observation | Q01 | Q02 |
-| --- | --- | --- |
-| Sample main / Spout / editor API acceptance | 180 / 180 / 180 | 180 / 180 / 119 |
-| Sample opportunities per output | 180 | 180 |
-| Busy/unavailable conversions skipped, whole capture | 68 | 223 |
-| Minimized editor rows without conversion/API | 60 / 60 | 47 / 47 |
-| Renderer-context GPU p95 / p99 | 7.533 / 10.285 ms | 18.470 / 21.025 ms |
-| Captured source-age p95, A / B | 35.679 / 34.025 ms | 216.710 / 146.563 ms |
-| Consumer observations per channel / unique A / unique B | 771 / 177 / 175 | 66 / 38 / 56 |
-| Actual runtime retirement | 0.106 s | 0.126 s |
+| Observation                                             | Q01                | Q02                  |
+| ------------------------------------------------------- | ------------------ | -------------------- |
+| Sample main / Spout / editor API acceptance             | 180 / 180 / 180    | 180 / 180 / 119      |
+| Sample opportunities per output                         | 180                | 180                  |
+| Busy/unavailable conversions skipped, whole capture     | 68                 | 223                  |
+| Minimized editor rows without conversion/API            | 60 / 60            | 47 / 47              |
+| Renderer-context GPU p95 / p99                          | 7.533 / 10.285 ms  | 18.470 / 21.025 ms   |
+| Captured source-age p95, A / B                          | 35.679 / 34.025 ms | 216.710 / 146.563 ms |
+| Consumer observations per channel / unique A / unique B | 771 / 177 / 175    | 66 / 38 / 56         |
+| Actual runtime retirement                               | 0.106 s            | 0.126 s              |
 
 Independent raw recomputation confirms every busy/unavailable row has no conversion or API
 interval. All 1,093/878 accepted rows retain ordered, non-overlapping conversion and delivery
@@ -371,16 +384,16 @@ The [evidence packet](evidence/mapgyver-m03-source-freshness-2026-10-29.json) an
 same short Intel release controls. All 244 execution fingerprints match before/after capture
 and the current checkout, including the native sources, headers and provenance manifests.
 
-| Sample observation | Q01 | Q02 |
-| --- | --- | --- |
-| Main / Spout / editor API acceptance | 180 / 180 / 180 | 180 / 180 / 180 |
-| Submitted producer frames A / B | 180 / 180 | 169 / 173 |
-| Source-worker GPU batches A / B | 180 / 180 | 169 / 173 |
-| Prior output-admission control's source batches A / B | 1,156 / 1,231 | 306 / 482 |
-| Independent-consumer GPU batches | 180 | 157 |
-| Renderer-context GPU p95 / p99 | 3.809 / 4.378 ms | 9.471 / 13.112 ms |
-| Captured source-age p95 A / B | 22.988 / 9.803 ms | 66.250 / 67.934 ms |
-| Valid captures per channel / unique A / unique B | 180 / 166 / 175 | 157 / 99 / 112 |
+| Sample observation                                    | Q01               | Q02                |
+| ----------------------------------------------------- | ----------------- | ------------------ |
+| Main / Spout / editor API acceptance                  | 180 / 180 / 180   | 180 / 180 / 180    |
+| Submitted producer frames A / B                       | 180 / 180         | 169 / 173          |
+| Source-worker GPU batches A / B                       | 180 / 180         | 169 / 173          |
+| Prior output-admission control's source batches A / B | 1,156 / 1,231     | 306 / 482          |
+| Independent-consumer GPU batches                      | 180               | 157                |
+| Renderer-context GPU p95 / p99                        | 3.809 / 4.378 ms  | 9.471 / 13.112 ms  |
+| Captured source-age p95 A / B                         | 22.988 / 9.803 ms | 66.250 / 67.934 ms |
+| Valid captures per channel / unique A / unique B      | 180 / 166 / 175   | 157 / 99 / 112     |
 
 The static-source native regression establishes that unchanged versioned polls submit no GPU
 batch, that unknown peers keep copying with a frozen positive counter, and that actual access
@@ -462,18 +475,18 @@ Two/three prepared generations never submit, remaining explicit rather than rece
 invented first-use time. The archive contains 36 files (815,395 bytes), SHA-256
 `4e64a94776f35dc2d4b11d25b354d72d275fab604d6529fbe182fb0a0326fdda`.
 
-| Observation | Q01 | Q02 |
-| --- | --- | --- |
-| Initial native preparation | 6.587 ms | 40.588 ms |
-| Maximum later native preparation | 0.0109 ms | 0.0106 ms |
-| Maximum prepared-to-first-submit wait | 12.818 ms | 22.914 ms |
-| Sample main / Spout / editor API acceptance | 180 / 180 / 180 | 155 / 180 / 124 |
-| Sample producer A / B API acceptance | 180 / 180 | 171 / 174 |
-| Renderer-context GPU p95 / p99 | 4.833 / 5.998 ms | 19.751 / 21.857 ms |
-| Captured source-age p95 A / B | 33.612 / 52.810 ms | 73.588 / 84.199 ms |
-| Minimized main / Spout acceptance, of 60 | 60 / 60 | 56 / 59 |
-| Disconnected main / Spout acceptance, expected 60 | 61 / 61 | 60 / 61 |
-| Actual resource retirement | 0.099 s | 0.115 s |
+| Observation                                       | Q01                | Q02                |
+| ------------------------------------------------- | ------------------ | ------------------ |
+| Initial native preparation                        | 6.587 ms           | 40.588 ms          |
+| Maximum later native preparation                  | 0.0109 ms          | 0.0106 ms          |
+| Maximum prepared-to-first-submit wait             | 12.818 ms          | 22.914 ms          |
+| Sample main / Spout / editor API acceptance       | 180 / 180 / 180    | 155 / 180 / 124    |
+| Sample producer A / B API acceptance              | 180 / 180          | 171 / 174          |
+| Renderer-context GPU p95 / p99                    | 4.833 / 5.998 ms   | 19.751 / 21.857 ms |
+| Captured source-age p95 A / B                     | 33.612 / 52.810 ms | 73.588 / 84.199 ms |
+| Minimized main / Spout acceptance, of 60          | 60 / 60            | 56 / 59            |
+| Disconnected main / Spout acceptance, expected 60 | 61 / 61            | 60 / 61            |
+| Actual resource retirement                        | 0.099 s            | 0.115 s            |
 
 Q01's short interruption observations meet cadence/age checks; Q02's do not. Q02 minimized
 source-age p95 reaches 193.446 ms despite zero new texture allocation and preparation below
@@ -521,17 +534,17 @@ short release Intel Q01/Q02 pair, with unchanged scenes, queue depth, polling an
 Independent raw reconstruction checks output versions, exact source-use labels, producer stamps
 and all twelve captured words. It reproduces every sample/interruption match and mismatch.
 
-| Sample observation | Q01 | Q02 |
-| --- | --- | --- |
-| Main / Spout / editor API acceptance | 180 / 180 / 180 | 147 / 180 / 135 |
-| Accepted Spout versions with a capture | 180 / 180 | 144 / 180 |
-| Both source cards match exact renderer labels | 39 / 180 | 6 / 180 |
-| Captures with producer/renderer lineage disagreement | 141 | 138 |
-| Accepted Spout images without a capture | 0 | 36 |
-| Producer A / B API acceptance | 180 / 180 | 156 / 172 |
-| Source-publication-to-Spout-API p95 A / B | 18.435 / 7.599 ms | 22.881 / 13.928 ms |
-| Renderer-context GPU p95 / p99 | 3.701 / 4.339 ms | 19.788 / 23.902 ms |
-| Actual resource retirement | 0.096 s | 0.109 s |
+| Sample observation                                   | Q01               | Q02                |
+| ---------------------------------------------------- | ----------------- | ------------------ |
+| Main / Spout / editor API acceptance                 | 180 / 180 / 180   | 147 / 180 / 135    |
+| Accepted Spout versions with a capture               | 180 / 180         | 144 / 180          |
+| Both source cards match exact renderer labels        | 39 / 180          | 6 / 180            |
+| Captures with producer/renderer lineage disagreement | 141               | 138                |
+| Accepted Spout images without a capture              | 0                 | 36                 |
+| Producer A / B API acceptance                        | 180 / 180         | 156 / 172          |
+| Source-publication-to-Spout-API p95 A / B            | 18.435 / 7.599 ms | 22.881 / 13.928 ms |
+| Renderer-context GPU p95 / p99                       | 3.701 / 4.339 ms  | 19.788 / 23.902 ms |
+| Actual resource retirement                           | 0.096 s           | 0.109 s            |
 
 **Dynamic lineage fails despite valid producer marker words.** All 180/144 observed sample
 cards decode to legitimate producer records; many differ from the exact source images labeled
@@ -606,18 +619,18 @@ rendering adds no recurring CPU pixel readback. The untapped runtime case supple
 instrumented case because taps can perturb timing. The legacy named-sender fixture continues
 to exercise static foreign inputs, CPU access contention and freshness behavior.
 
-| Short sample observation | Q01 | Q02 |
-| --- | --- | --- |
-| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 138 / 176 / 100 |
-| Exact source-word captures / accepted Spout images | 180 / 180 | 148 / 176 |
-| Observed pixel-lineage mismatches | 0 | 0 |
-| Accepted images without an exact capture | 0 | 28 |
-| Producer A / B API acceptance | 176 / 177 | 176 / 175 |
-| Producer A / B Busy attempts | 4 / 4 | 1 / 3 |
-| Source-publication-to-Spout-API p95 A / B | 11.352 / 7.441 ms | 16.129 / 6.129 ms |
-| Captured source-age p95 A / B | 16.482 / 12.618 ms | 58.565 / 48.107 ms |
-| Renderer-context GPU p95 / p99 | 3.839 / 4.438 ms | 19.478 / 23.794 ms |
-| Actual resource retirement | 0.095 s | 0.120 s |
+| Short sample observation                           | Q01                | Q02                |
+| -------------------------------------------------- | ------------------ | ------------------ |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180    | 138 / 176 / 100    |
+| Exact source-word captures / accepted Spout images | 180 / 180          | 148 / 176          |
+| Observed pixel-lineage mismatches                  | 0                  | 0                  |
+| Accepted images without an exact capture           | 0                  | 28                 |
+| Producer A / B API acceptance                      | 176 / 177          | 176 / 175          |
+| Producer A / B Busy attempts                       | 4 / 4              | 1 / 3              |
+| Source-publication-to-Spout-API p95 A / B          | 11.352 / 7.441 ms  | 16.129 / 6.129 ms  |
+| Captured source-age p95 A / B                      | 16.482 / 12.618 ms | 58.565 / 48.107 ms |
+| Renderer-context GPU p95 / p99                     | 3.839 / 4.438 ms   | 19.478 / 23.794 ms |
+| Actual resource retirement                         | 0.095 s            | 0.120 s            |
 
 Q01's one-second minimized and disconnected phases each capture all 60 accepted Spout images
 with exact pixels. Q02's minimized phase captures 46/58 exactly (main acceptance 51); its
@@ -679,13 +692,13 @@ The [schema-5 packet](evidence/mapgyver-m03-plan-age-2026-10-29.json) and
 release Intel Q01/Q02 pair with the existing fixed scenes and budgets. The current analyzer
 rejects schemas 1–4; the earlier failed packets and their analyses remain unchanged.
 
-| Whole-capture CPU lifecycle observation | Q01 | Q02 |
-| --- | --- | --- |
-| Accepted publications / first receipts | 9 / 8 | 9 / 8 |
-| Installed generations / superseded inputs | 6 / 3 | 6 / 3 |
-| Superseded without receipt or first use | 1 | 1 |
-| Native frame rows with exact lifecycle joins | 389 / 389 | 385 / 385 |
-| Publication-to-receipt median / maximum | 0.016 / 76.504 ms | 0.016 / 80.916 ms |
+| Whole-capture CPU lifecycle observation      | Q01                | Q02               |
+| -------------------------------------------- | ------------------ | ----------------- |
+| Accepted publications / first receipts       | 9 / 8              | 9 / 8             |
+| Installed generations / superseded inputs    | 6 / 3              | 6 / 3             |
+| Superseded without receipt or first use      | 1                  | 1                 |
+| Native frame rows with exact lifecycle joins | 389 / 389          | 385 / 385         |
+| Publication-to-receipt median / maximum      | 0.016 / 76.504 ms  | 0.016 / 80.916 ms |
 | Publication-to-first-submit median / maximum | 11.271 / 82.708 ms | 4.392 / 97.093 ms |
 
 Both captures have complete lifecycle/counter/frame/output joins. Maxima include startup;
@@ -694,16 +707,16 @@ steady-state edit-latency qualification. Retained-plan-to-Spout-API p95 is appro
 4.084/4.098 seconds during the sample because that same plan remains installed; it does not
 mean an edit waited four seconds to appear.
 
-| Short sample observation | Q01 | Q02 |
-| --- | --- | --- |
-| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 158 / 174 / 108 |
-| Exact source-word captures / accepted Spout images | 180 / 180 | 153 / 174 |
-| Observed pixel-lineage disagreements | 0 | 0 |
-| Accepted images without an exact capture | 0 | 21 |
-| Producer A / B API acceptance | 175 / 179 | 174 / 180 |
-| Source-age p95 A / B, observed captures | 11.842 / 11.239 ms | 56.572 / 46.691 ms |
-| Renderer-context GPU p95 / p99 | 4.306 / 4.567 ms | 19.402 / 22.218 ms |
-| Actual retirement | 0.094 s | 0.114 s |
+| Short sample observation                           | Q01                | Q02                |
+| -------------------------------------------------- | ------------------ | ------------------ |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180    | 158 / 174 / 108    |
+| Exact source-word captures / accepted Spout images | 180 / 180          | 153 / 174          |
+| Observed pixel-lineage disagreements               | 0                  | 0                  |
+| Accepted images without an exact capture           | 0                  | 21                 |
+| Producer A / B API acceptance                      | 175 / 179          | 174 / 180          |
+| Source-age p95 A / B, observed captures            | 11.842 / 11.239 ms | 56.572 / 46.691 ms |
+| Renderer-context GPU p95 / p99                     | 4.306 / 4.567 ms   | 19.402 / 22.218 ms |
+| Actual retirement                                  | 0.094 s            | 0.114 s            |
 
 Q01's short minimized/disconnected phases capture 60/60 and 61/61 accepted Spout images exactly.
 Q02 captures 31/56 and 41/59 exactly; those incomplete cohorts include eleven/three captures
@@ -766,20 +779,20 @@ plan age to the software display observation. Decimal rational QPC coordinates r
 as numerator/denominator strings. Physical scanout, optical latency and independent window
 pixel correctness remain outside these metadata observations.
 
-| Short sample observation | Q01 | Q02 |
-| --- | --- | --- |
-| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180 | 137 / 179 / 91 |
-| Exact main window display rows / accepted | 180 / 180 | 137 / 137 |
-| Exact editor window display rows / accepted | 180 / 180 | 91 / 91 |
-| Main source-to-software-display p95 A / B | 32.185 / 28.376 ms | 45.796 / 55.334 ms |
-| Editor source-to-software-display p95 A / B | 32.214 / 28.998 ms | 52.630 / 63.386 ms |
-| Main Present-to-software-display p95 | 15.417 ms | 27.799 ms |
-| Editor Present-to-software-display p95 | 15.200 ms | 33.818 ms |
-| Exact Spout captures / accepted | 180 / 180 | 161 / 179 |
-| Spout captured-source p95 A / B | 24.083 / 24.375 ms | 57.049 / 57.056 ms |
-| Producer A / B API acceptance | 177 / 170 | 180 / 174 |
-| Renderer-context GPU p95 / p99 | 5.998 / 6.256 ms | 19.804 / 23.269 ms |
-| Actual resource retirement | 0.095 s | 0.124 s |
+| Short sample observation                           | Q01                | Q02                |
+| -------------------------------------------------- | ------------------ | ------------------ |
+| Main / Spout / editor API acceptance, expected 180 | 180 / 180 / 180    | 137 / 179 / 91     |
+| Exact main window display rows / accepted          | 180 / 180          | 137 / 137          |
+| Exact editor window display rows / accepted        | 180 / 180          | 91 / 91            |
+| Main source-to-software-display p95 A / B          | 32.185 / 28.376 ms | 45.796 / 55.334 ms |
+| Editor source-to-software-display p95 A / B        | 32.214 / 28.998 ms | 52.630 / 63.386 ms |
+| Main Present-to-software-display p95               | 15.417 ms          | 27.799 ms          |
+| Editor Present-to-software-display p95             | 15.200 ms          | 33.818 ms          |
+| Exact Spout captures / accepted                    | 180 / 180          | 161 / 179          |
+| Spout captured-source p95 A / B                    | 24.083 / 24.375 ms | 57.049 / 57.056 ms |
+| Producer A / B API acceptance                      | 177 / 170          | 180 / 174          |
+| Renderer-context GPU p95 / p99                     | 5.998 / 6.256 ms   | 19.804 / 23.269 ms |
+| Actual resource retirement                         | 0.095 s            | 0.124 s            |
 
 Both window cohorts have no missing/dropped/display/source/plan observations in these samples.
 Q01's complete three-output observed source-age distributions fit 50 ms, while its producer
@@ -854,17 +867,17 @@ PID-filtered PresentMon collector; the published before controls have no collect
 and executables remain stable within each run. This is a functional/regression comparison,
 not an isolated timing experiment. No graphics setting or WPR profile changes.
 
-| Metric | Q01 before | Q01 fixed + collector | Q02 before | Q02 fixed + collector |
-| --- | --- | --- | --- | --- |
-| Renderer GPU median / p95 / p99 / max, ms | 3.5804 / 4.1983 / 4.7224 / 6.3955 | 2.9971 / 4.0514 / 4.2478 / 4.2837 | 10.3355 / 11.7707 / 15.2588 / 16.9607 | 14.4418 / 15.8522 / 16.4395 / 17.2716 |
-| Accepted API calls main / Spout / editor | 300 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 295 |
-| Producer A / B accepted, of 300 each | 300 / 300 | 300 / 300 | 300 / 300 | 300 / 300 |
-| Exact sample Spout captures | 300/300 | 300/300 | 300/300 | 300/300 |
-| Source-B generation / pool at end | 1 / 1 | 1 / 1 | 2 / 2 | 1 / 1 |
-| Source A / B to sample Spout capture p95, ms | 23.6461 / 12.3820 | 13.8049 / 15.1107 | 16.9018 / 27.0118 | 27.6082 / 31.6767 |
-| Minimized-editor exact Spout captures | 60/60 | 60/60 | 45/59 | 55/59 |
-| Disconnected-editor exact Spout captures | 60/60 | 60/60 | 56/60 | 51/60 |
-| Logical reservation peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+| Metric                                       | Q01 before                        | Q01 fixed + collector             | Q02 before                            | Q02 fixed + collector                 |
+| -------------------------------------------- | --------------------------------- | --------------------------------- | ------------------------------------- | ------------------------------------- |
+| Renderer GPU median / p95 / p99 / max, ms    | 3.5804 / 4.1983 / 4.7224 / 6.3955 | 2.9971 / 4.0514 / 4.2478 / 4.2837 | 10.3355 / 11.7707 / 15.2588 / 16.9607 | 14.4418 / 15.8522 / 16.4395 / 17.2716 |
+| Accepted API calls main / Spout / editor     | 300 / 300 / 300                   | 300 / 300 / 300                   | 300 / 300 / 300                       | 300 / 300 / 295                       |
+| Producer A / B accepted, of 300 each         | 300 / 300                         | 300 / 300                         | 300 / 300                             | 300 / 300                             |
+| Exact sample Spout captures                  | 300/300                           | 300/300                           | 300/300                               | 300/300                               |
+| Source-B generation / pool at end            | 1 / 1                             | 1 / 1                             | 2 / 2                                 | 1 / 1                                 |
+| Source A / B to sample Spout capture p95, ms | 23.6461 / 12.3820                 | 13.8049 / 15.1107                 | 16.9018 / 27.0118                     | 27.6082 / 31.6767                     |
+| Minimized-editor exact Spout captures        | 60/60                             | 60/60                             | 45/59                                 | 55/59                                 |
+| Disconnected-editor exact Spout captures     | 60/60                             | 60/60                             | 56/60                                 | 51/60                                 |
+| Logical reservation peak, bytes              | 144,691,264                       | 144,691,264                       | 468,172,864                           | 468,172,864                           |
 
 Both fixed controls keep both sources in generation/pool 1 with no reported error, no missing
 source-use publication in sample/interruption CPU cohorts, and no invalid captured lineage.
@@ -939,16 +952,16 @@ One release diagnostic per scene uses Intel adapter 0, LUID `00000000:00016c2a`,
 Before/after execution fingerprints match within both new captures. The published opaque-branch
 controls supply the baseline; these sequential observations do not isolate whole-renderer cause.
 
-| Metric | Q01 baseline | Q01 source wait | Q02 baseline | Q02 source wait |
-| --- | --- | --- | --- | --- |
+| Metric                                    | Q01 baseline                      | Q01 source wait                   | Q02 baseline                          | Q02 source wait                       |
+| ----------------------------------------- | --------------------------------- | --------------------------------- | ------------------------------------- | ------------------------------------- |
 | Renderer GPU median / p95 / p99 / max, ms | 4.0304 / 4.7699 / 5.4131 / 5.6359 | 3.5804 / 4.1983 / 4.7224 / 6.3955 | 10.0680 / 11.4896 / 13.5165 / 16.2388 | 10.3355 / 11.7707 / 15.2588 / 16.9607 |
-| Output-stage GPU p95, ms | 3.3967 | 2.8863 | 7.9353 | 7.6247 |
-| Accepted API calls main / Spout / editor | 301 / 300 / 300 | 300 / 300 / 300 | 300 / 300 / 299 | 300 / 300 / 300 |
-| Producer A / B accepted, of 300 each | 293 / 295 | 300 / 300 | 290 / 296 | 300 / 300 |
-| Producer A / B send API wall p95, ms | 0.2664 / 0.2638 | 0.2862 / 0.3108 | 0.2430 / 0.2679 | 0.2352 / 0.1994 |
-| Exact accepted-Spout images captured | 300/300 | 300/300 | 300/300 | 300/300 |
-| Source A / B to Spout capture p95, ms | 23.4243 / 11.1482 | 23.6461 / 12.3820 | 18.0635 / 19.9329 | 16.9018 / 27.0118 |
-| Recorded logical peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+| Output-stage GPU p95, ms                  | 3.3967                            | 2.8863                            | 7.9353                                | 7.6247                                |
+| Accepted API calls main / Spout / editor  | 301 / 300 / 300                   | 300 / 300 / 300                   | 300 / 300 / 299                       | 300 / 300 / 300                       |
+| Producer A / B accepted, of 300 each      | 293 / 295                         | 300 / 300                         | 290 / 296                             | 300 / 300                             |
+| Producer A / B send API wall p95, ms      | 0.2664 / 0.2638                   | 0.2862 / 0.3108                   | 0.2430 / 0.2679                       | 0.2352 / 0.1994                       |
+| Exact accepted-Spout images captured      | 300/300                           | 300/300                           | 300/300                               | 300/300                               |
+| Source A / B to Spout capture p95, ms     | 23.4243 / 11.1482                 | 23.6461 / 12.3820                 | 18.0635 / 19.9329                     | 16.9018 / 27.0118                     |
+| Recorded logical peak, bytes              | 144,691,264                       | 144,691,264                       | 468,172,864                           | 468,172,864                           |
 
 All four renderer GPU cohorts and every producer API cohort retain 300 frame records, and every new sample
 output/source call is accepted. API timing coverage is complete; Q01 source A/B maximum API
@@ -1001,22 +1014,22 @@ causality or qualify the prescribed series. No PresentMon/WPR capture or graphic
 change is introduced. Every capture has stable before/after execution fingerprints.
 
 | Scenario / variant | Renderer GPU median / p95 / p99 / max, ms | Output-stage GPU p95, ms |
-| --- | --- | --- |
-| Q01 baseline | 4.0304 / 4.7699 / 5.4131 / 5.6359 | 3.3967 |
-| Q01 staged | 2.8923 / 3.7407 / 4.5872 / 6.3505 | 2.0599 |
-| Q01 shared-first | 3.8448 / 4.8264 / 5.3223 / 5.6825 | 3.2157 |
-| Q02 baseline | 10.0680 / 11.4896 / 13.5165 / 16.2388 | 7.9353 |
-| Q02 staged | 10.5353 / 14.3252 / 16.3292 / 18.2595 | 9.8289 |
-| Q02 shared-first | 14.9774 / 17.4177 / 17.9461 / 19.4191 | 11.8626 |
+| ------------------ | ----------------------------------------- | ------------------------ |
+| Q01 baseline       | 4.0304 / 4.7699 / 5.4131 / 5.6359         | 3.3967                   |
+| Q01 staged         | 2.8923 / 3.7407 / 4.5872 / 6.3505         | 2.0599                   |
+| Q01 shared-first   | 3.8448 / 4.8264 / 5.3223 / 5.6825         | 3.2157                   |
+| Q02 baseline       | 10.0680 / 11.4896 / 13.5165 / 16.2388     | 7.9353                   |
+| Q02 staged         | 10.5353 / 14.3252 / 16.3292 / 18.2595     | 9.8289                   |
+| Q02 shared-first   | 14.9774 / 17.4177 / 17.9461 / 19.4191     | 11.8626                  |
 
 | Scenario / variant | Main / Spout / editor accepted calls | Producer A / B accepted, of 300 each | Source A / B capture age p95, ms |
-| --- | --- | --- | --- |
-| Q01 baseline | 301 / 300 / 300 | 293 / 295 | 23.4243 / 11.1482 |
-| Q01 staged | 300 / 300 / 300 | 297 / 297 | 18.2162 / 10.6754 |
-| Q01 shared-first | 300 / 300 / 300 | 295 / 293 | 23.0830 / 13.3091 |
-| Q02 baseline | 300 / 300 / 299 | 290 / 296 | 18.0635 / 19.9329 |
-| Q02 staged | 298 / 300 / 298 | 294 / 298 | 22.5083 / 30.1465 |
-| Q02 shared-first | 270 / 300 / 251 | 295 / 294 | 38.9549 / 43.8136 |
+| ------------------ | ------------------------------------ | ------------------------------------ | -------------------------------- |
+| Q01 baseline       | 301 / 300 / 300                      | 293 / 295                            | 23.4243 / 11.1482                |
+| Q01 staged         | 300 / 300 / 300                      | 297 / 297                            | 18.2162 / 10.6754                |
+| Q01 shared-first   | 300 / 300 / 300                      | 295 / 293                            | 23.0830 / 13.3091                |
+| Q02 baseline       | 300 / 300 / 299                      | 290 / 296                            | 18.0635 / 19.9329                |
+| Q02 staged         | 298 / 300 / 298                      | 294 / 298                            | 22.5083 / 30.1465                |
+| Q02 shared-first   | 270 / 300 / 251                      | 295 / 294                            | 38.9549 / 43.8136                |
 
 Q02 shared-first has 30 main and 49 editor Busy outcomes, although all shared publications
 are accepted. Correct CPU submission order therefore does not establish output independence
@@ -1096,15 +1109,15 @@ The release Q01/Q02 controls retain Intel adapter 0, 5 s warmup, 5 s sample, 1 s
 the fixed scene and 60 Hz opportunities. No PresentMon/WPR collector or graphics setting is
 changed. Each run retains stable before/after execution fingerprints and all raw records.
 
-| Metric | Q01 before | Q01 branch | Q02 before | Q02 branch |
-| --- | --- | --- | --- | --- |
-| Renderer GPU median / p95 / p99, ms | 2.9505 / 3.8685 / 4.7698 | 4.0304 / 4.7699 / 5.4131 | 12.7681 / 14.8372 / 16.6638 | 10.0680 / 11.4896 / 13.5165 |
-| Output-stage GPU p95, ms | 2.7336 | 3.3967 | 10.5201 | 7.9353 |
-| Accepted API calls main / Spout / editor | 300 / 300 / 300 | 301 / 300 / 300 | 300 / 300 / 298 | 300 / 300 / 299 |
-| Producer A / B accepted, of 300 each | 296 / 296 | 293 / 295 | 297 / 294 | 290 / 296 |
-| Exact accepted-Spout images captured | 300/300 | 300/300 | 300/300 | 300/300 |
-| Source A / B to Spout capture p95, ms | 10.7890 / 18.5535 | 23.4243 / 11.1482 | 30.1226 / 33.7702 | 18.0635 / 19.9329 |
-| Recorded logical peak, bytes | 144,691,264 | 144,691,264 | 468,172,864 | 468,172,864 |
+| Metric                                   | Q01 before               | Q01 branch               | Q02 before                  | Q02 branch                  |
+| ---------------------------------------- | ------------------------ | ------------------------ | --------------------------- | --------------------------- |
+| Renderer GPU median / p95 / p99, ms      | 2.9505 / 3.8685 / 4.7698 | 4.0304 / 4.7699 / 5.4131 | 12.7681 / 14.8372 / 16.6638 | 10.0680 / 11.4896 / 13.5165 |
+| Output-stage GPU p95, ms                 | 2.7336                   | 3.3967                   | 10.5201                     | 7.9353                      |
+| Accepted API calls main / Spout / editor | 300 / 300 / 300          | 301 / 300 / 300          | 300 / 300 / 298             | 300 / 300 / 299             |
+| Producer A / B accepted, of 300 each     | 296 / 296                | 293 / 295                | 297 / 294                   | 290 / 296                   |
+| Exact accepted-Spout images captured     | 300/300                  | 300/300                  | 300/300                     | 300/300                     |
+| Source A / B to Spout capture p95, ms    | 10.7890 / 18.5535        | 23.4243 / 11.1482        | 30.1226 / 33.7702           | 18.0635 / 19.9329           |
+| Recorded logical peak, bytes             | 144,691,264              | 144,691,264              | 468,172,864                 | 468,172,864                 |
 
 Q01's final API window includes 301 main deliveries while the CPU-start GPU cohort and anchored
 deadline cohorts remain 300. These are different boundary-selected cohorts; no opportunity is
@@ -1154,11 +1167,11 @@ Three short Intel adapter-0 Q02 controls retain 2 s warmup, 3 s sample and 1 s p
    across the system, of which 16,272 belong to the four manifest PIDs.
 
 | Owned role | Decoded packets | Complete timing records |
-| --- | --- | --- |
-| Renderer | 9,638 | 0 |
-| Source A | 2,512 | 0 |
-| Source B | 2,332 | 0 |
-| Consumer | 1,790 | 0 |
+| ---------- | --------------- | ----------------------- |
+| Renderer   | 9,638           | 0                       |
+| Source A   | 2,512           | 0                       |
+| Source B   | 2,332           | 0                       |
+| Consumer   | 1,790           | 0                       |
 
 All seven timing fields on every owned packet have `has_value=true` **and** `is_partial=true`.
 The API rejects raw timestamp access in that state. Both bundled and installed-toolkit probe
@@ -1212,15 +1225,15 @@ immutable [direct-window baseline](evidence/mapgyver-m03-direct-window-controls-
 Controls retain the same Intel route, five-second warmup/sample, one-second interruptions,
 60 Hz pacing, two inputs, queue limits and fixed scenes. There is no PresentMon collector.
 
-| Short native observation | Prior Q02 | Direct-bridge Q02 | Direct-bridge Q01 |
-| --- | ---: | ---: | ---: |
-| Main / Spout / editor acceptance, expected 300 each | 300/299/271 | 300/300/296 | 300/300/300 |
-| Exact accepted Spout captures | 299/299 | 300/300 | 300/300 |
-| Renderer context GPU p95 / p99 (ms) | 16.9713 / 18.3391 | 15.5987 / 16.0877 | 3.2120 / 3.7696 |
-| Renderer context median (ms) | 13.2066 | 13.4602 | 2.8399 |
-| Producer A / B accepted opportunities | 295/292 | 294/293 | 288/296 |
-| Spout source-age p95 A / B (ms) | 32.7012 / 37.9231 | 27.1990 / 33.5152 | 17.3411 / 22.8673 |
-| Logical reserved peak (bytes) | 505,036,864 | 575,078,464 | 144,691,264 |
+| Short native observation                            |         Prior Q02 | Direct-bridge Q02 | Direct-bridge Q01 |
+| --------------------------------------------------- | ----------------: | ----------------: | ----------------: |
+| Main / Spout / editor acceptance, expected 300 each |       300/299/271 |       300/300/296 |       300/300/300 |
+| Exact accepted Spout captures                       |           299/299 |           300/300 |           300/300 |
+| Renderer context GPU p95 / p99 (ms)                 | 16.9713 / 18.3391 | 15.5987 / 16.0877 |   3.2120 / 3.7696 |
+| Renderer context median (ms)                        |           13.2066 |           13.4602 |            2.8399 |
+| Producer A / B accepted opportunities               |           295/292 |           294/293 |           288/296 |
+| Spout source-age p95 A / B (ms)                     | 32.7012 / 37.9231 | 27.1990 / 33.5152 | 17.3411 / 22.8673 |
+| Logical reserved peak (bytes)                       |       505,036,864 |       575,078,464 |       144,691,264 |
 
 Each new GPU cohort contains all 300 CPU-start-selected frames with ordered stage partitions.
 The baseline Q02 cohort retains its documented 299-frame boundary case; all cadence/deadline
@@ -1270,15 +1283,15 @@ All controls use five-second warmup/sample and one-second interruptions; scenes,
 cadence, queue depth, polling and budgets are unchanged. Artifact schema remains 7 and no
 analyzer/protocol change is required. No PresentMon collector is enabled.
 
-| Short native observation | Prior Q02 | Direct Q02 | Direct Q01 |
-| --- | ---: | ---: | ---: |
-| Main / Spout / editor accepted, expected 300 each | 276/294/165 | 300/299/271 | 300/300/300 |
-| Exact completed Spout images / accepted | 272/294 | 299/299 | 300/300 |
-| Invalid capture comparisons | 0 | 0 | 0 |
-| Renderer context GPU p95 / p99 (ms) | 21.7279 / 24.0701 | 16.9713 / 18.3391 | 3.8944 / 5.3956 |
-| Output interval p95 / median (ms) | 15.2477 / 9.5033 | 13.1157 / 9.5441 | 2.8049 / 1.8198 |
-| Logical reserved peak (bytes) | 578,764,864 | 505,036,864 | 156,672,064 |
-| Initial generation texture allocations | 7 | 5 | 5 |
+| Short native observation                          |         Prior Q02 |        Direct Q02 |      Direct Q01 |
+| ------------------------------------------------- | ----------------: | ----------------: | --------------: |
+| Main / Spout / editor accepted, expected 300 each |       276/294/165 |       300/299/271 |     300/300/300 |
+| Exact completed Spout images / accepted           |           272/294 |           299/299 |         300/300 |
+| Invalid capture comparisons                       |                 0 |                 0 |               0 |
+| Renderer context GPU p95 / p99 (ms)               | 21.7279 / 24.0701 | 16.9713 / 18.3391 | 3.8944 / 5.3956 |
+| Output interval p95 / median (ms)                 |  15.2477 / 9.5033 |  13.1157 / 9.5441 | 2.8049 / 1.8198 |
+| Logical reserved peak (bytes)                     |       578,764,864 |       505,036,864 |     156,672,064 |
+| Initial generation texture allocations            |                 7 |                 5 |               5 |
 
 Q02's CPU-start-selected GPU cohort contains 299 complete spans: one frame begins before the
 sample boundary while its output is accepted within the sample. The output/deadline cohorts
@@ -1329,17 +1342,17 @@ LUID `00000000:00016c2a`. The independent audit reconstructs every partition fro
 rows, rejects clock/token mismatches, checks exact integer telescoping and agrees with all
 600 frame records and their distributions. Capture fingerprints stay stable throughout.
 
-| Same-context observation (ms, p95 unless named) | Q01 | Q02 |
-| --- | ---: | ---: |
-| Covered / expected sample GPU partitions | 300/300 | 300/300 |
-| Input-copy interval | 1.0759 | 7.2783 |
-| Render-pass interval | 0.6640 | 7.4998 |
-| Output interval | 2.3158 | 15.2477 |
-| Output median | 2.1481 | 9.5033 |
-| Whole context interval | 3.9429 | 21.7279 |
-| Frames with output as largest interval | 299/300 | 271/300 |
-| Main / Spout / editor accepted opportunities | 300/300/300 | 276/294/165 |
-| Exact completed Spout captures / accepted | 300/300 | 272/294 |
+| Same-context observation (ms, p95 unless named) |         Q01 |         Q02 |
+| ----------------------------------------------- | ----------: | ----------: |
+| Covered / expected sample GPU partitions        |     300/300 |     300/300 |
+| Input-copy interval                             |      1.0759 |      7.2783 |
+| Render-pass interval                            |      0.6640 |      7.4998 |
+| Output interval                                 |      2.3158 |     15.2477 |
+| Output median                                   |      2.1481 |      9.5033 |
+| Whole context interval                          |      3.9429 |     21.7279 |
+| Frames with output as largest interval          |     299/300 |     271/300 |
+| Main / Spout / editor accepted opportunities    | 300/300/300 | 276/294/165 |
+| Exact completed Spout captures / accepted       |     300/300 |     272/294 |
 
 Each frame's three raw tick differences sum exactly to its enclosing difference. Distribution
 percentiles cannot be summed. Elapsed GPU intervals include scheduler/dependency waits and
@@ -1383,15 +1396,15 @@ The same Intel LUID `00000000:00016c2a` runs one pre-change Q02 baseline and upd
 controls, each with five-second warmup/sample and one-second interruption intervals. There
 is no display/driver/overlay change or PresentMon collector in this batch.
 
-| Short native observation | Q02 baseline | Q02 decoded view | Q01 decoded view |
-| --- | ---: | ---: | ---: |
-| Renderer context GPU p95 / p99 (ms) | 19.9860 / 22.4258 | 20.3868 / 21.5081 | 3.8439 / 4.5881 |
-| Main accepted / 300 opportunities | 249 | 292 | 300 |
-| Spout accepted / 300 opportunities | 294 | 295 | 300 |
-| Editor accepted / 300 opportunities | 156 | 174 | 300 |
-| Exact completed Spout captures / accepted | 267/294 | 289/295 | 300/300 |
-| Invalid capture comparisons | 0 | 0 | 0 |
-| Logical reserved peak (bytes) | 578,764,864 | 578,764,864 | recorded in packet |
+| Short native observation                  |      Q02 baseline |  Q02 decoded view |   Q01 decoded view |
+| ----------------------------------------- | ----------------: | ----------------: | -----------------: |
+| Renderer context GPU p95 / p99 (ms)       | 19.9860 / 22.4258 | 20.3868 / 21.5081 |    3.8439 / 4.5881 |
+| Main accepted / 300 opportunities         |               249 |               292 |                300 |
+| Spout accepted / 300 opportunities        |               294 |               295 |                300 |
+| Editor accepted / 300 opportunities       |               156 |               174 |                300 |
+| Exact completed Spout captures / accepted |           267/294 |           289/295 |            300/300 |
+| Invalid capture comparisons               |                 0 |                 0 |                  0 |
+| Logical reserved peak (bytes)             |       578,764,864 |       578,764,864 | recorded in packet |
 
 The isolated sampler cost test uses the production pipeline, identical encoded source texels
 and one device, alternating path order. Four warmup pairs precede 12 measured pairs; each
@@ -1465,10 +1478,10 @@ captured execution hashes and native executable still match. No new native/colle
 device/driver/display/overlay change or workload/budget adjustment occurred.
 
 | Anchored delivery classification, expected 180 per output | Q01 on time / miss / unknown | Q02 on time / miss / unknown |
-| --- | --- | --- |
-| Main window software display | 180 / 0 / 0 | 0 / 180 / 0 |
-| Spout GPU-ready bounds | 180 / 0 / 0 | 3 / 1 / 176 |
-| Editor window software display | 180 / 0 / 0 | 0 / 180 / 0 |
+| --------------------------------------------------------- | ---------------------------- | ---------------------------- |
+| Main window software display                              | 180 / 0 / 0                  | 0 / 180 / 0                  |
+| Spout GPU-ready bounds                                    | 180 / 0 / 0                  | 3 / 1 / 176                  |
+| Editor window software display                            | 180 / 0 / 0                  | 0 / 180 / 0                  |
 
 Q01 proves its observed three-output deadlines in this short control. Q02 main combines 137
 late displays and 43 nonaccepted frames; editor combines 91 late displays and 89 nonaccepted
