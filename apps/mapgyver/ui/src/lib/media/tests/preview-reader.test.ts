@@ -81,3 +81,83 @@ test('preview reads serialize rapid selections and fence project/history changes
 	reader.dispose();
 	assert.equal(state.page, null);
 });
+
+test('selection changes retain valid content until the latest reply and never accept superseded views', async () => {
+	const session = {
+		status: 'connected',
+		snapshotGeneration: 1,
+		currentHistoryStateId: 1,
+		loading: { visible: false }
+	};
+	const state = previewReadState();
+	const calls: { resolve: (reply: MediaEditResult) => void }[] = [];
+	const reader = new MediaPreviewReader(
+		() => session,
+		state,
+		() => new Promise((resolve) => calls.push({ resolve }))
+	);
+	const query = { selected: id, document: null, channel: null, start: 0, count: 4 };
+	const reply = (label: string): MediaEditResult => ({
+		kind: 'MediaPreview',
+		page: { document: id, document_matches: true, media: id, label, channels: null, selected: null }
+	});
+	reader.refresh(query);
+	calls[0].resolve(reply('Original'));
+	await delay(0);
+	const original = reader.page;
+	reader.refresh({ ...query, selected: '22222222-2222-2222-2222-222222222222' });
+	assert.equal(reader.page, original, 'pending selection retains the displayed page');
+	reader.refresh({ ...query, selected: '33333333-3333-3333-3333-333333333333' });
+	calls[1].resolve(reply('Superseded'));
+	await delay(0);
+	assert.equal(reader.page, original, 'superseded reply never replaces the retained page');
+	calls[2].resolve(reply('Latest'));
+	await delay(0);
+	assert.equal(reader.page?.label, 'Latest');
+	reader.dispose();
+});
+
+test('retained selection content is hidden immediately when its document or connection changes', async () => {
+	const session = {
+		status: 'connected',
+		snapshotGeneration: 1,
+		currentHistoryStateId: 1,
+		loading: { visible: false }
+	};
+	const state = previewReadState();
+	const calls: { resolve: (reply: MediaEditResult) => void }[] = [];
+	const reader = new MediaPreviewReader(
+		() => session,
+		state,
+		() => new Promise((resolve) => calls.push({ resolve }))
+	);
+	const query = { selected: id, document: null, channel: null, start: 0, count: 4 };
+	const reply: MediaEditResult = {
+		kind: 'MediaPreview',
+		page: {
+			document: id,
+			document_matches: true,
+			media: id,
+			label: 'Original',
+			channels: null,
+			selected: null
+		}
+	};
+	reader.refresh(query);
+	calls[0].resolve(reply);
+	await delay(0);
+	reader.refresh({ ...query, start: 4 });
+	assert(reader.page);
+	session.snapshotGeneration++;
+	assert.equal(reader.page, null);
+	calls[1].resolve(reply);
+	await delay(0);
+	assert.equal(reader.page, null, 'old response cannot revive a prior document');
+	reader.refresh(query);
+	calls[2].resolve(reply);
+	await delay(0);
+	assert(reader.page);
+	session.status = 'disconnected';
+	assert.equal(reader.page, null);
+	reader.dispose();
+});

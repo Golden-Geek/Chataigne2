@@ -15,7 +15,6 @@ export class MediaPreviewReader<S extends Connection> {
 	private disposed = false;
 	private current: (() => boolean) | null = null;
 	private displayed: (() => boolean) | null = null;
-	private queryKey = '';
 	private session: () => S | null;
 	readonly state: ReturnType<typeof previewReadState>;
 	private invoke: (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
@@ -33,9 +32,9 @@ export class MediaPreviewReader<S extends Connection> {
 		return this.displayed?.() ? page : null;
 	}
 	refresh(query: MediaPreviewQuery) {
-		const key = JSON.stringify(query);
-		const retain = this.queryKey === key && this.displayed?.();
-		this.queryKey = key;
+		// Keep the last valid page in this document while a new selection resolves. The
+		// existing native view can then replace its source without unregistering its frame.
+		const retain = this.displayed?.() && this.state.page?.document_matches;
 		this.reads.invalidate();
 		this.current = null;
 		if (!retain) this.state.page = null;
@@ -47,8 +46,8 @@ export class MediaPreviewReader<S extends Connection> {
 			return;
 		const generation = session.snapshotGeneration,
 			history = session.currentHistoryStateId;
-		// Stable channel identities remain usable while parameters change. Replies still
-		// require the exact history state; reconnects and project replacement hide views.
+		// Replies require the exact history/selection request. Displayed content has a
+		// separate document fence; reconnects and project replacement still hide it at once.
 		const displayed = () =>
 			!this.disposed &&
 			this.session() === session &&

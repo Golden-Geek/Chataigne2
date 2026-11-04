@@ -1,0 +1,99 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/1",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"capability": "Retain valid same-document Media Preview content and stable native viewport-slot registrations during selection changes",
+	"baseline": {
+		"binary": "target/debug/deps/MapGyver-codex-m08-retirement.exe",
+		"sha256": "5A32B9C2242E39F6FFCCD93A7B972F487C3A234E969A1B1137FBE0D4BFC0B21E",
+		"mode": "single",
+		"switches": 8,
+		"original_view_removed": 1,
+		"loading_insertions": 8,
+		"missing_or_replaced_identity_samples": 442,
+		"animation_samples": 450,
+		"native_blank_pixel_frames_claimed": false
+	},
+	"corrected": {
+		"binary": "target/debug/deps/MapGyver-codex-m11-stability.exe",
+		"sha256": "44308536C2E71D2E6DCFD7F9F897FB1ADC76BD296566D853CEC1F941DDE1B7DA",
+		"pid": 33680,
+		"hwnd": 12780892,
+		"device_pixel_ratio": 1.25,
+		"mode": "two-channel grid",
+		"switches": 16,
+		"view_removals": 0,
+		"loading_insertions": 0,
+		"missing_view_samples": 0,
+		"animation_samples": 1289,
+		"native_composited_pixels": {
+			"frames": 94,
+			"regions_per_frame": 2,
+			"region_pixels": 49,
+			"red_frames": 49,
+			"blue_frames": 45,
+			"other_frames": 0,
+			"initial_and_final_red": true,
+			"foreground_and_pid_guarded": true
+		},
+		"normal_host_exit": 0
+	},
+	"inspector": {
+		"actions": 12,
+		"parameter_witnesses": 2,
+		"animation_samples": 1020,
+		"removed": 0,
+		"disconnected": 0,
+		"faded": 0,
+		"minimum_opacity": 1,
+		"scope": "actual native WebView input and DOM animation/lifetime evidence; no claim of full supplied-video native-frame acceptance"
+	},
+	"software": {
+		"reader_tests_passed": 4,
+		"golden_video_ui_vitest_passed": 30,
+		"svelte_errors": 0,
+		"svelte_warnings": 0,
+		"strict_all_target_clippy": "pass with native-qualification,application-process-fixture and -D warnings",
+		"both_cargo_formatters": "pass",
+		"javascript_typescript_prettier_and_syntax": "pass"
+	},
+	"browser_continuity": {
+		"concurrent_views": 8,
+		"real_transport_reconnect": true,
+		"independent_channel_choice": true,
+		"layout_reload": true,
+		"all_preview_close": true,
+		"project_new_load_lock_recovery": true,
+		"page_errors": [],
+		"combined_host_elapsed_ms": 4178
+	},
+	"artifacts": {
+		"directory": "target/m11-selection-native-2026-11-04",
+		"first_png_sha256": "8AB4460245BC04ADAB9F01628075EB5D18F14BEC969528B319E156A27D529DBE",
+		"last_png_sha256": "7949A18277A554108821B296BCA6094C30683DB993FE046C32074CFD56763DA3"
+	},
+	"logs": [
+		"target/m11-preview-selection-baseline.log",
+		"target/m11-preview-selection-final.log",
+		"target/m11-preview-native-pixels.log",
+		"target/m11-inspector-parameters-verified.log",
+		"target/m11-preview-reader-tests.log",
+		"target/m11-preview-session-tests.log",
+		"target/m11-preview-svelte.log",
+		"target/m11-preview-clippy.log",
+		"target/m11-preview-continuity-browser.log"
+	],
+	"remaining": [
+		"Full reported Inspector/Matrix interaction with native-frame observations",
+		"Independent live outputs through all stability cases",
+		"Native rapid selection/tab/reconnect/New-Load transitions without the prior brief-unavailable waiver"
+	],
+	"progress": {
+		"accepted_gates": 47,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m11": "0/10"
+	}
+}

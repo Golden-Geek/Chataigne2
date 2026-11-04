@@ -148,7 +148,8 @@
 				class="channel-grid"
 				aria-label="All-channel grid"
 				style:grid-template-columns={channels.length > 1 ? 'repeat(2,minmax(0,1fr))' : '1fr'}>
-				{#each channels as channel (channel.reference.channel)}<figure>
+				<!-- A viewport slot keeps its native view while its channel source is replaced. -->
+				{#each channels as channel, index (index)}<figure>
 						<figcaption>{channel.label}</figcaption>
 						<div class="image"><ChannelPreview {channel} fill /></div>
 					</figure>{/each}

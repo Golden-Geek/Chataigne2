@@ -11,6 +11,8 @@ import { verifySurfaceSourceUi } from './surface-source.mjs';
 import { verifyCompositionHandles } from './composition-handles.mjs';
 import { verifyCompositionUi } from './composition.mjs';
 import { verifyMatrixFeedback } from './matrix-feedback.mjs';
+import { verifyInspectorStability } from './inspector-stability.mjs';
+import { verifyPreviewSelectionStability } from './preview-selection-stability.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -32,6 +34,8 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--preview-selection-stability', verifyPreviewSelectionStability],
+			['--inspector-stability', verifyInspectorStability],
 			['--matrix-feedback', verifyMatrixFeedback],
 			['--composition-panels', verifyCompositionUi],
 			['--composition', verifyCompositionHandles],
@@ -56,6 +60,7 @@ try {
 			['--selection', verifyScreenSelection]
 		].find(([flag]) => process.argv.includes(flag))?.[1] ?? verifyViewportNavigation;
 	await flow({
+		nativePid: native.app.pid,
 		base: native.base,
 		page: native.page,
 		post,

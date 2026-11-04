@@ -15,13 +15,18 @@ Each `MediaPreviewPanel` stores only presentation choices through Golden's publi
 API: locked media/project UUID pair, channel UUID, single/grid mode and page. Locks are scoped
 to the persisted project-root UUID and reject a different project, including a New project.
 Follow mode sends the shared workbench selection UUID without walking a UI copy of the graph.
-Late replies are fenced by session, generation and history. Valid channel identities stay
-mounted during parameter edit sessions; reconnect/project replacement immediately hides them.
+Late replies are fenced by session, generation, history and the latest selection request.
+The last valid page in the same document stays displayed while selection/paging resolves;
+superseded replies cannot replace it. Reconnect/project replacement immediately hides it.
 
 Grid pages contain at most four tiles. Paging exposes every channel without creating an
 unbounded number of native views. The existing host's eight-view and source/resource admission
 limits remain unchanged; excess visible demand uses the existing unavailable state. Multiple
 panels are independently dockable, removable and restored by Golden's saved layout.
+Grid registrations belong to stable viewport slots rather than channel UUID keys. Changing a
+slot's source reuses its native view and Golden's existing last-frame retention until replacement
+is installed; document fences still retire stale views. This is presentation lifetime, not a
+second media identity or authored setting.
 
 `ChannelPreview` fits native geometry to the available panel while preserving source aspect.
 The shared `NativePreview` retires registration when explicitly hidden or outside its viewport,
