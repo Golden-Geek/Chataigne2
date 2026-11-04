@@ -175,6 +175,19 @@ native boundaries. Cancellation invalidates results but cannot replace completio
 blocked driver call has retired. Device loss, source failure and output failure have bounded
 retry/backoff and truthful states while healthy paths continue.
 
+The native host queries Golden's process-local DXGI LOCAL budget on its exact selected adapter
+before creating a renderer. Golden's admission rule leaves half that measured budget as
+headroom; missing/zero budgets fail explicitly and retry on the host worker. Shared-system
+capacity and nominal dedicated VRAM never substitute for a measured budget. MapGyver's public
+`preview::config` supplies product plan/picture/count bounds to both the desktop and native
+qualification callers, using that admitted ceiling for logical plan and whole-runtime bounds.
+There is no fixed 512 MiB product ceiling. The host re-queries after complete old-owner
+retirement when recreating a renderer; this is an admission snapshot, not a claim to enforce
+dynamic OS-budget changes on every frame. Sixteen bounded Screen targets leave room for eight
+independent 4K outputs and Reference consumers, in addition to the host preview binding.
+Whole-generation reservations remain conservative across live/prepared/retiring overlap;
+actual native texture-owner observations separately deduplicate reused storage and aliases.
+
 Preview regions use native leases, coalesced geometry and matching installed/submitted-frame
 acknowledgements before uncovering imagery. Closing/relocking a panel retires only its lease;
 independent output demand continues. Layout acceptance alone does not prove visible frame

@@ -93,7 +93,7 @@ fn production_preview_budget_admits_a_4k_picture_shared_by_differently_sized_cha
             size,
         },
     );
-    let config = crate::preview::host::config::configuration(None);
+    let config = crate::preview::config::configuration(512 * 1024 * 1024, None);
     let mut renderer = ChannelRenderer::new(
         VideoRuntime::spawn_null(config.video.clone(), NullConfig::default()).unwrap(),
         config.video.plan_limits,

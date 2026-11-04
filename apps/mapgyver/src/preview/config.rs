@@ -8,12 +8,15 @@ use golden_video::{
 };
 use std::{num::NonZeroUsize, time::Duration};
 
-pub(crate) struct Config {
+/// Product bounds shared by the desktop host and explicit native qualification callers.
+pub struct Config {
     pub video: RuntimeConfig,
     pub pictures: PreparationLimits,
 }
 
-pub(crate) fn configuration(notifier: Option<WorkerNotifier>) -> Config {
+/// The caller obtains `admission_limit` from Golden's measured LOCAL-adapter budget before
+/// creating native resources. Logical plan limits never override whole-runtime accounting.
+pub fn configuration(admission_limit: u64, notifier: Option<WorkerNotifier>) -> Config {
     let pictures = PreparationLimits {
         max_source_bytes: 64 * 1024 * 1024,
         max_decode_bytes: NonZeroUsize::new(128 * 1024 * 1024).unwrap(),
@@ -31,10 +34,10 @@ pub(crate) fn configuration(notifier: Option<WorkerNotifier>) -> Config {
                 max_outputs: crate::screens::rendering::MAX_SCREEN_OUTPUTS + 1,
                 max_dependencies: 128,
                 max_texture_dimension: 8192,
-                max_texture_bytes: 256 * 1024 * 1024,
+                max_texture_bytes: admission_limit,
             },
             resource_limits: ResourceLimits {
-                max_bytes: 512 * 1024 * 1024,
+                max_bytes: admission_limit,
                 max_in_flight: NonZeroUsize::new(2).unwrap(),
                 max_retiring: 2,
             },

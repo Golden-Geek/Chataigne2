@@ -5,6 +5,13 @@ and end-to-end product qualification. The desktop host owns WebView/window/DPI o
 This contract fixes workloads and engineering budgets for M00–M10 before measurements.
 The 2026-11-02 plan merge revises Q03 and adds Q06/software-decode accounting below; existing
 numeric budgets, native GPU-sharing requirements and historical failures remain unchanged.
+The 2026-11-03 M11/2 revision supersedes the fixed **product allocation ceiling** for useful
+concurrent 4K demand: production admission uses a measured adapter LOCAL budget with explicit
+headroom. Existing workload texture-usage, timing, private-growth and retirement budgets remain
+required; a larger product admission ceiling does not accept any retained qualification gate.
+Bounded overload tests may intentionally use a stricter workload ceiling to verify real native
+rejection/recovery without exhausting the user's GPU. Report that ceiling separately from
+production policy, exact actual texture/pool costs and the measured adapter budget.
 Scoped functional evidence and the approved M01 route decision live in the
 [native report](mapgyver-m01-native-feasibility.md#functional-route-decision--2026-10-28);
 no complete workload or original full native gate is qualified by that decision.

@@ -40,7 +40,7 @@ fn idle_fault_recovery_is_coarse_sequenced_and_has_no_invented_metrics() {
 #[test]
 fn project_replacement_resets_the_fps_baseline() {
     use golden_video::runtime::{NullConfig, VideoRuntime};
-    let config = crate::preview::host::config::configuration(None).video;
+    let config = crate::preview::config::configuration(512 * 1024 * 1024, None).video;
     let mut runtime = VideoRuntime::spawn_null(config, NullConfig::default()).unwrap();
     let mut snapshot = runtime.snapshot();
     snapshot.state = RuntimeState::Running;

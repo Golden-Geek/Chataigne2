@@ -1,5 +1,4 @@
 //! Shared app preview: the host owns HWND lifetime; this task owns rendering/preparation.
-pub(crate) mod config;
 mod discovery;
 mod displays;
 mod observations;

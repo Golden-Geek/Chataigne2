@@ -8,7 +8,9 @@ use crate::{
 };
 use golden_core::{app::NativePresentationStop, application::ProductionRuntime};
 use golden_io::WorkerNotifier;
-use golden_video::native::{D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, adapters};
+use golden_video::native::{
+    D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, adapters, query_adapter_memory,
+};
 use golden_video::preview::{HostViewport, PreviewController, PreviewReceiver};
 use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, VideoRuntime};
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
@@ -88,7 +90,13 @@ fn create(
         .into_iter()
         .find(|adapter| !adapter.software)
         .ok_or_else(|| io::Error::other("no native preview adapter"))?;
-    let config = super::config::configuration(Some(notifier.clone()));
+    // A renderer recreation follows complete old-owner retirement. Query this process on
+    // the selected adapter; unknown/zero budgets fail truthfully and retry on this worker.
+    let admission = query_adapter_memory(adapter.id)
+        .map_err(io::Error::other)?
+        .admission_limit(u64::MAX)
+        .map_err(io::Error::other)?;
+    let config = crate::preview::config::configuration(admission, Some(notifier.clone()));
     let limits = config.video.plan_limits;
     let mut outputs = vec![OutputBinding::Window {
         id: OutputId::new(1).unwrap(),

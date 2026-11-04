@@ -14,8 +14,9 @@ use golden_video::plan::{BlendMode, Layer, LayerSource, ProjectiveMapping, Sampl
 use golden_video::{Extent2D, Opacity, OutputId, TextureId};
 use std::collections::{HashMap, HashSet};
 
-/// The shared renderer admits eight consumers, with one reserved for the host preview window.
-pub const MAX_SCREEN_OUTPUTS: usize = 7;
+/// Bounded independent native consumers, including eight 4K sources plus shared aliases.
+/// The host preview has its own additional binding; byte admission governs actual storage.
+pub const MAX_SCREEN_OUTPUTS: usize = 16;
 pub const MAX_SCREEN_CATALOG: usize = 128;
 
 #[derive(Clone)]

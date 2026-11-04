@@ -16,6 +16,7 @@ import { verifyPreviewSelectionStability } from './preview-selection-stability.m
 import { verifyNativePreviewContinuity } from './native-preview-continuity.mjs';
 import { verifyNativeInputStability } from './native-input-stability.mjs';
 import { verifyNativeProjectTransitions } from './native-project-transitions.mjs';
+import { verifyNativeCapacity } from './native-capacity.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -37,6 +38,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--capacity', verifyNativeCapacity],
 			['--project-transitions', verifyNativeProjectTransitions],
 			['--input-stability', verifyNativeInputStability],
 			['--preview-continuity', verifyNativePreviewContinuity],

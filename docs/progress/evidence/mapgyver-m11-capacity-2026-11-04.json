@@ -1,0 +1,123 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/2",
+	"state": "Active",
+	"accepted_gates_added": 0,
+	"capability": "Adapter-aware native runtime and plan admission replaces the fixed 512 MiB product ceiling; public product configuration permits eight 4K producers plus Reference outputs",
+	"product_binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-capacity.exe",
+		"sha256": "7165A39ED6D31512C59C6C46EC3D8C27F0510CE646AA9A9E8F5B094449A4E06A",
+		"concurrent_unstaged_label_theme_edits_excluded_from_commit": true
+	},
+	"app_smoke": {
+		"baseline_binary_sha256": "2AFD45155A5AE2968D0D4D526623B8D168B888A4C64595AF9DB9550B24E46661",
+		"baseline_rejected_third_4k_channel": {
+			"requested": 225326600,
+			"reserved": 438653592,
+			"limit": 536870912
+		},
+		"corrected_three_4k_channels": true,
+		"corrected_limit_bytes": 9216951214,
+		"corrected_steady_tracked_bytes": 505762456,
+		"native_host_exit": 0
+	},
+	"common_native_case": {
+		"independent_authored_4096x4096_producers": 8,
+		"automatic_reference_outputs": 2,
+		"independent_sdk_outputs": 10,
+		"full_rgba_image_checks_per_adapter": 20,
+		"rgba_tolerance_per_component": 2,
+		"steady_seconds": 10,
+		"steady_samples": 10,
+		"steady_tracked_bytes": 2147484048,
+		"replacement_peak_tracked_bytes": 3355443600,
+		"actual_plan_texture_objects": 18,
+		"actual_plan_texel_bytes": 1207959552,
+		"actual_sdk_output_texel_bytes": 671088640,
+		"actual_total_owned_texel_bytes": 1879048192,
+		"replacement_created_textures": 0,
+		"replacement_reused_textures": 18,
+		"driver_physical_bytes": null,
+		"readback_budget": { "maximum_items": 3, "maximum_bytes": 201326592 },
+		"route_scope": "production ChannelRenderer direct channel outputs; no new physical Screen/DPI qualification claim"
+	},
+	"intel": {
+		"adapter": { "low": 89313, "high": 0 },
+		"description": "Intel(R) Graphics",
+		"admission_limit": 9216951214,
+		"steady_submitted_frames": 172,
+		"sampled_local_usage_bytes": 1897287680,
+		"sampled_private_bytes_min": 1276780544,
+		"sampled_private_bytes_max": 1549471744,
+		"retirement_ms": 261.677,
+		"final_allocation_inventory_empty": true,
+		"pressure": {
+			"workload_ceiling": 2147483648,
+			"requested": 1207959552,
+			"retained": 1476395408,
+			"full_4k_healthy_output_image_checks": 8,
+			"peak_tracked_bytes": 2013266320,
+			"retirement_ms": 121.5812,
+			"final_inventory_empty": true
+		},
+		"artifact": "apps/mapgyver/target/m11-capacity-native-2026-11-04/adapter-0.json",
+		"artifact_sha256": "FBAE8E3D16F079D7618433E739217C1258DC42F295BFC8D795AB301AE0BEB68D",
+		"fixture_binary_hash": null,
+		"hash_limit": "artifact predates fixture-only retirement instrumentation; the previous binary hash was not captured before rebuild"
+	},
+	"nvidia": {
+		"adapter": { "low": 90608, "high": 0 },
+		"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"admission_limit": 7987527680,
+		"steady_submitted_frames": 600,
+		"sampled_local_usage_bytes": 1887375360,
+		"sampled_private_bytes_min": 1275215872,
+		"sampled_private_bytes_max": 1622663168,
+		"retirement_ms": 2629.2006,
+		"required_retirement_limit_ms": 2000,
+		"retirement_pass": false,
+		"close_returned_ms": 0.0073,
+		"renderer_drop_returned_ms": 0.0182,
+		"first_observed_plan_empty_ms": 2596.1114,
+		"first_observed_outputs_empty_ms": 2629.199,
+		"final_allocation_inventory_empty": true,
+		"pressure": "unrun after preceding capacity retirement assertion failed",
+		"artifact": "target/m11-capacity-nvidia-retirement-2026-11-04/adapter-1.json",
+		"artifact_sha256": "25D66CE2B8D0E60606AB7D69E200E2FEAE6248C10BB8B6FE74A327EFF7B336FA",
+		"fixture_binary": "target/debug/deps/capacity_rendering-f022e03f55dcf6ef.exe",
+		"fixture_binary_sha256": "79E5537A74D257FB338224235181E3BAB41F50F29764C70766A3D959C6464524"
+	},
+	"software": {
+		"mapgyver_lib_tests_passed": 399,
+		"ignored": 2,
+		"filtered_previously_verified_native_pre_resume_test": 1,
+		"strict_all_target_clippy": "pass; native-qualification,application-process-fixture; -D warnings",
+		"fresh_product_build": "pass",
+		"both_cargo_formatters": "pass",
+		"ui_checks": "reuse unchanged UI: Svelte 0/0, five reader tests, 30 preview-session tests"
+	},
+	"logs": [
+		"target/m11-capacity-baseline.log",
+		"target/m11-capacity-app-final.log",
+		"target/m11-capacity-app-verified.log",
+		"target/m11-capacity-software-complete.log",
+		"target/m11-capacity-clippy.log",
+		"target/m11-capacity-build.log",
+		"target/m11-capacity-native.log",
+		"target/m11-capacity-retirement-preflight.log",
+		"target/m11-capacity-retirement-clippy.log",
+		"target/m11-capacity-nvidia-retirement.log"
+	],
+	"remaining": [
+		"Correct and verify NVIDIA final-use retirement within the original two-second bound",
+		"Then run NVIDIA bounded native overload/recovery",
+		"Retained M03 global timing/private-growth and final qualification are not accepted by these ten-second samples"
+	],
+	"progress": {
+		"accepted_gates": 48,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m11": "1/10"
+	}
+}
