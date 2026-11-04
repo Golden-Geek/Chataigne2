@@ -181,8 +181,12 @@ pub fn capture_outputs(
 }
 
 impl CapturedScreen {
-    pub(crate) fn layer_count(&self) -> usize {
-        self.surfaces.iter().filter(|surface| surface.enabled).count()
+    pub(crate) fn work_count(&self, extent: Extent2D) -> usize {
+        self.surfaces
+            .iter()
+            .filter(|surface| surface.enabled)
+            .map(|surface| super::calibration::work_count(surface.calibration, extent))
+            .sum()
     }
     pub fn preview_extent(&self) -> Extent2D {
         self.target_extent
@@ -210,7 +214,11 @@ impl CapturedScreen {
             .collect()
     }
 
-    pub(crate) fn layers(&self, channels: &HashMap<ChannelReference, TextureId>) -> Result<Vec<Layer>, String> {
+    pub(crate) fn layers(
+        &self,
+        channels: &HashMap<ChannelReference, TextureId>,
+        extent: Extent2D,
+    ) -> Result<Vec<Layer>, String> {
         if !self.is_current() {
             return Err("Screen capture is stale".into());
         }
@@ -226,7 +234,7 @@ impl CapturedScreen {
             let Ok(mapping) = ProjectiveMapping::new(crop, surface.quad) else {
                 continue;
             };
-            let source = if let Some(pattern) = super::calibration::pattern(surface.calibration) {
+            let source = if let Some(pattern) = super::calibration::pattern(surface.calibration, extent) {
                 // Calibration covers the complete authored quad; the saved source crop is retained.
                 LayerSource::Pattern(pattern)
             } else {

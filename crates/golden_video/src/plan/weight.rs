@@ -5,6 +5,7 @@ use super::{BlitRegion, ExternalTexture, Layer, PlanOutput, RenderOperation, Ren
 impl RenderPlan {
     /// Counts actual retained vector capacity, not just active graph values.
     pub(crate) fn retained_bytes(&self) -> Option<usize> {
+        let mut canvases = std::collections::HashSet::new();
         let mut bytes = size_of::<Self>()
             .checked_add(
                 self.external_textures
@@ -17,6 +18,13 @@ impl RenderPlan {
             match &pass.operation {
                 RenderOperation::Composite { layers } => {
                     bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;
+                    for layer in layers {
+                        if let super::LayerSource::Pattern(super::Pattern::Canvas(canvas)) = &layer.source
+                            && canvases.insert(canvas.storage_identity())
+                        {
+                            bytes = bytes.checked_add(canvas.retained_bytes())?;
+                        }
+                    }
                 }
                 RenderOperation::Regions { regions, visibility } => {
                     bytes = bytes.checked_add(regions.capacity().checked_mul(size_of::<BlitRegion>())?)?;

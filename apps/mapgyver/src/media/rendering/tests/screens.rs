@@ -113,7 +113,10 @@ fn impossible_warp_omits_only_its_layer_then_resumes_with_the_authored_mapping()
                 },
             },
         );
-        let layers = capture_screen(&engine, screen, 8).unwrap().layers(&sources).unwrap();
+        let layers = capture_screen(&engine, screen, 8)
+            .unwrap()
+            .layers(&sources, Extent2D::new(1920, 1080).unwrap())
+            .unwrap();
         assert_eq!(layers.len(), 1, "invalid warp cannot fail the Screen or its peer");
         assert!(matches!(layers[0].source, LayerSource::Pattern(_)));
     }
@@ -131,7 +134,10 @@ fn impossible_warp_omits_only_its_layer_then_resumes_with_the_authored_mapping()
             },
         },
     );
-    let layers = capture_screen(&engine, screen, 8).unwrap().layers(&sources).unwrap();
+    let layers = capture_screen(&engine, screen, 8)
+        .unwrap()
+        .layers(&sources, Extent2D::new(1920, 1080).unwrap())
+        .unwrap();
     assert_eq!(layers.len(), 2);
     assert_eq!(layers[0].source.texture(), Some(source));
     assert_eq!(
@@ -359,8 +365,8 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
                 UnitRect::FULL
             }
         );
-        match (mode, layers[0].source) {
-            (Calibration::Grid, LayerSource::Pattern(Pattern::Grid(_)))
+        match (mode, &layers[0].source) {
+            (Calibration::Grid, LayerSource::Pattern(Pattern::Canvas(_)))
             | (Calibration::ColorBars, LayerSource::Pattern(Pattern::Bars(_)))
             | (Calibration::Off, LayerSource::Texture(_)) => {}
             _ => panic!("wrong calibration source"),
@@ -430,7 +436,10 @@ fn surface_reordering_preserves_each_procedural_or_texture_layer_alpha_and_mappi
     let snapshot = crate::screens::inspect(&engine).unwrap();
     let layers = capture_screen(&engine, screen, 8)
         .unwrap()
-        .layers(&HashMap::from([(source, TextureId::new(10).unwrap())]))
+        .layers(
+            &HashMap::from([(source, TextureId::new(10).unwrap())]),
+            Extent2D::new(1920, 1080).unwrap(),
+        )
         .unwrap();
     assert!(matches!(layers[0].source, LayerSource::Texture(_)));
     assert!(matches!(layers[1].source, LayerSource::Pattern(Pattern::Bars(_))));
@@ -444,7 +453,10 @@ fn surface_reordering_preserves_each_procedural_or_texture_layer_alpha_and_mappi
     );
     let layers = capture_screen(&engine, screen, 8)
         .unwrap()
-        .layers(&HashMap::from([(source, TextureId::new(10).unwrap())]))
+        .layers(
+            &HashMap::from([(source, TextureId::new(10).unwrap())]),
+            Extent2D::new(1920, 1080).unwrap(),
+        )
         .unwrap();
     assert!(matches!(layers[0].source, LayerSource::Pattern(Pattern::Bars(_))));
     assert!(matches!(layers[1].source, LayerSource::Texture(_)));

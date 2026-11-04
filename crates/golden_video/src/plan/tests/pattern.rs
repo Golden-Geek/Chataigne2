@@ -11,7 +11,7 @@ fn procedural_layers_have_no_texture_dependencies_but_consume_draw_admission_uni
     plan.passes[0].operation = RenderOperation::Composite {
         layers: (0..3)
             .map(|_| Layer {
-                source: LayerSource::Pattern(pattern),
+                source: LayerSource::Pattern(pattern.clone()),
                 opacity: crate::Opacity::OPAQUE,
                 opacity_envelope: None,
                 blend: BlendMode::Normal,

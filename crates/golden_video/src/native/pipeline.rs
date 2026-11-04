@@ -236,8 +236,8 @@ impl Pipeline {
                 destination: UnitRect::FULL,
                 source_rect: layer.mapping.map_or(UnitRect::FULL, ProjectiveMapping::crop),
                 mapping: layer.mapping,
-                pattern: match layer.source {
-                    LayerSource::Pattern(pattern) => Some(pattern),
+                pattern: match &layer.source {
+                    LayerSource::Pattern(pattern) => Some(pattern.clone()),
                     LayerSource::Texture(_) => None,
                 },
             },
@@ -299,7 +299,7 @@ impl Pipeline {
         // is uploaded; no fallible API operation occurs after acquiring GPU use.
         // Every resource view is unbound before returning, avoiding read/write/retirement hazards.
         unsafe {
-            if let Some(pattern) = pattern {
+            if let Some(pattern) = &pattern {
                 let data = PatternParameters::new(pattern, mapping.is_some());
                 context.UpdateSubresource(
                     &self.pattern_constants,

@@ -1,7 +1,7 @@
 use super::*;
 use crate::media::composition::protocol::*;
 use crate::media::resolution::ChannelAvailability;
-use golden_video::plan::{LayerSource, Point, RenderOperation};
+use golden_video::plan::{Point, RenderOperation};
 use std::collections::HashSet;
 
 fn composition(engine: &mut AppEngine, width: u32, height: u32) -> ChannelReference {
@@ -99,8 +99,8 @@ fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
         panic!()
     };
     assert_eq!(
-        layers.iter().map(|layer| layer.source).collect::<Vec<_>>(),
-        vec![LayerSource::Texture(inner_target), LayerSource::Texture(leaf_target)]
+        layers.iter().map(|layer| layer.source.texture()).collect::<Vec<_>>(),
+        vec![Some(inner_target), Some(leaf_target)]
     );
     assert!(
         prepared

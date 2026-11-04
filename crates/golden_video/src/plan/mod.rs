@@ -1,5 +1,6 @@
 //! Immutable, app-neutral render plans prepared before any backend resources are created.
 
+mod canvas;
 mod compile;
 mod envelope;
 mod error;
@@ -10,6 +11,7 @@ mod placement;
 mod region;
 mod weight;
 
+pub use canvas::{CanvasPaint, CanvasPattern, CanvasPrimitive, CanvasShape, MAX_CANVAS_PRIMITIVES};
 pub use envelope::{InterpolationCurve, OpacityEnvelope};
 pub use error::{GraphLimit, PlanError};
 pub use mapping::{MappingError, Point, ProjectiveMapping, Quad};
@@ -63,9 +65,12 @@ pub struct Layer {
 }
 
 impl Layer {
-    /// Resolves temporal opacity into a fixed-size layer value, without heap allocation.
+    /// Resolves shared-time opacity and procedural clocks without allocating or advancing time.
     pub fn evaluated(&self, now: golden_time::TimeSnapshot) -> Self {
         let mut result = self.clone();
+        if let LayerSource::Pattern(Pattern::Canvas(canvas)) = &mut result.source {
+            canvas.sample_time(now);
+        }
         if let Some(envelope) = self.opacity_envelope {
             result.opacity =
                 Opacity::new(self.opacity.get() * envelope.sample(now).get()).expect("checked opacity product");
@@ -108,7 +113,13 @@ impl RenderOperation {
         match self {
             Self::Clear(_) => 0,
             Self::Sample { .. } => 1,
-            Self::Composite { layers } => layers.len(),
+            Self::Composite { layers } => layers.iter().fold(0_usize, |count, layer| {
+                let work = match &layer.source {
+                    LayerSource::Pattern(Pattern::Canvas(canvas)) => canvas.primitives().len(),
+                    _ => 1,
+                };
+                count.saturating_add(work)
+            }),
             Self::Regions { regions, .. } => regions.len(),
         }
     }

@@ -68,7 +68,13 @@ fn hardware_procedural_patterns_mapping_order_and_alpha_match_pixel_oracles() {
         [0., 0., 0.],
     ];
     let bars = Pattern::Bars(palette.map(|[r, g, b]| color(r, g, b)));
-    pipeline.draw_layer(&gpu.context, None, None, (&target).into(), &layer(bars, 1.0, None));
+    pipeline.draw_layer(
+        &gpu.context,
+        None,
+        None,
+        (&target).into(),
+        &layer(bars.clone(), 1.0, None),
+    );
     pixels(&gpu, &target, |x, _| {
         [
             (palette[x][0] * 255.) as u8,
@@ -93,7 +99,7 @@ fn hardware_procedural_patterns_mapping_order_and_alpha_match_pixel_oracles() {
         None,
         None,
         (&target).into(),
-        &layer(bars, 1., Some(cropped)),
+        &layer(bars.clone(), 1., Some(cropped)),
     );
     pixels(&gpu, &target, |x, _| {
         let rgb = palette[x / 2 + 2];

@@ -1,0 +1,94 @@
+{
+	"gate": "M11/10",
+	"state": "Active",
+	"accepted": false,
+	"date": "2026-11-04",
+	"scope": "Geometry slice of the full official Surface calibration pattern",
+	"source_base": "942b25ab62508628060334d86ff28462304f5992",
+	"implemented": [
+		"App-owned grey square checker cells adapted to actual Screen pass extent, including fractional edge cells",
+		"Second row from top black-to-white palette and second row from bottom color palette",
+		"Fit circle touching limiting canvas edges and both corner-to-corner diagonals",
+		"Thin grid boundaries with diagonal rainbow hue flow sampled from the shared monotonic render clock",
+		"Generic immutable checked Canvas primitives, composed in one GPU draw per Surface",
+		"At most 32 primitives; existing work/dependency admission charges actual primitive counts in Golden and app preparation",
+		"Shared retained display-list storage charged once, heap-free frame sampling, and unchanged authored source/crop restoration when calibration is Off"
+	],
+	"software": {
+		"mapgyver_library": {
+			"passed": 435,
+			"ignored": 2,
+			"log": "target/m1110-app-reservation-tests.log"
+		},
+		"golden_video_d3d11_library": {
+			"passed": 193,
+			"ignored": 23,
+			"log": "target/m1110-golden-final.log"
+		},
+		"strict_all_targets": {
+			"passed": true,
+			"log": "target/m1110-clippy-final.log",
+			"features": "native-qualification,application-process-fixture,native-video-smoke,golden_video/d3d11"
+		},
+		"contracts": "No transport or authored protocol change; generated contracts and UI consumers unchanged",
+		"format": "Root and golden_core cargo fmt plus scoped documentation formatting"
+	},
+	"native_kernel": {
+		"passed": true,
+		"log": "target/m1110-native-geometry-final.log",
+		"binary": "target/debug/deps/golden_video-8e33bf4194726db6.exe",
+		"sha256": "1302B779467DB050D2D24AFDF818F665ECEC8C900A70D0122EBC38965CA165AA",
+		"adapters": [
+			{ "id": "dxgi:00000000:00015b69", "name": "Intel(R) Graphics" },
+			{ "id": "dxgi:00000000:00016022", "name": "NVIDIA GeForce RTX 5080 Laptop GPU" }
+		],
+		"extents_each": [
+			[1920, 1080],
+			[1080, 1920],
+			[1024, 1024],
+			[3840, 2160]
+		],
+		"cohorts": 8,
+		"landmarks": 248,
+		"per_component_tolerance": "1/255",
+		"readback": "40 bounded 8x8 readbacks gather only explicit landmarks; original helper cap and completion deadlines remain unchanged",
+		"checks": "Checker parity, ordered brightness/color stripes, four limiting ellipse edges and transparent center, both diagonal endpoints/intersection, and red-to-cyan shared-time phase",
+		"legacy_regression": {
+			"passed": true,
+			"pixels": 448,
+			"tolerance": "2/255",
+			"scope": "Existing Grid/Bars/crop/projective mapping/order/alpha/texture kernel oracle on the default hardware adapter",
+			"log": "target/m1110-native-regression.log"
+		},
+		"limit": "Kernel landmarks do not establish complete app image, text readability, warped output or production timing qualification"
+	},
+	"app_build": {
+		"passed": true,
+		"binary": "target/debug/MapGyver-codex-m1110-geometry.exe",
+		"sha256": "DA989966812480D1C3DD0A21E9DF30FADC8DA79004E133EAFD2E363FFE4FA592",
+		"log": "target/m1110-app-build.log",
+		"limit": "Isolated native executable; user's running app and sender preserved. No release or package qualification claimed"
+	},
+	"resource_change": {
+		"pattern_constant_bytes_before": 160,
+		"pattern_constant_bytes_after": 6816,
+		"additional_fixed_bytes_per_renderer": 6656,
+		"charged": true,
+		"existing_budgets_increased": false,
+		"normal_calibration_primitives": 7
+	},
+	"remaining": [
+		"Centered supplied MapGyver bitmap through reusable Golden image primitives",
+		"Subtle row/column labels such as A1/B2 through bounded reusable text primitives",
+		"Surface resolution and actual measured FPS below the logo",
+		"Current local system time with milliseconds above the logo, sampled at an IO/render boundary",
+		"Complete app/native landscape, portrait, square, 4K and resize/warp output checks, including text readability, live timing, routing restoration and bounded animation demand"
+	],
+	"progress": {
+		"verified_gates": 56,
+		"total_gates": 67,
+		"percent": 84,
+		"m11_verified": 9,
+		"m11_total": 10
+	}
+}

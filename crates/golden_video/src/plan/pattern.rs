@@ -39,16 +39,18 @@ impl GridPattern {
 }
 
 /// Generic GPU-generated image content; apps choose calibration policy and palettes.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Pattern {
     /// A repeated normalized grid.
     Grid(GridPattern),
     /// Eight ordered vertical stripes covering the unit rectangle.
     Bars([LinearColor; 8]),
+    /// A bounded app-neutral display list composed in one procedural draw.
+    Canvas(super::CanvasPattern),
 }
 
 /// Texture sampling or source-independent procedural content, composed by the same layer path.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LayerSource {
     /// A dependency on another render pass or external input.
     Texture(TextureId),
@@ -58,9 +60,9 @@ pub enum LayerSource {
 
 impl LayerSource {
     /// The actual texture dependency, excluding procedural content.
-    pub fn texture(self) -> Option<TextureId> {
+    pub fn texture(&self) -> Option<TextureId> {
         match self {
-            Self::Texture(texture) => Some(texture),
+            Self::Texture(texture) => Some(*texture),
             Self::Pattern(_) => None,
         }
     }

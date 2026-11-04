@@ -120,7 +120,7 @@ pub(super) fn build(
         + screens
             .iter()
             .filter(|route| screen_ids.insert(route.screen.id))
-            .map(|route| route.screen.layer_count())
+            .map(|route| route.screen.work_count(route.extent))
             .sum::<usize>()
         + preview.map_or(0, super::PreviewLayout::maximum_dependencies);
     let image_guards = capture
@@ -517,7 +517,7 @@ pub(super) fn build(
                     alpha_mode: AlphaMode::Premultiplied,
                 },
                 operation: RenderOperation::Composite {
-                    layers: route.screen.layers(&source_targets)?,
+                    layers: route.screen.layers(&source_targets, route.extent)?,
                 },
             });
         } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {

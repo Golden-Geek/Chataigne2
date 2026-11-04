@@ -1,6 +1,7 @@
 use super::*;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
+mod canvas;
 mod envelope;
 mod mapping;
 mod pattern;
