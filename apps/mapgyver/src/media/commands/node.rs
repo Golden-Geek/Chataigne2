@@ -40,7 +40,7 @@ use std::sync::Arc;
         asset: NodeReference = NodeReference::empty() (
             label = "Asset",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.asset".into()]
+            reference_allowed_node_types = vec![crate::media::protocol::ASSET_NODE_TYPE.into()]
         );
         target_folder: NodeReference = NodeReference::empty() (
             label = "Folder",

@@ -174,8 +174,8 @@ fn asset_locator_parameters_relink_and_reject_traversal_with_history_and_roundtr
         .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
         .unwrap();
     let fields = parameters(&engine, root);
-    assert_eq!(fields.len(), 3);
-    let path = fields["parameters/project_path"];
+    assert_eq!(fields.len(), 1);
+    let path = fields["parameters/file"];
     assert!(set(&mut engine, path, ParamValue::File("images/replacement.png".into())).success);
     let record = crate::media::asset(&engine, asset).unwrap();
     assert_eq!(
@@ -194,6 +194,157 @@ fn asset_locator_parameters_relink_and_reject_traversal_with_history_and_roundtr
     assert!(engine.redo().unwrap());
     let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
     assert_eq!(crate::media::asset(&loaded, asset).unwrap(), record);
+}
+
+#[test]
+fn one_asset_file_switches_location_and_clears_all_shared_consumers_without_changing_identity() {
+    let mut engine = fixture();
+    let MediaEditResult::AssetCreated { asset } = apply(
+        &mut engine,
+        MediaEdit::ImportAsset {
+            locator: AssetLocator::ProjectRelative {
+                path: "images/source.png".to_owned().try_into().unwrap(),
+            },
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let references = [
+        create(&mut engine, MediaKind::Picture),
+        create(&mut engine, MediaKind::Picture),
+    ];
+    for reference in references {
+        apply(
+            &mut engine,
+            MediaEdit::ConfigureChannel {
+                reference,
+                source: ChannelSource::Picture { asset: Some(asset) },
+            },
+        );
+    }
+    let root = engine
+        .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
+        .unwrap();
+    let fields = parameters(&engine, root);
+    assert_eq!(fields.len(), 1);
+    let file = fields["parameters/file"];
+    let uuid = engine.nodes.get(file).unwrap().node_data().meta.uuid;
+    let original = crate::media::asset(&engine, asset).unwrap();
+    let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let absolute = directory.path().join("replacement.png").to_str().unwrap().to_owned();
+    let history = engine.undo_len();
+    assert!(set(&mut engine, file, ParamValue::File(absolute.clone())).success);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(!captured.is_current());
+    let replacement = crate::media::asset(&engine, asset).unwrap();
+    assert_eq!(
+        replacement.locator,
+        AssetLocator::Absolute {
+            path: absolute.try_into().unwrap()
+        }
+    );
+    assert!(engine.undo().unwrap());
+    assert_eq!(crate::media::asset(&engine, asset).unwrap(), original);
+    assert!(engine.redo().unwrap());
+    assert_eq!(crate::media::asset(&engine, asset).unwrap(), replacement);
+    let active = crate::media::capture_channels(&engine, &references, 16).unwrap();
+    assert_eq!(
+        active.assets.len(),
+        1,
+        "shared channels retain one authoritative source"
+    );
+    assert!(set(&mut engine, file, ParamValue::File(String::new())).success);
+    assert!(!active.is_current());
+    assert!(crate::media::asset(&engine, asset).is_err());
+    let cleared = crate::media::capture_channels(&engine, &references, 16).unwrap();
+    assert!(cleared.assets.is_empty());
+    let cleared_json = to_sparse_project_json_pretty(&engine).unwrap();
+    let cleared_loaded = from_sparse_project_json::<AppNode>(&cleared_json).unwrap();
+    assert!(crate::media::asset(&cleared_loaded, asset).is_err());
+    assert!(
+        cleared_loaded
+            .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
+            .is_some()
+    );
+    for reference in references {
+        assert_eq!(
+            channel(&engine, reference).unwrap().definition.source,
+            ChannelSource::Picture { asset: Some(asset) }
+        );
+    }
+    assert!(engine.undo().unwrap());
+    assert!(!cleared.is_current());
+    apply(
+        &mut engine,
+        MediaEdit::RelinkAsset {
+            asset,
+            locator: original.locator.clone(),
+        },
+    );
+    assert_eq!(parameters(&engine, root), fields);
+    assert_eq!(engine.nodes.get(file).unwrap().node_data().meta.uuid, uuid);
+    assert_eq!(crate::media::asset(&engine, asset).unwrap(), original);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    assert_eq!(crate::media::asset(&loaded, asset).unwrap(), original);
+    assert_eq!(
+        parameters(
+            &loaded,
+            loaded
+                .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
+                .unwrap()
+        )
+        .len(),
+        1
+    );
+}
+
+#[test]
+fn retired_asset_schema_and_split_path_records_reject_before_recoverable_decode() {
+    use golden_core::engine::ProjectNodeRecord;
+    let mut engine = fixture();
+    let MediaEditResult::AssetCreated { asset } = apply(
+        &mut engine,
+        MediaEdit::ImportAsset {
+            locator: AssetLocator::ProjectRelative {
+                path: "source.png".to_owned().try_into().unwrap(),
+            },
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let old = saved.replace(ASSET_NODE_TYPE, "mapgyver.media.asset");
+    assert_ne!(old, saved);
+    assert!(from_sparse_project_json::<AppNode>(&old).is_err());
+    let root = engine
+        .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
+        .unwrap();
+    let file = parameters(&engine, root)["parameters/file"];
+    let uuid = engine.nodes.get(file).unwrap().node_data().meta.uuid;
+    fn rename(record: &mut ProjectNodeRecord, uuid: golden_core::node::NodeUuid, decl: &str) -> bool {
+        if record.uuid == uuid {
+            record.meta.decl_id.as_mut().unwrap().0 = decl.to_owned();
+            return true;
+        }
+        record.children.iter_mut().any(|child| rename(child, uuid, decl))
+    }
+    for retired in [
+        "parameters/locator_kind",
+        "parameters/project_path",
+        "parameters/absolute_path",
+    ] {
+        let mut project = engine.to_project_file_with(Node::project_encode_data).unwrap();
+        assert!(rename(&mut project.root, uuid, retired));
+        assert!(
+            super::super::persistence::validate_project_file(&project)
+                .unwrap_err()
+                .contains("one File")
+        );
+    }
 }
 
 #[test]
@@ -507,7 +658,7 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     let root = engine
         .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
         .unwrap();
-    let field = parameters(&engine, root)["parameters/project_path"];
+    let field = parameters(&engine, root)["parameters/file"];
     assert_invalid_record(&engine, field, serde_json::json!("../invalid.png"));
 }
 

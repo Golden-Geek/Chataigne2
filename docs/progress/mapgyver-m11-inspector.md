@@ -2,7 +2,37 @@
 
 **State: Active.** Unit-preserving time controls and native-verified media Fit/Fill/Stretch
 are delivered. Kind/sampling controls are removed and expanded rows expose Color directly.
-The single Picture File control and final complete Inspector/browser parity remain required.
+Catalog assets now have one authoritative typed File. The direct Picture channel File control
+and final complete Inspector/browser parity remain required.
+
+## Single catalog File authority
+
+`mapgyver.media.asset.v2` replaces the location enum and two path fields with one real File
+Parameter. Asset authoring classifies native absolute versus validated project-relative paths;
+the generic Inspector supplies its ordinary File widget. Import and Relink write that same
+Parameter. Clearing retains the asset and every channel binding while making the source
+unconfigured. Asset/Parameter identities, source invalidation, sharing and history remain intact.
+The existing AssetLocator DTO is unchanged. Rust generates the new asset-type constant for UI
+registration, filtering and reference constraints. Old asset records and split path fields reject
+before recoverable project decoding; no persisted-data migration is introduced.
+
+[Receipt](evidence/mapgyver-m11-asset-file-2026-11-04.json): 409 app tests, generated contracts,
+strict all-target native/process-feature lint and Svelte 0/0 pass. The actual native Inspector
+passes relative/absolute File edits, two shared channels, clear/history, Relink/Reload and
+Save/New/Load. All 74 observed requests have applied receipts, with no backend rejections,
+page errors or final client error toasts. Final activity is idle, the screenshot was inspected,
+and the owned host exits normally. Browse is available; this fixture does not operate a native
+file dialog or qualify decoded/GPU pixels. Its binary includes concurrent user UI changes.
+
+An intermediate native run timed out observing Undo once. The cause is unproven and remains
+in final Inspector stability acceptance despite the final passing run. The fixture now observes
+already-connected native WebSocket receipts and waits for UI activity to settle before external
+project replacement; it does not qualify a transient Failed indicator as a clean final state.
+The first reload-based observation attempt aborted before its flow; no native outcome is inferred.
+
+The channel still exposes its asset reference and separate import operation. Replacing those
+with one directly editable File row, including unconfigured channels, remains the next slice.
+No mirrored persistent path, channel-size setting or acceptance-gate credit is added here.
 
 ## Expanded typed channel controls
 
@@ -37,9 +67,9 @@ lint, 236 Golden UI tests, 17 affected controller tests and Svelte 0/0. Native v
   from media-wide numeric transitions to the actual Layer-owned clock. The sender fixture now
   preserves already-expanded rows instead of collapsing them before editing.
 
-Picture still has an asset reference and its catalog-owned locator Parameters. The required
-single File per Picture channel needs a single-authority typed binding that retains asset
-sharing/import/relink/reload behavior; no mirrored persisted path is introduced here. The full
+Picture still has an asset reference; its catalog now owns one File as described above. The required
+single File per Picture channel needs direct binding to that authority while retaining asset
+sharing/import/relink/reload behavior. The full
 legacy generic-Parameters browser entry also still starts with an obsolete reference-only
 Composition form. Its media leaf is reconciled, but the complete entry is not claimed passing.
 These remain in M11/4's final parity/acceptance queue. This slice closes no gate.

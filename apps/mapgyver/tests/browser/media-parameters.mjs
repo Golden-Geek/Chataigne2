@@ -99,16 +99,12 @@ export async function verifyMediaParameters({
 	await fields(['Picture asset']);
 	assert.equal(await parameter('Picture asset').locator('.reference-editor').count(), 1);
 	await page.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
-	await wait(
-		() => choice('Location').inputValue(),
-		(value) => value === 'ProjectRelative'
-	);
-	await fields(['Location', 'Project path']);
+	await fields(['File']);
 	const asset = catalog.assets.find((item) => item.id === linked.definition.source.asset);
 	assert(asset);
 	const readAsset = async () => (await inspectMedia()).assets.find((item) => item.id === asset.id);
-	const pathId = await parameter('Project path').getAttribute('data-node-id');
-	await setText(parameter('Project path').locator('input.path-input'), 'media/parameter-ui.png');
+	const pathId = await parameter('File').getAttribute('data-node-id');
+	await setText(parameter('File').locator('input.path-input'), 'media/parameter-ui.png');
 	const replacement = await wait(
 		readAsset,
 		(value) => value.locator.path === 'media/parameter-ui.png'
@@ -117,22 +113,22 @@ export async function verifyMediaParameters({
 	await wait(readAsset, (value) => isDeepStrictEqual(value, asset));
 	await redo();
 	await wait(readAsset, (value) => isDeepStrictEqual(value, replacement));
-	await choice('Location').selectOption('Unconfigured');
+	await setText(parameter('File').locator('input.path-input'), '');
 	await wait(readAsset, (value) => value.locator === null);
-	await fields(['Location']);
+	await fields(['File']);
 	await undo();
 	await wait(readAsset, (value) => isDeepStrictEqual(value, replacement));
-	await fields(['Location', 'Project path']);
-	assert.equal(await parameter('Project path').getAttribute('data-node-id'), pathId);
+	await fields(['File']);
+	assert.equal(await parameter('File').getAttribute('data-node-id'), pathId);
 	const rejectionCount = rejected.length;
 	stage('generic asset path rejects traversal without document or history mutation');
-	await setText(parameter('Project path').locator('input.path-input'), '../outside.png');
+	await setText(parameter('File').locator('input.path-input'), '../outside.png');
 	await wait(
 		() => rejected.length,
 		(count) => count === rejectionCount + 1
 	);
 	assert.deepEqual(await readAsset(), replacement);
-	await parameter('Project path').locator('input.path-input').press('Escape');
+	await parameter('File').locator('input.path-input').press('Escape');
 	await undo();
 	await wait(readAsset, (value) => isDeepStrictEqual(value, asset));
 	await redo();

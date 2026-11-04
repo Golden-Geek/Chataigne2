@@ -21,6 +21,7 @@
 	import VideoRuntimeFooter from '../lib/runtime/VideoRuntimeFooter.svelte';
 	import { provideVideoStatus } from '../lib/runtime/context.svelte';
 	import { registerParameterVisibility } from '../lib/parameter-visibility';
+	import { ASSET_NODE_TYPE } from '../lib/media/generated/constants';
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import { registerChannelContextMenu } from '../lib/media/context-menu';
 	import '../lib/workbench.css';
@@ -41,7 +42,7 @@
 		'mapgyver.media.v7',
 		'mapgyver.media.reference.v3',
 		'mapgyver.media.channel',
-		'mapgyver.media.asset',
+		ASSET_NODE_TYPE,
 		'mapgyver.media.folder',
 		'mapgyver.screen',
 		'mapgyver.surface',

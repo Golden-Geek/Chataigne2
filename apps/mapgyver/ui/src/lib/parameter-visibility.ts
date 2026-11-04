@@ -1,6 +1,7 @@
 /** Presentation only: keep ordinary widgets and expose the fields relevant to this owner. */
 import { appState, registerNodeInspectorMatcher, type UiNodeDto } from 'golden_ui';
 import { COMMAND_PARAMETER_FIELDS } from './media/generated/command-fields';
+import { ASSET_NODE_TYPE } from './media/generated/constants';
 
 function parent(node: UiNodeDto) {
 	const session = appState.session;
@@ -51,17 +52,7 @@ function visible(child: UiNodeDto) {
 		}
 		return true;
 	}
-	if (owner.node_type === 'mapgyver.media.asset') {
-		return (
-			field === 'locator_kind' ||
-			field ===
-				(choice('locator_kind') === 'ProjectRelative'
-					? 'project_path'
-					: choice('locator_kind') === 'Absolute'
-						? 'absolute_path'
-						: '')
-		);
-	}
+	if (owner.node_type === ASSET_NODE_TYPE) return field === 'file';
 	if (owner.node_type === 'mapgyver.media.command.v5') {
 		if (field === 'command_kind' || field === 'trigger') return true;
 		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;

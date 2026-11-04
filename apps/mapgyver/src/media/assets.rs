@@ -6,13 +6,13 @@ use golden_core::{
     model::NodeUuid,
     node,
     node::{Node, NodeId, ParameterHandle, ParameterValidationContext},
-    parameter::{Enum, File, ParamValue, ParameterEventBehaviour},
+    parameter::{File, ParamValue, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
 #[node(
-    "mapgyver.media.asset",
+    "mapgyver.media.asset.v2",
     label = "Asset",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -22,9 +22,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 )]
 #[children(
     folder(parameters, label = "Parameters") {
-        locator_kind: Enum = "Unconfigured" (label = "Location", enum_options = crate::parameters::enum_options(&["Unconfigured", "ProjectRelative", "Absolute"]));
-        project_path: File = File::default() (label = "Project path");
-        absolute_path: File = File::default() (label = "Absolute path");
+        file: File = File::default() (label = "File", description = "Project-relative or native absolute source path. Empty leaves the asset unconfigured.");
     }
 )]
 pub struct AssetNode {
@@ -36,16 +34,8 @@ impl AssetNode {
         let mut node = Self::new();
         let permissions = node.node_data().meta.user_permissions.clone();
         node.node_data_mut().meta = golden_core::node::NodeMeta::new(label).with_user_permissions(permissions);
-        match locator {
-            Some(AssetLocator::ProjectRelative { path }) => {
-                node.locator_kind = ParameterHandle::new(Enum::new("ProjectRelative"));
-                node.project_path = ParameterHandle::new(File::new(path.as_str()));
-            }
-            Some(AssetLocator::Absolute { path }) => {
-                node.locator_kind = ParameterHandle::new(Enum::new("Absolute"));
-                node.absolute_path = ParameterHandle::new(File::new(path.as_str()));
-            }
-            None => {}
+        if let Some(locator) = locator {
+            node.file = ParameterHandle::new(File::new(locator_path(&locator)));
         }
         node
     }
@@ -53,15 +43,7 @@ impl AssetNode {
         AssetId::from_uuid(self.node_data().meta.uuid.0)
     }
     fn locator(&self) -> Option<AssetLocator> {
-        match self.locator_kind.get_ref().as_str() {
-            "ProjectRelative" => RelativeAssetPath::try_from(self.project_path.get_ref().as_str().to_owned())
-                .ok()
-                .map(|path| AssetLocator::ProjectRelative { path }),
-            "Absolute" => AbsoluteAssetPath::try_from(self.absolute_path.get_ref().as_str().to_owned())
-                .ok()
-                .map(|path| AssetLocator::Absolute { path }),
-            _ => None,
-        }
+        parse_file(self.file.get_ref().as_str()).ok().flatten()
     }
     pub(super) fn snapshot(&self) -> super::protocol::AssetSnapshot {
         super::protocol::AssetSnapshot {
@@ -77,24 +59,11 @@ impl AssetNode {
         })
     }
     pub(super) fn locator_edits(&self, locator: AssetLocator) -> Vec<Edit> {
-        let (node, path, kind) = match locator {
-            AssetLocator::ProjectRelative { path } => {
-                (self.project_path.id(), path.as_str().to_owned(), "ProjectRelative")
-            }
-            AssetLocator::Absolute { path } => (self.absolute_path.id(), path.as_str().to_owned(), "Absolute"),
-        };
-        vec![
-            Edit::SetParam {
-                node,
-                value: ParamValue::File(path),
-                behaviour: ParameterEventBehaviour::Append,
-            },
-            Edit::SetParam {
-                node: self.locator_kind.id(),
-                value: ParamValue::Enum(kind.into()),
-                behaviour: ParameterEventBehaviour::Append,
-            },
-        ]
+        vec![Edit::SetParam {
+            node: self.file.id(),
+            value: ParamValue::File(locator_path(&locator).to_owned()),
+            behaviour: ParameterEventBehaviour::Append,
+        }]
     }
     pub(super) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
@@ -104,7 +73,7 @@ impl AssetNode {
         self.revision.advance();
     }
 }
-#[node("mapgyver.media.asset", from_struct)]
+#[node("mapgyver.media.asset.v2", from_struct)]
 impl Node for AssetNode {
     fn needs_update(&self) -> bool {
         false
@@ -122,31 +91,38 @@ impl Node for AssetNode {
         crate::parameters::reject_opaque(value)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
-        if !["Unconfigured", "ProjectRelative", "Absolute"].contains(&self.locator_kind.get_ref().as_str()) {
-            return Err("unknown asset location kind".into());
-        }
-        if !self.project_path.get_ref().as_str().is_empty() {
-            RelativeAssetPath::try_from(self.project_path.get_ref().as_str().to_owned())
-                .map_err(|error| error.to_string())?;
-        }
-        if !self.absolute_path.get_ref().as_str().is_empty() {
-            AbsoluteAssetPath::try_from(self.absolute_path.get_ref().as_str().to_owned())
-                .map_err(|error| error.to_string())?;
+        parse_file(self.file.get_ref().as_str()).map(|_| ())
+    }
+    fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if change.parameter == self.file.id()
+            && let ParamValue::File(path) = change.value
+        {
+            parse_file(path)?;
         }
         Ok(())
     }
-    fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
-        if let ParamValue::File(path) = change.value
-            && !path.is_empty()
-        {
-            if change.parameter == self.project_path.id() {
-                RelativeAssetPath::try_from(path.clone()).map_err(|error| error.to_string())?;
-            }
-            if change.parameter == self.absolute_path.id() {
-                AbsoluteAssetPath::try_from(path.clone()).map_err(|error| error.to_string())?;
-            }
-        }
-        Ok(())
+}
+
+fn locator_path(locator: &AssetLocator) -> &str {
+    match locator {
+        AssetLocator::ProjectRelative { path } => path.as_str(),
+        AssetLocator::Absolute { path } => path.as_str(),
+    }
+}
+
+/// Location policy belongs to asset authoring, shared by generic edits and app intents.
+fn parse_file(path: &str) -> Result<Option<AssetLocator>, String> {
+    if path.is_empty() {
+        return Ok(None);
+    }
+    if std::path::Path::new(path).is_absolute() {
+        AbsoluteAssetPath::try_from(path.to_owned())
+            .map(|path| Some(AssetLocator::Absolute { path }))
+            .map_err(|error| error.to_string())
+    } else {
+        RelativeAssetPath::try_from(path.to_owned())
+            .map(|path| Some(AssetLocator::ProjectRelative { path }))
+            .map_err(|error| error.to_string())
     }
 }
 pub(super) fn node_id(engine: &AppEngine, asset: AssetId) -> Result<NodeId, String> {

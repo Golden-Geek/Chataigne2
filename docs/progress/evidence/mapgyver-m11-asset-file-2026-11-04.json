@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-04",
+  "branch": "mapgyver",
+  "base_commit": "f175aa8919c05d29c161e228ed68b1895c436384",
+  "scope": "One authoritative typed File per catalog asset; direct channel File-row presentation remains unaccepted.",
+  "schema": {
+    "asset_node_type": "mapgyver.media.asset.v2",
+    "file_parameter": "parameters/file",
+    "retired_split_asset_records_reject": true,
+    "rust_generated_asset_type_constant": true,
+    "asset_locator_dto_unchanged": true
+  },
+  "software": {
+    "app_tests_passed": 409,
+    "app_tests_failed": 0,
+    "explicit_native_process_tests_ignored": 3,
+    "generated_contracts_match": true,
+    "strict_all_target_clippy_features": ["native-qualification", "application-process-fixture"],
+    "strict_clippy_passed": true,
+    "svelte_errors": 0,
+    "svelte_warnings": 0,
+    "cases": [
+      "generic relative-to-absolute File edit uses one history step",
+      "shared consumers retain one asset and capture invalidates on change",
+      "clear preserves asset and channel identities, including project reload",
+      "Undo/Redo and Relink retain the File Parameter identity",
+      "traversal rejects without document/history mutation",
+      "old asset schema and retired split fields reject before recoverable decoding",
+      "existing import, command, scripting and project suites pass"
+    ]
+  },
+  "native": {
+    "binary": "target/debug/deps/MapGyver-codex-m11-asset-file.exe",
+    "sha256": "3FF912F8F2392CC18A72A1AFE2D6EA5420991D9009966274A2E084D99F8563D8",
+    "pid": 36844,
+    "fixture": "node apps/mapgyver/tests/browser/native-navigation.mjs --asset-file",
+    "artifact_directory": "target/mapgyver-m11-asset-file-final-2026-11-04",
+    "one_file_widget": true,
+    "relative_and_absolute_edits": true,
+    "shared_bindings_clear_history_relink_reload": true,
+    "save_new_load": true,
+    "browse_available": true,
+    "requests_observed": 74,
+    "applied_receipts_observed": 74,
+    "backend_rejections": 0,
+    "page_errors": [],
+    "final_client_error_toasts": [],
+    "final_activity_idle": true,
+    "screenshot_inspected": true,
+    "normal_host_exit": true,
+    "includes_concurrent_uncommitted_user_ui_changes": true
+  },
+  "retained_limits": [
+    "An intermediate receipt-enabled run timed out observing the first Undo; its cause is not established. The final run passes, but full Inspector stability acceptance remains open.",
+    "The fixture now waits for native activity to settle before externally initiating New/Load; transient canceled action indicators are not counted as a clean final state.",
+    "No native file dialog was operated; only Browse availability is verified.",
+    "No decoded image or GPU pixel/cadence acceptance is claimed by this authoring fixture.",
+    "M11/4 still requires the direct channel File row and complete generic Inspector/caller/layout acceptance.",
+    "The urgent Shared Texture cadence defect is unchanged and awaits its separate image comparison."
+  ],
+  "acceptance_gates_closed": 0
+}

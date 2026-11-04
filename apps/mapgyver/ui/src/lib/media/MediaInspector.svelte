@@ -4,7 +4,7 @@
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import type { MediaEdit } from './generated/MediaEdit';
 	import { invokeMediaEdit } from './operations';
-	import { MEDIA_NAMESPACE } from './generated/constants';
+	import { ASSET_NODE_TYPE, MEDIA_NAMESPACE } from './generated/constants';
 	import MatrixRuntimeInspector from '../matrix/MatrixRuntimeInspector.svelte';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
@@ -222,7 +222,7 @@
 					}} />
 			{:else if channel.definition.source.kind === 'Matrix'}<MatrixRuntimeInspector />{/if}
 		{/if}
-		{#if node.node_type === 'mapgyver.media.asset'}
+		{#if node.node_type === ASSET_NODE_TYPE}
 			<IconButton
 				icon={reloadIcon}
 				label="Reload asset"

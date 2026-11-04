@@ -27,7 +27,7 @@ metadata. No parallel UI store or project/schema conversion owns their values.
 | Source variant            | Only source differences: Solid Color RGBA, Picture asset, Shared Texture sender, Video file                                               |
 | Reference media           | Typed target media reference and inherited optional Resolution; target-channel synchronization is backend structure                       |
 | Composition child media   | Placement, scale, pivot, rotation in degrees, opacity and blend on the actual owned child media                                           |
-| Asset                     | Typed locator kind and project-relative/absolute File paths                                                                               |
+| Asset                     | One typed File; the backend derives a project-relative or native absolute locator                                                         |
 | Screen                    | Enablement, target kind, display choice, physical rectangle, Spout name/extent and typed recovery hints                                   |
 | Surface                   | Enablement, source references, crop, four finite corners, opacity and calibration                                                         |
 | Matrix Layer              | Position, canvas size, opacity, blend, transition duration and enabling                                                                   |
@@ -82,6 +82,16 @@ Ordinary properties use generic Inspector widgets. Specialized UI only supplies 
 operations, native presentation or gestures against these same Parameters. Verify each converted
 owner through generic editing, direct API/script/headless callers, rejection, Undo/Redo,
 duplication, project roundtrip and applicable native behavior before counting its gate.
+
+Picture catalog assets use `mapgyver.media.asset.v2`. Their single `parameters/file` Parameter
+is authoritative across every referencing channel. Empty File values retain the asset identity
+and bindings while leaving the source unconfigured. Native absolute paths and validated portable
+relative paths project into the existing typed `AssetLocator`; classification and validation
+belong to asset authoring, without filesystem IO. Import and relink update that same File.
+Relink, clear, history and project reload retain its Parameter identity. The Rust-owned asset
+node-type constant is generated for UI consumers. Previous split location/path asset records
+and retired fields reject before Golden's recoverable decode; no persisted migration is provided.
+The direct channel File-row presentation remains separate M11/4 work until verified.
 
 App control uses `mapgyver.app_control.v1`: App file/directory are File Parameters;
 window/readiness, stop/restart and environment inheritance are typed Parameters. Ordered

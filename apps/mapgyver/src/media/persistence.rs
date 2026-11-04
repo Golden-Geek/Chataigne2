@@ -4,6 +4,27 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if record.node_type.starts_with("mapgyver.media.asset") {
+            if record.node_type != super::protocol::ASSET_NODE_TYPE {
+                return Err(format!(
+                    "Unsupported Picture asset schema '{}': a single typed File requires {}",
+                    record.node_type,
+                    super::protocol::ASSET_NODE_TYPE
+                ));
+            }
+            if record.children.iter().any(|folder| {
+                folder.children.iter().any(|parameter| {
+                    parameter.meta.decl_id.as_ref().is_some_and(|id| {
+                        matches!(
+                            id.0.as_str(),
+                            "parameters/locator_kind" | "parameters/project_path" | "parameters/absolute_path"
+                        )
+                    })
+                })
+            }) {
+                return Err("Picture assets require one File; retired location/path Parameters are unsupported".into());
+            }
+        }
         if matches!(
             record.node_type.as_str(),
             "mapgyver.media.v7" | "mapgyver.media.reference.v3" | super::commands::NODE_TYPE
