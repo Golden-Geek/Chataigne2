@@ -29,6 +29,7 @@ use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding
 mod resources;
 
 struct NativeState {
+    quiesced: bool,
     #[cfg(all(test, feature = "qualification"))]
     copy_tap: Option<tests::copy_tap::Tap>,
     textures: resources::TextureCache,
@@ -204,6 +205,7 @@ impl D3d11Backend {
                 self.generation,
             );
             Ok::<_, windows::core::Error>(NativeState {
+                quiesced: false,
                 #[cfg(all(test, feature = "qualification"))]
                 copy_tap: tests::copy_tap::Tap::new(&device, self.control.copy_tap.clone())?,
                 textures: resources::TextureCache::new(self.control.texture_allocations.clone()),
@@ -337,9 +339,21 @@ impl Backend for D3d11Backend {
     }
 
     fn quiesce(&mut self) {
-        if let Some(native) = &mut self.native {
+        if let Some(native) = &mut self.native
+            && !native.quiesced
+        {
+            native.quiesced = true;
             native.inputs.quiesce();
             native.outputs.quiesce();
+            // No further submissions follow quiescence. Release the context's indirect
+            // view references before draining/destroying large plan textures. Core still
+            // retains every resource until its original GPU completion (or confirmed loss);
+            // neither unbinding nor Flush certifies that completion.
+            // SAFETY: this worker exclusively owns the retained immediate context.
+            unsafe {
+                native.device.context.ClearState();
+                native.device.context.Flush();
+            }
         }
     }
 

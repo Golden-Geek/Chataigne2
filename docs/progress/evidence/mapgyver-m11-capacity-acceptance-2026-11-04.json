@@ -1,0 +1,111 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/2",
+	"state": "Accepted",
+	"accepted_gates_added": 1,
+	"correction": "Unbind immediate-context views once at native quiescence, preserving original GPU fences and resource ownership through final use",
+	"baseline_receipt": "mapgyver-m11-capacity-2026-11-04.json",
+	"baseline_nvidia_retirement_ms": 2629.2006,
+	"product_binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-capacity-retirement.exe",
+		"sha256": "12A90D014A4A0EFEB1C7D5954E71BF0C902C2AB0506EE9EA6716F00CE14B3518",
+		"build": "fresh application executable relinked during app-fixture Cargo test-profile preflight",
+		"actual_native_three_4k_channels": "pass, installed without message/unavailable overlays; measured admission 9216951214 B",
+		"normal_host_exit": 0,
+		"concurrent_unstaged_label_theme_edits_excluded_from_commit": true
+	},
+	"fixture_binary": {
+		"path": "target/debug/deps/capacity_rendering-f022e03f55dcf6ef.exe",
+		"sha256": "C3E8066A14ED7BD29C386B30026BDAF5A93D64A830AB18CE14D3617C95C8D3A4"
+	},
+	"common_case": {
+		"independent_4096x4096_solid_color_producers": 8,
+		"reference_alias_outputs": 2,
+		"independent_sdk_output_receivers": 10,
+		"full_before_after_images_per_adapter": 20,
+		"full_healthy_pressure_recovery_images_per_adapter": 8,
+		"full_images_total": 56,
+		"component_tolerance": "2/255",
+		"steady_seconds_per_adapter": 10,
+		"steady_native_owned_texel_bytes": 1879048192,
+		"steady_tracked_reservation_bytes": 2147484048,
+		"peak_tracked_reservation_bytes": 3355443600,
+		"plan_texture_objects": 18,
+		"replacement_created_textures": 0,
+		"replacement_reused_textures": 18,
+		"readback_budget_items": 3,
+		"readback_budget_bytes": 201326592,
+		"driver_physical_bytes": null,
+		"route_scope": "production public ChannelRenderer direct channel outputs; no new physical Screen/DPI matrix claim"
+	},
+	"nvidia": {
+		"adapter": { "low": 90608, "high": 0 },
+		"admission_limit": 7987527680,
+		"steady_submitted_frames": 600,
+		"retirement_ms": 61.721,
+		"plan_first_observed_empty_ms": 41.3436,
+		"output_first_observed_empty_ms": 61.6569,
+		"pressure_retirement_ms": 49.9896,
+		"all_final_owner_inventories_empty": true,
+		"artifact": "target/m11-retirement-quiesce-nvidia-2026-11-04/adapter-1.json",
+		"artifact_sha256": "92900A1D1E8E0690BC9F7E2C34C97FE911FDC3D2205CE9A6205066B4443CE3DE",
+		"test_exit": 0
+	},
+	"intel": {
+		"adapter": { "low": 89313, "high": 0 },
+		"admission_limit": 9216951214,
+		"steady_submitted_frames": 189,
+		"retirement_ms": 260.2417,
+		"plan_first_observed_empty_ms": 102.9311,
+		"output_first_observed_empty_ms": 260.2403,
+		"pressure_retirement_ms": 93.0134,
+		"all_final_owner_inventories_empty": true,
+		"artifact": "target/m11-retirement-quiesce-intel-2026-11-04/adapter-0.json",
+		"artifact_sha256": "DAA59944AFC52354A74A4D607E6D38C1F927F62C9B302ADFB5A0B5F716246D47",
+		"test_exit": 0
+	},
+	"pressure_contract": {
+		"intentional_stricter_lab_ceiling_bytes": 2147483648,
+		"requested_bytes": 1207959552,
+		"already_retained_bytes": 1476395408,
+		"peak_bytes_after_recovery": 2013266320,
+		"healthy_outputs_preserved_and_recovered": true,
+		"production_half_local_budget_policy_unchanged": true
+	},
+	"retained_bounds": {
+		"retirement_ms": 2000,
+		"operation_seconds": 8,
+		"watchdog_seconds": 180,
+		"in_flight_batches": 2,
+		"retiring_generations": 2
+	},
+	"software": {
+		"golden_video_tests_passed": 188,
+		"golden_explicit_hardware_tests_ignored": 24,
+		"app_fixture_preflight": "pass",
+		"strict_all_target_golden_and_mapgyver_clippy": "pass; -D warnings",
+		"reused_unchanged_app_and_null_backend_tests": 399,
+		"both_cargo_formatters": "pass",
+		"unchanged_ui_evidence": "Svelte 0/0, five reader tests, 30 preview-session tests"
+	},
+	"logs": [
+		"target/m11-retirement-quiesce-golden-tests.log",
+		"target/m11-retirement-quiesce-app-preflight.log",
+		"target/m11-retirement-quiesce-clippy.log",
+		"target/m11-retirement-quiesce-nvidia.log",
+		"target/m11-retirement-quiesce-intel.log",
+		"target/m11-capacity-retirement-app.log"
+	],
+	"limits": [
+		"Regional/case-specific native workload evidence, not global performance or scanout qualification",
+		"Ten-second samples do not accept retained M03 private-growth/timing gates",
+		"Production admission is queried per renderer creation, not continuously enforced against changing OS budgets"
+	],
+	"progress": {
+		"accepted_gates": 49,
+		"total_gates": 67,
+		"completed_phases": 6,
+		"total_phases": 12,
+		"m11": "2/10"
+	}
+}

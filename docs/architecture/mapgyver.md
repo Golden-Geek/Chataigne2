@@ -175,6 +175,11 @@ native boundaries. Cancellation invalidates results but cannot replace completio
 blocked driver call has retired. Device loss, source failure and output failure have bounded
 retry/backoff and truthful states while healthy paths continue.
 
+Native shutdown unbinds immediate-context views once at quiescence before the final drain and
+bulk texture destruction. No further submissions follow. Core still retains all resource owners
+until their matching GPU completions or confirmed device loss; unbinding/Flush is not completion.
+This avoids late context-held view references without weakening window/source/output retirement.
+
 The native host queries Golden's process-local DXGI LOCAL budget on its exact selected adapter
 before creating a renderer. Golden's admission rule leaves half that measured budget as
 headroom; missing/zero budgets fail explicitly and retry on the host worker. Shared-system

@@ -1,7 +1,8 @@
 # M11 concurrent 4K capacity
 
-Updated: 2026-11-04. **M11/2 Active: capacity is implemented and functionally verified;
-NVIDIA retirement exceeds the retained two-second bound. No gate accepted.**
+Updated: 2026-11-04. **M11/2 Accepted.** Adapter-aware admission, eight native 4K producers,
+Reference reuse, bounded ownership, overload/recovery and the original retirement bound pass
+on both adapters. Golden's teardown correction reduces NVIDIA retirement from 2629 to 62 ms.
 
 Golden owns DXGI budget observation, admission, native resources and completion barriers.
 MapGyver's public `preview::config` owns product plan/picture/count bounds; the desktop host
@@ -33,7 +34,10 @@ These are direct channel-output routes; this does not claim a new physical Scree
 Full 4096×4096 RGBA pixels are checked before/after live authored color replacement. Both
 References reuse producer targets; output conversion/SDK buffers remain real separate consumers.
 
-| Observation | Intel Graphics | NVIDIA RTX 5080 Laptop |
+The initial admission checkpoint recorded the following results before the teardown correction;
+its failing NVIDIA result is retained, not rewritten as a pass.
+
+| Initial observation | Intel Graphics | NVIDIA RTX 5080 Laptop |
 | --- | --- | --- |
 | Measured admission ceiling | 9,216,951,214 B | 7,987,527,680 B |
 | Eight independent producers / Reference outputs | 8 / 2 | 8 / 2 |
@@ -64,7 +68,7 @@ VRAM. Driver allocation size/residency remains unknown. The earlier
 [native-owner inventory](evidence/mapgyver-m03-native-allocations-2026-11-01.json) establishes
 the existing measurement/release mechanism without accepting its open M03 gate.
 
-## Overload, recovery and exact remaining requirement
+## Overload, recovery and retained failure evidence
 
 The software test admits eight 4K sources through product configuration, rejects a larger
 replacement while the old generation is retained, preserves its charge and then recovers.
@@ -73,8 +77,8 @@ exercise real rejection without filling the user's GPU. Four healthy outputs rem
 the eight-source request fails (**1,207,959,552 B requested + 1,476,395,408 B retained**).
 Returning to four succeeds; complete pixels pass before/after recovery, reservations peak below
 2 GiB, and final ownership retires in **121.581 ms**. This lab ceiling is separate from the
-production adapter-aware policy. NVIDIA's pressure case stays **unrun**, because its preceding
-full-capacity retirement failed; it is still required after that correction.
+production adapter-aware policy. NVIDIA's pressure case was unrun at this checkpoint because
+its preceding full-capacity retirement failed. The corrected case below now passes it.
 
 The full native batch first exposed NVIDIA retirement above two seconds. One focused repeat
 preserved the exact eight-output/two-Reference workload and sampled existing owner counters.
@@ -85,15 +89,58 @@ not an ownership leak or permission/tool limitation. The observations locate the
 or during GPU/plan release; they do not distinguish the final GPU drain from native plan-object
 destruction. Do not label SDK endpoint teardown the root cause on this evidence.
 
-The two native investigation runs are retained; no unchanged repeat or expanded profiler is
-authorized by renaming this batch. Next deliverable: a justified Golden ownership/teardown
-correction, then the original NVIDIA capacity/retirement and pressure/recovery acceptance.
-The investigation retains the 02:45 CET batch cutoff and cumulative effort from 02:20 CET.
+The two native investigation runs are retained. The subsequent implementation validation uses
+the original workload/assertions after the specific correction below; no unchanged probe,
+new profiler or budget change was added. Cumulative retirement effort starts at 02:20 CET.
+The capacity milestone was delivered at 02:37; correction began at 02:40. The original 02:45
+cutoff arrived during verification, which was finished without adding investigation/scope.
 Flush is asynchronous and cannot replace the completion barrier; Microsoft's
 [Flush](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-flush)
 and [ClearState](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-clearstate)
 contracts inform the implementation review. Existing submission already performs End/Flush.
-Do not relax the two-second bound, release early, or add unrelated features to show progress.
+The two-second bound and complete ownership retirement remain mandatory.
+
+## M11/2 acceptance — quiescence releases context bindings
+
+Golden's native backend now unbinds the immediate context's views once when quiescing inputs
+and outputs. This occurs before the final GPU drain and bulk plan destruction, rather than
+leaving indirect context references until backend destruction. A worker-local flag makes this
+idempotent across normal shutdown and the Core drop safeguard. No further frame submissions
+follow quiescence. Core retains every resource through its existing matching GPU completion
+or confirmed device loss; ClearState/Flush never acts as a completion certificate. Device reset
+constructs a fresh unquiesced native owner. No engine/UI polling or new diagnostic API is added.
+
+The exact original cases pass on the corrected implementation:
+
+| Current acceptance | Intel Graphics | NVIDIA RTX 5080 Laptop |
+| --- | --- | --- |
+| Eight producers + two Reference outputs; complete before/after images | 20 full 4K images pass | 20 full 4K images pass |
+| Ten-second steady submissions | 189 | 600 |
+| Native storage/reuse and tracked overlap | Original counts/bounds pass | Original counts/bounds pass |
+| Capacity retirement, ≤2000 ms | **260.242 ms** | **61.721 ms** |
+| Plan owners first observed empty | 102.931 ms | 41.344 ms |
+| Native 2 GiB pressure/recovery; healthy full images | 8 pass | 8 pass |
+| Pressure/recovery retirement, ≤2000 ms | **93.013 ms** | **49.990 ms** |
+| Final owner inventory | All plan/source/output owners empty | All plan/source/output owners empty |
+
+Both original scripts keep their 180-second watchdog, eight-second per-operation deadlines,
+two-second retirement assertions and 192 MiB receiving/staging/CPU-readback cap. Across the
+corrected adapter runs, **56 complete 4096×4096 images** pass. Steady native payload and overlap
+remain 1792 MiB and 3200 MiB + 400 B respectively; replacement still reuses all 18 plan textures.
+Both native overload cases reject before exceeding the declared lab ceiling, preserve healthy
+output pixels, recover after returning to the admitted demand and fully retire every owner.
+
+Golden's **188 software tests pass** (24 explicit hardware tests ignored), followed by terminal
+app-fixture compilation and strict all-target Golden/MapGyver Clippy. The 399 app software tests
+remain applicable to unchanged app/null-backend behavior. The app executable relinked during
+fixture preflight then passes the actual desktop three-4K-channel smoke and normal shutdown.
+Both Cargo formatters and existing unchanged UI checks pass. No release/deployment is claimed.
+
+[Acceptance receipt](evidence/mapgyver-m11-capacity-acceptance-2026-11-04.json) pins corrected
+binaries and both full adapter artifacts. The earlier receipt remains the admission milestone's
+partial/failing evidence. **M11/2 is Accepted; M11 is 2/10 (20%), accepted gates are 49/67 (73%),
+fully accepted phases remain 6/12 (50%).** Retained M03 timing/private-growth and other original
+qualification gates stay open; this workload does not waive or close them. Next: M11/3 GPU choice.
 
 ## Validation and evidence limits
 
@@ -114,4 +161,5 @@ its binary hash was not recorded before rebuilding that fixture. Its raw artifac
 unchanged product code are retained; it is not claimed as a run of the newer fixture binary.
 Native app builds include concurrent unstaged label/theme edits, excluded from this milestone.
 
-**Counts stay 48/67 gates (72%), 6/12 phases (50%), M11 1/10 (10%).** M11/2 alone remains Active.
+The admission checkpoint counted 48/67 gates; the acceptance above adds exactly M11/2 with no
+denominator change. Current counts are **49/67 gates (73%), 6/12 phases (50%), M11 2/10 (20%)**.
