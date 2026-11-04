@@ -6,7 +6,7 @@
 
 **Current topic:** urgent Shared Texture cadence regression reported 2026-11-04.
 **Next action:** compare the Spout Screen in a separate receiver with the editor preview, then repair the selected boundary and verify sustained moving content.
-**Blockers:** that manual comparison is pending; milestone delivery is rejected by GitHub SSH authentication (`Permission denied (publickey)`).
+**Blocker:** the manual Screen-output versus editor-preview comparison is pending. Git delivery is restored through existing HTTPS credentials.
 **Execution:** M03/9 alone is Active for the user's urgent Shared Texture regression; M11/4 is Pending with its File/parity return action. Existing accepted gates retain their tested limits.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -75,7 +75,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Active   | M03/9    | Urgent user report: fast Spout sender, roughly 2 FPS received imagery while Solid Color stays smooth. Isolated receive/handoff copy counts are healthy; pending manual Screen-output versus editor-preview comparison selects the next repair. Verify changing pixels after repair. Original GPU critical-path/window timing and private-growth correction remain required in this gate; no unchanged benchmark reruns or budget revision. |
-| Pending  | M11/4    | [Clocks, Fit Mode and direct Color editing delivered](mapgyver-m11-inspector.md). Return after urgent cadence repair: one typed Picture File with single asset authority, final complete generic-Parameters browser/caller/layout acceptance. Inspector checkpoint `974741f8` is committed locally; SSH fetch failed with publickey rejection, push unverified. |
+| Pending  | M11/4    | [Clocks, Fit Mode and direct Color editing delivered](mapgyver-m11-inspector.md). Return after urgent cadence repair: one typed Picture File with single asset authority, final complete generic-Parameters browser/caller/layout acceptance. Inspector checkpoint `974741f8` and diagnostic checkpoint `23f64dd3` are pushed and remotely verified. |
 | Accepted | M11/3    | [Typed GPU Preferences and native acceptance](mapgyver-m11-gpu.md#native-preferences-acceptance): five cold starts, both explicit GPUs, separate persisted choice, truthful restart requirement, pinned renderer recreation, missing choice without fallback and recovery. Eight full pixel checks and 447 independent copies pass. |
 | Accepted | M11/2    | [Complete capacity acceptance](mapgyver-m11-capacity.md#m112-acceptance--quiescence-releases-context-bindings): both GPUs pass eight 4K producers/two aliases, 56 complete images, bounded native ownership, reuse and real pressure/recovery. NVIDIA/Intel retire in 61.721/260.242 ms; pressure cases 49.990/93.013 ms, within the original two-second bound. |
 | Accepted | M11/1    | [Native stability acceptance](mapgyver-m11-stability.md#m111-acceptance--native-input-and-project-transitions): recorded selection/reconnect fixes, actual Inspector/Matrix input, independent outputs, guarded desktop pixels, three close/reopen cycles and New/Load with old imagery retired. No prior brief-unavailable waiver used. |
@@ -124,9 +124,11 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   strict D3D11 library/test Clippy passes. The finite live isolation test is opt-in.
   Computer Use native pipe/browser host failed after bounded recovery; local app API at 7011
   works and the recording is decoded; the specific remaining manual comparison is requested above.
-  M11/4's fully checked partial capability
-  is isolated in local commit `974741f8`; fetch failed `Permission denied (publickey)` and delivery
-  remains queued. No acceptance denominator change: 50/67, 6/12 phases. Preserve the user's
+  M11/4's fully checked partial capability is isolated in commit `974741f8`; diagnostic checkpoint
+  `23f64dd3` preserves these limits. Both are now pushed: existing HTTPS credentials worked,
+  fetch confirmed no divergence, and remote `mapgyver` independently returned full HEAD
+  `23f64dd320937c203dd62ebf5b632fd687dbdc73`. The saved SSH remote/configuration is unchanged;
+  HTTPS was selected per command. No acceptance denominator change: 50/67, 6/12 phases. Preserve the user's
   concurrent work and do not restart their active app/processes without preserving its project.
 
 ## Maintenance rule
