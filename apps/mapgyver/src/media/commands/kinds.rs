@@ -31,7 +31,7 @@ command_kinds! {
     RenameMedia => "Rename Media", "Media", ["media", "label"];
     RemoveMedia => "Remove Media", "Media", ["media"];
     ConfigureResolution => "Set Resolution", "Media", ["media", "resolution_enabled", "resolution"];
-    ConfigureSampling => "Set Sampling", "Media", ["media", "sampling"];
+    ConfigureFitMode => "Set Fit Mode", "Media", ["media", "fit_mode"];
     AddChannel => "Add Variant", "Channels", ["media", "label"];
     RenameChannel => "Rename Variant", "Channels", ["media", "channel", "label"];
     ReorderChannel => "Reorder Variant", "Channels", ["media", "channel", "after_channel"];

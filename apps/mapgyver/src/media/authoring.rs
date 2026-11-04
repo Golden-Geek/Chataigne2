@@ -322,20 +322,6 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             configure_channel(engine, reference, source)?;
             MediaEditResult::Changed
         }
-        MediaEdit::ConfigureMediaSampling { media: owner, filter } => {
-            let (id, _) = media(engine, owner)?;
-            let parameter = match engine.nodes.get(id) {
-                Some(AppNode::Media(media)) => media.sampling_parameter(),
-                Some(AppNode::ReferenceMedia(media)) => media.sampling_parameter(),
-                _ => unreachable!(),
-            };
-            engine.edits.push(Edit::SetParam {
-                node: parameter,
-                value: golden_core::parameter::ParamValue::Enum(super::media_node::filter_name(filter).into()),
-                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
-            });
-            MediaEditResult::Changed
-        }
         MediaEdit::ConfigureMediaFitMode { media: owner, mode } => {
             let (id, _) = media(engine, owner)?;
             let parameter = match engine.nodes.get(id) {

@@ -251,6 +251,7 @@
 		{isParameter ? 'parameter' : 'container'}"
 		role="group"
 		class:custom-component={!!CustomInspectorComponent}
+		class:inline-children={!!customInspectorEntry?.inlineChildren}
 		class:layout-dashboard={layoutMode === 'dashboard'}
 		data-node-id={node.node_id}
 		style="--container-color: {color}"
@@ -319,6 +320,7 @@
 									void commitRename();
 								}}
 								onkeydown={(e) => {
+									e.stopPropagation();
 									if (e.key === 'Enter') {
 										void commitRename();
 										return;
@@ -380,7 +382,7 @@
 					{layoutMode}
 					{includeChildren}
 					{maxChildLevel}
-					{density}
+					density={customInspectorEntry?.childDensity ?? density}
 					{referencePickerViews}
 					{controlNodeType} />
 			{/each}
@@ -434,6 +436,8 @@
 					{@render builtInChildren(extraClass)}
 				{/snippet}
 			</ParameterInspector>
+		{:else if customInspectorEntry?.inlineChildren}
+			{@render builtInChildItems()}
 		{:else if CustomInspectorComponent}
 			<CustomInspectorComponent
 				{node}
@@ -476,6 +480,11 @@
 
 	.node-inspector.nested {
 		margin-left: 0.3rem;
+	}
+	.node-inspector.inline-children {
+		margin: 0;
+		padding: 0;
+		background: transparent;
 	}
 
 	.node-inspector {

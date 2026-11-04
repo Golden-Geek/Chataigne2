@@ -19,7 +19,7 @@ id. UUID arguments come from committed results, not numeric session node IDs. Em
 labels use backend defaults; empty asset/sender strings clear that channel's source setting.
 `Reference` creation returns `ReferenceCreated { media }`, because an unconfigured Reference
 has no output channel. Its [target/output contract](mapgyver-reference-media.md) is distinct
-from physical source-channel authoring. Command records now use schema v4; older schemas reject clearly.
+from physical source-channel authoring. Command records now use schema v5; older schemas reject clearly.
 
 `inspectChannel` is an immutable read: `Channel.snapshot` is null when the owner or channel
 has been removed, allowing queued Inspector reads to retire safely. Existing invalid node
@@ -35,7 +35,6 @@ types or ownership still reject. Neither reads nor their rejections add history 
 | `dropCompositionMedia`     | Composition media/channel UUIDs, source node UUID, replaced media UUID or empty string, copy boolean, canvas X/Y |
 | `addChannel`               | media UUID, label; backend rejects derived outputs                              |
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
-| `configureMediaSampling`   | media UUID, `Linear` or `Nearest`                                               |
 | `configureMediaFitMode`    | Picture, Shared Texture or Reference media UUID; `Fit`, `Fill` or `Stretch`       |
 | `configureSolidColor`      | media UUID, channel UUID, straight linear R, G, B, A                            |
 | `configurePicture`         | media UUID, channel UUID, asset UUID or empty string                            |
@@ -48,12 +47,14 @@ types or ownership still reject. Neither reads nor their rejections add history 
 
 Enabled Resolution requires whole pixels in 1–16384 per axis. Disabling it retains authored
 pixel values and projects source-native/procedural sizing. Width/height arguments are still
-finite numbers when disabled. Sampling and Resolution apply to all channels; named source
+finite numbers when disabled. Resolution and Fit Mode apply to all channels; named source
 methods configure only the selected variant. Import queues detached asset/media creation;
 file access and decoding remain on workers.
 Fit Mode applies only at forced Resolution; Auto retains its choice and preserves intrinsic
 source dimensions. The intent and named script method edit the same typed media Parameter.
 Solid Color and authored Composition/Matrix canvases reject this operation without mutation.
+Sampling is fixed to Linear; the former sampling intent/method/command is removed rather than
+silently ignored. The typed `ConfigureFitMode` command edits the same Fit Mode Parameter.
 
 `onAppOperationResult(reply)` runs after the operation commits or rejects. `request_id`
 correlates the call; `status` is `applied` or `rejected`. Applied replies contain the same

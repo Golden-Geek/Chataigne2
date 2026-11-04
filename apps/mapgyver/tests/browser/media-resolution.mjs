@@ -49,23 +49,7 @@ export async function verifyMediaResolutionUi({ base, edit, inspectMedia }) {
 			.locator('.parameter-inspector')
 			.filter({ has: page.getByText('Resolution', { exact: true }) });
 		await resolution.waitFor();
-		const sampling = page
-			.locator('.parameter-inspector')
-			.filter({ has: page.getByText('Sampling', { exact: true }) });
-		assert.equal(await sampling.count(), 1);
-		const filter = sampling.locator('select.dropdown-editor');
-		await filter.selectOption('Nearest');
-		await wait((media) =>
-			media.channels.every((channel) => channel.definition.filter === 'Nearest')
-		);
-		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
-		await wait((media) =>
-			media.channels.every((channel) => channel.definition.filter === 'Linear')
-		);
-		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
-		await wait((media) =>
-			media.channels.every((channel) => channel.definition.filter === 'Nearest')
-		);
+		assert.equal(await page.getByText('Sampling', { exact: true }).count(), 0);
 		const toggle = resolution.getByRole('switch', { name: 'Toggle node enabled' });
 		assert.equal(await toggle.getAttribute('aria-checked'), 'false');
 		await toggle.click();
@@ -107,7 +91,7 @@ export async function verifyMediaResolutionUi({ base, edit, inspectMedia }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'bundled shared Sampling and Resolution enable/pixels/Undo/Redo/disable across two stable variants'
+					'bundled shared Resolution enable/pixels/Undo/Redo/disable across two stable variants; no authored Sampling'
 			})
 		);
 	} finally {

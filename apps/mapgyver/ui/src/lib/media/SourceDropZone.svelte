@@ -33,8 +33,8 @@
 		)
 			return null;
 		const node = resolveDragNode(session.graph.state, readNodeDragPayload(event), session);
-		return node?.node_type === 'mapgyver.media.reference.v2' ||
-			node?.node_type === 'mapgyver.media.v6' ||
+		return node?.node_type === 'mapgyver.media.reference.v3' ||
+			node?.node_type === 'mapgyver.media.v7' ||
 			node?.node_type === 'mapgyver.media.channel'
 			? node
 			: null;

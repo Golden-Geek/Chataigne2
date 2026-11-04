@@ -18,14 +18,8 @@ export async function verifyInspectorStability({ page, edit, post, observe = asy
 		media: reference.media,
 		size: { kind: 'Fixed', extent: { width: 64, height: 64 } }
 	});
-	await page
-		.getByRole('tab')
-		.filter({ hasText: /^Medias$/ })
-		.click();
-	await page
-		.getByRole('region', { name: 'Medias', exact: true })
-		.getByRole('button', { name: 'Inspector stability', exact: true })
-		.click();
+	await page.getByRole('tab').first().click();
+	await page.getByRole('button', { name: 'Inspector stability', exact: true }).click();
 	const document = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
 	// Keep the unchanged sibling above the edited folder, so collapse does not move
 	// its native pixel witness. Both branches still contain actual Parameter controls.
@@ -42,11 +36,12 @@ export async function verifyInspectorStability({ page, edit, post, observe = asy
 	if ((await root.locator('.node-title').first().getAttribute('aria-checked')) === 'false') {
 		await root.locator('.node-title').first().locator('svg.arrow').click();
 	}
-	const sampling = page
+	const width = page
 		.locator('.parameter-inspector')
-		.filter({ has: page.getByText('Sampling', { exact: true }) })
-		.locator('select.dropdown-editor');
-	await sampling.waitFor();
+		.filter({ has: page.getByText('Resolution', { exact: true }) })
+		.locator('input.number-field')
+		.first();
+	await width.waitFor();
 	await delay(300);
 	await observe('ready', {
 		uiBoxes: await Promise.all(
@@ -126,8 +121,14 @@ export async function verifyInspectorStability({ page, edit, post, observe = asy
 			root.locator('.node-title').first().locator('svg.arrow').click()
 		);
 		assert.equal(await root.locator('.node-title').first().getAttribute('aria-checked'), 'true');
-		await sample(`setting-nearest-${index}`, () => sampling.selectOption('Nearest'));
-		await sample(`setting-linear-${index}`, () => sampling.selectOption('Linear'));
+		await sample(`setting-width-32-${index}`, async () => {
+			await width.fill('32');
+			await width.press('Enter');
+		});
+		await sample(`setting-width-64-${index}`, async () => {
+			await width.fill('64');
+			await width.press('Enter');
+		});
 	}
 	const result = await page.evaluate(() => {
 		const state = window.__inspectorStability;

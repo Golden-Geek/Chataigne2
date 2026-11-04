@@ -206,8 +206,8 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
     let started = std::time::Instant::now();
     let instances = add(&mut engine, composition, vec![source; 1000]);
     eprintln!("Composition 1000-instance forest: {:?}", started.elapsed());
-    // Each Reference owns four Parameters and an eight-Parameter Placement subtree.
-    assert_eq!(engine.nodes.len(), before + 1000 * 16);
+    // Each Reference owns three Parameters and an eight-Parameter Placement subtree.
+    assert_eq!(engine.nodes.len(), before + 1000 * 15);
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(inspect(&mut engine, composition).instances.len(), 1000);
     assert!(engine.undo().unwrap());

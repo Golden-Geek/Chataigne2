@@ -4,6 +4,20 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if matches!(
+            record.node_type.as_str(),
+            "mapgyver.media.v7" | "mapgyver.media.reference.v3" | super::commands::NODE_TYPE
+        ) && record.children.iter().any(|folder| {
+            folder.children.iter().any(|parameter| {
+                parameter
+                    .meta
+                    .decl_id
+                    .as_ref()
+                    .is_some_and(|id| matches!(id.0.as_str(), "parameters/filter" | "parameters/sampling"))
+            })
+        }) {
+            return Err("Media sampling is fixed to Linear; authored sampling Parameters are unsupported".into());
+        }
         if record.meta.decl_id.as_ref().is_some_and(|id| {
             matches!(
                 id.0.as_str(),
@@ -93,10 +107,10 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             ));
         }
         if record.node_type == "mapgyver.media"
-            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v6")
+            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v7")
         {
             return Err(format!(
-                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v6",
+                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v7",
                 record.node_type
             ));
         }

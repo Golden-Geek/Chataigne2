@@ -3,7 +3,6 @@
 pub use golden_assets::{AssetId, AssetLocator, AssetRecord};
 use golden_core::model::NodeUuid;
 use golden_video::Extent2D;
-use golden_video::plan::SampleFilter;
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
@@ -190,8 +189,6 @@ pub struct ChannelDefinition {
     pub source: ChannelSource,
     /// Effective projection of the owning media Resolution, never channel-authored state.
     pub size: SizePolicy,
-    /// Effective projection of the owning media Sampling, never channel-authored state.
-    pub filter: SampleFilter,
     /// Source placement projected from the owning media; ignored at intrinsic resolution.
     pub fit_mode: MediaFitMode,
 }
@@ -337,10 +334,6 @@ pub enum MediaEdit {
     ConfigureMediaResolution {
         media: MediaId,
         size: SizePolicy,
-    },
-    ConfigureMediaSampling {
-        media: MediaId,
-        filter: SampleFilter,
     },
     ConfigureMediaFitMode {
         media: MediaId,

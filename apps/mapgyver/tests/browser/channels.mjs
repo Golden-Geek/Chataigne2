@@ -109,7 +109,6 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 		const added = await wait((media) => media.channels.length === 2);
 		const peer = added.channels.find((channel) => channel.reference.channel !== first.channel);
 		assert(peer);
-		await header(added.channels[0].label).press('Enter');
 		const color = entry(added.channels[0].label)
 			.locator('.parameter-inspector')
 			.filter({ has: page.getByText('Color', { exact: true }) });
@@ -177,8 +176,10 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 		);
 		assert(inspected.length > 0, 'Expanded variants use exact channel inspection');
 		assert(
-			inspected.every((intent) => intent.payload.reference.channel === first.channel),
-			'Collapsed variants must not trigger channel inspection'
+			inspected.every((intent) =>
+				[first.media, copiedMedia.id].includes(intent.payload.reference.media)
+			),
+			'Reads stay scoped to the inspected original or duplicated media'
 		);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
@@ -186,7 +187,7 @@ export async function verifyChannelsUi({ base, edit, inspectMedia }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'bundled media-only manager including context Add/Paste exclusion and Inspector creation retention, typed Channels add/color/rename/reorder/copy/remove/history, closed Parameter folders, exact reads and 32-entry rendering bound'
+					'bundled media-only manager including context Add/Paste exclusion and Inspector creation retention, typed Channels add/color/rename/reorder/copy/remove/history, inline typed Parameters, exact reads and 32-entry rendering bound'
 			})
 		);
 	} catch (error) {

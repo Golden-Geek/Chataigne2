@@ -123,13 +123,17 @@ has one owned output; its output and Matrix exports do not advertise source-vari
 Every media has a disableable integer-constrained Vec2 **Resolution**, in pixels, default
 disabled, bounds 1–16384 per axis and unit steps. Disabled uses each source's native size;
 procedural canvases default to 1920×1080. Enabled forces every channel to that extent.
-The shared-Resolution/Sampling/Fit Mode document uses node type `mapgyver.media.v6`. Projects containing
+The shared-Resolution/Fit Mode document uses node type `mapgyver.media.v7`. Projects containing
 older media types are rejected as unsupported; per-channel sizing or sampling is never silently
-reinterpreted. `ChannelDefinition.size` and `.filter` are runtime/read projections. Change Resolution
-through its generic Parameter (including enabled state) or `ConfigureMediaResolution`;
-change shared Sampling through its generic Enum Parameter or `ConfigureMediaSampling`.
+reinterpreted. `ChannelDefinition.size` is a runtime/read projection. Change Resolution
+through its generic Parameter (including enabled state) or `ConfigureMediaResolution`.
+Media sampling is fixed to Linear in render preparation, with no authored Parameter, intent,
+script method or channel DTO filter field. Golden's app-neutral renderer still supports its
+own typed sampling modes. Media kind/source kind remain typed backend Parameters and are hidden
+in the ordinary Inspector. Actual channel rows start expanded; Golden's public `inlineChildren`
+Inspector registration renders their typed Parameters directly without a structural folder header.
 Picture and Shared Texture media own a typed Fit Mode Enum (Fit, Fill, Stretch), shared by
-all their channels. Reference v2 owns the same setting for its forced output. The Inspector
+all their channels. Reference v3 owns the same setting for its forced output. The Inspector
 hides Fit Mode in Auto without changing its stored choice. Solid Color and authored
 Composition/Matrix canvases omit it. Fit preserves aspect with transparent bars, Fill crops
 centrally and Stretch fills both axes independently; Auto preserves source-native extents.

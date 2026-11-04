@@ -6,20 +6,19 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 
-#[node("mapgyver.media.reference.v2", label = "Reference", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.reference.v3", label = "Reference", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(folder(parameters, label = "Parameters") {
     target: NodeReference = NodeReference::empty() (
         label = "Target", reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
+        reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
     );
     resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Resolution", enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject"
     );
-    filter: Enum = "Linear" (label = "Sampling", enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]));
     fit_mode: Enum = "Fit" (label = "Fit Mode",
         enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
 })]
@@ -42,9 +41,6 @@ impl ReferenceNode {
     }
     pub(crate) fn resolution_parameter(&self) -> NodeId {
         self.resolution.id()
-    }
-    pub(crate) fn sampling_parameter(&self) -> NodeId {
-        self.filter.id()
     }
     pub(crate) fn fit_mode_parameter(&self) -> NodeId {
         self.fit_mode.id()
@@ -81,15 +77,10 @@ impl ReferenceNode {
                 target: self.target().map(|media| ChannelReference { media, channel }),
             },
             size,
-            filter: if self.filter.get_ref().as_str() == "Nearest" {
-                SampleFilter::Nearest
-            } else {
-                SampleFilter::Linear
-            },
         }
     }
 }
-#[node("mapgyver.media.reference.v2", from_struct)]
+#[node("mapgyver.media.reference.v3", from_struct)]
 impl Node for ReferenceNode {
     fn needs_update(&self) -> bool {
         false
@@ -121,9 +112,6 @@ impl Node for ReferenceNode {
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         super::super::media_node::validate_resolution(self.resolution.get())?;
         MediaFitMode::parse(self.fit_mode.get_ref().as_str())?;
-        if !["Linear", "Nearest"].contains(&self.filter.get_ref().as_str()) {
-            return Err("unknown Reference sampling filter".into());
-        }
         Ok(())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {

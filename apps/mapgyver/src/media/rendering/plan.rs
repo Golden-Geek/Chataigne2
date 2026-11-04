@@ -4,7 +4,7 @@ use crate::media::protocol::{ChannelReference, ChannelSource};
 use crate::media::resolution::{self, ChannelAvailability, ChannelResolution, SourceObservation};
 use crate::screens::protocol::ScreenId;
 use golden_video::plan::{
-    ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SpoutSource,
+    ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SampleFilter, SpoutSource,
 };
 use golden_video::runtime::PlanSubmission;
 use golden_video::{
@@ -197,7 +197,6 @@ pub(super) fn build(
                                         target.resolution.extent.expect("ready Reference target"),
                                         extent,
                                         definition.fit_mode,
-                                        definition.filter,
                                     )?;
                                 }
                             }
@@ -241,7 +240,6 @@ pub(super) fn build(
                             value.value().descriptor().extent,
                             resolution.extent.expect("prepared Picture extent"),
                             definition.fit_mode,
-                            definition.filter,
                         )?;
                     } else if asset
                         .and_then(|id| pictures.and_then(|pictures| pictures.failure(id)))
@@ -282,9 +280,7 @@ pub(super) fn build(
                             color_encoding: ColorEncoding::Linear,
                             alpha_mode: AlphaMode::Premultiplied,
                         };
-                        if let Ok(mut layers) =
-                            super::derived::matrix_layers(channel, definition.filter, &prepared_channels)
-                        {
+                        if let Ok(mut layers) = super::derived::matrix_layers(channel, &prepared_channels) {
                             if matrix.opacity < 1.0 && layers.len() > 1 {
                                 let scratch = match entry.scratch {
                                     Some(scratch) => scratch,
@@ -303,7 +299,7 @@ pub(super) fn build(
                                     opacity: golden_video::Opacity::new(matrix.opacity)
                                         .map_err(|error| error.to_string())?,
                                     blend: golden_video::plan::BlendMode::Normal,
-                                    filter: definition.filter,
+                                    filter: SampleFilter::Linear,
                                     mapping: None,
                                 }];
                             } else {
@@ -327,12 +323,7 @@ pub(super) fn build(
                     let definition = channel.definition.as_ref().unwrap();
                     resolution = resolution::resolve(definition, SourceObservation::Unavailable)?;
                     if !rejected.contains(&reference) {
-                        match super::derived::composition_layers(
-                            channel,
-                            *canvas,
-                            definition.filter,
-                            &prepared_channels,
-                        ) {
+                        match super::derived::composition_layers(channel, *canvas, &prepared_channels) {
                             Ok(layers) => {
                                 guards.extend(channel.instance_guards.iter().cloned());
                                 let descriptor = TextureDescriptor {
@@ -407,7 +398,6 @@ pub(super) fn build(
                             actual.expect("ready shared texture descriptor").extent,
                             resolution.extent.expect("ready shared texture extent"),
                             definition.fit_mode,
-                            definition.filter,
                         )?;
                     }
                 }

@@ -127,13 +127,11 @@ export async function verifySourcesUi({ base, inspect }) {
 		if ((await toggle.getAttribute('aria-checked')) === 'false') await toggle.click();
 		await widgets.setNumber('Resolution', width, 0);
 		await widgets.setNumber('Resolution', height, 1);
-		await widgets.choice('Sampling').selectOption('Nearest');
 		await state(id, (item) =>
 			item.channels.every(
 				(channel) =>
 					channel.definition.size.extent?.width === width &&
-					channel.definition.size.extent?.height === height &&
-					channel.definition.filter === 'Nearest'
+					channel.definition.size.extent?.height === height
 			)
 		);
 	}

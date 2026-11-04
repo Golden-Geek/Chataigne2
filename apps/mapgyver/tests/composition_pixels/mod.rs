@@ -1,5 +1,5 @@
 use golden_core::{application::apply_project_intent, ui_sync::UiEditIntent};
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 use mapgyver::{
     app::{AppEngine, AppNode},
     media::{composition::protocol::*, protocol::*},
@@ -42,13 +42,6 @@ fn configure(engine: &mut AppEngine, reference: ChannelReference, source: Channe
         MediaEdit::ConfigureMediaResolution {
             media: reference.media,
             size,
-        },
-    );
-    edit(
-        engine,
-        MediaEdit::ConfigureMediaSampling {
-            media: reference.media,
-            filter: SampleFilter::Nearest,
         },
     );
     if !matches!(source, ChannelSource::Composition { .. }) {

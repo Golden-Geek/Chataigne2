@@ -102,7 +102,6 @@ pub(super) fn ordered(
 pub(super) fn composition_layers(
     channel: &CapturedChannel,
     canvas: Extent2D,
-    filter: SampleFilter,
     prepared: &HashMap<ChannelReference, PreparedChannel>,
 ) -> Result<Vec<Layer>, String> {
     let mut result = Vec::new();
@@ -136,7 +135,7 @@ pub(super) fn composition_layers(
             opacity: Opacity::new(instance.opacity).map_err(|error| error.to_string())?,
             opacity_envelope: None,
             blend: instance.blend,
-            filter,
+            filter: SampleFilter::Linear,
             mapping: Some(mapping),
         });
     }
@@ -168,7 +167,6 @@ pub(super) fn reachable(
 
 pub(super) fn matrix_layers(
     channel: &CapturedChannel,
-    filter: SampleFilter,
     prepared: &HashMap<ChannelReference, PreparedChannel>,
 ) -> Result<Vec<Layer>, String> {
     channel
@@ -207,7 +205,7 @@ pub(super) fn matrix_layers(
                     opacity: Opacity::new(input.opacity).map_err(|error| error.to_string())?,
                     opacity_envelope: input.weight,
                     blend: input.blend,
-                    filter,
+                    filter: SampleFilter::Linear,
                     mapping,
                 })
             }))

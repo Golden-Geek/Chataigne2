@@ -113,7 +113,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             | MediaCommandKind::LaunchMatrixCell
             | MediaCommandKind::UnloadMatrix => create(&mut engine, MediaKind::Matrix),
             MediaCommandKind::DropCompositionMedia => create(&mut engine, MediaKind::Composition),
-            MediaCommandKind::Picture => picture,
+            MediaCommandKind::Picture | MediaCommandKind::ConfigureFitMode => picture,
             MediaCommandKind::SharedTexture => shared,
             _ => solid,
         };
@@ -167,7 +167,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             ("direction", ParamValue::Enum("Later".into())),
             ("resolution_enabled", ParamValue::Bool(true)),
             ("resolution", ParamValue::Vec2(17.0, 9.0)),
-            ("sampling", ParamValue::Enum("Nearest".into())),
+            ("fit_mode", ParamValue::Enum("Fill".into())),
             ("rgba", ParamValue::Color(1.0, 0.0, 0.0, 0.5)),
             ("sender", ParamValue::Str("Exact sender".into())),
             ("project_path", ParamValue::File("command.png".into())),

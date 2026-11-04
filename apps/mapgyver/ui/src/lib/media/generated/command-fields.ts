@@ -4,6 +4,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "label"
   ],
+  "ConfigureFitMode": [
+    "media",
+    "fit_mode"
+  ],
   "ConfigureReference": [
     "media",
     "reference_target"
@@ -12,10 +16,6 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "resolution_enabled",
     "resolution"
-  ],
-  "ConfigureSampling": [
-    "media",
-    "sampling"
   ],
   "CreateFolder": [
     "target_folder",

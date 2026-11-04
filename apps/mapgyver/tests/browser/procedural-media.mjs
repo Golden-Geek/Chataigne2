@@ -87,28 +87,35 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 					media.channels.every((channel) => channel.definition.size.extent?.height === 360)
 			);
 			if (kind === 'Matrix') {
-				const duration = parameter('Transition duration').locator('input.number-field');
-				await duration.fill('750');
-				await duration.press('Enter');
-				await wait(
-					(media) =>
-						media.channels.find((channel) => channel.reference.channel === reference.channel)
-							.definition.source.output.definition.transition.duration_ms === 750
-				);
-				await parameter('Transition curve')
-					.locator('select.dropdown-editor')
-					.selectOption('SmoothStep');
-				await wait(
-					(media) =>
-						media.channels.find((channel) => channel.reference.channel === reference.channel)
-							.definition.source.output.definition.transition.curve === 'SmoothStep'
-				);
-				const document = (
-					await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'Inspect' } })
-				).snapshot;
+				const inspect = async () =>
+					(await edit({ kind: 'Matrix', media: reference.media, edit: { kind: 'Inspect' } }))
+						.snapshot;
+				const document = await inspect();
 				assert.deepEqual(document.definition.canvas, { width: 640, height: 360 });
-				assert.equal(document.definition.transition.duration_ms, 750);
-				assert.equal(await parameter('Transition duration').count(), 1);
+				assert(!('transition' in document.definition), 'Transitions belong to Layers');
+				assert.equal(await parameter('Transition duration').count(), 0);
+				const layer = document.items.find((item) => item.id.kind === 'Layer');
+				await page
+					.getByRole('tab')
+					.filter({ hasText: /^Matrix$/ })
+					.click();
+				await page
+					.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true })
+					.getByTitle(`Select ${layer.label}`, { exact: true })
+					.click();
+				const duration = parameter('Transition duration').locator('input.time-field');
+				await duration.fill('00:00:00.750');
+				await duration.press('Enter');
+				assert.equal(await parameter('Transition curve').count(), 0);
+				const deadline = Date.now() + 5000;
+				while (true) {
+					const current = (await inspect()).items.find(
+						(item) => item.id.kind === 'Layer' && item.id.id === layer.id.id
+					).layer;
+					if (current.duration_ms === 750) break;
+					assert(Date.now() < deadline, JSON.stringify(current));
+					await delay(20);
+				}
 			} else {
 				const document = (await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } }))
 					.snapshot;

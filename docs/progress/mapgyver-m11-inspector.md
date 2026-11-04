@@ -1,11 +1,52 @@
 # M11/4 typed Inspector and Fit Mode
 
 **State: Active.** Unit-preserving time controls and native-verified media Fit/Fill/Stretch
-are delivered. Compact channel/File rows and removal of kind/sampling controls remain required.
+are delivered. Kind/sampling controls are removed and expanded rows expose Color directly.
+The single Picture File control and final complete Inspector/browser parity remain required.
+
+## Expanded typed channel controls
+
+Media v7, Reference v3 and command v5 remove authored Sampling, its operation/script method
+and its DTO projection. MapGyver fixes sampling to Linear in source, Reference, Composition
+and Matrix preparation; Golden keeps its app-neutral sampler support. The typed Fit Mode
+command replaces Sampling. Old schema/operation/command records reject rather than silently
+changing authored behavior. Project admission also rejects retired sampling Parameters.
+
+Channel rows start expanded, hide immutable kind controls, and render their real Parameter
+children through Golden's public `inlineChildren`/`childDensity` Inspector hooks. Solid Color
+has one directly editable Color, with no nested Parameters header. Existing labels, context
+menus, shared selection and 32-row paging remain in the generic workbench. Golden also consumes
+rename input key events: Enter previously finished the rename and then collapsed its row.
+
+[Current receipt](evidence/mapgyver-m11-compact-channels-2026-11-04.json): 407 app tests and six
+Composition integration tests pass, along with generated contracts, strict all-target native
+lint, 236 Golden UI tests, 17 affected controller tests and Svelte 0/0. Native verification:
+
+- Actual Color edit/Undo/Redo, peer isolation, rename/duplicate/delete/history and 37-channel
+  paging pass, with mounted control counts 32/5/32. No kind/sampling controls or nested channel
+  Parameter headers appear. Rename retains expansion; normal host exit and screenshot inspection pass.
+- Sibling stability passes 12 real row/Resolution actions over 1,020 animation frames: no
+  removed/disconnected/faded witness and minimum opacity one, including the final density build.
+- Both GPUs retain all 24 complete Fit/Fill/Stretch/Auto images. Requalified Composition uses
+  an independent bilinear CPU oracle for the required Linear contract: 54 complete images cover
+  nesting, transforms, four blends, resize, missing sources, Undo and project reload/recreation.
+  Existing quantization bounds remain; observed errors are at most 1/255. All owners retire normally.
+- Two complete ordinary headless-host runs pass source intents/rejection/assets/history/Save/
+  New/Load, generic shared/procedural Resolution and Layer clock editing, channel CRUD/paging and
+  independent Shared Texture sender edits/history. The old procedural browser fixture was corrected
+  from media-wide numeric transitions to the actual Layer-owned clock. The sender fixture now
+  preserves already-expanded rows instead of collapsing them before editing.
+
+Picture still has an asset reference and its catalog-owned locator Parameters. The required
+single File per Picture channel needs a single-authority typed binding that retains asset
+sharing/import/relink/reload behavior; no mirrored persisted path is introduced here. The full
+legacy generic-Parameters browser entry also still starts with an obsolete reference-only
+Composition form. Its media leaf is reconciled, but the complete entry is not claimed passing.
+These remain in M11/4's final parity/acceptance queue. This slice closes no gate.
 
 ## Media Fit Mode
 
-Picture and Shared Texture media v6 and Reference v2 own a real typed Fit Mode Parameter.
+Picture and Shared Texture media v7 and Reference v3 own a real typed Fit Mode Parameter.
 It applies to every channel at the owning media's forced Resolution. Fit centers an intact
 image with transparent bars; Fill centers and crops it; Stretch scales both axes independently.
 Auto preserves source-native dimensions and the Inspector hides Fit Mode while retaining its
@@ -17,7 +58,8 @@ compositor. Picture preparation stays shared per asset; mode changes add no imag
 Reference Auto retains its shared-target alias. The typed `ConfigureMediaFitMode` operation,
 `configureMediaFitMode` script method and generic Inspector edit the same Parameter.
 Schema admission, all current version consumers and Rust-generated TypeScript change together.
-Old media v5/Reference v1 records are unsupported, without a compatibility migration.
+Older media/Reference records are unsupported, without a compatibility migration. The original
+Fit receipt below used v6/v2; the current Linear/Inspector receipt rechecks the same native pixels.
 
 Verification on 2026-11-04 ([receipt](evidence/mapgyver-m11-media-fit-2026-11-04.json)):
 
@@ -39,10 +81,9 @@ Verification on 2026-11-04 ([receipt](evidence/mapgyver-m11-media-fit-2026-11-04
   channel/kind/sampling cleanup. Native binaries include concurrent user label/theme changes,
   which remain outside this milestone.
 
-Sampling remains authored in this checkpoint and defaults to Linear. Its removal and replacement
-command/catalog parity are the next required M11/4 slice, alongside expanded real File/Color
-channel rows and reconciliation of the older complete browser flows. This is usable partial
-delivery, not acceptance of M11/4 or any retained physical/performance gate.
+Sampling removal, replacement command and expanded Color delivery are verified above. The
+single Picture File control and final complete browser parity remain required. This is usable
+partial delivery, not acceptance of M11/4 or any retained physical/performance gate.
 
 ## Time controls
 
@@ -82,10 +123,9 @@ uncommitted panel-title rename.
 
 ## Exact remaining acceptance
 
-Remove visible Kind/SourceKind and authored generic sampling/filter controls while retaining
-typed backend kinds and Linear sampling. Provide expanded compact channel rows with one Color
-or actual typed File control, without nested Parameters forms. Preserve channel CRUD, labels,
-bounded paging/inspection, independent selection and no per-channel authored size.
+Provide one actual typed File per Picture channel without nested Parameters forms or duplicate
+persisted file state. Preserve asset sharing/import/relink/reload, channel CRUD/labels/paging,
+independent selection and no per-channel authored size. Audit final row layout with the File control.
 
 Preserve the verified media Fit Mode and clock behavior while completing that Inspector change.
 Finish command/catalog and full generic/API/script/headless/history/copy/project/browser parity

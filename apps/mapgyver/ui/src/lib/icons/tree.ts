@@ -10,8 +10,8 @@ import reference from 'golden_ui/style/icons/parameter/reference.svg';
 export const treeIcons: NodeIconSet = {
 	nodeTypes: {
 		'mapgyver.media.folder': folder,
-		'mapgyver.media.v6': media,
-		'mapgyver.media.reference.v2': reference,
+		'mapgyver.media.v7': media,
+		'mapgyver.media.reference.v3': reference,
 		'mapgyver.media.channel': channel,
 		'mapgyver.screen': screen,
 		'mapgyver.surface': surface,

@@ -19,6 +19,7 @@ import { verifyNativeProjectTransitions } from './native-project-transitions.mjs
 import { verifyNativeCapacity } from './native-capacity.mjs';
 import { verifyNativeTimeControls } from './native-time-controls.mjs';
 import { verifyNativeMediaFit } from './native-media-fit.mjs';
+import { verifyNativeCompactChannels } from './native-compact-channels.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -40,6 +41,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--compact-channels', verifyNativeCompactChannels],
 			['--media-fit', verifyNativeMediaFit],
 			['--time-controls', verifyNativeTimeControls],
 			['--capacity', verifyNativeCapacity],

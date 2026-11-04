@@ -106,53 +106,54 @@ impl Image {
                 if u < 0.0 || v < 0.0 || u >= source.width as f64 || v >= source.height as f64 {
                     continue;
                 }
-                let src = source
-                    .at(u.floor() as isize, v.floor() as isize)
-                    .map(|value| value * f64::from(definition.opacity));
+                let (sample, sample_bounds) = source.sample_linear(u, v);
+                let src = sample.map(|value| value * f64::from(definition.opacity));
                 let target = &mut self.pixels[y * self.width + x];
                 *target = quantize(over(src, *target, definition.blend));
-                let source_bounds = source.bounds[source.index(u.floor() as isize, v.floor() as isize)]
-                    .scaled(f64::from(definition.opacity));
+                let source_bounds = sample_bounds.scaled(f64::from(definition.opacity));
                 let index = y * self.width + x;
                 self.bounds[index] = source_bounds.over(self.bounds[index], definition.blend).quantized();
             }
         }
     }
 
+    fn sample_linear(&self, u: f64, v: f64) -> (Pixel, Bounds) {
+        let (u, v) = (u - 0.5, v - 0.5);
+        let (left, top) = (u.floor() as isize, v.floor() as isize);
+        let (a, b) = (u - u.floor(), v - v.floor());
+        let corners = [
+            (left, top, (1.0 - a) * (1.0 - b)),
+            (left + 1, top, a * (1.0 - b)),
+            (left, top + 1, (1.0 - a) * b),
+            (left + 1, top + 1, a * b),
+        ];
+        let sample = std::array::from_fn(|c| corners.iter().map(|(x, y, w)| self.at(*x, *y)[c] * w).sum());
+        let bounds = Bounds {
+            low: std::array::from_fn(|c| {
+                corners
+                    .iter()
+                    .map(|(x, y, w)| self.bounds[self.index(*x, *y)].low[c] * w)
+                    .sum()
+            }),
+            high: std::array::from_fn(|c| {
+                corners
+                    .iter()
+                    .map(|(x, y, w)| self.bounds[self.index(*x, *y)].high[c] * w)
+                    .sum()
+            }),
+        };
+        (sample, bounds)
+    }
+
     pub fn resized(&self, width: usize, height: usize) -> Self {
         let mut result = Self::solid(width, height, [0.0; 4]);
         for y in 0..height {
             for x in 0..width {
-                let u = (x as f64 + 0.5) * self.width as f64 / width as f64 - 0.5;
-                let v = (y as f64 + 0.5) * self.height as f64 / height as f64 - 0.5;
-                let (left, top) = (u.floor() as isize, v.floor() as isize);
-                let (a, b) = (u - u.floor(), v - v.floor());
-                result.pixels[y * width + x] = std::array::from_fn(|c| {
-                    self.at(left, top)[c] * (1.0 - a) * (1.0 - b)
-                        + self.at(left + 1, top)[c] * a * (1.0 - b)
-                        + self.at(left, top + 1)[c] * (1.0 - a) * b
-                        + self.at(left + 1, top + 1)[c] * a * b
-                });
-                let corners = [
-                    (left, top, (1.0 - a) * (1.0 - b)),
-                    (left + 1, top, a * (1.0 - b)),
-                    (left, top + 1, (1.0 - a) * b),
-                    (left + 1, top + 1, a * b),
-                ];
-                result.bounds[y * width + x] = Bounds {
-                    low: std::array::from_fn(|c| {
-                        corners
-                            .iter()
-                            .map(|(x, y, w)| self.bounds[self.index(*x, *y)].low[c] * w)
-                            .sum()
-                    }),
-                    high: std::array::from_fn(|c| {
-                        corners
-                            .iter()
-                            .map(|(x, y, w)| self.bounds[self.index(*x, *y)].high[c] * w)
-                            .sum()
-                    }),
-                };
+                let u = (x as f64 + 0.5) * self.width as f64 / width as f64;
+                let v = (y as f64 + 0.5) * self.height as f64 / height as f64;
+                let (sample, bounds) = self.sample_linear(u, v);
+                result.pixels[y * width + x] = sample;
+                result.bounds[y * width + x] = bounds;
             }
         }
         result

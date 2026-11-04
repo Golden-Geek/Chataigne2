@@ -95,7 +95,7 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
     engine.apply_edits().unwrap();
     // Media/channel each have six Parameters plus their folder; two full instances per branch.
     // The two Reference children each own Fit Mode; generated Composition canvases omit it.
-    assert_eq!(engine.nodes.len(), before_nodes + 14 + DEPTH * 46);
+    assert_eq!(engine.nodes.len(), before_nodes + 13 + DEPTH * 43);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

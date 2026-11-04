@@ -1,6 +1,6 @@
 //! Named script methods translate arguments into the same typed media intents as other callers.
 use golden_core::parameter::ParamValue;
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 use serde::de::DeserializeOwned;
 
 use super::protocol::*;
@@ -13,7 +13,6 @@ pub(super) const METHODS: &[&str] = &[
     "createMedia",
     "addChannel",
     "configureMediaResolution",
-    "configureMediaSampling",
     "configureMediaFitMode",
     "configureSolidColor",
     "configurePicture",
@@ -61,7 +60,7 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 /// Arguments exclude the request id; invalid argument shapes never enqueue partial operations.
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
-        "createMedia" | "addChannel" | "configureMediaSampling" | "configureMediaFitMode" | "inspectChannel" => 2,
+        "createMedia" | "addChannel" | "configureMediaFitMode" | "inspectChannel" => 2,
         "configureMediaResolution" => 4,
         "configureSolidColor" => 6,
         "configurePicture" | "configureSharedTexture" => 3,
@@ -160,10 +159,6 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configureMediaFitMode" => MediaEdit::ConfigureMediaFitMode {
             media: MediaId(uuid(args, 0)?),
             mode: choice(args, 1)?,
-        },
-        "configureMediaSampling" => MediaEdit::ConfigureMediaSampling {
-            media: MediaId(uuid(args, 0)?),
-            filter: choice::<SampleFilter>(args, 1)?,
         },
         "configureMediaResolution" => {
             let Some(ParamValue::Bool(enabled)) = args.get(1) else {

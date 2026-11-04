@@ -38,11 +38,11 @@ independent Target/settings subtree, even when no channel is currently available
 
 The manager's named `dropCompositionMedia` method and typed **Drop Composition Media** command
 use the same intent and committed callback. The command's Position, Copy media and Replace media
-Parameters advance its schema to `mapgyver.media.command.v4`. Older command records reject.
+Parameters use schema `mapgyver.media.command.v5`, whose Fit Mode command replaces Sampling. Older command records reject.
 Placement v2 is versioned separately; radian Placement v1 and old reference-only
 `mapgyver.composition.instance` records reject explicitly before recoverable node decoding.
 Legacy `rotation` operation fields also reject rather than silently defaulting an angle to zero.
-Source media v6 and Reference v2 add media-owned Fit Mode for variable-size sampled sources;
+Source media v7 and Reference v3 own Fit Mode for variable-size sampled sources and fix sampling to Linear;
 the [source-sizing contract](mapgyver.md) owns its behavior. Their source-setting formats are unchanged.
 No persisted-data migration or alternate compatibility model is introduced.
 

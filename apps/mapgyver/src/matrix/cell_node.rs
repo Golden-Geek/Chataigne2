@@ -193,8 +193,8 @@ impl Node for CellNode {
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            "mapgyver.media.v6",
-            "mapgyver.media.reference.v2",
+            "mapgyver.media.v7",
+            "mapgyver.media.reference.v3",
         ]))
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {

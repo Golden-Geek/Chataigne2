@@ -14,7 +14,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 
 use std::sync::OnceLock;
 
-#[node("mapgyver.media.channel", label = "Channel", collapsed = true)]
+#[node("mapgyver.media.channel", label = "Channel", collapsed = false)]
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
@@ -151,7 +151,6 @@ impl ChannelNode {
         ChannelDefinition {
             source,
             size,
-            filter: media.sampling(),
             fit_mode: media.fit_mode(),
         }
     }

@@ -10,12 +10,14 @@ pub(super) fn operation(
     intrinsic: Extent2D,
     target: Extent2D,
     mode: MediaFitMode,
-    filter: SampleFilter,
 ) -> Result<RenderOperation, String> {
     let source_aspect = intrinsic.width() as f64 / intrinsic.height() as f64;
     let target_aspect = target.width() as f64 / target.height() as f64;
     if mode == MediaFitMode::Stretch || source_aspect == target_aspect {
-        return Ok(RenderOperation::Sample { source, filter });
+        return Ok(RenderOperation::Sample {
+            source,
+            filter: SampleFilter::Linear,
+        });
     }
     let (crop, quad) = match mode {
         MediaFitMode::Fit => {
@@ -59,7 +61,7 @@ pub(super) fn operation(
             opacity: Opacity::new(1.0).map_err(|error| error.to_string())?,
             opacity_envelope: None,
             blend: BlendMode::Normal,
-            filter,
+            filter: SampleFilter::Linear,
             mapping: Some(ProjectiveMapping::new(crop, quad).map_err(|error| error.to_string())?),
         }],
     })

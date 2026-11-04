@@ -103,9 +103,6 @@ fn named_invocation(operation: &MediaEdit) -> String {
         MediaEdit::AddChannel { media, label } => {
             ("addChannel", serde_json::json!([media, label.as_deref().unwrap_or("")]))
         }
-        MediaEdit::ConfigureMediaSampling { media, filter } => {
-            ("configureMediaSampling", serde_json::json!([media, filter]))
-        }
         MediaEdit::ConfigureMediaFitMode { media, mode } => ("configureMediaFitMode", serde_json::json!([media, mode])),
         MediaEdit::ConfigureMediaResolution { media, size } => {
             let (enabled, width, height) = match size {
@@ -410,10 +407,6 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
                 media: first.media,
                 mode: MediaFitMode::Fill,
             },
-            MediaEdit::ConfigureMediaSampling {
-                media: first.media,
-                filter: golden_video::plan::SampleFilter::Nearest,
-            },
             MediaEdit::ConfigureMediaResolution {
                 media: first.media,
                 size: SizePolicy::Fixed {
@@ -614,7 +607,7 @@ fn allocating_channel_and_picture_intents_return_owned_ids_without_changing_othe
                         assert_eq!(reference, *target);
                         let previous = channel(&loaded(&baseline.json), *target).unwrap();
                         assert_eq!(selected.definition.size, previous.definition.size);
-                        assert_eq!(selected.definition.filter, previous.definition.filter);
+                        assert_eq!(selected.definition.fit_mode, previous.definition.fit_mode);
                     } else {
                         assert_eq!(after.media.len(), before.media.len() + 1);
                         assert!(!before.media.iter().any(|entry| entry.id == reference.media));

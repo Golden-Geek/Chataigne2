@@ -16,7 +16,7 @@ function visible(child: UiNodeDto) {
 	const field = child.decl_id.split('/').at(-1);
 	if (
 		field === 'fit_mode' &&
-		(owner.node_type === 'mapgyver.media.v6' || owner.node_type === 'mapgyver.media.reference.v2')
+		(owner.node_type === 'mapgyver.media.v7' || owner.node_type === 'mapgyver.media.reference.v3')
 	) {
 		return folder.children.some((id) => {
 			const parameter = session.getNodeData(id);
@@ -62,7 +62,7 @@ function visible(child: UiNodeDto) {
 						: '')
 		);
 	}
-	if (owner.node_type === 'mapgyver.media.command.v4') {
+	if (owner.node_type === 'mapgyver.media.command.v5') {
 		if (field === 'command_kind' || field === 'trigger') return true;
 		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;
 		const fields: readonly string[] = COMMAND_PARAMETER_FIELDS[key] ?? [];
@@ -79,14 +79,15 @@ function visible(child: UiNodeDto) {
 		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
-	if (owner.node_type === 'mapgyver.media.v6') {
+	if (owner.node_type === 'mapgyver.media.v7') {
+		if (field === 'media_kind') return false;
 		return (
 			!['empty_cell', 'transition_ms', 'transition_curve'].includes(field ?? '') ||
 			choice('media_kind') === 'Matrix'
 		);
 	}
 	if (owner.node_type !== 'mapgyver.media.channel') return true;
-	if (field === 'source_kind') return true;
+	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Picture') return field === 'asset';
@@ -100,6 +101,14 @@ function visible(child: UiNodeDto) {
 }
 
 export function registerParameterVisibility() {
+	registerNodeInspectorMatcher(
+		'mapgyver.channel-parameters',
+		(node) =>
+			node.node_type === 'folder' &&
+			node.decl_id === 'parameters' &&
+			parent(node)?.node_type === 'mapgyver.media.channel',
+		{ childFilter: visible, inlineChildren: true, childDensity: 'compact' }
+	);
 	registerNodeInspectorMatcher(
 		'mapgyver.parameter-visibility',
 		(node) =>

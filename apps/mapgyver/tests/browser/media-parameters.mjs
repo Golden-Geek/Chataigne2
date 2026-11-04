@@ -13,7 +13,6 @@ export async function verifyMediaParameters({
 }) {
 	const widgets = page.locator('.parameter-inspector');
 	const parameter = (label) => widgets.filter({ has: page.getByText(label, { exact: true }) });
-	const number = (label) => parameter(label).locator('input.number-field');
 	const choice = (label) => parameter(label).locator('select.dropdown-editor');
 	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
@@ -32,17 +31,10 @@ export async function verifyMediaParameters({
 		const ids = await widgets.evaluateAll((nodes) => nodes.map((node) => node.dataset.nodeId));
 		assert.equal(new Set(ids).size, labels.length, 'Each widget binds a distinct Parameter node');
 	}
-	async function select(reference, kind) {
+	async function select(reference) {
 		await selectMediaChannel(page, await inspectMedia(), reference);
-		await wait(
-			() => choice('Source kind').inputValue(),
-			(value) => value === kind
-		);
-		assert.match(await choice('Source kind').getAttribute('class'), /readonly/);
-	}
-	async function setNumber(label, value) {
-		await number(label).fill(String(value));
-		await number(label).press('Enter');
+		for (const label of ['Kind', 'Source kind', 'Sampling'])
+			assert.equal(await parameter(label).count(), 0);
 	}
 	async function setText(input, value) {
 		await input.fill(value);
@@ -53,81 +45,36 @@ export async function verifyMediaParameters({
 	const shared = catalog.media.find((media) => media.media_kind === 'SharedTexture');
 	const picture = catalog.media.find((media) => media.media_kind === 'Picture');
 	assert(solid && shared && picture);
-	const automatic = solid.channels.find((item) => item.definition.size.kind === 'Automatic');
-	const solidPeer = solid.channels.find((item) => item !== automatic);
-	assert(automatic && solidPeer);
-
-	stage('generic channel size, sampling, visibility and history');
-	await select(automatic.reference, 'SolidColor');
-	await fields(['Source kind', 'Size', 'Sampling', 'Color']);
-	await choice('Size').selectOption('Fixed');
-	await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.size.kind === 'Fixed'
-	);
-	await fields(['Source kind', 'Size', 'Output width', 'Output height', 'Sampling', 'Color']);
-	const widthId = await parameter('Output width').getAttribute('data-node-id');
-	await setNumber('Output width', 640);
-	await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.size.extent.width === 640
-	);
-	await setNumber('Output height', 360);
-	await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.size.extent.height === 360
-	);
-	await choice('Sampling').selectOption('Linear');
-	const fixed = await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.filter === 'Linear'
+	stage('generic compact Color editing and independent channel history');
+	const original = solid.channels[0];
+	const peer = solid.channels[1];
+	await select(original.reference);
+	await fields(['Color']);
+	const color = parameter('Color');
+	await color.locator('.cp-preview').click();
+	await color.locator('.cp-input-hex').fill('ff0000');
+	await color.locator('.cp-input-hex').press('Tab');
+	const changed = await wait(
+		() => channel(original.reference),
+		(value) => JSON.stringify(value.definition.source.rgba.slice(0, 3)) === '[1,0,0]'
 	);
 	await undo();
 	await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.filter === automatic.definition.filter
+		() => channel(original.reference),
+		(value) => isDeepStrictEqual(value, original)
 	);
 	await redo();
 	await wait(
-		() => channel(automatic.reference),
-		(value) => isDeepStrictEqual(value, fixed)
+		() => channel(original.reference),
+		(value) => isDeepStrictEqual(value, changed)
 	);
-	await choice('Size').selectOption('Automatic');
-	await wait(
-		() => channel(automatic.reference),
-		(value) => value.definition.size.kind === 'Automatic'
-	);
-	await fields(['Source kind', 'Size', 'Sampling', 'Color']);
-	await undo();
-	await wait(
-		() => channel(automatic.reference),
-		(value) => isDeepStrictEqual(value, fixed)
-	);
-	await fields(['Source kind', 'Size', 'Output width', 'Output height', 'Sampling', 'Color']);
-	assert.equal(
-		await parameter('Output width').getAttribute('data-node-id'),
-		widthId,
-		'Hiding a field retains its actual Parameter identity'
-	);
-	assert.deepEqual(await channel(solidPeer.reference), solidPeer, 'A peer channel is unchanged');
-	const manager = page.locator('section[aria-label="Media Manager"]');
-	await manager
-		.getByRole('treeitem', { name: solid.label, exact: true })
-		.getByRole('button', { name: solid.label, exact: true })
-		.click();
-	await wait(
-		() => choice('Kind').inputValue(),
-		(value) => value === 'SolidColor'
-	);
-	await fields(['Kind']);
-	assert.match(await choice('Kind').getAttribute('class'), /readonly/);
+	assert.deepEqual(await channel(peer.reference), peer);
 
 	stage('generic sender-only Shared Texture Parameters');
-	const input = shared.channels.find((item) => item.definition.size.kind === 'Automatic');
-	const inputPeer = shared.channels.find((item) => item !== input);
-	assert(input && inputPeer);
-	await select(input.reference, 'SharedTexture');
-	await fields(['Source kind', 'Spout sender']);
+	const input = shared.channels[0],
+		inputPeer = shared.channels[1];
+	await select(input.reference);
+	await fields(['Spout sender']);
 	await setText(parameter('Spout sender').locator('input.string-editor'), 'Parameter Input');
 	const spout = await wait(
 		() => channel(input.reference),
@@ -136,7 +83,7 @@ export async function verifyMediaParameters({
 	await undo();
 	await wait(
 		() => channel(input.reference),
-		(value) => value.definition.source.sender === input.definition.source.sender
+		(value) => isDeepStrictEqual(value, input)
 	);
 	await redo();
 	await wait(
@@ -148,10 +95,8 @@ export async function verifyMediaParameters({
 
 	stage('generic Picture reference and asset File Parameters');
 	const linked = picture.channels[0];
-	await select(linked.reference, 'Picture');
-	const pictureFields = ['Source kind', 'Size', 'Sampling', 'Picture asset'];
-	if (linked.definition.size.kind === 'Fixed') pictureFields.push('Output width', 'Output height');
-	await fields(pictureFields);
+	await select(linked.reference);
+	await fields(['Picture asset']);
 	assert.equal(await parameter('Picture asset').locator('.reference-editor').count(), 1);
 	await page.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
 	await wait(
@@ -199,33 +144,38 @@ export async function verifyMediaParameters({
 	);
 	await page.screenshot({ path: 'target/mapgyver-asset-parameters-ui.png' });
 
-	stage('generic Composition canvas Parameters');
-	await select(composition, 'Composition');
-	await fields(['Source kind', 'Size', 'Sampling', 'Canvas width', 'Canvas height']);
-	await setNumber('Canvas width', 1440);
-	await wait(
-		() => channel(composition),
-		(value) => value.definition.source.canvas.width === 1440
-	);
-	await setNumber('Canvas height', 900);
-	const canvas = await wait(
-		() => channel(composition),
-		(value) => value.definition.source.canvas.height === 900
-	);
-	await undo();
-	await wait(
-		() => channel(composition),
-		(value) => value.definition.source.canvas.height === 1080
-	);
-	await redo();
-	await wait(
-		() => channel(composition),
-		(value) => isDeepStrictEqual(value, canvas)
+	async function canvas(reference, width, height, readCanvas) {
+		const media = (await inspectMedia()).media.find((item) => item.id === reference.media);
+		await page.getByRole('button', { name: media.label, exact: true }).click();
+		const resolution = parameter('Resolution');
+		const toggle = resolution.getByRole('switch', { name: 'Toggle node enabled' });
+		if ((await toggle.getAttribute('aria-checked')) === 'false') await toggle.click();
+		const inputs = resolution.locator('input.number-field');
+		await inputs.nth(0).fill(String(width));
+		await inputs.nth(0).press('Enter');
+		await wait(readCanvas, (value) => value.width === width);
+		const before = await readCanvas();
+		await inputs.nth(1).fill(String(height));
+		await inputs.nth(1).press('Enter');
+		const after = await wait(readCanvas, (value) => value.height === height);
+		await undo();
+		await wait(readCanvas, (value) => isDeepStrictEqual(value, before));
+		await redo();
+		await wait(readCanvas, (value) => isDeepStrictEqual(value, after));
+		for (const label of ['Kind', 'Source kind', 'Sampling', 'Canvas width', 'Canvas height'])
+			assert.equal(await parameter(label).count(), 0);
+	}
+	stage('generic media-owned Composition Resolution');
+	await canvas(
+		composition,
+		1440,
+		900,
+		async () => (await channel(composition)).definition.source.canvas
 	);
 
-	stage('generic Matrix final canvas and transition Parameters');
+	stage('generic media-owned Matrix Resolution; transitions remain Layer-owned clocks');
 	const beforeMatrix = await inspectMedia();
-	await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
+	await page.getByRole('button', { name: 'Add child item', exact: true }).first().click();
 	await page.getByRole('menuitem', { name: 'Matrix', exact: true }).click();
 	const withMatrix = await wait(
 		inspectMedia,
@@ -236,48 +186,13 @@ export async function verifyMediaParameters({
 	);
 	assert.equal(matrix.media_kind, 'Matrix');
 	const output = matrix.channels[0].reference;
-	await select(output, 'Matrix');
-	await fields([
-		'Source kind',
-		'Size',
-		'Sampling',
-		'Canvas width',
-		'Canvas height',
-		'Matrix output',
-		'Empty cell',
-		'Transition duration',
-		'Transition curve'
-	]);
-	await setNumber('Canvas width', 1280);
-	await wait(
-		() => channel(output),
-		(value) => value.definition.source.output.definition.canvas.width === 1280
+	await canvas(
+		output,
+		1280,
+		720,
+		async () => (await channel(output)).definition.source.output.definition.canvas
 	);
-	await setNumber('Canvas height', 720);
-	await wait(
-		() => channel(output),
-		(value) => value.definition.source.output.definition.canvas.height === 720
-	);
-	await setNumber('Transition duration', 1234);
-	await wait(
-		() => channel(output),
-		(value) => value.definition.source.output.definition.transition.duration_ms === 1234
-	);
-	await choice('Transition curve').selectOption('SmoothStep');
-	const transition = await wait(
-		() => channel(output),
-		(value) => value.definition.source.output.definition.transition.curve === 'SmoothStep'
-	);
-	await undo();
-	await wait(
-		() => channel(output),
-		(value) => value.definition.source.output.definition.transition.curve === 'Linear'
-	);
-	await redo();
-	await wait(
-		() => channel(output),
-		(value) => isDeepStrictEqual(value, transition)
-	);
+	assert.equal(await parameter('Transition duration').count(), 0);
 	await page.screenshot({ path: 'target/mapgyver-matrix-channel-parameters-ui.png' });
 	assert.equal(rejected.length, rejectionCount + 1);
 }

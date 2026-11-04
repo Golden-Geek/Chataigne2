@@ -1,7 +1,7 @@
 use super::*;
 use crate::media::{asset, channel, validate_project};
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 
 fn relative(path: &str) -> AssetLocator {
     AssetLocator::ProjectRelative {
@@ -91,9 +91,9 @@ fn import_into_one_channel_preserves_output_settings_and_relink_keeps_shared_ass
     );
     apply(
         &mut engine,
-        MediaEdit::ConfigureMediaSampling {
+        MediaEdit::ConfigureMediaFitMode {
             media: first.media,
-            filter: SampleFilter::Nearest,
+            mode: MediaFitMode::Fill,
         },
     );
     let first_definition = channel(&engine, first).unwrap().definition;
@@ -118,7 +118,7 @@ fn import_into_one_channel_preserves_output_settings_and_relink_keeps_shared_ass
         }
     );
     assert_eq!(actual.size, definition.size);
-    assert_eq!(actual.filter, definition.filter);
+    assert_eq!(actual.fit_mode, definition.fit_mode);
     assert_eq!(channel(&engine, first).unwrap().definition, first_definition);
     assert!(engine.undo().unwrap());
     assert!(asset(&engine, replacement).is_err());

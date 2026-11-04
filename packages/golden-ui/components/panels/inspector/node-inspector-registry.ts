@@ -35,6 +35,10 @@ export interface NodeInspectorEntry {
 	panelHeaderComponent?: any;
 	/** Filter ordinary child rendering without replacing the generic Inspector. */
 	childFilter?: NodeInspectorChildFilter;
+	/** Render a structural container's ordinary children directly, without a foldout header. */
+	inlineChildren?: boolean;
+	/** Density inherited by ordinary child editors in this container. */
+	childDensity?: 'default' | 'compact';
 }
 
 export type NodeInspectorRegistry = Record<string, NodeInspectorEntry>;

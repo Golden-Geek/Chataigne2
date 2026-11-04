@@ -4,7 +4,7 @@ use golden_core::{
     app::{from_sparse_project_json, to_sparse_project_json_pretty},
     node::Node,
 };
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 
 #[test]
 fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independent_history() {
@@ -52,13 +52,6 @@ fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independe
                     size: SizePolicy::Fixed {
                         extent: Extent2D::new(7, 3).unwrap(),
                     },
-                },
-            );
-            apply(
-                &mut engine,
-                MediaEdit::ConfigureMediaSampling {
-                    media: first.media,
-                    filter: SampleFilter::Nearest,
                 },
             );
             if kind != MediaKind::SolidColor {

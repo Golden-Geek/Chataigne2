@@ -60,7 +60,8 @@ export async function verifySharedTextureUi({ base, edit, inspectMedia }) {
 			.locator('.node-inspector')
 			.filter({ has: page.getByText(label, { exact: true }) })
 			.first();
-		await entry.locator(':scope > .node-header > .node-title').press('Enter');
+		const title = entry.locator(':scope > .node-header > .node-title');
+		if ((await title.getAttribute('aria-checked')) === 'false') await title.press('Enter');
 		const sender = entry
 			.locator('.parameter-inspector')
 			.filter({ has: page.getByText('Spout sender', { exact: true }) });

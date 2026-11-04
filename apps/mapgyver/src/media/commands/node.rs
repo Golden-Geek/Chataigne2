@@ -6,10 +6,10 @@ use golden_core::{
     parameter::{Color, Enum, File, ParamValue, ReferenceTargetKind, Vec2},
     process_ctx::ProcessCtx,
 };
-use golden_video::{Extent2D, plan::SampleFilter};
+use golden_video::Extent2D;
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v4", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v5", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -20,7 +20,7 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
@@ -29,9 +29,9 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]);
+            reference_allowed_node_types = vec!["mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -50,7 +50,7 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v6".into(), "mapgyver.media.reference.v2".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v7".into(), "mapgyver.media.reference.v3".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
@@ -69,9 +69,9 @@ use std::sync::Arc;
             step = 1.0,
             constraint_policy = "reject"
         );
-        sampling: Enum = "Linear" (
-            label = "Sampling",
-            enum_options = crate::parameters::enum_options(&["Linear", "Nearest"]),
+        fit_mode: Enum = "Fit" (
+            label = "Fit Mode",
+            enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]),
             constraint_policy = "reject"
         );
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", constraint_policy = "reject");
@@ -245,9 +245,9 @@ impl MediaCommandNode {
                     },
                 }
             }
-            MediaCommandKind::ConfigureSampling => MediaEdit::ConfigureMediaSampling {
+            MediaCommandKind::ConfigureFitMode => MediaEdit::ConfigureMediaFitMode {
                 media,
-                filter: choice::<SampleFilter>(self.sampling.get_ref().as_str())?,
+                mode: choice::<MediaFitMode>(self.fit_mode.get_ref().as_str())?,
             },
             MediaCommandKind::SolidColor => {
                 let color = self.rgba.get();
@@ -358,7 +358,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v4", from_struct)]
+#[node("mapgyver.media.command.v5", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false
@@ -439,7 +439,7 @@ impl Node for MediaCommandNode {
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         self.kind()?;
         choice::<MediaKind>(self.media_kind.get_ref().as_str())?;
-        choice::<SampleFilter>(self.sampling.get_ref().as_str())?;
+        choice::<MediaFitMode>(self.fit_mode.get_ref().as_str())?;
         choice::<ChannelMoveDirection>(self.direction.get_ref().as_str())?;
         choice::<ChannelChoiceScope>(self.choice_scope.get_ref().as_str())?;
         choice::<crate::matrix::protocol::LaunchMode>(self.launch_mode.get_ref().as_str())?;

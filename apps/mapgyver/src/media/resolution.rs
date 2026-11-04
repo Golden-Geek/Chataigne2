@@ -4,7 +4,6 @@ pub(crate) use observations::{ResolutionSnapshot, RuntimeResolutions};
 #[cfg(test)]
 mod tests;
 
-use golden_video::plan::SampleFilter;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, LinearColor, TextureDescriptor};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -79,7 +78,6 @@ impl ChannelDefinition {
         Self {
             source,
             size: SizePolicy::Automatic,
-            filter: SampleFilter::Linear,
             fit_mode: super::protocol::MediaFitMode::Fit,
         }
     }

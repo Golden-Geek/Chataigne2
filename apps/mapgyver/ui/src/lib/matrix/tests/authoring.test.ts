@@ -115,7 +115,6 @@ function snapshot(media: string, row = 0): MediaEditResult {
 						}
 					},
 					size: { kind: 'Automatic' },
-					filter: 'Linear',
 					fit_mode: 'Fit'
 				}
 			},

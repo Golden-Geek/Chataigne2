@@ -112,16 +112,17 @@ fn old_media_schemas_are_rejected_instead_of_reinterpreting_channel_settings() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::SolidColor);
     let json = to_sparse_project_json_pretty(&engine).unwrap();
-    assert!(json.contains("mapgyver.media.v6"));
+    assert!(json.contains("mapgyver.media.v7"));
     for old_type in [
         "mapgyver.media",
         "mapgyver.media.v2",
         "mapgyver.media.v3",
         "mapgyver.media.v4",
         "mapgyver.media.v5",
+        "mapgyver.media.v6",
         "mapgyver.media.v999",
     ] {
-        let old = json.replace("mapgyver.media.v6", old_type);
+        let old = json.replace("mapgyver.media.v7", old_type);
         let error = from_sparse_project_json::<crate::app::AppNode>(&old)
             .err()
             .expect("old media schema must not load")

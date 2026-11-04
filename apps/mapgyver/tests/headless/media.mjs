@@ -196,10 +196,8 @@ try {
 			const definition = {
 				...before.definition,
 				source,
-				size: { kind: 'Automatic' },
-				filter: 'Nearest'
+				size: { kind: 'Automatic' }
 			};
-			await edit({ kind: 'ConfigureMediaSampling', media: reference.media, filter: 'Nearest' });
 			await edit({ kind: 'ConfigureChannel', reference, source });
 			assert.deepEqual((await channel(reference)).definition, definition);
 		}
@@ -277,7 +275,7 @@ try {
 	const unsupported = path.join(directory, 'unsupported-media-schema.mapgyver');
 	await writeFile(
 		unsupported,
-		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v6', 'mapgyver.media')
+		(await readFile(document, 'utf8')).replaceAll('mapgyver.media.v7', 'mapgyver.media')
 	);
 	await assert.rejects(
 		() => post('/api/ui/project-load', { path: unsupported }),
