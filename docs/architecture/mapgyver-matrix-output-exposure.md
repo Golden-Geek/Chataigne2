@@ -16,6 +16,15 @@ unavailable. Authored pinned identities remain intact, including while unavailab
 copying and cycle checks must read authored dependencies rather than discard hidden edges.
 Runtime `MediaSource::capture` applies availability separately and guards visibility changes.
 
+The generic Channels Inspector consumes the same bounded public channel page rather than
+raw document children. It renders the admitted identities through Golden's normal child
+Inspector; it does not infer exposure from Parameters. While metadata refreshes, it retains
+only page membership within the same session/project/media/page so live Parameter editors
+keep their DOM and input capture. Definitions remain live Golden nodes. Project replacement,
+disconnect and page changes fence that membership. Actual native WebView tests verify default
+Final-only discovery, Layer/Group toggles, Blend Mode, Reference discovery and Undo/Redo with
+stable identities. Ordinary channel color editing, CRUD/history and 37-channel paging also pass.
+
 Capture retains the complete internal Group/Layer graph needed by Final. Hidden-only public
 demand captures a missing record and does not activate the producer graph. Renderer output
 routes use a transparent missing target for hidden roots; Screen/preview routing excludes
@@ -72,11 +81,11 @@ grouping, clipping and same-generation updates pass software checks; both GPUs p
 repeated-image primitive. This is an admitted-scene checkpoint, not full Matrix qualification.
 Mixed/large distinct-source snapshot admission, retained GPU completion and the full revised
 native cohort remain required; a viewport beyond the active source budget is not accepted by
-this evidence. Generic Inspector exposure/discovery still needs actual-app acceptance.
+this evidence. Generic Inspector exposure/discovery now passes actual-app acceptance.
 
 M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented;
 protocol-v5 grouping passes software checks and actual-app registration admission. Its full
-pixel acceptance is still required, including the prior loss/Undo/Fit/scroll cohort. Mixed/large distinct-source snapshots, actual Inspector
-exposure acceptance, complete sparse/source-loss/preview retirement and the revised full
+pixel acceptance is still required, including the prior loss/Undo/Fit/scroll cohort. Mixed/large distinct-source snapshots,
+complete sparse/source-loss/preview retirement and the revised full
 native cohort remain required. The desktop's eight-registration budget is unchanged. Thumbnail admission
 must continue sharing sources/decoders rather than duplicating them per Cell.

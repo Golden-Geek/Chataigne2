@@ -4,8 +4,8 @@
 
 **Verified acceptance: 54/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/8 Active: nine Cell source groups now install in one logical preview registration.
-**Next action:** verify exact nine-source/Matrix Final and loss/Undo/Fit/scroll pixels when owned-window foreground activation is available; continue actual Inspector exposure/discovery acceptance meanwhile.
+**Current topic:** M11/8 Active: grouped Cell previews and backend-admitted generic Channels Inspector delivered.
+**Next action:** finish revised sparse/source-loss/preview-retirement acceptance; return to exact nine-source/Matrix Final and loss/Undo/Fit/scroll pixels when owned-window foreground activation works.
 **Blocker:** guarded native pixel capture cannot foreground its owned window; the supported computer-use native pipe is unavailable. This blocks that check, not remaining M11/8 implementation. Original physical/timing and app-control retirement gates remain unaccepted.
 **Execution:** M11/8 alone is selected Active; M11/1–7 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
@@ -24,6 +24,9 @@ negotiates eight. Earlier notes conflated these limits. The app cap is unchanged
 grid lease now carries its source groups through generated preview protocol v5. Logical channel capture has a separate bounded
 128-definition policy, while physical producer/pass/dependency/memory budgets stay unchanged.
 **Previously delivered:** [Typed Matrix output exposure](../architecture/mapgyver-matrix-output-exposure.md): Layer/Group opt-in channels preserve internal Final rendering; discovery, References, demand and retired identities honor exposure.
+The generic Channels Inspector now follows the same bounded backend admission. Actual native
+Layer/Group exposure, Blend Mode, Reference discovery and history pass; ordinary live channel
+editing, CRUD/history and 37-channel paging remain verified.
 **Previously delivered:** [Composition-owned creation](../architecture/mapgyver-owned-media.md): right-click the canvas for all supported media types; real typed children, placement, selection and single-step history need no source object in the catalog.
 **Previously delivered:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): centered navigation and contextual actions, bounded offscreen Matrix Frame, selected-only Surface paint and history-safe geometry input.
 **Previously delivered:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
@@ -98,7 +101,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M11/5 | [Live sender control acceptance](../architecture/mapgyver-sender-selection.md): Manual String + inline Detect, Auto Enum, live metadata, exact recovery, independent GPU outputs, adapter mismatch, history and post-load mode/absence/recovery. |
 | Accepted | M11/6 | [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): public toolbar/shortcuts, contextual actions, bounded Matrix Frame, selected-only paint, native navigation/Composition/keyboard/history/source and narrow-peer checks pass. |
 | Accepted | M11/7 | [Owned creation](evidence/mapgyver-m11-composition-creation-2026-11-04.json): complete backend/catalog/command/script/template contract, actual native/headless menus and history, toolbar copy/delete, reorder, project identity and independent GPU pixels before/after reload. |
-| Active | M11/8 | [Grouped Cell tiles](evidence/mapgyver-m11-cell-tiles-2026-11-04.json): nine actual-app source groups install in one grid lease under the unchanged eight-registration cap. Software checks pass; exact native pixels/Matrix Final remain unaccepted because the owned window cannot be foregrounded. Return on working foreground activation, rerun that cohort and prior loss/Undo/Fit/scroll pixels. Next independent requirement: actual Inspector exposure/discovery. Mixed/large snapshots and full sparse/retirement remain required. |
+| Active | M11/8 | [Grouped Cell tiles and Inspector admission](evidence/mapgyver-m11-cell-tiles-2026-11-04.json): nine sources install in one grid lease; actual generic Inspector exposure/Blend Mode/Reference/history and channel-editing regression pass. Exact grouped native pixels/Matrix Final remain unaccepted because the owned window cannot be foregrounded. Return on working foreground activation, rerun that cohort and prior loss/Undo/Fit/scroll pixels. Next: revised sparse/source-loss/preview retirement and mixed/large snapshots. |
 | Pending | M11/9–10 | After M11/8: identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
@@ -126,21 +129,23 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch (2026-11-04):** 19:17–20:02 CET implementation slice. Deliverable: all
-  Matrix Cell source groups share one logical grid registration, preserving the desktop cap
-  of eight registrations. Owners: Golden preview protocol/geometry/placement and MapGyver
-  grid/layout projection. Proving checks: typed group admission and independent placements,
-  completion-aware parent installation, contract generation/UI checks, then the exact native
-  nine-source/twelve-Cell and independent Matrix Final cohort plus prior source-loss/Fit tests.
-  Result: protocol v5 groups admit all nine exact source identities in one installed actual-app
-  registration, with no fallback. 431 app / 195 video tests, strict all-target Clippy, both
-  Svelte checks and 94 app / 31 preview UI tests pass. Exact pixel capture fails the unchanged
-  owned-foreground guard; supported computer-use activation cannot connect its native pipe.
-  No pixel or Matrix Final acceptance is claimed for this binary. Return on working foreground
-  activation and rerun both exact cohorts. Next: actual Inspector exposure/discovery within
-  M11/8. Full mixed/large snapshots and revised native/sparse/completion-safe retirement remain
-  required. Prior metadata fix `b96359ec` is pushed; its investigation is concluded. M11/8 remains the only Active gate;
-  no gate credit yet: 54/67 (81%), M11 7/10, phases 6/12.
+- **Current batch (2026-11-04):** 19:53–20:38 CET. Deliverable: the actual generic Channels
+  Inspector follows backend Matrix output admission, including default-hidden Layer/Group
+  channels, typed Expose Channel edits and history/Reference recovery. Owner: app-owned
+  Inspector projection consuming the bounded backend channel page, not UI exposure policy.
+  Proving check: one baseline actual-app test, then the same native WebView interaction after
+  the fix; relevant UI checks and required formatting. Hypothesis: ChannelsSection currently
+  reads raw document children and bypasses the already filtered public channel API. A baseline
+  showing only Final would reject that hypothesis. Baseline reproduced five Inspector rows
+  versus one backend-admitted Final. The fix consumes public page identities and retains only
+  bounded membership during edits, with session/project/page fencing. Svelte and 94 app UI
+  tests pass; the isolated build succeeds. Actual native exposure/Blend Mode/Reference/history
+  passes, plus the ordinary channel-edit/CRUD/history/37-channel regression (349 successful
+  receipts, no errors). No full gate closed: 54/67 (81%), M11 7/10, phases 6/12. Grouped-grid
+  milestone `0b74664d` is pushed and remotely verified. Its exact native pixel cohort and
+  prior loss/Undo/Fit/scroll cohort still require working owned-window foreground activation;
+  no more activation probes are selected. Next: revised sparse/source-loss/preview retirement
+  and mixed/large snapshots within M11/8. Stop at 20:38 CET; preserve the sole Active gate.
 
 ## Maintenance rule
 

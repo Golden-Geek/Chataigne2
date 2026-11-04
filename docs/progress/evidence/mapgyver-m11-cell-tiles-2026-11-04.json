@@ -63,10 +63,28 @@
 		],
 		"scope": "Software-qualified implementation and actual registration admission only. Prior v4 grid pixels do not qualify the changed v5 layout. No gate credit."
 	},
+	"inspector_admission_checkpoint": {
+		"binary": "target/debug/deps/MapGyver-codex-m118-exposure.exe",
+		"sha256": "90E48F54DC52A8A92EB20387E00C0373F80D614D5D1A9A0DC336F3D7B8791373",
+		"baseline": "Actual generic Channels Inspector lists five internal channels while InspectChannels correctly exposes only Final. Reproduced before editing ChannelsSection.",
+		"fix": "ChannelsSection consumes the bounded backend channel page and renders admitted identities with the generic Golden Inspector. No UI exposure policy. Only membership is retained across metadata refreshes to preserve live editors; session/project/media/page changes fence it.",
+		"software": "MapGyver Svelte check has zero errors/warnings; all 94 app UI tests pass. Rust source unchanged from the passing 431 app/195 video and strict Clippy prerequisite cycle; isolated bundled executable build succeeds.",
+		"native": "--matrix-output-exposure passes: actual Final-only Inspector, typed Layer and Group Expose Channel edits, Blend Mode, two admitted rows when exposed, backend and actual Reference list discovery, hide/Undo/Redo and stable output identities. No page errors or rejected requests; owned host exits normally.",
+		"regression": "--compact-channels passes on the same binary: live RGBA/hex edits and Undo/Redo, isolated peer, rename/duplicate/delete/history, 37 channels with mounted pages 32/5/32, 349 requests and 349 successful receipts, no rejection/page errors, idle final activity; owned host exits normally.",
+		"logs": [
+			"target/m118-exposure-baseline.log",
+			"target/m118-exposure-svelte.log",
+			"target/m118-exposure-all-ui.log",
+			"target/m118-exposure-build.log",
+			"target/m118-exposure-native.log",
+			"target/m118-exposure-compact.log"
+		],
+		"scope": "Inspector/discovery requirement verified; grouped native pixels and remaining M11/8 qualification are still open. No full gate credit."
+	},
 	"remaining": [
 		"Complete guarded native nine-source/Matrix Final and prior loss/Undo/Fit/scroll pixels for grouped protocol v5 after foreground activation is restored.",
 		"Mixed and large distinct-source snapshot admission within retained producer/pass/memory limits; more than eight simultaneous source roots is not qualified by this slice.",
-		"Actual generic Inspector output exposure/discovery, complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
+		"Complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
 	],
 	"acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
 }
