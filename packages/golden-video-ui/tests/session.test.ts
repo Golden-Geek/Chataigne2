@@ -150,8 +150,7 @@ describe('window preview session', () => {
 		let tiles = [{ x: 0, y: 0, width: 10, height: 10 }];
 		const view = session.register('shared-channel', () => ({
 			...geometry(),
-			tiles,
-			tile_capacity: 4
+			tile_groups: [{ source: 'child-source', tiles, capacity: 4 }]
 		}));
 		await session.connect();
 		await flush();
@@ -165,7 +164,11 @@ describe('window preview session', () => {
 		await session.whenSettled();
 		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
 		expect(layouts.at(-1)?.views).toEqual([
-			expect.objectContaining({ id: view.id, source: 'shared-channel', tiles, tile_capacity: 4 })
+			expect.objectContaining({
+				id: view.id,
+				source: 'shared-channel',
+				tile_groups: [{ source: 'child-source', tiles, capacity: 4 }]
+			})
 		]);
 		view.unregister();
 		await flush();

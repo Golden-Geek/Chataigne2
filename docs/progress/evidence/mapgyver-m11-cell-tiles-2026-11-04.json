@@ -1,47 +1,72 @@
 {
-  "date": "2026-11-04",
-  "gate": "M11/8",
-  "gate_state": "Active",
-  "delivered": "Native visible Matrix Cell thumbnails grouped by canonical source, with backend media [channel] labels",
-  "binary": "target/debug/deps/MapGyver-codex-m118-cell-tiles.exe",
-  "sha256": "649458D9928A8BFB9C4262BBC1CF250D4E3BE1854724A24D493DF5742096F8FA",
-  "software": {
-    "mapgyver": "428 passed, 3 explicit ignores",
-    "golden_video": "195 passed, 26 explicit ignores",
-    "strict_clippy": "Both crates, all targets and qualification/native/process/smoke features pass with -D warnings",
-    "svelte": "MapGyver and Golden Video UI each have 0 errors and 0 warnings",
-    "ui": "94 app tests and 31 preview-session tests pass",
-    "contracts": "Preview protocol version 4 and qualification DTOs generated; fresh preview export matches checked-in declarations; Rust qualification contract check passes",
-    "coverage": "Source grouping vs independent identities, Reference resolution/enablement/history/project preservation, partial/offscreen and missing-source geometry, host clipping, coherent same-routing tile updates, bounded metadata, lease withdrawal and unchanged distinct-source admission",
-    "checker_repair": "Golden Video UI checker target ES2023 matches its existing Golden UI findLast dependency"
-  },
-  "native": {
-    "command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-cell-previews",
-    "result": "pass; owned native host exits normally",
-    "adapter_scope": "Ordinary configured native adapter, not pinned by this cohort; both-adapter full-grid acceptance remains open",
-    "images": 6,
-    "samples": "Four Cell centers per guarded foreground image plus a transformed Reference's black Fit area; unchanged 2/255 component tolerance for expected RGB colors",
-    "coverage": "Four Cells share two source registrations; actual red/blue images, live green source edit, selection without playback launch, source loss with blue peer retained, exact Undo recovery, fixed-resolution Reference identity and black Fit pixels with peers preserved, horizontal scroll lease withdrawal/recovery and New",
-    "observer_repair": "Select the captioned owned app HWND; the same process also owns an uncaptioned native presentation window. PID and foreground guards remain mandatory.",
-    "evidence": "target/m118-grid-native/result.json and per-phase cells.png",
-    "log": "target/m118-grid-native.log",
-    "regression": "All three Golden native region tests pass; repeated-image primitive runs on both adapters; actual headless Matrix ownership/labels/history/project check passes"
-  },
-  "logical_admission_checkpoint": {
-    "binary": "target/debug/deps/MapGyver-codex-m118-logical-admission.exe",
-    "sha256": "D0A88F4DC2AB6208D326F99443CA641D261B0E30BC2BA235FC4FB144C2A56BD7",
-    "implemented": "Desktop capture separates bounded logical metadata (128 channels) from eight physical producer/texture inputs; 24-pass, 128-dependency, memory and retirement bounds remain unchanged",
-    "software": "431 app library tests pass, 3 explicit ignores; strict all-target Clippy passes. Nine procedural sources retain all nine correct color clears/bindings in a 14-pass plan, with zero external textures; nine physical inputs are rejected.",
-    "native": "Not accepted. Two attempts of the nine-source/twelve-Cell cohort fail before complete pixel acceptance. The first shows one black tile; the stricter per-registration presentation check confirms it never installs.",
-    "root_cause": "The desktop host negotiates eight registrations. Golden's default 64 was incorrectly reported as the app's limit in earlier notes. The ninth per-source grid registration is refused; metadata admission alone cannot fix it.",
-    "next_implementation": "Typed source groups inside one logical grid registration, retaining the actual eight-registration app cap; rerun the exact nine-source grid and Matrix Final cohort after that implementation and prerequisite checks.",
-    "logs": ["target/m118-admission-rust.log", "target/m118-admission-clippy.log", "target/m118-admission-plan.log", "target/m118-admission-native.log"],
-    "native_scope": "The complete nine-source pixel/output cohort remains required. No new native acceptance or gate credit."
-  },
-  "remaining": [
-    "Group source tiles inside one grid registration to respect the actual eight-registration desktop cap; the nine-source native cohort is currently failing.",
-    "Mixed and large distinct-source snapshot admission within retained producer/pass/memory limits; more than eight simultaneous source roots is not qualified by this slice.",
-    "Actual generic Inspector output exposure/discovery, complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
-  ],
-  "acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
+	"date": "2026-11-04",
+	"gate": "M11/8",
+	"gate_state": "Active",
+	"delivered": "Native visible Matrix Cell thumbnails grouped by canonical source, with backend media [channel] labels",
+	"binary": "target/debug/deps/MapGyver-codex-m118-cell-tiles.exe",
+	"sha256": "649458D9928A8BFB9C4262BBC1CF250D4E3BE1854724A24D493DF5742096F8FA",
+	"software": {
+		"mapgyver": "428 passed, 3 explicit ignores",
+		"golden_video": "195 passed, 26 explicit ignores",
+		"strict_clippy": "Both crates, all targets and qualification/native/process/smoke features pass with -D warnings",
+		"svelte": "MapGyver and Golden Video UI each have 0 errors and 0 warnings",
+		"ui": "94 app tests and 31 preview-session tests pass",
+		"contracts": "Preview protocol version 4 and qualification DTOs generated; fresh preview export matches checked-in declarations; Rust qualification contract check passes",
+		"coverage": "Source grouping vs independent identities, Reference resolution/enablement/history/project preservation, partial/offscreen and missing-source geometry, host clipping, coherent same-routing tile updates, bounded metadata, lease withdrawal and unchanged distinct-source admission",
+		"checker_repair": "Golden Video UI checker target ES2023 matches its existing Golden UI findLast dependency"
+	},
+	"native": {
+		"command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-cell-previews",
+		"result": "pass; owned native host exits normally",
+		"adapter_scope": "Ordinary configured native adapter, not pinned by this cohort; both-adapter full-grid acceptance remains open",
+		"images": 6,
+		"samples": "Four Cell centers per guarded foreground image plus a transformed Reference's black Fit area; unchanged 2/255 component tolerance for expected RGB colors",
+		"coverage": "Four Cells share two source registrations; actual red/blue images, live green source edit, selection without playback launch, source loss with blue peer retained, exact Undo recovery, fixed-resolution Reference identity and black Fit pixels with peers preserved, horizontal scroll lease withdrawal/recovery and New",
+		"observer_repair": "Select the captioned owned app HWND; the same process also owns an uncaptioned native presentation window. PID and foreground guards remain mandatory.",
+		"evidence": "target/m118-grid-native/result.json and per-phase cells.png",
+		"log": "target/m118-grid-native.log",
+		"regression": "All three Golden native region tests pass; repeated-image primitive runs on both adapters; actual headless Matrix ownership/labels/history/project check passes"
+	},
+	"logical_admission_checkpoint": {
+		"binary": "target/debug/deps/MapGyver-codex-m118-logical-admission.exe",
+		"sha256": "D0A88F4DC2AB6208D326F99443CA641D261B0E30BC2BA235FC4FB144C2A56BD7",
+		"implemented": "Desktop capture separates bounded logical metadata (128 channels) from eight physical producer/texture inputs; 24-pass, 128-dependency, memory and retirement bounds remain unchanged",
+		"software": "431 app library tests pass, 3 explicit ignores; strict all-target Clippy passes. Nine procedural sources retain all nine correct color clears/bindings in a 14-pass plan, with zero external textures; nine physical inputs are rejected.",
+		"native": "Not accepted. Two attempts of the nine-source/twelve-Cell cohort fail before complete pixel acceptance. The first shows one black tile; the stricter per-registration presentation check confirms it never installs.",
+		"root_cause": "The desktop host negotiates eight registrations. Golden's default 64 was incorrectly reported as the app's limit in earlier notes. The ninth per-source grid registration is refused; metadata admission alone cannot fix it.",
+		"next_implementation": "Typed source groups inside one logical grid registration, retaining the actual eight-registration app cap; rerun the exact nine-source grid and Matrix Final cohort after that implementation and prerequisite checks.",
+		"logs": [
+			"target/m118-admission-rust.log",
+			"target/m118-admission-clippy.log",
+			"target/m118-admission-plan.log",
+			"target/m118-admission-native.log"
+		],
+		"native_scope": "The complete nine-source pixel/output cohort remains required. No new native acceptance or gate credit."
+	},
+	"grouped_registration_checkpoint": {
+		"binary": "target/debug/deps/MapGyver-codex-m118-grouped-grid.exe",
+		"sha256": "1A1A4629BAE4FC9E5A1B172C93721EBABB5C4D005D46BEF2467A7851218EB629",
+		"implemented": "Generated preview protocol v5 carries typed source groups in one logical registration. Independent clipped placements share parent visibility; completion waits for all groups. Removed groups withdraw retained tiles. Parent owner key creates no image demand or opaque full-grid aperture.",
+		"limits": "MapGyver retains eight registrations and eight physical producers, 24 passes, 128 dependencies and existing memory/retirement limits. Layout retains 2048 groups/rectangles and 4096 reserved slots.",
+		"software": "431 app tests (3 explicit ignores), 195 video tests (26 explicit ignores), strict all-target Clippy for both crates, both Svelte checks with zero errors/warnings, 94 app UI and 31 preview-session tests pass. Both protocol exports regenerated; qualification export contract passes.",
+		"actual_app": "Exact nine-source/twelve-Cell fixture resolves all nine backend source identities and installs one native registration without fallback. Both attempts terminate at the guarded capture prerequisite before any new pixel acceptance.",
+		"native_pixels": "Not accepted: owned fixture must be the foreground window assertion fails. Bounded Win32 activation cannot foreground the exact owned window; supported computer-use sky.list_windows returns native pipe unavailable (os error 2). No ownership, foreground, tolerance or product-budget guard is relaxed. Fixture shuts down normally.",
+		"return_action": "When owned-window foreground activation works, rerun --matrix-preview-admission including independent Matrix Final output, then --matrix-cell-previews for live edits/loss/Undo/Fit/scroll on this grouped binary.",
+		"logs": [
+			"target/m118-groups-rust.log",
+			"target/m118-groups-clippy.log",
+			"target/m118-groups-svelte.log",
+			"target/m118-groups-preview-svelte.log",
+			"target/m118-groups-ui.log",
+			"target/m118-groups-app-ui.log",
+			"target/m118-groups-native-admission.log"
+		],
+		"scope": "Software-qualified implementation and actual registration admission only. Prior v4 grid pixels do not qualify the changed v5 layout. No gate credit."
+	},
+	"remaining": [
+		"Complete guarded native nine-source/Matrix Final and prior loss/Undo/Fit/scroll pixels for grouped protocol v5 after foreground activation is restored.",
+		"Mixed and large distinct-source snapshot admission within retained producer/pass/memory limits; more than eight simultaneous source roots is not qualified by this slice.",
+		"Actual generic Inspector output exposure/discovery, complete copy/project/reference recovery and full revised native/sparse/retirement cohort."
+	],
+	"acceptance_credit": "No gate closed; 54/67 (81%), M11 7/10, phases 6/12."
 }

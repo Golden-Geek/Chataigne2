@@ -3,6 +3,7 @@
 mod geometry;
 mod pointer;
 pub mod protocol;
+mod tiles;
 use crate::{
     TextureId,
     plan::{BlitRegion, SampleFilter, UnitRect},
@@ -51,10 +52,19 @@ pub struct ResolvedView {
     pub overlay_scale: f32,
     /// Fixed retained decoration capacity for this view's plan lifetime.
     pub overlay_capacity: usize,
-    /// Passive repeated image geometry sharing this source binding.
-    pub tiles: Option<Arc<[crate::plan::RegionTile]>>,
-    /// Immutable admitted repetition capacity for this binding.
-    pub tile_capacity: usize,
+    /// Passive source bindings within this logical view.
+    pub tile_groups: Option<Arc<[ResolvedTileGroup]>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+/// Checked repetitions sharing one source binding, independent of registration count.
+pub struct ResolvedTileGroup {
+    /// Opaque consumer-owned source key.
+    pub source: String,
+    /// Host-clipped image repetitions.
+    pub tiles: Arc<[crate::plan::RegionTile]>,
+    /// Immutable admitted repetition capacity.
+    pub capacity: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -73,6 +83,7 @@ pub struct PreviewSnapshot {
     view_guards: HashMap<Uuid, RevisionGuard>,
     placements: HashMap<Uuid, crate::plan::RegionPlacement>,
     backdrops: HashMap<Uuid, crate::plan::RegionPlacement>,
+    tile_placements: tiles::Placements,
 }
 impl PreviewSnapshot {
     /// Builds a snapshot whose destinations share one visibility lifetime. Controller snapshots
@@ -80,12 +91,14 @@ impl PreviewSnapshot {
     pub fn new(generation: u64, views: Vec<ResolvedView>, guard: RevisionGuard) -> Self {
         let placements = views
             .iter()
-            .filter(|view| !view.overlays.is_empty() || view.tiles.is_some())
+            .filter(|view| !view.overlays.is_empty() || view.tile_groups.is_some())
             .map(|view| {
                 let placement = create_placement(view);
                 (view.id, placement)
             })
             .collect();
+        let mut tile_placements = HashMap::new();
+        tiles::update(&mut tile_placements, &views);
         Self {
             generation,
             views,
@@ -95,6 +108,7 @@ impl PreviewSnapshot {
             view_guards: HashMap::new(),
             placements,
             backdrops: HashMap::new(),
+            tile_placements,
         }
     }
 
@@ -105,26 +119,39 @@ impl PreviewSnapshot {
         output: crate::OutputId,
         mut resolve: impl FnMut(&str) -> Option<TextureId>,
     ) -> Vec<BlitRegion> {
-        self.views
-            .iter()
-            .filter_map(|view| {
-                if self
-                    .placements
-                    .get(&view.id)
-                    .is_some_and(|placement| !placement.bind_presentation_output(output))
-                {
-                    return None;
-                }
-                resolve(&view.source).map(|source| BlitRegion {
+        let mut regions = Vec::new();
+        for view in &self.views {
+            if self
+                .placements
+                .get(&view.id)
+                .is_some_and(|placement| !placement.bind_presentation_output(output))
+            {
+                continue;
+            }
+            let visibility = self.view_guards.get(&view.id).unwrap_or(&self.guard);
+            if let Some(groups) = &view.tile_groups {
+                regions.extend(tiles::regions(
+                    view.id,
+                    groups,
+                    &self.tile_placements,
+                    output,
+                    visibility,
+                    &mut resolve,
+                ));
+                continue;
+            }
+            if let Some(source) = resolve(&view.source) {
+                regions.push(BlitRegion {
                     source,
                     destination: view.destination,
                     source_rect: view.source_rect,
                     filter: SampleFilter::Linear,
                     visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
                     placement: self.placements.get(&view.id).cloned(),
-                })
-            })
-            .collect()
+                });
+            }
+        }
+        regions
     }
 
     /// Black editor backing stays under the complete canvas while its active image moves.
@@ -137,13 +164,32 @@ impl PreviewSnapshot {
                 source_rect: UnitRect::FULL,
                 filter: SampleFilter::Nearest,
                 visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
-                placement: if view.tiles.is_some() {
+                placement: if view.tile_groups.is_some() {
                     self.placements.get(&view.id).cloned()
                 } else {
                     self.backdrops.get(&view.id).cloned()
                 },
             })
             .collect()
+    }
+
+    /// Source keys actually used by image bindings; a passive parent source is an owner key.
+    pub fn source_keys(&self) -> impl Iterator<Item = &str> {
+        self.views.iter().flat_map(|view| {
+            view.tile_groups
+                .iter()
+                .flat_map(|groups| groups.iter().map(|group| group.source.as_str()))
+                .chain(view.tile_groups.is_none().then_some(view.source.as_str()))
+        })
+    }
+
+    /// Conservative source/backing dependency reservation, including each passive parent marker.
+    pub fn maximum_dependencies(&self) -> usize {
+        self.views
+            .iter()
+            .map(|view| view.tile_groups.as_ref().map_or(3, |groups| groups.len() * 3 + 1))
+            .sum::<usize>()
+            .saturating_add(3)
     }
 }
 
@@ -162,6 +208,7 @@ struct State {
     routing: RevisionSource,
     placements: HashMap<Uuid, crate::plan::RegionPlacement>,
     backdrops: HashMap<Uuid, crate::plan::RegionPlacement>,
+    tile_placements: tiles::Placements,
     view_revisions: HashMap<Uuid, RevisionSource>,
     installed: Option<u64>,
 }
@@ -171,6 +218,7 @@ impl State {
         self.view_revisions.clear();
         self.placements.clear();
         self.backdrops.clear();
+        self.tile_placements.clear();
         self.routing.advance();
         self.revision.advance();
         self.installed = None;
@@ -182,7 +230,7 @@ impl State {
                 old.id != new.id
                     || old.source != new.source
                     || old.overlay_capacity != new.overlay_capacity
-                    || old.tile_capacity != new.tile_capacity
+                    || !tiles::same_routing(old, new)
             });
         if routing_changed {
             self.routing.advance();
@@ -191,6 +239,7 @@ impl State {
             self.view_revisions.clear();
             self.placements.clear();
             self.backdrops.clear();
+            self.tile_placements.clear();
         } else {
             let previous = self
                 .views
@@ -224,7 +273,7 @@ impl State {
         for view in &views {
             if self.placements.get(&view.id).is_some_and(|placement| {
                 placement.overlay_capacity() != view.overlay_capacity
-                    || placement.tile_capacity() != view.tile_capacity
+                    || placement.tile_capacity() != usize::from(view.tile_groups.is_some())
                     || self
                         .views
                         .iter()
@@ -250,6 +299,7 @@ impl State {
         }
         self.placements.retain(|id, _| views.iter().any(|view| view.id == *id));
         self.backdrops.retain(|id, _| views.iter().any(|view| view.id == *id));
+        tiles::update(&mut self.tile_placements, &views);
         self.views = views;
         self.viewport = Some(viewport);
         self.revision.advance();
@@ -267,8 +317,9 @@ impl State {
 }
 
 fn create_placement(view: &ResolvedView) -> crate::plan::RegionPlacement {
-    let placement = if view.tile_capacity > 0 {
-        crate::plan::RegionPlacement::with_tile_capacity(view.destination, view.source_rect, view.tile_capacity)
+    let placement = if view.tile_groups.is_some() {
+        // An empty tiled binding samples parent geometry without painting an opaque aperture.
+        crate::plan::RegionPlacement::with_tile_capacity(view.destination, view.source_rect, 1)
     } else {
         crate::plan::RegionPlacement::with_overlay_capacity(view.destination, view.source_rect, view.overlay_capacity)
     }
@@ -285,9 +336,6 @@ fn update_placement(placement: &crate::plan::RegionPlacement, view: &ResolvedVie
         view.overlay_scale,
         &view.overlays
     ));
-    if let Some(tiles) = &view.tiles {
-        assert!(placement.update_tiles(tiles));
-    }
 }
 
 fn overlaps(left: UnitRect, right: UnitRect) -> bool {
@@ -338,6 +386,7 @@ impl PreviewController {
                 routing: RevisionSource::default(),
                 placements: HashMap::new(),
                 backdrops: HashMap::new(),
+                tile_placements: HashMap::new(),
                 view_revisions: HashMap::new(),
                 installed: None,
             }),
@@ -394,7 +443,7 @@ impl PreviewController {
                             .views
                             .iter()
                             .any(|registered| {
-                                registered.id == view && registered.source == source && registered.tiles.is_none()
+                                registered.id == view && registered.source == source && registered.tile_groups.is_none()
                             })
                             .then(|| {
                                 state
@@ -489,12 +538,17 @@ impl PreviewController {
                             if views.len() > self.0.limits.max_views as usize {
                                 return Err(PreviewRejection::Capacity);
                             }
-                            let tiles: usize = views.iter().map(|view| view.tiles.as_ref().map_or(0, Vec::len)).sum();
-                            let capacity: u64 = views.iter().map(|view| u64::from(view.tile_capacity)).sum();
-                            if tiles > crate::plan::MAX_REGION_TILES
-                                || capacity > (2 * crate::plan::MAX_REGION_TILES) as u64
-                            {
-                                return Err(PreviewRejection::Capacity);
+                            let (mut groups, mut tiles, mut capacity) = (0usize, 0usize, 0u64);
+                            for group in views.iter().filter_map(|view| view.tile_groups.as_ref()).flatten() {
+                                groups += 1;
+                                tiles = tiles.saturating_add(group.tiles.len());
+                                capacity += u64::from(group.capacity);
+                                if groups > crate::plan::MAX_REGION_TILES
+                                    || tiles > crate::plan::MAX_REGION_TILES
+                                    || capacity > (2 * crate::plan::MAX_REGION_TILES) as u64
+                                {
+                                    return Err(PreviewRejection::Capacity);
+                                }
                             }
                             if !viewport.valid() {
                                 return Err(PreviewRejection::Geometry);
@@ -566,6 +620,7 @@ impl PreviewReceiver {
             || !state
                 .placements
                 .values()
+                .chain(state.tile_placements.values())
                 .all(|placement| placement.presented_through(accepted))
         {
             return None;
@@ -610,6 +665,7 @@ impl PreviewReceiver {
             routing_guard: state.routing.reader().guard_at(state.routing.reader().current()),
             placements: state.placements.clone(),
             backdrops: state.backdrops.clone(),
+            tile_placements: state.tile_placements.clone(),
             view_guards: state
                 .view_revisions
                 .iter()

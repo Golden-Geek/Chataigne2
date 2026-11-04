@@ -54,8 +54,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                     overlays: std::sync::Arc::from([]),
                     overlay_scale: 1.0,
                     overlay_capacity: 0,
-                    tiles: None,
-                    tile_capacity: 0,
+                    tile_groups: None,
                     source_rect: UnitRect::FULL,
                 })
                 .collect(),

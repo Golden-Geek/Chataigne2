@@ -1,9 +1,9 @@
 use super::*;
 use protocol::{CssRect, PreviewView};
 mod continuity;
+mod groups;
 mod overlays;
 mod pointer;
-mod tiles;
 
 fn host() -> HostViewport {
     HostViewport {
@@ -35,12 +35,21 @@ fn view() -> PreviewView {
         visible: true,
         overlays: Vec::new(),
         overlay_capacity: 0,
-        tiles: None,
-        tile_capacity: 0,
+        tile_groups: None,
     }
 }
 fn fixture() -> (PreviewController, PreviewReceiver, Uuid) {
-    let (control, reader) = PreviewController::new(PreviewLimits::default(), None).unwrap();
+    fixture_with_limit(PreviewLimits::default().max_views)
+}
+fn fixture_with_limit(max_views: u32) -> (PreviewController, PreviewReceiver, Uuid) {
+    let (control, reader) = PreviewController::new(
+        PreviewLimits {
+            max_views,
+            ..PreviewLimits::default()
+        },
+        None,
+    )
+    .unwrap();
     let PreviewResponse::Connected { session, .. } = control.handle(
         PreviewRequest::Connect {
             client: Uuid::new_v4(),

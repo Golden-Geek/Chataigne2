@@ -18,7 +18,7 @@ struct Clock(AtomicU64);
 #[test]
 fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
     use golden_video::plan::{RegionTile, RenderOperation, UnitRect};
-    use golden_video::preview::{PreviewSnapshot, ResolvedView};
+    use golden_video::preview::{PreviewSnapshot, ResolvedTileGroup, ResolvedView};
     let mut engine = engine();
     let colors = [
         [1., 0., 0., 1.],
@@ -66,30 +66,36 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
         },
         layout: PreviewSnapshot::new(
             reader.current(),
-            references
-                .iter()
-                .enumerate()
-                .map(|(index, reference)| ResolvedView {
-                    id: uuid::Uuid::new_v4(),
-                    source: serde_json::to_string(&PreviewSource::Channel { reference: *reference }).unwrap(),
-                    destination: UnitRect::FULL,
-                    source_rect: UnitRect::FULL,
-                    backdrop: UnitRect::FULL,
-                    overlays: Arc::from([]),
-                    overlay_scale: 1.,
-                    overlay_capacity: 0,
-                    tile_capacity: 1,
-                    tiles: Some(Arc::from([RegionTile {
-                        destination: UnitRect {
-                            x: (index % 3) as f32 / 3.,
-                            y: (index / 3) as f32 / 3.,
-                            width: 1. / 3.,
-                            height: 1. / 3.,
-                        },
-                        source_rect: UnitRect::FULL,
-                    }])),
-                })
-                .collect(),
+            vec![ResolvedView {
+                id: uuid::Uuid::new_v4(),
+                source: "passive-owner-not-a-source".into(),
+                destination: UnitRect::FULL,
+                source_rect: UnitRect::FULL,
+                backdrop: UnitRect::FULL,
+                overlays: Arc::from([]),
+                overlay_scale: 1.,
+                overlay_capacity: 0,
+                tile_groups: Some(
+                    references
+                        .iter()
+                        .enumerate()
+                        .map(|(index, reference)| ResolvedTileGroup {
+                            source: serde_json::to_string(&PreviewSource::Channel { reference: *reference }).unwrap(),
+                            capacity: 1,
+                            tiles: Arc::from([RegionTile {
+                                destination: UnitRect {
+                                    x: (index % 3) as f32 / 3.,
+                                    y: (index / 3) as f32 / 3.,
+                                    width: 1. / 3.,
+                                    height: 1. / 3.,
+                                },
+                                source_rect: UnitRect::FULL,
+                            }]),
+                        })
+                        .collect::<Vec<_>>()
+                        .into(),
+                ),
+            }],
             reader.guard_at(reader.current()),
         ),
     };
@@ -187,8 +193,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         visible: true,
         overlays: Vec::new(),
         overlay_capacity: 0,
-        tiles: None,
-        tile_capacity: 0,
+        tile_groups: None,
     };
     controller.handle(
         PreviewRequest::Layout {

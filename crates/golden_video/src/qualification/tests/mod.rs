@@ -34,6 +34,7 @@ fn committed_qualification_contracts_match_rust_including_the_exact_file_set() {
         "OverlayPrimitive.ts",
         "OverlayShape.ts",
         "PreviewView.ts",
+        "PreviewTileGroup.ts",
         "QualificationAction.ts",
         "QualificationCommand.ts",
         "QualificationLayout.ts",
@@ -136,8 +137,7 @@ fn fixture_actions_and_reports_keep_their_generated_wire_shape() {
                 visible: true,
                 overlays: Vec::new(),
                 overlay_capacity: 0,
-                tiles: None,
-                tile_capacity: 0,
+                tile_groups: None,
             }
         })
         .collect();

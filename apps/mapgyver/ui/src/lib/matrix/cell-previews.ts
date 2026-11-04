@@ -1,13 +1,9 @@
 import { MAX_REGION_TILES } from 'golden_video_ui/constants';
-import type { CssRect } from 'golden_video_ui';
+import type { PreviewTileGroup } from 'golden_video_ui';
 import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 import { gridSize, projectGrid, type Metrics } from './viewport.ts';
 
-export interface CellPreviewGroup {
-	source: string;
-	tiles: CssRect[];
-	capacity: number;
-}
+export type CellPreviewGroup = PreviewTileGroup;
 
 /** Viewport presentation only. Effective channel identities and labels come from the backend. */
 export function cellPreviewGroups(

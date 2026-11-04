@@ -4,7 +4,7 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 /// Current local native-preview negotiation/control schema version.
-pub const PREVIEW_PROTOCOL_VERSION: u32 = 4;
+pub const PREVIEW_PROTOCOL_VERSION: u32 = 5;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Event-driven pointer projection from an output-accepted native frame.
@@ -31,6 +31,17 @@ pub struct CssRect {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+/// Passive repetitions of one source within a logical preview registration.
+pub struct PreviewTileGroup {
+    /// Opaque consumer-owned source key.
+    pub source: String,
+    /// Rectangles relative to the registered element's CSS origin.
+    pub tiles: Vec<CssRect>,
+    /// Fixed admitted repetition capacity for this source binding.
+    pub capacity: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// One DOM preview registration, containing metadata only and no frame bytes/native handles.
 pub struct PreviewView {
     /// Ephemeral view identity, unique within a submitted layout.
@@ -47,10 +58,8 @@ pub struct PreviewView {
     pub overlays: Vec<crate::plan::OverlayPrimitive>,
     /// Fixed admitted primitive capacity; zero for ordinary image-only previews.
     pub overlay_capacity: u32,
-    /// Optional passive image repetitions, relative to the preview element's CSS origin.
-    pub tiles: Option<Vec<CssRect>>,
-    /// Fixed admitted repetition capacity; zero for an ordinary single-image view.
-    pub tile_capacity: u32,
+    /// Passive source groups; None selects the ordinary single-image source above.
+    pub tile_groups: Option<Vec<PreviewTileGroup>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]

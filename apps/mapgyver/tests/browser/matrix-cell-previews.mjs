@@ -66,7 +66,12 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		.click();
 	const panel = page.locator('[data-panel-id="matrix"]');
 	const viewport = panel.getByRole('grid');
-	const groups = panel.locator('[data-matrix-preview-source]');
+	const surface = panel.locator('.cell-previews');
+	const views = surface.locator('.native-preview');
+	const sourceCount = async () =>
+		(await surface.count())
+			? Number(await surface.getAttribute('data-matrix-preview-source-count'))
+			: 0;
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	async function wait(read, test) {
@@ -79,22 +84,18 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		}
 	}
 	async function installed(count) {
-		await wait(
-			() => groups.count(),
-			(value) => value === count
-		);
+		await wait(sourceCount, (value) => value === count);
 		if (count)
 			await wait(
 				() =>
-					groups
-						.locator('.native-preview')
-						.evaluateAll((views) =>
-							views.every(
-								(view) =>
-									view.dataset.previewState === 'available' &&
-									view.dataset.previewInstalled === 'true'
-							)
-						),
+					views.evaluateAll((views) =>
+						views.every(
+							(view) =>
+								view.dataset.previewState === 'available' &&
+								view.dataset.previewInstalled === 'true' &&
+								!view.querySelector('.tile-unavailable')
+						)
+					),
 				Boolean
 			);
 	}
@@ -117,7 +118,9 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		return captureMatrixCellPixels({ directory, phase, page, nativePid, cells: boxes });
 	}
 	await installed(2);
-	assert.equal(await groups.count(), 2, 'four Cells share two canonical source leases');
+	assert.equal(await sourceCount(), 2, 'four Cells share two canonical source bindings');
+	assert.equal(await views.count(), 1, 'all sources share one logical grid lease');
+	const lease = await views.getAttribute('data-preview-view');
 	const observations = [await pixels('initial', [255, 0, 0])];
 	await cell(0, 0).click();
 	assert.equal(
@@ -143,6 +146,11 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 	await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	await installed(2);
 	observations.push(await pixels('undo-recovery', [0, 255, 0]));
+	assert.equal(
+		await views.getAttribute('data-preview-view'),
+		lease,
+		'source loss/Undo retains the grid lease'
+	);
 	const authored = (await matrixEdit({ kind: 'Inspect' })).snapshot;
 	const alias = authored.cells.find(
 		(entry) => entry.layer === items[0].id && entry.definition.column === columns[0]
@@ -153,6 +161,11 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		size: { kind: 'Fixed', extent: { width: 32, height: 128 } }
 	});
 	await installed(3);
+	assert.equal(
+		await views.getAttribute('data-preview-view'),
+		lease,
+		'Reference changes retain the grid lease'
+	);
 	observations.push(
 		await pixels(
 			'reference-fit',
@@ -172,10 +185,7 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 	await installed(2);
 	observations.push(await pixels('scroll-recovery', [0, 255, 0]));
 	await post('/api/ui/project-new', {});
-	await wait(
-		() => groups.count(),
-		(value) => value === 0
-	);
+	await wait(sourceCount, (value) => value === 0);
 	assert.deepEqual(errors, []);
 	await writeFile(
 		path.join(directory, 'result.json'),

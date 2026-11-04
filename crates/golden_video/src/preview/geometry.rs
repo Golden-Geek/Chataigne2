@@ -63,20 +63,14 @@ pub(super) fn resolve(mut view: PreviewView, host: HostViewport) -> Result<Optio
     }
     if !valid(view.rect)
         || !valid(view.clip)
-        || view.tile_capacity as usize > crate::plan::MAX_REGION_TILES
-        || view
-            .tiles
-            .as_ref()
-            .is_some_and(|tiles| tiles.len() > view.tile_capacity as usize)
-        || (view.tiles.is_some() != (view.tile_capacity > 0))
-        || (view.tiles.is_some() && (view.overlay_capacity > 0 || !view.overlays.is_empty()))
+        || (view.tile_groups.is_some() && (view.overlay_capacity > 0 || !view.overlays.is_empty()))
     {
         return Err(PreviewRejection::Geometry);
     }
-    let tiles = view
-        .tiles
+    let groups = view
+        .tile_groups
         .take()
-        .map(|tiles| {
+        .map(|groups| {
             let left = view.rect.x.max(view.clip.x);
             let top = view.rect.y.max(view.clip.y);
             let clip = CssRect {
@@ -85,39 +79,59 @@ pub(super) fn resolve(mut view: PreviewView, host: HostViewport) -> Result<Optio
                 width: ((view.rect.x + view.rect.width).min(view.clip.x + view.clip.width) - left).max(0.),
                 height: ((view.rect.y + view.rect.height).min(view.clip.y + view.clip.height) - top).max(0.),
             };
-            let mut resolved = Vec::with_capacity(tiles.len());
-            for tile in tiles {
-                if !valid(tile) {
+            let mut resolved_groups = Vec::with_capacity(groups.len());
+            let mut seen = std::collections::HashSet::new();
+            for group in groups {
+                if group.source.is_empty() || group.source.len() > 255 || group.source.contains('\0') {
+                    return Err(PreviewRejection::Source);
+                }
+                if !seen.insert(group.source.clone()) {
+                    return Err(PreviewRejection::Duplicate);
+                }
+                if group.capacity == 0
+                    || group.capacity as usize > crate::plan::MAX_REGION_TILES
+                    || group.tiles.len() > group.capacity as usize
+                {
                     return Err(PreviewRejection::Geometry);
                 }
-                let tile_view = PreviewView {
-                    id: view.id,
-                    source: view.source.clone(),
-                    rect: CssRect {
-                        x: view.rect.x + tile.x,
-                        y: view.rect.y + tile.y,
-                        ..tile
-                    },
-                    clip,
-                    visible: view.visible,
-                    overlays: Vec::new(),
-                    overlay_capacity: 0,
-                    tiles: None,
-                    tile_capacity: 0,
-                };
-                if let Some(tile) = resolve_plain(tile_view, host)? {
-                    resolved.push(crate::plan::RegionTile {
-                        destination: tile.destination,
-                        source_rect: tile.source_rect,
-                    });
+                let mut resolved = Vec::with_capacity(group.tiles.len());
+                for tile in group.tiles {
+                    if !valid(tile) {
+                        return Err(PreviewRejection::Geometry);
+                    }
+                    let tile_view = PreviewView {
+                        id: view.id,
+                        source: group.source.clone(),
+                        rect: CssRect {
+                            x: view.rect.x + tile.x,
+                            y: view.rect.y + tile.y,
+                            ..tile
+                        },
+                        clip,
+                        visible: view.visible,
+                        overlays: Vec::new(),
+                        overlay_capacity: 0,
+                        tile_groups: None,
+                    };
+                    if let Some(tile) = resolve_plain(tile_view, host)? {
+                        resolved.push(crate::plan::RegionTile {
+                            destination: tile.destination,
+                            source_rect: tile.source_rect,
+                        });
+                    }
                 }
+                resolved_groups.push(super::ResolvedTileGroup {
+                    source: group.source.into_boxed_str().into_string(),
+                    tiles: resolved.into(),
+                    capacity: group.capacity as usize,
+                });
             }
-            Ok::<Arc<[crate::plan::RegionTile]>, PreviewRejection>(resolved.into())
+            Ok::<Arc<[super::ResolvedTileGroup]>, PreviewRejection>(resolved_groups.into())
         })
         .transpose()?;
     let mut result = resolve_plain(view, host)?;
     if let Some(view) = &mut result {
-        view.tiles = tiles;
+        view.tile_groups = groups;
     }
     Ok(result)
 }
@@ -209,7 +223,6 @@ fn resolve_plain(view: PreviewView, host: HostViewport) -> Result<Option<Resolve
                 .into(),
             overlay_scale: host.css_scale as f32,
             overlay_capacity: view.overlay_capacity as usize,
-            tiles: None,
-            tile_capacity: view.tile_capacity as usize,
+            tile_groups: None,
         }))
 }

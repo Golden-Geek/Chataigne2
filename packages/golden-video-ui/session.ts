@@ -9,8 +9,7 @@ import type { PreviewPointer } from './generated/PreviewPointer';
 export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'> & {
 	overlays?: OverlayPrimitive[];
 	overlay_capacity?: number;
-	tiles?: PreviewView['tiles'];
-	tile_capacity?: number;
+	tile_groups?: PreviewView['tile_groups'];
 };
 export interface PreviewSessionState {
 	availability: 'idle' | 'connecting' | 'available' | 'unavailable' | 'disposed';
@@ -192,8 +191,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			source: registration.source,
 			overlays: [],
 			overlay_capacity: 0,
-			tiles: null,
-			tile_capacity: 0,
+			tile_groups: null,
 			...registration.measure()
 		}));
 	}

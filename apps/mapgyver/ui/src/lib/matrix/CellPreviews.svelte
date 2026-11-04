@@ -7,26 +7,29 @@
 	let { snapshot, metrics }: { snapshot: MatrixViewportSnapshot; metrics: Metrics } = $props();
 	const owner = usePreview();
 	const groups = $derived(cellPreviewGroups(snapshot, metrics));
+	const visible = $derived(groups.length > 0);
+	const source = $derived(
+		JSON.stringify({ kind: 'Channel', reference: snapshot.final_output.reference })
+	);
 </script>
 
 <div
 	class="cell-previews"
+	data-matrix-preview-source-count={groups.length}
 	aria-hidden="true"
 	style:width={`${metrics.width}px`}
 	style:height={`${metrics.height}px`}
 	style:margin-bottom={`-${metrics.height}px`}>
 	<div class="data-area" style:inset={`${gridSize.header}rem 0 0 ${gridSize.label}rem`}>
-		{#each groups as group (group.source)}
-			<div class="source-group" data-matrix-preview-source={group.source}>
-				<NativePreview
-					session={owner.session}
-					source={group.source}
-					tiles={group.tiles}
-					tileCapacity={group.capacity}
-					lifetime={snapshot.project}
-					label="Matrix Cell previews" />
-			</div>
-		{/each}
+		<div class="source-group">
+			<NativePreview
+				session={owner.session}
+				{source}
+				tileGroups={groups}
+				{visible}
+				lifetime={snapshot.project}
+				label="Matrix Cell previews" />
+		</div>
 	</div>
 </div>
 

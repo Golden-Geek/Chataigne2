@@ -11,6 +11,7 @@ export type { PreviewTransport } from './transport';
 export type { PreviewRequest } from './generated/PreviewRequest';
 export type { PreviewResponse } from './generated/PreviewResponse';
 export type { PreviewView } from './generated/PreviewView';
+export type { PreviewTileGroup } from './generated/PreviewTileGroup';
 export type { CssRect } from './generated/CssRect';
 export type { OverlayPrimitive } from './generated/OverlayPrimitive';
 export type { OverlayShape } from './generated/OverlayShape';

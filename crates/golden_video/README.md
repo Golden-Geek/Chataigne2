@@ -69,13 +69,15 @@ The implemented foundations are:
   capacity; source, pass, dependency and texture-memory limits retain their existing meanings.
   This is a generic native draw primitive; preview negotiation and app viewport policy own
   admission and projection into it.
-  Preview protocol version 4 admits passive CSS-relative `tiles` on a registered source, with
-  a fixed `tile_capacity` and no interactive overlays. Host clipping preserves each source
-  crop and projects only visible rectangles. One layout admits at most 2,048 rectangles and
-  4,096 reserved slots, alongside the unchanged 64-registration default. Tile geometry updates
-  reuse the source binding and its resource generation; removal/session expiry withdraw the
-  same per-view lifetime as ordinary previews. Backing and image passes sample one tiled
-  placement, so a source group never paints a full opaque rectangle over its peers.
+  Preview protocol version 5 admits passive `tile_groups` inside one logical registration.
+  Each group has an opaque source, CSS-relative rectangles and fixed repetition capacity;
+  the parent source is an owner key and creates no image demand. Groups have no interactive
+  overlays. Host clipping preserves each source crop. One layout admits at most 2,048 groups
+  and rectangles and 4,096 reserved slots. The default remains 64 registrations; consumers
+  may negotiate fewer (MapGyver uses eight). Geometry updates reuse each source binding;
+  group removal and session expiry withdraw retained placements. Installation waits for the
+  parent marker and every group to be sampled through the accepted output completion token.
+  The parent paints no opaque aperture over its child images.
 - `native/`, enabled by `d3d11` on Windows, owns caller-selected adapter/device creation, the
   shader pipeline, persistent window/Spout output pools and device-scoped event completion.
   `D3d11Config` contains endpoint metadata; native interfaces stay on the render worker.

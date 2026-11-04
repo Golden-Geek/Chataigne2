@@ -5,7 +5,7 @@
 	import { observePreviewLayout } from './observation';
 	import type { PreviewSession, PreviewSessionState, PreviewRegistration } from './session';
 	import type { OverlayPrimitive } from './generated/OverlayPrimitive';
-	import type { CssRect } from './generated/CssRect';
+	import type { PreviewTileGroup } from './generated/PreviewTileGroup';
 	import { observeNativeInput } from './native-input';
 
 	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
@@ -16,8 +16,7 @@
 		children?: Snippet;
 		overlays?: OverlayPrimitive[];
 		overlayCapacity?: number;
-		tiles?: CssRect[] | null;
-		tileCapacity?: number;
+		tileGroups?: PreviewTileGroup[] | null;
 		onpresentationchange?(nativeOverlays: boolean): void;
 		nativeInput?: boolean;
 		lifetime?: string | number;
@@ -30,8 +29,7 @@
 		children,
 		overlays = [],
 		overlayCapacity = 0,
-		tiles = null,
-		tileCapacity = 0,
+		tileGroups = null,
 		onpresentationchange,
 		nativeInput = false,
 		lifetime = 0,
@@ -97,8 +95,7 @@
 						...geometry,
 						overlays: untrack(() => overlays),
 						overlay_capacity: untrack(() => overlayCapacity),
-						tiles: untrack(() => tiles),
-						tile_capacity: untrack(() => tileCapacity)
+						tile_groups: untrack(() => tileGroups)
 					};
 				}
 			);
@@ -121,8 +118,7 @@
 		visible;
 		overlays;
 		overlayCapacity;
-		tiles;
-		tileCapacity;
+		tileGroups;
 		registration?.update(source);
 		registration?.invalidate();
 	});
@@ -141,16 +137,18 @@
 	aria-label={label}
 >
 	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
-		{#if tiles !== null}
-			{#each tiles as tile}
-				<div
-					class="tile-unavailable"
-					style:left={`${tile.x}px`}
-					style:top={`${tile.y}px`}
-					style:width={`${tile.width}px`}
-					style:height={`${tile.height}px`}
-					title="Native preview unavailable"
-				></div>
+		{#if tileGroups !== null}
+			{#each tileGroups as group (group.source)}
+				{#each group.tiles as tile}
+					<div
+						class="tile-unavailable"
+						style:left={`${tile.x}px`}
+						style:top={`${tile.y}px`}
+						style:width={`${tile.width}px`}
+						style:height={`${tile.height}px`}
+						title="Native preview unavailable"
+					></div>
+				{/each}
 			{/each}
 		{:else}
 			<div class="unavailable">

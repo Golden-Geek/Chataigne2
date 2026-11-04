@@ -20,16 +20,13 @@ impl PreviewLayout {
     pub(crate) const PASS_COUNT: usize = 5;
 
     pub(crate) fn maximum_dependencies(&self) -> usize {
-        self.layout.views.len().saturating_mul(3).saturating_add(3)
+        self.layout.maximum_dependencies()
     }
 
     pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
         self.layout
-            .views
-            .iter()
-            .map(|view| {
-                serde_json::from_str(&view.source).map_err(|error| format!("invalid app preview source: {error}"))
-            })
+            .source_keys()
+            .map(|source| serde_json::from_str(source).map_err(|error| format!("invalid app preview source: {error}")))
             .collect()
     }
     pub fn references(&self) -> Result<Vec<ChannelReference>, String> {

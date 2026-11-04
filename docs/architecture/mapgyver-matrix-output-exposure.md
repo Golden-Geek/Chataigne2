@@ -34,20 +34,21 @@ runtime projections, never authored settings or persisted preview handles. Sourc
 both fields; rename, Undo and project reload resolve current metadata through the bounded
 viewport query. The authored Cell source remains unchanged.
 
-`CellPreviews.svelte` groups visible Cells by that effective identity, using one native preview
-registration per source and Golden's bounded repeated-image placement. Each tile reserves a
+`CellPreviews.svelte` groups visible Cells by that effective identity, using one logical native
+preview registration for the grid and Golden's bounded per-source repeated-image placement. Each tile reserves a
 label strip and follows the grid's existing compressed scroll projection. CSS-relative image
 rectangles are measured presentation coordinates, not authored fixed-pixel layout settings;
 row/column/label spacing remains in rem. Negative partial rectangles stay intact until the
 host clips them, preserving the corresponding source crop. Native thumbnails do not launch
 Cells or change their authored source.
 
-Golden preview version 4 carries passive tile rectangles and fixed repetition capacity. Its
-completion sample and visibility guard avoid per-Cell source, decoder, upload or dependency
-duplication. Geometry-only updates reuse bindings; backing and image passes share the tile
-set instead of covering the full grid. Duplicate views of one channel count once for source
-admission. Host metadata separately admits at most 2,048
-tile rectangles and 4,096 reserved slots per layout. UI fallback is confined to each tile.
+Golden preview version 5 carries typed source groups, passive tile rectangles and fixed
+repetition capacity inside one registration. The parent source identifies the owner without
+creating image demand. Completion waits for the parent geometry marker and every child source
+placement. Geometry-only updates reuse bindings; withdrawn groups clear retained placements.
+The parent paints no full-grid opaque backing. This avoids per-Cell source, decoder, upload
+or dependency duplication. Host metadata admits at most 2,048 groups and tile rectangles and
+4,096 reserved slots per layout. UI fallback is confined to each tile.
 
 The desktop capture policy now admits at most 128 logical channel definitions, including
 procedural channels and Reference dependencies. This metadata work does not admit native
@@ -58,13 +59,14 @@ textures; a ninth physical texture is still rejected.
 
 **Registration limit correction:** Golden's shared default is 64 registrations, but MapGyver's
 desktop host explicitly negotiates **eight**. Earlier Cell-tile notes incorrectly described
-the shared default as the app's limit. This limit has not been raised. The current one-source-
-per-registration grid therefore cannot install its ninth source: the native nine-source test
-fails with one unregistered tile. The next implementation must carry source groups inside
-one logical grid registration, preserving the app's eight-registration cap. The passing
-two-source grid and the software nine-color plan do not qualify that missing behavior.
+the shared default as the app's limit. This limit has not been raised. The former one-source-
+per-registration grid failed to install its ninth source. The grouped implementation now
+admits all nine sources in one installed registration with no fallback in the actual app.
+The exact nine-source native pixel/Matrix Final cohort remains unaccepted: the capture helper
+cannot foreground its owned test window, and the supported computer-use helper reports its
+native pipe unavailable. Ownership, foreground and pixel guards have not been relaxed.
 
-The actual native grid passes guarded foreground captures for two shared sources/four Cells,
+The preceding per-source implementation passes guarded foreground captures for two shared sources/four Cells,
 live color changes, source loss and Undo, scroll withdrawal/recovery and project New. Source
 grouping, clipping and same-generation updates pass software checks; both GPUs pass the native
 repeated-image primitive. This is an admitted-scene checkpoint, not full Matrix qualification.
@@ -72,8 +74,9 @@ Mixed/large distinct-source snapshot admission, retained GPU completion and the 
 native cohort remain required; a viewport beyond the active source budget is not accepted by
 this evidence. Generic Inspector exposure/discovery still needs actual-app acceptance.
 
-M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented and
-verified within the admitted scene. Mixed/large distinct-source snapshots, actual Inspector
+M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented;
+protocol-v5 grouping passes software checks and actual-app registration admission. Its full
+pixel acceptance is still required, including the prior loss/Undo/Fit/scroll cohort. Mixed/large distinct-source snapshots, actual Inspector
 exposure acceptance, complete sparse/source-loss/preview retirement and the revised full
 native cohort remain required. The desktop's eight-registration budget is unchanged. Thumbnail admission
 must continue sharing sources/decoders rather than duplicating them per Cell.

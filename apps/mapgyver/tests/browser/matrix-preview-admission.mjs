@@ -79,24 +79,26 @@ export async function verifyMatrixPreviewAdmission({ page, edit, post, nativePid
 		.filter({ hasText: /^Matrix$/ })
 		.click();
 	const panel = page.locator('[data-panel-id="matrix"]');
-	const groups = panel.locator('[data-matrix-preview-source]');
+	const surface = panel.locator('.cell-previews');
+	const views = surface.locator('.native-preview');
+	const sourceCount = async () =>
+		Number(await surface.getAttribute('data-matrix-preview-source-count'));
 	const cell = (row, col) =>
 		panel.locator(`.row[data-row-id="${items[row].id}"]`).getByRole('gridcell').nth(col);
 	async function installed() {
 		const deadline = Date.now() + 8000;
 		while (true) {
 			if (
-				(await groups.count()) === 9 &&
-				(await groups
-					.locator('.native-preview')
-					.evaluateAll((views) =>
-						views.every(
-							(view) =>
-								view.dataset.previewState === 'available' &&
-								view.dataset.previewInstalled === 'true' &&
-								!view.querySelector('.tile-unavailable')
-						)
-					))
+				(await sourceCount()) === 9 &&
+				(await views.count()) === 1 &&
+				(await views.evaluateAll((views) =>
+					views.every(
+						(view) =>
+							view.dataset.previewState === 'available' &&
+							view.dataset.previewInstalled === 'true' &&
+							!view.querySelector('.tile-unavailable')
+					)
+				))
 			)
 				return;
 			assert(
@@ -117,9 +119,18 @@ export async function verifyMatrixPreviewAdmission({ page, edit, post, nativePid
 		return captureMatrixCellPixels({ directory, phase, page, nativePid, cells });
 	}
 	await installed();
-	const actualSources = await groups.evaluateAll((views) =>
-		views.map((view) => JSON.parse(view.dataset.matrixPreviewSource).reference)
-	);
+	const view = (
+		await matrixEdit({
+			kind: 'InspectViewport',
+			viewport: { row_start: 0, row_count: 3, column_start: 0, column_count: 4 },
+			selection: null
+		})
+	).snapshot;
+	const actualSources = [
+		...new Map(
+			view.cells.map((cell) => [JSON.stringify(cell.source_preview), cell.source_preview])
+		).values()
+	];
 	const key = (reference) => `${reference.media}:${reference.channel}`;
 	assert.deepEqual(
 		actualSources.map(key).sort(),

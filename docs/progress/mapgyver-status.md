@@ -4,9 +4,9 @@
 
 **Verified acceptance: 54/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/8 Active: admitted Cell tiles work; desktop registration cap prevents a ninth per-source tile group.
-**Next action:** carry source groups inside one logical grid registration, preserving the actual eight-registration desktop cap; then rerun the exact nine-source/Matrix Final cohort.
-**Blocker:** none for M11/8. Original physical/timing and app-control retirement gates remain unaccepted.
+**Current topic:** M11/8 Active: nine Cell source groups now install in one logical preview registration.
+**Next action:** verify exact nine-source/Matrix Final and loss/Undo/Fit/scroll pixels when owned-window foreground activation is available; continue actual Inspector exposure/discovery acceptance meanwhile.
+**Blocker:** guarded native pixel capture cannot foreground its owned window; the supported computer-use native pipe is unavailable. This blocks that check, not remaining M11/8 implementation. Original physical/timing and app-control retirement gates remain unaccepted.
 **Execution:** M11/8 alone is selected Active; M11/1–7 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
@@ -21,7 +21,7 @@ remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
 **Foundation:** [Native repeated-image placement](evidence/mapgyver-m11-native-tiles-2026-11-04.json) passes both GPUs with shared upload, per-tile crops and withdrawal.
 **Current limit correction:** Golden defaults to 64 registrations, but MapGyver explicitly
 negotiates eight. Earlier notes conflated these limits. The app cap is unchanged; one logical
-grid lease must carry its source groups. Logical channel capture now has a separate bounded
+grid lease now carries its source groups through generated preview protocol v5. Logical channel capture has a separate bounded
 128-definition policy, while physical producer/pass/dependency/memory budgets stay unchanged.
 **Previously delivered:** [Typed Matrix output exposure](../architecture/mapgyver-matrix-output-exposure.md): Layer/Group opt-in channels preserve internal Final rendering; discovery, References, demand and retired identities honor exposure.
 **Previously delivered:** [Composition-owned creation](../architecture/mapgyver-owned-media.md): right-click the canvas for all supported media types; real typed children, placement, selection and single-step history need no source object in the catalog.
@@ -98,7 +98,7 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M11/5 | [Live sender control acceptance](../architecture/mapgyver-sender-selection.md): Manual String + inline Detect, Auto Enum, live metadata, exact recovery, independent GPU outputs, adapter mismatch, history and post-load mode/absence/recovery. |
 | Accepted | M11/6 | [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): public toolbar/shortcuts, contextual actions, bounded Matrix Frame, selected-only paint, native navigation/Composition/keyboard/history/source and narrow-peer checks pass. |
 | Accepted | M11/7 | [Owned creation](evidence/mapgyver-m11-composition-creation-2026-11-04.json): complete backend/catalog/command/script/template contract, actual native/headless menus and history, toolbar copy/delete, reorder, project identity and independent GPU pixels before/after reload. |
-| Active | M11/8 | [Admitted Cell tiles](evidence/mapgyver-m11-cell-tiles-2026-11-04.json) and exposure pixels pass. Nine-source native cohort fails because the desktop cap is eight registrations. Next: typed source groups in one grid lease, preserving that cap, then rerun the exact cohort. Logical metadata capture/physical admission separation passes software checks; no native credit for this partial checkpoint. Mixed/large snapshots, Inspector exposure/discovery and full sparse/retirement remain required. |
+| Active | M11/8 | [Grouped Cell tiles](evidence/mapgyver-m11-cell-tiles-2026-11-04.json): nine actual-app source groups install in one grid lease under the unchanged eight-registration cap. Software checks pass; exact native pixels/Matrix Final remain unaccepted because the owned window cannot be foregrounded. Return on working foreground activation, rerun that cohort and prior loss/Undo/Fit/scroll pixels. Next independent requirement: actual Inspector exposure/discovery. Mixed/large snapshots and full sparse/retirement remain required. |
 | Pending | M11/9–10 | After M11/8: identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
@@ -126,19 +126,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch (2026-11-04):** 18:34–19:19 CET cutoff; software-qualified metadata
-  checkpoint. Logical capture now admits 128 definitions independently of the unchanged
-  eight physical inputs, 24 passes and 128 dependencies. [Evidence](evidence/mapgyver-m11-cell-tiles-2026-11-04.json):
-  431 app tests and strict all-target Clippy pass; all nine color clears/bindings survive in
-  a 14-pass plan with no external textures, and a ninth physical input is rejected. Native
-  nine-source/twelve-Cell acceptance is **failing**: two attempts identify an uninstalled
-  ninth registration. The host explicitly negotiates eight; earlier 64-view wording described
-  Golden's default incorrectly. No cap is raised. Investigation is concluded; no additional
-  probe or easier cohort replaces the failing one. Next product deliverable: typed source
-  groups inside one logical grid lease, then the exact cohort including independent Matrix
-  Final pixels. Full mixed/large snapshots, Inspector exposure and revised native/sparse/
-  completion-safe retirement remain required. Prior native tile capability `486f591c` stays
-  pushed/verified within its tested scope. No gate closed: 54/67 (81%), M11 7/10, phases 6/12.
+- **Current batch (2026-11-04):** 19:17–20:02 CET implementation slice. Deliverable: all
+  Matrix Cell source groups share one logical grid registration, preserving the desktop cap
+  of eight registrations. Owners: Golden preview protocol/geometry/placement and MapGyver
+  grid/layout projection. Proving checks: typed group admission and independent placements,
+  completion-aware parent installation, contract generation/UI checks, then the exact native
+  nine-source/twelve-Cell and independent Matrix Final cohort plus prior source-loss/Fit tests.
+  Result: protocol v5 groups admit all nine exact source identities in one installed actual-app
+  registration, with no fallback. 431 app / 195 video tests, strict all-target Clippy, both
+  Svelte checks and 94 app / 31 preview UI tests pass. Exact pixel capture fails the unchanged
+  owned-foreground guard; supported computer-use activation cannot connect its native pipe.
+  No pixel or Matrix Final acceptance is claimed for this binary. Return on working foreground
+  activation and rerun both exact cohorts. Next: actual Inspector exposure/discovery within
+  M11/8. Full mixed/large snapshots and revised native/sparse/completion-safe retirement remain
+  required. Prior metadata fix `b96359ec` is pushed; its investigation is concluded. M11/8 remains the only Active gate;
+  no gate credit yet: 54/67 (81%), M11 7/10, phases 6/12.
 
 ## Maintenance rule
 
