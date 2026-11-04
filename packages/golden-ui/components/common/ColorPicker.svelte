@@ -369,6 +369,8 @@
 							<label for="cp-r">R</label>
 							<input
 								id="cp-r"
+								onfocus={notifyStartEdit}
+								onblur={notifyEndEdit}
 								type="number"
 								step="0.01"
 								min="0"
@@ -380,6 +382,8 @@
 							<label for="cp-g">G</label>
 							<input
 								id="cp-g"
+								onfocus={notifyStartEdit}
+								onblur={notifyEndEdit}
 								type="number"
 								step="0.01"
 								min="0"
@@ -391,6 +395,8 @@
 							<label for="cp-b">B</label>
 							<input
 								id="cp-b"
+								onfocus={notifyStartEdit}
+								onblur={notifyEndEdit}
 								type="number"
 								step="0.01"
 								min="0"
@@ -402,6 +408,8 @@
 							<label for="cp-a">A</label>
 							<input
 								id="cp-a"
+								onfocus={notifyStartEdit}
+								onblur={notifyEndEdit}
 								type="number"
 								step="0.01"
 								min="0"

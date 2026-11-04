@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { appState, FileInput, IconButton, NodeInspector, type UiNodeDto } from 'golden_ui';
-	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
+	import { appState, FileInput, NodeInspector, type UiNodeDto } from 'golden_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import type { PictureFileBinding } from './generated/PictureFileBinding';
 	import type { MediaEdit } from './generated/MediaEdit';
@@ -11,11 +10,13 @@
 		node,
 		channel,
 		busy,
+		chooseExisting = false,
 		edit
 	}: {
 		node: UiNodeDto;
 		channel: ChannelSnapshot;
 		busy: boolean;
+		chooseExisting?: boolean;
 		edit: (intent: MediaEdit) => Promise<MediaEditResult | undefined>;
 	} = $props();
 	const session = $derived(appState.session);
@@ -25,7 +26,6 @@
 		binding: PictureFileBinding;
 	} | null>(null);
 	let error = $state('');
-	let chooseExisting = $state(false);
 	let request = 0;
 	let disposed = false;
 	const binding = $derived(
@@ -127,13 +127,6 @@
 					edit({ kind: 'ConfigurePictureFile', reference: channel.reference, file })} />
 		</div>
 	{:else}<span class="loading">Loading File…</span>{/if}
-	<IconButton
-		icon={referenceIcon}
-		label="Choose existing Picture asset"
-		disabled={busy || !reference}
-		onclick={() => {
-			chooseExisting = !chooseExisting;
-		}} />
 	{#if chooseExisting && reference}
 		<div class="asset-reference" role="group" aria-label="Picture asset binding">
 			<NodeInspector nodes={[reference]} level={1} order="solo" density="compact" />

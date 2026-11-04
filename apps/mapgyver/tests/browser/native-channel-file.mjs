@@ -112,6 +112,59 @@ export async function verifyNativeChannelFile({ page, edit, post, nativePid }) {
 		() => second.locator('.channel-file input.path-input').inputValue(),
 		(value) => value === 'images/shared.png'
 	);
+	const layouts = [];
+	for (const row of [first, second]) {
+		const measurement = await row.evaluate((element) => {
+			const file = element.querySelector('.file-input-row');
+			const input = file.querySelector('input').getBoundingClientRect();
+			const actions = [...file.querySelectorAll('button')].map((button) =>
+				button.getBoundingClientRect()
+			);
+			const header = element.querySelector(':scope > .node-header');
+			return {
+				height: element.getBoundingClientRect().height,
+				rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+				inputWidth: input.width,
+				oneLine: actions.every((button) => Math.abs(button.top - input.top) < 2),
+				headerActions: header.querySelectorAll(
+					'button[aria-label="Choose existing Picture asset"],button[aria-label="Reload Picture"],button[aria-label="Inspect Picture asset"]'
+				).length
+			};
+		});
+		assert(measurement.oneLine && measurement.inputWidth > 0, JSON.stringify(measurement));
+		assert(measurement.height <= measurement.rem * 7.5, JSON.stringify(measurement));
+		assert.equal(measurement.headerActions, 3);
+		layouts.push(measurement);
+	}
+	for (let cycle = 0; cycle < 3; cycle++) {
+		const input = first.locator('.channel-file input.path-input');
+		const changed = `images/enter-${cycle}.png`;
+		await input.fill(changed);
+		await input.press('Enter');
+		await wait(
+			() => second.locator('.channel-file input.path-input').inputValue(),
+			(value) => value === changed
+		);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(
+			() => second.locator('.channel-file input.path-input').inputValue(),
+			(value) => value === 'images/shared.png'
+		);
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(
+			() => second.locator('.channel-file input.path-input').inputValue(),
+			(value) => value === changed
+		);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(
+			() => second.locator('.channel-file input.path-input').inputValue(),
+			(value) => value === 'images/shared.png'
+		);
+	}
+	const cancelled = first.locator('.channel-file input.path-input');
+	await cancelled.fill('../cancelled.png');
+	await cancelled.press('Escape');
+	assert.equal(await cancelled.inputValue(), 'images/shared.png');
 	await enter(second, '');
 	await wait(
 		() => first.locator('.channel-file input.path-input').inputValue(),
@@ -147,6 +200,44 @@ export async function verifyNativeChannelFile({ page, edit, post, nativePid }) {
 	assert.deepEqual(pageErrors, []);
 	assert.deepEqual(rejected, []);
 	assert(observed.requests > 0 && observed.receipts > 0);
+	await page.waitForFunction(() => {
+		const inputs = [
+			...document.querySelectorAll('.channels-section .channel-file input.path-input')
+		];
+		return (
+			inputs.length === 2 &&
+			inputs.every((input) => {
+				const box = input.getBoundingClientRect(),
+					x = box.x + box.width / 2,
+					y = box.y + box.height / 2;
+				if (box.width <= 0 || box.height <= 0) return false;
+				for (let element = input; element; element = element.parentElement) {
+					const style = getComputedStyle(element),
+						bounds = element.getBoundingClientRect();
+					if (
+						Number(style.opacity) < 1 ||
+						style.visibility !== 'visible' ||
+						style.display === 'none'
+					)
+						return false;
+					if (
+						['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowY) &&
+						(y < bounds.top || y > bounds.bottom)
+					)
+						return false;
+					if (
+						['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX) &&
+						(x < bounds.left || x > bounds.right)
+					)
+						return false;
+				}
+				return true;
+			})
+		);
+	});
+	await page.evaluate(
+		() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+	);
 	await page.screenshot({ path: path.join(directory, 'channel-file.png') });
 	const receipt = {
 		nativePid,
@@ -156,6 +247,9 @@ export async function verifyNativeChannelFile({ page, edit, post, nativePid }) {
 		independentChannels: true,
 		existingAssetPicker: true,
 		sharedRealParameter: true,
+		layouts,
+		enterUndoRedoCycles: 3,
+		escapeCancelsDraft: true,
 		clearPreservesBindings: true,
 		saveNewLoad: true,
 		observed,
@@ -163,6 +257,7 @@ export async function verifyNativeChannelFile({ page, edit, post, nativePid }) {
 		pageErrors,
 		clientErrors,
 		finalActivityIdle: true,
+		settledVisibleFiles: true,
 		limits: 'Authoring and native Inspector only; no decoded/GPU pixel or cadence qualification.'
 	};
 	await writeFile(path.join(directory, 'channel-file.json'), JSON.stringify(receipt, null, 2));

@@ -2,11 +2,16 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { observeNativeRejectedRequests } from './intent-observer.mjs';
 
 export async function verifyNativeCompactChannels({ page, edit, nativePid }) {
 	const directory = path.resolve(process.env.MAPGYVER_COMPACT_CHANNELS_DIRECTORY);
 	await mkdir(directory);
 	const errors = [];
+	const { rejected, observed } = await observeNativeRejectedRequests(
+		page,
+		() => 'native compact channels'
+	);
 	page.on('pageerror', (error) => errors.push(String(error)));
 	const { reference } = await edit({
 		kind: 'CreateMedia',
@@ -70,6 +75,35 @@ export async function verifyNativeCompactChannels({ page, edit, nativePid }) {
 	await wait(read, (page) => JSON.stringify(red(page).definition.source.rgba) === '[1,1,1,1]');
 	await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 	await wait(read, (page) => JSON.stringify(red(page).definition.source.rgba) === '[1,0,0,1]');
+	for (const [id, value] of [
+		['r', '.25'],
+		['g', '.5'],
+		['b', '.75'],
+		['a', '.5']
+	]) {
+		await color.locator(`#cp-${id}`).fill(value);
+		await color.locator(`#cp-${id}`).press('Tab');
+	}
+	await wait(
+		read,
+		(page) => JSON.stringify(red(page).definition.source.rgba) === '[0.25,0.5,0.75,0.5]'
+	);
+	await color.locator('#cp-a').fill('1');
+	await color.locator('#cp-a').press('Tab');
+	await wait(
+		read,
+		(page) => JSON.stringify(red(page).definition.source.rgba) === '[0.25,0.5,0.75,1]'
+	);
+	await color.locator('.cp-input-hex').fill('ff0000');
+	await color.locator('.cp-input-hex').press('Tab');
+	await wait(read, (page) => JSON.stringify(red(page).definition.source.rgba) === '[1,0,0,1]');
+	await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+	await wait(
+		read,
+		(page) => JSON.stringify(red(page).definition.source.rgba) === '[0.25,0.5,0.75,1]'
+	);
+	await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+	await wait(read, (page) => JSON.stringify(red(page).definition.source.rgba) === '[1,0,0,1]');
 	await first.locator(':scope > .node-header .title-text').dblclick();
 	await section.locator('input.node-title-input').fill('Red channel');
 	await section.locator('input.node-title-input').press('Enter');
@@ -121,8 +155,18 @@ export async function verifyNativeCompactChannels({ page, edit, nativePid }) {
 		() => rows.count(),
 		(count) => count === 32
 	);
+	await wait(
+		() => ({ ...observed }),
+		(value) => value.requests > 0 && value.requests === value.receipts
+	);
+	await wait(
+		() => page.locator('.user-action-activity').getAttribute('aria-hidden'),
+		(value) => value === 'true'
+	);
 	await page.screenshot({ path: path.join(directory, 'compact-channels.png') });
 	assert.deepEqual(errors, []);
+	assert.deepEqual(rejected, []);
+	assert.deepEqual(await page.locator('.toast.error .toast-message').allTextContents(), []);
 	const receipt = {
 		nativePid,
 		expandedByDefault: true,
@@ -130,6 +174,10 @@ export async function verifyNativeCompactChannels({ page, edit, nativePid }) {
 		nestedParameterHeaders: 0,
 		hiddenKindAndSampling: true,
 		editUndoRedo: true,
+		rapidRgbaThenHexHistory: true,
+		observed,
+		rejected,
+		finalActivityIdle: true,
 		renameDuplicateDeleteHistory: true,
 		isolatedPeer: true,
 		totalChannels: 37,

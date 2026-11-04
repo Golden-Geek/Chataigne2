@@ -14,7 +14,7 @@
 		collapsed = false
 	}: {
 		node: UiNodeDto;
-		defaultHeader?: Snippet;
+		defaultHeader?: Snippet<[Snippet?]>;
 		defaultContent?: Snippet<[Snippet?]>;
 		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
 		collapsed?: boolean;

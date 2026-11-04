@@ -20,6 +20,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			try {
 				const frame = JSON.parse(String(payload));
 				if (frame.kind === 'intent') intents.push(frame.intent);
+				if (frame.kind === 'intentBatch') intents.push(...frame.intents);
 			} catch {}
 		})
 	);
@@ -35,40 +36,62 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 	}
 	try {
 		await page.goto(base);
+		await page.getByRole('tab').first().click();
+		const manager = page.locator('section[data-panel-id="media-manager"]');
+		const beforeCreation = await inspectMedia();
+		await manager.getByRole('button', { name: 'Add child item', exact: true }).first().click();
+		await page.getByRole('menuitem', { name: 'Composition', exact: true }).click();
 		await page
 			.getByRole('tab')
 			.filter({ hasText: /^Composition$/ })
 			.click();
-		await page.getByRole('button', { name: 'Add Composition', exact: true }).click();
 		const catalog = await wait(inspectMedia, (value) =>
-			value.media.some((item) => item.media_kind === 'Composition')
+			value.media.some((item) => !beforeCreation.media.some((old) => old.id === item.id))
 		);
-		const composition = catalog.media.find((item) => item.media_kind === 'Composition').channels[0]
-			.reference;
+		const composition = catalog.media.find(
+			(item) => !beforeCreation.media.some((old) => old.id === item.id)
+		).channels[0].reference;
+		const owner = catalog.media.find((item) => item.id === composition.media);
+		await manager.getByRole('button', { name: owner.label, exact: true }).click();
 		const source = catalog.media.find((item) => item.media_kind === 'SolidColor');
 		const inspect = async () =>
 			(await edit({ kind: 'Composition', reference: composition, edit: { kind: 'Inspect' } }))
 				.snapshot;
-		const add = page
-			.locator('.properties form')
-			.filter({ has: page.getByRole('button', { name: 'Add instance', exact: true }) });
-		await add.getByLabel('Find source channel', { exact: true }).fill(source.label);
-		await add
-			.getByLabel('Source channel', { exact: true })
-			.selectOption({ label: `${source.label} / ${source.channels[0].label}` });
-		await add.getByRole('button', { name: 'Add instance', exact: true }).click();
+		const canvas = page.locator('[data-panel-id="composition"] .source-drop-zone');
+		await canvas.locator('svg[aria-label="Composition transform controls"]').waitFor();
+		const sourceRow = manager
+			.getByRole('treeitem', { name: source.label, exact: true })
+			.getByRole('button', { name: source.label, exact: true });
+		const transfer = await page.evaluateHandle(() => new DataTransfer());
+		try {
+			await sourceRow.dispatchEvent('dragstart', { dataTransfer: transfer });
+			const bounds = await canvas.boundingBox();
+			assert(bounds);
+			const event = {
+				dataTransfer: transfer,
+				clientX: bounds.x + bounds.width / 2,
+				clientY: bounds.y + bounds.height / 2
+			};
+			await canvas.dispatchEvent('dragover', event);
+			await canvas.getByRole('status').filter({ hasText: 'Add instance' }).waitFor();
+			await canvas.dispatchEvent('drop', event);
+			await sourceRow.dispatchEvent('dragend', { dataTransfer: transfer });
+		} finally {
+			await transfer.dispose();
+		}
 		const initial = await wait(inspect, (value) => value.instances.length === 1);
 		const parameters = page.locator('.parameter-inspector');
 		await wait(
 			() => parameters.count(),
-			(count) => count === 9
+			(count) => count === 10
 		);
 		const ids = await parameters.evaluateAll((nodes) => nodes.map((node) => node.dataset.nodeId));
-		assert.equal(new Set(ids).size, 9, 'Every editor is bound to its own real parameter node');
+		assert.equal(new Set(ids).size, 10, 'Every editor is bound to its own real parameter node');
 		const parameter = (label) => parameters.filter({ has: page.getByText(label, { exact: true }) });
 		for (const label of [
-			'Source media',
-			'Source channel',
+			'Target',
+			'Resolution',
+			'Output',
 			'Position',
 			'Scale',
 			'Rotation',
@@ -111,12 +134,24 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		stage = 'parameter-backed duplication and removal';
 		await page.getByRole('button', { name: 'Copy instance', exact: true }).click();
 		const copied = await wait(inspect, (value) => value.instances.length === 2);
-		assert.deepEqual(copied.instances[1].definition, scaled.instances[0].definition);
+		const child = copied.instances[1].reference.instance;
+		assert.notEqual(child, scaled.instances[0].reference.instance);
+		assert.deepEqual(copied.instances[1].definition, {
+			...scaled.instances[0].definition,
+			source: { ...scaled.instances[0].definition.source, media: child }
+		});
+		const aliases = (await inspectMedia()).media;
+		assert.deepEqual(
+			aliases.find((item) => item.id === child).channels.map((item) => item.definition),
+			aliases
+				.find((item) => item.id === scaled.instances[0].reference.instance)
+				.channels.map((item) => item.definition)
+		);
 		// The backend commit can be observed before the UI receives its receipt
 		// and selects the returned copy. Wait for that selection, not the old count.
 		const copiedIds = await wait(
 			() => parameters.evaluateAll((nodes) => nodes.map((node) => node.dataset.nodeId)),
-			(values) => values.length === 9 && values.every((id) => !ids.includes(id))
+			(values) => values.length === 10 && values.every((id) => !ids.includes(id))
 		);
 		assert(
 			copiedIds.every((id) => !ids.includes(id)),
@@ -138,9 +173,14 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		});
 		assert.deepEqual(errors, []);
 		assert.equal(rejected.length, 2);
-		assert.equal(rejected[0].request.intent.kind, 'setParam');
+		assert.equal(rejected[0].request.intent.kind, 'setParamComponent');
 		assert.equal(rejected[1].request.intent.kind, 'setParam');
-		assert(intents.filter((intent) => intent.kind === 'setParam').length >= 15);
+		const scalarWrites = intents.filter((intent) => intent.kind === 'setParam');
+		const componentWrites = intents.filter((intent) => intent.kind === 'setParamComponent');
+		assert(
+			scalarWrites.length > 0 && componentWrites.length > 0,
+			'Verified scalar and vector field edits use generic Parameter intents'
+		);
 		assert(
 			!intents.some((intent) => intent.payload?.edit?.kind === 'ConfigureInstance'),
 			'Ordinary fields use generic SetParam'
@@ -151,7 +191,8 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 				scope:
 					'Composition instance, Media/channel and asset generic Parameters, visibility, history/rejection and independent copy/remove',
 				browser: browser.version(),
-				parameter_nodes: 9,
+				parameter_nodes: 10,
+				generic_writes: { scalars: scalarWrites.length, components: componentWrites.length },
 				expected_rejections: 2,
 				page_errors: errors.length
 			})

@@ -348,11 +348,10 @@
 						{/if}
 
 						<NodeWarningBadge {warnings} />
-
-						{#if headerExtra}
-							{@render headerExtra()}
-						{/if}
 					</span>
+					{#if headerExtra}
+						{@render headerExtra()}
+					{/if}
 
 					<span class="spacer"></span>
 					{#if showAddButton}
@@ -361,6 +360,8 @@
 						</div>
 					{/if}
 				</div>
+			{:else if headerExtra}
+				<div class="root-actions">{@render headerExtra()}</div>
 			{/if}
 		{/snippet}
 
@@ -470,6 +471,13 @@
 {/if}
 
 <style>
+	.root-actions {
+		display: flex;
+		justify-content: flex-end;
+	}
+	.root-actions:empty {
+		display: none;
+	}
 	.node-inspector {
 		display: flex;
 		flex-direction: column;

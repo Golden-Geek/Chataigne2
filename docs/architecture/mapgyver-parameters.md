@@ -12,6 +12,17 @@ Editable collections use real child nodes. Identity, labels, hierarchy and order
 Golden topology/metadata. Selection/zoom, panel locks and native observations are presentation/
 runtime state. Declared Parameter folders must not advertise unsupported Add actions.
 
+Channel source differences stay expanded in the generic Inspector. Picture rows forward the
+catalog's actual File Parameter; path, Browse and Clear share one compact row. Contextual asset
+actions use the public Inspector header slot, outside the collapse toggle and available for
+root inspection too. No duplicate path or asset state is stored in the UI.
+
+Golden's File widget retains a focused draft across external value updates. Its Enter action
+commits through the ordinary change event; Escape restores the current authoritative value.
+Color drafts retain session/project/node identity and the acknowledged graph-event boundary,
+so older echoes cannot replace a later RGBA component while editing or awaiting projection.
+These are local editor drafts; Parameter nodes remain the authored authority.
+
 Time Parameters keep their stored/API milliseconds and declare `widget = "time", unit = "ms"`.
 Golden's generic numeric editor displays a clock and converts edits back into those same units;
 seconds-based Golden Parameters use `unit = "s"` (or the existing unspecified seconds convention).

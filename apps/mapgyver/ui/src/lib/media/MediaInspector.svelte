@@ -24,7 +24,7 @@
 		collapsed = false
 	}: {
 		node: UiNodeDto;
-		defaultHeader?: Snippet;
+		defaultHeader?: Snippet<[Snippet?]>;
 		defaultContent?: Snippet<[Snippet?]>;
 		defaultChildren?: Snippet<[String?, NodeInspectorChildFilter?]>;
 		collapsed?: boolean;
@@ -39,6 +39,7 @@
 	let owner = $state.raw<{ session: typeof session; generation: number } | null>(null);
 	let read = 0,
 		disposed = false;
+	let chooseExistingFor = $state<string | null>(null);
 	const channel = $derived(
 		session?.status === 'connected' &&
 			!session.loading.visible &&
@@ -154,7 +155,32 @@
 	});
 </script>
 
-{@render defaultHeader?.()}
+{#snippet channelActions()}
+	{#if channel?.definition.source.kind === 'Picture'}
+		<IconButton
+			icon={referenceIcon}
+			label="Choose existing Picture asset"
+			disabled={busy}
+			aria-pressed={chooseExistingFor === node.uuid}
+			onclick={() => {
+				chooseExistingFor = chooseExistingFor === node.uuid ? null : node.uuid;
+			}} />
+		{#if channel.definition.source.asset}
+			{@const asset = channel.definition.source.asset}
+			<IconButton
+				icon={reloadIcon}
+				label="Reload Picture"
+				disabled={busy}
+				onclick={() => edit({ kind: 'ReloadAsset', asset })} />
+			<IconButton
+				icon={referenceIcon}
+				label="Inspect Picture asset"
+				disabled={busy}
+				onclick={() => selection.select(asset)} />
+		{/if}
+	{/if}
+{/snippet}
+{@render defaultHeader?.(channelActions)}
 {#snippet content()}
 	{@render defaultChildren?.('', parametersOnly)}
 	{#if node.node_type === 'mapgyver.media.v7'}
@@ -162,7 +188,7 @@
 	{:else if node.node_type === 'mapgyver.media.reference.v3' && !collapsed}
 		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}
 	{/if}
-	<div class="properties">
+	<div class="properties" class:channel-properties={node.node_type === 'mapgyver.media.channel'}>
 		{#if error}<p role="alert">{error}</p>{/if}
 		{#if node.node_type === 'mapgyver.media.manager'}
 			<MediaCommandsSection {node} {defaultChildren} disabled={busy} />
@@ -182,22 +208,12 @@
 		{/if}
 		{#if channel}
 			{#if channel.definition.source.kind === 'Picture'}
-				<PictureChannelFile {node} {channel} {busy} {edit} />
-				{#if channel.definition.source.asset}
-					{@const asset = channel.definition.source.asset}
-					<div class="summary">
-						<IconButton
-							icon={reloadIcon}
-							label="Reload Picture"
-							disabled={busy}
-							onclick={() => edit({ kind: 'ReloadAsset', asset })} />
-						<IconButton
-							icon={referenceIcon}
-							label="Inspect Picture asset"
-							disabled={busy}
-							onclick={() => selection.select(asset)} />
-					</div>
-				{/if}
+				<PictureChannelFile
+					{node}
+					{channel}
+					{busy}
+					{edit}
+					chooseExisting={chooseExistingFor === node.uuid} />
 			{:else if channel.definition.source.kind === 'Spout'}
 				<SpoutSenderPicker
 					sender={channel.definition.source.sender ?? ''}
@@ -237,10 +253,11 @@
 		gap: 0.5rem;
 		min-width: 0;
 	}
-	.summary {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.85em;
+	.properties:empty {
+		display: none;
+	}
+	.channel-properties {
+		padding: 0.15rem 0.3rem;
+		gap: 0.25rem;
 	}
 </style>

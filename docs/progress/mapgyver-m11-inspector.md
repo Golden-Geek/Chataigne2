@@ -1,9 +1,47 @@
 # M11/4 typed Inspector and Fit Mode
 
-**State: Pending urgent preview-only cadence repair.** Unit-preserving time controls and native-verified media Fit/Fill/Stretch
-are delivered. Kind/sampling controls are removed and expanded rows expose Color directly.
-Catalog assets now have one authoritative typed File and Picture channels directly expose it.
-Final complete Inspector/browser parity, compact layout and retained Undo stability remain required.
+**State: Accepted, 2026-11-04.** Expanded compact channels expose their actual source
+differences, with typed media Fit Mode and unit-preserving clocks. M11 is 4/10; overall
+verified acceptance is 51/67, with phase completion unchanged at 6/12.
+
+## M11/4 acceptance
+
+The [final receipt](evidence/mapgyver-m11-inspector-acceptance-2026-11-04.json) joins the
+previously verified backend, Fit pixels and clocks with complete current Inspector acceptance.
+It does not qualify retained timing, physical output, device removal or future Video playback.
+
+| Requirement | Authoritative evidence |
+| --- | --- |
+| Minimal typed source differences; no visible kind/sampling or authored channel size | Versioned backend/protocol and 413 passing app tests; native expanded Color/File controls, peer isolation, labels/CRUD/history and 37-channel paging at 32/5/32 mounted rows |
+| One direct File per Picture channel and compact contextual actions | Actual native rows measure 105.6 CSS units high; path/Browse/Clear remain on one line, asset actions live in the channel header, and the configured widget binds the catalog's real File Parameter |
+| File sharing, import/relink/reload and stable history/project behavior | Final native channel flow: 316 requests/316 receipts, three Enter/Undo/Redo cycles, Escape cancellation, shared clear/history and Save/New/Load; original catalog fixture: 77/77, relative/absolute edits, Relink/Reload and project roundtrip; no rejected requests or final client errors; normal exits |
+| Generic/API/script/headless/history/copy/project parity | Complete generic browser entry passes 10 owned Reference/Placement Parameters and 12 scalar/component writes with two expected atomic rejections; complete source CRUD/import/picker/history/reload entry passes its one expected last-channel guard. Backend four-caller, generated-contract, schema/copy/project and command/template tests pass |
+| Fit/Fill/Stretch/Auto and source aspect ratios | Reuse the unchanged media Fit and current Linear receipts below: both GPUs, all 24 complete Fit images and 54 complete Composition images, with the original pixel tolerances |
+| Existing time Parameters preserve units | Reuse all eight native clock edits, declaration/unit/history/project tests and the shared seconds/milliseconds parser evidence below; future Video remains an explicit M10 consumer requirement |
+
+Golden's File widget now preserves focused input across delayed backend echoes. Enter commits
+once through the change event; Escape restores the authoritative value without submitting the
+cancelled path. Color editing now retains its draft through the applied receipt and graph
+projection, fenced by session/project/node identity. The complete source test had reproduced
+lost RGBA components; both that test and actual native rapid RGBA/hex/history now pass.
+
+Header actions render outside the collapse toggle and remain available when inspecting a
+channel directly. The final native Color run records 665 requests/665 receipts, no rejections,
+idle activity, normal exit, independent variants, rename/copy/remove/history and bounded paging.
+Final File and Color screenshots were inspected. The File capture waits for opaque, unclipped
+controls after project replacement; the first capture caught a transitional empty Inspector.
+
+The earlier catalog Undo timeout's historical cause is not asserted. Its original native
+workflow now passes on the corrected widget, alongside repeated channel history and the full
+generic File clear/history flow, without fixed sleeps or revised budgets. The old generic
+browser fixture was reconciled with owned Composition References, current scalar/component
+intents and actual Channels selection; the retired field-count assertion no longer describes
+the model. Per-field committed values and both atomic rejections remain checked.
+
+Final checks: 413 app tests (three explicit native/process ignores), Rust-generated contract
+matching, strict all-target native/process Clippy, 236 Golden UI tests, Svelte 0 errors/warnings,
+both Cargo formatters and scoped Prettier pass. The user's active executable remained locked;
+native checks used the pinned isolated executable recorded in the receipt.
 
 ## Direct channel File controls
 
@@ -25,9 +63,9 @@ asset picker, shared real Parameter editing, clear and Save/New/Load: 145 reques
 receipts, no backend rejections/page errors/final client errors, idle activity and normal exit.
 The screenshot is inspected. Decoded pixels, native dialogs and cadence are outside this fixture.
 
-Final compact row layout, the complete legacy generic-Parameters/sources browser entries and
-the earlier intermediate Undo timeout remain in M11/4 acceptance. The user's confirmation that
-only preview/warping is slow immediately returns priority to M03/9; this slice accepts no gate.
+This earlier checkpoint left compact layout and complete browser/history acceptance open.
+Those requirements are now accepted above; the separate urgent Shared Texture cadence repair
+is recorded in its [own report](mapgyver-shared-texture-cadence.md).
 
 ## Single catalog File authority
 
@@ -48,8 +86,9 @@ page errors or final client error toasts. Final activity is idle, the screenshot
 and the owned host exits normally. Browse is available; this fixture does not operate a native
 file dialog or qualify decoded/GPU pixels. Its binary includes concurrent user UI changes.
 
-An intermediate native run timed out observing Undo once. The cause is unproven and remains
-in final Inspector stability acceptance despite the final passing run. The fixture now observes
+An intermediate native run timed out observing Undo once. At that checkpoint its unproven cause
+remained in final Inspector stability acceptance; the original workflow is now requalified above.
+The fixture observes
 already-connected native WebSocket receipts and waits for UI activity to settle before external
 project replacement; it does not qualify a transient Failed indicator as a clean final state.
 The first reload-based observation attempt aborted before its flow; no native outcome is inferred.
@@ -94,7 +133,7 @@ Picture retains an internal typed asset reference; direct File controls now bind
 authority as described above, preserving sharing/import/relink/reload. The full
 legacy generic-Parameters browser entry also still starts with an obsolete reference-only
 Composition form. Its media leaf is reconciled, but the complete entry is not claimed passing.
-These remain in M11/4's final parity/acceptance queue. This slice closes no gate.
+Those checkpoint limits are closed by the complete current browser/native acceptance above.
 
 ## Media Fit Mode
 
@@ -134,8 +173,8 @@ Verification on 2026-11-04 ([receipt](evidence/mapgyver-m11-media-fit-2026-11-04
   which remain outside this milestone.
 
 Sampling removal, replacement command, expanded Color and direct File delivery are verified above.
-Final complete browser parity and compact File layout remain required. This is usable
-partial delivery, not acceptance of M11/4 or any retained physical/performance gate.
+That checkpoint did not accept M11/4; its final browser/layout requirements are closed above.
+Retained physical/performance requirements remain with their owning gates.
 
 ## Time controls
 
@@ -173,16 +212,8 @@ activating the media-manager tab. Explicit default-tab activation corrects the f
 complete rerun again passes all eight edits and normal shutdown without relying on the user's
 uncommitted panel-title rename.
 
-## Exact remaining acceptance
+## Next gate and retained limits
 
-Complete final compact File-row layout and the full generic Inspector/browser/caller acceptance,
-including the retained intermediate Undo timeout. Preserve the now-delivered real File authority,
-asset sharing/import/relink/reload, channel CRUD/labels/paging, independent selection and no
-per-channel authored size. The updated legacy generic-Parameters and source browser entries
-still require a complete run.
-
-Preserve the verified media Fit Mode and clock behavior while completing that Inspector change.
-Finish command/catalog and full generic/API/script/headless/history/copy/project/browser parity
-for the final revised model. Any further schema/DTO changes must update versions, generation
-and consumers together. M11/4 is Pending while the urgent preview-only cadence repair is Active;
-this partial delivery closes no gate and verified acceptance stays 50/67.
+M11/4 has no remaining acceptance items. M11/5 adds typed media-level Manual/Auto Shared Texture
+selection and live per-channel sender controls. Future Video must consume the same File/Fit/time
+contracts. No M03/M05/M08/M09 performance, physical or retirement gate closes through this work.

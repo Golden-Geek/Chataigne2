@@ -1,0 +1,112 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/4",
+	"state": "Accepted",
+	"base_commit": "2d29e3815b86125cec04be0a4320e1a723c98841",
+	"scope": "Complete minimal typed media/channel Inspector acceptance, compact Files and asynchronous editor draft corrections.",
+	"checks": {
+		"mapgyver_lib": {
+			"passed": 413,
+			"failed": 0,
+			"explicit_native_process_ignored": 3,
+			"generated_contracts_match": true,
+			"four_caller_parity": true
+		},
+		"golden_ui": {
+			"passed": 236,
+			"failed": 0
+		},
+		"svelte": {
+			"errors": 0,
+			"warnings": 0
+		},
+		"strict_mapgyver_all_target_native_process_clippy": true,
+		"root_and_core_cargo_fmt": true,
+		"scoped_prettier": true
+	},
+	"native": {
+		"binary": "target/debug/deps/MapGyver-codex-m11-inspector-files-acceptance.exe",
+		"sha256": "AF4EBC05A147898725251FC5A0EAAA965E1BB8D0C91425EEB7619A866CD4ABC5",
+		"channel_file": {
+			"pid": 21628,
+			"artifact_directory": "target/mapgyver-m11-inspector-visible-file-2026-11-04",
+			"rows_height_css": 105.6,
+			"path_width_css": 120.6,
+			"root_font_css": 16,
+			"one_line_input_actions": true,
+			"three_contextual_header_actions": true,
+			"enter_undo_redo_cycles": 3,
+			"escape_cancels_uncommitted_invalid_path": true,
+			"shared_authority_and_clear_history": true,
+			"save_new_load": true,
+			"settled_visible_screenshot_reviewed": true,
+			"requests": 316,
+			"applied_receipts": 316,
+			"rejections": 0,
+			"page_errors": 0,
+			"final_client_errors": 0,
+			"activity_idle": true,
+			"normal_host_exit": 0
+		},
+		"color": {
+			"pid": 41240,
+			"artifact_directory": "target/mapgyver-m11-inspector-final-color-2026-11-04",
+			"rapid_rgba_and_hex_history": true,
+			"peer_isolation": true,
+			"rename_duplicate_delete_history": true,
+			"total_channels": 37,
+			"mounted_page_counts": [32, 5, 32],
+			"requests": 665,
+			"applied_receipts": 665,
+			"rejections": 0,
+			"page_errors": 0,
+			"activity_idle": true,
+			"normal_host_exit": 0
+		},
+		"catalog_asset": {
+			"pid": 7568,
+			"artifact_directory": "target/mapgyver-m11-inspector-final-asset-2026-11-04",
+			"original_retained_fixture_passed": true,
+			"absolute_relative_file_clear_history_relink_reload_project": true,
+			"browse_available_but_dialog_not_operated": true,
+			"requests": 77,
+			"applied_receipts": 77,
+			"rejections": 0,
+			"page_errors": 0,
+			"final_client_errors": 0,
+			"activity_idle": true,
+			"normal_host_exit": 0
+		}
+	},
+	"browser": {
+		"full_generic_parameters": {
+			"passed": true,
+			"real_owned_reference_and_placement_parameters": 10,
+			"scalar_writes": 5,
+			"component_writes": 7,
+			"expected_invariant_rejections": 2,
+			"page_errors": 0,
+			"independent_copy_and_history": true,
+			"normal_host_exit": 0
+		},
+		"full_source_ui": {
+			"passed": true,
+			"expected_last_channel_guard_rejections": 1,
+			"page_errors": 0,
+			"crud_import_relink_reference_picker_history_reload": true,
+			"normal_host_exit": 0
+		}
+	},
+	"retained_evidence": {
+		"backend_and_direct_files": "mapgyver-m11-channel-file-2026-11-04.json",
+		"expanded_color_and_linear_fit_composition": "mapgyver-m11-compact-channels-2026-11-04.json",
+		"fit_mode_pixels": "mapgyver-m11-media-fit-2026-11-04.json",
+		"all_existing_clock_units": "mapgyver-m11-time-controls-2026-11-04.json"
+	},
+	"limits": [
+		"Historical catalog Undo timeout cause is not asserted; its exact workflow and repeated current native history workflows now pass.",
+		"Native source File dialogs, 60 FPS scanout, physical timing, device removal and codec/final qualification are outside this gate.",
+		"Future Video File/time behavior remains a required M10 consumer contract.",
+		"The running user's executable was locked; native validation used an isolated build without replacing that session."
+	]
+}

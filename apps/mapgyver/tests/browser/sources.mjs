@@ -16,7 +16,7 @@ export async function verifySourcesUi({ base, inspect }) {
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'setup';
 	const rejected = observeRejectedRequests(page, () => stage);
-	const manager = page.locator('section[aria-label="Media Manager"]');
+	const manager = page.locator('section[data-panel-id="media-manager"]');
 	const channels = page.getByRole('region', { name: 'Channels', exact: true });
 	const entries = channels.locator(
 		':scope > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
@@ -66,9 +66,12 @@ export async function verifySourcesUi({ base, inspect }) {
 				await title.press('Enter');
 		}
 		const row = entries.nth(index);
-		if ((await row.locator('.parameter-inspector').count()) === 0)
+		if (
+			(await row.locator(':scope > .node-header > .node-title').getAttribute('aria-checked')) ===
+			'false'
+		)
 			await header(item.channels[index].label).press('Enter');
-		await row.locator('.parameter-inspector').first().waitFor();
+		await row.locator('.parameter-inspector, .channel-file input.path-input').first().waitFor();
 		return row;
 	}
 	async function renameChannel(reference, label) {
@@ -151,10 +154,7 @@ export async function verifySourcesUi({ base, inspect }) {
 	}
 	try {
 		await page.goto(base);
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
-			.click();
+		await page.getByRole('tab').first().click();
 		await page.getByRole('button', { name: 'Open File menu', exact: true }).click();
 		await page
 			.getByRole('menuitem')
@@ -299,10 +299,7 @@ export async function verifySourcesUi({ base, inspect }) {
 		await undo();
 		await catalog((value) => isDeepStrictEqual(value, beforeRemoval));
 		await page.reload();
-		await page
-			.getByRole('tab')
-			.filter({ hasText: /^Media Manager$/ })
-			.click();
+		await page.getByRole('tab').first().click();
 		await manager.getByRole('button', { name: 'Solid sources', exact: true }).waitFor();
 		assert.deepEqual(await inspect(), beforeRemoval);
 		assert.equal(await manager.locator('input:not([type=search]),select,fieldset').count(), 0);

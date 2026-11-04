@@ -2,12 +2,12 @@
 
 **Updated: 2026-11-04 · Overall: `█████░░░░░` 50% · 6/12 phases complete**
 
-**Verified gates: `████████░░` 75% · 50/67 accepted** (phase completion above remains 6/12).
+**Verified gates: `████████░░` 76% · 51/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** Shared Texture freeze repaired and natively verified; resume M11/4 Inspector acceptance.
-**Next action:** close final compact File-row layout and complete generic Inspector/sources/history acceptance.
-**Blocker:** no blocker for M11/4. Original physical/timing qualification remains unaccepted in its return queue.
-**Execution:** M11/4 alone is Active. The urgent hotfix is verified; M03/9 returns to Pending for its original qualification. Existing accepted gates retain their tested limits.
+**Current topic:** M11/4 Accepted: compact typed channels and stable File/Color editing.
+**Next action:** implement M11/5 typed media-level Manual/Auto Shared Texture selection and live channel sender controls.
+**Blocker:** none for M11/5. Original physical/timing qualification remains unaccepted in its return queue.
+**Execution:** M11/5 alone is Active; M11/4 is Accepted. M03/9 retains its original qualification in Pending. Existing accepted gates retain their tested limits.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
 adds ten gates, **all ahead of M10 and M09**. Current functional order: M11 → M10 → M09;
@@ -22,19 +22,17 @@ remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
 Color edits need no nested Parameters folder; kind/sampling controls are gone and sampling is
 fixed to Linear. Native editing/CRUD/history/paging and both-GPU Fit/Composition pixels pass.
 Fit Mode, unit-preserving clocks and typed GPU Preferences remain delivered.
-M11/4 stays open for final compact File layout and complete Inspector acceptance.
+M11/4 is Accepted with complete native/browser/caller/history coverage; see the [acceptance audit](mapgyver-m11-inspector.md#m114-acceptance).
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** [Shared Texture cadence repair](mapgyver-shared-texture-cadence.md),
-verified with diagnostics disabled and moving pixels in both actual native editor panels.
-The normal debug executable is rebuilt. Previous delivery: direct Picture channel File authoring and bounded real-Parameter
-bindings; 413 app tests, four-caller parity, generated contracts, strict lint, 236 Golden UI tests
-and Svelte 0/0 pass. Actual native assignment/history/shared editing/asset picker/clear/Save/New/Load
-pass with 145 applied receipts, no backend rejections or final client errors, idle activity and normal exit.
-Final compact row/full Inspector parity and the earlier intermediate Undo timeout remain unaccepted.
-This slice closes no gate; verified progress remains 50/67. Retained physical/device-removal/timing
-qualification remains required.
+**Last delivered capability:** compact Picture File controls, contextual channel header actions
+and stable File/Color drafts under asynchronous backend updates. The complete Inspector gate
+passes 413 app tests, 236 Golden UI tests, Svelte 0/0, strict lint, both full browser flows and
+native File/catalog/Color/history/paging/project checks. Screenshots are reviewed and owned hosts
+exit normally. [Evidence](evidence/mapgyver-m11-inspector-acceptance-2026-11-04.json).
+The [Shared Texture cadence hotfix](mapgyver-shared-texture-cadence.md) remains verified and pushed.
+This closes M11/4: 51/67 verified gates (76%); phase completion stays 6/12 (50%).
 M08 remains 3/4 and Blocked on its separate retirement barrier.
 Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
@@ -49,13 +47,13 @@ Retained physical/timing requirements remain open; M11 owns changed feedback sco
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Accepted                        | `██████████` 100% | 4/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 1/1](mapgyver-m07-native.md)                                       |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Blocked: complete retirement    | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); [remaining acceptance 0/1](mapgyver-m08-retirement.md) |
-| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active Inspector acceptance     | `███░░░░░░░` 30%  | 3/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
+| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active Shared Texture discovery     | `████░░░░░░` 40%  | 4/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); [media 1/1](mapgyver-m11-inspector.md#m114-acceptance); discovery 0/1; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                         |
 
 **Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **50/67 accepted gates**. Complete typed Preferences and native adapter checks accept M11/3.
+There are **51/67 accepted gates**. M11/4's complete Inspector acceptance adds one verified gate; M11/3's typed Preferences/native adapter acceptance is retained.
 M08 stays 3/4. M07 remains
 complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
 The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
@@ -80,14 +78,15 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Pending  | M03/9    | [Urgent cadence regression repaired](mapgyver-shared-texture-cadence.md): actual native moving pixels pass with diagnostics disabled. Missing original GPU critical-path/window timing and private-growth qualification. Return to the dedicated qualification cohort after M11 feedback acceptance; no timing budget or full-gate credit is inferred from this hotfix. |
-| Active   | M11/4    | [Direct File, Color, clocks and Fit Mode delivered](mapgyver-m11-inspector.md). Urgent preview repair is verified. Complete final compact File-row layout, full generic Inspector/sources browser/caller acceptance and retained intermediate Undo stability. Catalog `ce8b8095` and direct File controls `27964dcb` are pushed. No duplicated persistent path or gate credit. |
+| Accepted | M11/4    | [Complete typed Inspector acceptance](mapgyver-m11-inspector.md#m114-acceptance): compact File rows, real shared Parameters, stable File/Color drafts, full generic/source browser flows and native catalog/channel history/project/CRUD/paging checks. Fit pixels, clocks, commands and four-caller parity remain verified. |
 | Accepted | M11/3    | [Typed GPU Preferences and native acceptance](mapgyver-m11-gpu.md#native-preferences-acceptance): five cold starts, both explicit GPUs, separate persisted choice, truthful restart requirement, pinned renderer recreation, missing choice without fallback and recovery. Eight full pixel checks and 447 independent copies pass. |
 | Accepted | M11/2    | [Complete capacity acceptance](mapgyver-m11-capacity.md#m112-acceptance--quiescence-releases-context-bindings): both GPUs pass eight 4K producers/two aliases, 56 complete images, bounded native ownership, reuse and real pressure/recovery. NVIDIA/Intel retire in 61.721/260.242 ms; pressure cases 49.990/93.013 ms, within the original two-second bound. |
 | Accepted | M11/1    | [Native stability acceptance](mapgyver-m11-stability.md#m111-acceptance--native-input-and-project-transitions): recorded selection/reconnect fixes, actual Inspector/Matrix input, independent outputs, guarded desktop pixels, three close/reopen cycles and New/Load with old imagery retired. No prior brief-unavailable waiver used. |
 | Blocked  | M08/4    | [Exact native barrier](mapgyver-m08-retirement.md): singleton root exited, active/pending zero, one uncaptured lifetime. Functional UI/script/project/access paths pass. Return with a documented identity-preserving completion mechanism for that lifetime, or an explicit user contract revision, then verify the retained exact fixture with original budgets. No unchanged probes or cleanup claim. Still required before M10/M09. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
-| Pending  | M11/5–10 | After M11/4 closure: Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially. All ten precede M10 and M09. |
+| Active   | M11/5    | Typed media-level Manual/Auto Shared Texture selection, String + Detect versus dynamic enum, live sender-list updates, exact missing-choice retention and recovery; verify independent channels and caller/history/project parity. Follow the numbered feedback gate without reopening cadence probes. |
+| Pending  | M11/6–10 | After M11/5 closure: shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the remaining numbered feedback gates sequentially; all precede M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
 | Blocked  | M05/5,8  | Full physical hotplug, 150/200% and negative-origin/latency coverage is unverified. Native pixels and the known local displays now permit automatic cases; run the retained exact physical matrix, preserving missing configurations and measurement requirements.                                                                                                                                                                                                                                                                                           |
@@ -110,46 +109,25 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Retained urgent checkpoint:** cadence repair, user priority at 10:42 CET / product stopping
-  time 11:27 CET; investigation hard limit 11:42 CET (2026-11-04), baseline plus one repaired
-  experiment maximum. Owner: Golden native Spout receive/bridge and MapGyver native publication.
-  Baseline hypothesis: input receive/publication cadence is slow independently of the 60 FPS
-  compositor. Two bounded checks against the user's Spout Demo Sender did not reproduce it:
-  NVIDIA copied 166 times in 3.003 s without a consumer; with renderer handoff it copied 178
-  times in 3.003 s, with zero SDK/bridge Busy observations or HRESULT failures. Intel cannot
-  open that sender's texture (E_INVALIDARG); it is not treated as a working fallback.
-  These are copy counts, **not proof of changing pixels or actual-app cadence**. The source-loop
-  two-experiment allowance is consumed; do not extend it with another source probe. At 12:24 CET
-  the user confirmed that only preview/warping is slow and the separate Spout output is smooth.
-  That new evidence changes the named decision to window presentation/WebView composition and
-  is the sole reason for reopening the urgent investigation at that boundary.
-  The current live scene has two Demo Sender inputs feeding Matrix layers and a Spout Screen;
-  the recording shows the slow warped preview. No runtime fix or acceptance is claimed.
-  Golden Video software validation passes: 184 tests, 21 explicit hardware tests ignored;
-  strict D3D11 library/test Clippy passes. The finite live isolation test is opt-in.
-  Computer Use native pipe/browser host failed after bounded recovery; local app API at 7011
-  works and the recording is decoded. The requested manual comparison is now answered above.
-  M11/4's fully checked partial capability is isolated in commit `974741f8`; diagnostic checkpoint
-  `23f64dd3` preserves these limits. Both are now pushed: existing HTTPS credentials worked,
-  fetch confirmed no divergence, and remote `mapgyver` independently returned full HEAD
-  `23f64dd320937c203dd62ebf5b632fd687dbdc73`. The saved SSH remote/configuration is unchanged;
-  HTTPS was selected per command. No acceptance denominator change: 50/67, 6/12 phases. Preserve the user's
-  concurrent work and do not restart their active app/processes without preserving its project.
-- **Current batch handoff (13:09 CET, 2026-11-04):** repaired the urgent Shared Texture
-  freeze in Golden's source completion boundary. GPU timestamp diagnostics had masked the
-  production event-query stall: diagnostics off reproduced six copies/three seconds; explicit
-  source fences restore 170 copies/three seconds and 158 changing GPU patches in the consuming
-  interval. Both actual editor panels change on all 69 consecutive observed intervals across
-  70 captures each, versus roughly 2.2 changes/second before. This observer is limited to about
-  12 captures/second; full 60 FPS scanout/timing qualification is not inferred.
-  [Repair and evidence](mapgyver-shared-texture-cadence.md) records the discarded presentation
-  candidate, diagnostic limits and unchanged ownership/recovery/budgets. Temporary telemetry
-  and the candidate were removed. 184 software tests, strict native all-target lint, native
-  source freshness/reader ownership and the production-mode live-pixel regression pass.
-  Both Cargo formatters pass; the normal debug MapGyver executable is rebuilt. No full plan
-  gate closes: 50/67, 6/12 phases remain. The urgent hotfix is functionally verified; restore
-  M11/4 as the sole Active gate, with M03/9's original qualification in the return queue.
-  Investigation cutoff was retained; no further experiment is opened in this checkpoint.
+- [Shared Texture cadence repair](mapgyver-shared-texture-cadence.md) owns the resolved urgent
+  investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
+  Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
+  Preserve concurrent user work and the running user's locked executable.
+- **Current batch handoff (13:50 CET, 2026-11-04):** M11/4 Accepted within the 13:57 cutoff.
+  New capability: compact one-line File controls and contextual header actions, with focused File
+  drafts and acknowledged Color drafts protected against older backend echoes. Final checks:
+  413 app tests (three explicit native/process ignores), generated contracts/four-caller parity,
+  strict all-target native/process Clippy, 236 Golden UI tests, Svelte 0/0 and both formatters.
+  Complete generic/browser and source flows pass. Native File: 316/316 receipts, three Enter/
+  Undo/Redo cycles, Escape, shared clear and Save/New/Load; original catalog: 77/77; native rapid
+  RGBA/hex/history/CRUD and 37-channel paging: 665/665. No unexpected rejection or final client
+  error; activity idle and hosts exit normally. Final opaque/unclipped screenshots were inspected.
+  The original Undo fixture is requalified; its historical timeout cause is not retroactively
+  asserted. Previous Fit/Linear and all eight clock checks retain their scoped evidence.
+  [Acceptance receipt](evidence/mapgyver-m11-inspector-acceptance-2026-11-04.json) pins the isolated
+  binary; the user's running executable remains untouched. Progress: 51/67, 6/12 phases.
+  Next selected product deliverable is M11/5 Manual/Auto discovery; push this milestone before
+  starting that implementation batch.
 
 ## Maintenance rule
 

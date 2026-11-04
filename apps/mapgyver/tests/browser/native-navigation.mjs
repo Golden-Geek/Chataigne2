@@ -44,6 +44,13 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			[
+				'--inspector-acceptance',
+				async (options) => {
+					await verifyNativeChannelFile(options);
+					await verifyNativeCompactChannels(options);
+				}
+			],
 			['--preview-cadence', verifyNativePreviewCadence],
 			['--channel-file', verifyNativeChannelFile],
 			['--asset-file', verifyNativeAssetFile],

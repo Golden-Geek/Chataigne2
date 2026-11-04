@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { hasDesktopHost, openDesktopFileDialog } from '../../host/desktop';
 	import type { UiFileConstraints, UiFileTypeGroup } from '../../types';
+	import IconButton from './IconButton.svelte';
+	import browseIcon from '../../style/icons/node/folder.svg';
+	import clearIcon from '../../style/icons/panels/close.svg';
 
 	let {
 		value = '',
@@ -28,6 +31,7 @@
 
 	let draftValue = $state('');
 	let isPicking = $state(false);
+	let focused = $state(false);
 
 	const normalizeExtension = (value: string): string | null => {
 		const normalized = value.trim().replace(/^\.+/, '').toLowerCase();
@@ -79,7 +83,7 @@
 	});
 
 	$effect(() => {
-		draftValue = value;
+		if (!focused) draftValue = value;
 	});
 
 	const commitValue = (nextValue: string): void => {
@@ -128,38 +132,47 @@
 			disabled={!enabled}
 			class:readonly={readOnly}
 			placeholder="Select a file path"
+			onfocus={() => {
+				focused = true;
+			}}
+			onblur={() => {
+				focused = false;
+			}}
 			onchange={(event) => {
 				commitValue((event.target as HTMLInputElement).value);
 			}}
 			onkeydown={(event) => {
 				if (event.key === 'Enter') {
+					event.preventDefault();
 					const target = event.target as HTMLInputElement;
-					commitValue(target.value);
 					target.blur();
 				}
 				if (event.key === 'Escape') {
+					event.preventDefault();
 					draftValue = value;
-					(event.target as HTMLInputElement).blur();
+					const target = event.target as HTMLInputElement;
+					target.value = value;
+					target.blur();
 				}
 			}} />
 
-		<button
-			type="button"
+		<IconButton
+			icon={browseIcon}
+			label="Browse"
+			title={isPicking ? 'Choosing file…' : 'Browse for a file'}
 			class="browse"
 			disabled={!enabled || readOnly || !hasDesktopDialog || isPicking}
 			onclick={() => {
 				void browseForFile();
-			}}>
-			{isPicking ? '...' : 'Browse'}
-		</button>
+			}} />
 
-		<button
-			type="button"
+		<IconButton
+			icon={clearIcon}
+			label="Clear"
+			title="Clear file"
 			class="clear"
 			disabled={!enabled || readOnly || draftValue.length === 0}
-			onclick={clearValue}>
-			Clear
-		</button>
+			onclick={clearValue} />
 	</div>
 
 	{#if hasConstraintHints}
@@ -184,37 +197,18 @@
 	.file-input-row {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
 		gap: 0.25rem;
 		width: 100%;
 		min-inline-size: 0;
 	}
 
 	.path-input {
-		flex: 1 1 14rem;
-		min-inline-size: min(12rem, 100%);
-		height: 1.3rem;
+		flex: 1 1 0;
+		min-inline-size: 0;
+		height: 1.65rem;
 		padding-inline: 0.4rem;
 		font-size: 0.72rem;
 		box-sizing: border-box;
-	}
-
-	.browse,
-	.clear {
-		flex: 0 0 auto;
-		height: 1.3rem;
-		padding: 0 0.45rem;
-		border-radius: 0.25rem;
-		font-size: 0.68rem;
-		background-color: rgb(from var(--gc-color-text) r g b / 9%);
-		color: var(--gc-color-text);
-		border: solid 0.05rem rgb(from var(--gc-color-text) r g b / 18%);
-	}
-
-	.browse:disabled,
-	.clear:disabled {
-		opacity: 0.45;
-		cursor: default;
 	}
 
 	.constraints,

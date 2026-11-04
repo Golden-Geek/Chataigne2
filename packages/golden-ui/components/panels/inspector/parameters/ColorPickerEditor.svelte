@@ -3,7 +3,8 @@
 	import ColorPicker from '../../../common/ColorPicker.svelte';
 	import { appState } from '../../../../store/workbench.svelte';
 	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
-	import type { UiNodeDto } from '../../../../types';
+	import { compareEventTime } from '../../../../store/session/event-time';
+	import type { UiNodeDto, EventTime, UiAck } from '../../../../types';
 
 	interface ColorEditorPresentation {
 		force_expanded?: boolean;
@@ -39,15 +40,50 @@
 	let editSession = createUiEditSession('Edit color', 'param-color');
 	let isEditing = $state(false);
 	let draftColor = $state<[number, number, number, number]>([0, 0, 0, 1]);
+	let ownsDraft = $state(false);
+	let ended = $state(false);
+	let boundary = $state<EventTime | undefined>(undefined);
+	let pendingWrite: Promise<boolean> = Promise.resolve(true);
+	let interaction = 0;
+	let disposed = false;
+	let owner: {
+		session: typeof session;
+		generation: number | undefined;
+		node: number;
+		uuid: string;
+	} | null = null;
+	const currentOwner = (candidate: typeof owner) =>
+		candidate !== null &&
+		session === candidate.session &&
+		session?.snapshotGeneration === candidate.generation &&
+		liveNode.node_id === candidate.node &&
+		liveNode.uuid === candidate.uuid;
+	const observeApplied = (candidate: typeof owner, acknowledgements: readonly UiAck[]) => {
+		if (disposed || !currentOwner(candidate)) return;
+		for (const ack of acknowledgements) {
+			const time = ack.latest_event_time ?? ack.earliest_event_time ?? undefined;
+			if (ack.success && time && (!boundary || compareEventTime(time, boundary) > 0))
+				boundary = time;
+		}
+	};
 
 	$effect(() => {
-		if (isEditing) {
+		const projected = session?.graph.state.lastEventTime;
+		if (
+			ownsDraft &&
+			currentOwner(owner) &&
+			(isEditing ||
+				!ended ||
+				(boundary && (!projected || compareEventTime(projected, boundary) < 0)))
+		)
 			return;
-		}
+		ownsDraft = false;
 		draftColor = value;
 	});
 
 	onDestroy(() => {
+		disposed = true;
+		interaction++;
 		void editSession.end();
 	});
 
@@ -80,6 +116,18 @@
 		if (readOnly || !enabled) {
 			return;
 		}
+		if (!currentOwner(owner)) {
+			owner = {
+				session,
+				generation: session?.snapshotGeneration,
+				node: liveNode.node_id,
+				uuid: liveNode.uuid
+			};
+			boundary = undefined;
+		}
+		interaction++;
+		ownsDraft = true;
+		ended = false;
 		isEditing = true;
 		void editSession.begin();
 	};
@@ -89,11 +137,14 @@
 			return;
 		}
 		const normalized = toColorArray(nextColor);
+		if (!isEditing) startEdit();
 		draftColor = normalized;
-		void sendSetParamIntent(
+		const candidate = owner;
+		pendingWrite = sendSetParamIntent(
 			liveNode.node_id,
 			{ kind: 'color', value: normalized },
-			param.event_behaviour
+			param.event_behaviour,
+			(acknowledgements) => observeApplied(candidate, acknowledgements)
 		);
 	};
 
@@ -102,7 +153,14 @@
 			return;
 		}
 		isEditing = false;
-		void editSession.end();
+		const candidate = owner,
+			revision = interaction;
+		// Preserve the latest color through both the receipt and its graph projection;
+		// an earlier echo must not replace the next RGBA field's optimistic components.
+		void Promise.all([editSession.end(), pendingWrite]).then(() => {
+			if (!disposed && !isEditing && revision === interaction && currentOwner(candidate))
+				ended = true;
+		});
 	};
 </script>
 
