@@ -1,9 +1,33 @@
 # M11/4 typed Inspector and Fit Mode
 
-**State: Active.** Unit-preserving time controls and native-verified media Fit/Fill/Stretch
+**State: Pending urgent preview-only cadence repair.** Unit-preserving time controls and native-verified media Fit/Fill/Stretch
 are delivered. Kind/sampling controls are removed and expanded rows expose Color directly.
-Catalog assets now have one authoritative typed File. The direct Picture channel File control
-and final complete Inspector/browser parity remain required.
+Catalog assets now have one authoritative typed File and Picture channels directly expose it.
+Final complete Inspector/browser parity, compact layout and retained Undo stability remain required.
+
+## Direct channel File controls
+
+Configured Picture channels render the catalog's actual typed File in the generic Inspector.
+Unconfigured channels reuse Golden's public FileInput for a contextual backend import. The new
+ConfigurePictureFile intent creates/binds an asset atomically, edits existing shared authority,
+retains bindings on clear and recovers a missing asset through an explicit replacement. Empty
+unbound input allocates nothing. InspectPictureFile is a bounded immutable query returning the
+real File Parameter's id/UUID; UI ownership/generation checks prevent stale delegation. The
+existing asset picker remains a secondary contextual operation. Permanent channel import forms,
+location choices and asset-reference fields are removed; no channel path is persisted.
+
+[Receipt](evidence/mapgyver-m11-channel-file-2026-11-04.json): 413 app tests include materialization,
+shared authority, rejection, missing-asset recovery, history/project and four-caller parity. Rust
+generates the intents, binding DTOs and TypeScript together; named script methods and templates
+are wired. Strict all-target native/process lint, 236 Golden UI tests and Svelte 0/0 pass.
+Actual native controls pass initial assignment/Undo/Redo, independent channels, the existing
+asset picker, shared real Parameter editing, clear and Save/New/Load: 145 requests/145 applied
+receipts, no backend rejections/page errors/final client errors, idle activity and normal exit.
+The screenshot is inspected. Decoded pixels, native dialogs and cadence are outside this fixture.
+
+Final compact row layout, the complete legacy generic-Parameters/sources browser entries and
+the earlier intermediate Undo timeout remain in M11/4 acceptance. The user's confirmation that
+only preview/warping is slow immediately returns priority to M03/9; this slice accepts no gate.
 
 ## Single catalog File authority
 
@@ -30,9 +54,8 @@ already-connected native WebSocket receipts and waits for UI activity to settle 
 project replacement; it does not qualify a transient Failed indicator as a clean final state.
 The first reload-based observation attempt aborted before its flow; no native outcome is inferred.
 
-The channel still exposes its asset reference and separate import operation. Replacing those
-with one directly editable File row, including unconfigured channels, remains the next slice.
-No mirrored persistent path, channel-size setting or acceptance-gate credit is added here.
+The subsequent direct channel File slice above replaces its permanent reference/import controls.
+No mirrored persistent path, channel-size setting or acceptance-gate credit is added.
 
 ## Expanded typed channel controls
 
@@ -67,9 +90,8 @@ lint, 236 Golden UI tests, 17 affected controller tests and Svelte 0/0. Native v
   from media-wide numeric transitions to the actual Layer-owned clock. The sender fixture now
   preserves already-expanded rows instead of collapsing them before editing.
 
-Picture still has an asset reference; its catalog now owns one File as described above. The required
-single File per Picture channel needs direct binding to that authority while retaining asset
-sharing/import/relink/reload behavior. The full
+Picture retains an internal typed asset reference; direct File controls now bind to the catalog
+authority as described above, preserving sharing/import/relink/reload. The full
 legacy generic-Parameters browser entry also still starts with an obsolete reference-only
 Composition form. Its media leaf is reconciled, but the complete entry is not claimed passing.
 These remain in M11/4's final parity/acceptance queue. This slice closes no gate.
@@ -111,8 +133,8 @@ Verification on 2026-11-04 ([receipt](evidence/mapgyver-m11-media-fit-2026-11-04
   channel/kind/sampling cleanup. Native binaries include concurrent user label/theme changes,
   which remain outside this milestone.
 
-Sampling removal, replacement command and expanded Color delivery are verified above. The
-single Picture File control and final complete browser parity remain required. This is usable
+Sampling removal, replacement command, expanded Color and direct File delivery are verified above.
+Final complete browser parity and compact File layout remain required. This is usable
 partial delivery, not acceptance of M11/4 or any retained physical/performance gate.
 
 ## Time controls
@@ -153,12 +175,14 @@ uncommitted panel-title rename.
 
 ## Exact remaining acceptance
 
-Provide one actual typed File per Picture channel without nested Parameters forms or duplicate
-persisted file state. Preserve asset sharing/import/relink/reload, channel CRUD/labels/paging,
-independent selection and no per-channel authored size. Audit final row layout with the File control.
+Complete final compact File-row layout and the full generic Inspector/browser/caller acceptance,
+including the retained intermediate Undo timeout. Preserve the now-delivered real File authority,
+asset sharing/import/relink/reload, channel CRUD/labels/paging, independent selection and no
+per-channel authored size. The updated legacy generic-Parameters and source browser entries
+still require a complete run.
 
 Preserve the verified media Fit Mode and clock behavior while completing that Inspector change.
 Finish command/catalog and full generic/API/script/headless/history/copy/project/browser parity
 for the final revised model. Any further schema/DTO changes must update versions, generation
-and consumers together. M11/4 remains
-the sole Active gate; this partial delivery closes no gate and verified acceptance stays 50/67.
+and consumers together. M11/4 is Pending while the urgent preview-only cadence repair is Active;
+this partial delivery closes no gate and verified acceptance stays 50/67.

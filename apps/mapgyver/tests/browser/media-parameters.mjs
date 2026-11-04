@@ -96,8 +96,8 @@ export async function verifyMediaParameters({
 	stage('generic Picture reference and asset File Parameters');
 	const linked = picture.channels[0];
 	await select(linked.reference);
-	await fields(['Picture asset']);
-	assert.equal(await parameter('Picture asset').locator('.reference-editor').count(), 1);
+	await fields(['File']);
+	assert.equal(await parameter('File').locator('input.path-input').count(), 1);
 	await page.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
 	await fields(['File']);
 	const asset = catalog.assets.find((item) => item.id === linked.definition.source.asset);

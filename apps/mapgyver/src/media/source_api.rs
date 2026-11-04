@@ -16,6 +16,8 @@ pub(super) const METHODS: &[&str] = &[
     "configureMediaFitMode",
     "configureSolidColor",
     "configurePicture",
+    "configurePictureFile",
+    "inspectPictureFile",
     "configureSharedTexture",
     "inspectChannel",
     "inspectChannels",
@@ -60,10 +62,10 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 /// Arguments exclude the request id; invalid argument shapes never enqueue partial operations.
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
-        "createMedia" | "addChannel" | "configureMediaFitMode" | "inspectChannel" => 2,
+        "createMedia" | "addChannel" | "configureMediaFitMode" | "inspectChannel" | "inspectPictureFile" => 2,
         "configureMediaResolution" => 4,
         "configureSolidColor" => 6,
-        "configurePicture" | "configureSharedTexture" => 3,
+        "configurePicture" | "configurePictureFile" | "configureSharedTexture" => 3,
         "importPicture" => 2,
         "executeCommand" => 1,
         "inspectChannels" => 3,
@@ -206,6 +208,13 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
                     .transpose()
                     .map_err(|error| error.to_string())?,
             },
+        },
+        "configurePictureFile" => MediaEdit::ConfigurePictureFile {
+            reference: reference(args)?,
+            file: text(args, 2)?.to_owned(),
+        },
+        "inspectPictureFile" => MediaEdit::InspectPictureFile {
+            reference: reference(args)?,
         },
         "configureSharedTexture" => MediaEdit::ConfigureChannel {
             reference: reference(args)?,

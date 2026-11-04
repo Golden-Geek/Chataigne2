@@ -81,7 +81,7 @@ function visible(child: UiNodeDto) {
 	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
-	if (source === 'Picture') return field === 'asset';
+	if (source === 'Picture') return false;
 	if (source === 'SharedTexture') return field === 'sender';
 	if (source === 'Composition') return false;
 	if (source === 'Matrix') {

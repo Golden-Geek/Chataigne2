@@ -20,6 +20,7 @@ export const invokeMediaEdit = async (
 			activity: [
 				'InspectManager',
 				'InspectChannel',
+				'InspectPictureFile',
 				'InspectChannels',
 				'InspectMediaPreview',
 				'InspectChoices',

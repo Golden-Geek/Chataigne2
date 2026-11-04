@@ -322,6 +322,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             configure_channel(engine, reference, source)?;
             MediaEditResult::Changed
         }
+        MediaEdit::ConfigurePictureFile { reference, file } => {
+            super::picture_file::configure(engine, reference, &file)?;
+            MediaEditResult::Changed
+        }
+        MediaEdit::InspectPictureFile { reference } => MediaEditResult::PictureFile {
+            binding: super::picture_file::inspect(engine, reference)?,
+        },
         MediaEdit::ConfigureMediaFitMode { media: owner, mode } => {
             let (id, _) = media(engine, owner)?;
             let parameter = match engine.nodes.get(id) {

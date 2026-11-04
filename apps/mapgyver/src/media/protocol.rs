@@ -331,6 +331,13 @@ pub enum MediaEdit {
         reference: ChannelReference,
         source: ChannelSource,
     },
+    ConfigurePictureFile {
+        reference: ChannelReference,
+        file: String,
+    },
+    InspectPictureFile {
+        reference: ChannelReference,
+    },
     /// Shared output sizing; channel definitions project this setting and cannot change it.
     ConfigureMediaResolution {
         media: MediaId,
@@ -395,9 +402,27 @@ pub struct AssetSnapshot {
     pub locator: Option<AssetLocator>,
 }
 
+/// Exact process-local address of the actual typed File; never stored in a project.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct FileParameterAddress {
+    pub node: golden_core::node::NodeId,
+    #[ts(type = "string")]
+    pub uuid: NodeUuid,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PictureFileBinding {
+    pub reference: ChannelReference,
+    pub asset: Option<AssetId>,
+    pub parameter: Option<FileParameterAddress>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    PictureFile {
+        binding: Option<PictureFileBinding>,
+    },
     MatrixCellPrepared {
         cell: crate::matrix::protocol::CellId,
         application: crate::applications::protocol::ApplicationId,

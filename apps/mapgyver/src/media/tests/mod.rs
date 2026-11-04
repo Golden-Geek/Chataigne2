@@ -7,6 +7,7 @@ mod duplication;
 mod fit_mode;
 mod folders;
 mod parameters;
+mod picture_file;
 mod picture_import;
 mod preview_selection;
 mod queries;

@@ -91,7 +91,15 @@ belong to asset authoring, without filesystem IO. Import and relink update that 
 Relink, clear, history and project reload retain its Parameter identity. The Rust-owned asset
 node-type constant is generated for UI consumers. Previous split location/path asset records
 and retired fields reject before Golden's recoverable decode; no persisted migration is provided.
-The direct channel File-row presentation remains separate M11/4 work until verified.
+Picture channels render that actual catalog File through the generic Inspector. The bounded
+`InspectPictureFile` query returns its process-local id and persistent UUID; the UI checks both
+against the live graph and fences session/project replacement. Those addresses never persist.
+An unconfigured or deleted-asset channel uses Golden's public `FileInput` as a contextual import
+control: `ConfigurePictureFile` validates the path and atomically materializes/binds the source.
+Existing bindings edit their real File, so shared consumers retain one authority. Empty unbound
+input allocates nothing; clearing a configured File retains its asset and bindings. The secondary
+asset-reference picker still edits the real Reference Parameter. Script methods share these
+typed intents; the UI never parses location policy, allocates identities or mirrors a path.
 
 App control uses `mapgyver.app_control.v1`: App file/directory are File Parameters;
 window/readiness, stop/restart and environment inheritance are typed Parameters. Ordered

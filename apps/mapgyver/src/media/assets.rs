@@ -42,6 +42,9 @@ impl AssetNode {
     pub fn id(&self) -> AssetId {
         AssetId::from_uuid(self.node_data().meta.uuid.0)
     }
+    pub(super) fn file_parameter(&self) -> NodeId {
+        self.file.id()
+    }
     fn locator(&self) -> Option<AssetLocator> {
         parse_file(self.file.get_ref().as_str()).ok().flatten()
     }
@@ -111,7 +114,7 @@ fn locator_path(locator: &AssetLocator) -> &str {
 }
 
 /// Location policy belongs to asset authoring, shared by generic edits and app intents.
-fn parse_file(path: &str) -> Result<Option<AssetLocator>, String> {
+pub(super) fn parse_file(path: &str) -> Result<Option<AssetLocator>, String> {
     if path.is_empty() {
         return Ok(None);
     }

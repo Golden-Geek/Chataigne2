@@ -15,6 +15,7 @@
 	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
 	import MediaScriptsSection from './MediaScriptsSection.svelte';
 	import MediaCommandsSection from './MediaCommandsSection.svelte';
+	import PictureChannelFile from './PictureChannelFile.svelte';
 	let {
 		node,
 		defaultHeader,
@@ -181,11 +182,7 @@
 		{/if}
 		{#if channel}
 			{#if channel.definition.source.kind === 'Picture'}
-				<AssetLocatorForm
-					disabled={busy}
-					submitLabel="Import and assign"
-					submit={(locator) =>
-						edit({ kind: 'ImportPicture', locator, target: channel.reference, label: null })} />
+				<PictureChannelFile {node} {channel} {busy} {edit} />
 				{#if channel.definition.source.asset}
 					{@const asset = channel.definition.source.asset}
 					<div class="summary">

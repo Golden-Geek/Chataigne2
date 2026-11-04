@@ -30,6 +30,9 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         edit => edit,
     };
     let result = match edit {
+        MediaEdit::InspectPictureFile { reference } => {
+            super::picture_file::inspect(engine, reference).map(|binding| MediaEditResult::PictureFile { binding })
+        }
         MediaEdit::InspectChannel { reference } => {
             inspect_channel(engine, reference).map(|snapshot| MediaEditResult::Channel { snapshot })
         }

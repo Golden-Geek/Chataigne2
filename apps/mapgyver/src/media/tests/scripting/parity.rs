@@ -7,6 +7,7 @@ use golden_video::Extent2D;
 mod applications;
 mod composition;
 mod matrix;
+mod picture_file;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {
@@ -19,6 +20,14 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::ConfigurePictureFile { reference, file } => (
+            "configurePictureFile",
+            serde_json::json!([reference.media, reference.channel, file]),
+        ),
+        MediaEdit::InspectPictureFile { reference } => (
+            "inspectPictureFile",
+            serde_json::json!([reference.media, reference.channel]),
+        ),
         MediaEdit::Applications { edit } => match edit {
             crate::applications::protocol::ApplicationEdit::SetFile {
                 application,

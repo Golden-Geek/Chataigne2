@@ -15,6 +15,7 @@ mod media_node;
 mod nodes;
 mod persistence;
 pub mod picture;
+mod picture_file;
 mod preview_selection;
 pub mod protocol;
 mod queries;

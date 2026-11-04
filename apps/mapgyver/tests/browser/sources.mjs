@@ -220,12 +220,13 @@ export async function verifySourcesUi({ base, inspect }) {
 		stage = 'Picture import, typed asset relink, unconfigure and picker reselection';
 		const picture = await create('Picture', 'Picture A');
 		let pictureRow = await selectChannel(picture.channels[0].reference);
-		await importPicture(pictureRow.locator('form'), 'project_relative', 'source-ui/a.png');
+		await pictureRow.locator('.channel-file input.path-input').fill('source-ui/a.png');
+		await pictureRow.locator('.channel-file input.path-input').press('Tab');
 		const imported = await catalog((value) => value.assets.length === 1);
 		const asset = imported.assets[0];
 		await state(picture.id, (value) => value.channels[0].definition.source.asset === asset.id);
 		await pictureRow.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
-		const path = widgets.parameter('Project path').locator('input.path-input');
+		const path = widgets.parameter('File').locator('input.path-input');
 		await path.fill('source-ui/b.png');
 		await path.press('Tab');
 		await catalog(
@@ -233,12 +234,18 @@ export async function verifySourcesUi({ base, inspect }) {
 				value.assets[0]?.id === asset.id && value.assets[0].locator.path === 'source-ui/b.png'
 		);
 		pictureRow = await selectChannel(picture.channels[0].reference);
+		await pictureRow
+			.getByRole('button', { name: 'Choose existing Picture asset', exact: true })
+			.click();
 		await widgets.parameter('Picture asset').locator('button.picker-trigger').click();
 		const picker = page.getByRole('dialog', { name: 'Select reference target', exact: true });
 		await picker.getByRole('button', { name: 'Clear', exact: true }).click();
 		await state(picture.id, (value) => value.channels[0].definition.source.asset === null);
 		await widgets.reference('Picture asset', asset.label, asset.label);
 		await state(picture.id, (value) => value.channels[0].definition.source.asset === asset.id);
+		await pictureRow
+			.getByRole('button', { name: 'Choose existing Picture asset', exact: true })
+			.click();
 
 		stage = 'Shared Texture exact typed sender selectors and independent peers';
 		const shared = await create('Shared Texture', 'Receiver A');

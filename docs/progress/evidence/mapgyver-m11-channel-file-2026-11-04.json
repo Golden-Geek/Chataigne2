@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-04",
+  "base_commit": "ce8b8095ed1fcf429a06611be79d2cf2c5a6bcf4",
+  "scope": "Direct Picture channel File controls forwarding the actual catalog Parameter; contextual initial materialization without a mirrored channel path.",
+  "backend": {
+    "configure_intent": "ConfigurePictureFile",
+    "bounded_query": "InspectPictureFile",
+    "named_script_methods": ["configurePictureFile", "inspectPictureFile"],
+    "immutable_binding_address": "File Parameter node id and UUID, checked against the live UI graph",
+    "project_schema_unchanged": "Existing asset v2 and channel asset-reference authority",
+    "app_tests_passed": 413,
+    "app_tests_failed": 0,
+    "explicit_native_process_tests_ignored": 3,
+    "four_caller_parity_passed": true,
+    "generated_contracts_match": true,
+    "strict_all_target_native_process_clippy_passed": true
+  },
+  "ui": {
+    "golden_tests_passed": 236,
+    "svelte_errors": 0,
+    "svelte_warnings": 0,
+    "generic_file_input_shared": true,
+    "configured_channels_render_real_file_parameter": true,
+    "unconfigured_file_input_invokes_atomic_backend_import": true,
+    "secondary_existing_asset_picker_retained": true
+  },
+  "native": {
+    "binary": "target/debug/deps/MapGyver-codex-m11-channel-file.exe",
+    "sha256": "9584006DB0020F80579708304165A893605111F225BC0D94F0F63A592B014E73",
+    "pid": 28816,
+    "artifact_directory": "target/mapgyver-m11-channel-file-2026-11-04",
+    "one_file_per_channel": true,
+    "no_import_forms_or_nested_parameters": true,
+    "materialization_undo_redo": true,
+    "independent_channels": true,
+    "existing_asset_picker": true,
+    "shared_real_parameter": true,
+    "clear_preserves_bindings": true,
+    "save_new_load": true,
+    "requests": 145,
+    "applied_receipts": 145,
+    "backend_rejections": 0,
+    "page_errors": 0,
+    "final_client_errors": 0,
+    "final_activity_idle": true,
+    "screenshot_inspected": true,
+    "normal_host_exit": true
+  },
+  "remaining": [
+    "Full generic Inspector/browser/caller/layout acceptance, including compact File-row layout and the earlier intermediate Undo timeout, remains open.",
+    "The updated full legacy generic-Parameters entry and sources browser entry are not claimed passing by this native fixture.",
+    "No native file dialog operation or decoded/GPU pixel/cadence qualification is claimed.",
+    "The user's new preview-only Shared Texture evidence preempts final M11/4 acceptance."
+  ],
+  "acceptance_gates_closed": 0
+}
