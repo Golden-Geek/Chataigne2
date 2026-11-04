@@ -8,6 +8,7 @@ use super::protocol::*;
 pub(super) const METHODS: &[&str] = &[
     "dropMatrixMedia",
     "dropCompositionMedia",
+    "createCompositionMedia",
     "createReference",
     "configureReference",
     "createMedia",
@@ -76,6 +77,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "executeCommand" => 1,
         "inspectChannels" => 3,
         "dropCompositionMedia" => 7,
+        "createCompositionMedia" => 6,
         "dropMatrixMedia" => 5,
         "createReference" | "configureReference" => 2,
         _ => return Ok(None),
@@ -84,6 +86,17 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "createCompositionMedia" => MediaEdit::Composition {
+            reference: reference(args)?,
+            edit: super::composition::protocol::CompositionEdit::CreateMedia {
+                media_kind: choice(args, 2)?,
+                label: optional_text(args, 3)?,
+                position: golden_video::plan::Point {
+                    x: number(args, 4)? as f32,
+                    y: number(args, 5)? as f32,
+                },
+            },
+        },
         "dropMatrixMedia" => {
             let Some(ParamValue::Bool(copy)) = args.get(4) else {
                 return Err("copy must be boolean".into());

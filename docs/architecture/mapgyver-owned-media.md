@@ -36,6 +36,19 @@ by the backend. Missing/unconfigured Reference media can be dropped with an empt
 Output. A default drop retains the original Reference as Target; Alt-copy preserves its full
 independent Target/settings subtree, even when no channel is currently available.
 
+`CompositionEdit::CreateMedia` builds a complete owned source or unconfigured Reference and
+Placement as one detached tree, without a source object in the manager. The backend allocates
+the label/identity, validates finite canvas coordinates and capacity, and applies normal media
+defaults. New empty media have no dependency edges; subsequent Reference/drop edits retain
+the existing cycle validation. The bounded editor page supplies the same creation catalog as
+other app creation surfaces. Canvas right-click actions send only the chosen type and canvas
+coordinates, then select the returned real child. `createCompositionMedia` and the typed
+**Create Composition Media** command share this operation and `InstancesCreated` callback.
+The app script template includes the named method; generic `editMedia` exposes all remaining
+copy/reorder/delete operations. Menu actions are fenced to their original project and channel.
+The canvas declares Golden's `data-local-context-menu` boundary so the generic node menu's
+window capture handler leaves these domain actions to the Composition editor.
+
 The manager's named `dropCompositionMedia` method and typed **Drop Composition Media** command
 use the same intent and committed callback. The command's Position, Copy media and Replace media
 Parameters use schema `mapgyver.media.command.v5`, whose Fit Mode command replaces Sampling. Older command records reject.

@@ -88,6 +88,12 @@ impl InstanceDefinition {
 #[serde(tag = "kind")]
 pub enum CompositionEdit {
     Inspect,
+    CreateMedia {
+        media_kind: super::super::protocol::MediaKind,
+        label: Option<String>,
+        /// Canvas texels; defaults and placement Parameters are materialized by the backend.
+        position: Point,
+    },
     AddInstances {
         sources: Vec<ChannelReference>,
     },
@@ -184,6 +190,7 @@ pub struct CompositionEditorQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CompositionEditorPage {
+    pub media_types: Vec<super::super::protocol::MediaCreationChoice>,
     pub document: NodeUuid,
     pub document_matches: bool,
     pub channel: Option<crate::media::protocol::ChannelSnapshot>,

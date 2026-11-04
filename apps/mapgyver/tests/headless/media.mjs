@@ -57,6 +57,7 @@ const withUi = [
 	'--screen-ui',
 	'--surface-source-ui',
 	'--composition-ui',
+	'--composition-creation-ui',
 	'--parameter-ui',
 	'--resolution-ui',
 	'--channels-ui',
@@ -329,6 +330,10 @@ try {
 	if (process.argv.includes('--composition-ui')) {
 		const { verifyCompositionUi } = await import('../browser/composition.mjs');
 		await verifyCompositionUi({ base, edit, post, directory, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--composition-creation-ui')) {
+		const { verifyCompositionCreation } = await import('../browser/composition-creation.mjs');
+		await verifyCompositionCreation({ base, edit, post, directory });
 	}
 	if (process.argv.includes('--parameter-ui')) {
 		const { verifyParameterUi } = await import('../browser/parameters.mjs');

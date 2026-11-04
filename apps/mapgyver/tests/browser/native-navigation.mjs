@@ -25,6 +25,7 @@ import { verifyNativeChannelFile } from './native-channel-file.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
+import { verifyCompositionCreation } from './composition-creation.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -46,6 +47,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--composition-creation', verifyCompositionCreation],
 			[
 				'--canvas-remaining',
 				async (options) => {

@@ -3,6 +3,7 @@
 pub(super) mod authoring;
 pub(crate) mod children;
 use crate::media::dependencies;
+mod creation;
 mod drops;
 mod geometry;
 mod node;

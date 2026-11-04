@@ -76,6 +76,7 @@ pub(in crate::media) fn inspect(
         .meta
         .uuid;
     let mut page = CompositionEditorPage {
+        media_types: crate::media::creation::media_choices(),
         document,
         document_matches: query.document.is_none_or(|expected| expected == document),
         channel: None,

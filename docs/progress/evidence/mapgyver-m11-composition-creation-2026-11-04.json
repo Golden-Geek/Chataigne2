@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/7",
+  "state": "Accepted",
+  "binary": "target/debug/deps/MapGyver-codex-m117-creation.exe",
+  "sha256": "FB6D173FA2D1514C14BCC72A28ED68849F036918E38589FBDB77BD0CFD68997C",
+  "capability": "Canvas context menu creates actual owned media and Placement in one detached subtree without a pre-existing source catalog object.",
+  "catalog": ["Reference", "SolidColor", "Picture", "SharedTexture", "Composition", "Matrix"],
+  "software": {
+    "rust_library": { "passed": 422, "failed": 0, "explicitly_ignored": 2, "log": "target/m117-rust-tests.log" },
+    "strict_clippy": "pass; all targets with native-qualification, application-process-fixture, native-video-smoke; target/m117-clippy.log",
+    "ui_tests": "91 pass; target/m117-ui-tests.log",
+    "svelte": "0 errors, 0 warnings; target/m117-svelte.log",
+    "generated_contracts": "Rust generator completed; CompositionEdit, CompositionEditorPage, command kinds and command fields updated together",
+    "formatting": "root and Golden Core cargo fmt; scoped Prettier pass"
+  },
+  "behavior": {
+    "rust_creation": "All catalog types: real parent ownership, defaults, placement, unique labels, invalid-coordinate/label rejection without history, one Undo/Redo step and project identities.",
+    "callers": "All six kinds through UI intent, QuickJS app operation, hosted editMedia and named createCompositionMedia. Shared harness verifies one committed callback, atomic Undo/Redo and no replay on history changes.",
+    "commands": "Typed passive Create Composition Media command included in complete command execution/history/project suite; app templates include named creation and InstancesCreated result handling.",
+    "cycles": "New empty media have no dependency edges. Existing Reference/drop cycle validation and rejection suites remain passing.",
+    "availability": "Unconfigured Reference is a real child with no output; Picture/Shared Texture retain ordinary unconfigured source defaults. Only currently supported catalog types are offered. Native/headless presentation remains truthful.",
+    "native": "Actual six-entry menus, click at canvas [80,60], real child selection, one-step Undo/Redo per kind, toolbar copy/delete, backend reorder and Save/New/Load identity pass; no page errors or rejected requests. target/m117-native-creation.log",
+    "headless": "Ordinary host/browser repeats menus, selection, history, toolbar copy/delete, reorder and clean project reload; host exit 0. target/m117-headless-creation.log",
+    "native_output": "Independent SDK receiver validates every pixel of a 96x64 RGBA red Composition output before and after project reload; both images [255,0,0,255], completion-safe receiver release.",
+    "native_shutdown": "Owned native harness asserts normal host exit 0. User MapGyver and sender processes are untouched.",
+    "existing_drops": "Default Reference/Alt-copy drop and full authored subtree preservation suites remain passing; their implementation is unchanged."
+  },
+  "reviewed_screenshots": ["target/m117-composition-creation.png (headless; unavailable native preview is expected)", "target/m117-composition-creation-native.png (UI layout; independent SDK capture proves output pixels)"],
+  "limits": ["No scanout/cadence or original physical qualification credit is inferred.", "M11/8 Matrix preview/exposure remains required; M03, M05, M08, M10 and M09 retained gates remain open."]
+}

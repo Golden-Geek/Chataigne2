@@ -24,6 +24,14 @@ pub(crate) fn media_choices() -> Vec<super::protocol::MediaCreationChoice> {
         .collect()
 }
 
+pub(crate) fn owned_tree(kind: MediaKind, label: String) -> NodeTree {
+    if kind == MediaKind::Reference {
+        NodeTree::new(super::ReferenceNode::from_target(label, None))
+    } else {
+        media_tree(label, ChannelDefinition::for_media(kind)).0
+    }
+}
+
 pub(super) fn items() -> Vec<UserCreatableItem> {
     let mut items = vec![UserCreatableItem::new(
         "mapgyver.media.folder",

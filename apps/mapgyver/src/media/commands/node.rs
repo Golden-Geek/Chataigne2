@@ -199,6 +199,17 @@ impl MediaCommandNode {
                     },
                 },
             },
+            MediaCommandKind::CreateCompositionMedia => MediaEdit::Composition {
+                reference,
+                edit: super::super::composition::protocol::CompositionEdit::CreateMedia {
+                    media_kind: choice::<MediaKind>(self.media_kind.get_ref().as_str())?,
+                    label: requested,
+                    position: golden_video::plan::Point {
+                        x: self.position.get().x as f32,
+                        y: self.position.get().y as f32,
+                    },
+                },
+            },
             MediaCommandKind::CreateReference => MediaEdit::CreateReference {
                 target: optional(self.reference_target.get_ref()).map(MediaId),
                 label: requested,

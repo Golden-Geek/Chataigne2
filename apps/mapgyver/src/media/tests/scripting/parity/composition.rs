@@ -11,6 +11,44 @@ struct Scene {
 }
 
 #[test]
+fn owned_creation_uses_the_named_method_and_atomic_boundary_for_every_caller() {
+    let scene = scene();
+    for caller in CALLERS {
+        for choice in crate::media::creation::media_choices() {
+            let mut engine = loaded(&scene.document);
+            let reply = run(
+                &mut engine,
+                caller,
+                MediaEdit::Composition {
+                    reference: scene.owner,
+                    edit: CompositionEdit::CreateMedia {
+                        media_kind: choice.media_kind,
+                        label: Some("Created through caller".into()),
+                        position: Point { x: 120., y: 80. },
+                    },
+                },
+            )
+            .unwrap();
+            let MediaEditResult::InstancesCreated { instances } = serde_json::from_value(reply).unwrap() else {
+                panic!()
+            };
+            assert_eq!(instances.len(), 1);
+            let node = engine
+                .nodes
+                .get(engine.node_id_by_uuid(instances[0].instance.0).unwrap())
+                .unwrap();
+            assert_eq!(node.node_data().parent, engine.node_id_by_uuid(scene.owner.media.0));
+            assert_eq!(node.node_data().meta.label, "Created through caller");
+            let snapshot = crate::media::composition::inspect(&engine, scene.owner).unwrap();
+            assert_eq!(
+                snapshot.instances.last().unwrap().definition.transform.position,
+                [120., 80.]
+            );
+        }
+    }
+}
+
+#[test]
 fn bounded_editor_queries_match_all_public_callers_without_authored_changes() {
     let scene = scene();
     for count in [1, 128, 0, 129] {

@@ -16,6 +16,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// Uncomment the operations you need. Each call is its own atomic history step.
 	// local.dropMatrixMedia("cell", matrixId, layerId, columnId, mediaId, false); // true copies the full media
 	// local.dropCompositionMedia("drop", compositionMediaId, compositionChannelId, mediaId, "", false, 0, 0); // true copies the full media
+	// local.createCompositionMedia("create-child", compositionMediaId, compositionChannelId, "SolidColor", "", 320, 180);
 	// local.createReference("reference", mediaId, ""); // ReferenceCreated returns media UUID
 	// local.configureReference("retarget", referenceMediaId, mediaId); // empty target clears
 	// local.addChannel("variant", mediaId, "");

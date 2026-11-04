@@ -1,13 +1,13 @@
 # MapGyver implementation status
 
-**Updated: 2026-11-04 · Overall: `████████░░` 79% · 6/12 phases complete**
+**Updated: 2026-11-04 · Overall: `████████░░` 81% · 6/12 phases complete**
 
-**Verified acceptance: 53/67 gates. Phase completion: 6/12 (50%).**
+**Verified acceptance: 54/67 gates. Phase completion: 6/12 (50%).**
 
-**Current topic:** M11/6 Accepted: shared Golden navigation/context controls and Surface selection styling.
-**Next action:** M11/7 Composition-owned media creation and reference/instance operations.
-**Blocker:** none for M11/7. Original physical/timing and app-control retirement gates remain unaccepted.
-**Execution:** M11/7 alone is selected Active; M11/1–6 are Accepted. M03/9 retains its original qualification in Pending.
+**Current topic:** M11/7 Accepted: create actual owned media directly from the Composition canvas.
+**Next action:** M11/8 visible Cell previews/labels and real opt-in Layer/Group output exposure.
+**Blocker:** none for M11/8. Original physical/timing and app-control retirement gates remain unaccepted.
+**Execution:** M11/8 alone is selected Active; M11/1–7 are Accepted. M03/9 retains its original qualification in Pending.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
 adds ten gates, **all ahead of M10 and M09**. Current functional order: M11 → M10 → M09;
@@ -17,7 +17,8 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): centered navigation and contextual actions, bounded offscreen Matrix Frame, selected-only Surface paint and history-safe geometry input.
+**Newly usable:** [Composition-owned creation](../architecture/mapgyver-owned-media.md): right-click the canvas for all supported media types; real typed children, placement, selection and single-step history need no source object in the catalog.
+**Previously delivered:** [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): centered navigation and contextual actions, bounded offscreen Matrix Frame, selected-only Surface paint and history-safe geometry input.
 **Previously delivered:** [Live Shared Texture controls](../architecture/mapgyver-sender-selection.md): inline Manual Detect, Auto sender choices and exact recovery, including after project reload.
 **Previously delivered:** [Direct channel File controls](mapgyver-m11-inspector.md#direct-channel-file-controls): one File per Picture channel forwards the real catalog Parameter; initial assignment is one atomic import, shared editing/clear/history and the secondary asset picker work without permanent import forms.
 [Expanded typed channel controls](mapgyver-m11-inspector.md#expanded-typed-channel-controls) remain delivered.
@@ -28,14 +29,14 @@ M11/4 is Accepted with complete native/browser/caller/history coverage; see the 
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** shared public Golden toolbar and shortcuts across GraphCanvas,
-Matrix, Composition, Surface Source and Screen Warping. Native navigation/alignment,
-Composition handles, Screen key/history, two-editor narrow selection, Matrix offscreen Frame
-and Surface Source input pass. Delayed history projections cannot seed a new gesture with
-an old corner origin. Browser invalid-quad styling and all software checks pass.
-[Evidence](evidence/mapgyver-m11-canvas-controls-2026-11-04.json).
+**Last delivered capability:** actual Composition canvas creation of Reference, Solid Color,
+Picture, Shared Texture, Composition and Matrix children. Backend defaults, unique labels,
+finite placement, detached subtree ownership and returned selection are shared by the typed
+command, named/generic scripts and UI. Native/browser menus, one-step Undo/Redo, toolbar
+copy/delete, reorder and clean Save/New/Load pass. Independent SDK output is fully red before
+and after reload. [Evidence](evidence/mapgyver-m11-composition-creation-2026-11-04.json).
 The [Shared Texture cadence hotfix](mapgyver-shared-texture-cadence.md) remains verified and pushed.
-This closes M11/6: 53/67 verified gates (79%); phase completion stays 6/12 (50%).
+This closes M11/7: 54/67 verified gates (81%); phase completion stays 6/12 (50%).
 M08 remains 3/4 and Blocked on its separate retirement barrier.
 Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
@@ -50,7 +51,7 @@ Retained physical/timing requirements remain open; M11 owns changed feedback sco
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Accepted                        | `██████████` 100% | 4/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 1/1](mapgyver-m07-native.md)                                       |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Blocked: complete retirement    | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); [remaining acceptance 0/1](mapgyver-m08-retirement.md) |
-| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active Composition-owned creation     | `██████░░░░` 60%  | 6/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); [media 1/1](mapgyver-m11-inspector.md#m114-acceptance); [discovery 1/1](../architecture/mapgyver-sender-selection.md); [canvas 1/1](../architecture/mapgyver-canvas-controls.md); Composition/Matrix 0/2; identity/pattern 0/2                                                                                                                         |
+| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active Matrix previews/outputs     | `███████░░░` 70%  | 7/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); [media 1/1](mapgyver-m11-inspector.md#m114-acceptance); [discovery 1/1](../architecture/mapgyver-sender-selection.md); [canvas 1/1](../architecture/mapgyver-canvas-controls.md); [Composition 1/1](../architecture/mapgyver-owned-media.md); Matrix 0/1; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                         |
 
@@ -58,7 +59,7 @@ Retained physical/timing requirements remain open; M11 owns changed feedback sco
 Phase/subphase progress uses its fixed gate count; bars round to tenths. Overall now uses the
 existing acceptance fraction instead of phase completion so accepted subphases are visible;
 phase completion remains separately shown as 6/12 (50%). Gate and phase denominators are unchanged.
-There are **53/67 accepted gates**. M11/6 adds one verified gate; M11/1–5 remain accepted.
+There are **54/67 accepted gates**. M11/7 adds one verified gate; M11/1–6 remain accepted.
 M08 stays 3/4; M07 remains complete at 4/4. The 2026-11-03 feedback added M11's ten fixed gates,
 changing the gate denominator 57 → 67 and phase denominator 11 → 12. Planning added no acceptance.
 M11 owns changed-contract verification; prior evidence is reused only within its tested scope.
@@ -89,8 +90,9 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
 | Accepted | M11/5 | [Live sender control acceptance](../architecture/mapgyver-sender-selection.md): Manual String + inline Detect, Auto Enum, live metadata, exact recovery, independent GPU outputs, adapter mismatch, history and post-load mode/absence/recovery. |
 | Accepted | M11/6 | [Shared canvas controls](../architecture/mapgyver-canvas-controls.md): public toolbar/shortcuts, contextual actions, bounded Matrix Frame, selected-only paint, native navigation/Composition/keyboard/history/source and narrow-peer checks pass. |
-| Active | M11/7 | Composition-owned media creation, Reference/instance operations and acceptance across callers. |
-| Pending | M11/8–10 | After M11/7: Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
+| Accepted | M11/7 | [Owned creation](evidence/mapgyver-m11-composition-creation-2026-11-04.json): complete backend/catalog/command/script/template contract, actual native/headless menus and history, toolbar copy/delete, reorder, project identity and independent GPU pixels before/after reload. |
+| Active | M11/8 | Visible Cell preview snapshots and media/channel labels; typed Layer/Group Expose Channel off by default, real Group blends, discovery/demand/Reference recovery and native sparse/retirement coverage. |
+| Pending | M11/9–10 | After M11/8: identity/tabs/footer and the official pattern. Execute sequentially before M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
 | Blocked  | M05/5,8  | Full physical hotplug, 150/200% and negative-origin/latency coverage is unverified. Native pixels and the known local displays now permit automatic cases; run the retained exact physical matrix, preserving missing configurations and measurement requirements.                                                                                                                                                                                                                                                                                           |
@@ -117,18 +119,18 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch handoff (2026-11-04):** M11/6 Accepted, completed before the cumulative
-  16:13 CET investigation cutoff. Shared controls and Surface styling are delivered; the
-  final correction fences Screen input against stale history projections. Owners: Golden
-  graph/viewport and MapGyver editor/backend boundaries. Rust 419 passed/2 ignored, strict
-  Clippy, generated contracts, Svelte 0/0, graph 60/UI 236/MapGyver 91 tests, graph browser/
-  keyboard and both formatters pass. Actual native navigation, Composition handles,
-  Screen keyboard/history, bounded Matrix/Frame, narrow-peer selection and Surface Source
-  input pass with normal owned-host shutdown; invalid-quad browser styling also passes.
-  [Pinned receipt](evidence/mapgyver-m11-canvas-controls-2026-11-04.json). Checkpoint `33d84d62`
-  is pushed; push this acceptance milestone before the next implementation batch. No physical,
-  timing or retirement gate is inferred. Progress: 53/67 (79%), M11 6/10, phases 6/12.
-  Next product deliverable: M11/7 Composition-owned creation and instance/reference operations.
+- **Current batch handoff (2026-11-04):** M11/7 Accepted; 16:05–16:30 CET, ahead of the
+  16:50 cutoff. Delivered real canvas-owned creation, typed command, named script method,
+  generated catalog/protocol consumers and template/callback documentation. One detached
+  subtree owns media and Placement. Golden's existing local-menu marker preserves domain
+  context input. Checks: 422 Rust tests pass/2 explicitly ignored, all-target strict Clippy,
+  generation, Svelte 0/0, 91 UI tests, both Rust formatters and scoped Prettier. Actual native
+  and headless/browser flows pass all six types, selection/one-step history, toolbar copy/
+  delete, reorder and clean project roundtrip; independent SDK output passes complete 96×64
+  red images before/after reload. Owned hosts exit normally. [Pinned receipt](evidence/mapgyver-m11-composition-creation-2026-11-04.json).
+  Push this acceptance milestone before M11/8 implementation. Progress: 54/67 (81%), M11
+  7/10, phases 6/12. Next product deliverable: Matrix visible Cell source feedback and real
+  opt-in Layer/Group outputs. Retained physical/timing/retirement gates remain unaccepted.
 
 ## Maintenance rule
 

@@ -3,6 +3,9 @@
 	import { untrack } from 'svelte';
 	import {
 		appState,
+		ContextMenu,
+		type ContextMenuAnchor,
+		type ContextMenuItem,
 		IconButton,
 		readPanelPersistedState,
 		writePanelPersistedState,
@@ -67,7 +70,47 @@
 			untrack(persist);
 		}
 	});
-	function dropPoint(event: DragEvent) {
+	let menuAnchor = $state<ContextMenuAnchor | null>(null);
+	let menuItems = $state.raw<ContextMenuItem[]>([]);
+	const menuChannel = $derived(channel?.reference.channel ?? null);
+	$effect(() => {
+		void menuChannel;
+		void appState.session?.snapshotGeneration;
+		menuAnchor = null;
+	});
+	function creationMenu(event: MouseEvent) {
+		if (busy || gestureState.active || !channel) return;
+		const position = dropPoint(event);
+		if (!position) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const reference = channel.reference;
+		const session = appState.session,
+			generation = session?.snapshotGeneration;
+		menuItems = (view.page?.media_types ?? []).map((type) => ({
+			label: type.label,
+			action: async () => {
+				if (
+					appState.session !== session ||
+					session?.snapshotGeneration !== generation ||
+					channel?.reference.channel !== reference.channel ||
+					channel.reference.media !== reference.media
+				)
+					return;
+				const selectCreated = selection.capture();
+				const result = await controller.edit({
+					kind: 'CreateMedia',
+					media_kind: type.media_kind,
+					label: null,
+					position
+				});
+				if (result?.kind === 'InstancesCreated' && result.instances[0])
+					selectCreated(result.instances[0].instance);
+			}
+		}));
+		menuAnchor = { kind: 'point', x: event.clientX, y: event.clientY };
+	}
+	function dropPoint(event: MouseEvent) {
 		const canvas = (event.currentTarget as HTMLElement).querySelector(
 			'svg[aria-label="Composition transform controls"]'
 		);
@@ -170,7 +213,9 @@
 	<SourceDropZone
 		class="editor-canvas"
 		data-composition-drop-target=""
+		data-local-context-menu
 		addLabel="Add instance"
+		oncontextmenu={creationMenu}
 		hitTest={pickDropTarget}
 		disabled={busy || gestureState.active || !composition}
 		onsource={async (source, target, event) => {
@@ -216,6 +261,13 @@
 		{:else}<p class="editor-empty">Select a Composition in Media Manager.</p>{/if}
 	</SourceDropZone>
 </section>
+<ContextMenu
+	open={menuAnchor !== null}
+	anchor={menuAnchor}
+	items={menuItems}
+	onClose={() => {
+		menuAnchor = null;
+	}} />
 
 <style>
 	:global(.previous img) {

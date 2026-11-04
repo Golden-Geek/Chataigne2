@@ -114,6 +114,11 @@ pub(crate) fn apply(
 ) -> Result<MediaEditResult, String> {
     let (parent, canvas) = channel(engine, reference)?;
     match edit {
+        CompositionEdit::CreateMedia {
+            media_kind,
+            label,
+            position,
+        } => super::creation::apply(engine, reference, parent, canvas, media_kind, label, position),
         CompositionEdit::Inspect => Ok(MediaEditResult::Composition {
             snapshot: inspect(engine, reference)?,
         }),

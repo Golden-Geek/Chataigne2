@@ -41,6 +41,7 @@ const instance = (id: string) => ({
 	}
 });
 const page = (id = 'owner'): CompositionEditorPage => ({
+	media_types: [],
 	document: 'project',
 	document_matches: true,
 	start: 0,

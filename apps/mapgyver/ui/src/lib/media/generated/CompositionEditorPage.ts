@@ -2,9 +2,10 @@
 import type { ChannelSnapshot } from "./ChannelSnapshot";
 import type { CompositionSnapshot } from "./CompositionSnapshot";
 import type { InstanceSnapshot } from "./InstanceSnapshot";
+import type { MediaCreationChoice } from "./MediaCreationChoice";
 import type { NodeUuid } from "./NodeUuid";
 
-export type CompositionEditorPage = { document: NodeUuid, document_matches: boolean, channel: ChannelSnapshot | null,
+export type CompositionEditorPage = { media_types: Array<MediaCreationChoice>, document: NodeUuid, document_matches: boolean, channel: ChannelSnapshot | null,
 /**
  * Contains only the requested ordered page; total describes full membership.
  */

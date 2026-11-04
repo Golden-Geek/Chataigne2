@@ -21,6 +21,13 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "sender_selection"
   ],
+  "CreateCompositionMedia": [
+    "media",
+    "channel",
+    "media_kind",
+    "label",
+    "position"
+  ],
   "CreateFolder": [
     "target_folder",
     "label"

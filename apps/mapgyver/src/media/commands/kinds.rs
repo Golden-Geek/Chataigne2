@@ -24,6 +24,7 @@ command_kinds! {
     InspectApplicationCallbacks => "Inspect App Callbacks", "App control", [];
     DropMatrixMedia => "Drop Matrix Media", "Matrix", ["media", "matrix_layer", "matrix_column", "entry", "copy_media"];
     DropCompositionMedia => "Drop Composition Media", "Composition", ["media", "channel", "entry", "composition_target", "copy_media", "position"];
+    CreateCompositionMedia => "Create Composition Media", "Composition", ["media", "channel", "media_kind", "label", "position"];
     CreateReference => "Create Reference", "Media", ["reference_target", "label"];
     ConfigureReference => "Set Reference Target", "Media", ["media", "reference_target"];
     CreateMedia => "Create Media", "Media", ["media_kind", "label"];

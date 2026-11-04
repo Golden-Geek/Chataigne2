@@ -3,9 +3,14 @@ import type { ChannelReference } from "./ChannelReference";
 import type { InstanceDefinition } from "./InstanceDefinition";
 import type { InstanceGeometryEdit } from "./InstanceGeometryEdit";
 import type { InstanceId } from "./InstanceId";
+import type { MediaKind } from "./MediaKind";
 import type { Point } from "./Point";
 
-export type CompositionEdit = { "kind": "Inspect" } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DropSource", source: string, instance: InstanceId | null, copy: boolean,
+export type CompositionEdit = { "kind": "Inspect" } | { "kind": "CreateMedia", media_kind: MediaKind, label: string | null,
+/**
+ * Canvas texels; defaults and placement Parameters are materialized by the backend.
+ */
+position: Point, } | { "kind": "AddInstances", sources: Array<ChannelReference>, } | { "kind": "DropSource", source: string, instance: InstanceId | null, copy: boolean,
 /**
  * Canvas texels for a new instance; replacement preserves its existing transform.
  */

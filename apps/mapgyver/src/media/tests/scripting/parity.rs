@@ -105,6 +105,25 @@ fn named_invocation(operation: &MediaEdit) -> String {
                 position.y
             ]),
         ),
+        MediaEdit::Composition {
+            reference,
+            edit:
+                crate::media::composition::protocol::CompositionEdit::CreateMedia {
+                    media_kind,
+                    label,
+                    position,
+                },
+        } => (
+            "createCompositionMedia",
+            serde_json::json!([
+                reference.media,
+                reference.channel,
+                media_kind,
+                label.as_deref().unwrap_or(""),
+                position.x,
+                position.y
+            ]),
+        ),
         MediaEdit::CreateMedia { media_kind, label } => (
             "createMedia",
             serde_json::json!([media_kind, label.as_deref().unwrap_or("")]),

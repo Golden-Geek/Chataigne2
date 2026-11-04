@@ -112,7 +112,9 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             | MediaCommandKind::LaunchMatrixColumn
             | MediaCommandKind::LaunchMatrixCell
             | MediaCommandKind::UnloadMatrix => create(&mut engine, MediaKind::Matrix),
-            MediaCommandKind::DropCompositionMedia => create(&mut engine, MediaKind::Composition),
+            MediaCommandKind::DropCompositionMedia | MediaCommandKind::CreateCompositionMedia => {
+                create(&mut engine, MediaKind::Composition)
+            }
             MediaCommandKind::Picture | MediaCommandKind::ConfigureFitMode => picture,
             MediaCommandKind::SharedTexture | MediaCommandKind::ConfigureSenderSelection => shared,
             _ => solid,
