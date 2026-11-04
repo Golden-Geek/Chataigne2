@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 mod callbacks;
 mod configuration;
 mod observation;
+mod retirement;
 mod supervision;
 
 struct Fake {
@@ -18,6 +19,7 @@ struct Fake {
     fail_resume: bool,
     cancel_create: Option<Arc<AtomicBool>>,
     on_create: Option<Box<dyn FnMut()>>,
+    observation: Option<Result<ProcessSnapshot, String>>,
 }
 impl Default for Fake {
     fn default() -> Self {
@@ -33,6 +35,7 @@ impl Default for Fake {
             fail_resume: false,
             cancel_create: None,
             on_create: None,
+            observation: None,
         }
     }
 }
@@ -68,6 +71,9 @@ impl Backend for Fake {
         42
     }
     fn snapshot(&mut self, _: &()) -> Result<ProcessSnapshot, String> {
+        if let Some(observation) = &self.observation {
+            return observation.clone();
+        }
         Ok(ProcessSnapshot {
             root_id: 42,
             root: if self.running {

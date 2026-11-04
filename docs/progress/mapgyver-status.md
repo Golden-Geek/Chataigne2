@@ -4,27 +4,29 @@
 
 **Verified gates: `███████░░░` 70% · 47/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M08/4 ordinary-app lifecycle/project/recovery passes; retained target/access/retirement qualification is Active.
-**Next deliverable:** Resolve the reproduced singleton retirement barrier and audit exact retained elevated/access-denial outcomes.
-**Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5 and M07/1–4 are Accepted; M08/4 alone is Active on `mapgyver`.
+**Current topic:** M11/1 interface/preview stability; M08/4 complete-retirement qualification remains Blocked.
+**Next deliverable:** Reproduce the supplied Inspector/Matrix/preview flash on a recorded current build and fix the owning UI/lifetime boundary.
+**Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5 and M07/1–4 are Accepted; M11/1 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
-adds ten Pending gates, **all ahead of M10 and M09**. Current order: M08/4 → M11 → M10 → M09.
+adds ten gates, **all ahead of M10 and M09**. Current functional order: M11 → M10 → M09;
+M08/4's retained qualification must still pass before M10/M09. The recorded ordering change
+uses AGENTS.md's functional-delivery rule and the plan's rule 6; no requirement is waived.
 Earlier acceptance covers its tested contract; changed behavior must pass M11. Planning accepts no gate.
-**Remaining requirement:** final app-control UI/script/target/access qualification, M11 feedback, Video and retained
+**Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly verified:** [Ordinary-app script and project integration](mapgyver-m08-app-integration.md):
-eight named methods, ordered actual lifecycle callbacks, shared Column/Cell PID, typed unload,
-65-key atomic admission failure/recovery, Save/New/Load and normal owned-tree shutdown.
-The external fixture survives; singleton duplicate complete retirement remains unverified.
+**Newly usable:** [Truthful retirement details](mapgyver-m08-retirement.md): the runtime now shows
+actual root/active/pending/unobserved evidence or native observation errors, without releasing
+ownership. Actual CreateProcess access denial 5 and elevation denial 740 pass. Singleton
+retirement is still unverified: root exited, active/pending zero, one uncaptured lifetime.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
 **Last delivered capability:** seven typed app-control commands/eight named script methods,
-with actual native picker, hosted lifecycle/project/recovery and target-outcome evidence.
-Passing 396-test/strict lint/Svelte prerequisites are reused. No gate added; M08 remains 3/4.
-M08/4 and retained physical/timing requirements remain open; M11 owns changed feedback scope.
+with actual native picker, hosted lifecycle/project/recovery and target-access evidence.
+398 software tests and strict lint pass. No gate added; M08 remains 3/4 and Blocked.
+Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
 | Phase                                                                                                                                                              | State                           | Progress          | Gates | Subphase progression                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------- | ----------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -36,14 +38,14 @@ M08/4 and retained physical/timing requirements remain open; M11 owns changed fe
 | <a id="m05-acceptance-items"></a>[M05 Screens/editors](../plan/MapGyver_Implementation_Plan.md#m05--deliver-screens-surfaces-and-shared-navigation)                | Physical qualification retained | `████████░░` 80%  | 8/10  | Authoring/warp/calibration 3/3; editors 2/2; physical 1/3; bounds/workbench stats 2/2                                                                                                                                        |
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Accepted                        | `██████████` 100% | 4/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 1/1](mapgyver-m07-native.md)                                       |
-| <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Active final app qualification  | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); app acceptance 0/1                                    |
-| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Pending before M10/M09          | `░░░░░░░░░░` 0%   | 0/10  | Stability/capacity/GPU 0/3; media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
+| <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Blocked: complete retirement    | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); [remaining acceptance 0/1](mapgyver-m08-retirement.md) |
+| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active stability acceptance     | `░░░░░░░░░░` 0%   | 0/10  | Stability/capacity/GPU 0/3; media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                         |
 
 **Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **47/67 accepted gates**. This app integration milestone adds no gate; M08 stays 3/4. M07 remains
+There are **47/67 accepted gates**. This retirement/access milestone adds no gate; M08 stays 3/4. M07 remains
 complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
 The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
 and phase denominator 11 → 12. Planning itself added no acceptance. M11 owns changed-contract
@@ -66,10 +68,11 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active   | M08/4    | Native picker, command/script API and ordinary-app lifecycle/project/recovery are verified. Resolve reproduced singleton RetirementUnverified and audit exact retained elevated/access-denial/retirement requirements against actual outcomes. Reuse M08/3's pinned-tree cleanup and current target/integration receipts; distinguish authored Undo from OS side effects. |
+| Active   | M11/1    | Reproduce supplied Inspector/Matrix flashes and media/preview transitions on a recorded current build; fix the owning shared UI/native-preview lifetime boundary and verify the complete stability gate. Independent of external process retirement. |
+| Blocked  | M08/4    | [Exact native barrier](mapgyver-m08-retirement.md): singleton root exited, active/pending zero, one uncaptured lifetime. Functional UI/script/project/access paths pass. Return with a documented identity-preserving completion mechanism for that lifetime, or an explicit user contract revision, then verify the retained exact fixture with original budgets. No unchanged probes or cleanup claim. Still required before M10/M09. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
-| Pending  | M11/1–10 | After M08/4 closure, resolve stable UI/previews, 4K resource capacity, GPU preference/options, minimal typed Channels/Fit Mode/time UI, Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially; reproduce stability first. All ten precede M10 and M09. |
+| Pending  | M11/2–10 | After M11/1 closure: 4K resource capacity, GPU preference/options, minimal typed Channels/Fit Mode/time UI, Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially. All ten precede M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
 | Pending  | M03/9    | Original GPU critical-path/window timing and reproduced private-growth failure need corrective qualification, not additional user/tool permission. Return in its bounded qualification lane with an ownership correction and supported timing evidence; no unchanged benchmark reruns or budget revision.                                                                                                                                                                                                                                                    |
@@ -93,25 +96,21 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M08/4 ordinary-app lifecycle and project replacement, started
-  00:54 CET / stopping time 01:39 CET (2026-11-04). Deliverable: real named script/callback/
-  command lifecycle plus Save/New/Load and normal shutdown of Column-owned processes/trees.
-  Owner: MapGyver app integration tests over the public media/script/project APIs.
-  [Result](mapgyver-m08-app-integration.md): all eight named methods execute in the bundled editor;
-  actual Starting/Ready/Stopping/Idle callbacks are ordered, Column/Cell share PID/launch and a
-  script-executed typed unload command retires it. The ordinary host rejects 65 extra unique keys
-  atomically, preserves its existing process and recovers. Save/New/Load gives fresh lifetimes,
-  rejects three stale tickets and never auto-launches saved settings; normal shutdown retires a
-  three-member tree while preserving the external fixture. JS syntax/Prettier and both Cargo
-  formatters pass; unchanged 396-test/strict lint/Svelte/build prerequisites are reused.
-  Two UI setup checks failed before launch on an incomplete declared field path; static source
-  inspection corrected it before the actual process check passed. No native failure is hidden.
-  Exact remaining requirement: reproduced singleton complete-retirement barrier and retained
-  elevated/access-denial/retirement qualification. Do not rerun the prior singleton experiments
-  unchanged. Next deliverable is a bounded corrective ownership decision using that reproduction,
-  plus an exact contract audit of target outcomes. `d9d0c736` is pushed/verified (remote equal,
-  0/0). Exactly M08/4 is Active; 47/67 gates (70%), 6/12 phases (50%). Preserve concurrent work,
-  pending documentation cleanup and the named stash.
+- **Current batch/handoff:** M08/4 native retirement/access, started 01:05 CET / stopping time
+  01:50 CET (2026-11-04). [Delivered](mapgyver-m08-retirement.md): bounded actual retirement
+  details, with tests for every missing barrier and access-error reporting; ownership/replacement
+  rules remain intact. 398 software tests, strict Clippy, protocol equality, JS checks, both
+  Cargo formatters and fresh build pass. Two native experiments are terminal: initial access-
+  fixture SID syntax/cleanup failure was repaired; final run verifies direct error 5, errors
+  2/216/740, launcher/breakaway cleanup and external isolation. Temporary permissions are restored.
+  Singleton remains Blocked with the actual one-lifetime observation gap; no gate closes and
+  no third/unchanged native probe follows. Historical elevated-token evidence is reused only
+  for unchanged Golden IO/Native methods, not current-binary elevated execution.
+  Functional app-control acceptance is sufficient for independent M11 delivery under the plan's
+  recorded rule-6 ordering change. **M11/1 alone is Active**; M08/4 stays required in the return
+  queue and before M10/M09. Next deliverable: reproduce/fix the supplied Inspector/Cell/media-
+  preview flashes on a recorded build. `8712a129` is pushed/verified (remote equal, 0/0).
+  Counts stay 47/67 gates (70%), 6/12 phases (50%). Preserve concurrent work and named stash.
 
 ## Maintenance rule
 

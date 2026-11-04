@@ -1,17 +1,21 @@
 // Finite test-owned targets exercised through the ordinary app's public operations.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, readdir, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
 
 export async function verifyTargetOutcomes({ applications, matrix, edit, fixture, alive }) {
 	const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-target-outcomes-'));
 	const file = (name) => path.join(directory, name);
 	let singleton;
 	let singletonExit;
+	let deniedSid;
+	const run = promisify(execFile);
+	const commandOptions = { windowsHide: true, timeout: 5000 };
 	const results = {};
 	const runtimes = new Map();
 	async function json(report) {
@@ -138,6 +142,7 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 			exit_code: duplicateExit.exit_code,
 			adopted: false,
 			phase: duplicateExit.phase,
+			message: duplicateExit.message,
 			retirement: duplicateRetirement
 		};
 
@@ -182,12 +187,31 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 		results.breakaway = { ...attempt, retirement: breakawayRetirement };
 
 		await writeFile(file('invalid.exe'), 'MapGyver test data, not an executable');
+		// Deny execution only on this private fixture copy; restore that explicit ACE in finally.
+		const { stdout } = await run(
+			'powershell.exe',
+			[
+				'-NoProfile',
+				'-NonInteractive',
+				'-Command',
+				'[Security.Principal.WindowsIdentity]::GetCurrent().User.Value'
+			],
+			commandOptions
+		);
+		const sid = stdout.trim();
+		assert.match(sid, /^S-\d+(?:-\d+)+$/);
+		await copyFile(fixture, file('denied.exe'));
+		deniedSid = `*${sid}`;
+		await run('icacls.exe', [file('denied.exe'), '/deny', `${deniedSid}:(X)`], commandOptions);
 		for (const [name, admittedErrors] of [
 			['missing.exe', [2]],
+			['denied.exe', [5]],
 			// Windows can classify an invalid native image as bad format or machine incompatibility.
 			['invalid.exe', [193, 216]]
 		]) {
-			const invalid = await target(name, [], { kind: 'ProcessStarted' }, file(name));
+			const argumentsValue =
+				name === 'denied.exe' ? ['--lifecycle-leaf', file('denied.started')] : [];
+			const invalid = await target(name, argumentsValue, { kind: 'ProcessStarted' }, file(name));
 			const failed = await observe(invalid.application, (status) => status.phase === 'Failed');
 			assert.equal(failed.process_id, null);
 			assert.equal(failed.exit_code, null);
@@ -213,6 +237,8 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 			const stable = await observe(invalid.application, (status) => status.phase === 'Failed');
 			assert.equal(stable.launch, failed.launch);
 			assert.equal(stable.failures, 1);
+			if (name === 'denied.exe')
+				await assert.rejects(readFile(file('denied.started')), { code: 'ENOENT' });
 			await unload(invalid.application);
 			results[name] = { error, launch: failed.launch };
 		}
@@ -228,6 +254,8 @@ export async function verifyTargetOutcomes({ applications, matrix, edit, fixture
 		console.error(JSON.stringify({ verified_target_outcomes: results }));
 		throw error;
 	} finally {
+		if (deniedSid)
+			await run('icacls.exe', [file('denied.exe'), '/remove:d', deniedSid], commandOptions);
 		if (singleton && singleton.exitCode === null) singleton.kill();
 		if (singletonExit) await singletonExit;
 		// Only flat files in this exact mkdtemp directory; do not recursively delete a computed path.

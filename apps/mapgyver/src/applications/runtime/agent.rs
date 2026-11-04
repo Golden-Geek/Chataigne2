@@ -227,7 +227,8 @@ impl<B: Backend> Agent<B> {
             );
         }
         if let Some(process) = &self.process {
-            match self.backend.snapshot(process) {
+            let observation = self.backend.snapshot(process);
+            match &observation {
                 Ok(snapshot) => {
                     if let RootProcessState::Exited(code) = snapshot.root {
                         self.status.exit_code = Some(code);
@@ -250,7 +251,7 @@ impl<B: Backend> Agent<B> {
                         return;
                     }
                 }
-                Err(error) => self.begin_stop(now, true, &error),
+                Err(error) => self.begin_stop(now, true, error),
             }
             if self.stop.is_none() && self.status.phase == ApplicationPhase::WaitingForSender {
                 if ready {
@@ -272,6 +273,16 @@ impl<B: Backend> Agent<B> {
                 if now >= stop.deadline {
                     self.status.phase = ApplicationPhase::RetirementUnverified;
                     self.status.next_action_ms = None;
+                    self.message(match &observation {
+                        Ok(snapshot) => format!(
+                            "Owned tree retirement unverified: root={:?}, active={}, pending={}, unobserved={}",
+                            snapshot.root,
+                            snapshot.active_processes,
+                            snapshot.pending_observed_processes,
+                            snapshot.unobserved_processes
+                        ),
+                        Err(error) => format!("Owned tree retirement observation failed: {error}"),
+                    });
                     // Keep ownership and the worker's global lifetime slot until proof arrives.
                 }
             }

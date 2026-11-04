@@ -28,9 +28,13 @@ Implementation is active under the user's MapGyver goal. Planning awards no acce
    and M07 Matrix redesign together → M11 feedback corrections → M10 Video tiers → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   From the current checkout, retain **M08/4 → M11/1–10 → M10 → M09**;
-   retained M03/M05 qualification stays in its named return lane. A reproduced blocking defect
-   still takes precedence. Do not start M10 or M09 while any M11 gate remains unaccepted.
+   Current functional delivery is **M11/1–10**, then M10 and M09 after all their prerequisites.
+   M08/4 retains its [blocked complete-retirement qualification](../progress/mapgyver-m08-retirement.md),
+   alongside the named M03/M05 return lanes. M08's functional boundary and ordinary-app integration
+   are verified; independent M11 stability/editor work does not depend on unverified external-target
+   cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
+   A reproduced defect blocking the selected product path still takes precedence. Do not start
+   M10 or M09 while M08/4 or any M11 gate remains unaccepted.
 5. The unrestricted finite Surface-warp correction is already delivered and manually accepted.
    Preserve it and its evidence; do not restart that correction.
 6. Functional dependencies permit product implementation before unrelated physical/timing
@@ -68,8 +72,10 @@ both GPUs pass the complete current raster, source recovery/sharing, sparse burs
 interruption and final-retirement matrix. App Control lifecycle requirements now avoid per-owner
 whole-document snapshots during bulk typed creation. [M08/3 actual runtime acceptance](../progress/mapgyver-m08-runtime.md)
 now verifies both native readiness modes, shared owned processes, cancellation, completion-based
-retention and stale-project rejection. M08/4 is the single active gate for complete picker/UI/
-script/target/access qualification before M11. Retained physical/timing qualification and the
+retention and stale-project rejection. [M08 ordinary-app integration](../progress/mapgyver-m08-app-integration.md)
+also verifies picker, commands, scripts/callbacks and project/recovery/shutdown. M08/4 remains
+Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M11/1 is now
+the single active independent product gate. Retained physical/timing qualification and the
 original Matrix fixture budgets are unchanged.
 
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and

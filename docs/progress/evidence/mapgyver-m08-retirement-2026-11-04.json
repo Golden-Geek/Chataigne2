@@ -1,0 +1,80 @@
+{
+	"date": "2026-11-04",
+	"gate": "M08/4",
+	"state": "Blocked",
+	"accepted_gates_added": 0,
+	"capability": "Bounded runtime explanation of missing retirement evidence or native observation errors; ownership and replacement barrier preserved",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m08-retirement.exe",
+		"sha256": "5A32B9C2242E39F6FFCCD93A7B972F487C3A234E969A1B1137FBE0D4BFC0B21E"
+	},
+	"software": {
+		"passed": 398,
+		"failed": 0,
+		"ignored": 2,
+		"filtered": 1,
+		"seconds": 12.66,
+		"final_targeted_tests": "2 passed after adding the explicit still-running-root case; strict all-target Clippy rerun passes",
+		"strict_clippy": "pass: all targets, native-qualification,application-process-fixture, -D warnings",
+		"protocol_equality": "pass in library tests",
+		"javascript_syntax_prettier": "pass",
+		"both_cargo_formatters": "pass"
+	},
+	"native": {
+		"result": "partial",
+		"singleton": {
+			"external_pid": 40976,
+			"duplicate_exit": 17,
+			"adopted": false,
+			"phase": "RetirementUnverified",
+			"message": "Owned tree retirement unverified: root=Exited(17), active=0, pending=0, unobserved=1",
+			"complete_retirement_verified": false
+		},
+		"launcher": { "root": 28088, "child": 27292, "exit_code": 0, "retirement": "Idle" },
+		"breakaway": { "pid": 40900, "error": 5, "retirement": "Idle" },
+		"missing_image_error": 2,
+		"denied_image": {
+			"error": 5,
+			"launch": "7f83aa83-db7b-4239-a1d0-2bcb82bc04a1",
+			"process_id": null,
+			"target_main_executed": false,
+			"private_fixture_ace_restored": true
+		},
+		"invalid_image_error": 216,
+		"elevation_required": {
+			"error": 740,
+			"launch": "5f4fe91f-e24d-4360-a396-5af9f625ae4e",
+			"caller_elevated": false,
+			"failures": 1,
+			"process_id": null,
+			"target_main_executed": false,
+			"elevation_requested": false,
+			"retirement": "Idle"
+		},
+		"combined_host_elapsed_ms": 4145,
+		"normal_host_exit": 0
+	},
+	"elevated_evidence_reuse": {
+		"receipt": "mapgyver-m08-elevated-target-2026-11-01.json",
+		"base_revision": "194d888a1d855f9621f687040cfbec0788712ff4",
+		"golden_io_owned_process_diff": "empty",
+		"native_backend_methods": "unchanged",
+		"current_binary_elevated_execution_claimed": false
+	},
+	"experiments": [
+		"Baseline exposed the actual one-lifetime gap, then access-fixture setup/cleanup failed on numeric SID syntax",
+		"Final run repaired SID syntax, passed all access/outcome assertions and retained the incomplete singleton result"
+	],
+	"logs": [
+		"target/m08-retirement-software.log",
+		"target/m08-retirement-clippy.log",
+		"target/m08-retirement-final-tests.log",
+		"target/m08-retirement-final-clippy.log",
+		"target/m08-retirement-app-build.log",
+		"target/m08-retirement-native-baseline.log",
+		"target/m08-retirement-native-final.log"
+	],
+	"blocker": "One uncaptured job lifetime prevents the original complete owned-tree retirement proof",
+	"return_trigger": "Documented identity-preserving completion mechanism for the uncaptured lifetime, or explicit user revision of the retirement contract; then exact native verification with original budgets",
+	"ordering": "M11/1 becomes the sole Active gate; M08/4 remains Blocked and required before M10/final qualification"
+}
