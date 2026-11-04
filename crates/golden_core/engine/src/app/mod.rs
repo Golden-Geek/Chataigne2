@@ -175,7 +175,7 @@ fn live_child_by_decl<T: Node>(engine: &Engine<T>, parent: NodeId, decl_id: &str
 }
 
 /// Returns the live Preferences root without building a whole-tree snapshot.
-pub(crate) fn live_preferences_root<T: Node>(engine: &Engine<T>) -> Option<NodeId> {
+pub fn live_preferences_root<T: Node>(engine: &Engine<T>) -> Option<NodeId> {
     live_child_by_decl(engine, engine.root, PREFERENCES_DECL_ID)
 }
 
@@ -320,98 +320,32 @@ pub fn apply_preferences_runtime_limits<T: Node>(engine: &mut Engine<T>) {
 
 /// Queues any missing Preferences defaults into a live engine.
 pub fn ensure_preferences_tree<T: Node>(engine: &mut Engine<T>, default_data_folder: impl Into<String>) {
-    let default_data_folder = default_data_folder.into();
+    ensure_preferences_defaults(engine, default_preferences_tree(default_data_folder));
+}
+
+/// Merges declared Preferences defaults, adding each missing subtree in one operation.
+/// Existing node identities, parameter values and extra saved declarations are preserved.
+pub fn ensure_preferences_defaults<T: Node>(engine: &mut Engine<T>, defaults: NodeTree) {
     let snapshot = engine.process_tree_snapshot();
-    let Some(preferences) = preferences_root_from_snapshot(snapshot.as_ref()) else {
-        engine.edits.push(Edit::AddNodeTree {
-            tree: default_preferences_tree(default_data_folder),
-            parent: engine.root,
-            prev_sibling: None,
-        });
-        return;
-    };
+    let root = engine.root;
+    merge_preferences_defaults(engine, snapshot.as_ref(), root, defaults);
+}
 
-    if child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_STARTUP_AND_UPDATE_DECL_ID).is_none() {
-        engine.edits.push(Edit::AddNodeTree {
-            tree: NodeTree::new(app_data_folder(
-                "Startup and Update",
-                PREFERENCES_STARTUP_AND_UPDATE_DECL_ID,
-            )),
-            parent: preferences,
-            prev_sibling: None,
-        });
-    }
-
-    let save_and_load = child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_SAVE_AND_LOAD_DECL_ID);
-    let save_and_load = match save_and_load {
-        Some(id) => id,
-        None => {
-            let mut tree = NodeTree::new(app_data_folder("Save and Load", PREFERENCES_SAVE_AND_LOAD_DECL_ID));
-            tree.push_child(NodeTree::new(preferences_data_folder_parameter(default_data_folder)));
-            engine.edits.push(Edit::AddNodeTree {
-                tree,
-                parent: preferences,
-                prev_sibling: None,
-            });
-            return;
-        }
-    };
-
-    if child_by_decl(snapshot.as_ref(), save_and_load, PREFERENCES_DATA_FOLDER_DECL_ID).is_none() {
-        engine.edits.push(Edit::AddNodeTree {
-            tree: NodeTree::new(preferences_data_folder_parameter(default_data_folder)),
-            parent: save_and_load,
-            prev_sibling: None,
-        });
-    }
-
-    if let Some(engine_folder) = child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_ENGINE_DECL_ID) {
-        if child_by_decl(
-            snapshot.as_ref(),
-            engine_folder,
-            PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
-        )
-        .is_none()
-        {
-            engine.edits.push(Edit::AddNodeTree {
-                tree: NodeTree::new(preferences_engine_frequency_parameter(
-                    "Engine Max Frequency",
-                    PREFERENCES_ENGINE_MAX_FREQUENCY_DECL_ID,
-                    DEFAULT_ENGINE_MAX_FREQUENCY_HZ,
-                )),
-                parent: engine_folder,
-                prev_sibling: None,
-            });
-        }
-        if child_by_decl(
-            snapshot.as_ref(),
-            engine_folder,
-            PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
-        )
-        .is_none()
-        {
-            engine.edits.push(Edit::AddNodeTree {
-                tree: NodeTree::new(preferences_engine_frequency_parameter(
-                    "Engine Low Frequency",
-                    PREFERENCES_ENGINE_LOW_FREQUENCY_DECL_ID,
-                    DEFAULT_ENGINE_LOW_FREQUENCY_HZ,
-                )),
-                parent: engine_folder,
-                prev_sibling: None,
-            });
+fn merge_preferences_defaults<T: Node>(
+    engine: &mut Engine<T>,
+    snapshot: &ProcessTreeSnapshot,
+    parent: NodeId,
+    tree: NodeTree,
+) {
+    let decl_id = tree.node.node_data().meta.decl_id.0.as_str();
+    if let Some(existing) = child_by_decl(snapshot, parent, decl_id) {
+        for child in tree.children {
+            merge_preferences_defaults(engine, snapshot, existing, child);
         }
     } else {
         engine.edits.push(Edit::AddNodeTree {
-            tree: preferences_engine_folder_tree(),
-            parent: preferences,
-            prev_sibling: None,
-        });
-    }
-
-    if child_by_decl(snapshot.as_ref(), preferences, PREFERENCES_INTERFACE_DECL_ID).is_none() {
-        engine.edits.push(Edit::AddNodeTree {
-            tree: NodeTree::new(app_data_folder("Interface", PREFERENCES_INTERFACE_DECL_ID)),
-            parent: preferences,
+            tree,
+            parent,
             prev_sibling: None,
         });
     }

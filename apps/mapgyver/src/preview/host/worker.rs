@@ -9,8 +9,7 @@ use crate::{
 use golden_core::{app::NativePresentationStop, application::ProductionRuntime};
 use golden_io::WorkerNotifier;
 use golden_video::native::{
-    AdapterInfo, AdapterPreference, D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget,
-    query_adapter_memory, select_adapter,
+    AdapterInfo, D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, query_adapter_memory,
 };
 use golden_video::preview::{HostViewport, PreviewController, PreviewReceiver};
 use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, VideoRuntime};
@@ -163,7 +162,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut owner: Option<Owner> = None;
     // Pin even automatic selection for this presentation task. Recreating outputs must not
     // silently reconnect existing shared textures on a different GPU.
-    let mut adapter = None;
+    let mut adapter = super::adapters::Selection::default();
     let mut status_sampler = crate::preview::runtime_status::StatusSampler::default();
     let mut output_sampler = super::output_status::OutputSampler::default();
     let mut native: Option<D3d11Control> = None;
@@ -201,6 +200,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
         crate::applications::runtime::ApplicationCallbackSubscription,
     )> = None;
     while !input.stop.is_requested() {
+        adapter.service(&input.runtime);
         if let Some(owner) = &owner {
             owner.process_input(&input.runtime);
         }
@@ -487,11 +487,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         })?;
                         return Ok(());
                     }
-                    if adapter.is_none() {
-                        adapter = Some(select_adapter(AdapterPreference::Automatic).map_err(|e| e.to_string())?);
-                    }
                     let (created, control) = create(
-                        adapter.as_ref().unwrap(),
+                        adapter.adapter()?,
                         input.hwnd,
                         extent,
                         &topology,
@@ -739,6 +736,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 .zip(owner.as_ref())
                 .map(|(snapshot, owner)| (snapshot, owner.gpu.as_str()));
             if let Some(mut status) = status_sampler.sample(now, observed, last_error.as_deref()) {
+                adapter.decorate(&mut status);
                 status.gpu_adapter = native
                     .as_ref()
                     .and_then(|native| native.snapshot().adapter)

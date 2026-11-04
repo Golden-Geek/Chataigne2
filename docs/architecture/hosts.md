@@ -12,6 +12,16 @@ lifetime. Factories return promptly and startup failures propagate. Neither hook
 project candidate validation or Undo. The shared host owns startup and lifetime; app services own
 product policy and use the authoritative runtime's public transaction/capture contracts.
 
+Apps extend ordinary typed Preferences through `ProjectLifecycle::preferences_tree`, starting
+with `default_preferences_tree`. The shared transport host loads app-data Preferences before
+merging missing declarations with `ensure_preferences_defaults`; it inserts missing subtrees
+as detached trees without resetting existing values or live identities. The Inspector edits
+those same Parameter nodes, while persistence keeps Preferences outside project documents.
+The declaration hook performs no external IO. App host workers publish dynamic catalogs through
+the public lifetime-fenced node-wake/edit APIs. MapGyver registers its GPU Enum this way under
+`apps/mapgyver/src/preferences`; Golden Video supplies adapter enumeration/selection, and its
+presentation task pins the startup choice until restart rather than migrating shared textures.
+
 The transport host owns cancellation through `golden_transport_server::UiServerShutdown` and
 `UiServerConfig::shutdown`. A request wakes idle listener waits, closes tracked connections and
 ends runtime, WebSocket hub and snapshot-encoder work. The host drains its bounded thread set

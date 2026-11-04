@@ -19,6 +19,8 @@ const snapshot = (sequence: number): VideoRuntimeStatus => ({
 	cpu_submit_ms: 0.4,
 	gpu: 'Test GPU',
 	gpu_adapter: 'dxgi:00000000:00000001',
+	gpu_preference: 'Automatic',
+	gpu_restart_required: false,
 	resources: { used_bytes: 1024, limit_bytes: 4096, in_flight: 1, retiring: 0 },
 	error: null,
 	screens: []

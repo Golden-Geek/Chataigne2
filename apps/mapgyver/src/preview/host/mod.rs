@@ -1,4 +1,5 @@
 //! Shared app preview: the host owns HWND lifetime; this task owns rendering/preparation.
+mod adapters;
 mod discovery;
 mod displays;
 mod observations;

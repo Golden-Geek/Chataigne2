@@ -21,6 +21,7 @@ golden_core::define_node_enum!(
         ScreenManager(crate::screens::ScreenManagerNode),
         Screen(crate::screens::ScreenNode),
         Surface(crate::screens::SurfaceNode),
+        VideoPreferences(crate::preferences::VideoPreferencesNode),
     }
 );
 
@@ -60,6 +61,10 @@ impl ProjectLifecycle for AppNode {
 
     fn app_data_directory_name() -> &'static str {
         "MapGyver"
+    }
+
+    fn preferences_tree(default_data_folder: String) -> golden_core::edit::NodeTree {
+        crate::preferences::tree(default_data_folder)
     }
 
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {

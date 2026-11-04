@@ -1,0 +1,62 @@
+{
+	"date": "2026-11-04",
+	"gate": "M11/3",
+	"state": "Accepted",
+	"sourceBaseline": "a06950271b26d7f0cc1b16f3976077e57a3a4f38",
+	"concurrentUserChanges": "Uncommitted label/theme work is in the development binary and excluded from the milestone",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-codex-m11-gpu-preferences-final.exe",
+		"sha256": "615B74628F53D8633643EBA548C55FE4D307B62A3CDF3B0BBF2414723931DF15",
+		"qualificationSha256": "E1E647E060833A6A44C1F40A678687FF0C2566FE8BB8EE30FB454BCB3873B562"
+	},
+	"software": {
+		"appPassed": 402,
+		"appIgnored": 3,
+		"enginePassed": 673,
+		"engineIgnored": 3,
+		"transportPassed": 96,
+		"transportIgnored": 1,
+		"affectedPreferencesRerunPassed": 3,
+		"runtimeUiPassed": 4,
+		"strictNativeAllTargetClippy": "pass",
+		"generatedContract": "pass",
+		"svelteErrors": 0,
+		"svelteWarnings": 0,
+		"nonNativeLibrary": "compiles; 14 pre-existing preview/Screen warnings remain, so strict no-native lint fails; Preferences warnings resolved"
+	},
+	"native": {
+		"artifact": "target/mapgyver-m11-gpu-preferences-acceptance-2026-11-04/gpu-preferences.json",
+		"sha256": "C65DF823E0837D0FD0F9B3CFDFB46AC64819AE816EE49409099F553C1C979B02",
+		"command": "node apps/mapgyver/tests/browser/native-gpu-preferences.mjs <fresh-evidence-directory>",
+		"coldStarts": 5,
+		"nvidia": "dxgi:00000000:00016022",
+		"intel": "dxgi:00000000:00015b69",
+		"missing": "dxgi:ffffffff:ffffffff",
+		"cases": [
+			"Automatic selects NVIDIA",
+			"Persisted explicit Intel",
+			"Persisted explicit NVIDIA",
+			"Missing selected GPU fails without fallback",
+			"Automatic after restart recovers NVIDIA"
+		],
+		"preferenceEditsReportRestart": true,
+		"rendererRecreationRetainsActiveAdapter": true,
+		"realGenericInspector": true,
+		"separatePrivateAppDataPersistence": true,
+		"fullPixelChecks": 8,
+		"pixelExtent": [96, 64],
+		"independentConsumers": 6,
+		"receiveCopies": [134, 61, 69, 61, 61, 61],
+		"totalCopies": 447,
+		"absent": 0,
+		"failedReceives": 0,
+		"descriptorMismatch": 0,
+		"normalHostAndConsumerExits": true,
+		"initialFailures": "Inspector shortcut/navigation and shared-selection changes in the test harness; corrected before the complete passing run",
+		"physicalDeviceRemovalClaimed": false
+	},
+	"gatesClosed": ["M11/3"],
+	"verifiedGates": "50/67",
+	"m11": "3/10",
+	"nextGate": "M11/4"
+}

@@ -5,5 +5,6 @@ pub mod applications;
 pub mod matrix;
 pub mod media;
 mod parameters;
+pub mod preferences;
 pub mod preview;
 pub mod screens;

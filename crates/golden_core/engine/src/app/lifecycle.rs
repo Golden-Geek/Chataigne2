@@ -67,6 +67,13 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         "preferences.json"
     }
 
+    /// Declares app-wide typed Preferences, before the host starts the live engine.
+    /// Extend the default tree with real app-owned nodes; keep external IO out of this hook.
+    /// Missing declarations are merged without resetting saved values or identities.
+    fn preferences_tree(default_data_folder: String) -> crate::edit::NodeTree {
+        super::default_preferences_tree(default_data_folder)
+    }
+
     /// Applies runtime-only engine setup that must run on every recreation.
     fn configure_engine(_engine: &mut Engine<Self>) -> Result<(), String>
     where

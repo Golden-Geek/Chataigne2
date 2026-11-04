@@ -15,6 +15,7 @@ use golden_engine::parameter::{ParamValue, ParameterEventBehaviour};
 use golden_engine::process_ctx::ProcessCtx;
 use golden_protocol::UiProjectFileSpec;
 
+mod preferences;
 mod project_identity;
 mod upload_identity;
 

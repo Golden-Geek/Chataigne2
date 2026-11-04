@@ -43,6 +43,10 @@ pub struct VideoRuntimeStatus {
     pub gpu: Option<String>,
     /// Exact active DXGI identity; a display label or enumeration index is not identity.
     pub gpu_adapter: Option<String>,
+    /// Current authored application preference, independent of the running device.
+    pub gpu_preference: Option<String>,
+    /// Changing a preference never silently migrates a live shared-texture connection.
+    pub gpu_restart_required: bool,
     pub resources: Option<VideoResourceUsage>,
     pub error: Option<String>,
     pub screens: Vec<ScreenRuntimeStatus>,

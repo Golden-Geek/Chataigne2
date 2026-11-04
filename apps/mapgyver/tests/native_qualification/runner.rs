@@ -8,6 +8,8 @@ mod lifecycle;
 #[cfg(windows)]
 mod observations;
 #[cfg(windows)]
+mod preferences;
+#[cfg(windows)]
 mod roles;
 #[cfg(windows)]
 mod scene;
@@ -24,6 +26,7 @@ fn main() -> std::process::ExitCode {
             "catalog" => observations::catalog(args),
             "hardware" => observations::hardware(args),
             "pixels" => observations::pixels(args),
+            "gpu-preferences" => preferences::write(args),
             _ => Err(std::io::Error::other("unknown qualification role")),
         }
     })();

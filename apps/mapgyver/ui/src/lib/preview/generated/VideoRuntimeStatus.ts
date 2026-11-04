@@ -15,4 +15,12 @@ cpu_submit_ms: number | null, gpu: string | null,
 /**
  * Exact active DXGI identity; a display label or enumeration index is not identity.
  */
-gpu_adapter: string | null, resources: VideoResourceUsage | null, error: string | null, screens: Array<ScreenRuntimeStatus>, };
+gpu_adapter: string | null,
+/**
+ * Current authored application preference, independent of the running device.
+ */
+gpu_preference: string | null,
+/**
+ * Changing a preference never silently migrates a live shared-texture connection.
+ */
+gpu_restart_required: boolean, resources: VideoResourceUsage | null, error: string | null, screens: Array<ScreenRuntimeStatus>, };

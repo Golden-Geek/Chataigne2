@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use golden_engine::app::{
-    ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_tree,
+    ProjectFileSpec, ProjectLifecycle, configure_loaded_engine, create_new_project_engine, ensure_preferences_defaults,
     insert_sparse_preferences_json, load_sparse_project_file_with_ui_state,
     load_sparse_project_file_with_ui_state_recovering,
 };
@@ -183,7 +183,7 @@ pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
         }
     }
 
-    ensure_preferences_tree(engine, default_data_folder);
+    ensure_preferences_defaults(engine, T::preferences_tree(default_data_folder));
     Ok(())
 }
 

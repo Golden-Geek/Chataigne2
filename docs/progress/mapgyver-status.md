@@ -2,11 +2,11 @@
 
 **Updated: 2026-11-04 · Overall: `█████░░░░░` 50% · 6/12 phases complete**
 
-**Verified gates: `███████░░░` 73% · 49/67 accepted** (phase completion above remains 6/12).
+**Verified gates: `████████░░` 75% · 50/67 accepted** (phase completion above remains 6/12).
 
-**Current topic:** M11/3 automatic high-performance GPU selection and explicit adapter identity.
-**Next deliverable:** M11/3 discrete GPU by default with persisted typed explicit adapter choice and truthful recovery.
-**Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5, M07/1–4 and M11/1–2 are Accepted; M11/3 alone is Active on `mapgyver`.
+**Current topic:** M11/3 Accepted: typed persisted GPU choice, native cold starts and missing-choice recovery.
+**Next deliverable:** M11/4 minimal typed channel Inspector, media Fit Mode and consistent time controls.
+**Execution:** M08/1–3, M04/1–8, M05/4,6–7,9–10, M06/1–5, M07/1–4 and M11/1–3 are Accepted; M11/4 alone is Active on `mapgyver`.
 Retained physical/timing gates stay in the explicit return queue.
 **Priority update:** [M11 feedback corrections](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification)
 adds ten gates, **all ahead of M10 and M09**. Current functional order: M11 → M10 → M09;
@@ -16,18 +16,17 @@ Earlier acceptance covers its tested contract; changed behavior must pass M11. P
 **Remaining requirement:** complete app-control transient retirement, M11 feedback, Video and retained
 physical/performance/final qualification. Retained requirements and timing/retirement budgets
 remain intact; M11/2 explicitly revises the fixed allocation-capacity policy.
-**Newly usable:** [Automatic high-performance GPU selection](mapgyver-m11-gpu.md).
-Two actual desktop cold starts select NVIDIA despite Intel being raw adapter zero/display owner.
-Three 4K previews and eight-view/output continuity pass on the exact reported NVIDIA identity.
-The shared-texture receiver retains that adapter through renderer/project changes. M11/3 remains
-open for a typed persisted choice, restart reporting and missing-device/recovery acceptance.
+**Newly usable:** [Typed persisted GPU Preferences](mapgyver-m11-gpu.md).
+Preferences → Video → GPU supports Automatic or exact available adapters. Five native cold starts
+verify NVIDIA default, explicit Intel/NVIDIA, missing-choice failure without fallback and recovery.
+Changing the choice reports restart required while renderer recreation retains the active GPU.
 **Usable now:** typed media/References and independent previews; Screen/Surface mapping and
 native outputs; child-media Composition/editors; Matrix model/playback/grid and typed owned
 app control. The phase reports below own their detailed acceptance and remaining qualification.
-**Last delivered capability:** Golden resolves OS high-performance/exact explicit adapter identities;
-MapGyver pins automatic selection through renderer recreation and reports the actual device.
-399 app/191 Golden tests, strict lint, generated/UI checks and actual native continuity pass.
-No new gate closes this slice; M11/2's earlier capacity/retirement acceptance remains intact.
+**Last delivered capability:** real typed GPU Preferences with separate persistence, live catalogs,
+history and missing-choice retention, actual adapter reporting and restart-safe native selection.
+402 app/673 engine/96 transport tests, strict native lint, generated/UI checks and both GPUs pass.
+M11/3 closes; retained physical/device-removal/timing qualification remains required.
 M08 remains 3/4 and Blocked on its separate retirement barrier.
 Retained physical/timing requirements remain open; M11 owns changed feedback scope.
 
@@ -42,13 +41,13 @@ Retained physical/timing requirements remain open; M11 owns changed feedback sco
 | <a id="m06-acceptance-items"></a>[M06 Composition](../plan/MapGyver_Implementation_Plan.md#m06--deliver-child-media-composition-and-editor)                        | Accepted                        | `██████████` 100% | 5/5   | [Child model 1/1](mapgyver-m06-model.md); [dependencies 1/1](mapgyver-m06-dependencies.md); [native output 1/1](mapgyver-m06-native.md); [editor geometry 1/1](mapgyver-m06-editor.md); [panels 1/1](mapgyver-m06-panels.md) |
 | <a id="m07-acceptance-items"></a>[M07 Matrix](../plan/MapGyver_Implementation_Plan.md#m07--deliver-child-media-matrix-playback-and-grid)                           | Accepted                        | `██████████` 100% | 4/4   | [Model 1/1](mapgyver-m07-model.md#m071-acceptance--2026-11-03); [playback 1/1](mapgyver-m07-playback.md); [grid 1/1](mapgyver-m07-grid.md); [native/scale 1/1](mapgyver-m07-native.md)                                       |
 | <a id="m08-acceptance-items"></a>[M08 App control](../plan/MapGyver_Implementation_Plan.md#m08--deliver-reusable-optional-app-control)                             | Blocked: complete retirement    | `████████░░` 75%  | 3/4   | Golden process 1/1; [configuration/demand 1/1](mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03); [runtime 1/1](mapgyver-m08-runtime.md); [remaining acceptance 0/1](mapgyver-m08-retirement.md) |
-| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active GPU preference/choice     | `██░░░░░░░░` 20%  | 2/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); GPU 0/1; media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
+| <a id="m11-acceptance-items"></a>[M11 Feedback](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) | Active minimal channel Inspector     | `███░░░░░░░` 30%  | 3/10  | [Stability 1/1](mapgyver-m11-stability.md); [capacity 1/1](mapgyver-m11-capacity.md); [GPU 1/1](mapgyver-m11-gpu.md#native-preferences-acceptance); media/discovery 0/2; canvas/Composition/Matrix 0/3; identity/pattern 0/2                                                                                                                         |
 | [M10 Video](../plan/MapGyver_Implementation_Plan.md#m10--deliver-video-playback-in-codec-tiers)                                                                    | Pending                         | `░░░░░░░░░░` 0%   | 0/4   | Common codecs 0/1; HAP 0/1; DXV/WebP 0/1; bundled integration 0/1                                                                                                                                                            |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                         | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                         |
 
 **Counting:** overall = fully accepted phases / 12, rounded to the nearest percent.
 Phase/subphase progress = verified gates / that scope's fixed gates; bars round to tenths.
-There are **49/67 accepted gates**. Native ownership correction and complete adapter checks accept M11/2.
+There are **50/67 accepted gates**. Complete typed Preferences and native adapter checks accept M11/3.
 M08 stays 3/4. M07 remains
 complete at 4/4 and fully accepted phases remain 6/12. Denominators are unchanged.
 The 2026-11-03 feedback added M11 with ten fixed gates, changing the gate denominator 57 → 67
@@ -72,13 +71,14 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Active   | M11/3    | [Automatic default and pinned actual identity delivered](mapgyver-m11-gpu.md). Remaining: typed persisted Automatic/explicit adapter Parameter, restart reporting, cold starts on both explicit choices and unavailable/recovery acceptance. No blocker on implementation; preserve exact shared-texture adapter compatibility. |
+| Active   | M11/4    | Minimal typed Channels Inspector: remove user-facing kind/sampling controls, compact expanded Color/File rows, media Fit/Fill/Stretch where relevant, and Golden time-style controls. Verify native aspect handling plus backend/API/script/headless/history/copy/project parity. No implementation blocker. |
+| Accepted | M11/3    | [Typed GPU Preferences and native acceptance](mapgyver-m11-gpu.md#native-preferences-acceptance): five cold starts, both explicit GPUs, separate persisted choice, truthful restart requirement, pinned renderer recreation, missing choice without fallback and recovery. Eight full pixel checks and 447 independent copies pass. |
 | Accepted | M11/2    | [Complete capacity acceptance](mapgyver-m11-capacity.md#m112-acceptance--quiescence-releases-context-bindings): both GPUs pass eight 4K producers/two aliases, 56 complete images, bounded native ownership, reuse and real pressure/recovery. NVIDIA/Intel retire in 61.721/260.242 ms; pressure cases 49.990/93.013 ms, within the original two-second bound. |
 | Accepted | M11/1    | [Native stability acceptance](mapgyver-m11-stability.md#m111-acceptance--native-input-and-project-transitions): recorded selection/reconnect fixes, actual Inspector/Matrix input, independent outputs, guarded desktop pixels, three close/reopen cycles and New/Load with old imagery retired. No prior brief-unavailable waiver used. |
 | Blocked  | M08/4    | [Exact native barrier](mapgyver-m08-retirement.md): singleton root exited, active/pending zero, one uncaptured lifetime. Functional UI/script/project/access paths pass. Return with a documented identity-preserving completion mechanism for that lifetime, or an explicit user contract revision, then verify the retained exact fixture with original budgets. No unchanged probes or cleanup claim. Still required before M10/M09. |
 | Accepted | M07/4    | [Full native audit](mapgyver-m07-native.md): both GPUs pass Layer/Group/Final/preview blends/alpha/order, shared source, deletion/Undo, 1000×1000/six-Cell bursts/reload/interruption and twelve completion-safe retirements. Bulk typed creation is corrected; M07 is complete at 4/4.                                                                                                                                                                                                                                                                      |
 | Accepted | M08/3    | [Actual runtime audit](mapgyver-m08-runtime.md): both Spout readiness modes, process sharing/handoff, timeout/crash/backoff, native pre-resume cancellation, final-use retention, stale-project rejection and pinned root/branch/leaf retirement pass. M08 is 3/4; complete UI/target/access scope remains M08/4.                                                                                                                                                                                                                                            |
-| Pending  | M11/4–10 | After M11/3 closure: minimal typed Channels/Fit Mode/time UI, Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially. All ten precede M10 and M09. |
+| Pending  | M11/5–10 | After M11/4 closure: Manual/Auto Shared Texture, shared canvas controls/Surface styling, Composition-owned creation, Matrix previews/Group output exposure, identity/tabs/footer and the official pattern. Execute the numbered [feedback gates](../plan/MapGyver_Implementation_Plan.md#m11--resolve-the-2026-11-03-feedback-before-video-and-final-qualification) sequentially. All ten precede M10 and M09. |
 | Pending  | M10/1–4  | Requires revised M04–M08 contracts **and all M11 gates Accepted**; then common-codec transport, HAP, DXV/WebP and bundled recovery/performance. Reuse M11 Channels/Fit Mode/time UI.                                                                                                                                                                                                                                                                                                                                                                         |
 | Blocked  | M03/4    | Missing genuine device-removal/recovery acceptance. Return after a recorded safe reset/removal route is authorized and software prerequisites pass; preserved injected-recreation evidence alone is insufficient.                                                                                                                                                                                                                                                                                                                                            |
 | Pending  | M03/9    | Original GPU critical-path/window timing and reproduced private-growth failure need corrective qualification, not additional user/tool permission. Return in its bounded qualification lane with an ownership correction and supported timing evidence; no unchanged benchmark reruns or budget revision.                                                                                                                                                                                                                                                    |
@@ -102,22 +102,20 @@ Exactly one gate is selected Active. Pending rows are the return queue, not conc
   `f550ec0c03e907e9ebab44891538f1030358c30a`. Do not restore it automatically. Its typed-row
   approach is reconciled in the current conversion; its older model/host/presentation
   changes remain un-restored and unaccepted.
-- **Current batch/handoff:** M11/3 automatic GPU selection slice, started 07:49 CET /
-  stopping time 08:34 CET (2026-11-04). Earlier source inspection was interrupted after its
-  02:54–03:39 window; no product changes or accepted gates resulted during that interruption.
-  Delivered reusable Golden high-performance selection, pinned renderer identity and actual-device
-  reporting. Owner: Golden Video and MapGyver desktop host. 399 app/191 Golden tests, four UI tests,
-  strict all-target lint, generated contract, Svelte zero errors/warnings and both formatters pass.
-  Two fresh native cold starts choose NVIDIA; three 4K previews and eight-view reconnect/close/
-  New/Load pass, with eight complete output pixel checks and 770 independent receives without
-  absent/failed/mismatched frames. [Evidence and exact remaining scope](mapgyver-m11-gpu.md).
-  **No gate closed this slice.** Next product deliverable: typed persisted application preference,
-  explicit choices on both GPUs, restart reporting and missing-device/recovery acceptance. Never
-  substitute an explicit missing device. Recovery supervisor is active and its
-  23 deterministic tests/read-only integration pass; actual service-outage recovery is unobserved.
-  Previous batch closed M11/2 in pushed/verified `dca00e1d` (remote equal, 0/0). M11/3 alone is
-  Active; M08/4 retains its recorded blocker/return trigger. Totals: 49/67 gates (73%), 6/12 phases
-  (50%), M11 2/10 (20%). Preserve concurrent label/theme work and the named stash.
+- **Current batch/handoff:** M11/3 typed GPU Preferences, started 08:04 CET /
+  stopping time 08:49 CET (2026-11-04). **Closed M11/3.** Golden's public Preferences extension
+  merges typed app defaults; MapGyver registers a real GPU Enum and discovers on host workers.
+  402 app/673 engine/96 transport tests, three affected Preferences reruns, four status UI tests,
+  generated contracts, strict native all-target lint, Svelte zero errors/warnings and formatting pass.
+  Five native cold starts verify Automatic, Intel, NVIDIA, unavailable preference and recovery;
+  edits require restart and preserve the actual GPU through renderer recreation. Eight complete
+  output images and six independent consumer sessions total 447 copies without receive failures,
+  absent frames or descriptor mismatches. [Acceptance](mapgyver-m11-gpu.md#native-preferences-acceptance).
+  The no-native library compiles; its 14 existing preview/Screen dead-code warnings still fail
+  an additional strict no-native lint. New Preferences producer warnings are resolved. Physical
+  device removal remains M03, not waived by the saved-missing-choice test. M11/4 is the next sole
+  Active gate; M08/4 retains its blocker/return trigger. Totals: 50/67 (75%), 6/12 phases (50%),
+  M11 3/10 (30%). Preserve concurrent label/theme work and the named stash. Capacity recovery is active.
 
 ## Maintenance rule
 

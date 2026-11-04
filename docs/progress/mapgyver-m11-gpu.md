@@ -1,6 +1,6 @@
 # M11/3 GPU preference and choice
 
-**State: Active; automatic selection delivered, full acceptance remains open.**
+**State: Accepted.** Automatic preference, persisted typed explicit choice and native recovery checks pass.
 
 Golden Video owns read-only DXGI enumeration and preference resolution in
 `crates/golden_video/src/native/{device,selection}.rs`. MapGyver's presentation worker
@@ -51,12 +51,59 @@ physical, scanout, timing or final qualification gates.
   are preserved outside this milestone. This is a development-host check, not a clean
   release artifact. [Receipt](evidence/mapgyver-m11-gpu-selection-2026-11-04.json).
 
-## Exact remaining acceptance
+## Typed Preferences ownership
 
-Register a real typed application Enum Parameter in Golden Preferences for Automatic
-or an explicit available adapter. Persist it separately from projects, expose the
-actual device and restart requirement, and retain a missing explicit choice with
-truthful recovery. Verify the same setting through backend/Inspector/history and
-cold starts on both GPUs, persisted choice and missing-device/return cases. Shared
-textures must never silently move adapters. M11/3 remains the sole Active gate;
-M11 stays 2/10 and overall verified acceptance stays 49/67.
+MapGyver registers `VideoPreferencesNode.adapter`, a real Params DSL Enum under
+Preferences → Video → GPU. Golden's public `ProjectLifecycle::preferences_tree` hook
+and shared host merge preserve existing live nodes/values while inserting missing
+detached subtrees. The existing codec saves Preferences separately from projects;
+subtree insertion gives loaded nodes fresh engine-scoped UUIDs, while merging keeps
+those live identities intact. The generic Inspector edits that same Parameter.
+
+Desktop/headless host workers enumerate adapters once per second and publish only
+changed choices through a latest-only, lifetime-fenced node wake. Missing selected
+and historical tokens remain marked unavailable for exact Undo/Redo. The catalog
+admits at most 64 retained choices and reports overflow without dropping identities.
+No enumeration or polling runs inside an engine node. Non-native builds exclude the
+producer. A presentation task freezes its startup choice; a later edit reports
+`gpu_restart_required` in the generated status contract and footer, while native
+renderer recreation retains the actual adapter. An unavailable startup choice
+fails truthfully and retries that identity, without an integrated/default fallback.
+
+402 app, 673 Golden Engine and 96 transport tests pass, including separate persistence,
+merge idempotence, history, missing/returned choices and stale/lifetime fences. The
+three Preferences tests pass again after feature isolation; strict native all-target
+lint, generated contracts, four status UI tests and Svelte zero errors/warnings pass.
+An additional no-default-features strict lint exposed existing preview/Screen dead-code
+warnings; new Preferences producer warnings have been corrected with feature isolation.
+
+The non-native library also compiles. Its 14 pre-existing preview/Screen dead-code
+warnings still fail an additional strict no-native lint; Preferences adds none.
+
+## Native Preferences acceptance
+
+The corrected fixture passes five fresh native processes with one private app-data
+directory and the real File → Preferences Inspector:
+
+| Cold start | Saved choice | Observed behavior |
+| --- | --- | --- |
+| Automatic | Automatic | NVIDIA high-performance default; changing to Intel reports restart required and keeps NVIDIA through renderer recreation. |
+| Explicit Intel | Intel LUID | Intel is actually active; changing to NVIDIA reports restart required and keeps Intel through recreation. |
+| Explicit NVIDIA | NVIDIA LUID | NVIDIA is actually active; persisted choice and control agree, with no restart pending. |
+| Missing choice | `dxgi:ffffffff:ffffffff` | Faulted, no active device/resources, selected choice marked unavailable, explicit no-fallback error. Changing to Automatic requests restart without silently allocating another GPU. |
+| Recovery | Automatic | Restart restores NVIDIA rendering; error and restart-required state clear. |
+
+Eight full 96×64 output images pass. Six exact-adapter independent SDK consumers
+receive **447 copies** with zero absent frames, failed receives or descriptor mismatches.
+All five hosts and six consumers exit normally. A fixture writer creates the missing
+selection through actual typed Parameters and Golden's codec, in private test app data;
+it does not simulate physical device removal. Genuine removal/physical/timing gates
+remain required in their owning phases.
+
+Initial fixture runs failed to reveal Preferences via an early shortcut, then lost
+the GPU widget when creation changed shared selection. Explicit File-menu navigation
+and revealing Preferences before edits correct the harness; partial attempts accepted
+no gate. The earlier UUID test incorrectly expected subtree import to retain UUIDs;
+it now verifies the existing remap contract and live merge identity preservation.
+[Acceptance receipt](evidence/mapgyver-m11-gpu-preferences-acceptance-2026-11-04.json).
+M11/3 is Accepted; M11 is 3/10 and verified acceptance is 50/67. M11/4 is next.

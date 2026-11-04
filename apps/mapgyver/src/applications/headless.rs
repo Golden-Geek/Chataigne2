@@ -44,7 +44,11 @@ impl HeadlessApplications {
                 let mut failure = None;
                 let mut supervisor: Option<Supervisor> = None;
                 let mut supervision_retry = retry;
+                #[cfg(all(windows, feature = "native-video"))]
+                let mut gpu_catalog = crate::preferences::native::Catalog::default();
                 while !context.cancellation().is_cancelled() {
+                    #[cfg(all(windows, feature = "native-video"))]
+                    gpu_catalog.service(&runtime);
                     let checkpoint = context.wake_checkpoint();
                     if supervisor.as_ref().is_some_and(|owner| !owner.is_current()) {
                         supervisor.take();

@@ -5,6 +5,7 @@
 	const title = $derived(
 		[
 			status?.gpu ? `Renderer adapter: ${status.gpu}` : 'No renderer adapter observation',
+			status?.gpu_restart_required ? 'GPU preference changed. Restart MapGyver to apply.' : '',
 			'Submitted FPS measures successful renderer submissions, not display presentation.',
 			'CPU submit time excludes asynchronous GPU work and presentation.',
 			'Tracked bytes are renderer allocation charges, not physical VRAM residency.',
@@ -34,6 +35,7 @@
 			>Video {status?.state.toLowerCase() ??
 				(state.connection === 'waiting' ? 'starting' : 'unavailable')}</span>
 	{/if}
+	{#if status?.gpu_restart_required}<span>GPU restart required</span>{/if}
 </output>
 
 <style>

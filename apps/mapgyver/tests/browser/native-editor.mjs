@@ -20,7 +20,7 @@ async function listener() {
 	return socket;
 }
 
-export async function openNativeEditor() {
+export async function openNativeEditor({ appDataDirectory } = {}) {
 	const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-native-editor-'));
 	const hostSocket = await listener();
 	const cdpSocket = await listener();
@@ -39,7 +39,7 @@ export async function openNativeEditor() {
 			windowsHide: true,
 			env: {
 				...process.env,
-				APPDATA: path.join(directory, 'data'),
+				APPDATA: appDataDirectory ?? path.join(directory, 'data'),
 				GC_UI_BIND: `127.0.0.1:${hostPort}`,
 				WEBVIEW2_USER_DATA_FOLDER: path.join(directory, 'webview'),
 				WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${cdpPort} --remote-debugging-address=127.0.0.1`

@@ -44,6 +44,39 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		assert(ack.success, JSON.stringify(ack));
 		return ack.result.value;
 	}
+	async function demand(first) {
+		const { screen, surface } = await screens({
+			kind: 'CreateScreen',
+			label: 'Independent preview acceptance'
+		});
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: surface,
+			definition: {
+				source: first,
+				crop: { x: 0, y: 0, width: 1, height: 1 },
+				quad: {
+					corners: [
+						{ x: 0, y: 0 },
+						{ x: 1, y: 0 },
+						{ x: 1, y: 1 },
+						{ x: 0, y: 1 }
+					]
+				},
+				opacity: 1,
+				enabled: true,
+				calibration: 'Off'
+			}
+		});
+		await screens({
+			kind: 'ConfigureScreen',
+			screen,
+			definition: {
+				enabled: true,
+				target: { kind: 'Spout', sender, extent: { width: 96, height: 64 } }
+			}
+		});
+	}
 	async function pixels(phase, expected) {
 		const actual = await observeNativeAdapter(page, hardware);
 		adapter ??= actual;
@@ -131,42 +164,13 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		return summary;
 	}
 	return {
+		demand,
 		observations,
 		observePixels: pixels,
 		finish,
 		async observe(phase, { first }) {
 			if (phase === 'first-grid') {
-				const { screen, surface } = await screens({
-					kind: 'CreateScreen',
-					label: 'Independent preview acceptance'
-				});
-				await screens({
-					kind: 'ConfigureSurface',
-					reference: surface,
-					definition: {
-						source: first,
-						crop: { x: 0, y: 0, width: 1, height: 1 },
-						quad: {
-							corners: [
-								{ x: 0, y: 0 },
-								{ x: 1, y: 0 },
-								{ x: 1, y: 1 },
-								{ x: 0, y: 1 }
-							]
-						},
-						opacity: 1,
-						enabled: true,
-						calibration: 'Off'
-					}
-				});
-				await screens({
-					kind: 'ConfigureScreen',
-					screen,
-					definition: {
-						enabled: true,
-						target: { kind: 'Spout', sender, extent: { width: 96, height: 64 } }
-					}
-				});
+				await demand(first);
 				await pixels(phase, [255, 0, 0, 255]);
 				const target = path.join(directory, 'consumer');
 				await mkdir(target);
