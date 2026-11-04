@@ -1,0 +1,90 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"scope": "One corrective replay of the unchanged full renderer lifecycle fixture with matching paired environment identities",
+	"source_base": "8b9120a24c3b2da832690050bbf9eac8e74d20f9",
+	"binary": "target/release/native_qualification.exe",
+	"binary_sha256": "a43308325185e12defd096a9a45e74a24a802c06fe871a1e37bcc277d2478997",
+	"source_set_sha256": "1e48e3eb6ed911cde64e2cb6851b258fe74b36bdb627ca3af485389699f86e91",
+	"build_record": "target/m039-growth-release-2026-11-04/build.json",
+	"method": {
+		"adapter": "dxgi:00000000:00016022",
+		"process_id": 15132,
+		"cycles": 100,
+		"geometry_edits": 1000,
+		"edit_schedule_hz": 100,
+		"post_work_spacing_ms": 2000,
+		"baseline_cycle": 10,
+		"baseline_and_final_drains_seconds": 10,
+		"source_resize_restarts": 100,
+		"project_replacements": 100,
+		"output_remove_recreates": 100,
+		"outer_elapsed_seconds": 523.6421304000105,
+		"original_limits_unchanged": true
+	},
+	"observed": {
+		"baseline_private_MiB": 187.234375,
+		"maximum_checkpoint_private_MiB": 239.3046875,
+		"maximum_growth_MiB": 52.0703125,
+		"peak_cycle": 41,
+		"original_growth_cap_MiB": 32,
+		"final_private_growth_MiB": 6.578125,
+		"baseline_handles": 1024,
+		"final_handles": 1018,
+		"handle_delta": -6,
+		"logical_live_set_restored": true,
+		"baseline_and_final_reserved_texture_bytes": 160373648,
+		"baseline_and_final_active_plan_bytes": 32256000,
+		"post_shutdown_owned_texel_bytes": 0,
+		"post_shutdown_plan_textures_live": 0,
+		"post_shutdown_source_bridge_slots_aliases_and_reader_leases": 0,
+		"post_shutdown_output_allocations": 0,
+		"normal_fixed_fixture_child_exits": 103,
+		"shutdown_ms": 118.6378,
+		"forced_cleanup": false,
+		"owned_job_active_before_close": 0,
+		"root_exit_code": 1,
+		"root_exit_reason": "Original checkpoint-growth criterion failed after normal native/child cleanup"
+	},
+	"environment": {
+		"identities_equal": true,
+		"identity_sha256": "6d1d172527e5627f5cd3784a3042ce5be4db1aa97fcaed4655ca1016cb24a188",
+		"changed_identity_fields": [],
+		"pre_and_post_overlay": "Off; native NVIDIA App Home action Enable and open overlay observed after the user explicitly resumed desktop automation",
+		"fresh_overlay_observations": true,
+		"qpc_bracketed": true,
+		"bracket_scope": "Conservative pre-launch environment endpoint through retained root-process exit; no GPU timing inference",
+		"webview_scope": "Installed default version recorded; this fixture creates native HWNDs, not a WebView"
+	},
+	"artifacts": {
+		"directory": "target/m039-growth-stable-2026-11-05",
+		"checkpoints_sha256": "2da864ab9b1a8f23e0c6a8eb1c2c149848cd33bd4f4bd1c51c7c9fc0ee0823a2",
+		"native_summary_sha256": "8eadc281bd27de311a11cefd0e00c7ca77b6e44bdc13c845bc0ccbd5ad473d3d",
+		"launcher_sha256": "4b035c341a0fca3bfc0bd919c5203f3e12c53c92347a2cbde54e733108796298",
+		"environment_before_sha256": "cd5aaf7e4a306f79c5c38fe09518cd89f2160a03378261539a7d503cd4d91da8",
+		"environment_after_sha256": "3d1879edf053c344d7a06c2ab3e1d0d635b39eb75d47ccceee1b5bad32e9e2de",
+		"independent_analysis_sha256": "7c0374345ae1dfb6e22d7a9e0927cda73be5ee9def5d3cb33c2328d21d7ceafa",
+		"independent_checker_sha256": "dce4c308c508086057f8fc7d1585f3deee3b57e4b6848d447137f780f7b86142"
+	},
+	"decision": "The stable replay confirms the original private-growth failure. Environment differences do not explain away this result. Final drained growth and released tracked resources do not override peak growth, and the untracked private-memory cause remains unproven. No gate or budget changes.",
+	"source_inspection_candidate": {
+		"observation": "NativeState Drop clears/flushes its context before its native fields are dropped; Device currently has no final Drop flush",
+		"documentation": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-flush",
+		"status": "Unproven as the cause; no speculative production edit or additional native experiment was made"
+	},
+	"next_action": "Stop this two-run investigation. Recommended: retain 32 MiB, keep M03/9 open and address M08's critical retirement blocker next. An explicit 64 MiB checkpoint-target proposal was presented with other limits unchanged and fresh documented validation required; no answer is approval and no revision has been applied.",
+	"remaining": [
+		"Private-growth owning correction or explicit reviewed target revision, followed by original full validation",
+		"GPU critical-path/window timing and prescribed Q01/Q02 series",
+		"Other retained device, physical and final-app qualification"
+	],
+	"progress": {
+		"accepted_gates": 57,
+		"total_gates": 67,
+		"percent": 85,
+		"completed_phases": 7,
+		"total_phases": 12
+	}
+}

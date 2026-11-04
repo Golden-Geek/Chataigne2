@@ -1,17 +1,19 @@
 # Production renderer qualification runner
 
-**Current retained result (2026-11-05):** the existing release 100-cycle lifecycle fixture
-completed after current native quiescence corrections. Maximum checkpoint growth is
-**51.828 MiB against 32 MiB**; final growth is 0.730 MiB, handles return exactly to baseline,
-the logical live set is restored and tracked native textures/bridges/outputs release at shutdown.
-All 103 fixed fixture children exit normally; no watchdog cleanup was forced. The original
-peak-growth requirement remains failed, regardless of the final drain.
+**Current retained result (2026-11-05):** the corrective release 100-cycle replay has matching
+environment identities, fresh paired overlay-Off observations and a bracketed native interval.
+Maximum checkpoint growth is **52.070 MiB against 32 MiB**; final growth is 6.578 MiB, handles
+fall by six, the exact logical live set returns and tracked native textures/bridges/outputs
+release. All 103 fixed fixture children exit normally; shutdown takes 119 ms with no forced
+cleanup. The peak-growth failure is confirmed under a stable environment; final drainage does
+not override it. [Stable replay](evidence/mapgyver-m03-resource-growth-stable-2026-11-05.json).
 
-The surrounding display routes differ and the user stopped Computer Use before the post-run
-overlay observation. Stable-environment qualification is therefore unavailable; the display
-change's timing/cause and its contribution to the memory peaks are unknown. Retain the original
-limits and defer further optimization until a stable paired environment can bracket the same
-fixture. This closes no M03 gate. [Exact evidence and return action](evidence/mapgyver-m03-resource-growth-2026-11-05.json).
+The earlier [51.828 MiB run](evidence/mapgyver-m03-resource-growth-2026-11-05.json) remains preserved
+with its different surrounding display routes and interrupted post-overlay check. Two native
+runs are complete; stop this investigation without another probe. The private-memory cause is
+unproven. Keep the original target and gate open; the recommended next priority is M08's
+critical retirement blocker. A precise 64 MiB checkpoint-target alternative was presented for
+explicit review, retaining other limits and requiring fresh validation; it is not applied.
 
 ## Environment and GPU/display route
 

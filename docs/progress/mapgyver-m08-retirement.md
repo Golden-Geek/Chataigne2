@@ -1,6 +1,7 @@
 # M08 native retirement barrier and target-access evidence
 
-Updated: 2026-11-04. **M08/4 is unaccepted and Blocked on complete transient-lifetime proof.**
+Updated: 2026-11-05. **M08/4 is unaccepted and selected Active to fix complete transient-lifetime observation.**
+M11 is now accepted; this reproduced ownership barrier is the critical prerequisite before M10.
 
 MapGyver's existing runtime message now explains why retirement is unverified: root state,
 active job count, pending captured handles and unobserved lifetimes, or the actual observation
@@ -48,16 +49,18 @@ No notification-count, zero-active, longer-timeout, process-name or fabricated I
 is introduced. Actual [numeric-SID syntax](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)
 was used to repair the private fixture, with no global security change.
 
-Return only with a documented identity-preserving completion mechanism addressing the uncaptured
-lifetime, or an explicit user revision of the retirement contract; then run the retained exact
-fixture with the original budgets. Do not repeat the historical investigation or present the
-current conservative state as complete cleanup. No ownership requirement is optional or waived.
+Establish a documented identity-preserving completion mechanism addressing the uncaptured
+lifetime before any new native experiment, or obtain an explicit user revision of the retirement
+contract. Then run the retained exact fixture with the original budgets. Do not repeat unchanged
+historical probes or present the current conservative state as complete cleanup. No ownership
+requirement is optional or waived.
 
 **Execution ordering:** M08's configuration/runtime, picker, commands, scripts/callbacks and
-project/recovery/shutdown paths are functionally verified. Under AGENTS.md's functional-delivery
-rule, continue independent **M11/1 stability** while this qualification remains Blocked. M08/4
-stays in the return queue and still blocks M10/final qualification. This records an ordering
-change, not acceptance or a lower retirement gate.
+project/recovery/shutdown paths are functionally verified. M11/1–10 are accepted. M08/4 is now
+the single Active gate under the plan's requirement to fix the reproduced ownership blocker
+before Video. M03's failed private-growth requirement remains in the explicit return queue;
+its budget is unchanged. Selecting this correction accepts no gate and weakens no ownership
+or retirement requirement.
 
 ## Checks
 
