@@ -116,7 +116,7 @@ fn create(
             diagnostics: None,
             adapter: adapter.id,
             inputs: InputLimits {
-                max_sources: 8,
+                max_sources: crate::preview::config::MAX_NATIVE_PRODUCERS,
                 max_storage_bytes: 256 * 1024 * 1024,
             },
             outputs,
@@ -433,7 +433,14 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     let mut next = input
                         .runtime
                         .capture_app(move |engine| {
-                            capture_presentation_with_time(engine, &sources, 8, 128, &displays, time)
+                            capture_presentation_with_time(
+                                engine,
+                                &sources,
+                                crate::preview::config::MAX_CAPTURE_CHANNELS,
+                                128,
+                                &displays,
+                                time,
+                            )
                         })
                         .map_err(|e| e.to_string())??;
                     next.add_revision_guard(input.displays.guard());
@@ -512,7 +519,16 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     let displays = display_snapshot.displays.clone();
                     let mut next = input
                         .runtime
-                        .capture_app(move |engine| capture_presentation_at(engine, &sources, 8, 128, &displays, time))
+                        .capture_app(move |engine| {
+                            capture_presentation_at(
+                                engine,
+                                &sources,
+                                crate::preview::config::MAX_CAPTURE_CHANNELS,
+                                128,
+                                &displays,
+                                time,
+                            )
+                        })
                         .map_err(|e| e.to_string())??;
                     next.add_revision_guard(input.displays.guard());
                     if targets.assign(&mut next)? != topology {

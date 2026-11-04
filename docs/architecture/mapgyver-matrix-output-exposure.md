@@ -45,10 +45,24 @@ Cells or change their authored source.
 Golden preview version 4 carries passive tile rectangles and fixed repetition capacity. Its
 completion sample and visibility guard avoid per-Cell source, decoder, upload or dependency
 duplication. Geometry-only updates reuse bindings; backing and image passes share the tile
-set instead of covering the full grid. The existing 64-view limit, eight distinct source
-capture limit and GPU pass/dependency/producer limits remain unchanged. Duplicate views of
-one channel count once for source admission. Host metadata separately admits at most 2,048
+set instead of covering the full grid. Duplicate views of one channel count once for source
+admission. Host metadata separately admits at most 2,048
 tile rectangles and 4,096 reserved slots per layout. UI fallback is confined to each tile.
+
+The desktop capture policy now admits at most 128 logical channel definitions, including
+procedural channels and Reference dependencies. This metadata work does not admit native
+inputs: physical texture/receiver admission remains eight, with 24 passes, 128 dependencies
+and the existing memory/retirement limits. The former capture limit of eight conflated those
+separate units. A nine-color software plan retains all nine correct clears with no external
+textures; a ninth physical texture is still rejected.
+
+**Registration limit correction:** Golden's shared default is 64 registrations, but MapGyver's
+desktop host explicitly negotiates **eight**. Earlier Cell-tile notes incorrectly described
+the shared default as the app's limit. This limit has not been raised. The current one-source-
+per-registration grid therefore cannot install its ninth source: the native nine-source test
+fails with one unregistered tile. The next implementation must carry source groups inside
+one logical grid registration, preserving the app's eight-registration cap. The passing
+two-source grid and the software nine-color plan do not qualify that missing behavior.
 
 The actual native grid passes guarded foreground captures for two shared sources/four Cells,
 live color changes, source loss and Undo, scroll withdrawal/recovery and project New. Source
@@ -61,5 +75,5 @@ this evidence. Generic Inspector exposure/discovery still needs actual-app accep
 M11/8 remains **Active**. Backend exposure and native Cell tiles/labels are implemented and
 verified within the admitted scene. Mixed/large distinct-source snapshots, actual Inspector
 exposure acceptance, complete sparse/source-loss/preview retirement and the revised full
-native cohort remain required. The window's 64-view budget is unchanged. Thumbnail admission
+native cohort remain required. The desktop's eight-registration budget is unchanged. Thumbnail admission
 must continue sharing sources/decoders rather than duplicating them per Cell.

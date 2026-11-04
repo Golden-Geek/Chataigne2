@@ -8,6 +8,12 @@ use golden_video::{
 };
 use std::{num::NonZeroUsize, time::Duration};
 
+/// Logical dependency metadata, including References and procedural channels. Capturing a
+/// definition never admits a native producer; rendering applies its independent graph limits.
+pub const MAX_CAPTURE_CHANNELS: usize = 128;
+/// Existing physical input/texture-binding ceiling shared by the plan and native receiver.
+pub const MAX_NATIVE_PRODUCERS: usize = 8;
+
 /// Product bounds shared by the desktop host and explicit native qualification callers.
 pub struct Config {
     pub video: RuntimeConfig,
@@ -30,7 +36,7 @@ pub fn configuration(admission_limit: u64, notifier: Option<WorkerNotifier>) -> 
         video: RuntimeConfig {
             plan_limits: PlanLimits {
                 max_passes: 24,
-                max_external_textures: 8,
+                max_external_textures: MAX_NATIVE_PRODUCERS,
                 max_outputs: crate::screens::rendering::MAX_SCREEN_OUTPUTS + 1,
                 max_dependencies: 128,
                 max_texture_dimension: 8192,

@@ -7,6 +7,22 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { clearMatrixScene } from './matrix-scene.mjs';
 const run = promisify(execFile);
 
+export async function captureMatrixCellPixels({ directory, phase, page, nativePid, cells }) {
+	const target = path.join(directory, phase);
+	await mkdir(target, { recursive: true });
+	assert(cells.every((cell) => cell.box));
+	await writeFile(
+		path.join(target, 'ready.json'),
+		JSON.stringify({ pid: nativePid, dpr: await page.evaluate(() => devicePixelRatio), cells })
+	);
+	const result = await run('python', ['apps/mapgyver/tests/native/matrix_cell_pixels.py', target], {
+		timeout: 10000,
+		windowsHide: true
+	});
+	assert.equal(JSON.parse(result.stdout).result, 'pass', result.stdout);
+	return JSON.parse(result.stdout);
+}
+
 export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) {
 	const directory = path.resolve(
 		process.env.MAPGYVER_MATRIX_PREVIEW_DIRECTORY ?? 'target/m118-grid-native'
@@ -85,8 +101,6 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 	const cell = (row, column) =>
 		panel.locator(`.row[data-row-id="${items[row].id}"]`).getByRole('gridcell').nth(column);
 	async function pixels(phase, top, extra = []) {
-		const target = path.join(directory, phase);
-		await mkdir(target, { recursive: true });
 		const boxes = await Promise.all(
 			[
 				[0, 0],
@@ -100,21 +114,7 @@ export async function verifyMatrixCellPreviews({ page, edit, post, nativePid }) 
 		);
 		assert(boxes.every((cell) => cell.box));
 		boxes.push(...extra);
-		await writeFile(
-			path.join(target, 'ready.json'),
-			JSON.stringify({
-				pid: nativePid,
-				dpr: await page.evaluate(() => devicePixelRatio),
-				cells: boxes
-			})
-		);
-		const result = await run(
-			'python',
-			['apps/mapgyver/tests/native/matrix_cell_pixels.py', target],
-			{ timeout: 10000, windowsHide: true }
-		);
-		assert.equal(JSON.parse(result.stdout).result, 'pass', result.stdout);
-		return JSON.parse(result.stdout);
+		return captureMatrixCellPixels({ directory, phase, page, nativePid, cells: boxes });
 	}
 	await installed(2);
 	assert.equal(await groups.count(), 2, 'four Cells share two canonical source leases');

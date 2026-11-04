@@ -27,6 +27,7 @@ import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
 import { verifyCompositionCreation } from './composition-creation.mjs';
 import { verifyMatrixCellPreviews } from './matrix-cell-previews.mjs';
+import { verifyMatrixPreviewAdmission } from './matrix-preview-admission.mjs';
 
 const native = await openNativeEditor();
 try {
@@ -48,6 +49,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--matrix-preview-admission', verifyMatrixPreviewAdmission],
 			['--matrix-cell-previews', verifyMatrixCellPreviews],
 			['--composition-creation', verifyCompositionCreation],
 			[

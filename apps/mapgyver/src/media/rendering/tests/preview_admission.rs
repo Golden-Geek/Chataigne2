@@ -14,6 +14,134 @@ use std::sync::{
 
 #[derive(Default)]
 struct Clock(AtomicU64);
+
+#[test]
+fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
+    use golden_video::plan::{RegionTile, RenderOperation, UnitRect};
+    use golden_video::preview::{PreviewSnapshot, ResolvedView};
+    let mut engine = engine();
+    let colors = [
+        [1., 0., 0., 1.],
+        [0., 1., 0., 1.],
+        [0., 0., 1., 1.],
+        [1., 1., 0., 1.],
+        [0., 1., 1., 1.],
+        [1., 0., 1., 1.],
+        [1., 1., 1., 1.],
+        [0.5, 0.5, 0.5, 1.],
+        [0., 0., 0., 1.],
+    ];
+    let references = colors
+        .iter()
+        .map(|rgba| {
+            let reference = create(&mut engine, MediaKind::SolidColor);
+            edit(
+                &mut engine,
+                MediaEdit::ConfigureMediaResolution {
+                    media: reference.media,
+                    size: SizePolicy::Fixed {
+                        extent: Extent2D::new(64, 64).unwrap(),
+                    },
+                },
+            );
+            edit(
+                &mut engine,
+                MediaEdit::ConfigureChannel {
+                    reference,
+                    source: ChannelSource::SolidColor { rgba: *rgba },
+                },
+            );
+            reference
+        })
+        .collect::<Vec<_>>();
+    let revision = golden_io::RevisionSource::default();
+    let reader = revision.reader();
+    let preview = PreviewLayout {
+        output: OutputId::new(1).unwrap(),
+        descriptor: TextureDescriptor {
+            extent: Extent2D::new(128, 128).unwrap(),
+            format: PixelFormat::Rgba8Unorm,
+            color_encoding: ColorEncoding::Linear,
+            alpha_mode: AlphaMode::Premultiplied,
+        },
+        layout: PreviewSnapshot::new(
+            reader.current(),
+            references
+                .iter()
+                .enumerate()
+                .map(|(index, reference)| ResolvedView {
+                    id: uuid::Uuid::new_v4(),
+                    source: serde_json::to_string(&PreviewSource::Channel { reference: *reference }).unwrap(),
+                    destination: UnitRect::FULL,
+                    source_rect: UnitRect::FULL,
+                    backdrop: UnitRect::FULL,
+                    overlays: Arc::from([]),
+                    overlay_scale: 1.,
+                    overlay_capacity: 0,
+                    tile_capacity: 1,
+                    tiles: Some(Arc::from([RegionTile {
+                        destination: UnitRect {
+                            x: (index % 3) as f32 / 3.,
+                            y: (index / 3) as f32 / 3.,
+                            width: 1. / 3.,
+                            height: 1. / 3.,
+                        },
+                        source_rect: UnitRect::FULL,
+                    }])),
+                })
+                .collect(),
+            reader.guard_at(reader.current()),
+        ),
+    };
+    let probe = renderer();
+    let observations = probe.source_observations();
+    close(probe);
+    let limits = crate::preview::config::configuration(1024 * 1024 * 1024, None)
+        .video
+        .plan_limits;
+    let mut next = PreviewLayout::RESERVED_TEXTURES;
+    let prepared = super::super::plan::build(
+        &capture_channels(&engine, &references, crate::preview::config::MAX_CAPTURE_CHANNELS).unwrap(),
+        super::super::plan::Targets {
+            routes: &[],
+            screens: &[],
+            preview: Some(&preview),
+        },
+        super::super::plan::Previous {
+            channels: &HashMap::new(),
+            screens: &HashMap::new(),
+        },
+        &mut next,
+        limits,
+        &observations,
+        None,
+    )
+    .unwrap();
+    assert_eq!(prepared.channels.len(), 9);
+    for (reference, rgba) in references.iter().zip(colors) {
+        let channel = prepared
+            .channels
+            .iter()
+            .find(|channel| channel.reference == *reference)
+            .unwrap();
+        assert_eq!(
+            channel.resolution.availability,
+            crate::media::resolution::ChannelAvailability::Ready
+        );
+        let pass = prepared
+            .submission
+            .plan
+            .passes
+            .iter()
+            .find(|pass| pass.output == channel.target)
+            .unwrap();
+        assert!(matches!(pass.operation, RenderOperation::Clear(color)
+            if color == golden_video::LinearColor::from_straight(rgba[0],rgba[1],rgba[2],rgba[3]).unwrap()));
+    }
+    assert!(prepared.submission.plan.external_textures.is_empty());
+    assert_eq!(prepared.submission.plan.passes.len(), 14);
+    assert!(prepared.submission.plan.compile(&limits).is_ok());
+}
 impl golden_time::Clock for Clock {
     fn now(&self) -> Result<MonotonicTime, golden_time::TimeError> {
         Ok(MonotonicTime::from_nanos(self.0.load(Ordering::Acquire)))
