@@ -29,6 +29,7 @@ pub(super) struct CapturedAsset {
 
 #[derive(Clone)]
 pub(super) struct CapturedChannel {
+    pub public_output: bool,
     pub reference: ChannelReference,
     pub definition: Option<ChannelDefinition>,
     pub enabled: bool,
@@ -159,6 +160,13 @@ pub(crate) fn capture_channels_with_time(
     let mut guards = vec![manager.project_guard()];
     let sources = &manager.sources;
     let retired = sources.snapshot();
+    let publicly_exposed = |reference: ChannelReference| {
+        if engine.node_id_by_uuid(reference.channel.0).is_some() {
+            super::visibility::exposed(engine, reference)
+        } else {
+            retired.get(&reference).is_none_or(|channel| channel.public_output)
+        }
+    };
     let mut seen = HashSet::new();
     let mut channels = Vec::new();
     let mut assets = Vec::new();
@@ -167,7 +175,15 @@ pub(crate) fn capture_channels_with_time(
     let mut retained_matrices = HashSet::new();
     let mut guarded_media = HashSet::new();
     let mut pending = std::collections::VecDeque::new();
+    let mut hidden_roots = HashSet::new();
     for &reference in references {
+        if let Some(guard) = super::visibility::guard(engine, reference) {
+            guards.push(guard);
+        }
+        if !publicly_exposed(reference) {
+            hidden_roots.insert(reference);
+            continue;
+        }
         if seen.insert(reference) {
             pending.push_back(reference);
         }
@@ -233,10 +249,21 @@ pub(crate) fn capture_channels_with_time(
                 })
             }
         };
-        let (definition, enabled) = match definition {
+        let (mut definition, enabled) = match definition {
             Some((definition, enabled)) => (Some(definition), enabled),
             None => (None, false),
         };
+        if let Some(ChannelDefinition {
+            source: ChannelSource::Reference { target },
+            ..
+        }) = &mut definition
+            && target.is_some_and(|target| !publicly_exposed(target))
+        {
+            if let Some(guard) = target.and_then(|target| super::visibility::guard(engine, target)) {
+                guards.push(guard);
+            }
+            *target = None;
+        }
         let mut instances = frozen.and_then(|channel| channel.instances.clone());
         let mut instance_guards = Vec::new();
         let mut matrix = frozen.and_then(|channel| channel.matrix.clone());
@@ -284,14 +311,10 @@ pub(crate) fn capture_channels_with_time(
                 let placement = super::composition::children::placement(engine, id)?;
                 instance_guards.push(placement.guard());
                 let mut definition = super::composition::children::definition(engine, id)?;
-                if placement.output().is_none()
-                    && node.node_data().effective_enabled
-                    && definition.enabled
-                    && definition.opacity > 0.0
-                {
+                if node.node_data().effective_enabled && definition.enabled && definition.opacity > 0.0 {
                     definition.source = super::MediaSource {
                         media: super::protocol::MediaId(node.node_data().meta.uuid),
-                        channel: None,
+                        channel: placement.output(),
                     }
                     .capture(engine, &mut instance_guards)?;
                 }
@@ -439,6 +462,7 @@ pub(crate) fn capture_channels_with_time(
             ancestor = node.node_data().parent;
         }
         channels.push(CapturedChannel {
+            public_output: publicly_exposed(reference),
             owned,
             reference,
             definition,
@@ -446,6 +470,18 @@ pub(crate) fn capture_channels_with_time(
             instances,
             instance_guards,
             matrix,
+        });
+    }
+    for reference in hidden_roots.difference(&seen) {
+        channels.push(CapturedChannel {
+            reference: *reference,
+            public_output: false,
+            definition: None,
+            enabled: false,
+            owned: false,
+            instances: None,
+            instance_guards: vec![],
+            matrix: None,
         });
     }
     sources.update(&channels)?;

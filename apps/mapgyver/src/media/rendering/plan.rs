@@ -62,7 +62,12 @@ pub(super) fn build(
         .iter()
         .map(|channel| (channel.reference, channel))
         .collect::<HashMap<_, _>>();
-    let channel_passes = super::derived::base_passes(capture);
+    let hidden_route = routes.iter().any(|route| {
+        captured
+            .get(&route.channel)
+            .is_some_and(|channel| !channel.public_output)
+    });
+    let channel_passes = super::derived::base_passes(capture) + usize::from(hidden_route);
     if routes
         .len()
         .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
@@ -455,16 +460,40 @@ pub(super) fn build(
         .external_textures
         .retain(|source| sources.contains(&source.id));
     submission.source_demands.retain(|source| sources.contains(source));
+    // Internal Layer/Group textures remain usable by Final, but cannot escape via an old route.
+    let hidden_target = if hidden_route {
+        let target = allocate(next)?;
+        submission.plan.passes.push(RenderPass {
+            id: PassId::new(target.get()).unwrap(),
+            output: target,
+            descriptor: TextureDescriptor {
+                extent: Extent2D::new(1, 1).unwrap(),
+                format: PixelFormat::Rgba8Unorm,
+                color_encoding: ColorEncoding::Linear,
+                alpha_mode: AlphaMode::Premultiplied,
+            },
+            operation: RenderOperation::Clear(LinearColor::TRANSPARENT),
+        });
+        Some(target)
+    } else {
+        None
+    };
     for route in routes {
+        let target = if captured[&route.channel].public_output {
+            prepared_channels[&route.channel].target
+        } else {
+            hidden_target.unwrap()
+        };
         submission.plan.outputs.push(PlanOutput {
             id: route.output,
-            source: prepared_channels[&route.channel].target,
+            source: target,
         });
     }
     let mut screen_entries = HashMap::new();
     let mut screen_extents = HashMap::new();
     let source_targets = channels
         .iter()
+        .filter(|channel| captured[&channel.reference].public_output)
         .map(|channel| (channel.reference, channel.target))
         .collect();
     for route in screens {
@@ -506,6 +535,15 @@ pub(super) fn build(
             return Err("preview output duplicates an output route".into());
         }
         preview.append(&mut submission, &source_targets, &screen_entries)?;
+    }
+    for channel in &mut channels {
+        if !captured[&channel.reference].public_output {
+            channel.resolution = ChannelResolution {
+                extent: None,
+                availability: ChannelAvailability::Missing,
+            };
+            channel.source = None;
+        }
     }
     // Pure preparation validation, before publication can change a live runtime's desired plan.
     submission

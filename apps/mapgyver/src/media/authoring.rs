@@ -74,6 +74,13 @@ pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Res
 }
 
 pub fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<ChannelSnapshot, String> {
+    if !super::visibility::exposed(engine, reference) {
+        return Err("Matrix output is not exposed".into());
+    }
+    channel_internal(engine, reference)
+}
+
+pub(crate) fn channel_internal(engine: &AppEngine, reference: ChannelReference) -> Result<ChannelSnapshot, String> {
     if media(engine, reference.media)?.1 == MediaKind::Reference {
         return super::reference::channel(engine, reference);
     }

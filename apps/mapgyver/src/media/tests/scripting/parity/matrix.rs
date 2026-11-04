@@ -326,6 +326,7 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
                 opacity: 0.4,
                 blend: golden_video::plan::BlendMode::Screen,
                 enabled: false,
+                expose_channel: false,
             },
         },
         MatrixEdit::RenameItem {
@@ -505,7 +506,8 @@ fn matrix_creation_and_copy_return_committed_exports_and_columns_for_every_calle
             for item in items {
                 assert!(!scene.snapshot.items.iter().any(|old| old.id == item));
                 let item = snapshot.items.iter().find(|entry| entry.id == item).unwrap();
-                assert!(channel(&engine, item.channel).is_ok());
+                assert_eq!(channel(&engine, item.channel).is_ok(), item.settings.expose_channel);
+                assert!(crate::media::authoring::channel_internal(&engine, item.channel).is_ok());
             }
             for column in columns {
                 assert!(!scene.snapshot.columns.iter().any(|old| old.id == column));

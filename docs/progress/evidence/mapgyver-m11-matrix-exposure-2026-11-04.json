@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-04",
+  "gate": "M11/8",
+  "gate_state": "Active",
+  "scope": "Backend typed Layer/Group output exposure; Cell previews and full UI/cohort acceptance remain open",
+  "native_test_binary": "target/debug/deps/matrix_rendering-31f145310bf4e7bd.exe",
+  "sha256": "463A66D60973CEA5DD9AD8F83A0255853D67C1E4D05CD8C8F00BFBAAEB865B62",
+  "software": {
+    "rust_library": "425 pass, 2 explicit ignores",
+    "strict_clippy": "all targets and native/process/smoke features pass",
+    "svelte": "0 errors, 0 warnings",
+    "ui_tests": "91 pass",
+    "generation": "CompositeSettings Rust generation and consumers updated",
+    "formatting": "root and Golden Core cargo fmt pass"
+  },
+  "native": {
+    "result": "pass",
+    "exit": 0,
+    "completed": [
+      "AdapterId { low: 88937, high: 0 } description=Intel(R) Graphics",
+      "AdapterId { low: 90146, high: 0 } description=NVIDIA GeForce RTX 5080 Laptop GPU"
+    ],
+    "images": 48,
+    "maxEnvelopeError": 0,
+    "coverage": "Nested Group Normal/Add/Multiply/Screen, post-composite alpha, exact Reference export, hide/show with Final preserved, same-identity recovery and clean project reload; two outputs and native preview per case; original oracle envelope/tolerance unchanged",
+    "log": "target/m118-native-exposure.log"
+  },
+  "repairs": [
+    "Authored dependency identity is separate from output availability; hidden edges still participate in cycles and copies.",
+    "Retired internal channels retain their exposure policy and cannot become new public demand.",
+    "Committed playback launch receipts settle before visibility guards, avoiding stale initial capture after reload."
+  ],
+  "remaining": [
+    "Visible Cell snapshots and media [channel] labels through bounded presentation, preserving 64-view budget.",
+    "Actual app generic Inspector/grid flows and complete source-loss/sparse/preview retirement.",
+    "Adapt prior ignored native fixtures to explicit exposure where they request public derived outputs, then run the complete revised cohort."
+  ],
+  "acceptance_credit": "None; 54/67 gates (81%), M11 7/10."
+}

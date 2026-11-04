@@ -137,7 +137,7 @@ fn assign_sources(
         if let Some(source) = source {
             crate::media::authoring::media(engine, source.media)?;
             if let Some(output) = source.output(engine)? {
-                crate::media::channel(engine, output)?;
+                crate::media::authoring::channel_internal(engine, output)?;
             }
         }
         if let Some(id) = document.cells.get(&(layer, column)) {

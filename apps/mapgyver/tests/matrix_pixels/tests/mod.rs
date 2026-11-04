@@ -1,4 +1,5 @@
 use super::*;
+mod exposure;
 
 #[test]
 fn native_scene_reuses_three_by_three_defaults_with_explicit_native_media_and_layer_sizes() {

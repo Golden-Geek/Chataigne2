@@ -88,6 +88,7 @@ pub enum MatrixOutput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct CompositeSettings {
+    pub expose_channel: bool,
     pub opacity: f32,
     pub blend: BlendMode,
     pub enabled: bool,
@@ -95,6 +96,7 @@ pub struct CompositeSettings {
 impl Default for CompositeSettings {
     fn default() -> Self {
         Self {
+            expose_channel: false,
             opacity: 1.0,
             blend: BlendMode::Normal,
             enabled: true,

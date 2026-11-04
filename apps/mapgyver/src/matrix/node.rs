@@ -25,7 +25,8 @@ enum Kind {
 })]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
-    blend: Enum = "Normal" (label = "Blend", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
+    blend: Enum = "Normal" (label = "Blend Mode", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
+    expose_channel: bool = false (label = "Expose Channel");
     render_enabled: bool = true (label = "Render enabled");
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", dependency = |node: &Self| node.is_layer());
     canvas_size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
@@ -124,10 +125,12 @@ impl ElementNode {
         node.opacity = ParameterHandle::new(f64::from(settings.opacity));
         node.blend = ParameterHandle::new(Enum::new(blend_name(settings.blend)));
         node.render_enabled = ParameterHandle::new(settings.enabled);
+        node.expose_channel = ParameterHandle::new(settings.expose_channel);
         node
     }
     pub(crate) fn definition(&self) -> ElementDefinition {
         let settings = CompositeSettings {
+            expose_channel: self.expose_channel.get(),
             opacity: self.opacity.get() as f32,
             blend: match self.blend.get_ref().as_str() {
                 "Add" => golden_video::plan::BlendMode::Add,
@@ -146,6 +149,7 @@ impl ElementNode {
         Edit::SetParamsAtomic {
             values: vec![
                 (self.opacity.id(), ParamValue::Float(f64::from(settings.opacity))),
+                (self.expose_channel.id(), ParamValue::Bool(settings.expose_channel)),
                 (self.blend.id(), ParamValue::Enum(blend_name(settings.blend).into())),
                 (self.render_enabled.id(), ParamValue::Bool(settings.enabled)),
             ],

@@ -7,7 +7,10 @@ use std::sync::Arc;
 fn row(engine: &AppEngine, layer: ChannelReference) -> LayerId {
     let ChannelSource::Matrix {
         output: MatrixOutput::Layer { layer },
-    } = channel(engine, layer).unwrap().definition.source
+    } = crate::media::authoring::channel_internal(engine, layer)
+        .unwrap()
+        .definition
+        .source
     else {
         panic!()
     };
@@ -311,6 +314,20 @@ fn retired_nested_matrix_finishes_its_envelope_without_authored_nodes_or_control
     edit(&mut engine, MediaEdit::RemoveMedia { media: nested.media });
     let halfway = capture_channels_at(&engine, &[matrix], 64, at(time, 500)).unwrap();
     assert!(halfway.is_current());
+    assert!(
+        !halfway
+            .channels
+            .iter()
+            .find(|channel| channel.reference == nested_layer)
+            .expect("retained nested Layer")
+            .public_output,
+        "retired internal exports retain their hidden policy"
+    );
+    let hidden = capture_channels_at(&engine, &[nested_layer], 64, at(time, 500)).unwrap();
+    assert!(
+        hidden.channels.iter().all(|channel| channel.definition.is_none()),
+        "a hidden retired producer cannot become a new public demand"
+    );
     assert!(
         halfway
             .channels

@@ -564,7 +564,10 @@ fn procedural_resolution_and_matrix_settings_have_one_media_owner_through_histor
         assert_eq!(canvas(&engine), extent);
         for reference in &references {
             assert_eq!(
-                channel(&engine, *reference).unwrap().definition.size,
+                crate::media::authoring::channel_internal(&engine, *reference)
+                    .unwrap()
+                    .definition
+                    .size,
                 SizePolicy::Fixed { extent }
             );
             let root = engine.node_id_by_uuid(reference.channel.0).unwrap();
@@ -603,8 +606,8 @@ fn procedural_resolution_and_matrix_settings_have_one_media_owner_through_histor
         let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
         for reference in &references {
             assert_eq!(
-                channel(&loaded, *reference).unwrap(),
-                channel(&engine, *reference).unwrap()
+                crate::media::authoring::channel_internal(&loaded, *reference).unwrap(),
+                crate::media::authoring::channel_internal(&engine, *reference).unwrap()
             );
         }
         apply(

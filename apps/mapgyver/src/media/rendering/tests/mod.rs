@@ -2,6 +2,7 @@ mod applications;
 mod capacity;
 mod capture;
 mod composition;
+mod exposure;
 mod matrix;
 mod outputs;
 mod pictures;

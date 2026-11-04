@@ -29,6 +29,7 @@ pub(crate) mod sender_catalog;
 mod source_api;
 mod source_node;
 pub(crate) mod structure;
+mod visibility;
 
 pub use assets::{AssetNode, asset};
 pub use authoring::{apply_operation, channel, initialize, validate_project};

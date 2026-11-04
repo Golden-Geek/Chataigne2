@@ -225,5 +225,5 @@ fn batch_layer_column_creation_is_sparse_and_one_history_step_each() {
     let MediaEditResult::Manager { snapshot } = apply(&mut engine, MediaEdit::InspectManager) else {
         panic!()
     };
-    assert_eq!(snapshot.media[0].channels.len(), 1001);
+    assert_eq!(snapshot.media[0].channels.len(), 1, "only Final is public by default");
 }

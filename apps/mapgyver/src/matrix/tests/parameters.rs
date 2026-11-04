@@ -79,6 +79,7 @@ fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_ex
                     opacity: 0.25,
                     blend: golden_video::plan::BlendMode::Screen,
                     enabled: false,
+                    expose_channel: true,
                 },
             },
         );

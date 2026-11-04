@@ -54,6 +54,17 @@ fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolutio
         },
     );
     let layer = inspect(&mut engine, matrix.media).items[0].channel;
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureItem {
+            item: MatrixItemId::Layer { id: row },
+            settings: CompositeSettings {
+                expose_channel: true,
+                ..Default::default()
+            },
+        },
+    );
     let first = prepare(&engine, &[matrix, layer]);
     assert_eq!(
         first
@@ -139,6 +150,7 @@ fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolutio
             item: MatrixItemId::Layer { id: row },
             settings: CompositeSettings {
                 opacity: 0.5,
+                expose_channel: true,
                 ..Default::default()
             },
         },
@@ -169,10 +181,77 @@ fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolutio
     );
 }
 
-fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {
+pub(super) fn matrix_edit(engine: &mut AppEngine, media: MediaId, operation: MatrixEdit) -> MediaEditResult {
     edit(engine, MediaEdit::Matrix { media, edit: operation })
 }
-fn inspect(engine: &mut AppEngine, media: MediaId) -> MatrixSnapshot {
+
+#[test]
+fn hidden_layer_is_internal_to_final_and_cannot_leak_through_a_concurrent_public_route() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddLayers { parent: None, count: 1 },
+    ) else {
+        panic!()
+    };
+    let MatrixItemId::Layer { id: layer } = items[0] else {
+        panic!()
+    };
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 1 })
+    else {
+        panic!()
+    };
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::SetCells {
+            assignments: vec![CellAssignment {
+                layer,
+                column: columns[0],
+                source: Some(source),
+            }],
+        },
+    );
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::LaunchColumn {
+            column: columns[0],
+            mode: LaunchMode::Cut,
+        },
+    );
+    let output = inspect(&mut engine, matrix.media).items[0].channel;
+    let prepared = prepare(&engine, &[matrix, output]);
+    let hidden = prepared
+        .channels
+        .iter()
+        .find(|channel| channel.reference == output)
+        .unwrap();
+    assert_eq!(
+        hidden.resolution.availability,
+        crate::media::resolution::ChannelAvailability::Missing
+    );
+    assert_ne!(
+        prepared.submission.plan.outputs[1].source,
+        prepared.entries[&output].target
+    );
+    assert!(
+        prepared
+            .submission
+            .plan
+            .passes
+            .iter()
+            .any(|pass| pass.output == prepared.entries[&matrix].target
+                && matches!(&pass.operation, RenderOperation::Composite { layers } if !layers.is_empty()))
+    );
+    let alone = crate::media::capture_channels(&engine, &[output], 16).unwrap();
+    assert!(!alone.channels.iter().any(|channel| channel.reference == source));
+}
+pub(super) fn inspect(engine: &mut AppEngine, media: MediaId) -> MatrixSnapshot {
     let MediaEditResult::Matrix { snapshot } = matrix_edit(engine, media, MatrixEdit::Inspect) else {
         panic!()
     };
@@ -276,6 +355,7 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
                 opacity: 0.5,
                 blend: BlendMode::Add,
                 enabled: true,
+                expose_channel: true,
             },
         },
     );
@@ -302,6 +382,17 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
         },
     );
     let roots = [matrix, group_channel, layers[0].1];
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureItem {
+            item: MatrixItemId::Layer { id: layers[0].0 },
+            settings: CompositeSettings {
+                expose_channel: true,
+                ..Default::default()
+            },
+        },
+    );
     let capture = capture_channels(&engine, &roots, 16).unwrap();
     assert_eq!(capture.channels.len(), 7);
     let root_id = engine.node_id_by_uuid(matrix.channel.0).unwrap();

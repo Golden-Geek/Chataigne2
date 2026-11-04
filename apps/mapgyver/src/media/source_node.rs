@@ -28,7 +28,20 @@ impl MediaSource {
         engine: &AppEngine,
         guards: &mut Vec<golden_io::RevisionGuard>,
     ) -> Result<Option<ChannelReference>, String> {
-        let output = self.output(engine)?;
+        if let Some(channel) = self.channel
+            && let Some(guard) = super::visibility::guard(
+                engine,
+                ChannelReference {
+                    media: self.media,
+                    channel,
+                },
+            )
+        {
+            guards.push(guard);
+        }
+        let output = self
+            .output(engine)?
+            .filter(|reference| super::visibility::exposed(engine, *reference));
         if output.is_some() {
             return Ok(output);
         }

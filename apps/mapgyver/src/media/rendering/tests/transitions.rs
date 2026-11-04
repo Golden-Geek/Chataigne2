@@ -334,7 +334,10 @@ fn assign(
 ) {
     let ChannelSource::Matrix {
         output: MatrixOutput::Layer { layer: row },
-    } = channel(engine, layer).unwrap().definition.source
+    } = crate::media::authoring::channel_internal(engine, layer)
+        .unwrap()
+        .definition
+        .source
     else {
         panic!()
     };

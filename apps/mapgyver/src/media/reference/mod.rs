@@ -92,7 +92,9 @@ impl<'a> Iterator for Channels<'a> {
         while let Some(id) = self.next {
             let node = self.engine.nodes.get(id)?;
             self.next = node.node_data().next_sibling;
-            if let AppNode::MediaChannel(channel) = node {
+            if let AppNode::MediaChannel(channel) = node
+                && crate::matrix::outputs::exposed(self.engine, channel)
+            {
                 return Some(channel);
             }
         }
@@ -104,7 +106,7 @@ pub(super) fn channel(engine: &AppEngine, reference: ChannelReference) -> Result
     let leaf = Resolver::new(engine)
         .leaf(reference.media)?
         .ok_or("Reference target is missing or unconfigured")?;
-    let source = super::authoring::channel(
+    let source = super::authoring::channel_internal(
         engine,
         ChannelReference {
             media: leaf,

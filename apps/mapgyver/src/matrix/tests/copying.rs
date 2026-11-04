@@ -244,6 +244,7 @@ fn document_item_and_column_settings_rename_move_and_export_ids_survive_reload()
                 opacity: 0.25,
                 blend: golden_video::plan::BlendMode::Screen,
                 enabled: false,
+                expose_channel: true,
             },
         },
     );

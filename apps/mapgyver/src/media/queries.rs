@@ -8,6 +8,9 @@ pub(super) fn inspect_channel(
     engine: &AppEngine,
     reference: ChannelReference,
 ) -> Result<Option<ChannelSnapshot>, String> {
+    if !super::visibility::exposed(engine, reference) {
+        return Ok(None);
+    }
     if engine.node_id_by_uuid(reference.media.0).is_none() || engine.node_id_by_uuid(reference.channel.0).is_none() {
         return Ok(None);
     }
