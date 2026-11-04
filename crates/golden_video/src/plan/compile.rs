@@ -63,6 +63,16 @@ pub(super) fn compile(
     }
     for (index, pass) in plan.passes.iter().enumerate() {
         let bytes = validate_descriptor(pass.output, &pass.descriptor, limits)?;
+        for image in pass.operation.canvas_images() {
+            let extent = image.descriptor().extent;
+            if extent.width() > limits.max_texture_dimension || extent.height() > limits.max_texture_dimension {
+                return Err(PlanError::CanvasImageDimensionExceeded {
+                    pass: pass.id,
+                    extent: [extent.width(), extent.height()],
+                    limit: limits.max_texture_dimension,
+                });
+            }
+        }
         if !pass.descriptor.is_compositing_target() {
             return Err(PlanError::InvalidTargetContract {
                 pass: pass.id,
@@ -108,7 +118,7 @@ pub(super) fn compile(
     let ordered = topological_order(&plan, &pass_indices, &resources)?;
     let mut demanded = demanded_textures(&plan, &resources);
     demanded.extend(source_demands.iter().copied());
-    let footprint = footprint(&demanded, &resources, limits.max_texture_bytes)?;
+    let footprint = footprint(&demanded, &resources, &plan, limits.max_texture_bytes)?;
     let mut rank = vec![0; plan.passes.len()];
     for (position, index) in ordered.into_iter().enumerate() {
         rank[index] = position;
@@ -261,6 +271,7 @@ fn demanded_textures(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource
 fn footprint(
     demanded: &BTreeSet<TextureId>,
     resources: &BTreeMap<TextureId, Resource>,
+    plan: &RenderPlan,
     limit: u64,
 ) -> Result<TextureFootprint, PlanError> {
     let mut footprint = TextureFootprint::default();
@@ -273,6 +284,17 @@ fn footprint(
         *bytes = bytes
             .checked_add(resource.bytes)
             .ok_or(PlanError::TextureFootprintOverflow)?;
+    }
+    let mut images = BTreeSet::new();
+    for pass in plan.passes.iter().filter(|pass| demanded.contains(&pass.output)) {
+        for image in pass.operation.canvas_images() {
+            if images.insert(std::sync::Arc::as_ptr(image) as usize) {
+                footprint.external_texture_bytes = footprint
+                    .external_texture_bytes
+                    .checked_add(image.pixels().len() as u64)
+                    .ok_or(PlanError::TextureFootprintOverflow)?;
+            }
+        }
     }
     footprint.total_texture_bytes = footprint
         .external_texture_bytes

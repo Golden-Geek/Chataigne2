@@ -109,6 +109,16 @@ pub enum RenderOperation {
 }
 
 impl RenderOperation {
+    pub(crate) fn canvas_images(&self) -> impl Iterator<Item = &std::sync::Arc<crate::image::ImageData>> {
+        let layers = match self {
+            Self::Composite { layers } => layers.as_slice(),
+            _ => &[],
+        };
+        layers.iter().filter_map(|layer| match &layer.source {
+            LayerSource::Pattern(Pattern::Canvas(canvas)) => canvas.image(),
+            _ => None,
+        })
+    }
     fn dependency_count(&self) -> usize {
         match self {
             Self::Clear(_) => 0,
@@ -357,7 +367,7 @@ pub struct PlanLimits {
 /// Conservative references for this graph, not physical residency or whole-runtime admission.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TextureFootprint {
-    /// Bytes described by distinct demanded external textures.
+    /// Bytes described by distinct demanded sampled inputs, including immutable canvas bitmaps.
     pub external_texture_bytes: u64,
     /// Bytes described by distinct demanded pass targets.
     pub target_texture_bytes: u64,

@@ -11,6 +11,124 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
 const WAIT: Duration = Duration::from_secs(5);
 
+fn canvas_scene(image: std::sync::Arc<crate::image::ImageData>, width: u32) -> CompiledPlan {
+    use crate::plan::{BlendMode, CanvasPattern, CanvasPrimitive, Layer, LayerSource, Pattern, UnitRect};
+    let canvas = CanvasPattern::with_image(
+        vec![CanvasPrimitive::image(UnitRect::FULL, crate::Opacity::OPAQUE).unwrap()],
+        image,
+    )
+    .unwrap();
+    let layer = Layer {
+        source: LayerSource::Pattern(Pattern::Canvas(canvas)),
+        opacity: crate::Opacity::OPAQUE,
+        opacity_envelope: None,
+        blend: BlendMode::Normal,
+        filter: SampleFilter::Linear,
+        mapping: None,
+    };
+    RenderPlan {
+        external_textures: vec![],
+        passes: vec![RenderPass {
+            id: PassId::new(1).unwrap(),
+            output: TextureId::new(2).unwrap(),
+            descriptor: descriptor(width, ColorEncoding::Linear, AlphaMode::Premultiplied),
+            operation: RenderOperation::Composite {
+                layers: vec![layer.clone(), layer],
+            },
+        }],
+        outputs: vec![PlanOutput {
+            id: OutputId::new(1).unwrap(),
+            source: TextureId::new(2).unwrap(),
+        }],
+    }
+    .compile(&PlanLimits {
+        max_passes: 4,
+        max_external_textures: 0,
+        max_outputs: 4,
+        max_dependencies: 16,
+        max_texture_dimension: 1024,
+        max_texture_bytes: 65536,
+    })
+    .unwrap()
+}
+
+#[test]
+#[ignore = "requires explicitly available Windows hardware D3D11"]
+fn hardware_canvas_bitmap_assets_share_uploads_and_release_with_last_resource() {
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let prepared = prepared_image(
+            descriptor(2, ColorEncoding::Linear, AlphaMode::Straight),
+            &[255, 0, 0, 255, 0, 255, 0, 255],
+        );
+        let mut renderer = Renderer::new(adapter.id, &prepared, 8);
+        let image = std::sync::Arc::new(
+            crate::image::ImageData::new(
+                descriptor(2, ColorEncoding::Linear, AlphaMode::Straight),
+                vec![255, 0, 0, 255, 0, 255, 0, 255],
+            )
+            .unwrap(),
+        );
+        let weak = std::sync::Arc::downgrade(&image);
+        let plan = canvas_scene(image.clone(), 8);
+        let first = renderer
+            .backend
+            .prepare(&plan, super::generation(&renderer.backend, &plan, renderer.device))
+            .unwrap();
+        let second = renderer
+            .backend
+            .prepare(&plan, super::generation(&renderer.backend, &plan, renderer.device))
+            .unwrap();
+        let identity = std::sync::Arc::as_ptr(&image) as usize;
+        assert!(Rc::ptr_eq(
+            &first.canvas_images[&identity],
+            &second.canvas_images[&identity]
+        ));
+        assert_eq!(
+            renderer.backend.control.snapshot().uploaded_images,
+            2,
+            "one original fixture upload and one shared canvas upload"
+        );
+        assert!(
+            renderer.backend.control.sources().is_empty(),
+            "canvas assets cannot consume media receiver slots"
+        );
+        renderer.resources = Some(first);
+        renderer.plan = plan;
+        drop(image);
+        let pixels = renderer.pixel_frame();
+        assert_eq!(pixels[0], [255, 0, 0, 255]);
+        assert_eq!(pixels[7], [0, 255, 0, 255]);
+        let first = renderer.resources.take().unwrap();
+        renderer.plan = RenderPlan::default()
+            .compile(&PlanLimits {
+                max_passes: 4,
+                max_external_textures: 0,
+                max_outputs: 4,
+                max_dependencies: 16,
+                max_texture_dimension: 1024,
+                max_texture_bytes: 65536,
+            })
+            .unwrap();
+        drop(second);
+        assert!(weak.upgrade().is_some());
+        drop(first);
+        assert!(
+            weak.upgrade().is_none(),
+            "the weak native cache cannot retain last-use bitmap pixels"
+        );
+        eprintln!(
+            "canvas bitmap assets {:?} {}: one upload, two resource generations, zero receivers and final CPU lease release pass",
+            adapter.id, adapter.description
+        );
+    }
+}
+
 fn descriptor(width: u32, encoding: ColorEncoding, alpha: AlphaMode) -> TextureDescriptor {
     TextureDescriptor {
         extent: Extent2D::new(width, 1).unwrap(),

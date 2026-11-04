@@ -8,15 +8,16 @@ choices stay outside Golden.
 The current geometry slice replaces the Grid calibration image with alternating grey square
 cells, second-row brightness/color palettes, a fitted circle, both diagonals and a diagonal
 rainbow hue flow along thin grid boundaries. `ColorBars` remains the independent plain palette.
-The complete official pattern still requires its centered supplied logo, row/column labels,
-resolution/FPS and system-time labels, followed by full native app qualification.
+The centered supplied 512x512 logo is now an immutable Canvas bitmap. The complete official
+pattern still requires row/column labels, resolution/FPS and system-time labels, followed by
+full native app qualification.
 
 Layout uses the actual Screen render-pass extent. The complete logical image is projected
 through the Surface homography, so changing a warp does not silently change the source pattern's
 logical aspect. Resizing the output rebuilds its layout. Calibration retains the authored
 source/crop; Off returns to that routing. It requires no source or receiver while active.
 
-A canvas contains at most 32 checked rectangle, checkerboard, grid, ellipse, segment and palette
+A canvas contains at most 32 checked rectangle, checkerboard, grid, ellipse, segment, palette and image
 primitives. Golden evaluates them in order within one procedural compositing draw, avoiding
 one full-image ping-pong pass per shape. Geometry is prepared outside the engine actor. Each
 render submission samples the existing shared monotonic time; rainbow phase wraps before
@@ -27,7 +28,23 @@ Admission charges every canvas primitive against the existing dependency/work li
 preparation reserves the same count before selecting derived sources. Shared display-list
 storage is charged once per render plan. The native pattern constant buffer grows from 160 to
 6,816 bytes (6,656 additional fixed bytes per renderer owner), remains bounded, and is included
-in the existing pipeline resource charge. No existing budget is increased.
+in the existing pipeline resource charge. GPU, producer and work limits are unchanged.
+
+The bitmap is a drawing asset, not a media producer, receiver or authored project object.
+Canvas construction requires an image operand for image primitives and rejects unused operands.
+The graph charges distinct bitmap pixels against its existing texture-byte limit and CPU
+submission storage; shared instances are counted once. Native generations share one uploaded
+texture while holding the immutable CPU identity through completion-based resource retirement.
+Sampling reuses Golden's declared color/alpha/filter contract, including premultiplication and
+sRGB decoding before linear interpolation.
+
+The app preparation owner memoizes only a weak image reference. Repeated warp edits reuse live
+pixels, while the last plan/native resource releases them. PNG preparation is limited to a
+512x512 RGBA result (1 MiB) and 2 MiB codec workspace; it runs at preparation, never on the actor.
+The generic 64 KiB CPU submission fixture remains unchanged and explicitly rejects the logo's
+larger retained input. The image-bearing calibration routing test declares 2 MiB per submission
+and 8 MiB aggregate retention; its GPU/work/producer limits are unchanged. These are functional
+fixture capacities, not revisions to retained production timing, growth or device qualification.
 
 Deterministic tests cover supported aspects, palette rows, circle/square proportions, extreme
 extents, admission, retained storage and shared-clock sampling. Native kernel qualification

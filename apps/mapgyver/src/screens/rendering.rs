@@ -218,6 +218,7 @@ impl CapturedScreen {
         &self,
         channels: &HashMap<ChannelReference, TextureId>,
         extent: Extent2D,
+        assets: &mut super::CalibrationAssets,
     ) -> Result<Vec<Layer>, String> {
         if !self.is_current() {
             return Err("Screen capture is stale".into());
@@ -234,7 +235,7 @@ impl CapturedScreen {
             let Ok(mapping) = ProjectiveMapping::new(crop, surface.quad) else {
                 continue;
             };
-            let source = if let Some(pattern) = super::calibration::pattern(surface.calibration, extent) {
+            let source = if let Some(pattern) = super::calibration::pattern(surface.calibration, extent, assets)? {
                 // Calibration covers the complete authored quad; the saved source crop is retained.
                 LayerSource::Pattern(pattern)
             } else {

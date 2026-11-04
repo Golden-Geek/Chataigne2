@@ -38,15 +38,25 @@ pub(super) struct Targets<'a> {
     pub screens: &'a [ScreenRoute],
 }
 
+pub(super) struct Sources<'a> {
+    pub observations: &'a SourceObservations,
+    pub pictures: Option<&'a crate::media::picture::Pictures>,
+    pub calibration: &'a mut crate::screens::CalibrationAssets,
+}
+
 pub(super) fn build(
     capture: &CapturedChannels,
     targets: Targets<'_>,
     previous: Previous<'_>,
     next: &mut u64,
     limits: PlanLimits,
-    observations: &SourceObservations,
-    pictures: Option<&crate::media::picture::Pictures>,
+    sources: Sources<'_>,
 ) -> Result<Prepared, String> {
+    let Sources {
+        observations,
+        pictures,
+        calibration,
+    } = sources;
     let Targets {
         routes,
         preview,
@@ -517,7 +527,7 @@ pub(super) fn build(
                     alpha_mode: AlphaMode::Premultiplied,
                 },
                 operation: RenderOperation::Composite {
-                    layers: route.screen.layers(&source_targets, route.extent)?,
+                    layers: route.screen.layers(&source_targets, route.extent, calibration)?,
                 },
             });
         } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {

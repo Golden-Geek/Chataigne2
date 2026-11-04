@@ -115,7 +115,7 @@ fn impossible_warp_omits_only_its_layer_then_resumes_with_the_authored_mapping()
         );
         let layers = capture_screen(&engine, screen, 8)
             .unwrap()
-            .layers(&sources, Extent2D::new(1920, 1080).unwrap())
+            .layers(&sources, Extent2D::new(1920, 1080).unwrap(), &mut Default::default())
             .unwrap();
         assert_eq!(layers.len(), 1, "invalid warp cannot fail the Screen or its peer");
         assert!(matches!(layers[0].source, LayerSource::Pattern(_)));
@@ -136,7 +136,7 @@ fn impossible_warp_omits_only_its_layer_then_resumes_with_the_authored_mapping()
     );
     let layers = capture_screen(&engine, screen, 8)
         .unwrap()
-        .layers(&sources, Extent2D::new(1920, 1080).unwrap())
+        .layers(&sources, Extent2D::new(1920, 1080).unwrap(), &mut Default::default())
         .unwrap();
     assert_eq!(layers.len(), 2);
     assert_eq!(layers[0].source.texture(), Some(source));
@@ -168,8 +168,11 @@ fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
         },
         &mut 3,
         config().plan_limits,
-        &renderer.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &renderer.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(prepared.submission.plan.passes.len(), 2);
@@ -307,7 +310,16 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
     let original = crate::screens::inspect(&engine).unwrap().screens[0].surfaces[0]
         .definition
         .clone();
-    let mut renderer = renderer();
+    // The official pattern now carries an explicit 512x512 immutable bitmap. Keep the
+    // generic 64 KiB fixture unchanged and test its rejection separately below.
+    let mut calibration_config = config();
+    calibration_config.max_input_bytes = NonZeroUsize::new(2 * 1024 * 1024).unwrap();
+    calibration_config.max_retained_input_bytes = NonZeroUsize::new(8 * 1024 * 1024).unwrap();
+    let mut renderer = ChannelRenderer::new(
+        VideoRuntime::spawn_null(calibration_config.clone(), NullConfig::default()).unwrap(),
+        calibration_config.plan_limits,
+    );
+    wait(|| renderer.snapshot().resources.is_some());
     for mode in [Calibration::Grid, Calibration::ColorBars, Calibration::Off] {
         let definition = SurfaceDefinition {
             calibration: mode,
@@ -346,8 +358,11 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
             },
             &mut 3,
             config().plan_limits,
-            &renderer.source_observations(),
-            None,
+            super::super::plan::Sources {
+                observations: &renderer.source_observations(),
+                pictures: None,
+                calibration: &mut Default::default(),
+            },
         )
         .unwrap();
         assert!(prepared.submission.plan.external_textures.is_empty());
@@ -412,6 +427,38 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
 }
 
 #[test]
+fn calibration_bitmap_truthfully_rejects_the_unchanged_small_cpu_submission_quota() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let (screen, surface) = screen(&mut engine, source);
+    screen_edit(
+        &mut engine,
+        ScreenEdit::ConfigureSurface {
+            reference: surface,
+            definition: SurfaceDefinition {
+                source: None,
+                calibration: Calibration::Grid,
+                ..Default::default()
+            },
+        },
+    );
+    let mut renderer = renderer();
+    let result = renderer.publish_screen_targets(
+        capture_channels(&engine, &[], 8).unwrap(),
+        vec![],
+        vec![ScreenRoute {
+            output: Some(OutputId::new(1).unwrap()),
+            extent: Extent2D::new(640, 360).unwrap(),
+            screen: capture_screen(&engine, screen, 8).unwrap(),
+        }],
+        None,
+    );
+    assert!(result.unwrap_err().contains("admission bound"));
+    assert!(renderer.latest_request().is_none());
+    close(renderer);
+}
+
+#[test]
 fn surface_reordering_preserves_each_procedural_or_texture_layer_alpha_and_mapping() {
     let mut engine = engine();
     let source = create(&mut engine, MediaKind::SolidColor);
@@ -439,6 +486,7 @@ fn surface_reordering_preserves_each_procedural_or_texture_layer_alpha_and_mappi
         .layers(
             &HashMap::from([(source, TextureId::new(10).unwrap())]),
             Extent2D::new(1920, 1080).unwrap(),
+            &mut Default::default(),
         )
         .unwrap();
     assert!(matches!(layers[0].source, LayerSource::Texture(_)));
@@ -456,6 +504,7 @@ fn surface_reordering_preserves_each_procedural_or_texture_layer_alpha_and_mappi
         .layers(
             &HashMap::from([(source, TextureId::new(10).unwrap())]),
             Extent2D::new(1920, 1080).unwrap(),
+            &mut Default::default(),
         )
         .unwrap();
     assert!(matches!(layers[0].source, LayerSource::Pattern(Pattern::Bars(_))));

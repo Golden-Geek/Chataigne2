@@ -190,6 +190,7 @@ float4 canvas_primitive(CanvasPrimitive item, float2 uv) {
     float2 p = (uv - item.bounds.xy) / item.bounds.zw;
     if (any(p < 0) || any(p > 1)) return 0;
     uint kind = item.metadata.x;
+    if (kind == 6) return sample_source(p) * item.colors[0].a;
     if (kind == 1) {
         uint2 cell = (uint2)floor(p * item.geometry0.xy);
         return item.colors[(cell.x + cell.y) & 1];

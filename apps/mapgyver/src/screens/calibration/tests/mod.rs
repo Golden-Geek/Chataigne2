@@ -3,12 +3,16 @@ use golden_video::plan::CanvasShape;
 
 #[test]
 fn geometry_preserves_square_cells_circle_and_second_palette_rows_across_aspects_and_resize() {
+    let mut assets = CalibrationAssets::default();
     for [width, height] in [[1920, 1080], [1080, 1920], [1024, 1024], [3840, 2160], [1919, 1079]] {
         let extent = Extent2D::new(width, height).unwrap();
         let shape = layout(extent);
         assert!((width as f32 / shape.cells[0] - height as f32 / shape.cells[1]).abs() < 0.001);
         assert!(shape.cells.iter().all(|count| *count <= 32.));
         let circle = shape.circle;
+        assert!((shape.logo.width * width as f32 - shape.logo.height * height as f32).abs() < 0.001);
+        assert!((shape.logo.x + shape.logo.width / 2. - 0.5).abs() < 0.00001);
+        assert!((shape.logo.y + shape.logo.height / 2. - 0.5).abs() < 0.00001);
         assert!((circle.width * width as f32 - circle.height * height as f32).abs() < 0.001);
         assert!((circle.x + circle.width / 2. - 0.5).abs() < 0.00001);
         assert!((circle.y + circle.height / 2. - 0.5).abs() < 0.00001);
@@ -17,10 +21,22 @@ fn geometry_preserves_square_cells_circle_and_second_palette_rows_across_aspects
         let bottom = shape.colors.unwrap();
         assert!((top.y * height as f32 - shape.cell_pixels).abs() < 0.001);
         assert!(((1. - bottom.y) * height as f32 - 2. * shape.cell_pixels).abs() < 0.001);
-        let Some(Pattern::Canvas(canvas)) = pattern(Calibration::Grid, extent) else {
+        let Some(Pattern::Canvas(canvas)) = pattern(Calibration::Grid, extent, &mut assets).unwrap() else {
             panic!()
         };
-        assert_eq!(canvas.primitives().len(), 7);
+        assert_eq!(canvas.primitives().len(), 8);
+        assert_eq!(
+            canvas.image().unwrap().descriptor().extent,
+            Extent2D::new(512, 512).unwrap()
+        );
+        assert_eq!(
+            canvas
+                .primitives()
+                .iter()
+                .filter(|primitive| primitive.shape() == CanvasShape::Image)
+                .count(),
+            1
+        );
         assert_eq!(canvas.primitives().len(), work_count(Calibration::Grid, extent));
         assert_eq!(
             canvas
@@ -40,14 +56,31 @@ fn geometry_preserves_square_cells_circle_and_second_palette_rows_across_aspects
 }
 
 #[test]
+fn logo_cache_shares_live_pixels_without_retaining_the_last_plan_or_native_owner() {
+    let mut assets = CalibrationAssets::default();
+    let first = assets.logo().unwrap();
+    let second = assets.logo().unwrap();
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
+    let weak = std::sync::Arc::downgrade(&first);
+    drop(first);
+    drop(second);
+    assert!(
+        weak.upgrade().is_none(),
+        "weak memoization cannot keep closed image storage alive"
+    );
+    assert_eq!(assets.logo().unwrap().pixels().len(), 512 * 512 * 4);
+}
+
+#[test]
 fn calibration_geometry_is_bounded_at_extreme_sizes_and_off_restores_source_routing() {
+    let mut assets = CalibrationAssets::default();
     for [width, height] in [[1, 1], [16384, 1], [1, 16384], [16384, 16384], [127, 63]] {
         let extent = Extent2D::new(width, height).unwrap();
-        assert!(pattern(Calibration::Off, extent).is_none());
-        let Some(Pattern::Canvas(canvas)) = pattern(Calibration::Grid, extent) else {
+        assert!(pattern(Calibration::Off, extent, &mut assets).unwrap().is_none());
+        let Some(Pattern::Canvas(canvas)) = pattern(Calibration::Grid, extent, &mut assets).unwrap() else {
             panic!()
         };
-        assert!(canvas.primitives().len() <= 7);
+        assert!(canvas.primitives().len() <= 8);
         assert_eq!(canvas.primitives().len(), work_count(Calibration::Grid, extent));
         assert!(
             canvas
@@ -56,7 +89,7 @@ fn calibration_geometry_is_bounded_at_extreme_sizes_and_off_restores_source_rout
                 .all(|primitive| primitive.bounds().is_valid())
         );
         assert!(matches!(
-            pattern(Calibration::ColorBars, extent),
+            pattern(Calibration::ColorBars, extent, &mut assets).unwrap(),
             Some(Pattern::Bars(_))
         ));
     }

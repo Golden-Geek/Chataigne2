@@ -119,8 +119,11 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
         },
         &mut next,
         limits,
-        &observations,
-        None,
+        super::super::plan::Sources {
+            observations: &observations,
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(prepared.channels.len(), 9);
@@ -234,8 +237,11 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         },
         &mut next,
         config.plan_limits,
-        &renderer.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &renderer.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     let retained_regions = preview

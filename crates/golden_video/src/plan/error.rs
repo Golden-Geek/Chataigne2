@@ -104,6 +104,15 @@ pub enum PlanError {
     },
     /// Summed demanded texture bytes cannot be represented by `u64`.
     TextureFootprintOverflow,
+    /// An immutable canvas bitmap exceeds the configured texture dimension bound.
+    CanvasImageDimensionExceeded {
+        /// Pass containing the bitmap.
+        pass: PassId,
+        /// Submitted width and height.
+        extent: [u32; 2],
+        /// Maximum width and height.
+        limit: u32,
+    },
     /// Demanded texture references exceed the explicit preparation budget.
     TextureBudgetExceeded {
         /// Required bytes, counting each demanded logical texture once.
@@ -116,6 +125,13 @@ pub enum PlanError {
 impl fmt::Display for PlanError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CanvasImageDimensionExceeded { pass, extent, limit } => write!(
+                formatter,
+                "canvas bitmap in pass {} has extent {}x{} above limit {limit}",
+                pass.get(),
+                extent[0],
+                extent[1]
+            ),
             Self::MissingSourceDemand(texture) => write!(
                 formatter,
                 "source demand {} is not a declared external texture",

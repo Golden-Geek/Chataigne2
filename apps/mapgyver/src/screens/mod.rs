@@ -17,6 +17,7 @@ mod surface_node;
 mod target;
 
 pub use authoring::{apply_operation, initialize, inspect, validate_project};
+pub(crate) use calibration::CalibrationAssets;
 pub use nodes::ScreenManagerNode;
 pub(crate) use queries::query_operation;
 pub use screen_node::ScreenNode;

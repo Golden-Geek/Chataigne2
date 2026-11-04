@@ -111,6 +111,7 @@ pub(super) fn prepare(
         outputs: Default::default(),
         presented_regions: Default::default(),
         input_sequences: Default::default(),
+        canvas_images: Default::default(),
         _demands: None,
     };
     let cache = &mut native.textures;
@@ -146,6 +147,24 @@ pub(super) fn prepare(
         resources.textures.insert(external.id, texture);
     }
     for pass in plan.passes() {
+        for image in pass.operation.canvas_images() {
+            let identity = std::sync::Arc::as_ptr(image) as usize;
+            if resources.canvas_images.contains_key(&identity) {
+                continue;
+            }
+            let key = Key {
+                role: Role::Image,
+                descriptor: image.descriptor(),
+                image: Some(identity),
+            };
+            let before = counts.created;
+            let texture = cache.get(key, counts, || Texture::from_canvas_image(device, image))?;
+            if counts.created != before {
+                counts.uploaded_images += 1;
+                counts.uploaded_bytes += image.pixels().len() as u64;
+            }
+            resources.canvas_images.insert(identity, texture);
+        }
         resources.textures.insert(
             pass.output,
             cache.mutable(Role::Pass(pass.output), pass.descriptor, device, counts)?,

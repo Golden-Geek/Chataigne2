@@ -210,8 +210,11 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         },
         &mut 0,
         config().plan_limits,
-        &observations,
-        None,
+        super::super::plan::Sources {
+            observations: &observations,
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(
@@ -241,8 +244,11 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         },
         &mut 0,
         config().plan_limits,
-        &observations,
-        None,
+        super::super::plan::Sources {
+            observations: &observations,
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(built.channels[0].resolution.availability, ChannelAvailability::Missing);

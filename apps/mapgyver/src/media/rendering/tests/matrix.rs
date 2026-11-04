@@ -280,8 +280,11 @@ fn prepare(engine: &AppEngine, roots: &[ChannelReference]) -> super::super::plan
         },
         &mut 3,
         config().plan_limits,
-        &owner.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &owner.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     close(owner);
@@ -427,8 +430,11 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
         },
         &mut 3,
         limits,
-        &owner.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &owner.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert!(bounded.submission.plan.passes.len() <= 5);

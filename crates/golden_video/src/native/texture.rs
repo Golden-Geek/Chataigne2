@@ -18,10 +18,19 @@ pub(super) struct Texture {
     decoded_srv: Option<ID3D11ShaderResourceView>,
     pub(super) rtv: ID3D11RenderTargetView,
     pub(super) descriptor: TextureDescriptor,
-    _image_lease: Option<golden_assets::PreparedAsset<crate::image::ImageData>>,
+    _image_lease: Option<ImageLease>,
     _local: PhantomData<Rc<()>>,
     // Last field: release all native texture/views before publishing this object's release.
     allocation: Option<super::allocations::TextureAllocation>,
+}
+
+enum ImageLease {
+    Prepared {
+        _lease: golden_assets::PreparedAsset<crate::image::ImageData>,
+    },
+    Canvas {
+        _image: std::sync::Arc<crate::image::ImageData>,
+    },
 }
 
 impl Texture {
@@ -30,7 +39,15 @@ impl Texture {
         image: &golden_assets::PreparedAsset<crate::image::ImageData>,
     ) -> Result<Self> {
         let mut texture = Self::from_image(device, image.value())?;
-        texture._image_lease = Some(image.clone());
+        texture._image_lease = Some(ImageLease::Prepared { _lease: image.clone() });
+        Ok(texture)
+    }
+    pub(super) fn from_canvas_image(
+        device: &ID3D11Device,
+        image: &std::sync::Arc<crate::image::ImageData>,
+    ) -> Result<Self> {
+        let mut texture = Self::from_image(device, image)?;
+        texture._image_lease = Some(ImageLease::Canvas { _image: image.clone() });
         Ok(texture)
     }
 

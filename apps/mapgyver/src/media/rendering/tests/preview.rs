@@ -64,8 +64,11 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
         },
         &mut next,
         config().plan_limits,
-        &renderer.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &renderer.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(prepared.channels.len(), 1);
@@ -243,8 +246,11 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
         },
         &mut next,
         config().plan_limits,
-        &renderer.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &renderer.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap();
     assert_eq!(prepared.channels.len(), 1);

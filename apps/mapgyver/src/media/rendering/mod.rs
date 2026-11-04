@@ -57,6 +57,7 @@ pub struct ChannelRenderer {
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
     pictures: Option<super::picture::Pictures>,
+    calibration_assets: crate::screens::CalibrationAssets,
     resolution_owner: std::sync::Arc<()>,
 }
 
@@ -85,6 +86,7 @@ impl ChannelRenderer {
             channels: Vec::new(),
             latest_request: None,
             pictures: None,
+            calibration_assets: Default::default(),
             resolution_owner: Default::default(),
         }
     }
@@ -273,8 +275,11 @@ impl ChannelRenderer {
             },
             &mut self.next_texture,
             self.limits,
-            &observations,
-            self.pictures.as_ref(),
+            plan::Sources {
+                observations: &observations,
+                pictures: self.pictures.as_ref(),
+                calibration: &mut self.calibration_assets,
+            },
         )?;
         let applications = capture.plan_applications();
         if !applications.is_empty() {

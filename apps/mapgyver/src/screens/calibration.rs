@@ -6,6 +6,8 @@ use golden_video::{
     plan::{CanvasPaint, CanvasPattern, CanvasPrimitive, Pattern, UnitRect},
 };
 use std::time::Duration;
+mod assets;
+pub(crate) use assets::CalibrationAssets;
 
 #[cfg(test)]
 mod tests;
@@ -17,6 +19,7 @@ pub(super) struct CalibrationLayout {
     pub brightness: Option<UnitRect>,
     pub colors: Option<UnitRect>,
     pub circle: UnitRect,
+    pub logo: UnitRect,
 }
 
 pub(super) fn layout(extent: Extent2D) -> CalibrationLayout {
@@ -24,6 +27,7 @@ pub(super) fn layout(extent: Extent2D) -> CalibrationLayout {
     let diameter = width.min(height);
     let cell_pixels = (diameter / 9.).max(width.max(height) / 32.).max(1.);
     let row = cell_pixels / height;
+    let logo = diameter * 0.24;
     CalibrationLayout {
         cell_pixels,
         cells: [width / cell_pixels, height / cell_pixels],
@@ -45,6 +49,12 @@ pub(super) fn layout(extent: Extent2D) -> CalibrationLayout {
             width: diameter / width,
             height: diameter / height,
         },
+        logo: UnitRect {
+            x: (width - logo) / (2. * width),
+            y: (height - logo) / (2. * height),
+            width: logo / width,
+            height: logo / height,
+        },
     }
 }
 
@@ -57,10 +67,10 @@ pub(super) fn work_count(mode: Calibration, extent: Extent2D) -> usize {
         return 1;
     }
     let layout = layout(extent);
-    5 + usize::from(layout.brightness.is_some()) + usize::from(layout.colors.is_some())
+    6 + usize::from(layout.brightness.is_some()) + usize::from(layout.colors.is_some())
 }
 
-fn grid(extent: Extent2D) -> Pattern {
+fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>) -> Pattern {
     let layout = layout(extent);
     let [width, height] = [extent.width() as f32, extent.height() as f32];
     let line_pixels = (layout.cell_pixels / 160.).clamp(0.5, 1.5);
@@ -114,7 +124,8 @@ fn grid(extent: Extent2D) -> Pattern {
         )
         .unwrap(),
     );
-    Pattern::Canvas(CanvasPattern::new(primitives).expect("bounded calibration geometry"))
+    primitives.push(CanvasPrimitive::image(layout.logo, Opacity::OPAQUE).expect("checked logo placement"));
+    Pattern::Canvas(CanvasPattern::with_image(primitives, image).expect("bounded calibration geometry/bitmap"))
 }
 
 fn palette() -> [LinearColor; 8] {
@@ -131,10 +142,14 @@ fn palette() -> [LinearColor; 8] {
     .map(|[r, g, b]| color(r, g, b))
 }
 
-pub(super) fn pattern(mode: Calibration, extent: Extent2D) -> Option<Pattern> {
-    match mode {
+pub(super) fn pattern(
+    mode: Calibration,
+    extent: Extent2D,
+    assets: &mut CalibrationAssets,
+) -> Result<Option<Pattern>, String> {
+    Ok(match mode {
         Calibration::Off => None,
-        Calibration::Grid => Some(grid(extent)),
+        Calibration::Grid => Some(grid(extent, assets.logo()?)),
         Calibration::ColorBars => Some(Pattern::Bars(palette())),
-    }
+    })
 }

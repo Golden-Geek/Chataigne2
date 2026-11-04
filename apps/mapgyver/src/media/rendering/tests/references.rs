@@ -25,8 +25,11 @@ fn plan(engine: &AppEngine, references: &[ChannelReference]) -> super::super::pl
         },
         &mut 0,
         config().plan_limits,
-        &observations,
-        None,
+        super::super::plan::Sources {
+            observations: &observations,
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap()
 }

@@ -110,8 +110,11 @@ pub(super) fn prepared(
         },
         &mut 3,
         config().plan_limits,
-        &owner.source_observations(),
-        None,
+        super::super::plan::Sources {
+            observations: &owner.source_observations(),
+            pictures: None,
+            calibration: &mut Default::default(),
+        },
     )
     .unwrap()
 }

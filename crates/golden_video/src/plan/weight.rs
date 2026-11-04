@@ -6,6 +6,7 @@ impl RenderPlan {
     /// Counts actual retained vector capacity, not just active graph values.
     pub(crate) fn retained_bytes(&self) -> Option<usize> {
         let mut canvases = std::collections::HashSet::new();
+        let mut images = std::collections::HashSet::new();
         let mut bytes = size_of::<Self>()
             .checked_add(
                 self.external_textures
@@ -15,6 +16,13 @@ impl RenderPlan {
             .checked_add(self.passes.capacity().checked_mul(size_of::<RenderPass>())?)?
             .checked_add(self.outputs.capacity().checked_mul(size_of::<PlanOutput>())?)?;
         for pass in &self.passes {
+            for image in pass.operation.canvas_images() {
+                if images.insert(std::sync::Arc::as_ptr(image) as usize) {
+                    bytes = bytes
+                        .checked_add(image.retained_bytes())?
+                        .checked_add(2 * size_of::<usize>())?;
+                }
+            }
             match &pass.operation {
                 RenderOperation::Composite { layers } => {
                     bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;

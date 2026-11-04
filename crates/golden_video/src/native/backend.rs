@@ -75,6 +75,7 @@ pub(crate) struct D3d11Resources {
     outputs: BTreeMap<OutputId, Rc<Texture>>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
+    canvas_images: BTreeMap<usize, Rc<Texture>>,
     _demands: Option<SourceDemands>,
 }
 
@@ -539,10 +540,14 @@ impl Backend for D3d11Backend {
                         });
                         pipeline.draw_layer(
                             context,
-                            layer
-                                .source
-                                .texture()
-                                .map(|source| resources.textures[&source].as_ref()),
+                            match &layer.source {
+                                crate::plan::LayerSource::Pattern(crate::plan::Pattern::Canvas(canvas)) => {
+                                    canvas.image().map(|image| {
+                                        resources.canvas_images[&(std::sync::Arc::as_ptr(image) as usize)].as_ref()
+                                    })
+                                }
+                                source => source.texture().map(|id| resources.textures[&id].as_ref()),
+                            },
                             previous.map(Rc::as_ref),
                             target.as_ref().into(),
                             &layer,

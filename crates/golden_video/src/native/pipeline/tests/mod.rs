@@ -1,4 +1,5 @@
 use super::*;
+mod bitmap;
 mod canvas;
 mod compiled;
 mod mapping;

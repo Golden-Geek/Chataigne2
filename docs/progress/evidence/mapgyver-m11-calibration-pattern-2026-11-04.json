@@ -3,8 +3,8 @@
 	"state": "Active",
 	"accepted": false,
 	"date": "2026-11-04",
-	"scope": "Geometry slice of the full official Surface calibration pattern",
-	"source_base": "942b25ab62508628060334d86ff28462304f5992",
+	"scope": "Geometry and centered immutable bitmap slices of the full official Surface calibration pattern",
+	"source_base": "a90a2f3d414e297b92f5e93c43e413bfff41dabe",
 	"implemented": [
 		"App-owned grey square checker cells adapted to actual Screen pass extent, including fractional edge cells",
 		"Second row from top black-to-white palette and second row from bottom color palette",
@@ -12,35 +12,48 @@
 		"Thin grid boundaries with diagonal rainbow hue flow sampled from the shared monotonic render clock",
 		"Generic immutable checked Canvas primitives, composed in one GPU draw per Surface",
 		"At most 32 primitives; existing work/dependency admission charges actual primitive counts in Golden and app preparation",
-		"Shared retained display-list storage charged once, heap-free frame sampling, and unchanged authored source/crop restoration when calibration is Off"
+		"Shared retained display-list storage charged once, heap-free frame sampling, and unchanged authored source/crop restoration when calibration is Off",
+		"Centered supplied 512x512 MapGyver logo through an app-neutral immutable Canvas bitmap operand; proper aspect at every calibrated canvas size",
+		"Scoped weak app memoization, bounded PNG preparation, deduplicated CPU/GPU image storage, and native texture lifetime leases without a media producer or receiver"
 	],
 	"software": {
 		"mapgyver_library": {
-			"passed": 435,
+			"passed": 437,
 			"ignored": 2,
-			"log": "target/m1110-app-reservation-tests.log"
+			"log": "target/m1110-logo-software-final.log"
 		},
 		"golden_video_d3d11_library": {
-			"passed": 193,
-			"ignored": 23,
-			"log": "target/m1110-golden-final.log"
+			"passed": 195,
+			"ignored": 25,
+			"log": "target/m1110-logo-software-final.log"
 		},
 		"strict_all_targets": {
 			"passed": true,
-			"log": "target/m1110-clippy-final.log",
+			"log": "target/m1110-logo-clippy-final.log",
 			"features": "native-qualification,application-process-fixture,native-video-smoke,golden_video/d3d11"
 		},
 		"contracts": "No transport or authored protocol change; generated contracts and UI consumers unchanged",
-		"format": "Root and golden_core cargo fmt plus scoped documentation formatting"
+		"format": "Root and golden_core cargo fmt plus scoped documentation formatting",
+		"affected_admission_tests": {
+			"passed": 6,
+			"log": "target/m1110-logo-admission-final.log",
+			"purpose": "Final count-before-scan admission ordering and bitmap memory/identity/retention"
+		}
 	},
 	"native_kernel": {
 		"passed": true,
-		"log": "target/m1110-native-geometry-final.log",
+		"log": "target/m1110-logo-native.log",
 		"binary": "target/debug/deps/golden_video-8e33bf4194726db6.exe",
-		"sha256": "1302B779467DB050D2D24AFDF818F665ECEC8C900A70D0122EBC38965CA165AA",
+		"sha256": "60B2C3E7BB0D46D7DEA56B621758CBCC7647F48AAC0D2D99B8C95965407E9C91",
 		"adapters": [
-			{ "id": "dxgi:00000000:00015b69", "name": "Intel(R) Graphics" },
-			{ "id": "dxgi:00000000:00016022", "name": "NVIDIA GeForce RTX 5080 Laptop GPU" }
+			{
+				"id": "dxgi:00000000:00015b69",
+				"name": "Intel(R) Graphics"
+			},
+			{
+				"id": "dxgi:00000000:00016022",
+				"name": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			}
 		],
 		"extents_each": [
 			[1920, 1080],
@@ -58,15 +71,15 @@
 			"pixels": 448,
 			"tolerance": "2/255",
 			"scope": "Existing Grid/Bars/crop/projective mapping/order/alpha/texture kernel oracle on the default hardware adapter",
-			"log": "target/m1110-native-regression.log"
+			"log": "target/m1110-logo-legacy-native.log"
 		},
 		"limit": "Kernel landmarks do not establish complete app image, text readability, warped output or production timing qualification"
 	},
 	"app_build": {
 		"passed": true,
-		"binary": "target/debug/MapGyver-codex-m1110-geometry.exe",
-		"sha256": "DA989966812480D1C3DD0A21E9DF30FADC8DA79004E133EAFD2E363FFE4FA592",
-		"log": "target/m1110-app-build.log",
+		"binary": "target/debug/MapGyver-codex-m1110-logo.exe",
+		"sha256": "E903F1C1346ED190BB639297045AC410DBBC700742D30D61E199C4A0C8DF8440",
+		"log": "target/m1110-logo-build.log",
 		"limit": "Isolated native executable; user's running app and sender preserved. No release or package qualification claimed"
 	},
 	"resource_change": {
@@ -74,11 +87,22 @@
 		"pattern_constant_bytes_after": 6816,
 		"additional_fixed_bytes_per_renderer": 6656,
 		"charged": true,
-		"existing_budgets_increased": false,
-		"normal_calibration_primitives": 7
+		"existing_budgets_increased": "GPU/work/producer and retained production qualification budgets unchanged; image-bearing functional fixture has explicit CPU capacities, with old small-capacity rejection retained",
+		"normal_calibration_primitives": 8,
+		"immutable_bitmap": {
+			"rgba_bytes": 1048576,
+			"source": "apps/mapgyver/assets/mapgyver-icon.png",
+			"descriptor": "512x512 RGBA8 sRGB straight alpha",
+			"png_workspace_limit": 2097152,
+			"shared_gpu_charge": "Once per distinct demanded bitmap",
+			"shared_cpu_charge": "Exact pixels/value/Arc envelope once per submitted plan",
+			"cache": "Weak reference owned by ChannelRenderer preparation; no permanent decoded pixel owner",
+			"generic_small_cpu_fixture": "64 KiB per input and 256 KiB retained remain unchanged and reject this larger input",
+			"image_calibration_functional_fixture": "Explicit 2 MiB per input and 8 MiB retained; GPU, work and producer limits unchanged",
+			"production_qualification_limits": "No timing, private-growth, GPU-memory or physical/device qualification budget revision"
+		}
 	},
 	"remaining": [
-		"Centered supplied MapGyver bitmap through reusable Golden image primitives",
 		"Subtle row/column labels such as A1/B2 through bounded reusable text primitives",
 		"Surface resolution and actual measured FPS below the logo",
 		"Current local system time with milliseconds above the logo, sampled at an IO/render boundary",
@@ -90,5 +114,20 @@
 		"percent": 84,
 		"m11_verified": 9,
 		"m11_total": 10
+	},
+	"native_bitmap": {
+		"passed": true,
+		"log": "target/m1110-logo-native.log",
+		"adapters": ["dxgi:00000000:00015b69", "dxgi:00000000:00016022"],
+		"tests": 2,
+		"checks": [
+			"Transparent colored texels do not produce halos",
+			"sRGB decode and premultiplication precede linear interpolation",
+			"Primitive opacity, bounded placement and mapped pixels match independent values",
+			"One canvas image upload is shared across two compatible resource preparations",
+			"Zero media receiver slots; max external texture definitions is zero in the image plan",
+			"Actual submitted frame completes; CPU bitmap remains until the last native resource lease drops"
+		],
+		"limit": "Synthetic bitmap kernel/resource tests plus app asset/layout software tests; complete branded app image and text/readability/native-output acceptance remain open"
 	}
 }

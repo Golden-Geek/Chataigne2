@@ -8,6 +8,123 @@ impl golden_time::Clock for FixedClock {
     }
 }
 
+fn bitmap() -> std::sync::Arc<crate::image::ImageData> {
+    std::sync::Arc::new(
+        crate::image::ImageData::new(
+            crate::TextureDescriptor {
+                extent: crate::Extent2D::new(2, 2).unwrap(),
+                format: crate::PixelFormat::Rgba8Unorm,
+                color_encoding: crate::ColorEncoding::Srgb,
+                alpha_mode: crate::AlphaMode::Straight,
+            },
+            vec![255; 16],
+        )
+        .unwrap(),
+    )
+}
+
+#[test]
+fn immutable_canvas_bitmap_binding_budget_and_lifetime_are_explicit() {
+    let image = bitmap();
+    let command = CanvasPrimitive::image(UnitRect::FULL, crate::Opacity::OPAQUE).unwrap();
+    assert!(CanvasPattern::new(vec![command]).is_none());
+    assert!(
+        CanvasPattern::with_image(
+            vec![CanvasPrimitive::rectangle(UnitRect::FULL, CanvasPaint::solid(LinearColor::TRANSPARENT)).unwrap()],
+            image.clone()
+        )
+        .is_none()
+    );
+    let canvas = CanvasPattern::with_image(vec![command], image.clone()).unwrap();
+    let layer = Layer {
+        source: LayerSource::Pattern(Pattern::Canvas(canvas)),
+        opacity: crate::Opacity::OPAQUE,
+        opacity_envelope: None,
+        blend: BlendMode::Normal,
+        filter: SampleFilter::Linear,
+        mapping: None,
+    };
+    let plan = RenderPlan {
+        passes: vec![RenderPass {
+            id: pass_id(1),
+            output: texture(1),
+            descriptor: descriptor(4, 4),
+            operation: RenderOperation::Composite {
+                layers: vec![layer.clone(), layer],
+            },
+        }],
+        outputs: vec![output(1, 1)],
+        ..Default::default()
+    };
+    let mut budget = limits();
+    budget.max_external_textures = 0;
+    budget.max_texture_bytes = 79;
+    assert!(matches!(
+        plan.clone().compile(&budget),
+        Err(PlanError::TextureBudgetExceeded { actual: 80, limit: 79 })
+    ));
+    budget.max_texture_bytes = 80;
+    let weak = std::sync::Arc::downgrade(&image);
+    let compiled = plan.compile(&budget).unwrap();
+    assert!(
+        compiled.external_textures().is_empty(),
+        "a drawing asset is not a media endpoint"
+    );
+    assert_eq!(compiled.footprint().external_texture_bytes, 16);
+    assert_eq!(compiled.footprint().total_texture_bytes, 80);
+    drop(image);
+    assert!(weak.upgrade().is_some());
+    drop(compiled);
+    assert!(weak.upgrade().is_none());
+}
+
+#[test]
+fn canvas_bitmap_metadata_and_pixels_are_charged_once_per_shared_image() {
+    let image = bitmap();
+    let command = CanvasPrimitive::image(UnitRect::FULL, crate::Opacity::OPAQUE).unwrap();
+    let make = |image| Layer {
+        source: LayerSource::Pattern(Pattern::Canvas(
+            CanvasPattern::with_image(vec![command], image).unwrap(),
+        )),
+        opacity: crate::Opacity::OPAQUE,
+        opacity_envelope: None,
+        blend: BlendMode::Normal,
+        filter: SampleFilter::Linear,
+        mapping: None,
+    };
+    let mut plan = RenderPlan {
+        passes: vec![RenderPass {
+            id: pass_id(1),
+            output: texture(1),
+            descriptor: descriptor(4, 4),
+            operation: RenderOperation::Composite {
+                layers: vec![make(image.clone()), make(image.clone())],
+            },
+        }],
+        outputs: vec![output(1, 1)],
+        ..Default::default()
+    };
+    let shared = plan.retained_bytes().unwrap();
+    let RenderOperation::Composite { layers } = &mut plan.passes[0].operation else {
+        panic!()
+    };
+    layers[1] = make(bitmap());
+    assert_eq!(
+        plan.retained_bytes().unwrap() - shared,
+        image.retained_bytes() + 2 * size_of::<usize>()
+    );
+    let mut dimension_plan = plan.clone();
+    dimension_plan.passes[0].descriptor = descriptor(1, 1);
+    let mut budget = limits();
+    budget.max_texture_dimension = 1;
+    assert!(matches!(
+        dimension_plan.compile(&budget),
+        Err(PlanError::CanvasImageDimensionExceeded { .. })
+    ));
+    plan.outputs.clear();
+    assert_eq!(plan.compile(&limits()).unwrap().footprint().total_texture_bytes, 0);
+}
+
 #[test]
 fn render_sampling_uses_shared_time_without_copying_the_display_list_or_advancing_time() {
     let mut authority = golden_time::TimeAuthority::new(

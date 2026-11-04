@@ -22,6 +22,8 @@ pub enum CanvasShape {
     Line,
     /// Eight vertical palette entries.
     Bars,
+    /// An immutable bitmap sampled inside the rectangle.
+    Image,
 }
 
 /// A finite color or shared-clock rainbow; product layout and timing policy remain app-owned.
@@ -144,6 +146,14 @@ impl CanvasPrimitive {
         result.colors = colors;
         Some(result)
     }
+    /// Place the canvas's bound bitmap, preserving its declared color/alpha sampling contract.
+    pub fn image(bounds: UnitRect, opacity: Opacity) -> Option<Self> {
+        Self::new(
+            CanvasShape::Image,
+            bounds,
+            CanvasPaint::solid(LinearColor::from_straight(1., 1., 1., opacity.get()).expect("checked opacity")),
+        )
+    }
     /// The admitted normalized placement.
     pub fn bounds(&self) -> UnitRect {
         self.bounds
@@ -155,18 +165,41 @@ impl CanvasPrimitive {
 }
 
 /// An immutable bounded display list. Sampling its shared clock clones only its storage lease.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct CanvasPattern {
     primitives: Arc<[CanvasPrimitive]>,
+    image: Option<Arc<crate::image::ImageData>>,
     pub(crate) monotonic_nanos: u64,
 }
 impl CanvasPattern {
     /// Admit a nonempty list before retaining it or submitting native work.
     pub fn new(primitives: Vec<CanvasPrimitive>) -> Option<Self> {
-        (!primitives.is_empty() && primitives.len() <= MAX_CANVAS_PRIMITIVES).then(|| Self {
+        Self::assemble(primitives, None)
+    }
+    /// Bind one immutable drawing asset. It is not a media producer or an external endpoint.
+    pub fn with_image(primitives: Vec<CanvasPrimitive>, image: Arc<crate::image::ImageData>) -> Option<Self> {
+        if !matches!(
+            image.descriptor().format,
+            crate::PixelFormat::Rgba8Unorm | crate::PixelFormat::Bgra8Unorm
+        ) {
+            return None;
+        }
+        Self::assemble(primitives, Some(image))
+    }
+    fn assemble(primitives: Vec<CanvasPrimitive>, image: Option<Arc<crate::image::ImageData>>) -> Option<Self> {
+        if primitives.is_empty() || primitives.len() > MAX_CANVAS_PRIMITIVES {
+            return None;
+        }
+        let needs_image = primitives.iter().any(|primitive| primitive.shape == CanvasShape::Image);
+        (needs_image == image.is_some()).then(|| Self {
             primitives: primitives.into(),
+            image,
             monotonic_nanos: 0,
         })
+    }
+    /// Immutable bitmap lease retained through plan and native texture lifetime.
+    pub fn image(&self) -> Option<&Arc<crate::image::ImageData>> {
+        self.image.as_ref()
     }
     /// Read-only drawing order.
     pub fn primitives(&self) -> &[CanvasPrimitive] {
@@ -180,5 +213,17 @@ impl CanvasPattern {
     }
     pub(crate) fn retained_bytes(&self) -> usize {
         self.primitives.len() * size_of::<CanvasPrimitive>() + 2 * size_of::<usize>()
+    }
+}
+
+impl PartialEq for CanvasPattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.monotonic_nanos == other.monotonic_nanos
+            && self.primitives == other.primitives
+            && match (&self.image, &other.image) {
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                (None, None) => true,
+                _ => false,
+            }
     }
 }
