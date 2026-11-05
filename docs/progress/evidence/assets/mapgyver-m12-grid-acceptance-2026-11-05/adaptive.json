@@ -1,0 +1,81 @@
+{
+  "result": "pass",
+  "nativePid": 10676,
+  "group": "3a3792aa-e8e8-49b6-8006-341d1d0d1bde",
+  "rowGroup": "77556708-23c1-433c-8409-b29cc6e6ac22",
+  "empty_states": [
+    {
+      "phase": "both-empty",
+      "mounted": {
+        "rows": 0,
+        "columns": 0,
+        "cells": 0
+      },
+      "column_creation": true,
+      "layer_creation": true,
+      "image": "empty.png"
+    },
+    {
+      "phase": "zero-rows",
+      "mounted": {
+        "rows": 0,
+        "columns": 1,
+        "cells": 0
+      },
+      "column_creation": true,
+      "layer_creation": true,
+      "image": "zero-rows.png"
+    },
+    {
+      "phase": "zero-columns",
+      "mounted": {
+        "rows": 1,
+        "columns": 0,
+        "cells": 0
+      },
+      "column_creation": true,
+      "layer_creation": true,
+      "image": "zero-columns.png"
+    },
+    {
+      "phase": "both-empty-again",
+      "mounted": {
+        "rows": 0,
+        "columns": 0,
+        "cells": 0
+      },
+      "column_creation": true,
+      "layer_creation": true,
+      "image": "empty-again.png"
+    }
+  ],
+  "geometry": [
+    [
+      715,
+      640,
+      "10.816666666666668rem",
+      "14.21875rem"
+    ],
+    [
+      996,
+      801,
+      "14.170833333333334rem",
+      "23rem"
+    ],
+    [
+      396,
+      346,
+      "7.5rem",
+      "7.5rem"
+    ]
+  ],
+  "preview_lease": "05519c19-42a1-4bf3-8f5d-f6499958ee99",
+  "preview_resize_frames": 135,
+  "errors": [],
+  "rejected": [],
+  "transport": {
+    "requests": 269,
+    "receipts": 269
+  },
+  "limits": "Actual native zero axes, trailing creation, selected hierarchy, keyboard reveal/create/remove, generic X hook, history and settled resize. Full group/Inspector and 1000x1000 cases run separately in the same acceptance flow."
+}

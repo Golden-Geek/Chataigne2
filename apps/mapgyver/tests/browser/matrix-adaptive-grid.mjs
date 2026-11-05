@@ -46,17 +46,42 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 	await wait(inspect, (s) => s.items.length === 0 && s.columns.length === 0);
 	const columnAdd = grid.getByRole('button', { name: 'Add Column or Column Group', exact: true });
 	const layerAdd = grid.getByRole('button', { name: 'Add Layer or Layer Group', exact: true });
-	await columnAdd.waitFor();
-	await layerAdd.waitFor();
-	assert(
-		(await columnAdd.isVisible()) && (await layerAdd.isVisible()),
-		'zero-axis Matrix retains both entrypoints'
-	);
-	await page.screenshot({ path: path.join(directory, 'empty.png') });
+	const emptyStates = [];
+	async function emptyState(phase, rows, columns, image) {
+		await wait(inspect, (s) => s.items.length === rows && s.columns.length === columns);
+		const mounted = await wait(
+			() =>
+				grid.evaluate((element) => ({
+					rows: element.querySelectorAll('.row[data-row-id]').length,
+					columns: element.querySelectorAll('.heading[data-column-id]').length,
+					cells: element.querySelectorAll('[role="gridcell"]').length
+				})),
+			(value) => value.rows === rows && value.columns === columns && value.cells === 0
+		);
+		await columnAdd.click({ trial: true });
+		await layerAdd.click({ trial: true });
+		assert((await columnAdd.isVisible()) && (await layerAdd.isVisible()));
+		await page.screenshot({ path: path.join(directory, image) });
+		emptyStates.push({ phase, mounted, column_creation: true, layer_creation: true, image });
+	}
+	await emptyState('both-empty', 0, 0, 'empty.png');
 	async function create(button, label) {
 		await button.click();
 		await page.getByRole('menuitem', { name: label, exact: true }).click();
 	}
+	await create(columnAdd, 'Column');
+	state = await wait(inspect, (s) => s.columns.length === 1);
+	await emptyState('zero-rows', 0, 1, 'zero-rows.png');
+	await create(layerAdd, 'Layer');
+	await wait(inspect, (s) => s.items.length === 1);
+	await matrix({ kind: 'RemoveColumn', column: state.columns[0].id });
+	await emptyState('zero-columns', 1, 0, 'zero-columns.png');
+	await create(columnAdd, 'Column');
+	state = await wait(inspect, (s) => s.items.length === 1 && s.columns.length === 1);
+	assert.equal(state.cells.length, 0, 'creation does not materialize an empty address');
+	await matrix({ kind: 'RemoveItem', item: state.items[0].id });
+	await matrix({ kind: 'RemoveColumn', column: state.columns[0].id });
+	await emptyState('both-empty-again', 0, 0, 'empty-again.png');
 	await create(columnAdd, 'Column Group');
 	state = await wait(inspect, (s) => s.column_groups.length === 1);
 	const group = state.column_groups[0].id;
@@ -222,6 +247,7 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 		nativePid,
 		group,
 		rowGroup,
+		empty_states: emptyStates,
 		geometry,
 		preview_lease: lease,
 		preview_resize_frames: 135,

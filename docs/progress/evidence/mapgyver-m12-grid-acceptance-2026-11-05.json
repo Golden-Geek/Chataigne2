@@ -1,0 +1,64 @@
+{
+	"date": "2026-11-05",
+	"milestone": "M12/5 full-panel Matrix grid acceptance",
+	"gate": "Accepted",
+	"acceptance": { "verified": 62, "total": 78, "m12_verified": 5, "m12_total": 11 },
+	"scope": "The complete M12/5 contract, combining the implemented and software-verified b65a2194 milestone with the final settled native UI flow. No denominator change.",
+	"implementation_evidence": "mapgyver-m12-grid-2026-11-05.json",
+	"requirements": [
+		{
+			"requirement": "Scrolling table without Frame/Home/Zoom toolbar",
+			"proof": "Adaptive fixture asserts removed navigation controls; native keyboard/overflow flow passes."
+		},
+		{
+			"requirement": "Trailing Column/Column Group and Layer/Layer Group creation, including empty axes",
+			"proof": "Actual menu creation plus settled DOM/actionability checks for 0x0, 0x1, 1x0 and restored 0x0; all have zero mounted Cells and both creation entrypoints. Captures visually reviewed. Creation back to 1x1 authors no empty Cell."
+		},
+		{
+			"requirement": "Backend-owned selected-hierarchy insertion and public caller/history/project parity",
+			"proof": "b65a2194 Rust contextual insertion/history/reload and four-caller tests; unchanged native selection-driven group/Column/Layer creation passes."
+		},
+		{
+			"requirement": "Adaptive full-panel geometry, readable relative minima, overflow and stable native projection",
+			"proof": "715x640 and 996x801 expand spans; 396x346 retains 7.5rem minima. DOM/native tiles share projection. One native preview lease survives 135 resize frames; 64x64 keyboard scrolling, fractional dock size and narrow 125% Inspector pass."
+		},
+		{
+			"requirement": "Quiet empty icon, keyboard/hover Add/X, accessible contextual removal and generic menu icon hook",
+			"proof": "Native quiet/revealed control checks, keyboard create/remove and history pass. b65a2194 supplies the public Golden action hook and MapGyver X assets without changing other apps' default policy."
+		},
+		{
+			"requirement": "Groups, trusted drag sort/reparent, inline rename, history and offscreen Inspector",
+			"proof": "Final uninstrumented native flow passes original Column-to-nested-group and group-to-root drags, exact Undo, rename, duplicate/delete/ungroup history, typed Window edits and offscreen editing. 1000 extra Columns mount 27 Cells and author none."
+		},
+		{
+			"requirement": "Sparse 1000x1000 lifetime without implicit launch or stale project output",
+			"proof": "Six authored Cells; 100 near and 64 far mounted. Preview source groups: 2 near, 2 far, 1 loss, 0 empty, 2 scroll recovery, 2 tab recovery. New publishes no sources; existing runtime error-null assertion passes."
+		}
+	],
+	"software": {
+		"unchanged_source_checkpoint": "b65a2194b8491a51db0f971d80ce9567f9cd0d47",
+		"reused_terminal_prerequisites": "469 Rust passed, 2 existing ignored; 32 scripting follow-up tests; all-target strict Clippy with native-qualification/application-process-fixture; generated contracts; Svelte 0 errors/0 warnings; 28 Matrix UI units; final native build. Exact evidence retained in implementation_evidence.",
+		"this_slice": "Test fixtures and evidence only; Node syntax, scoped Prettier, root/golden_core cargo fmt and scoped diff checks. No app binary change."
+	},
+	"native": {
+		"command": "MAPGYVER_GRID_DIRECTORY=target/m125-final-2026-11-05 MAPGYVER_GROUP_UI_DIRECTORY=target/m125-final-groups-2026-11-05 MAPGYVER_TEST_BINARY=target/debug/MapGyver.exe node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-grid",
+		"terminal_exit": 0,
+		"pid": 10676,
+		"process_absent_after_normal_close": true,
+		"binary_sha256": "e07db9d365b163d7cbc1bed84f3d1383e020be324deba01fb3ea794367159e35",
+		"preview_lease": "05519c19-42a1-4bf3-8f5d-f6499958ee99",
+		"resize_frames": 135,
+		"adaptive_intents": { "requests": 269, "receipts": 269, "rejected": 0 },
+		"group_intents": { "requests": 356, "receipts": 356, "rejected": 0 },
+		"page_errors": [],
+		"artifacts": "assets/mapgyver-m12-grid-acceptance-2026-11-05/"
+	},
+	"fixture_corrections": [
+		"Backend deletion previously settled before the rendered grid. The fixture now waits exact mounted row/header/Cell counts, checks actual button actionability, then captures each empty-axis state.",
+		"The inherited single-move drag was intermittent in WebView2, even after draggable=true. A temporary trusted-event trace altered the outcome and was removed. The final fixture uses Playwright's documented two target-hover sequence to deliver dragover, waits source readiness and always releases the mouse. Backend parent and exact Undo assertions are unchanged; no synthetic DOM drag events, forced actions, retries or backend move substitute the gesture."
+	],
+	"drag_reference": "https://playwright.dev/docs/input#dragging-manually",
+	"remaining_requirement": null,
+	"next_gate": "M12/6 last relevant content and shared tab lock",
+	"limits": "Acceptance is scoped to M12/5. Native DOM screenshots do not capture native GPU surfaces or establish physical latency/cadence. The earlier stale-zero-capture remains historical failed evidence, superseded by the settled captures here. M03/M05/M08 retained budgets, unavailable physical configurations and blockers remain unchanged."
+}

@@ -45,6 +45,21 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+	async function drag(source, target, position) {
+		await wait(
+			() => source.getAttribute('draggable'),
+			(value) => value === 'true'
+		);
+		await source.hover(position ? { position } : {});
+		await page.mouse.down();
+		try {
+			// Two target moves reliably deliver dragover in WebView2 (Playwright input docs).
+			await target.hover();
+			await target.hover();
+		} finally {
+			await page.mouse.up();
+		}
+	}
 	await grid.getByRole('button', { name: 'Add Column or Column Group', exact: true }).click();
 	await page.getByRole('menuitem', { name: 'Column Group', exact: true }).click();
 	let state = await wait(inspect, (s) => s.column_groups.length === 1);
@@ -81,13 +96,24 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 	const moving = state.columns.find((c) => c.parent === null).id;
 	const beforeMove = await inspect();
 	await page.getByRole('menu').waitFor({ state: 'hidden' });
-	await grid
-		.locator(`[data-matrix-drop="Column"][data-column-id="${moving}"]`)
-		.dragTo(band(nested), { sourcePosition: { x: 16, y: 10 } });
+	const movingHeader = grid.locator(`[data-matrix-drop="Column"][data-column-id="${moving}"]`);
+	await wait(
+		() => movingHeader.getAttribute('draggable'),
+		(value) => value === 'true'
+	);
+	await wait(
+		() => band(nested).getAttribute('draggable'),
+		(value) => value === 'true'
+	);
+	await drag(movingHeader, band(nested), { x: 16, y: 10 });
 	await wait(inspect, (s) => s.columns.find((c) => c.id === moving)?.parent === nested);
 	await undo();
 	await wait(inspect, (s) => isDeepStrictEqual(s, beforeMove));
-	await band(nested).dragTo(grid.locator('.corner'));
+	await wait(
+		() => band(nested).getAttribute('draggable'),
+		(value) => value === 'true'
+	);
+	await drag(band(nested), grid.locator('.corner'));
 	await wait(inspect, (s) => s.column_groups.find((g) => g.id === nested)?.parent === null);
 	await undo();
 	await wait(inspect, (s) => isDeepStrictEqual(s, beforeMove));
