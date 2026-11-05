@@ -268,6 +268,9 @@ pub enum MediaEdit {
     InspectCompositionEditor {
         query: super::composition::protocol::CompositionEditorQuery,
     },
+    InspectMatrixEditor {
+        query: crate::matrix::protocol::MatrixEditorQuery,
+    },
     Matrix {
         media: MediaId,
         edit: crate::matrix::protocol::MatrixEdit,
@@ -459,6 +462,9 @@ pub enum MediaEditResult {
     },
     CompositionEditor {
         page: super::composition::protocol::CompositionEditorPage,
+    },
+    MatrixEditor {
+        page: crate::matrix::protocol::MatrixEditorPage,
     },
     MediaPreview {
         page: MediaPreviewPage,

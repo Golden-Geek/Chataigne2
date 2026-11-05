@@ -28,7 +28,7 @@ new document's relevant selection, but it cannot reuse that document's unrelated
 to revive an old target. Missing targets remain unavailable and can recover through Undo or
 same-document Load. Bounded pages and independent selected-object reads remain unchanged.
 
-Composition, Media Preview, Inspector, Screen Warping and Surface Source publish the same
+Composition, Media Preview, Inspector, Screen Warping, Surface Source and the Matrix grid publish the same
 capability and have no body lock.
 Composition stores the last successful target even while unlocked. Media Preview retains
 its existing explicit lock/channel/grid/page behavior. The Matrix spatial adapter must use
@@ -46,7 +46,17 @@ the editor's viewport hit is only a visual hint. Explicit handle drops retain th
 target. Screen rows remain public Golden outliner projections with bounded row readers.
 The obsolete shared editor context and its manager/media catalog reads are removed.
 
-The native `--content-binding`, `--composition-panels` and `--preview-bindings` flows verify
+Matrix grid panels own separate controllers, viewport/scroll presentation and selected addresses.
+`InspectMatrixEditor` resolves the nearest Matrix ancestor and its Layer/Group/Column/Cell
+selection in Rust, including Parameters and owned Cell media. A nested Matrix establishes its
+own target. The query shares the existing bounded viewport index rather than reading a
+catalog or walking the UI graph. Relevant selections follow while unrelated selections retain
+the last target; document-root fencing, missing-target recovery and lock precedence match the
+other editors. Grid presentation never launches playback. One application-runtime subscription
+remains shared by the workbench, independently of the number of grids. The removed global
+Matrix controller no longer couples one panel's selection or viewport to another panel.
+
+The native `--content-binding`, `--composition-panels`, `--matrix-bindings` and `--preview-bindings` flows verify
 real tab input, independent instances, target deletion/history, layout reload, reconnect and
 project fencing through isolated production hosts. Fixtures await the exact persisted panel
 identities before reloading, rather than a stale layout that happens to mention one target.

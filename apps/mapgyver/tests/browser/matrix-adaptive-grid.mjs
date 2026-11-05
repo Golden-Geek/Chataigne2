@@ -117,6 +117,7 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 		'0'
 	);
 	assert.equal(await cell.locator('.empty-icon').count(), 1);
+	await wait(() => add.isEnabled(), Boolean);
 	await add.focus();
 	assert.equal(
 		await cell.locator('.add').evaluate((element) => getComputedStyle(element).opacity),
@@ -137,6 +138,7 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 		await cell.locator('.remove').evaluate((element) => getComputedStyle(element).opacity),
 		'0'
 	);
+	await wait(() => remove.isEnabled(), Boolean);
 	await remove.focus();
 	assert.equal(
 		await cell.locator('.remove').evaluate((element) => getComputedStyle(element).opacity),

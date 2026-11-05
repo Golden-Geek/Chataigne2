@@ -41,6 +41,15 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 		.click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 	const band = (id) => grid.locator(`[data-column-group-id="${id}"]`);
+	async function context(id) {
+		await wait(
+			() => band(id).getAttribute('draggable'),
+			(value) => value === 'true'
+		);
+		await band(id)
+			.getByRole('button')
+			.click({ button: 'right', position: { x: 10, y: 10 } });
+	}
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
@@ -85,10 +94,10 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 	await band(group).getByRole('textbox').fill('Show Group');
 	await band(group).getByRole('textbox').press('Enter');
 	await wait(inspect, (s) => s.column_groups[0].label === 'Show Group');
-	await band(group).click({ button: 'right' });
+	await context(group);
 	await page.getByRole('menuitem', { name: 'Add Column in group', exact: true }).click();
 	state = await wait(inspect, (s) => s.columns.some((c) => c.parent === group));
-	await band(group).click({ button: 'right' });
+	await context(group);
 	await page.getByRole('menuitem', { name: 'Add nested Column Group', exact: true }).click();
 	state = await wait(inspect, (s) => s.column_groups.length === 2);
 	const nested = state.column_groups.find((g) => g.parent === group).id;
@@ -123,7 +132,7 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 		['Ungroup Columns', 1]
 	]) {
 		const before = await inspect();
-		await band(group).click({ button: 'right' });
+		await context(group);
 		await page.getByRole('menuitem', { name: action, exact: true }).click();
 		const after = await wait(inspect, (s) => s.column_groups.length === count);
 		await undo();
@@ -136,6 +145,10 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 	await band(group).getByRole('button').click();
 	await parameter('Window').locator('select').waitFor();
 	await matrix({ kind: 'AddColumns', parent: null, count: 1000 });
+	await wait(
+		() => grid.evaluate((element) => element.scrollWidth),
+		(width) => width > 10000
+	);
 	await grid.evaluate((element) => {
 		element.scrollLeft = element.scrollWidth;
 		element.dispatchEvent(new Event('scroll'));

@@ -21,6 +21,7 @@ mod column_groups;
 mod copying;
 mod creation;
 mod defaults;
+mod editor;
 mod layer_settings;
 mod owned_media;
 mod parameters;

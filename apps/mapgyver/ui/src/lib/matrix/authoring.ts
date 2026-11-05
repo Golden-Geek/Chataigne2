@@ -5,78 +5,70 @@ import type { MatrixItemId } from '../media/generated/MatrixItemId';
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
 import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 import type { MatrixSelection } from '../media/generated/MatrixSelection';
-import { ChoiceReader, choiceState } from './choices.ts';
+import type { MatrixEditorQuery } from '../media/generated/MatrixEditorQuery';
+import type { MatrixEditorPage } from '../media/generated/MatrixEditorPage';
 import type { Connection } from '../requests/connection';
 import { ReadQueue } from '../requests/read-queue.ts';
 import { sameSelection } from './selection.ts';
+import { sameViewport } from './viewport.ts';
 
+interface EditorConnection extends Connection {
+	readonly projectGeneration: number | null;
+}
 export interface MatrixState {
-	generation: number | null;
 	media: string | null;
+	page: MatrixEditorPage | null;
 	window: MatrixViewportSnapshot | null;
 	viewport: MatrixViewport;
 	selected: MatrixSelection | null;
+	node: string | null;
 	pending: boolean;
 	refreshing: boolean;
 	error: string;
 	readError: string;
+	history: unknown;
 }
 export const matrixState = (): MatrixState => ({
-	generation: null,
 	media: null,
+	page: null,
 	window: null,
 	viewport: { row_start: 0, row_count: 32, axis_start: 0, axis_count: 16 },
 	selected: null,
+	node: null,
 	pending: false,
 	refreshing: false,
 	error: '',
-	readError: ''
+	readError: '',
+	history: undefined
 });
-export class MatrixController<S extends Connection> {
-	readonly matrices: ChoiceReader<S>;
-	readonly sources: ChoiceReader<S>;
+export class MatrixController<S extends EditorConnection> {
 	private reads = new ReadQueue();
 	private disposed = false;
 	private mutation = 0;
-	private owner: S | null = null;
+	private context: { session: S; project: number } | null = null;
+	private query: MatrixEditorQuery | null = null;
+	private queryKey = '';
 	private session: () => S | null;
 	readonly state: MatrixState;
 	private invoke: (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
 	constructor(
 		session: () => S | null,
 		state: MatrixState,
-		matrixChoices: ReturnType<typeof choiceState>,
-		sourceChoices: ReturnType<typeof choiceState>,
 		invoke: (session: S, edit: MediaEdit) => Promise<MediaEditResult>
 	) {
 		this.session = session;
 		this.state = state;
 		this.invoke = invoke;
-		const owner = session();
-		if (owner) {
-			this.owner = owner;
-			this.state.generation = owner.snapshotGeneration;
-		}
-		const connected = () => (this.disposed ? null : this.session());
-		this.matrices = new ChoiceReader(connected, matrixChoices, 'MatrixFinal', invoke, () => {
-			if (!this.state.media)
-				this.selectMedia(matrixChoices.page?.choices[0]?.reference.media ?? null);
-		});
-		this.sources = new ChoiceReader(connected, sourceChoices, 'All', invoke);
 	}
-	private owns(session: S | null): boolean {
-		return (
-			session !== null &&
-			this.state.generation === session.snapshotGeneration &&
-			this.owner === session
-		);
-	}
-	get window(): MatrixViewportSnapshot | null {
-		const session = this.session();
-		return session &&
-			this.owns(session) &&
-			this.current(session, session.snapshotGeneration, this.state.media)
-			? this.state.window
+	get window() {
+		const window = this.state.window,
+			session = this.session();
+		return !this.disposed &&
+			session &&
+			this.context?.session === session &&
+			session.projectGeneration !== null &&
+			this.context.project === session.projectGeneration
+			? window
 			: null;
 	}
 	get busy() {
@@ -84,47 +76,37 @@ export class MatrixController<S extends Connection> {
 		return (
 			this.disposed ||
 			this.state.pending ||
-			!this.owns(session) ||
+			!this.window ||
 			session?.status !== 'connected' ||
-			session.loading.visible
+			session.loading.visible ||
+			this.state.history !== session.currentHistoryStateId
 		);
 	}
-	private current(session: S, generation: number, media: string | null) {
+	private current(session: S, generation: number, project: number) {
 		return (
 			!this.disposed &&
 			this.session() === session &&
 			session.status === 'connected' &&
 			!session.loading.visible &&
 			session.snapshotGeneration === generation &&
-			this.state.media === media
+			session.projectGeneration === project
 		);
 	}
-	observe(catalog = true) {
-		if (this.disposed) return;
-		const session = this.session();
-		if (!session || session.status !== 'connected' || session.loading.visible) {
-			this.reset();
-			return;
-		}
-		if (!this.owns(session)) {
-			this.reset();
-			this.owner = session;
-			this.state.generation = session.snapshotGeneration;
-		}
-		if (catalog) {
-			this.matrices.refresh();
-			this.sources.refresh();
-		}
-		if (!this.state.pending) this.refresh();
-	}
-	selectMedia(media: string | null) {
-		if (this.state.pending || this.disposed) return;
-		this.reads.invalidate();
-		this.state.media = media;
-		this.state.window = null;
-		this.state.selected = null;
-		this.state.viewport = { ...this.state.viewport, row_start: 0, axis_start: 0 };
+	observe(query: MatrixEditorQuery) {
+		this.query = query;
 		this.refresh();
+	}
+	restore(viewport: MatrixViewport, selection: MatrixSelection | null, node: string | null) {
+		if (
+			sameViewport(viewport, this.state.viewport) &&
+			sameSelection(selection, this.state.selected) &&
+			node === this.state.node
+		)
+			return;
+		this.reads.invalidate();
+		this.state.viewport = { ...viewport };
+		this.state.selected = selection;
+		this.state.node = node;
 	}
 	select(item: MatrixItemId | null, column: string | null) {
 		if (sameSelection(this.state.selected, { item, column })) return;
@@ -132,125 +114,125 @@ export class MatrixController<S extends Connection> {
 		this.refresh();
 	}
 	setViewport(viewport: MatrixViewport) {
-		if (this.disposed) return;
-		if (JSON.stringify(viewport) === JSON.stringify(this.state.viewport)) return;
+		if (this.disposed || sameViewport(viewport, this.state.viewport)) return;
 		this.state.viewport = viewport;
 		this.refresh();
 	}
 	refresh() {
+		if (this.disposed || !this.query) return;
 		const session = this.session();
-		if (!session || !this.owns(session)) {
-			this.observe(false);
+		if (
+			this.context &&
+			(this.context.session !== session || this.context.project !== session?.projectGeneration)
+		) {
+			this.mutation++;
+			this.context = null;
+			this.state.pending = false;
+			this.state.window = null;
+			this.state.error = '';
+			this.state.readError = '';
+		}
+		if (this.state.pending) return;
+		this.reads.invalidate();
+		if (
+			!session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.projectGeneration === null
+		) {
+			this.state.refreshing = false;
 			return;
 		}
-		const media = this.state.media;
-		if (!media || this.busy) return;
-		const generation = session.snapshotGeneration,
-			history = session.currentHistoryStateId,
-			viewport = { ...this.state.viewport };
-		const selection = this.state.selected ? { ...this.state.selected } : null;
-		const current = () =>
-			this.current(session, generation, media) && history === session.currentHistoryStateId;
+		const query = {
+			...this.query,
+			viewport: { ...this.state.viewport },
+			selection: this.state.selected,
+			node: this.state.node
+		};
+		const key = JSON.stringify(query),
+			generation = session.snapshotGeneration,
+			project = session.projectGeneration,
+			history = session.currentHistoryStateId;
+		// Until a new projection arrives, explicit intents still address the displayed target.
+		// Reads must not disable focused controls between click and double-click/menu input.
+		this.queryKey = key;
 		this.state.refreshing = true;
+		const current = () =>
+			this.current(session, generation, project) &&
+			this.queryKey === key &&
+			session.currentHistoryStateId === history;
 		this.reads.request(
 			current,
-			() =>
-				this.invoke(session, {
-					kind: 'Matrix',
-					media,
-					edit: { kind: 'InspectViewport', viewport, selection }
-				}),
+			() => this.invoke(session, { kind: 'InspectMatrixEditor', query }),
 			(result) => {
 				if (!current()) return;
-				if (result.kind === 'MatrixMissing' && result.media === media) {
-					this.state.window = null;
-					this.state.readError = '';
+				if (result.kind !== 'MatrixEditor') {
+					this.state.readError = 'Unexpected Matrix editor reply';
 					return;
 				}
-				if (result.kind !== 'MatrixViewport' || result.snapshot.media !== media) {
-					this.state.readError = 'Unexpected Matrix viewport';
-					return;
-				}
-				this.state.window = result.snapshot;
+				const changed = this.state.media !== result.page.media;
+				this.context = { session, project };
+				this.state.media = result.page.media;
+				this.state.page = result.page;
+				this.state.window = result.page.snapshot;
+				this.state.selected = result.page.selection;
+				this.state.node = result.page.node;
+				if (changed && result.page.snapshot)
+					this.state.viewport = {
+						...this.state.viewport,
+						row_start: result.page.snapshot.row_start,
+						axis_start: result.page.snapshot.axis_start
+					};
+				this.state.history = history;
 				this.state.readError = '';
 			},
 			(error) => {
-				if (current()) {
-					this.state.window = null;
-					this.state.readError = String(error);
-				}
+				if (current()) this.state.readError = String(error);
 			},
 			() => {
-				this.state.refreshing = false;
+				if (current()) this.state.refreshing = false;
 			}
 		);
 	}
-	async edit(edit: MatrixEdit) {
-		const media = this.state.media;
-		if (media) return this.mutate({ kind: 'Matrix', media, edit });
-	}
-	async create() {
-		return this.mutate({ kind: 'CreateMedia', media_kind: 'Matrix', label: null });
-	}
-	private async mutate(edit: MediaEdit): Promise<MediaEditResult | undefined> {
+	async edit(edit: MatrixEdit): Promise<MediaEditResult | undefined> {
 		const session = this.session(),
 			media = this.state.media;
-		if (!session || this.busy) return;
+		if (
+			!session ||
+			!media ||
+			this.busy ||
+			session.hasActiveEditSession ||
+			session.projectGeneration === null
+		)
+			return;
 		const generation = session.snapshotGeneration,
+			project = session.projectGeneration,
 			mutation = ++this.mutation;
 		this.reads.invalidate();
 		this.state.pending = true;
 		this.state.error = '';
 		try {
-			const result = await this.invoke(session, edit);
-			if (mutation !== this.mutation || !this.current(session, generation, media)) return;
-			if (result.kind === 'Created') {
-				this.state.media = result.reference.media;
-				this.state.selected = null;
-				this.state.window = null;
-				this.state.viewport = { ...this.state.viewport, row_start: 0, axis_start: 0 };
-			}
-			return result;
+			const result = await this.invoke(session, { kind: 'Matrix', media, edit });
+			if (
+				mutation === this.mutation &&
+				this.current(session, generation, project) &&
+				this.state.media === media
+			)
+				return result;
 		} catch (error) {
-			if (mutation === this.mutation && this.current(session, generation, media))
+			if (mutation === this.mutation && this.current(session, generation, project))
 				this.state.error = String(error);
 		} finally {
 			if (mutation === this.mutation) {
 				this.state.pending = false;
-				if (
-					!this.disposed &&
-					this.session() === session &&
-					session.snapshotGeneration === generation
-				) {
-					this.refresh();
-					if (
-						edit.kind !== 'Matrix' ||
-						(edit.edit.kind !== 'LaunchColumn' && edit.edit.kind !== 'ClearPlayback')
-					) {
-						this.matrices.refresh();
-						this.sources.refresh();
-					}
-				}
+				if (this.current(session, generation, project)) this.refresh();
 			}
 		}
 	}
-	private reset() {
-		++this.mutation;
-		this.reads.invalidate();
-		this.matrices.reset();
-		this.sources.reset();
-		this.state.media = null;
-		this.state.window = null;
-		this.state.selected = null;
-		this.state.pending = false;
-		this.state.refreshing = false;
-		this.state.error = '';
-		this.state.readError = '';
-		this.owner = null;
-		this.state.generation = null;
-	}
 	dispose() {
 		this.disposed = true;
-		this.reset();
+		this.mutation++;
+		this.reads.invalidate();
+		this.context = null;
 	}
 }

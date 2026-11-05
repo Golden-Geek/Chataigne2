@@ -5,6 +5,21 @@ import { mediaOperationActivity } from '../operations.ts';
 test('viewport and application inspections stay background while group authoring and launch retain user activity', () => {
 	assert.equal(
 		mediaOperationActivity({
+			kind: 'InspectMatrixEditor',
+			query: {
+				selected: null,
+				document: null,
+				retained: null,
+				locked: null,
+				viewport: { row_start: 0, row_count: 8, axis_start: 0, axis_count: 8 },
+				selection: null,
+				node: null
+			}
+		}),
+		'background'
+	);
+	assert.equal(
+		mediaOperationActivity({
 			kind: 'Matrix',
 			media: 'matrix',
 			edit: {

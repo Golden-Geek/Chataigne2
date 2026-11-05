@@ -1,422 +1,360 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MatrixController, matrixState } from '../authoring.ts';
-import { choiceState } from '../choices.ts';
+import { matrixPanelState } from '../panel-state.ts';
+import { viewportResult } from './fixture.ts';
 import type { MediaEdit } from '../../media/generated/MediaEdit';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
+import type { MatrixEditorQuery } from '../../media/generated/MatrixEditorQuery';
+import type { MatrixSelection } from '../../media/generated/MatrixSelection';
 
-const flush = async () => {
-	for (let i = 0; i < 12; i++) await Promise.resolve();
-};
+const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+const connection = () => ({
+	status: 'connected',
+	snapshotGeneration: 1,
+	projectGeneration: 1 as number | null,
+	currentHistoryStateId: 1,
+	loading: { visible: false },
+	hasActiveEditSession: false
+});
+const query = (media = 'matrix'): MatrixEditorQuery => ({
+	selected: media,
+	document: null,
+	locked: null,
+	retained: null,
+	viewport: matrixState().viewport,
+	selection: null,
+	node: null
+});
+function snapshot(
+	media = 'matrix',
+	row = 0,
+	selection: MatrixSelection | null = null
+): MediaEditResult {
+	const value = viewportResult(media, row);
+	if (value.kind !== 'MatrixViewport') throw Error();
+	return {
+		kind: 'MatrixEditor',
+		page: {
+			document: 'document',
+			document_matches: true,
+			media,
+			node: null,
+			selection,
+			snapshot: value.snapshot
+		}
+	};
+}
+const missing = (media = 'matrix'): MediaEditResult => ({
+	kind: 'MatrixEditor',
+	page: {
+		document: 'document',
+		document_matches: true,
+		media,
+		node: null,
+		selection: null,
+		snapshot: null
+	}
+});
 function deferred<T>() {
-	let resolve!: (value: T) => void;
-	let reject!: (error: unknown) => void;
+	let resolve!: (value: T) => void, reject!: (error: unknown) => void;
 	const promise = new Promise<T>((yes, no) => {
 		resolve = yes;
 		reject = no;
 	});
 	return { promise, resolve, reject };
 }
-const connection = () => ({
-	status: 'connected',
-	snapshotGeneration: 1,
-	currentHistoryStateId: 0,
-	loading: { visible: false }
-});
 
-test('authoritative Matrix absence clears held viewport data and Undo refresh recovers it', async () => {
-	const session = connection(),
-		state = matrixState();
-	const replies: ReturnType<typeof deferred<MediaEditResult>>[] = [];
+test('authoritative absence clears the window and Undo restores the retained identity without a catalog default', async () => {
+	const host = connection();
+	let absent = false;
 	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async () => {
-			const reply = deferred<MediaEditResult>();
-			replies.push(reply);
-			return reply.promise;
+		() => host,
+		matrixState(),
+		async (_, edit) => {
+			assert.equal(edit.kind, 'InspectMatrixEditor');
+			return absent ? missing() : snapshot();
 		}
 	);
-	controller.observe(false);
-	controller.selectMedia('matrix');
-	replies[0].resolve(snapshot('matrix'));
+	assert.equal(controller.state.window, null);
+	controller.observe(query());
 	await flush();
 	assert.equal(controller.window?.media, 'matrix');
-	session.currentHistoryStateId++;
-	controller.observe(false);
-	replies[1].resolve({ kind: 'MatrixMissing', media: 'matrix' });
+	absent = true;
+	host.currentHistoryStateId++;
+	controller.refresh();
 	await flush();
-	assert.equal(Boolean(controller.window), false);
-	assert.equal(state.readError, '');
-	assert.equal(state.media, 'matrix');
-	session.currentHistoryStateId++;
-	controller.observe(false);
-	replies[2].resolve(snapshot('matrix'));
+	assert.equal(controller.state.window, null);
+	absent = false;
+	host.currentHistoryStateId++;
+	controller.refresh();
 	await flush();
 	assert.equal(controller.window?.media, 'matrix');
-	controller.dispose();
 });
-
-test('mismatched or late Matrix absence cannot clear a current viewport', async () => {
-	const session = connection(),
-		state = matrixState();
-	const replies: ReturnType<typeof deferred<MediaEditResult>>[] = [];
+test('late absence cannot clear a newer selected Matrix', async () => {
+	const host = connection(),
+		old = deferred<MediaEditResult>();
+	let calls = 0;
 	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async () => {
-			const reply = deferred<MediaEditResult>();
-			replies.push(reply);
-			return reply.promise;
-		}
+		() => host,
+		matrixState(),
+		async () => (++calls === 1 ? old.promise : snapshot('new'))
 	);
-	controller.observe(false);
-	controller.selectMedia('matrix');
-	replies[0].resolve(snapshot('matrix'));
-	await flush();
-	controller.refresh();
-	replies[1].resolve({ kind: 'MatrixMissing', media: 'other' });
-	await flush();
-	assert.equal(controller.window?.media, 'matrix');
-	assert.equal(state.readError, 'Unexpected Matrix viewport');
-	controller.refresh();
-	controller.selectMedia('new');
-	replies[2].resolve({ kind: 'MatrixMissing', media: 'matrix' });
-	await flush();
-	replies[3].resolve(snapshot('new'));
+	controller.observe(query('old'));
+	controller.observe(query('new'));
+	old.resolve(missing('old'));
 	await flush();
 	assert.equal(controller.window?.media, 'new');
-	assert.equal(state.readError, '');
-	controller.dispose();
 });
-function snapshot(media: string, row = 0): MediaEditResult {
-	return {
-		kind: 'MatrixViewport',
-		snapshot: {
-			label: media,
-			media_types: [],
-			project: 'project-1',
-			media,
-			final_output: {
-				reference: { media, channel: 'final' },
-				label: 'Final',
-				definition: {
-					source: {
-						kind: 'Matrix',
-						output: {
-							kind: 'Final',
-							definition: {
-								canvas: { width: 4, height: 2 },
-								empty_cell: 'Transparent'
-							}
-						}
-					},
-					size: { kind: 'Automatic' },
-					fit_mode: 'Fit'
-				}
-			},
-			revision: 1,
-			row_total: 100000,
-			column_total: 100000,
-			axis_total: 100000,
-			axis_depth: 0,
-			column_groups: [],
-			requested_column_groups: [],
-			row_start: row,
-			axis_start: 0,
-			rows: [],
-			columns: [],
-			cells: [],
-			selected: null,
-			playback: {
-				request_id: null,
-				layers: [],
-				desired_column: null,
-				launch_id: null,
-				transition: { duration_ms: 250, curve: 'Linear' }
-			}
-		}
-	};
-}
-
-test('scroll bursts keep one active read and one latest window without changing cell selection or launching', async () => {
-	const session = connection(),
-		state = matrixState(),
-		reads: { edit: MediaEdit; reply: ReturnType<typeof deferred<MediaEditResult>> }[] = [];
-	state.media = 'matrix';
+test('scroll bursts retain one active and one latest bounded read without selection changes or launches', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>(),
+		edits: MediaEdit[] = [];
+	let calls = 0;
 	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async (_session, edit) => {
-			const reply = deferred<MediaEditResult>();
-			reads.push({ edit, reply });
-			return reply.promise;
+		() => host,
+		matrixState(),
+		async (_, edit) => {
+			edits.push(edit);
+			if (++calls === 1) return snapshot();
+			if (calls === 2) return pending.promise;
+			if (edit.kind !== 'InspectMatrixEditor') throw Error();
+			return snapshot('matrix', edit.query.viewport.row_start, edit.query.selection);
 		}
 	);
+	controller.observe(query());
+	await flush();
 	controller.select({ kind: 'Layer', id: 'layer' }, 'column');
-	controller.refresh();
-	for (let i = 1; i <= 1000; i++) controller.setViewport({ ...state.viewport, row_start: i });
-	assert.equal(reads.length, 1);
-	reads[0].reply.resolve(snapshot('matrix', 0));
+	for (let row = 1; row < 100; row++)
+		controller.setViewport({ row_start: row, row_count: 8, axis_start: row, axis_count: 8 });
+	assert.equal(edits.length, 2);
+	pending.resolve(snapshot());
 	await flush();
-	assert.equal(reads.length, 2);
-	assert.equal(state.window === null, true);
-	assert.equal(reads[1].edit.kind, 'Matrix');
-	if (reads[1].edit.kind === 'Matrix' && reads[1].edit.edit.kind === 'InspectViewport')
-		assert.equal(reads[1].edit.edit.viewport.row_start, 1000);
-	reads[1].reply.resolve(snapshot('matrix', 1000));
-	await flush();
-	assert.equal(state.window?.row_start, 1000);
-	assert.deepEqual(state.selected, { item: { kind: 'Layer', id: 'layer' }, column: 'column' });
-	assert.ok(
-		reads.every((read) => read.edit.kind === 'Matrix' && read.edit.edit.kind === 'InspectViewport')
-	);
-	controller.dispose();
+	assert.equal(edits.length, 3);
+	assert.equal(controller.window?.row_start, 99);
+	assert.deepEqual(controller.state.selected, {
+		item: { kind: 'Layer', id: 'layer' },
+		column: 'column'
+	});
+	assert(edits.every((edit) => edit.kind === 'InspectMatrixEditor'));
 });
-
-test('matrix/project replacement, disconnect and disposal fence late windows and errors', async () => {
-	for (const reason of ['matrix', 'project', 'disconnect', 'dispose']) {
-		const session = connection(),
+test('session/project/snapshot/disconnect/disposal fence stale windows and errors', async () => {
+	for (const reason of ['session', 'project', 'snapshot', 'disconnect', 'dispose']) {
+		let host = connection();
+		const pending = deferred<MediaEditResult>(),
 			state = matrixState();
-		state.media = 'old';
-		const replies: ReturnType<typeof deferred<MediaEditResult>>[] = [];
 		const controller = new MatrixController(
-			() => session,
+			() => host,
 			state,
-			choiceState(),
-			choiceState(),
-			async () => {
-				const reply = deferred<MediaEditResult>();
-				replies.push(reply);
-				return reply.promise;
-			}
+			async () => pending.promise
 		);
-		controller.observe(false);
-		// observe establishes the connection context; selection starts the first window.
-		controller.selectMedia('old');
-		assert.equal(replies.length, 1);
-		if (reason === 'matrix') controller.selectMedia('new');
-		if (reason === 'project') {
-			session.snapshotGeneration++;
-			controller.observe(false);
-			controller.selectMedia('new');
-		}
-		if (reason === 'disconnect') {
-			session.status = 'disconnected';
-			controller.observe(false);
-		}
+		controller.observe(query());
+		if (reason === 'session') host = connection();
+		if (reason === 'project') host.projectGeneration = 2;
+		if (reason === 'snapshot') host.snapshotGeneration++;
+		if (reason === 'disconnect') host.status = 'disconnected';
 		if (reason === 'dispose') controller.dispose();
-		replies[0].reject(new Error('stale error'));
+		pending.reject(Error('old scope'));
 		await flush();
-		assert.equal(state.error, '');
+		assert.equal(controller.window, null);
 		assert.equal(state.readError, '');
-		if (reason === 'matrix' || reason === 'project') {
-			assert.equal(replies.length, 2);
-			replies[1].resolve(snapshot('new'));
-			await flush();
-			assert.equal(state.window?.media, 'new');
-		} else {
-			assert.equal(state.window, null);
-			assert.equal(replies.length, 1);
-		}
-		controller.dispose();
-		controller.observe();
-		assert.equal(state.pending, false);
 	}
 });
-
-test('viewport refresh cannot adopt a new project generation before parent observation resets old media', async () => {
-	const session = connection(),
+test('same-project reconnect retains presentation but unknown/new projects withdraw it immediately', async () => {
+	const host = connection(),
+		controller = new MatrixController(
+			() => host,
+			matrixState(),
+			async () => snapshot()
+		);
+	controller.observe(query());
+	await flush();
+	host.status = 'disconnected';
+	controller.refresh();
+	assert(controller.window);
+	host.status = 'connected';
+	host.snapshotGeneration++;
+	controller.refresh();
+	assert(controller.window);
+	await flush();
+	host.projectGeneration = null;
+	assert.equal(controller.window, null);
+	host.projectGeneration = 2;
+	assert.equal(controller.window, null);
+});
+test('history replacement disables mutation until the exact current projection arrives', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
+	let calls = 0;
+	const controller = new MatrixController(
+		() => host,
+		matrixState(),
+		async () => (++calls === 1 ? snapshot() : pending.promise)
+	);
+	controller.observe(query());
+	await flush();
+	host.currentHistoryStateId++;
+	assert.equal(controller.busy, true);
+	assert.equal(await controller.edit({ kind: 'ClearPlayback' }), undefined);
+	controller.refresh();
+	pending.resolve(snapshot());
+	await flush();
+	assert.equal(controller.busy, false);
+});
+test('assignment and launch remain separate explicit intents, with persistent rejection feedback', async () => {
+	const host = connection(),
 		state = matrixState(),
-		calls: MediaEdit[] = [];
+		edits: MediaEdit[] = [];
 	const controller = new MatrixController(
-		() => session,
+		() => host,
 		state,
-		choiceState(),
-		choiceState(),
 		async (_, edit) => {
-			calls.push(edit);
-			assert.equal(edit.kind, 'Matrix');
-			return snapshot(edit.media);
+			edits.push(edit);
+			if (edit.kind === 'InspectMatrixEditor') return snapshot();
+			throw Error('rejected mutation');
 		}
 	);
-	controller.observe(false);
-	controller.selectMedia('old');
+	controller.observe(query());
 	await flush();
-	assert.equal(state.window?.media, 'old');
-	const published = () => controller.window;
-	assert.equal(published(), state.window);
-	assert.equal(calls.length, 1);
-	// A late grid resize runs before the parent's generation effect. It still owns old media.
-	session.snapshotGeneration++;
-	assert.equal(published(), null, 'old child forms must be unpublished immediately');
-	assert.equal(controller.busy, true, 'old controls cannot author into the new generation');
-	await controller.edit({ kind: 'LaunchColumn', column: 'old-column', mode: 'Cut' });
-	controller.setViewport({ ...state.viewport, row_start: 5 });
+	await controller.edit({ kind: 'SetCells', assignments: [] });
 	await flush();
-	assert.equal(calls.length, 1, 'old media must never be inspected using the new generation');
-	assert.equal(state.media, null);
-	assert.equal(state.window, null);
-	controller.selectMedia('new');
-	await flush();
-	assert.equal(published()?.media, 'new', 'current-project controls recover normally');
-	assert.equal(calls.length, 2);
-	controller.dispose();
+	assert.match(state.error, /rejected mutation/);
+	assert.equal(edits.filter((edit) => edit.kind === 'Matrix').length, 1);
+	await controller.edit({ kind: 'LaunchColumn', column: 'column', mode: 'Cut' });
+	assert.equal(edits.filter((edit) => edit.kind === 'Matrix').length, 2);
 });
-
-test('assignment invokes only its explicit backend intent; a later launch is separate and errors survive refresh', async () => {
-	const session = connection(),
-		state = matrixState();
-	state.media = 'matrix';
-	const calls: MediaEdit[] = [];
-	let rejectAssignment = false;
+test('stale structural receipts cannot adopt created identities in a replaced project', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
 	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async (_session, edit) => {
-			calls.push(edit);
-			if (edit.kind === 'InspectChoices')
-				return { kind: 'Choices', page: { choices: [], total: 0, start: 0 } };
-			if (edit.kind === 'Matrix' && edit.edit.kind === 'InspectViewport')
-				return snapshot(edit.media);
-			if (rejectAssignment) throw new Error('media channel dependency cycle');
-			session.currentHistoryStateId++;
-			return { kind: 'Changed' };
-		}
+		() => host,
+		matrixState(),
+		async (_, edit) => (edit.kind === 'InspectMatrixEditor' ? snapshot() : pending.promise)
 	);
-	controller.select({ kind: 'Layer', id: 'layer' }, 'column');
-	assert.deepEqual(calls, [
-		{
-			kind: 'Matrix',
-			media: 'matrix',
-			edit: { kind: 'InspectViewport', viewport: state.viewport, selection: state.selected }
-		}
-	]);
-	await controller.edit({
-		kind: 'SetCells',
-		assignments: [
-			{ layer: 'layer', column: 'column', source: { media: 'source', channel: 'source-channel' } }
-		]
-	});
+	controller.observe(query());
 	await flush();
-	assert.equal(
-		calls.filter((edit) => edit.kind === 'Matrix' && edit.edit.kind === 'LaunchColumn').length,
-		0
-	);
-	await controller.edit({ kind: 'LaunchColumn', column: 'column', mode: 'Configured' });
-	await flush();
-	assert.equal(
-		calls.filter((edit) => edit.kind === 'Matrix' && edit.edit.kind === 'LaunchColumn').length,
-		1
-	);
-	rejectAssignment = true;
-	await controller.edit({
-		kind: 'SetCells',
-		assignments: [{ layer: 'layer', column: 'column', source: null }]
-	});
-	await flush();
-	assert.match(state.error, /dependency cycle/);
-	controller.dispose();
+	const mutation = controller.edit({ kind: 'EnsureCell', layer: 'layer', column: 'column' });
+	host.projectGeneration = 2;
+	controller.observe(query('new'));
+	pending.resolve({ kind: 'MatrixCellPrepared', cell: 'old-cell', application: 'old-application' });
+	assert.equal(await mutation, undefined);
 });
-
-test('a stale creation cannot select a backend identity in the replacement project', async () => {
-	const session = connection(),
-		state = matrixState(),
-		creation = deferred<MediaEditResult>();
+test('backend selection replies coalesce with viewport reads and suppress superseded Inspector definitions', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
+	let calls = 0;
 	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async () => creation.promise
-	);
-	controller.observe(false);
-	const task = controller.create();
-	session.snapshotGeneration++;
-	controller.observe(false);
-	creation.resolve({ kind: 'Created', reference: { media: 'old-created', channel: 'final' } });
-	assert.equal(await task, undefined);
-	await flush();
-	assert.equal(state.media, null);
-	assert.equal(state.pending, false);
-	controller.dispose();
-});
-
-test('selection changes coalesce with viewport reads and suppress superseded Inspector replies', async () => {
-	const session = connection(),
-		state = matrixState();
-	state.media = 'matrix';
-	const reads: { edit: MediaEdit; reply: ReturnType<typeof deferred<MediaEditResult>> }[] = [];
-	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
+		() => host,
+		matrixState(),
 		async (_, edit) => {
-			const reply = deferred<MediaEditResult>();
-			reads.push({ edit, reply });
-			return reply.promise;
+			if (++calls === 1) return snapshot();
+			if (calls === 2) return pending.promise;
+			if (edit.kind !== 'InspectMatrixEditor') throw Error();
+			return snapshot('matrix', 0, edit.query.selection);
 		}
 	);
-	const first = { item: { kind: 'Layer' as const, id: 'first' }, column: 'first-column' };
-	const last = { item: { kind: 'Layer' as const, id: 'last' }, column: 'last-column' };
-	controller.select(first.item, first.column);
-	controller.select(last.item, last.column);
-	assert.equal(reads.length, 1);
-	reads[0].reply.resolve(snapshot('matrix'));
+	controller.observe(query());
 	await flush();
-	assert.equal(state.window, null, 'superseded selection must never publish');
-	assert.equal(reads.length, 2);
-	assert.deepEqual(reads[1].edit, {
-		kind: 'Matrix',
-		media: 'matrix',
-		edit: { kind: 'InspectViewport', viewport: state.viewport, selection: last }
+	controller.select({ kind: 'Layer', id: 'a' }, 'first');
+	controller.select({ kind: 'Layer', id: 'b' }, 'last');
+	pending.resolve(snapshot());
+	await flush();
+	assert.deepEqual(controller.state.selected, { item: { kind: 'Layer', id: 'b' }, column: 'last' });
+});
+test('current structural receipts return committed identities to the caller without implicit selection', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
+	let mutations = 0;
+	const controller = new MatrixController(
+		() => host,
+		matrixState(),
+		async (_, edit) => {
+			if (edit.kind === 'InspectMatrixEditor') return snapshot();
+			mutations++;
+			return pending.promise;
+		}
+	);
+	controller.observe(query());
+	await flush();
+	const result = controller.edit({ kind: 'EnsureCell', layer: 'layer', column: 'column' });
+	assert.equal(
+		await controller.edit({ kind: 'EnsureCell', layer: 'layer', column: 'column' }),
+		undefined
+	);
+	pending.resolve({
+		kind: 'MatrixCellPrepared',
+		cell: 'committed-cell',
+		application: 'application'
 	});
-	const current = snapshot('matrix');
-	assert(current.kind === 'MatrixViewport');
-	current.snapshot.selected = {
-		selection: last,
-		row_index: null,
-		column_index: null,
-		row: null,
-		column: null,
-		cell: null
-	};
-	reads[1].reply.resolve(current);
+	assert.deepEqual(await result, {
+		kind: 'MatrixCellPrepared',
+		cell: 'committed-cell',
+		application: 'application'
+	});
+	assert.equal(mutations, 1);
+	assert.equal(controller.state.node, null);
+});
+test('address, viewport and pending selection reads keep displayed-target controls usable', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
+	let calls = 0;
+	const controller = new MatrixController(
+		() => host,
+		matrixState(),
+		async () => (++calls === 1 ? snapshot() : pending.promise)
+	);
+	controller.observe(query());
 	await flush();
-	assert.deepEqual(controller.window?.selected?.selection, last);
-	controller.select(last.item, last.column);
-	assert.equal(reads.length, 2, 'reselect does not create a duplicate read');
-	controller.dispose();
+	controller.select({ kind: 'Layer', id: 'row' }, 'column');
+	assert.equal(controller.busy, false);
+	controller.setViewport({ row_start: 3, row_count: 8, axis_start: 3, axis_count: 8 });
+	assert.equal(controller.busy, false);
+	controller.observe(query('other'));
+	assert.equal(controller.busy, false);
+	pending.resolve(snapshot('other'));
+	await flush();
 });
 
-test('current creation returns the committed backend channel identity for shared Inspector selection', async () => {
-	const session = connection(),
-		state = matrixState();
-	const created: MediaEditResult = {
-		kind: 'Created',
-		reference: { media: 'created', channel: 'final' }
+test('equivalent measured and persisted viewports neither read again nor invalidate an active reply', async () => {
+	const host = connection(),
+		pending = deferred<MediaEditResult>();
+	let calls = 0;
+	const state = matrixState(),
+		controller = new MatrixController(
+			() => host,
+			state,
+			async () => {
+				calls++;
+				return pending.promise;
+			}
+		);
+	controller.observe(query());
+	const viewport = { axis_count: 16, axis_start: 0, row_count: 32, row_start: 0 };
+	controller.setViewport(viewport);
+	controller.restore(viewport, null, null);
+	assert.equal(calls, 1);
+	pending.resolve(snapshot());
+	await flush();
+	assert.equal(controller.window?.media, 'matrix');
+});
+
+test('persisted bindings copy typed identities, clamp view bounds and reject malformed document scopes', () => {
+	const id = '11111111-2222-4333-8444-555555555555';
+	const input = {
+		document: id,
+		media: id,
+		locked: true,
+		selection: { item: { kind: 'Layer' as const, id }, column: id }
 	};
-	const controller = new MatrixController(
-		() => session,
-		state,
-		choiceState(),
-		choiceState(),
-		async (_session, edit) => {
-			if (edit.kind === 'CreateMedia') return created;
-			if (edit.kind === 'Matrix') return snapshot('created');
-			return { kind: 'Choices', page: { choices: [], total: 0, start: 0 } };
-		}
+	const a = matrixPanelState(input),
+		b = matrixPanelState(input);
+	a.selection!.item!.id = 'changed';
+	assert.equal(b.selection?.item?.id, id);
+	assert.equal(matrixPanelState({ media: id, locked: true }).media, null);
+	assert.equal(matrixPanelState({ scroll: { top: Infinity, left: -1 } }).scroll.top, 0);
+	assert(
+		matrixPanelState({
+			viewport: { row_start: 0, row_count: 1000, axis_start: 0, axis_count: 1000 }
+		}).viewport.row_count <= 64
 	);
-	assert.deepEqual(await controller.create(), created);
-	assert.equal(state.media, 'created');
-	controller.dispose();
 });

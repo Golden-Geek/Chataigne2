@@ -30,6 +30,8 @@
 		applicationRuntime,
 		disabled,
 		viewport,
+		scroll = { top: 0, left: 0 },
+		onscrollposition = () => {},
 		select,
 		selectRow,
 		selectColumn,
@@ -48,6 +50,8 @@
 		applicationRuntime: ApplicationRuntimeSnapshot | null;
 		disabled: boolean;
 		viewport(value: MatrixViewport): void;
+		scroll?: { top: number; left: number };
+		onscrollposition?(value: { top: number; left: number }, media: string): void;
 		select(row: MatrixViewRow, column: ColumnSnapshot): void;
 		selectRow(row: MatrixViewRow): void;
 		selectColumn(column: ColumnSnapshot): void;
@@ -195,6 +199,10 @@
 			height: element.clientHeight,
 			rem: Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 1
 		};
+		onscrollposition(
+			{ top: metrics.top / metrics.rem, left: metrics.left / metrics.rem },
+			snapshot.media
+		);
 	}
 	function navigate(event: KeyboardEvent) {
 		if (event.target !== element) return;
@@ -233,6 +241,9 @@
 		untrack(() => viewport(wanted));
 	});
 	onMount(() => {
+		const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
+		element.scrollTop = scroll.top * rem;
+		element.scrollLeft = scroll.left * rem;
 		const resize = new ResizeObserver(measure);
 		resize.observe(element);
 		measure();

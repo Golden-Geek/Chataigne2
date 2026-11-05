@@ -1,0 +1,39 @@
+{
+	"date": "2026-11-05",
+	"milestone": "M12/6 independent retained Matrix grids",
+	"gate": "Active",
+	"acceptance": { "verified": 62, "total": 78, "m12_verified": 5, "m12_total": 11 },
+	"delivered": [
+		"Each Matrix grid owns its bounded reader, selected address/domain object, viewport, scroll and persisted document/target/tab-lock state. The shared global grid controller, catalog defaults and UI ancestor walk are removed.",
+		"InspectMatrixEditor resolves the nearest Matrix and relevant Layer/Group/Column/Cell ancestry in Rust, including Parameters, owned media and nested Matrices. Locks precede selection; unrelated selections retain the target only within its document. Missing identities recover through Undo and same-document Load.",
+		"The existing cached sparse viewport index and independent selected-definition query remain authoritative. Selection and viewport reads do not launch playback. Application process runtime keeps one event subscription per workbench rather than one per grid.",
+		"Equivalent viewport/selection objects compare typed fields, independent of JSON member order. Known displayed targets remain usable during reads, preserving focus, double-click rename and select-then-open-menu input. History/session/project and mutation fences still apply."
+	],
+	"software": {
+		"rust": "477 library tests pass, including three new backend binding suites, immutable-query/intent parity and generated TypeScript parity. A subsequently added four-public-caller editor-query test also passes. Three existing ignored tests remain ignored.",
+		"ui": "57 Matrix, application-runtime and media UI tests pass, including equivalent persisted/measured viewport ordering, bounded/coalesced reads, stale receipts/errors, target absence/history, project fences and retained input usability.",
+		"type_check": "Svelte: 0 errors, 0 warnings.",
+		"strict": "All-target Clippy with native-qualification,application-process-fixture and -D warnings passes for unchanged Rust code.",
+		"build": "Terminal successful ordinary app build through the repository's isolated extra-filename route; the user's running executable was left untouched. SHA256 76a0e37cac137d690a66c7e46cff571b7c2aecff32ac3c90fc1fd8988e026e47.",
+		"format": "Root/golden_core cargo fmt, scoped Prettier and scoped diff checks pass."
+	},
+	"native": {
+		"bindings": {
+			"flag": "--matrix-bindings",
+			"pid": 2900,
+			"exit": 0,
+			"absent_after_close": true,
+			"proof": "Two independent grids; tab lock/keyboard, relevant/unrelated selections, retained rename/title, independent selection/scroll, exact persisted layout restore, deletion/Undo, reconnect with two stable installed native leases, New/Load and no implicit playback. 148 requests/148 receipts, no rejections or page errors. One bounded settling read in the 250 ms idle observation; no read loop."
+		},
+		"retained_interactions": "Final combined host PID 34444 passes adaptive zero-axis creation, keyboard Add/Remove, exact history, 135 stable native-lease resize frames, contextual Cell CRUD, inline rename and 64x64 offscreen Inspector/scroll. Column Group configuration, rename, trusted reparent, duplicate/delete/ungroup/history and offscreen editing reach their assertions, but its final rejected-activity count is 1 rather than 0 at column-groups.mjs:170. Combined flow exits 1; no complete retained regression pass is claimed. Owned host closes normally and is absent.",
+		"sparse": "Separate final-binary host PID 11632 exits 0 and is absent: 1000x1000, six authored Cells, 64-100 mounted Cells, two shared groups, source loss/Undo, empty viewport, scroll/tab recovery and empty backend observations after New pass.",
+		"artifacts": "assets/mapgyver-m12-matrix-bindings-2026-11-05/"
+	},
+	"corrected_during_validation": [
+		"Persisted and measured viewport member order originally caused repeated reads. Structural comparison and a no-repeat/no-invalidation test replace lexical JSON comparison. Native binding observation now settles.",
+		"Read-driven disabling originally interrupted keyboard Add and double-click rename. Reads now retain the valid displayed target and its explicit operation identity until a new projection arrives.",
+		"The new inspection is classified as background activity. Fixture persistence comparisons now compare complete values independent of member order; keyboard/context checks await current enabled state and target actual visible controls."
+	],
+	"remaining_requirement": "M12/6 stays Active. First identify and repair the Column Group flow's final visible rejected activity (actual 1, required 0), preserving its original receipt/no-rejection assertions; retain the same gate and reuse passing grid/binding/sparse evidence for unchanged code. Then implement and verify the shared Matrix spatial adapter's retained-target/tab-lock contract under Composition. Full M12/7 geometry remains Pending; no acceptance denominator changes or gates awarded. The 17:11 UTC cutoff ends new experiments, not this requirement.",
+	"limits": "DOM captures establish layout and registration/lease lifetime, not native pixels, physical alignment, cadence or complete GPU retirement. Original retained M03/M05/M08 and final qualification requirements remain open."
+}

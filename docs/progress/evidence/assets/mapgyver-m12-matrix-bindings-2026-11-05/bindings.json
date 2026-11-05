@@ -1,0 +1,32 @@
+{
+  "result": "pass",
+  "nativePid": 2900,
+  "bindings": [
+    {
+      "id": "matrix",
+      "media": "e47539de-6ae7-4273-a644-a10c751ceba3"
+    },
+    {
+      "id": "matrix-1",
+      "media": "f3efd4b4-5443-48b2-8a2b-41f2b826f607"
+    }
+  ],
+  "scroll": {
+    "top": 56.25,
+    "left": 46.900001525878906
+  },
+  "reconnect_leases": [
+    "7d8eab00-062e-4033-9bbe-4639fe2d52ca",
+    "133aa2ae-479e-4b42-80dc-44c438feb212"
+  ],
+  "idle_reads_over_250ms": 1,
+  "page_errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 148,
+      "receipts": 148
+    }
+  },
+  "scope": "two retained Matrix grids, shared tab locks/keyboard, relevant/unrelated selection, independent scroll/selection/layout, rename, deletion/Undo, reconnect with stable native leases, New/Load, no implicit launch; DOM and native ownership, no physical pixel claim"
+}

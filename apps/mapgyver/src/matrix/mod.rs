@@ -17,6 +17,7 @@ mod copying;
 mod creation;
 pub(crate) mod defaults;
 pub(crate) mod document;
+mod editor;
 pub(crate) mod node;
 pub(crate) mod outputs;
 mod placement;
@@ -32,6 +33,7 @@ pub use cell_node::CellNode;
 pub use column_group_node::ColumnGroupNode;
 pub use column_node::ColumnNode;
 pub(crate) use document::{inspect, validate_project};
+pub(crate) use editor::inspect as inspect_editor;
 pub use node::ElementNode;
 #[cfg(test)]
 pub(crate) mod tests;

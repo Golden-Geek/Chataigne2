@@ -25,12 +25,18 @@ export async function persistedPanelState(page, id, expected) {
 			Object.entries(localStorage).some(([key, value]) => {
 				if (!key.endsWith('layout.v1')) return false;
 				const state = JSON.parse(value).payload?.panels?.[id]?.params?.__gc_panel_state;
-				return (
-					state &&
-					Object.entries(expected).every(
-						([key, value]) => JSON.stringify(state[key]) === JSON.stringify(value)
-					)
-				);
+				const equal = (left, right) => {
+					if (left === right) return true;
+					if (!left || !right || typeof left !== 'object' || typeof right !== 'object')
+						return false;
+					if (Array.isArray(left) !== Array.isArray(right)) return false;
+					const keys = Object.keys(left);
+					return (
+						keys.length === Object.keys(right).length &&
+						keys.every((key) => Object.hasOwn(right, key) && equal(left[key], right[key]))
+					);
+				};
+				return state && Object.entries(expected).every(([key, value]) => equal(state[key], value));
 			}),
 		{ id, expected }
 	);

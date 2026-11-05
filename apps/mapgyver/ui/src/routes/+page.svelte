@@ -9,7 +9,7 @@
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { providePreview } from '../lib/preview/context.svelte';
-	import { provideMatrixAuthoring } from '../lib/matrix/context.svelte';
+	import { provideApplicationRuntime } from '../lib/applications/runtime-context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import MediaPreviewPanel from '../lib/media/MediaPreviewPanel.svelte';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
@@ -33,7 +33,7 @@
 		preview = providePreview();
 	provideDocumentSelection();
 	provideVideoStatus();
-	provideMatrixAuthoring();
+	provideApplicationRuntime();
 	registerParameterVisibility();
 	registerSenderAdornment();
 	registerMatrixContextMenu();

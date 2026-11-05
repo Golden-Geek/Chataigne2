@@ -286,6 +286,28 @@ pub struct MatrixSelection {
     pub item: Option<MatrixItemId>,
     pub column: Option<ColumnId>,
 }
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixEditorQuery {
+    pub selected: Option<NodeUuid>,
+    pub document: Option<NodeUuid>,
+    pub locked: Option<MediaId>,
+    pub retained: Option<MediaId>,
+    pub viewport: MatrixViewport,
+    pub selection: Option<MatrixSelection>,
+    /// Last relevant domain object, independent of global Inspector selection.
+    pub node: Option<NodeUuid>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixEditorPage {
+    pub document: NodeUuid,
+    pub document_matches: bool,
+    pub media: Option<MediaId>,
+    pub node: Option<NodeUuid>,
+    pub selection: Option<MatrixSelection>,
+    pub snapshot: Option<MatrixViewportSnapshot>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixSelectionSnapshot {
     pub selection: MatrixSelection,

@@ -4,11 +4,11 @@ import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
-import type { useMatrixAuthoring } from './context.svelte';
+import type { createMatrixEditor } from './editor.svelte';
 import type { useDocumentSelection } from '../selection.svelte';
 
 export function gridActions(
-	owner: ReturnType<typeof useMatrixAuthoring>,
+	owner: ReturnType<typeof createMatrixEditor>,
 	selection: ReturnType<typeof useDocumentSelection>,
 	row?: MatrixViewRow,
 	column?: ColumnSnapshot,

@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TargetReader, targetState, targetKey } from '../target-choices.ts';
 import { MatrixController, matrixState } from '../authoring.ts';
-import { choiceState } from '../choices.ts';
 import type { MatrixTargetScope } from '../../media/generated/MatrixTargetScope';
 import type { MediaEdit } from '../../media/generated/MediaEdit';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
@@ -12,6 +11,7 @@ const flush = async () => {
 const connection = () => ({
 	status: 'connected',
 	snapshotGeneration: 1,
+	projectGeneration: 1,
 	currentHistoryStateId: 0,
 	hasActiveEditSession: false,
 	loading: { visible: false }
@@ -98,8 +98,6 @@ test('row and column selection work independently without creating commands or l
 	const controller = new MatrixController(
 		() => session,
 		state,
-		choiceState(),
-		choiceState(),
 		async (_, edit) => {
 			calls.push(edit);
 			return { kind: 'Changed' };

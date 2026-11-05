@@ -2,6 +2,41 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn retained_matrix_editor_query_is_identical_and_read_only_for_every_public_caller() {
+    let scene = scene();
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let query = MatrixEditorQuery {
+            selected: Some(scene.snapshot.cells[0].id.0),
+            document: None,
+            retained: None,
+            locked: None,
+            viewport: MatrixViewport {
+                row_start: 0,
+                row_count: 8,
+                axis_start: 0,
+                axis_count: 8,
+            },
+            selection: None,
+            node: None,
+        };
+        let value = run(&mut engine, caller, MediaEdit::InspectMatrixEditor { query }).unwrap();
+        // Runtime project identities are fresh per load; compare callers inside their exact engine.
+        let expected = crate::matrix::inspect_editor(&engine, query).unwrap();
+        assert_eq!(
+            value,
+            serde_json::to_value(MediaEditResult::MatrixEditor { page: expected }).unwrap()
+        );
+        let MediaEditResult::MatrixEditor { page } = serde_json::from_value(value).unwrap() else {
+            panic!()
+        };
+        assert_eq!(page.media, Some(scene.root.media));
+        assert_eq!(page.node, Some(scene.snapshot.cells[0].id.0));
+        assert!(page.snapshot.unwrap().playback.desired_column.is_none());
+    }
+}
+
+#[test]
 fn contextual_axis_creation_shares_backend_hierarchy_policy_for_every_public_caller() {
     let scene = scene();
     let media = scene.root.media;

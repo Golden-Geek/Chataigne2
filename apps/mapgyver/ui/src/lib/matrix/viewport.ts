@@ -1,4 +1,13 @@
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
+/** Persisted state and generated replies may enumerate these fields in different orders. */
+export function sameViewport(left: MatrixViewport, right: MatrixViewport): boolean {
+	return (
+		left.row_start === right.row_start &&
+		left.axis_start === right.axis_start &&
+		left.row_count === right.row_count &&
+		left.axis_count === right.axis_count
+	);
+}
 export const gridSize = {
 	row: 7.5,
 	column: 7.5,
