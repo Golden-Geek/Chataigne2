@@ -17,7 +17,8 @@
 		start,
 		move,
 		finish,
-		stop
+		stop,
+		enter
 	}: {
 		rows: MatrixViewRow[];
 		canvas: { width: number; height: number };
@@ -29,6 +30,7 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		enter(layer: string): void;
 	} = $props();
 	let svg: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
@@ -98,6 +100,10 @@
 				aria-label={`Select ${row.item.label}`}
 				aria-disabled={disabled}
 				onpointerdown={(event) => down(event, row, 'Translate')}
+				ondblclick={(event) => {
+					event.stopPropagation();
+					enter(row.item.id.id);
+				}}
 				onclick={(event) => {
 					event.stopPropagation();
 					if (!disabled) select(row.item.id.id);

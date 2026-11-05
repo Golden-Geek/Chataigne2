@@ -6,6 +6,8 @@ use crate::{
 };
 use golden_core::node::{Node, NodeId};
 use std::{collections::HashMap, sync::Arc};
+mod cell_layout;
+pub(crate) use cell_layout::inspect as inspect_cells;
 
 pub(crate) struct ViewIndex {
     rows: Vec<ViewRow>,
@@ -17,6 +19,7 @@ pub(crate) struct ViewIndex {
     column_nodes: HashMap<ColumnId, NodeId>,
     column_positions: HashMap<ColumnId, usize>,
     cells: HashMap<(LayerId, ColumnId), NodeId>,
+    layer_cells: HashMap<LayerId, Vec<NodeId>>,
 }
 struct ViewRow {
     id: MatrixItemId,
@@ -27,6 +30,23 @@ struct ViewRow {
 }
 impl ViewIndex {
     fn build(document: Document) -> Self {
+        let positions = document
+            .snapshot
+            .columns
+            .iter()
+            .map(|column| (column.id, column.axis_index))
+            .collect::<HashMap<_, _>>();
+        let mut ordered = HashMap::<LayerId, Vec<(u32, NodeId)>>::new();
+        for (&(layer, column), &node) in &document.cells {
+            ordered.entry(layer).or_default().push((positions[&column], node));
+        }
+        let layer_cells = ordered
+            .into_iter()
+            .map(|(layer, mut cells)| {
+                cells.sort_unstable_by_key(|entry| entry.0);
+                (layer, cells.into_iter().map(|entry| entry.1).collect())
+            })
+            .collect();
         let mut depths = HashMap::new();
         let rows: Vec<_> = document
             .snapshot
@@ -94,6 +114,7 @@ impl ViewIndex {
             columns,
             column_nodes: document.columns,
             cells: document.cells,
+            layer_cells,
         }
     }
 }

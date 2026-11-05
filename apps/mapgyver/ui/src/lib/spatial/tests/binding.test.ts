@@ -165,4 +165,10 @@ test('typed persisted targets copy independent values, require document scope an
 	}
 	assert.equal(spatialPanelState({ page: Infinity }).page, 0);
 	assert.equal(spatialPanelState({ page: -1 }).page, 0);
+	const state = { document: id, matrix: { media: id, layer: id, cell: id, page: 2 } };
+	const first = spatialPanelState(state),
+		second = spatialPanelState(state);
+	first.matrix!.cell = null;
+	assert.equal(second.matrix?.cell, id);
+	assert.equal(spatialPanelState({ matrix: state.matrix }).matrix, null);
 });

@@ -1,0 +1,40 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7 Active; per-Layer Cell navigation and inactive preview slice verified",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "The existing spatial panel opens per-Layer Cell content with a toolbar action or Layer double-click. It pages authored Cells, retains an independent off-page selection, drives ordinary Inspector selection, and previews an inactive Cell's actual placement without launching playback.",
+	"ownership": {
+		"query": "InspectMatrixCells uses a cached per-Layer ordered Cell index, returning 1..128 definitions plus one independent selected Cell. No empty addresses are materialized. Current labels, typed placement and available source dimensions are projected; missing identities survive Undo and foreign Layers expose no data.",
+		"preview": "PreviewSource::MatrixCell creates a transient render key using the Cell UUID, absent from discovery/project data. Bounded ownership capture subscribes to Cell/Layer guards, captures the selected source and reuses Matrix placement/crop/opacity rendering. It adds no Cell app-control demand or playback mutation. Missing/deleted targets withdraw and recover; existing channel/pass/memory limits include the extra producer and dependencies.",
+		"ui": "Document-scoped Matrix/Layer/Cell/page state contains only identities. Cell reader serializes one active/latest query and fences session/project/snapshot/history/disposal. A retained same-project view survives reconnect while edits await current metadata. Cell preview uses the shared viewport and native registration, with current tab/breadcrumb labels and no permanent forms.",
+		"architecture": "../../architecture/mapgyver-cell-layout.md"
+	},
+	"software": {
+		"rust": "491 passed, 0 failed, 3 retained ignored. Includes 130-Cell bounded paging/independent selection, wrong Layer, missing/Undo/project roundtrip, four-caller equality and read-only history, transient capture/guard invalidation/no app demand/no launch, unchanged project data, rendering mapping and channel budget rejection. Both media and preview generated-contract checks pass.",
+		"ui": "73 related Spatial/Composition/Matrix/media tests pass; Svelte check 0 errors and 0 warnings. Reader active/latest, history/project/disconnect/reconnect/disposal fences and independent persisted identities are covered.",
+		"lint_format": "Strict all-target Clippy with native-qualification,application-process-fixture and -D warnings passes. Scoped Prettier, Node syntax, root/golden_core Cargo format and owned diff checks pass.",
+		"build": "Isolated app and integration-test cargo rustc builds passed before native execution, avoiding the user's running regular executable. Final app SHA256 cfcd267c5b20073aa5269a63b16c82ea0875073e16a4f8293ee2ed8727588624; test SHA256 f76cd5da244a74f61375851b94e6efab4af42656ee890e0df50ec2296a6fa0fb."
+	},
+	"native": {
+		"pixels": {
+			"test": "native_cell_editor_previews_inactive_placement_without_playback_on_each_adapter",
+			"exit": 0,
+			"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+			"images": 24,
+			"extent": { "width": 32, "height": 24 },
+			"maximum_residual_error_255": 0,
+			"maximum_nominal_error_255": 1,
+			"proof": "Inactive Cell and Layer flags, half Cell opacity, Fit/Fill/Stretch/natural placement through the actual editor preview source key; two outputs plus preview on each GPU. Two distinct produced targets remain shared. No desired Column or individual Layer launch. NVIDIA's one-byte nominal difference stays inside the unchanged independent D3D quantization bounds; residual error is zero. Existing allocation/retirement limits pass."
+		},
+		"app": {
+			"flag": "--matrix-cell-layout",
+			"pid": 32196,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Actual inactive Cell preview; 128 visible definitions plus selected off-page Cell; visible target changes retain one native view, hidden tabs retire/re-register correctly; Frame/Home, paging, lock/layout restore, stable reconnect, missing/Undo, New/Load fences and no implicit launch. 211 requests/211 clean receipts, no page errors/rejections. DOM screenshot visually inspected; GPU pixel proof is the separate hardware test."
+		},
+		"repairs": "Initial app PID 15256 exposed a Svelte reactive getter that short-circuited before reading state.page when its context was empty. Reading the page unconditionally fixes presentation and the full UI suite still passes. PID 5584 then reached off-page selection but a test incorrectly required a lease to survive hiding the panel. The corrected fixture verifies retirement across hidden tabs and stable identity for source changes while visible and reconnect; PID 32196 passes. The initial parity test counted script-observer setup as query history; the existing helper already measures after setup and enforces read-only behavior. Its redundant outer assertion was removed; the separate whole-project immutability test remains.",
+		"artifacts": "assets/mapgyver-m12-cell-layout-2026-11-05/"
+	},
+	"remaining": "M12/7 alone remains Active. Cell canvas move/resize, grouped keyboard geometry and the full original selection/lock, active/inactive, nested groups, aspect/alpha/blend, source resizing, history/copy/reload and large-sparse spatial/pixel matrix remain required. This milestone closes no whole acceptance gate."
+}

@@ -30,6 +30,7 @@ export interface SpatialPanelState {
 	locked: SpatialEditorTarget | null;
 	retained: SpatialEditorTarget | null;
 	page: number;
+	matrix: { media: string; layer: string; cell: string | null; page: number } | null;
 }
 export function spatialPanelState(value: Partial<SpatialPanelState> = {}): SpatialPanelState {
 	const document = uuid(value.document) ? value.document : null;
@@ -38,7 +39,19 @@ export function spatialPanelState(value: Partial<SpatialPanelState> = {}): Spati
 		locked: document ? target(value.locked) : null,
 		retained: document ? target(value.retained) : null,
 		page:
-			Number.isSafeInteger(value.page) && value.page! >= 0 ? Math.min(value.page!, 0x1ffffff) : 0
+			Number.isSafeInteger(value.page) && value.page! >= 0 ? Math.min(value.page!, 0x1ffffff) : 0,
+		matrix:
+			document && uuid(value.matrix?.media) && uuid(value.matrix?.layer)
+				? {
+						media: value.matrix.media,
+						layer: value.matrix.layer,
+						cell: uuid(value.matrix.cell) ? value.matrix.cell : null,
+						page:
+							Number.isSafeInteger(value.matrix.page) && value.matrix.page >= 0
+								? Math.min(value.matrix.page, 0x1ffffff)
+								: 0
+					}
+				: null
 	};
 }
 export const SPATIAL_PAGE_SIZE = 128;

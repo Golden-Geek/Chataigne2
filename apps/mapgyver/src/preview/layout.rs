@@ -33,10 +33,7 @@ impl PreviewLayout {
         Ok(self
             .sources()?
             .into_iter()
-            .filter_map(|source| match source {
-                PreviewSource::Channel { reference } => Some(reference),
-                PreviewSource::Screen { .. } => None,
-            })
+            .filter_map(PreviewSource::reference)
             .collect())
     }
 
@@ -57,6 +54,7 @@ impl PreviewLayout {
                 regions: self.layout.regions(self.output, |source| {
                     match serde_json::from_str::<PreviewSource>(source).ok()? {
                         PreviewSource::Channel { reference } => channels.get(&reference).copied(),
+                        source @ PreviewSource::MatrixCell { .. } => channels.get(&source.reference()?).copied(),
                         PreviewSource::Screen { screen } => screens.get(&screen).copied(),
                     }
                 }),

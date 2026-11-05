@@ -36,5 +36,6 @@ pub use column_node::ColumnNode;
 pub(crate) use document::{inspect, validate_project};
 pub(crate) use editor::inspect as inspect_editor;
 pub use node::ElementNode;
+pub(crate) use view::inspect_cells;
 #[cfg(test)]
 pub(crate) mod tests;

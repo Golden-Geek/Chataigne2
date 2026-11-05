@@ -3,6 +3,7 @@
 	import { appState, Viewport2D } from 'golden_ui';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
+	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	let {
 		channel,
 		canvas,
@@ -10,7 +11,9 @@
 		identity,
 		label,
 		actions,
-		children
+		children,
+		preview,
+		previewLabel
 	}: {
 		channel: ChannelSnapshot;
 		canvas: { width: number; height: number };
@@ -19,6 +22,8 @@
 		label: string;
 		actions?: Snippet;
 		children?: Snippet;
+		preview?: PreviewSource | null;
+		previewLabel?: string;
 	} = $props();
 </script>
 
@@ -29,6 +34,11 @@
 	{selection}
 	{label}
 	native>
-	<ChannelPreview {channel} fill />
+	{#if preview !== null}<ChannelPreview
+			{channel}
+			fill
+			{preview}
+			label={previewLabel}
+			extent={preview ? canvas : undefined} />{/if}
 	{@render children?.()}
 </Viewport2D>

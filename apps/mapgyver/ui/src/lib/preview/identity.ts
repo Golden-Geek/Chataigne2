@@ -4,4 +4,6 @@ import type { PreviewSource } from './generated/PreviewSource';
 export const previewKey = (source: PreviewSource): string =>
 	source.kind === 'Channel'
 		? JSON.stringify(['Channel', source.reference.media, source.reference.channel])
-		: JSON.stringify(['Screen', source.screen]);
+		: source.kind === 'MatrixCell'
+			? JSON.stringify(['MatrixCell', source.media, source.cell])
+			: JSON.stringify(['Screen', source.screen]);

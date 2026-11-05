@@ -319,6 +319,37 @@ pub struct MatrixEditorPage {
     pub selection: Option<MatrixSelection>,
     pub snapshot: Option<MatrixViewportSnapshot>,
 }
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixCellLayoutQuery {
+    pub media: MediaId,
+    pub layer: LayerId,
+    pub selected: Option<CellId>,
+    pub node: Option<NodeUuid>,
+    pub start: u32,
+    pub count: u16,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixLayoutCell {
+    pub label: String,
+    pub view: MatrixViewCell,
+    pub extent: Option<Extent2D>,
+    pub preview: crate::preview::protocol::PreviewSource,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixCellLayoutPage {
+    pub media: MediaId,
+    pub layer: LayerId,
+    pub row: Option<MatrixViewRow>,
+    pub context: Option<crate::media::protocol::ChannelSnapshot>,
+    pub total: u32,
+    pub start: u32,
+    pub cells: Vec<MatrixLayoutCell>,
+    pub selected_id: Option<CellId>,
+    pub selected: Option<MatrixLayoutCell>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixSelectionSnapshot {
     pub selection: MatrixSelection,

@@ -156,7 +156,7 @@ impl ElementNode {
             behaviour: ParameterEventBehaviour::Append,
         }
     }
-    pub(super) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
+    pub(crate) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
         let _ = self.runtime.set(binding);
     }
     fn invalidate(&self) {

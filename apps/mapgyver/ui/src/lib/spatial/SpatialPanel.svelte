@@ -12,10 +12,12 @@
 	import { followPanelTitle } from '../panel-title.svelte';
 	import CompositionAdapter from '../composition/CompositionAdapter.svelte';
 	import MatrixLayoutAdapter from './MatrixLayoutAdapter.svelte';
+	import MatrixCellLayoutAdapter from './MatrixCellLayoutAdapter.svelte';
 	let props: PanelProps = $props();
 	let choice = $state(
 		untrack(() => spatialPanelState(readPanelPersistedState<SpatialPanelState>(props.params)))
 	);
+	let layerLabel = $state<string | null>(null);
 	export const setPanelState = (next: PanelState) => {
 		choice = spatialPanelState(readPanelPersistedState<SpatialPanelState>(next.params));
 	};
@@ -28,6 +30,13 @@
 	const binding = $derived(owner.binding),
 		target = $derived(binding?.target ?? null);
 	const page = $derived(sameTarget(choice.retained, target) ? choice.page : 0);
+	const matrixScope = $derived(
+		target?.kind === 'Matrix' && choice.matrix?.media === target.media ? choice.matrix : null
+	);
+	function setMatrix(matrix: SpatialPanelState['matrix']) {
+		choice.matrix = matrix;
+		persist();
+	}
 	function persist() {
 		writePanelPersistedState(props.panelApi, { ...choice });
 	}
@@ -38,7 +47,13 @@
 	$effect(() => {
 		if (!binding?.present || !binding.document_matches || !target) return;
 		if (choice.document === binding.document && sameTarget(choice.retained, target)) return;
-		choice = { ...choice, document: binding.document, retained: target, page: 0 };
+		choice = {
+			...choice,
+			document: binding.document,
+			retained: target,
+			page: 0,
+			matrix: choice.document === binding.document ? choice.matrix : null
+		};
 		untrack(persist);
 	});
 	$effect(() =>
@@ -56,7 +71,7 @@
 		() => 'Composition',
 		() =>
 			binding?.present
-				? `${binding.label}${target?.kind === 'Matrix' ? ' / Matrix Layers' : ''}`
+				? `${binding.label}${target?.kind === 'Matrix' ? (matrixScope ? ` / ${layerLabel ? `${layerLabel} ` : ''}Cells` : ' / Matrix Layers') : ''}`
 				: null
 	);
 </script>
@@ -73,6 +88,23 @@
 				locked={!!choice.locked}
 				{page}
 				onpagechange={setPage} />
+		{:else if matrixScope}
+			{#key matrixScope.layer}
+				<MatrixCellLayoutAdapter
+					panelId={props.panelId}
+					media={target.media}
+					layer={matrixScope.layer}
+					present={binding.present}
+					locked={!!choice.locked}
+					page={matrixScope.page}
+					cell={matrixScope.cell}
+					onback={() => setMatrix(null)}
+					onpage={(page) => setMatrix({ ...matrixScope, page })}
+					oncell={(cell) => setMatrix({ ...matrixScope, cell })}
+					onlabel={(label) => {
+						layerLabel = label;
+					}} />
+			{/key}
 		{:else}
 			<MatrixLayoutAdapter
 				panelId={props.panelId}
@@ -81,7 +113,8 @@
 				present={binding.present}
 				locked={!!choice.locked}
 				{page}
-				onpagechange={setPage} />
+				onpagechange={setPage}
+				onenterlayer={(layer) => setMatrix({ media: target.media, layer, cell: null, page: 0 })} />
 		{/if}
 	{/key}
 {:else}

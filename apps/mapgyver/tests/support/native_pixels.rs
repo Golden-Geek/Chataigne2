@@ -152,6 +152,20 @@ impl Fixture {
         root: ChannelReference,
         expected_produced_targets: Option<usize>,
     ) {
+        self.publish_source(engine, routes, root, expected_produced_targets, None);
+    }
+    pub fn publish_editor(&mut self, engine: &AppEngine, source: mapgyver::preview::protocol::PreviewSource) {
+        let root = source.reference().expect("editor render reference");
+        self.publish_source(engine, &[root, root], root, Some(2), Some(source));
+    }
+    fn publish_source(
+        &mut self,
+        engine: &AppEngine,
+        routes: &[ChannelReference],
+        root: ChannelReference,
+        expected_produced_targets: Option<usize>,
+        editor: Option<mapgyver::preview::protocol::PreviewSource>,
+    ) {
         assert_eq!(routes.len() + 1, self.names.len());
         self.revision += 1;
         let rect = CssRect {
@@ -166,9 +180,9 @@ impl Fixture {
                 revision: self.revision,
                 views: vec![PreviewView {
                     id: uuid::Uuid::new_v4(),
-                    source: serde_json::to_string(&mapgyver::preview::protocol::PreviewSource::Channel {
-                        reference: root,
-                    })
+                    source: serde_json::to_string(
+                        &editor.unwrap_or(mapgyver::preview::protocol::PreviewSource::Channel { reference: root }),
+                    )
                     .unwrap(),
                     rect,
                     clip: rect,
@@ -198,7 +212,13 @@ impl Fixture {
         let live = self.renderer.as_mut().unwrap();
         let mut roots = routes.to_vec();
         roots.push(root);
-        let capture = capture_channels_at(engine, &roots, 64, live.read_time().unwrap()).unwrap();
+        let capture = if let Some(source) = editor {
+            mapgyver::preview::capture::capture_preview(engine, &[source], 64, 1024)
+                .unwrap()
+                .channels
+        } else {
+            capture_channels_at(engine, &roots, 64, live.read_time().unwrap()).unwrap()
+        };
         let mut request = live
             .publish_targets(
                 capture,

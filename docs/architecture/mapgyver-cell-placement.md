@@ -30,6 +30,7 @@ output Resolution.
 
 This supersedes the historical M07 no-Cell-size contract. It provides the backend/Inspector
 part of M12/7. [Shared spatial geometry](mapgyver-spatial-geometry.md) adds Layer canvas
-move/resize and grouped pointer history; Cell canvas manipulation, per-Layer navigation,
-grouped keyboard history and the full acceptance matrix remain tracked in the
+move/resize and grouped pointer history. [Per-Layer Cell layout](mapgyver-cell-layout.md) adds
+bounded navigation and inactive preview; Cell canvas manipulation, grouped keyboard history
+and the full acceptance matrix remain tracked in the
 [current ledger](../progress/mapgyver-status.md).

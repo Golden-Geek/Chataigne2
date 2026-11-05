@@ -1,6 +1,7 @@
 mod applications;
 mod capacity;
 mod capture;
+mod cell_editor;
 mod cell_placement;
 mod composition;
 mod exposure;

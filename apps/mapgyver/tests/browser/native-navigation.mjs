@@ -46,6 +46,7 @@ import { verifyScreenBindings } from './screen-bindings.mjs';
 import { verifyMatrixBindings } from './matrix-bindings.mjs';
 import { verifySpatialBindings } from './spatial-bindings.mjs';
 import { verifyMatrixLayerGeometry } from './matrix-layer-geometry.mjs';
+import { verifyMatrixCellLayout } from './matrix-cell-layout.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -68,6 +69,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--matrix-cell-layout', verifyMatrixCellLayout],
 			['--matrix-layer-geometry', verifyMatrixLayerGeometry],
 			['--content-binding', verifyInspectorContentBinding],
 			['--preview-bindings', verifyPreviewContinuity],

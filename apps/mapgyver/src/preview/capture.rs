@@ -19,6 +19,7 @@ pub struct CapturedPreview {
     pub catalog: Vec<ScreenId>,
     pub outputs: Vec<CapturedOutput>,
     pub allocation_pending: bool,
+    editors: Vec<PreviewSource>,
     statuses: Vec<PreviewStatus>,
     guards: Vec<RevisionGuard>,
 }
@@ -44,15 +45,31 @@ impl CapturedPreview {
         use crate::media::resolution::ChannelAvailability;
         let mut statuses = self.statuses.clone();
         for channel in channels {
+            let editor = self
+                .editors
+                .iter()
+                .find(|source| source.reference() == Some(channel.reference))
+                .copied();
+            let availability = editor
+                .and_then(|_| self.channels.editor_dependency(channel.reference))
+                .and_then(|reference| channels.iter().find(|channel| channel.reference == reference))
+                .map_or(channel.resolution.availability, |channel| {
+                    channel.resolution.availability
+                });
             statuses.push(PreviewStatus {
-                source: PreviewSource::Channel {
+                source: editor.unwrap_or(PreviewSource::Channel {
                     reference: channel.reference,
-                },
+                }),
                 extent: channel.resolution.extent,
                 error: None,
                 matrix: None,
-                message: (channel.resolution.availability != ChannelAvailability::Ready)
-                    .then(|| format!("Source {:?}", channel.resolution.availability)),
+                message: if availability != ChannelAvailability::Ready {
+                    Some(format!("Source {availability:?}"))
+                } else if editor.is_some() && self.channels.editor_dependency(channel.reference).is_none() {
+                    Some("No source assigned".into())
+                } else {
+                    None
+                },
             });
         }
         for route in &self.screens {
@@ -106,6 +123,7 @@ fn capture_preview_with_time(
     let mut screens = Vec::new();
     let mut statuses = Vec::new();
     let mut guards = vec![membership_guard(engine)?];
+    let mut editors = Vec::new();
     for &source in sources {
         if !seen.insert(source) {
             continue;
@@ -115,6 +133,7 @@ fn capture_preview_with_time(
         }
         match source {
             PreviewSource::Channel { reference } => channels.push(reference),
+            source @ PreviewSource::MatrixCell { .. } => editors.push(source),
             PreviewSource::Screen { screen } => {
                 if let Some(guard) = crate::screens::rendering::screen_guard(engine, screen) {
                     guards.push(guard);
@@ -149,11 +168,12 @@ fn capture_preview_with_time(
     let mut unique = HashSet::new();
     channels.retain(|source| unique.insert(*source));
     Ok(CapturedPreview {
-        channels: crate::media::capture_channels_with_time(engine, &channels, maximum_sources, time)?,
+        channels: crate::media::capture_editor_channels(engine, &channels, &editors, maximum_sources, time)?,
         screens,
         catalog: Vec::new(),
         outputs: Vec::new(),
         allocation_pending: false,
+        editors,
         statuses,
         guards,
     })
@@ -211,6 +231,7 @@ pub(crate) fn capture_presentation_with_time(
         .iter()
         .filter_map(|source| match source {
             PreviewSource::Channel { reference } => Some(*reference),
+            PreviewSource::MatrixCell { .. } => None,
             PreviewSource::Screen { .. } => None,
         })
         .collect::<Vec<_>>();
@@ -250,7 +271,8 @@ pub(crate) fn capture_presentation_with_time(
     }
     let mut seen = HashSet::new();
     references.retain(|reference| seen.insert(*reference));
-    result.channels = crate::media::capture_channels_with_time(engine, &references, maximum_sources, time)?;
+    result.channels =
+        crate::media::capture_editor_channels(engine, &references, &result.editors, maximum_sources, time)?;
     result.outputs = captured.outputs;
     for (screen, reason) in captured.unavailable {
         let source = PreviewSource::Screen { screen };

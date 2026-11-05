@@ -16,7 +16,9 @@ mod nodes;
 mod persistence;
 pub mod picture;
 mod picture_file;
+mod preview_capture;
 mod preview_selection;
+pub(crate) use preview_capture::capture_editor_channels;
 pub mod protocol;
 mod queries;
 pub(crate) mod reference;
@@ -34,7 +36,6 @@ mod visibility;
 
 pub use assets::{AssetNode, asset};
 pub use authoring::{apply_operation, channel, initialize, validate_project};
-pub(crate) use capture::capture_channels_with_time;
 pub use capture::{CapturedChannels, capture_channels, capture_channels_at};
 pub use channel_node::ChannelNode;
 pub use commands::MediaCommandNode;

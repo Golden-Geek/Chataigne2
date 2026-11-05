@@ -2,6 +2,31 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn cell_layout_is_read_only_and_identical_for_every_public_caller() {
+    let scene = scene();
+    let cell = scene.snapshot.cells.last().unwrap();
+    let query = MatrixCellLayoutQuery {
+        media: scene.root.media,
+        layer: cell.layer,
+        selected: Some(cell.id),
+        node: None,
+        start: 0,
+        count: 1,
+    };
+    let mut expected = None;
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let value = run(&mut engine, caller, MediaEdit::InspectMatrixCells { query }).unwrap();
+        assert_eq!(expected.get_or_insert_with(|| value.clone()), &value);
+        let MediaEditResult::MatrixCellLayout { page } = serde_json::from_value(value).unwrap() else {
+            panic!()
+        };
+        assert_eq!(page.selected.unwrap().view.cell.id, cell.id);
+        assert_eq!(page.cells.len(), 1);
+    }
+}
+
+#[test]
 fn layer_geometry_is_the_same_typed_bounded_operation_for_every_public_caller() {
     use crate::media::spatial::protocol::*;
     let scene = scene();

@@ -57,6 +57,9 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         MediaEdit::InspectMatrixEditor { query } => {
             crate::matrix::inspect_editor(engine, query).map(|page| MediaEditResult::MatrixEditor { page })
         }
+        MediaEdit::InspectMatrixCells { query } => {
+            crate::matrix::inspect_cells(engine, query).map(|page| MediaEditResult::MatrixCellLayout { page })
+        }
         MediaEdit::InspectSpatialEditor { query } => {
             super::spatial::inspect(engine, query).map(|binding| MediaEditResult::SpatialEditor { binding })
         }

@@ -16,6 +16,7 @@
 		locked: boolean;
 		page: number;
 		onpagechange(page: number): void;
+		onenterlayer(layer: string): void;
 	} = $props();
 	const owner = createMatrixEditor(() => ({
 		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
@@ -107,6 +108,13 @@
 				{geometry.state.error || owner.view.error || owner.view.readError}
 			</p>{/if}
 		{#snippet actions()}
+			{#if selected?.item.layer}
+				<IconButton
+					icon={arrowIcon}
+					label="Edit Layer Cells"
+					disabled={owner.busy}
+					onclick={() => props.onenterlayer(selected!.item.id.id)} />
+			{/if}
 			{#if pages > 1}
 				<IconButton
 					class="previous"
@@ -140,7 +148,8 @@
 					start={geometry.start}
 					move={(point) => geometry.gesture.move(point)}
 					finish={() => geometry.gesture.finish()}
-					stop={() => geometry.gesture.stop()} />
+					stop={() => geometry.gesture.stop()}
+					enter={props.onenterlayer} />
 			</SpatialViewport>
 		{:else if !props.present}<p class="editor-empty">
 				{props.locked

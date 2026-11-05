@@ -271,6 +271,9 @@ pub enum MediaEdit {
     InspectMatrixEditor {
         query: crate::matrix::protocol::MatrixEditorQuery,
     },
+    InspectMatrixCells {
+        query: crate::matrix::protocol::MatrixCellLayoutQuery,
+    },
     InspectSpatialEditor {
         query: super::spatial::protocol::SpatialEditorQuery,
     },
@@ -468,6 +471,9 @@ pub enum MediaEditResult {
     },
     MatrixEditor {
         page: crate::matrix::protocol::MatrixEditorPage,
+    },
+    MatrixCellLayout {
+        page: crate::matrix::protocol::MatrixCellLayoutPage,
     },
     SpatialEditor {
         binding: super::spatial::protocol::SpatialEditorBinding,

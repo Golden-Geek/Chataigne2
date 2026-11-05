@@ -64,8 +64,30 @@ pub struct ScreenRuntimeStatus {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum PreviewSource {
-    Channel { reference: ChannelReference },
-    Screen { screen: ScreenId },
+    Channel {
+        reference: ChannelReference,
+    },
+    MatrixCell {
+        media: crate::media::protocol::MediaId,
+        cell: crate::matrix::protocol::CellId,
+    },
+    Screen {
+        screen: ScreenId,
+    },
+}
+
+impl PreviewSource {
+    /// Renderer key, including transient editor images; not a discoverable authored channel.
+    pub fn reference(self) -> Option<ChannelReference> {
+        match self {
+            Self::Channel { reference } => Some(reference),
+            Self::MatrixCell { media, cell } => Some(ChannelReference {
+                media,
+                channel: crate::media::protocol::ChannelId(cell.0),
+            }),
+            Self::Screen { .. } => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

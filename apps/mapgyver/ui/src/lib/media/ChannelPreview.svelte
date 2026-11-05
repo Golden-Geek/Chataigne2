@@ -4,12 +4,26 @@
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
-	let { channel, fill = false }: { channel: ChannelSnapshot; fill?: boolean } = $props();
+	let {
+		channel,
+		fill = false,
+		preview,
+		label,
+		extent: explicitExtent
+	}: {
+		channel: ChannelSnapshot;
+		fill?: boolean;
+		preview?: PreviewSource;
+		label?: string;
+		extent?: { width: number; height: number };
+	} = $props();
 	const owner = usePreview();
-	const identity = $derived<PreviewSource>({ kind: 'Channel', reference: channel.reference });
+	const identity = $derived<PreviewSource>(
+		preview ?? { kind: 'Channel', reference: channel.reference }
+	);
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(owner.statuses.get(previewKey(identity)));
-	const extent = $derived(status?.extent);
+	const extent = $derived(explicitExtent ?? status?.extent);
 </script>
 
 <section aria-label="Channel preview" class:fill>
@@ -17,7 +31,7 @@
 		class="surface"
 		style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
-		<NativePreview session={owner.session} {source} label={`Preview of ${channel.label}`}>
+		<NativePreview session={owner.session} {source} label={`Preview of ${label ?? channel.label}`}>
 			{#if status && (status.error || status.message)}
 				<div class="message">
 					{status.error ?? status.message}

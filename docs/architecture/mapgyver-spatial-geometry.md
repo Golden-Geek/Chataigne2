@@ -28,7 +28,8 @@ inactive Layers inside Layer Groups. The generic Inspector and canvas edit the s
 pointer editing never launches playback. Native input/history and retained binding checks are
 recorded in the [Layer geometry receipt](../progress/evidence/mapgyver-m12-layer-geometry-2026-11-05.json).
 
-Per-Layer Cell-content navigation, Cell canvas manipulation and grouped keyboard editing remain
-required in M12/7. The verified [Cell placement contract](mapgyver-cell-placement.md) supplies
+The [per-Layer Cell-content view](mapgyver-cell-layout.md) supplies bounded navigation and
+inactive preview. Cell canvas manipulation and grouped keyboard editing remain required in
+M12/7. The verified [Cell placement contract](mapgyver-cell-placement.md) supplies
 their independent natural/fixed Size and Fit/Fill/Stretch policy. Full original spatial/pixel
 acceptance remains in the [current ledger](../progress/mapgyver-status.md).
