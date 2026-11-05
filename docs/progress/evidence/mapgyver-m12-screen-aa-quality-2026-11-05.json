@@ -1,0 +1,108 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/8",
+	"decision": "Active — NVIDIA full-size quality and backend copy/project requirements verified; remaining physical/Intel/cost/overload acceptance stays open",
+	"source_base": "be1532b106455eb97c90acf124edea3dbf869a1f",
+	"scope": "Follow-through of the original 20:57–21:42 UTC implementation batch: Raw baseline, then Smooth calibration cohort; no new raster budget or tolerance.",
+	"previous_checkpoint": "mapgyver-m12-screen-antialiasing-2026-11-05.json",
+	"app": {
+		"executable": "target/debug/deps/MapGyver-screen-aa.exe",
+		"sha256": "066E8125B56048A9A12045ED3387512D93C1E7FE826934417CA5FCEA5D7830D1",
+		"profile": "dev optimized + debuginfo; actual-app functional pixels, not optimized production timing qualification",
+		"gpu": "dxgi:00000000:00016022",
+		"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"raw_pid": 24804,
+		"smooth_pid": 2184,
+		"both_sessions_exit_code": 0
+	},
+	"observer": {
+		"binary": "target/debug/native_qualification-m1110.exe",
+		"sha256": "17E1030274CBED3889C94EEBB670170DF172342B07225582EB0FD4AAF37F724C",
+		"scope": "Unchanged finite SDK calibration-pixels observer and its explicitly bounded 128 MiB receive/staging/CPU pool; production budgets unchanged",
+		"shader_font_sha256": "2CA2F3B010104C70D44A95A34C27A5527ABE9E0A37308E5A33ED8073E69DEC75"
+	},
+	"checks": {
+		"capture_command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-screen-aa.exe MAPGYVER_CALIBRATION_AA={Raw|Smooth2x} MAPGYVER_CALIBRATION_OBSERVER=target/debug/native_qualification-m1110.exe MAPGYVER_CALIBRATION_DIRECTORY=<private-output> node apps/mapgyver/tests/browser/native-calibration.mjs",
+		"cohorts": 2,
+		"captures": 20,
+		"each_cohort": [
+			"1920×1080",
+			"1080×1920",
+			"1024×1024",
+			"3840×2160",
+			"1919×1079 resize",
+			"two live 1920×1080 clock/rainbow frames",
+			"warped 1920×1080",
+			"authored source/crop retained under calibration",
+			"restored solid-red source with calibration Off"
+		],
+		"legacy_verifier": "python apps/mapgyver/tests/native/calibration_pixels.py <cohort-directory> --font <generated-native_shader.hlsl>",
+		"legacy_result": "Both pass unchanged: exact clock/resolution/font-ROM decoding, bounded local clock timestamp, B4 cell labels at applicable unwarped aspects, 16 palette samples per calibration image, measured renderer FPS availability rules, rainbow live flow, warped outside margins and every-pixel red source restoration.",
+		"edge_command": "python apps/mapgyver/tests/native/screen_antialiasing_pixels.py <raw> <smooth> <report.json>",
+		"edge_result": {
+			"passed": true,
+			"landmarks": 4096,
+			"maximum_error_outside_legal_interval": 0,
+			"unchanged_tolerance": "2/255 after existing legal UNORM quantization intervals",
+			"smooth_fractional_samples": 576,
+			"scope": "512 deterministic static landmarks per circle/diagonal feature, Raw/Smooth mode and 1080p/4K size. Independent Euclidean circle/point-line distances and linear-light box averages; excludes dynamic overlays and sub-millipixel ambiguous boundaries. Does not claim every pixel of calibration images."
+		},
+		"visual_inspection": "Inspected native Smooth landscape and warped PNGs: limiting circle, thin diagonals, palettes, logical 1920×1080 readout and logo remain correctly placed; current bitmap text remains legible. M12/10's sharper typography requirement is not waived.",
+		"retirement": "All finite observer payloads retired; both owned native apps exited normally. Disabling each Screen withdrew its sender and logged native output-session retirement; independent Media Preview demand remained explicit."
+	},
+	"observed_tracked_storage": [
+		{
+			"extent": [
+				1920,
+				1080
+			],
+			"raw_bytes": 330382484,
+			"smooth_bytes": 363560084,
+			"delta_bytes": 33177600,
+			"expected_added_high_target_bytes": 33177600
+		},
+		{
+			"extent": [
+				3840,
+				2160
+			],
+			"raw_bytes": 405032084,
+			"smooth_bytes": 537742484,
+			"delta_bytes": 132710400,
+			"expected_added_high_target_bytes": 132710400
+		}
+	],
+	"cost_limit": "These one-time public tracked-resource snapshots show the exact added 2×-per-axis target charge in matching cohorts. Each snapshot had two in-flight and zero retiring generations and the same 7,987,527,680-byte existing host limit. They do not establish physical VRAM, peak live/retiring residency, GPU elapsed time, deadline compliance, production FPS or overload/recovery. CPU-submit/latest FPS fields in raw results are context only. M03 budgets/failures remain binding.",
+	"copy_project": {
+		"command": "cargo test --locked -p MapGyver --lib --features native-qualification,application-process-fixture screens::tests::anti_aliasing -- --quiet",
+		"result": "Pass: generic Screen subtree duplication preserves Smooth, independent Screen/Surface identities, one-step copy undo/redo, independent subsequent Raw editing and complete sparse-project reload. Disabled authored endpoints avoid duplicating an active sender; this does not test a new duplicate-endpoint policy.",
+		"related_suite": "Current compiled lib test binary screens::tests --quiet: 76 passed, 0 failed. Prior full 501-test library evidence remains valid for unchanged product code.",
+		"strict": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings: pass",
+		"formatting": "Root and golden_core cargo fmt, targeted Prettier, Python syntax and changed-file whitespace checks pass."
+	},
+	"evidence": {
+		"directory": "mapgyver-m12-screen-antialiasing-2026-11-05/calibration",
+		"retained": "Both full generated results and strict pixel reports, independent edge report, paired 1080p/4K PNGs for reproducible static-edge verification, and one Smooth warped visual. Other captures remain in target/m12-screen-aa/calibration-{raw,smooth}; their exact checked results are retained.",
+		"images": {
+			"raw_1080_sha256": "9788AFDE7AD6FCA802FC0406C07DE0B8F933CE8017B1F3C93C16140D90F6D0CE",
+			"raw_4k_sha256": "8CCEFAB9FC0D882C867A4377A20E6D8AA1FF3A61DF0671EF1EE8C66A66B96998",
+			"smooth_1080_sha256": "B116D23D657D8F34DA2D1E9FC0F699E902484F6EB699CA66A1CCD759818FDCEA",
+			"smooth_4k_sha256": "0042A06733A6BF6182EF89713F42ACF9744F59B5B0B4709F3E18FECF6B41E45C",
+			"smooth_warp_sha256": "661013836762ECCDBC69E5EEF8C41890930E9C59AA4FE6D5F99BE7F1A8B8E12A"
+		}
+	},
+	"remaining": [
+		"Intel full-size calibration/quality and both-GPU measured 1080p/4K native cost envelope",
+		"Physical versus Shared Texture output parity",
+		"Native overload rejection/recovery and all live/retiring allocation accounting under unchanged M03/M11 budgets"
+	],
+	"acceptance": {
+		"gate_closed": false,
+		"verified": 64,
+		"total": 78,
+		"overall_percent": 82,
+		"m12_verified": 7,
+		"m12_total": 11,
+		"denominator_changed": false
+	}
+}

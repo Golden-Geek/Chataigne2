@@ -1,0 +1,97 @@
+{
+	"passed": true,
+	"checks": [
+		{
+			"label": "landscape",
+			"clock": "22:28:39.658",
+			"resolution": "1920 x 1080",
+			"measured_renderer_fps": 60,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "portrait",
+			"clock": "22:28:41.667",
+			"resolution": "1080 x 1920",
+			"measured_renderer_fps": null,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "square",
+			"clock": "22:28:43.677",
+			"resolution": "1024 x 1024",
+			"measured_renderer_fps": null,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "4k",
+			"clock": "22:28:45.674",
+			"resolution": "3840 x 2160",
+			"measured_renderer_fps": null,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "resize",
+			"clock": "22:28:47.839",
+			"resolution": "1919 x 1079",
+			"measured_renderer_fps": null,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "live-a",
+			"clock": "22:28:49.839",
+			"resolution": "1920 x 1080",
+			"measured_renderer_fps": null,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "live-b",
+			"clock": "22:28:53.056",
+			"resolution": "1920 x 1080",
+			"measured_renderer_fps": 60,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "warped",
+			"clock": "22:28:55.089",
+			"resolution": "1920 x 1080",
+			"measured_renderer_fps": 60,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": true
+		},
+		{
+			"label": "routed-calibration",
+			"clock": "22:28:57.089",
+			"resolution": "1920 x 1080",
+			"measured_renderer_fps": 60,
+			"cell_label": "B4",
+			"palette_samples": 16,
+			"warp": false
+		},
+		{
+			"label": "restored-source",
+			"solid_red_every_pixel": true
+		}
+	],
+	"live_clock_changed": true,
+	"thin_diagonal_rainbow_flow": true,
+	"routing_restored": true,
+	"source_free_plan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+	"withdrawn_plan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+	"font": "target\\debug\\build\\golden_video-3785ea1031df7c8a\\out\\native_shader.hlsl",
+	"gpu": "dxgi:00000000:00016022"
+}

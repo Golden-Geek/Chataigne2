@@ -11,6 +11,8 @@ const execute = promisify(execFile);
 const directory = path.resolve(process.env.MAPGYVER_CALIBRATION_DIRECTORY);
 await mkdir(directory, { recursive: true });
 const observer = path.resolve(process.env.MAPGYVER_CALIBRATION_OBSERVER);
+const antiAliasing = process.env.MAPGYVER_CALIBRATION_AA ?? 'Raw';
+assert(['Raw', 'Smooth2x'].includes(antiAliasing), 'unknown calibration anti-aliasing mode');
 const native = await openNativeEditor();
 const observations = [];
 const routingOnly = process.argv.includes('--routing-only');
@@ -99,7 +101,11 @@ try {
 		await screens({
 			kind: 'ConfigureScreen',
 			screen,
-			definition: { enabled, target: { kind: 'Spout', sender, extent: { width, height } } }
+			definition: {
+				enabled,
+				anti_aliasing: antiAliasing,
+				target: { kind: 'Spout', sender, extent: { width, height } }
+			}
 		});
 	}
 	await target(1920, 1080);
@@ -263,6 +269,7 @@ try {
 			{
 				pid: native.app.pid,
 				adapter,
+				anti_aliasing: antiAliasing,
 				gpu: running.gpu_adapter,
 				observations,
 				withdrawn,

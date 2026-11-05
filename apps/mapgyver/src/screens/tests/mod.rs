@@ -1,3 +1,4 @@
+mod anti_aliasing;
 mod authoring;
 mod catalog_runtime;
 mod creation;

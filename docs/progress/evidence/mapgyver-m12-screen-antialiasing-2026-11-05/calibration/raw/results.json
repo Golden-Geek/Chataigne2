@@ -1,0 +1,377 @@
+{
+	"pid": 24804,
+	"adapter": 1,
+	"anti_aliasing": "Raw",
+	"gpu": "dxgi:00000000:00016022",
+	"observations": [
+		{
+			"label": "landscape",
+			"before": 1793914119470,
+			"after": 1793914121200,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 5,
+				"state": "Running",
+				"submitted_fps": 59.55512322947581,
+				"cpu_submit_ms": 0.3986,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "portrait",
+			"before": 1793914121510,
+			"after": 1793914123204,
+			"pixels": {
+				"height": 1920,
+				"retired": true,
+				"width": 1080
+			},
+			"runtime": {
+				"sequence": 7,
+				"state": "Running",
+				"submitted_fps": 59.503644399874005,
+				"cpu_submit_ms": 0.2385,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "square",
+			"before": 1793914123512,
+			"after": 1793914125184,
+			"pixels": {
+				"height": 1024,
+				"retired": true,
+				"width": 1024
+			},
+			"runtime": {
+				"sequence": 9,
+				"state": "Running",
+				"submitted_fps": 59.533655020130816,
+				"cpu_submit_ms": 0.3469,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 318082196,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "4k",
+			"before": 1793914125489,
+			"after": 1793914127352,
+			"pixels": {
+				"height": 2160,
+				"retired": true,
+				"width": 3840
+			},
+			"runtime": {
+				"sequence": 11,
+				"state": "Running",
+				"submitted_fps": 59.56931977495902,
+				"cpu_submit_ms": 0.25129999999999997,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 405032084,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "resize",
+			"before": 1793914127657,
+			"after": 1793914129364,
+			"pixels": {
+				"height": 1079,
+				"retired": true,
+				"width": 1919
+			},
+			"runtime": {
+				"sequence": 13,
+				"state": "Running",
+				"submitted_fps": 59.46084473643683,
+				"cpu_submit_ms": 0.3136,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330346496,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "live-a",
+			"before": 1793914129672,
+			"after": 1793914131372,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 15,
+				"state": "Running",
+				"submitted_fps": 59.49485300110879,
+				"cpu_submit_ms": 0.2795,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "live-b",
+			"before": 1793914132879,
+			"after": 1793914134610,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 18,
+				"state": "Running",
+				"submitted_fps": 60.446707111128994,
+				"cpu_submit_ms": 0.2999,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "warped",
+			"before": 1793914134916,
+			"after": 1793914136613,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 20,
+				"state": "Running",
+				"submitted_fps": 59.59685114077313,
+				"cpu_submit_ms": 0.2544,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "routed-calibration",
+			"before": 1793914136922,
+			"after": 1793914138623,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 22,
+				"state": "Running",
+				"submitted_fps": 59.583558592286785,
+				"cpu_submit_ms": 0.254,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 330382484,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		},
+		{
+			"label": "restored-source",
+			"before": 1793914138931,
+			"after": 1793914140597,
+			"pixels": {
+				"height": 1080,
+				"retired": true,
+				"width": 1920
+			},
+			"runtime": {
+				"sequence": 24,
+				"state": "Running",
+				"submitted_fps": 59.60905401921498,
+				"cpu_submit_ms": 0.2998,
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"gpu_adapter": "dxgi:00000000:00016022",
+				"gpu_preference": "Automatic",
+				"gpu_restart_required": false,
+				"resources": {
+					"used_bytes": 337628308,
+					"limit_bytes": 7987527680,
+					"in_flight": 2,
+					"retiring": 0
+				},
+				"error": null,
+				"screens": []
+			}
+		}
+	],
+	"withdrawn": {
+		"sequence": 24,
+		"state": "Running",
+		"submitted_fps": 59.60905401921498,
+		"cpu_submit_ms": 0.2998,
+		"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"gpu_adapter": "dxgi:00000000:00016022",
+		"gpu_preference": "Automatic",
+		"gpu_restart_required": false,
+		"resources": {
+			"used_bytes": 337628308,
+			"limit_bytes": 7987527680,
+			"in_flight": 2,
+			"retiring": 0
+		},
+		"error": null,
+		"screens": []
+	},
+	"afterWithdrawal": {
+		"sequence": 25,
+		"state": "Idle",
+		"submitted_fps": null,
+		"cpu_submit_ms": null,
+		"gpu": null,
+		"gpu_adapter": null,
+		"gpu_preference": "Automatic",
+		"gpu_restart_required": false,
+		"resources": null,
+		"error": null,
+		"screens": []
+	},
+	"senders": {
+		"revision": 2,
+		"refreshing": false,
+		"names": [
+			"Spout Demo Sender"
+		],
+		"truncated": false,
+		"error": null
+	},
+	"sourceFreePlan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+	"withdrawnPlan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+	"errors": [],
+	"sourceRestoration": {
+		"kind": "Surface",
+		"snapshot": {
+			"definition": {
+				"calibration": "Off",
+				"crop": {
+					"height": 0.6000000238418579,
+					"width": 0.699999988079071,
+					"x": 0.10000000149011612,
+					"y": 0.20000000298023224
+				},
+				"enabled": true,
+				"opacity": 1,
+				"quad": {
+					"corners": [
+						{
+							"x": 0,
+							"y": 0
+						},
+						{
+							"x": 1,
+							"y": 0
+						},
+						{
+							"x": 1,
+							"y": 1
+						},
+						{
+							"x": 0,
+							"y": 1
+						}
+					]
+				},
+				"source": {
+					"channel": "994c5281-c0ec-42f9-8bd0-65881c450905",
+					"media": "0aaccad8-e277-4b90-8500-9569e250c04b"
+				}
+			},
+			"label": "Surface 1",
+			"mapping_valid": true,
+			"reference": {
+				"screen": "57eb83de-b9ee-4e42-826a-73199a73e15c",
+				"surface": "99868b95-3378-4d45-be6f-ec0acac19a03"
+			}
+		}
+	}
+}
