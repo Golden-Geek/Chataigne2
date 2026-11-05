@@ -97,6 +97,7 @@ fn targets_and_ordered_surfaces_roundtrip_with_atomic_history() {
                 definition: ScreenDefinition {
                     target: Some(target),
                     enabled: true,
+                    anti_aliasing: Default::default(),
                 },
             },
         );
@@ -191,6 +192,7 @@ fn invalid_edits_leave_project_and_history_untouched() {
                     extent: Extent2D::new(1, 1).unwrap(),
                 }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
         ScreenEdit::ConfigureScreen {
@@ -204,6 +206,7 @@ fn invalid_edits_leave_project_and_history_untouched() {
                     },
                 }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
     ];

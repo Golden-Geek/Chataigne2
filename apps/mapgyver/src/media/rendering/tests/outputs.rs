@@ -19,6 +19,7 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
                 target: Some(ScreenTarget::Fullscreen {
                     display: "intended".into(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -67,6 +68,7 @@ fn configure(engine: &mut AppEngine, screen: ScreenId, name: &str, enabled: bool
                     sender: name.into(),
                     extent: Extent2D::new(320, 180).unwrap(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -140,6 +142,7 @@ fn output_catalog_rejects_duplicate_names_and_enforces_bounds_before_native_crea
                         sender: "Same".into(),
                         extent: Extent2D::new(320, 180).unwrap(),
                     }),
+                    anti_aliasing: Default::default(),
                 },
             })
             .unwrap(),

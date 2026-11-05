@@ -43,6 +43,12 @@ struct Entry {
     scratch: Option<TextureId>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ScreenEntry {
+    target: TextureId,
+    supersample: Option<TextureId>,
+}
+
 pub struct ChannelRenderer {
     applications: Option<crate::applications::runtime::PlanRetainer>,
     feedback: std::sync::Mutex<feedback::Feedback>,
@@ -51,7 +57,7 @@ pub struct ChannelRenderer {
     project: Option<uuid::Uuid>,
     next_texture: u64,
     entries: HashMap<ChannelReference, Entry>,
-    screen_entries: HashMap<ScreenId, TextureId>,
+    screen_entries: HashMap<ScreenId, ScreenEntry>,
     desired: Option<Desired>,
     observations: Option<SourceObservations>,
     channels: Vec<PreparedChannel>,

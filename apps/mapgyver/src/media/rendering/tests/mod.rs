@@ -1,3 +1,4 @@
+mod anti_aliasing;
 mod applications;
 mod capacity;
 mod capture;

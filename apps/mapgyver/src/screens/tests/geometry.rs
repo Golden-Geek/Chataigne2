@@ -9,6 +9,7 @@ fn virtual_sender_names_leave_room_for_the_native_frame_counter_namespace() {
                 sender: "a".repeat(length),
                 extent: golden_video::Extent2D::new(64, 64).unwrap(),
             }),
+            anti_aliasing: Default::default(),
         };
         assert_eq!(definition.validate().is_ok(), valid);
     }

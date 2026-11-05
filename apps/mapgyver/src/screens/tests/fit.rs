@@ -32,6 +32,7 @@ fn fill_and_fit_use_backend_target_and_cropped_source_aspect_with_history_and_ro
                     extent: Extent2D::new(800, 600).unwrap(),
                 }),
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -128,6 +129,7 @@ fn fit_preserves_reference_resolution_overrides_and_rejects_unknown_inputs_atomi
                     },
                 }),
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -270,6 +272,7 @@ fn fit_uses_cached_fullscreen_extent_and_rejects_lost_display_without_history_ch
             definition: ScreenDefinition {
                 target: Some(ScreenTarget::Fullscreen { display: display.id }),
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );

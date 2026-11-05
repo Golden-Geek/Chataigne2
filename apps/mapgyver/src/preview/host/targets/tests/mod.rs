@@ -28,6 +28,7 @@ fn configure(engine: &mut AppEngine, screen: ScreenId, sender: &str, enabled: bo
                     sender: sender.into(),
                     extent: Extent2D::new(64, 32).unwrap(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -118,6 +119,7 @@ fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
             definition: ScreenDefinition {
                 enabled: true,
                 target: Some(ScreenTarget::Rectangle { bounds }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -172,6 +174,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
                 target: Some(ScreenTarget::Fullscreen {
                     display: "wanted".into(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -290,6 +293,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
                 target: Some(ScreenTarget::Fullscreen {
                     display: "wanted".into(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );

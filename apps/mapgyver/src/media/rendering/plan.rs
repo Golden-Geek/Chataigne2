@@ -1,4 +1,4 @@
-use super::{ChannelRoute, Entry, PreparedChannel, ScreenRoute, SourceObservations};
+use super::{ChannelRoute, Entry, PreparedChannel, ScreenEntry, ScreenRoute, SourceObservations};
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource};
 use crate::media::resolution::{self, ChannelAvailability, ChannelResolution, SourceObservation};
@@ -17,12 +17,12 @@ pub(super) struct Prepared {
     pub submission: PlanSubmission,
     pub entries: HashMap<ChannelReference, Entry>,
     pub channels: Vec<PreparedChannel>,
-    pub screens: HashMap<ScreenId, TextureId>,
+    pub screens: HashMap<ScreenId, ScreenEntry>,
 }
 
 pub(super) struct Previous<'a> {
     pub channels: &'a HashMap<ChannelReference, Entry>,
-    pub screens: &'a HashMap<ScreenId, TextureId>,
+    pub screens: &'a HashMap<ScreenId, ScreenEntry>,
 }
 
 fn allocate(next: &mut u64) -> Result<TextureId, String> {
@@ -64,9 +64,10 @@ pub(super) fn build(
     } = targets;
     let screen_count = screens
         .iter()
-        .map(|route| route.screen.id)
-        .collect::<HashSet<_>>()
-        .len();
+        .map(|route| (route.screen.id, route.screen.pass_count()))
+        .collect::<HashMap<_, _>>()
+        .values()
+        .sum::<usize>();
     let captured = capture
         .channels
         .iter()
@@ -511,32 +512,58 @@ pub(super) fn build(
             return Err("Screen output duplicates an output route".into());
         }
         if let std::collections::hash_map::Entry::Vacant(slot) = screen_entries.entry(route.screen.id) {
-            let target = match previous.screens.get(&route.screen.id) {
-                Some(target) => *target,
+            let prior = previous.screens.get(&route.screen.id);
+            let target = match prior {
+                Some(entry) => entry.target,
                 None => allocate(next)?,
             };
-            slot.insert(target);
+            let render_extent = route.screen.render_extent(route.extent)?;
+            let smooth = render_extent != route.extent;
+            let supersample = match (prior.and_then(|entry| entry.supersample), smooth) {
+                (Some(id), _) => Some(id),
+                (None, true) => Some(allocate(next)?),
+                (None, false) => None,
+            };
+            let composite = if smooth { supersample.unwrap() } else { target };
+            slot.insert(ScreenEntry { target, supersample });
             screen_extents.insert(route.screen.id, route.extent);
             submission.plan.passes.push(RenderPass {
-                id: PassId::new(target.get()).unwrap(),
-                output: target,
+                id: PassId::new(composite.get()).unwrap(),
+                output: composite,
                 descriptor: TextureDescriptor {
-                    extent: route.extent,
+                    extent: render_extent,
                     format: PixelFormat::Rgba8Unorm,
                     color_encoding: ColorEncoding::Linear,
                     alpha_mode: AlphaMode::Premultiplied,
                 },
                 operation: RenderOperation::Composite {
+                    // Logical layout/readouts stay at final resolution; only raster density changes.
                     layers: route.screen.layers(&source_targets, route.extent, calibration)?,
                 },
             });
+            if smooth {
+                submission.plan.passes.push(RenderPass {
+                    id: PassId::new(target.get()).unwrap(),
+                    output: target,
+                    descriptor: TextureDescriptor {
+                        extent: route.extent,
+                        format: PixelFormat::Rgba8Unorm,
+                        color_encoding: ColorEncoding::Linear,
+                        alpha_mode: AlphaMode::Premultiplied,
+                    },
+                    operation: RenderOperation::Sample {
+                        source: composite,
+                        filter: SampleFilter::Linear,
+                    },
+                });
+            }
         } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {
             return Err("a Screen may have only one authored output extent per generation".into());
         }
         if let Some(output) = route.output {
             submission.plan.outputs.push(PlanOutput {
                 id: output,
-                source: screen_entries[&route.screen.id],
+                source: screen_entries[&route.screen.id].target,
             });
         }
     }
@@ -544,7 +571,8 @@ pub(super) fn build(
         if !seen_outputs.insert(preview.output) {
             return Err("preview output duplicates an output route".into());
         }
-        preview.append(&mut submission, &source_targets, &screen_entries)?;
+        let screen_targets = screen_entries.iter().map(|(id, entry)| (*id, entry.target)).collect();
+        preview.append(&mut submission, &source_targets, &screen_targets)?;
     }
     for channel in &mut channels {
         if !captured[&channel.reference].public_output {

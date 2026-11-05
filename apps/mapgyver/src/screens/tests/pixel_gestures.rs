@@ -27,6 +27,7 @@ fn pixel_samples_use_output_extent_and_coalesce_without_losing_distance_or_histo
                 definition: ScreenDefinition {
                     target: Some(target),
                     enabled: false,
+                    anti_aliasing: Default::default(),
                 },
             },
         );
@@ -89,6 +90,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
             definition: ScreenDefinition {
                 target: Some(ScreenTarget::Fullscreen { display: display.id }),
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -122,6 +124,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
             definition: ScreenDefinition {
                 target: None,
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );

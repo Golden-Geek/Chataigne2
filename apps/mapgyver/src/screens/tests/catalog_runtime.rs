@@ -74,6 +74,7 @@ fn disabled_connected_display_row_is_present_after_runtime_allocation_excludes_o
                 target: Some(ScreenTarget::Fullscreen {
                     display: displays[0].id.clone(),
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -114,6 +115,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
                     display: "screen-b".into(),
                 }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -142,6 +144,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
                         display: "screen-b".into(),
                     }),
                     enabled,
+                    anti_aliasing: Default::default(),
                 },
             },
         );
@@ -314,6 +317,7 @@ fn display_metadata_stale_prepared_hint_cannot_replace_new_selection_or_activate
                     display: "screen-b".into(),
                 }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
     );

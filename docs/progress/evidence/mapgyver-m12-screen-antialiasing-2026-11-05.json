@@ -1,0 +1,133 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/8",
+	"decision": "Active — functional implementation checkpoint; full acceptance remains open",
+	"capability": "Typed per-Screen Raw/default or Smooth (2×), exact shared final resolve, standard Inspector, normal history/persistence and source reuse.",
+	"architecture": "../../architecture/mapgyver-screen-antialiasing.md",
+	"software": {
+		"rust": {
+			"command": "cargo test --locked -p MapGyver --lib --test screen_antialiasing --features native-qualification,application-process-fixture -- --quiet",
+			"lib_passed": 501,
+			"lib_ignored": 3,
+			"native_fixture_software_passed": 5,
+			"native_explicit_ignored": 1,
+			"exit_code": 0
+		},
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+			"exit_code": 0
+		},
+		"svelte": {
+			"command": "npm run check:mapgyver",
+			"errors": 0,
+			"warnings": 0,
+			"exit_code": 0
+		},
+		"ui": {
+			"command": "node --experimental-strip-types --experimental-specifier-resolution=node --test apps/mapgyver/ui/src/lib/screens/tests/*.test.ts",
+			"passed": 33,
+			"failed": 0
+		},
+		"generated": "Screen protocol generator completed; checked-in output parity passes in the Rust suite. ScreenDefinition and ScreenAntiAliasing derive from Rust.",
+		"formatting": "Root and golden_core cargo fmt; targeted Prettier and changed-file diff --check pass.",
+		"behaviors": [
+			"Raw default and unknown enum rejection; checked doubled extent arithmetic",
+			"Real typed Parameter invalidates capture, preserves target, supports exact undo/redo and sparse reload",
+			"Hosted script caller shares ConfigureScreen and one history entry",
+			"Raw graph is identical after Smooth roundtrip; final and intermediate texture identities stay stable",
+			"Two Screen consumers share one composite/resolve and unchanged source producer",
+			"Calibration is rasterized in the high pass with identical logical layout/readout and no source producer",
+			"Existing pass, dimension and byte admission reject Smooth without fallback; exact additional intermediate bytes are required"
+		]
+	},
+	"native": {
+		"build": "cargo test --locked -p MapGyver --lib --test screen_antialiasing --features native-qualification,application-process-fixture -- --quiet (Cargo test profile, optimized + debuginfo)",
+		"executable": "target/debug/deps/screen_antialiasing-1009755fbf5a84ce.exe",
+		"sha256": "4C23BA401F00682A719E1D1A4E54A34245010AB0079757755D31423EDD273A41",
+		"command": "screen_antialiasing-1009755fbf5a84ce.exe native_screen_raw_smooth_warp_alpha_history_and_reload --ignored --exact --nocapture",
+		"exit_code": 0,
+		"duration_seconds": 6.5,
+		"images": 42,
+		"extent": {
+			"width": 32,
+			"height": 24
+		},
+		"texels_per_image": 768,
+		"texels_checked": 32256,
+		"adapters": [
+			{
+				"id": {
+					"low": 88937,
+					"high": 0
+				},
+				"description": "Intel(R) Graphics",
+				"maximum_outside_legal_error": 0,
+				"maximum_nominal_error": 0
+			},
+			{
+				"id": {
+					"low": 90146,
+					"high": 0
+				},
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"maximum_outside_legal_error": 0,
+				"maximum_nominal_error": 1
+			}
+		],
+		"tolerance": "Existing 2/255 outside propagated legal UNORM intervals, unchanged. Every pixel of each image checked.",
+		"cases": [
+			"Raw opaque warped polygon",
+			"Smooth opaque warped polygon",
+			"Raw half-alpha warped polygon",
+			"Smooth half-alpha warped polygon",
+			"Undo to Raw",
+			"Redo to Smooth",
+			"Sparse project reload to Smooth"
+		],
+		"consumers": "Each case checks two distinct SDK Shared Texture outputs and the native preview compositor. This does not establish physical swap-chain/scanout parity.",
+		"oracle": "Independent convex half-plane pixel-center coverage, 2×2 box resolve, linear premultiplied quantization bounds and straight sRGB/preview output conversion; no production homography used by the oracle.",
+		"retirement": "Each fixture's Drop verifies zero live plan allocations, equal created/released, and empty source/output inventories after retirement.",
+		"evidence": "mapgyver-m12-screen-antialiasing-2026-11-05/pixels.log"
+	},
+	"actual_app": {
+		"build": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-screen-aa",
+		"sha256": "066E8125B56048A9A12045ED3387512D93C1E7FE826934417CA5FCEA5D7830D1",
+		"command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-screen-aa.exe node apps/mapgyver/tests/browser/native-screen-antialiasing.mjs",
+		"pid": 8164,
+		"exit_code": 0,
+		"page_errors": [],
+		"normal_owned_exit": 0,
+		"proof": "Actual bundled WebView2 standard enum widget shows Raw default and exactly Raw / Smooth (2×); three changes project the exact authored modes while preserving endpoint and enabled state.",
+		"evidence": "mapgyver-m12-screen-antialiasing-2026-11-05/inspector.log"
+	},
+	"preserved_failures": [
+		{
+			"scope": "First GPU fixture",
+			"sha256": "5BF053B032C903AC81FA264906B0A11E742FA8BCA87AE27769476809191D5BD1",
+			"result": "Raw first expected opaque texel was transparent because the fixture explicitly disabled the Screen; capture correctly uses each Surface's effective enabled state. Corrected fixture to enable its owned Screen; no product behavior/tolerance changed. Watchdog also now distinguishes timeout from disconnected completion."
+		},
+		{
+			"scope": "Actual Inspector",
+			"result": "Initial and enabled-screen attempts could not find the enum. Failure text showed the existing target fields but no AA. The app-owned conditional visibility whitelist omitted anti_aliasing; fixed it to show the ordinary Parameter for every target. Rebuilt app and reran successfully."
+		}
+	],
+	"remaining": [
+		"Native procedural diagonal/circle coverage and calibration text/palette sharpness at real output sizes",
+		"Physical output versus Shared Texture target parity",
+		"Both-GPU measured 1080p/4K costs, all live/retiring native allocations, overload rejection and recovery under unchanged M03/M11 budgets",
+		"Remaining complete project/copy and live target qualification required by original M12/8"
+	],
+	"acceptance": {
+		"verified": 64,
+		"total": 78,
+		"overall_percent": 82,
+		"m12_verified": 7,
+		"m12_total": 11,
+		"m12_percent": 64,
+		"completed_phases": 7,
+		"total_phases": 13,
+		"gate_closed_this_batch": false,
+		"denominator_changed": false
+	},
+	"limits": "These finite small-image functional checks are not performance, physical presentation, device removal or release qualification. No fallback, budget revision or acceptance waiver."
+}

@@ -1,5 +1,5 @@
 //! Screen output settings are typed Parameters; definitions are validated projections.
-use super::protocol::{PhysicalRectangle, ScreenDefinition, ScreenTarget};
+use super::protocol::{PhysicalRectangle, ScreenAntiAliasing, ScreenDefinition, ScreenTarget};
 use golden_core::{
     node,
     node::{
@@ -33,6 +33,7 @@ mod selection;
         width: i32 = 1920 [1..8192] (label = "Width", description = "Physical output pixels.", constraint_policy = "reject");
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
         sender: String = "Screen".to_owned() (label = "Sender name");
+        anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)"]), constraint_policy = "reject");
         display_edid: String = String::new() (label = "Display EDID", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
         display_name: String = String::new() (label = "Display name hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
         display_os_index: i32 = 0 [0..2147483647] (label = "Display number hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
@@ -53,6 +54,7 @@ impl ScreenNode {
         let permissions = node.node_data().meta.user_permissions.clone();
         node.node_data_mut().meta = NodeMeta::new(label).with_user_permissions(permissions);
         node.node_data_mut().meta.enabled = definition.enabled;
+        node.anti_aliasing = ParameterHandle::new(Enum::new(definition.anti_aliasing.name()));
         match definition.target {
             Some(ScreenTarget::Fullscreen { display }) => {
                 node.target_kind = ParameterHandle::new(Enum::new("Fullscreen"));
@@ -112,6 +114,10 @@ impl ScreenNode {
             }
         };
         values.push((self.target_kind.id(), ParamValue::Enum(kind.into())));
+        values.push((
+            self.anti_aliasing.id(),
+            ParamValue::Enum(definition.anti_aliasing.name().into()),
+        ));
         values
     }
 
@@ -120,7 +126,7 @@ impl ScreenNode {
         reader.guard_at(reader.current())
     }
 
-    fn parameter_ids(&self) -> [NodeId; 14] {
+    fn parameter_ids(&self) -> [NodeId; 15] {
         [
             self.target_kind.id(),
             self.display.id(),
@@ -129,6 +135,7 @@ impl ScreenNode {
             self.width.id(),
             self.height.id(),
             self.sender.id(),
+            self.anti_aliasing.id(),
             self.display_edid.id(),
             self.display_name.id(),
             self.display_os_index.id(),
@@ -148,6 +155,7 @@ impl ScreenNode {
             width: read(&self.width, change),
             height: read(&self.height, change),
             sender: read(&self.sender, change),
+            anti_aliasing: read(&self.anti_aliasing, change),
             enabled: self.node_data().meta.enabled,
         }
     }
@@ -282,6 +290,7 @@ struct ScreenValues {
     width: i32,
     height: i32,
     sender: String,
+    anti_aliasing: Enum,
     enabled: bool,
 }
 
@@ -309,10 +318,15 @@ impl ScreenValues {
         ScreenDefinition {
             target,
             enabled: self.enabled,
+            anti_aliasing: ScreenAntiAliasing::parse(self.anti_aliasing.as_str())
+                .expect("validated Screen anti-aliasing"),
         }
     }
 
     fn validate(&self) -> Result<(), String> {
+        if ScreenAntiAliasing::parse(self.anti_aliasing.as_str()).is_none() {
+            return Err("unknown Screen anti-aliasing mode".into());
+        }
         if !["Fullscreen", "Rectangle", "Shared Texture"].contains(&self.kind.as_str()) {
             return Err("unknown Screen target kind".into());
         }

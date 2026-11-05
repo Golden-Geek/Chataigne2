@@ -63,7 +63,7 @@ function visible(child: UiNodeDto) {
 		return true;
 	}
 	if (owner.node_type === 'mapgyver.screen') {
-		if (field === 'target_kind') return true;
+		if (field === 'target_kind' || field === 'anti_aliasing') return true;
 		const target = choice('target_kind');
 		if (target === 'Fullscreen') return field === 'display';
 		if (target === 'Rectangle') return ['left', 'top', 'width', 'height'].includes(field ?? '');

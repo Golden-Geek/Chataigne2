@@ -52,7 +52,7 @@ const reply = (id = 'current', selected: SurfaceSnapshot | null = surface()): Sc
 		screen: {
 			id,
 			label: id,
-			definition: { target: null, enabled: false },
+			definition: { target: null, enabled: false, anti_aliasing: 'Raw' },
 			surfaces: selected ? [selected] : []
 		},
 		has_more_surfaces: false,

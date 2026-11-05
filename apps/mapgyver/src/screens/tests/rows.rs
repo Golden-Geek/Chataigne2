@@ -101,6 +101,7 @@ fn row_reads_are_constant_size_read_only_and_follow_targets_source_renames_and_m
                         extent,
                     },
                 }),
+                anti_aliasing: Default::default(),
             },
         },
     );

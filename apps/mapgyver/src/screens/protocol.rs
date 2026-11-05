@@ -106,6 +106,7 @@ pub struct ScreenDefinition {
     /// An unconfigured Screen must not create a window or select a sender implicitly.
     pub target: Option<ScreenTarget>,
     pub enabled: bool,
+    pub anti_aliasing: ScreenAntiAliasing,
 }
 
 impl Default for ScreenDefinition {
@@ -116,6 +117,46 @@ impl Default for ScreenDefinition {
                 extent: Extent2D::new(1920, 1080).expect("default extent"),
             }),
             enabled: true,
+            anti_aliasing: ScreenAntiAliasing::Raw,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ScreenAntiAliasing {
+    #[default]
+    Raw,
+    Smooth2x,
+}
+
+impl ScreenAntiAliasing {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Raw => "Raw",
+            Self::Smooth2x => "Smooth (2×)",
+        }
+    }
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        match value {
+            "Raw" => Some(Self::Raw),
+            "Smooth (2×)" => Some(Self::Smooth2x),
+            _ => None,
+        }
+    }
+    pub(crate) fn pass_count(self) -> usize {
+        match self {
+            Self::Raw => 1,
+            Self::Smooth2x => 2,
+        }
+    }
+    pub(crate) fn render_extent(self, extent: Extent2D) -> Result<Extent2D, String> {
+        match self {
+            Self::Raw => Ok(extent),
+            Self::Smooth2x => Extent2D::new(
+                extent.width().checked_mul(2).ok_or("Smooth Screen width overflows")?,
+                extent.height().checked_mul(2).ok_or("Smooth Screen height overflows")?,
+            )
+            .map_err(|error| error.to_string()),
         }
     }
 }

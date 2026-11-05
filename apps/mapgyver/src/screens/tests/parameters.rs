@@ -70,6 +70,56 @@ fn screen_definition(engine: &AppEngine, screen: ScreenId) -> ScreenDefinition {
 }
 
 #[test]
+fn screen_antialiasing_is_typed_history_safe_and_persisted() {
+    let mut engine = fixture();
+    let (screen, _) = create(&mut engine);
+    let root = engine.node_id_by_uuid(screen.0).unwrap();
+    let field = parameters(&engine, root)["parameters/anti_aliasing"];
+    let original = screen_definition(&engine, screen);
+    assert_eq!(original.anti_aliasing, ScreenAntiAliasing::Raw);
+    let capture = super::super::rendering::capture_screen(&engine, screen, 8).unwrap();
+    let history = engine.undo_len();
+    assert!(set(&mut engine, field, ParamValue::Enum("Smooth (2×)".into())).success);
+    assert!(!capture.is_current());
+    let smooth = screen_definition(&engine, screen);
+    assert_eq!(smooth.anti_aliasing, ScreenAntiAliasing::Smooth2x);
+    assert_eq!(smooth.target, original.target);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    dispatch(&mut engine);
+    assert_eq!(screen_definition(&engine, screen), original);
+    assert!(engine.redo().unwrap());
+    dispatch(&mut engine);
+    assert_eq!(screen_definition(&engine, screen), smooth);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    assert!(!set(&mut engine, field, ParamValue::Enum("Smooth".into())).success);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    assert_eq!(engine.undo_len(), history + 1);
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    validate_engine_project_candidate(&loaded).unwrap();
+    assert_eq!(screen_definition(&loaded, screen), smooth);
+}
+
+#[test]
+fn screen_antialiasing_defaults_raw_and_checks_extent_arithmetic() {
+    use golden_video::Extent2D;
+    let definition: ScreenDefinition = serde_json::from_str("{}").unwrap();
+    assert_eq!(definition.anti_aliasing, ScreenAntiAliasing::Raw);
+    assert!(serde_json::from_str::<ScreenDefinition>(r#"{"anti_aliasing":"Unknown"}"#).is_err());
+    let extent = Extent2D::new(1920, 1080).unwrap();
+    assert_eq!(ScreenAntiAliasing::Raw.render_extent(extent).unwrap(), extent);
+    assert_eq!(
+        ScreenAntiAliasing::Smooth2x.render_extent(extent).unwrap(),
+        Extent2D::new(3840, 2160).unwrap()
+    );
+    assert!(
+        ScreenAntiAliasing::Smooth2x
+            .render_extent(Extent2D::new(u32::MAX, 1).unwrap())
+            .is_err()
+    );
+}
+
+#[test]
 fn shared_inspector_can_rename_screens_and_surfaces_and_reload_their_permissions() {
     assert!(
         super::super::ScreenNode::new()
@@ -138,7 +188,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let surface_node = engine.node_id_by_uuid(surface.surface.0).unwrap();
     let screen_fields = parameters(&engine, screen_node);
     let surface_fields = parameters(&engine, surface_node);
-    assert_eq!(screen_fields.len(), 14);
+    assert_eq!(screen_fields.len(), 15);
     assert!(!screen_fields.contains_key("parameters/render_enabled"));
     assert_eq!(surface_fields.len(), 10);
     assert!(!surface_fields.contains_key("parameters/render_enabled"));
@@ -189,7 +239,9 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     }
     assert_eq!(engine.undo_len(), history + 4);
     assert!(
-        matches!(screen_definition(&engine, screen), ScreenDefinition { target: Some(ScreenTarget::Spout { sender, .. }), enabled: true } if sender == "Parameter output")
+        matches!(screen_definition(&engine, screen), ScreenDefinition { target: Some(ScreenTarget::Spout { sender, .. }), enabled: true,
+            ..
+        } if sender == "Parameter output")
     );
 
     assert!(
@@ -231,7 +283,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);
     let loaded_screen_fields = parameters(&loaded, loaded.node_id_by_uuid(screen.0).unwrap());
     let loaded_surface_fields = parameters(&loaded, loaded.node_id_by_uuid(surface.surface.0).unwrap());
-    assert_eq!(loaded_screen_fields.len(), 14);
+    assert_eq!(loaded_screen_fields.len(), 15);
     assert_eq!(loaded_surface_fields.len(), 10);
     // Sparse projects omit unchanged, unreferenced declared leaves. Their schema
     // declarations restore the same parameter configuration with fresh identities.
@@ -537,6 +589,7 @@ fn atomic_screen_endpoint_swaps_validate_final_uniqueness_and_rectangle_bounds()
                         extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
                     }),
                     enabled: true,
+                    anti_aliasing: Default::default(),
                 },
             },
         );

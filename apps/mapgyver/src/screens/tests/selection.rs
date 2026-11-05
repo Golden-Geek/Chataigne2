@@ -137,6 +137,7 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
             definition: ScreenDefinition {
                 target: Some(ScreenTarget::Fullscreen { display: "two".into() }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -213,6 +214,7 @@ fn a_recovered_physical_display_is_occupied_even_when_the_saved_path_is_offline(
                     display: "replacement-path".into(),
                 }),
                 enabled: true,
+                anti_aliasing: Default::default(),
             },
         },
     );

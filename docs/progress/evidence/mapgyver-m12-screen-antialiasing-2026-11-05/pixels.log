@@ -1,0 +1,78 @@
+running 1 test
+screen_antialiasing-1009755fbf5a84ce.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 2dec1ac6-4d5f-4f31-9816-44002ed56fb7, generation: 1 })
+At line:2 char:1
++ & target/debug/deps/screen_antialiasing-1009755fbf5a84ce.exe native_s ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster Raw-alpha-1 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Raw-alpha-1 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Raw-alpha-1 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Smooth2x-alpha-1 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster Smooth2x-alpha-1 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster Smooth2x-alpha-1 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster Raw-alpha-0.5 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Raw-alpha-0.5 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Raw-alpha-0.5 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster Smooth2x-alpha-0.5 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster Smooth2x-alpha-0.5 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster Smooth2x-alpha-0.5 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster undo-Raw output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster undo-Raw output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster undo-Raw output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster redo-Smooth output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster redo-Smooth output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster redo-Smooth output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=0 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=0 engine_build_ms=0
+Raster native adapter=Some(AdapterId { low: 88937, high: 0 }) device=Some(DeviceGeneration { runtime:
+ca1df265-f848-4b0b-8178-2e3e4654676b, generation: 1 })
+Raster reload-Smooth output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster reload-Smooth output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster reload-Smooth output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Screen AA adapter=AdapterId { low: 88937, high: 0 } description=Intel(R) Graphics completed
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+86dd2c38-d2e8-4dfd-9ab1-be8dafd2ea68, generation: 1 })
+Raster Raw-alpha-1 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Raw-alpha-1 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Raw-alpha-1 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Smooth2x-alpha-1 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster Smooth2x-alpha-1 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster Smooth2x-alpha-1 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster Raw-alpha-0.5 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Raw-alpha-0.5 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Raw-alpha-0.5 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster Smooth2x-alpha-0.5 output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster Smooth2x-alpha-0.5 output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster Smooth2x-alpha-0.5 output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster undo-Raw output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster undo-Raw output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster undo-Raw output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster redo-Smooth output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster redo-Smooth output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster redo-Smooth output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=0 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=1 engine_build_ms=0
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+8859bb99-6e97-45f6-8b09-1a0ef15cde80, generation: 1 })
+Raster reload-Smooth output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster reload-Smooth output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster reload-Smooth output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Screen AA adapter=AdapterId { low: 90146, high: 0 } description=NVIDIA GeForce RTX 5080 Laptop GPU completed
+test native_screen_raw_smooth_warp_alpha_history_and_reload ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 6.50s

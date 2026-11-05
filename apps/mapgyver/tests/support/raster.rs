@@ -70,6 +70,39 @@ fn quantize(pixel: Pixel) -> Pixel {
 }
 
 impl Image {
+    /// Independent convex-polygon coverage at pixel centers, followed by a box resolve.
+    pub fn screen_quad(width: usize, height: usize, straight: Pixel, quad: [[f64; 2]; 4], samples: usize) -> Self {
+        assert!(matches!(samples, 1 | 2));
+        let source = Self::solid(1, 1, straight);
+        let count = (samples * samples) as f64;
+        let mut result = Self::solid(width, height, [0.0; 4]);
+        for y in 0..height {
+            for x in 0..width {
+                let mut covered = 0;
+                for sy in 0..samples {
+                    for sx in 0..samples {
+                        let p = [
+                            (x as f64 + (sx as f64 + 0.5) / samples as f64) / width as f64,
+                            (y as f64 + (sy as f64 + 0.5) / samples as f64) / height as f64,
+                        ];
+                        if (0..4).all(|i| {
+                            let a = quad[i];
+                            let b = quad[(i + 1) % 4];
+                            (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= 0.0
+                        }) {
+                            covered += 1;
+                        }
+                    }
+                }
+                let coverage = f64::from(covered) / count;
+                let index = y * width + x;
+                result.pixels[index] = quantize(source.pixels[0].map(|v| v * coverage));
+                result.bounds[index] = source.bounds[0].scaled(coverage).quantized();
+            }
+        }
+        result
+    }
+
     pub fn solid(width: usize, height: usize, straight: Pixel) -> Self {
         let [r, g, b, a] = straight;
         Self {

@@ -11,6 +11,7 @@ use mapgyver::media::{
     capture_channels_at,
     rendering::{ChannelRenderer, ChannelRoute, PreviewLayout},
 };
+use mapgyver::preview::protocol::PreviewSource;
 use mapgyver::{app::AppEngine, media::protocol::ChannelReference};
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
@@ -152,21 +153,32 @@ impl Fixture {
         root: ChannelReference,
         expected_produced_targets: Option<usize>,
     ) {
-        self.publish_source(engine, routes, root, expected_produced_targets, None);
+        self.publish_source(
+            engine,
+            routes,
+            PreviewSource::Channel { reference: root },
+            expected_produced_targets,
+            false,
+        );
     }
     pub fn publish_editor(&mut self, engine: &AppEngine, source: mapgyver::preview::protocol::PreviewSource) {
         let root = source.reference().expect("editor render reference");
-        self.publish_source(engine, &[root, root], root, Some(2), Some(source));
+        self.publish_source(engine, &[root, root], source, Some(2), true);
+    }
+    pub fn publish_screen(&mut self, engine: &AppEngine, screen: mapgyver::screens::protocol::ScreenId) {
+        self.publish_source(engine, &[], PreviewSource::Screen { screen }, None, true);
     }
     fn publish_source(
         &mut self,
         engine: &AppEngine,
         routes: &[ChannelReference],
-        root: ChannelReference,
+        root: PreviewSource,
         expected_produced_targets: Option<usize>,
-        editor: Option<mapgyver::preview::protocol::PreviewSource>,
+        editor: bool,
     ) {
-        assert_eq!(routes.len() + 1, self.names.len());
+        if !matches!(root, PreviewSource::Screen { .. }) {
+            assert_eq!(routes.len() + 1, self.names.len());
+        }
         self.revision += 1;
         let rect = CssRect {
             x: 0.0,
@@ -180,10 +192,7 @@ impl Fixture {
                 revision: self.revision,
                 views: vec![PreviewView {
                     id: uuid::Uuid::new_v4(),
-                    source: serde_json::to_string(
-                        &editor.unwrap_or(mapgyver::preview::protocol::PreviewSource::Channel { reference: root }),
-                    )
-                    .unwrap(),
+                    source: serde_json::to_string(&root).unwrap(),
                     rect,
                     clip: rect,
                     visible: true,
@@ -211,16 +220,32 @@ impl Fixture {
         };
         let live = self.renderer.as_mut().unwrap();
         let mut roots = routes.to_vec();
-        roots.push(root);
-        let capture = if let Some(source) = editor {
-            mapgyver::preview::capture::capture_preview(engine, &[source], 64, 1024)
-                .unwrap()
-                .channels
+        roots.extend(root.reference());
+        let (capture, mut screens) = if editor {
+            let capture = mapgyver::preview::capture::capture_preview(engine, &[root], 64, 1024).unwrap();
+            (capture.channels, capture.screens)
         } else {
-            capture_channels_at(engine, &roots, 64, live.read_time().unwrap()).unwrap()
+            (
+                capture_channels_at(engine, &roots, 64, live.read_time().unwrap()).unwrap(),
+                Vec::new(),
+            )
         };
+        if let PreviewSource::Screen { screen } = root {
+            let route = screens
+                .iter()
+                .find(|route| route.screen.id() == screen)
+                .unwrap()
+                .clone();
+            screens = (0..self.names.len() - 1)
+                .map(|i| mapgyver::media::rendering::ScreenRoute {
+                    output: Some(OutputId::new(i as u64 + 1).unwrap()),
+                    extent: self.extent,
+                    ..route.clone()
+                })
+                .collect();
+        }
         let mut request = live
-            .publish_targets(
+            .publish_screen_targets(
                 capture,
                 routes
                     .iter()
@@ -230,6 +255,7 @@ impl Fixture {
                         channel: *channel,
                     })
                     .collect(),
+                screens,
                 Some(preview),
             )
             .unwrap();

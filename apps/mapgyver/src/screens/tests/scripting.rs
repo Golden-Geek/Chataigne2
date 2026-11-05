@@ -33,6 +33,35 @@ fn script(engine: &mut AppEngine, text: String) {
     engine.apply_edits().unwrap();
 }
 
+#[test]
+fn hosted_screen_antialiasing_uses_typed_parameters_and_one_step_history() {
+    let mut engine = fixture();
+    let (screen, _) = create(&mut engine);
+    let original = super::super::inspect(&engine).unwrap().screens[0].definition.clone();
+    let smooth = ScreenDefinition {
+        anti_aliasing: ScreenAntiAliasing::Smooth2x,
+        ..original.clone()
+    };
+    let request = serde_json::to_string(&ScreenEdit::ConfigureScreen {
+        screen,
+        definition: smooth.clone(),
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            "function init() {{ local.listen({{level:1}}); local.editScreens('smooth', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    assert_eq!(replies(&engine)[0]["status"], "applied");
+    assert_eq!(super::super::inspect(&engine).unwrap().screens[0].definition, smooth);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(super::super::inspect(&engine).unwrap().screens[0].definition, original);
+}
+
 fn replies(engine: &AppEngine) -> Vec<serde_json::Value> {
     engine
         .ui_event_log()
@@ -185,6 +214,7 @@ fn hosted_pixel_geometry_uses_backend_extent_and_one_history_step() {
                     extent: golden_video::Extent2D::new(640, 360).unwrap(),
                 }),
                 enabled: false,
+                anti_aliasing: Default::default(),
             },
         },
     );
@@ -266,6 +296,7 @@ fn hosted_fill_and_fit_use_the_same_backend_geometry_and_one_step_history() {
                         extent: golden_video::Extent2D::new(800, 600).unwrap(),
                     }),
                     enabled: false,
+                    anti_aliasing: Default::default(),
                 },
             },
         );

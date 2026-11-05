@@ -70,6 +70,7 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
         ScreenDefinition {
             target: Some(target),
             enabled: true,
+            anti_aliasing: Default::default(),
         },
     );
     if let Some(display) = secondary {

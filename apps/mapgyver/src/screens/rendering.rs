@@ -2,7 +2,9 @@
 
 use super::{
     authoring,
-    protocol::{Calibration, DisplayInfo, PhysicalRectangle, ScreenId, ScreenTarget, SurfaceDefinition},
+    protocol::{
+        Calibration, DisplayInfo, PhysicalRectangle, ScreenAntiAliasing, ScreenId, ScreenTarget, SurfaceDefinition,
+    },
 };
 use crate::{
     app::{AppEngine, AppNode},
@@ -26,6 +28,7 @@ pub struct CapturedScreen {
     pub(crate) guards: Vec<RevisionGuard>,
     surfaces: Vec<SurfaceDefinition>,
     target_extent: Option<Extent2D>,
+    pub(crate) anti_aliasing: ScreenAntiAliasing,
 }
 
 /// Demand for a composed Screen texture. Target activation/placement is a separate host owner;
@@ -186,7 +189,15 @@ impl CapturedScreen {
             .iter()
             .filter(|surface| surface.enabled)
             .map(|surface| super::calibration::work_count(surface.calibration, extent))
-            .sum()
+            .sum::<usize>()
+            + self.pass_count()
+            - 1
+    }
+    pub(crate) fn pass_count(&self) -> usize {
+        self.anti_aliasing.pass_count()
+    }
+    pub(crate) fn render_extent(&self, extent: Extent2D) -> Result<Extent2D, String> {
+        self.anti_aliasing.render_extent(extent)
     }
     pub fn preview_extent(&self) -> Extent2D {
         self.target_extent
@@ -294,6 +305,7 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
         id: screen,
         guards,
         surfaces,
+        anti_aliasing: node.definition().anti_aliasing,
         target_extent: match &node.definition().target {
             Some(ScreenTarget::Rectangle { bounds }) => Some(bounds.extent),
             Some(ScreenTarget::Spout { extent, .. }) => Some(*extent),

@@ -48,7 +48,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const id = snapshot.screens[0].id;
 		const first = snapshot.screens[0].surfaces[0].reference;
-		await controls.fields(['Target', 'Width', 'Height', 'Sender name'], wait);
+		await controls.fields(['Target', 'Width', 'Height', 'Sender name', 'Anti-aliasing'], wait);
 		await warpTab.click();
 		await editor.locator('.native-preview').waitFor();
 		const backgrounds = await page.evaluate(() => {
@@ -94,13 +94,13 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		await wait(screens, (value) => value.screens[0].label === 'UI Screen');
 		stage = 'generic Screen target Parameters';
 		await controls.choice('Target').selectOption('Fullscreen');
-		await controls.fields(['Target', 'Display'], wait);
+		await controls.fields(['Target', 'Display', 'Anti-aliasing'], wait);
 		assert.equal(
 			await controls.choice('Display').inputValue(),
 			(await screens()).screens[0].definition.target?.display ?? ''
 		);
 		await controls.choice('Target').selectOption('Rectangle');
-		await controls.fields(['Target', 'Left', 'Top', 'Width', 'Height'], wait);
+		await controls.fields(['Target', 'Left', 'Top', 'Width', 'Height', 'Anti-aliasing'], wait);
 		const widthParameter = await controls.parameter('Width').getAttribute('data-node-id');
 		for (const [label, value, read] of [
 			['Left', -100, (target) => target.bounds.left],
@@ -112,7 +112,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			await wait(screens, (snapshot) => read(snapshot.screens[0].definition.target) === value);
 		}
 		await controls.choice('Target').selectOption('Shared Texture');
-		await controls.fields(['Target', 'Width', 'Height', 'Sender name'], wait);
+		await controls.fields(['Target', 'Width', 'Height', 'Sender name', 'Anti-aliasing'], wait);
 		await controls.setText('Sender name', 'Parameter UI output');
 		await wait(
 			screens,
