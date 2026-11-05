@@ -1,0 +1,21 @@
+{
+  "result": "pass",
+  "owner": "ColumnGroup",
+  "application": "1ccb64bb-8165-4bd2-b447-c1694f6f0cfa",
+  "results": [
+    {
+      "window": "Normal",
+      "pid": "31376",
+      "visible": "true",
+      "startup_show": "1",
+      "startup_flags": "1"
+    },
+    {
+      "window": "Hidden",
+      "pid": "32688",
+      "visible": "false",
+      "startup_show": "0",
+      "startup_flags": "1"
+    }
+  ]
+}

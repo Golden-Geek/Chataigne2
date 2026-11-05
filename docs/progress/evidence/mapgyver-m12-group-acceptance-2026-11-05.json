@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/4 complete Column Group acceptance",
+  "gate": "Accepted",
+  "acceptance": { "verified": 61, "total": 78, "m12_verified": 4, "m12_total": 11 },
+  "audit": [
+    {
+      "requirement": "Real typed ordered and nested Column Groups, separate from rendered Layer Groups; stable flattened Column addresses, group/ungroup, move/reorder, copy/delete/history/project roundtrip",
+      "proof": "Six matrix/tests/column_groups cases pass in the final 466-test app library run. Existing topology receipt covers 32 levels, atomic rejection and 1024 sparse Columns. Public-caller parity exercises group creation, nested Columns and ungroup through UI, hosted, named and QuickJS callers.",
+      "evidence": "mapgyver-m12-column-topology-2026-11-05.json"
+    },
+    {
+      "requirement": "Optional typed App file and conditional standard Inspector controls; default Normal and authored Hidden",
+      "proof": "Actual native group Inspector file, conditional Window, history and offscreen editing remain verified. Final ordinary-app group window fixture observes Normal visible=true/startup_show=1 and Hidden visible=false/startup_show=0, matching Ready group consumer, then full Idle retirement.",
+      "evidence": ["mapgyver-m12-group-ui-2026-11-05.json", "assets/mapgyver-m12-group-acceptance-2026-11-05/windows.json"]
+    },
+    {
+      "requirement": "Aggregate group demand, uninterrupted same-group switches, flat pre/post distances, independent Cell semantics and outgoing final-use retention",
+      "proof": "Final software run passes column_group_demand and rendered group retention tests. Cached group ranges avoid per-child bindings; captured outgoing ancestry remains immutable across regroup/delete and is released after settlement. Group source/output native case preserves the exact Ready launch/PID across both children and endpoint recreation, then releases the group outside its range.",
+      "evidence": ["mapgyver-m12-group-demand-2026-11-05.json", "assets/mapgyver-m12-group-acceptance-2026-11-05/runtime.json"]
+    },
+    {
+      "requirement": "Normalized executable sharing, cross-group handoff, rapid re-entry, delete/Undo/reload and shutdown",
+      "proof": "All 15 native application_runtime tests pass. The nested-group case verifies one outer/inner owned process, shared peer-group handoff, 20 unload/reload cycles, five re-entries during Stopping, loaded group start, delete retirement, Undo restart and final retirement. Existing native renderer final-use, project, process-tree, crash and stale-evidence tests pass.",
+      "evidence": "mapgyver-m12-group-demand-2026-11-05.json"
+    },
+    {
+      "requirement": "Separate truthful requested, renderer-submitted and stopping markers; actual native source/output",
+      "proof": "Native UI case passes requested and submitted group flags for real nested groups, stable PID 41632, full independent SDK red image, green image after endpoint recreation and transparent image outside the group. Both group stopping flags agree with Stopping/Retained consumers, then clear after full Idle. Software verifies a new request cannot rewrite an older submitted plan. Captures visually show requested/submitted circles separately from stopping amber squares.",
+      "evidence": ["mapgyver-m12-group-markers-2026-11-05.json", "assets/mapgyver-m12-group-acceptance-2026-11-05/runtime.json", "assets/mapgyver-m12-group-acceptance-2026-11-05/submitted.png", "assets/mapgyver-m12-group-acceptance-2026-11-05/stopping.png"]
+    },
+    {
+      "requirement": "Bounded sparse large-Matrix behavior, including empty groups and offscreen selection",
+      "proof": "Final software run retains bounded 1000-empty-group paging, 1024-column bulk sparse/group-range tests and maximum-depth checks. Unchanged native UI evidence adds 1000 Columns with only 27 mounted Cells and zero authored Cells, while the offscreen selected group stays editable through bounded inspection.",
+      "evidence": "mapgyver-m12-group-ui-2026-11-05.json"
+    }
+  ],
+  "readiness_correction": {
+    "producer_baseline": "Independent exact-name completed SDK images are fully red at 96x64 on Intel and NVIDIA; both retire. The delivered stock group case still times out after its own producer-image assertion succeeds.",
+    "observed_failures": "Stock readiness fixes its probe to the first enumerated hardware GPU. Sender-handle device selection alone chooses NVIDIA and receives SDK Frame, but its event-query completion still never advances before the unchanged readiness deadline. The expanded native test reproduces NVIDIA registration success and first-frame failure.",
+    "fix": "Golden SpoutProbe::new_for_sender opens the actual shared handle to select a receiving device independently of the renderer. Probe copies and qualification staging now use the existing source-worker FenceCompletion, preserving bounded ownership through actual GPU completion. Explicit-adapter callers retain their device policy; endpoint replacement drains before reselection.",
+    "verified": "The expanded renderer-free native test now passes first_frame=false and true on Intel LUID 00000000:00015b69 and NVIDIA LUID 00000000:00016022, including real process identity, completed image, unchanged authored state and full retirement. No injected readiness evidence or timeout increase.",
+    "parked_previous_attempts": "Stash 1006dec2e8f52118253a8b4180948993fdd4a4ac remains un-restored. Temporary trace statements were removed. No claim is made about the underlying driver's event-query behavior outside this reproduced copy-only probe."
+  },
+  "final_checks": {
+    "software": "466 MapGyver tests passed, 3 native/fixture cases ignored under this feature set; 208 Golden Video tests passed, 30 hardware cases ignored. Generated media/preview parity included.",
+    "strict": "cargo clippy --locked -p MapGyver -p golden_video --all-targets --features MapGyver/native-qualification,MapGyver/application-process-fixture -- -D warnings passed",
+    "native_build": "application_runtime --no-run terminal success before execution; ordinary MapGyver and owned fixtures built by the same Cargo integration prerequisites",
+    "native_lifecycle": "15 passed, 0 failed, 0 ignored; terminal exit 0; 15.93 seconds, including all four adapter/readiness combinations",
+    "native_ui": "column-group-runtime.mjs passed on actual NVIDIA renderer; native host PID 13568 exited normally with terminal 0 and is absent. All owned source/application/window fixture processes are absent. No page errors or rejected requests.",
+    "format": "Root and golden_core cargo fmt, scoped Prettier and Node syntax check passed",
+    "retained_ui": "Unchanged marker UI retains prior Svelte 0 errors/0 warnings and 28 passing UI tests; see marker receipt."
+  },
+  "binary_sha256": {
+    "MapGyver.exe": "16ae1ba6cc16981c5adf90f5ab9568e4fce5e2b55d34c6b0f5a5f2e9aa825668",
+    "application_runtime-b15da0904ed0c1c1.exe": "f306e69d5dd6a9bf5f3b3549ae6d92bb08b8badb3c71cdcb14d26223cc4ce51f",
+    "native_source_fixture.exe": "48b1084ae315284cd0ef101173dff8202a7f4fd48b21efc2c1d7cd0663fbe8dc",
+    "application_process_fixture.exe": "6d7c55a02c3bff47dba73c6356b731a86d94452ade86a68aabf08519b14f2c33",
+    "native_qualification.exe": "b2218e42c78246be61ad90a06bc70d370c57130a75bffd9126891d47ba342238"
+  },
+  "limits": "M12/4 functional acceptance only. SDK pixels establish image content; WebView screenshots establish DOM marker presentation and do not capture native image surfaces. No presentation latency, cadence, memory or production-budget waiver. Retained M03, M05 and M08 qualification remains open. M12/5 is next."
+}

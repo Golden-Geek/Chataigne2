@@ -4,11 +4,12 @@ use std::{ffi::CString, ptr::NonNull, time::Duration};
 
 use golden_io::{PayloadPool, PayloadReservation};
 use spout2_sys as sdk;
+use windows::Win32::{Foundation::HANDLE, Graphics::Direct3D11::ID3D11Texture2D};
 use windows::core::{Error, HRESULT, Result};
 
 use super::{
     AdapterId,
-    completion::EventCompletion,
+    completion::FenceCompletion,
     device::Device,
     inputs::receiver::{Received, Receiver},
     texture::Texture,
@@ -71,13 +72,24 @@ impl Endpoint {
 pub struct SpoutProbe {
     raw: NonNull<sdk::spout_dx_t>,
     name: CString,
-    adapter: AdapterId,
+    adapter: Option<AdapterId>,
     budget: PayloadPool,
     session: Option<Session>,
 }
 impl SpoutProbe {
     /// Creates metadata observation only. Graphics storage is allocated lazily for image checks.
     pub fn new(sender: &str, adapter: AdapterId, budget: PayloadPool) -> Result<Self> {
+        Self::with_adapter(sender, Some(adapter), budget)
+    }
+
+    /// Creates a renderer-independent observer. The exact sender's current shared handle selects
+    /// its receiving device lazily; candidate devices allocate no receiving images or GPU work.
+    /// Endpoint replacement repeats selection after the previous image has fully retired.
+    pub fn new_for_sender(sender: &str, budget: PayloadPool) -> Result<Self> {
+        Self::with_adapter(sender, None, budget)
+    }
+
+    fn with_adapter(sender: &str, adapter: Option<AdapterId>, budget: PayloadPool) -> Result<Self> {
         if sender.is_empty() || sender.len() > 255 {
             return Err(invalid());
         }
@@ -162,7 +174,7 @@ struct Session {
     endpoint: Endpoint,
     receiver: Receiver,
     texture: Texture,
-    completion: EventCompletion,
+    completion: FenceCompletion,
     device: Device,
     generation: DeviceGeneration,
     submitted: u64,
@@ -171,9 +183,12 @@ struct Session {
     _reservation: PayloadReservation,
 }
 impl Session {
-    fn new(endpoint: Endpoint, name: &CString, adapter: AdapterId, budget: &PayloadPool) -> Result<Self> {
+    fn new(endpoint: Endpoint, name: &CString, adapter: Option<AdapterId>, budget: &PayloadPool) -> Result<Self> {
         let (descriptor, reservation) = endpoint.reserve(budget)?;
-        let device = Device::new(adapter)?;
+        let device = match adapter {
+            Some(adapter) => Device::new(adapter)?,
+            None => sender_device(endpoint)?,
+        };
         let receiver = Receiver::new(
             &device.device,
             &crate::plan::SpoutSource {
@@ -184,7 +199,7 @@ impl Session {
                 frame_count: SpoutFrameCount::Unversioned,
             },
         )?;
-        let completion = EventCompletion::new(&device)?;
+        let completion = FenceCompletion::new(&device)?;
         let texture = Texture::new(&device.device, descriptor)?;
         Ok(Self {
             #[cfg(feature = "qualification")]
@@ -239,6 +254,26 @@ impl Session {
         self.copied = received? == Received::Frame;
         Ok(false)
     }
+}
+
+fn sender_device(endpoint: Endpoint) -> Result<Device> {
+    for adapter in super::adapters()?.into_iter().filter(|adapter| !adapter.software) {
+        let Ok(device) = Device::new(adapter.id) else { continue };
+        let mut alias = None;
+        // SAFETY: open only an alias of the observed sender-owned legacy shared texture.
+        // No GPU commands or receiving storage exist on an unsuccessful candidate device.
+        if unsafe {
+            device
+                .device
+                .OpenSharedResource::<ID3D11Texture2D>(HANDLE(endpoint.handle as *mut std::ffi::c_void), &mut alias)
+        }
+        .is_ok()
+            && alias.is_some()
+        {
+            return Ok(device);
+        }
+    }
+    Err(invalid())
 }
 impl Drop for Session {
     fn drop(&mut self) {

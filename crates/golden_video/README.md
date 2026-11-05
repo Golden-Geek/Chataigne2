@@ -90,6 +90,13 @@ The implemented foundations are:
   portable plan/null builds skip shader generation. Qualification fixtures with their own
   marker programs retain their explicit test compiler path.
   Public `SpoutProbe` observes an exact sender on an IO worker without a renderer/window.
+  Its explicit-adapter constructor preserves caller device policy. `new_for_sender` instead
+  resolves a device by opening the current sender's shared handle before receiving-image
+  allocation, for renderer-independent readiness checks. Candidate devices submit no image
+  work; one bounded receiving image remains charged through completion. Endpoint replacement
+  retires that image before selecting the replacement's device.
+  Probe copies and qualification staging use the same explicit GPU timeline fences as source
+  receivers, so a copy-only context can complete without renderer draws or timing queries.
   Read-only `adapters()` reports PCI identity, memory capacities and adapter-owned GDI outputs.
   `preferred_adapters()` preserves Windows' high-performance order independently of raw
   enumeration indices. `select_adapter(AdapterPreference)` resolves automatic hardware selection

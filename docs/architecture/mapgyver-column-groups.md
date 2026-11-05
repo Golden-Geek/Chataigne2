@@ -60,9 +60,8 @@ reload/delete/Undo and shutdown, alongside software range and retained-plan chec
 
 The group grid and actual standard Inspector are verified in the native WebView, including
 Normal/Hidden parameter history and offscreen editing. Actual group-owned Normal/Hidden window
-visibility also passes. M12/4 remains partial delivery until native source/output integration and
-requested/submitted/stopping marker checks complete the
-[implementation plan](../plan/MapGyver_Implementation_Plan.md) scope.
+visibility also passes. Native group source/output integration and requested/submitted/stopping
+markers complete the [M12/4 functional acceptance audit](../progress/evidence/mapgyver-m12-group-acceptance-2026-11-05.json).
 
 Requested group IDs are projected from committed Column-origin playback requests. Renderer
 plan stamps carry their own group ancestry through installation and submission; a later
@@ -72,6 +71,10 @@ application runtime reader serves Matrix groups; rows do not poll independently.
 
 The application runtime retains released consumer identities as observation-only `Retained`
 entries while the owned process retires, and removes them after ownership is fully released.
-These records never enter admission/demand and cannot authorize a launch. Actual Normal/Hidden
-group windows pass, but the NVIDIA external-sender first-frame check remains unqualified;
-see the [current marker acceptance evidence](../progress/evidence/mapgyver-m12-group-markers-2026-11-05.json).
+These records never enter admission/demand and cannot authorize a launch. Renderer-independent
+readiness uses Golden's sender-handle device selection and existing source-worker timeline
+fences, so copy-only probe completion advances without renderer draws or timing queries.
+Both hardware GPUs pass actual registration/first-frame readiness and complete retirement.
+The native group case independently verifies red output, green after endpoint recovery and
+transparent output after leaving the group, while the same launch survives child switches.
+Retained production timing, memory and physical-display qualification remains separate.

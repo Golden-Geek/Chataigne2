@@ -38,7 +38,7 @@ impl Observer {
 
     #[cfg(all(windows, feature = "native-video"))]
     fn native_sample(&mut self, launch: uuid::Uuid, sender: &str, first_frame: bool) -> Option<(String, bool)> {
-        use golden_video::native::{SpoutProbe, adapters};
+        use golden_video::native::SpoutProbe;
         // A launch changes only after the preceding owned process has retired. Its probe is
         // drained on this same worker before a new observer can acquire bounded storage.
         if self.native.as_ref().is_some_and(|(current, _)| *current != launch) {
@@ -54,8 +54,7 @@ impl Observer {
                 .as_ref()
                 .ok()?
                 .clone();
-            let adapter = adapters().ok()?.into_iter().find(|adapter| !adapter.software)?.id;
-            self.native = Some((launch, SpoutProbe::new(sender, adapter, budget).ok()?));
+            self.native = Some((launch, SpoutProbe::new_for_sender(sender, budget).ok()?));
         }
         let snapshot = self.native.as_mut()?.1.poll(first_frame).ok()?;
         (snapshot.present && (!first_frame || snapshot.first_frame)).then(|| (sender.to_owned(), snapshot.first_frame))

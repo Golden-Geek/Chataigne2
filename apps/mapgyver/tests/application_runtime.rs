@@ -124,19 +124,23 @@ fn wait(runtime: &ApplicationRuntime, phase: ApplicationPhase) -> ApplicationRun
 #[test]
 #[ignore = "requires hardware D3D11 and the native-qualification owned fixture"]
 fn actual_spout_sender_and_completed_first_image_make_the_owned_application_ready_without_renderer() {
-    for first_frame in [false, true] {
-        actual_owned_spout_readiness(first_frame);
+    for (index, adapter) in golden_video::native::adapters().unwrap().iter().enumerate() {
+        if !adapter.software {
+            for first_frame in [false, true] {
+                actual_owned_spout_readiness(index, first_frame);
+            }
+        }
     }
 }
 
 #[cfg(feature = "native-qualification")]
-fn actual_owned_spout_readiness(first_frame: bool) {
+fn actual_owned_spout_readiness(index: usize, first_frame: bool) {
     use golden_video::native::{SpoutProbe, SpoutProbeSnapshot, adapters};
     let sender = format!("MapGyver readiness {}", uuid::Uuid::new_v4());
     let adapter = adapters()
         .unwrap()
-        .into_iter()
-        .find(|adapter| !adapter.software)
+        .get(index)
+        .filter(|adapter| !adapter.software)
         .unwrap()
         .id;
     let budget = golden_io::PayloadPool::new("readiness-probe-test", 1, 128 * 128 * 4).unwrap();
@@ -149,7 +153,7 @@ fn actual_owned_spout_readiness(first_frame: bool) {
             first_frame,
             timeout_ms: 3500,
         },
-        vec![sender],
+        vec![sender, index.to_string()],
     );
     let history = engine.undo_len();
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
@@ -197,7 +201,7 @@ fn actual_owned_spout_readiness(first_frame: bool) {
     wait(&runtime, ApplicationPhase::Idle);
     drop(runtime);
     assert!(retirement.wait_for_idle(Duration::from_secs(4)));
-    eprintln!("Actual owned Spout readiness first_frame={first_frame} passed with complete retirement");
+    eprintln!("Actual owned Spout readiness adapter={index} first_frame={first_frame} passed with complete retirement");
 }
 fn observe(
     runtime: &ApplicationRuntime,

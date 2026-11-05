@@ -1,0 +1,188 @@
+{
+  "result": "pass",
+  "nativePid": 13568,
+  "adapter": {
+    "key": "dxgi:00000000:00016022",
+    "index": 1,
+    "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+  },
+  "outer": "59a63702-7002-44f9-a45f-f2d48712edfa",
+  "inner": "b01642be-1885-4c99-967c-44fff3b0d92e",
+  "first": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "59a63702-7002-44f9-a45f-f2d48712edfa",
+        "configuration": "Current",
+        "definition_instance": "7afb2a55-e627-4001-9c17-3c2130d423a0",
+        "definition_revision": 6
+      },
+      {
+        "application": "b01642be-1885-4c99-967c-44fff3b0d92e",
+        "configuration": "Current",
+        "definition_instance": "dc468314-0c19-41ab-bb0c-8704ea962306",
+        "definition_revision": 6
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "f2628685-5401-44af-9128-964df7755cd3",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 41632,
+    "runtime": "a5954b31-8fb3-4811-a23c-e3ec3e7ffef6"
+  },
+  "switched": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "59a63702-7002-44f9-a45f-f2d48712edfa",
+        "configuration": "Current",
+        "definition_instance": "7afb2a55-e627-4001-9c17-3c2130d423a0",
+        "definition_revision": 6
+      },
+      {
+        "application": "b01642be-1885-4c99-967c-44fff3b0d92e",
+        "configuration": "Current",
+        "definition_instance": "dc468314-0c19-41ab-bb0c-8704ea962306",
+        "definition_revision": 6
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "f2628685-5401-44af-9128-964df7755cd3",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 41632,
+    "runtime": "a5954b31-8fb3-4811-a23c-e3ec3e7ffef6"
+  },
+  "absent": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "59a63702-7002-44f9-a45f-f2d48712edfa",
+        "configuration": "Current",
+        "definition_instance": "7afb2a55-e627-4001-9c17-3c2130d423a0",
+        "definition_revision": 6
+      },
+      {
+        "application": "b01642be-1885-4c99-967c-44fff3b0d92e",
+        "configuration": "Current",
+        "definition_instance": "dc468314-0c19-41ab-bb0c-8704ea962306",
+        "definition_revision": 6
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "f2628685-5401-44af-9128-964df7755cd3",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 41632,
+    "runtime": "a5954b31-8fb3-4811-a23c-e3ec3e7ffef6"
+  },
+  "recovered": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "59a63702-7002-44f9-a45f-f2d48712edfa",
+        "configuration": "Current",
+        "definition_instance": "7afb2a55-e627-4001-9c17-3c2130d423a0",
+        "definition_revision": 6
+      },
+      {
+        "application": "b01642be-1885-4c99-967c-44fff3b0d92e",
+        "configuration": "Current",
+        "definition_instance": "dc468314-0c19-41ab-bb0c-8704ea962306",
+        "definition_revision": 6
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "f2628685-5401-44af-9128-964df7755cd3",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 41632,
+    "runtime": "a5954b31-8fb3-4811-a23c-e3ec3e7ffef6"
+  },
+  "stopping": {
+    "callback_backpressure": false,
+    "configuration": "Retained",
+    "consumers": [
+      {
+        "application": "59a63702-7002-44f9-a45f-f2d48712edfa",
+        "configuration": "Retained",
+        "definition_instance": "7afb2a55-e627-4001-9c17-3c2130d423a0",
+        "definition_revision": 6
+      },
+      {
+        "application": "b01642be-1885-4c99-967c-44fff3b0d92e",
+        "configuration": "Retained",
+        "definition_instance": "dc468314-0c19-41ab-bb0c-8704ea962306",
+        "definition_revision": 6
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "f2628685-5401-44af-9128-964df7755cd3",
+    "message": "demand released",
+    "next_action_ms": 7277,
+    "phase": "Stopping",
+    "process_id": 41632,
+    "runtime": "a5954b31-8fb3-4811-a23c-e3ec3e7ffef6"
+  },
+  "pixels": [
+    {
+      "phase": "group-a-red",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "group-b-recovered-green",
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "outside-transparent",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ],
+  "transport": {
+    "requests": 87,
+    "receipts": 88
+  },
+  "page_errors": [],
+  "limits": "Actual group Normal/Hidden window visibility, native UI nested shared app first-frame readiness, same-group PID continuity, endpoint recreation and independent full SDK output pixels; requested/submitted/stopping markers remain separate. No presentation latency or cadence claim."
+}

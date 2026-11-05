@@ -32,10 +32,14 @@ fn spout(sender: String) {
 
     // Deliberate startup gap proves a resumed process alone cannot satisfy sender readiness.
     std::thread::sleep(Duration::from_millis(500));
+    let index = std::env::args()
+        .nth(2)
+        .map(|value| value.parse::<usize>().unwrap())
+        .unwrap_or(0);
     let adapter = adapters()
         .unwrap()
-        .into_iter()
-        .find(|adapter| !adapter.software)
+        .get(index)
+        .filter(|adapter| !adapter.software)
         .unwrap()
         .id;
     let instance = uuid::Uuid::new_v4();

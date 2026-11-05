@@ -7,6 +7,10 @@ import { inventory, source } from './native-sender-selection.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const run = promisify(execFile);
 
 export async function verifyColumnGroupRuntime({ page, edit, post, nativePid }) {
 	const directory = path.resolve(process.env.MAPGYVER_GROUP_RUNTIME_DIRECTORY);
@@ -36,7 +40,6 @@ export async function verifyColumnGroupRuntime({ page, edit, post, nativePid }) 
 	const sender = `MapGyverGroup-${input.media}`;
 	await edit({ kind: 'ConfigureChannel', reference: input, source: { kind: 'Spout', sender } });
 	const adapter = await observeNativeAdapter(page, await inventory());
-	const endpoint = await source(adapter.index, sender);
 	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const { reference } = await edit({
 		kind: 'CreateMedia',
@@ -116,8 +119,39 @@ export async function verifyColumnGroupRuntime({ page, edit, post, nativePid }) 
 			.getByRole('button', { name: `Launch ${column.label}`, exact: true })
 			.click();
 	const flag = (id, name) => band(id).getAttribute(`data-group-${name}`);
+	const endpoint = await source(adapter.index, sender);
 	try {
 		await endpoint.command('start 96 64 1 0 0');
+		const producerDirectory = path.join(directory, 'producer');
+		const { stdout } = await run(
+			path.resolve('target/debug/native_qualification.exe'),
+			[
+				'--role',
+				'pixels',
+				'--adapter',
+				String(adapter.index),
+				'--name',
+				sender,
+				'--directory',
+				producerDirectory
+			],
+			{ windowsHide: true, timeout: 15000 }
+		);
+		assert.deepEqual(JSON.parse(stdout), { width: 96, height: 64, retired: true });
+		const { stdout: colors } = await run(
+			'python',
+			[
+				'-c',
+				'import json,sys; from PIL import Image; print(json.dumps(sorted(set(Image.open(sys.argv[1]).convert("RGBA").getdata()))))',
+				path.join(producerDirectory, 'pixels.png')
+			],
+			{ windowsHide: true }
+		);
+		assert.deepEqual(
+			JSON.parse(colors),
+			[[255, 0, 0, 255]],
+			'independent producer image before readiness'
+		);
 		await launch(a);
 		await wait(
 			() => flag(outer, 'requested'),
@@ -220,8 +254,14 @@ export async function verifyColumnGroupRuntime({ page, edit, post, nativePid }) 
 			})
 		);
 	} finally {
-		await matrix({ kind: 'ClearPlayback' });
-		await output.finish();
-		await endpoint.close();
+		try {
+			await matrix({ kind: 'ClearPlayback' });
+		} finally {
+			try {
+				await output.finish();
+			} finally {
+				await endpoint.close();
+			}
+		}
 	}
 }
