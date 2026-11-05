@@ -19,12 +19,15 @@ pub(crate) struct ApplicationAxis {
 }
 
 impl ApplicationAxis {
+    pub fn column_groups(&self, column: ColumnId) -> impl Iterator<Item = ColumnGroupId> + '_ {
+        std::iter::successors(self.column_groups.get(&column).copied(), |group| {
+            self.group_parents.get(group).copied()
+        })
+    }
     pub fn column_applications(&self, column: ColumnId) -> impl Iterator<Item = ApplicationId> + '_ {
         self.column_apps.get(&column).copied().into_iter().chain(
-            std::iter::successors(self.column_groups.get(&column).copied(), |group| {
-                self.group_parents.get(group).copied()
-            })
-            .filter_map(|group| self.group_apps.get(&group).copied()),
+            self.column_groups(column)
+                .filter_map(|group| self.group_apps.get(&group).copied()),
         )
     }
 }

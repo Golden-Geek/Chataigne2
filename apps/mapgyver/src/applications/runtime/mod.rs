@@ -64,6 +64,22 @@ pub struct ReadinessEvidence {
 
 type Statuses = HashMap<ApplicationRuntimeId, (uuid::Uuid, ApplicationProcessStatus)>;
 
+struct ConsumerObservations {
+    requested: bool,
+    entries: Arc<[ApplicationRuntimeConsumer]>,
+}
+fn owns_process(status: &ApplicationProcessStatus) -> bool {
+    status.process_id.is_some()
+        || matches!(
+            status.phase,
+            ApplicationPhase::Starting
+                | ApplicationPhase::WaitingForSender
+                | ApplicationPhase::Ready
+                | ApplicationPhase::Stopping
+                | ApplicationPhase::RetirementUnverified
+        )
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct RuntimeView {
     supervision: Arc<Mutex<supervision::State>>,
@@ -71,7 +87,7 @@ pub(crate) struct RuntimeView {
     claimed: Arc<std::sync::atomic::AtomicBool>,
     origin: Arc<OnceLock<Instant>>,
     statuses: Arc<Mutex<Statuses>>,
-    consumers: Arc<Mutex<HashMap<ApplicationRuntimeId, Arc<[ApplicationRuntimeConsumer]>>>>,
+    consumers: Arc<Mutex<HashMap<ApplicationRuntimeId, ConsumerObservations>>>,
     revision: Arc<std::sync::atomic::AtomicU64>,
     observer: Arc<Mutex<Option<(uuid::Uuid, WorkerNotifier)>>>,
 }
@@ -104,7 +120,11 @@ impl RuntimeView {
             .iter()
             .map(|(id, (_, process))| ApplicationRuntimeStatus {
                 process: process.clone(),
-                consumers: consumers.get(id).cloned().unwrap_or_else(|| Arc::from([])),
+                consumers: consumers
+                    .get(id)
+                    .filter(|entry| entry.requested || owns_process(process))
+                    .map(|entry| entry.entries.clone())
+                    .unwrap_or_else(|| Arc::from([])),
             })
             .collect::<Vec<_>>();
         drop(consumers);
@@ -155,6 +175,12 @@ impl RuntimeView {
                 self.callbacks.append(lifecycle, project, elapsed_ms, status.clone());
             }
             *observed = status.clone();
+            if !owns_process(status) {
+                let mut consumers = self.consumers.lock().expect("application consumers lock poisoned");
+                if consumers.get(&id).is_some_and(|entry| !entry.requested) {
+                    consumers.remove(&id);
+                }
+            }
             self.changed();
         }
     }
@@ -332,10 +358,37 @@ impl ApplicationRuntime {
         let consumers = request
             .owners
             .iter()
-            .map(|(id, owner)| (*id, owner.observations.clone()))
-            .collect();
+            .map(|(id, owner)| {
+                (
+                    *id,
+                    ConsumerObservations {
+                        requested: true,
+                        entries: owner.observations.clone(),
+                    },
+                )
+            })
+            .collect::<HashMap<_, _>>();
         *self.shared.desired.lock().expect("application demand lock poisoned") = request;
-        *self.view.consumers.lock().expect("application consumers lock poisoned") = consumers;
+        {
+            let mut observed = self.view.consumers.lock().expect("application consumers lock poisoned");
+            observed.retain(|id, _| self.handles.contains_key(id));
+            for (id, entry) in observed.iter_mut() {
+                if entry.requested && !consumers.contains_key(id) {
+                    entry.requested = false;
+                    entry.entries = entry
+                        .entries
+                        .iter()
+                        .cloned()
+                        .map(|mut consumer| {
+                            consumer.configuration = ApplicationConfigurationState::Retained;
+                            consumer
+                        })
+                        .collect::<Vec<_>>()
+                        .into();
+                }
+            }
+            observed.extend(consumers);
+        }
         self.view.changed();
         for handle in self.handles.values() {
             handle.worker.wake_notifier().notify();

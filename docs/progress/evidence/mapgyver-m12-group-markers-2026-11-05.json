@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/4 group marker provenance and retiring-consumer identity checkpoint",
+  "gate": "Active",
+  "acceptance": { "verified": 60, "total": 78, "m12_verified": 3, "m12_total": 11 },
+  "implemented": [
+    "Viewport requested group IDs derive from committed Column-origin playback requests, independently of current selection.",
+    "Captured renderer plans carry their own group ancestry through installed/submitted feedback. Independent Cell triggers do not activate group ancestry.",
+    "Group headers distinguish requested content, submitted content and process stopping/retirement-unverified state through one shared runtime subscription.",
+    "Released consumers remain observation-only Retained identities while their actual owned process retires; they cannot authorize launch and disappear after full release."
+  ],
+  "verified": {
+    "rust_library": "466 passed, 2 existing ignored, including generated media/preview parity, group submission/request separation and retiring-consumer cleanup",
+    "strict_clippy": "All MapGyver targets with native-qualification,application-process-fixture passed before adapter experiments; marker code is unchanged from that passing checkout",
+    "ui": "Svelte 0 errors/0 warnings; 28 UI units passed",
+    "native_lifecycle": "15 passed, 0 ignored, terminal exit 0 in 12.48 seconds before adapter experiments; includes 20 group cycles, 5 Stopping re-entries, sharing, reload/delete/Undo and renderer final-use retirement",
+    "native_group_windows": "Ordinary app Group-owned Golden fixture: Normal visible=true/startup_show=1, explicit Hidden visible=false/startup_show=0, matching Ready process and group consumer, then verified Idle retirement"
+  },
+  "unqualified": {
+    "native_source_case": "column-group-runtime.mjs reaches both correct native window cases, then fails waiting for the group application's Spout first-frame Ready state on the actual NVIDIA sender. No independent output pixel snapshot or native stopping-marker acceptance was reached.",
+    "hypothesis": "Readiness selects the first enumerated hardware GPU. Two sequential-adapter probe attempts did not restore readiness; adapter selection alone is not an established root cause.",
+    "parked_stash": "1006dec2e8f52118253a8b4180948993fdd4a4ac",
+    "stash_name": "mapgyver-m12-readiness-adapter-attempt-unqualified-2026-11-05",
+    "stash_scope": "Only experimental applications/runtime/readiness.rs and golden_video/native/probe.rs changes; do not restore automatically. Stock readiness/probe code remains in the delivered checkout.",
+    "effort": "Readiness/source investigation 13:11-13:27 UTC, including failed adapter hypotheses. Do not reset this effort or repeat rotation experiments on continuation."
+  },
+  "remaining_requirement": [
+    "Prove the owned sender's actual completed SDK image independently before any further readiness rewrite; reuse the existing exact-name source/SDK fixtures.",
+    "Finish actual group source/output pixels and requested/submitted/stopping UI acceptance, retaining the first-frame failure until verified.",
+    "Complete M12/4 before M12/5; no full gate or production budget is waived."
+  ]
+}

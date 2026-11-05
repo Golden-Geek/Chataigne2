@@ -11,6 +11,8 @@ import { matrixFeedback } from './render-feedback';
 import { useDocumentSelection } from '../selection.svelte';
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
 import { sameSelection } from './selection';
+import { ApplicationRuntimeReader, runtimeState } from '../applications/runtime';
+import { createRuntimeTransport } from '../applications/runtime-transport';
 const key = Symbol('mapgyver-matrix-editor');
 export function provideMatrixAuthoring() {
 	const session = $derived(appState.session);
@@ -27,6 +29,20 @@ export function provideMatrixAuthoring() {
 		invokeMediaEdit
 	);
 	const busy = $derived(controller.busy || session?.hasActiveEditSession === true);
+	const applicationRuntime = $state(runtimeState());
+	const runtimeReader = new ApplicationRuntimeReader(
+		() => session,
+		applicationRuntime,
+		invokeMediaEdit,
+		createRuntimeTransport()
+	);
+	$effect(() => {
+		void session?.status;
+		void session?.snapshotGeneration;
+		void session?.loading.visible;
+		untrack(() => runtimeReader.observe());
+	});
+	onDestroy(() => runtimeReader.dispose());
 	const matrixWindow = $derived(controller.window);
 	const observation = $derived(
 		matrixFeedback(
@@ -159,6 +175,12 @@ export function provideMatrixAuthoring() {
 		},
 		get observation() {
 			return observation;
+		},
+		get applicationRuntime() {
+			return applicationRuntime.live &&
+				applicationRuntime.snapshot?.project === matrixWindow?.project
+				? applicationRuntime.snapshot
+				: null;
 		},
 		get selectedRow() {
 			return selectedRow;

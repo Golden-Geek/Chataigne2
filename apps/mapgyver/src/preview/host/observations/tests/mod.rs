@@ -14,6 +14,7 @@ fn submitted() -> PreviewStatus {
         playback: Default::default(),
         revision: 7,
         columns: vec![],
+        column_groups: vec![],
         transitioning: false,
         layers: [].into(),
     };

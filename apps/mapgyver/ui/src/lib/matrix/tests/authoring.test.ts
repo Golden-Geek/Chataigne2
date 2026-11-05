@@ -125,6 +125,7 @@ function snapshot(media: string, row = 0): MediaEditResult {
 			axis_total: 100000,
 			axis_depth: 0,
 			column_groups: [],
+			requested_column_groups: [],
 			row_start: row,
 			axis_start: 0,
 			rows: [],

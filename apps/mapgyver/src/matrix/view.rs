@@ -380,6 +380,33 @@ pub(super) fn inspect(
         })
         .collect::<Result<Vec<_>, String>>()?;
     column_groups.sort_by_key(|g| (g.depth, g.axis_start));
+    let playback = control.snapshot();
+    let requested_columns = playback
+        .desired_column
+        .into_iter()
+        .chain(
+            playback
+                .layers
+                .iter()
+                .filter(|request| !request.individual)
+                .filter_map(|request| request.column),
+        )
+        .collect::<std::collections::HashSet<_>>();
+    let mut requested = std::collections::HashSet::new();
+    for column in requested_columns {
+        let mut group = index
+            .column_nodes
+            .get(&column)
+            .and_then(|node| super::column_axis::parent(engine, *node));
+        while let Some(id) = group {
+            if !requested.insert(id) {
+                break;
+            }
+            group = index.groups[&id].0.parent;
+        }
+    }
+    let mut requested_column_groups = requested.into_iter().collect::<Vec<_>>();
+    requested_column_groups.sort_by_key(|group| group.0.0);
     for row in index.rows.iter().skip(row_start).take(usize::from(viewport.row_count)) {
         rows.push(row_snapshot(engine, row)?);
         let MatrixItemId::Layer { id: layer } = row.id else {
@@ -422,12 +449,13 @@ pub(super) fn inspect(
             rows,
             columns,
             column_groups,
+            requested_column_groups,
             cells,
             selected: selection
                 .map(|selection| selected_snapshot(engine, &index, selection))
                 .transpose()?
                 .map(Box::new),
-            playback: control.snapshot(),
+            playback,
         },
     })
 }

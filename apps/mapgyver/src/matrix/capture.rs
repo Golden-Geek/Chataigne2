@@ -7,6 +7,25 @@ use crate::{
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
 use std::collections::{HashMap, HashSet};
+
+fn group_stamp(index: &RenderIndex, frame: &super::timeline::Frame, scope: Option<LayerId>) -> Vec<ColumnGroupId> {
+    let clips = scope.map_or(&frame.clips, |layer| &frame.layer(layer).clips);
+    let layers = frame
+        .layers
+        .values()
+        .filter(|_| scope.is_none())
+        .flat_map(|frame| frame.clips.iter());
+    let mut groups = clips
+        .iter()
+        .chain(layers)
+        .filter(|entry| !entry.clip.individual)
+        .flat_map(|entry| index.applications.column_groups(entry.clip.column))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    groups.sort_by_key(|group| group.0.0);
+    groups
+}
 #[derive(Clone)]
 pub(crate) struct MatrixInput {
     pub source: ChannelReference,
@@ -75,6 +94,7 @@ impl CapturedMatrix {
                     .map_or(frame.next, |_| local.interval)
                     .map(|interval| interval.envelope(0.0, 1.0));
                 self.observation.columns = local.columns();
+                self.observation.column_groups = group_stamp(&index, frame, self.layer);
                 self.observation.layers = frame.stamps.clone();
                 self.observation.transitioning = self.until.is_some();
                 Ok(())
@@ -134,6 +154,7 @@ pub(crate) fn capture(
                     playback: playback.clone(),
                     revision: control.authoring_revision(),
                     columns,
+                    column_groups: group_stamp(&index, frame, layer_scope),
                     transitioning: until.is_some(),
                     layers: frame.stamps.clone(),
                 },

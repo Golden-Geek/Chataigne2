@@ -4,8 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function verifyLaunchWindows({ edit }) {
-	const directory = path.resolve(process.env.MAPGYVER_REENTRY_DIRECTORY);
+export async function verifyLaunchWindows({ edit, group = false, directory: targetDirectory }) {
+	const directory = path.resolve(targetDirectory ?? process.env.MAPGYVER_REENTRY_DIRECTORY);
 	await mkdir(directory, { recursive: true });
 	const { reference } = await edit({
 		kind: 'CreateMedia',
@@ -15,23 +15,37 @@ export async function verifyLaunchWindows({ edit }) {
 	const matrix = (operation) => edit({ kind: 'Matrix', media: reference.media, edit: operation });
 	const apps = (operation) => edit({ kind: 'Applications', edit: operation });
 	const [active, empty] = (await matrix({ kind: 'Inspect' })).snapshot.columns;
-	const initial = (await apps({ kind: 'Inspect', application: active.id })).snapshot;
+	let application = active.id;
+	if (group) {
+		const result = await matrix({ kind: 'AddColumnGroup', parent: null, label: 'Window group' });
+		application = result.group;
+		await matrix({
+			kind: 'MoveColumnItem',
+			item: { kind: 'Column', id: active.id },
+			parent: application,
+			after: null
+		});
+	}
+	const initial = (await apps({ kind: 'Inspect', application })).snapshot;
 	assert.equal(initial.definition.window, 'Normal');
 	const results = [];
 	for (const window of ['Normal', 'Hidden']) {
-		const report = path.join(directory, `${window}.txt`);
-		await matrix({
-			kind: 'ConfigureColumnApplication',
-			column: active.id,
-			pre: 0,
-			post: 0,
-			definition: {
-				...initial.definition,
-				window,
-				executable: path.resolve('target/debug/golden_io_process_fixture.exe'),
-				arguments: ['launch-window', report, path.join(directory, `${window}.stop`)]
-			}
-		});
+		const report = path.join(directory, `${application}-${window}.txt`);
+		const definition = {
+			...initial.definition,
+			window,
+			executable: path.resolve('target/debug/golden_io_process_fixture.exe'),
+			arguments: ['launch-window', report, path.join(directory, `${application}-${window}.stop`)]
+		};
+		if (group) await apps({ kind: 'Configure', application, definition });
+		else
+			await matrix({
+				kind: 'ConfigureColumnApplication',
+				column: active.id,
+				pre: 0,
+				post: 0,
+				definition
+			});
 		await matrix({ kind: 'LaunchColumn', column: active.id, mode: 'Configured' });
 		const deadline = Date.now() + 8000;
 		let record;
@@ -52,7 +66,10 @@ export async function verifyLaunchWindows({ edit }) {
 		let live = (await apps({ kind: 'InspectRuntime' })).snapshot;
 		while (
 			!live.applications.some(
-				(entry) => entry.phase === 'Ready' && entry.process_id === Number(record.pid)
+				(entry) =>
+					entry.phase === 'Ready' &&
+					entry.process_id === Number(record.pid) &&
+					entry.consumers.some((consumer) => consumer.application === application)
 			)
 		) {
 			assert(Date.now() < deadline, `${window} process readiness: ${JSON.stringify(live)}`);
@@ -74,7 +91,11 @@ export async function verifyLaunchWindows({ edit }) {
 	}
 	await writeFile(
 		path.join(directory, 'windows.json'),
-		JSON.stringify({ result: 'pass', results }, null, 2)
+		JSON.stringify(
+			{ result: 'pass', owner: group ? 'ColumnGroup' : 'Column', application, results },
+			null,
+			2
+		)
 	);
 	console.log(
 		JSON.stringify({

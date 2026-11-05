@@ -60,6 +60,119 @@ fn status(owner: &ChannelRenderer) -> MatrixRenderStatus {
 }
 
 #[test]
+fn group_request_and_submitted_plan_ancestry_remain_distinct_through_handoff_and_individual_triggers() {
+    let (mut engine, matrix, columns) = fixture();
+    edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: crate::matrix::protocol::MatrixEdit::AddLayers { parent: None, count: 1 },
+        },
+    );
+    let MediaEditResult::MatrixColumnGroupCreated { group } = edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: crate::matrix::protocol::MatrixEdit::AddColumnGroup {
+                parent: None,
+                label: None,
+            },
+        },
+    ) else {
+        panic!()
+    };
+    edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: crate::matrix::protocol::MatrixEdit::MoveColumnItem {
+                item: crate::matrix::protocol::ColumnItemId::Column { id: columns[0] },
+                parent: Some(group),
+                after: None,
+            },
+        },
+    );
+    launch(&mut engine, matrix, columns[0]);
+    let mut owner = renderer();
+    let first = publish(&mut owner, &engine, matrix);
+    installed(&owner, first);
+    wait(|| {
+        status(&owner)
+            .submitted
+            .as_ref()
+            .is_some_and(|stamp| stamp.column_groups == vec![group])
+    });
+    launch(&mut engine, matrix, columns[1]);
+    let MediaEditResult::MatrixViewport { snapshot } = edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: crate::matrix::protocol::MatrixEdit::InspectViewport {
+                viewport: crate::matrix::protocol::MatrixViewport {
+                    row_start: 0,
+                    row_count: 8,
+                    axis_start: 0,
+                    axis_count: 8,
+                },
+                selection: None,
+            },
+        },
+    ) else {
+        panic!()
+    };
+    assert!(snapshot.requested_column_groups.is_empty());
+    assert_eq!(
+        status(&owner).submitted.unwrap().column_groups,
+        vec![group],
+        "requesting another Column cannot rewrite an already submitted plan"
+    );
+    let second = publish(&mut owner, &engine, matrix);
+    installed(&owner, second);
+    wait(|| {
+        status(&owner)
+            .submitted
+            .as_ref()
+            .is_some_and(|stamp| stamp.column_groups.is_empty())
+    });
+    let row = crate::matrix::inspect(&engine, matrix.media)
+        .unwrap()
+        .items
+        .iter()
+        .find_map(|item| match item.id {
+            crate::matrix::protocol::MatrixItemId::Layer { id } => Some(id),
+            _ => None,
+        })
+        .unwrap();
+    edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: crate::matrix::protocol::MatrixEdit::LaunchCell {
+                layer: row,
+                column: columns[0],
+                mode: crate::matrix::protocol::LaunchMode::Cut,
+            },
+        },
+    );
+    let capture = capture_channels(&engine, &[matrix], 16).unwrap();
+    assert!(
+        capture
+            .channels
+            .iter()
+            .find(|c| c.reference == matrix)
+            .unwrap()
+            .matrix
+            .as_ref()
+            .unwrap()
+            .observation
+            .column_groups
+            .is_empty(),
+        "independent Cell content does not activate the Column group"
+    );
+    close(owner);
+}
+
+#[test]
 fn requests_installation_and_submission_are_distinct_and_pending_launch_preserves_previous_plan() {
     let (mut engine, matrix, columns) = fixture();
     let mut owner = renderer();

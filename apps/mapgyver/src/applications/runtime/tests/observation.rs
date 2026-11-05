@@ -3,6 +3,45 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 #[test]
+fn released_consumers_remain_identifiable_only_while_their_process_retires() {
+    let view = RuntimeView::default();
+    let mut status = agent().status;
+    let id = status.runtime;
+    let owner = uuid::Uuid::new_v4();
+    let application = ApplicationId(golden_core::model::NodeUuid(uuid::Uuid::new_v4()));
+    status.phase = ApplicationPhase::Stopping;
+    status.process_id = Some(1234);
+    view.statuses.lock().unwrap().insert(id, (owner, status.clone()));
+    view.consumers.lock().unwrap().insert(
+        id,
+        ConsumerObservations {
+            requested: false,
+            entries: vec![ApplicationRuntimeConsumer {
+                application,
+                configuration: ApplicationConfigurationState::Retained,
+                definition_revision: Some(1),
+                definition_instance: Some(uuid::Uuid::new_v4()),
+            }]
+            .into(),
+        },
+    );
+    let project = uuid::Uuid::new_v4();
+    assert_eq!(
+        view.snapshot(project).applications[0].consumers[0].application,
+        application
+    );
+    status.phase = ApplicationPhase::RetirementUnverified;
+    view.publish(id, owner, &status, None, project, 0);
+    assert_eq!(view.snapshot(project).applications[0].consumers.len(), 1);
+    status.phase = ApplicationPhase::Idle;
+    status.process_id = None;
+    status.configuration = ApplicationConfigurationState::NotRunning;
+    view.publish(id, owner, &status, None, project, 0);
+    assert!(view.snapshot(project).applications[0].consumers.is_empty());
+    assert!(!view.consumers.lock().unwrap().contains_key(&id));
+}
+
+#[test]
 fn configuration_observations_distinguish_retained_pending_current_and_fully_released_owners() {
     let mut agent = agent();
     let original = definition();

@@ -15,6 +15,7 @@ const snapshot = {
 const stamp = (column: string, launch: string): MatrixPlanStamp => ({
 	revision: 1,
 	columns: [column],
+	column_groups: [`group-${column}`],
 	transitioning: false,
 	layers: [],
 	playback: {

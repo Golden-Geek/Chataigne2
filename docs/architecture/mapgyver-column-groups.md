@@ -59,7 +59,19 @@ covers real owned nested-group sharing, 20 unload/reload cycles, five stopping r
 reload/delete/Undo and shutdown, alongside software range and retained-plan checks.
 
 The group grid and actual standard Inspector are verified in the native WebView, including
-Normal/Hidden parameter history and offscreen editing. M12/4 remains partial delivery until
-actual group native window visibility, source/output integration and requested/submitted/
-stopping marker checks complete the [implementation plan](../plan/MapGyver_Implementation_Plan.md)
-scope. Parameter values and native process fixtures alone do not establish those actual-app gates.
+Normal/Hidden parameter history and offscreen editing. Actual group-owned Normal/Hidden window
+visibility also passes. M12/4 remains partial delivery until native source/output integration and
+requested/submitted/stopping marker checks complete the
+[implementation plan](../plan/MapGyver_Implementation_Plan.md) scope.
+
+Requested group IDs are projected from committed Column-origin playback requests. Renderer
+plan stamps carry their own group ancestry through installation and submission; a later
+request cannot rewrite an older submitted stamp. The grid shows requested and submitted
+content separately from stopping/retirement-unverified process observations. One shared
+application runtime reader serves Matrix groups; rows do not poll independently.
+
+The application runtime retains released consumer identities as observation-only `Retained`
+entries while the owned process retires, and removes them after ownership is fully released.
+These records never enter admission/demand and cannot authorize a launch. Actual Normal/Hidden
+group windows pass, but the NVIDIA external-sender first-frame check remains unqualified;
+see the [current marker acceptance evidence](../progress/evidence/mapgyver-m12-group-markers-2026-11-05.json).

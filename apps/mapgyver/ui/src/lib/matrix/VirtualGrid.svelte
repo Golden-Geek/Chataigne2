@@ -16,6 +16,7 @@
 	import { gridSize, projectGrid, selectionScroll } from './viewport';
 	import { sameSelection } from './selection';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
+	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
@@ -26,6 +27,7 @@
 		snapshot,
 		selected,
 		observation,
+		applicationRuntime,
 		disabled,
 		viewport,
 		select,
@@ -42,6 +44,7 @@
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
 		observation: MatrixRenderStatus | null;
+		applicationRuntime: ApplicationRuntimeSnapshot | null;
 		disabled: boolean;
 		viewport(value: MatrixViewport): void;
 		select(row: MatrixViewRow, column: ColumnSnapshot): void;
@@ -361,6 +364,9 @@
 				</div>
 				<ColumnGroupHeaders
 					groups={snapshot.column_groups}
+					requested={snapshot.requested_column_groups}
+					{observation}
+					{applicationRuntime}
 					start={snapshot.axis_start}
 					end={snapshot.axis_start + projection.viewport.axis_count}
 					depth={snapshot.axis_depth}

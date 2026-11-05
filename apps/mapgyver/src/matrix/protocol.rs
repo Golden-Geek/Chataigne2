@@ -314,6 +314,7 @@ pub struct MatrixViewportSnapshot {
     pub columns: Vec<ColumnSnapshot>,
     pub column_groups: Vec<ColumnGroupSnapshot>,
     pub cells: Vec<MatrixViewCell>,
+    pub requested_column_groups: Vec<ColumnGroupId>,
     /// Inspector data is bounded independently of the virtualized grid window.
     pub selected: Option<Box<MatrixSelectionSnapshot>>,
     pub playback: MatrixPlaybackSnapshot,
@@ -558,6 +559,8 @@ pub struct MatrixPlanStamp {
     pub revision: u64,
     /// Includes transition envelope participants, not a claim of positive opacity in every frame.
     pub columns: Vec<ColumnId>,
+    /// Column-origin group ancestry carried by this plan, independent of current authoring.
+    pub column_groups: Vec<ColumnGroupId>,
     pub transitioning: bool,
     pub layers: std::sync::Arc<[MatrixLayerPlanStamp]>,
 }
