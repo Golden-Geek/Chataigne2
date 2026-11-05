@@ -1,0 +1,98 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"scope": "Final native-resource destruction drain correction and one original 100-cycle lifecycle validation",
+	"source_base": "d9ddae758c70990a44f5e3aa427b4f67122b1a69",
+	"binary_sha256": "554794632d34db3f278cd6039285f97a17eae8a4c55ab8624d10f1e185dff4b3",
+	"source_set_sha256": "190f47c8616720747579b173f698d97aa357879211d8aca0e5604e0e4db6a1cc",
+	"build_record": "target/m039-late-drain-release-2026-11-05/build.json",
+	"change": {
+		"owner": "Golden Video native Device and its resource-owning worker/session structs",
+		"behavior": "Retain early context unbinding; drain deferred destruction in Device Drop after native resource fields release, before allocation leases release",
+		"completion": "Existing observed GPU completion or actual device-removal proof remains required; Flush is not a completion fence",
+		"frame_path": "No new recurring-frame flush or GPU wait",
+		"documentation": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-flush",
+		"limit": "Private-growth cause remains unproven; this correction does not resolve the original growth criterion"
+	},
+	"checks": {
+		"software": "Golden Video qualification: 208 passed; native_qualification binary: 6 passed",
+		"strict": "Golden Video base and qualification all-target Clippy passed with warnings denied",
+		"native": [
+			"hardware_unobserved_completion_retains_owners_and_project_ack_while_healthy_output_continues",
+			"hardware_output_collision_recovers_through_public_runtime_without_stopping_healthy_output",
+			"hardware_versioned_preflight_and_busy_preserve_source_publications",
+			"hardware_canvas_bitmap_assets_share_uploads_and_release_with_last_resource"
+		],
+		"native_result": "Four groups passed after terminal software/compile prerequisites; no genuine hardware removal performed",
+		"release_build": "Passed; actual final-link MSVC 14.51.36231 and Windows SDK 10.0.26100.0 recorded",
+		"format": "Root and Golden Core cargo fmt passed",
+		"independent_checker": "Unchanged prior independent lifecycle acceptance logic, hash-pinned and run against the new cohort; assertions passed"
+	},
+	"method": {
+		"adapter": "dxgi:00000000:00016022",
+		"process_id": 29948,
+		"cycles": 100,
+		"geometry_edits": 1000,
+		"source_resize_restarts": 100,
+		"project_replacements": 100,
+		"output_remove_recreates": 100,
+		"spacing_ms": 2000,
+		"baseline_cycle": 10,
+		"baseline_and_final_drains_seconds": 10,
+		"outer_elapsed_seconds": 515.0855201000086,
+		"original_limits_unchanged": true
+	},
+	"observed": {
+		"baseline_private_MiB": 185.4375,
+		"maximum_checkpoint_private_MiB": 239.0390625,
+		"maximum_growth_MiB": 53.6015625,
+		"peak_cycle": 99,
+		"growth_limit_MiB": 32,
+		"final_private_growth_MiB": 6.859375,
+		"baseline_handles": 1024,
+		"final_handles": 1018,
+		"handle_delta": -6,
+		"logical_live_set_restored": true,
+		"baseline_and_final_reserved_texture_bytes": 160373648,
+		"baseline_and_final_active_plan_bytes": 32256000,
+		"post_shutdown_tracked_native_allocations_released": true,
+		"normal_fixture_child_exits": 103,
+		"shutdown_ms": 115.9518,
+		"forced_cleanup": false,
+		"owned_job_active_before_close": 0,
+		"root_exit_code": 1
+	},
+	"environment": {
+		"identities_equal": true,
+		"identity_sha256": "8638cd738ed3dde237def7527a02266cf86b3861740bfa4c72a3d78183e185d7",
+		"fresh_paired_overlay_off": true,
+		"qpc_bracketed": true,
+		"scope": "Native HWND renderer fixture; installed default WebView version recorded, no WebView lifecycle qualification"
+	},
+	"artifacts": {
+		"directory": "target/m039-late-drain-2026-11-05",
+		"checkpoints_sha256": "141a593db42f8c4c5e6d087d28209862258655c1c5811de4616c75c2d8b27009",
+		"native_summary_sha256": "de8f2fbf83c7067aee94f05afc043b8257adb3cea6e2cae6b32e41cc1414795a",
+		"launcher_sha256": "2754648d369a4439017870b984a29016d1c946301f520ad8a43fb11f20e27503",
+		"environment_before_sha256": "af0a13aee27440e09bc82ae58edb12297bcc9824707deb9a105841e63fe2468a",
+		"environment_after_sha256": "d519c1bcdb183e5638d0e3b14f10963f4c136130039abc091db0df84f216d110",
+		"independent_analysis_sha256": "aa7edc3587429a5fe30aaa71f9c2cbcaf775735591aea8a5890caa6998e6270b",
+		"independent_wrapper_sha256": "a014fd73ba1d8052ef580f5519d4ea0574577f9fc5d836ac40eea63a4659c6b4",
+		"unchanged_independent_checker_sha256": "dce4c308c508086057f8fc7d1585f3deee3b57e4b6848d447137f780f7b86142"
+	},
+	"decision": "Retain the owning teardown correction and passing regression evidence. The original memory criterion still fails; final drainage does not override checkpoint growth. Stop this correction's memory investigation without another variant or silent budget revision.",
+	"remaining": [
+		"Private-growth root-cause evidence leading to a different justified correction, or an explicit reviewed target revision, before another memory run",
+		"Original GPU critical-path, window/source deadline and prescribed Q01/Q02 series requirements",
+		"Retained physical/device and final application qualification"
+	],
+	"progress": {
+		"accepted_gates": 57,
+		"total_gates": 67,
+		"percent": 85,
+		"completed_phases": 7,
+		"total_phases": 12
+	}
+}

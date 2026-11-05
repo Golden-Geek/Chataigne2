@@ -389,10 +389,9 @@ impl Drop for FixtureSource {
             );
         }
         // SAFETY: every admitted use completed or the exact producer device confirmed removal.
-        // Native fields drop afterward, releasing the SDK before textures/pipeline/device.
+        // Native fields then release SDK/textures/pipeline before Device's final drain.
         unsafe {
             self.device.context.ClearState();
-            self.device.context.Flush();
         }
     }
 }

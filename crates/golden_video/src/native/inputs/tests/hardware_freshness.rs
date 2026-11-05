@@ -51,8 +51,8 @@ fn snapshot(shared: &Shared) -> SourceSnapshot {
 struct Sender {
     output: Option<SpoutOutput>,
     texture: Texture,
-    device: Device,
     completion: EventCompletion,
+    device: Device,
     token: CompletionToken,
 }
 

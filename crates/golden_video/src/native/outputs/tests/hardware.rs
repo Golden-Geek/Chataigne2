@@ -44,8 +44,8 @@ fn wait(label: &str, mut ready: impl FnMut() -> bool) {
 struct Collider {
     output: Option<SpoutOutput>,
     texture: Texture,
-    device: Device,
     completion: EventCompletion,
+    device: Device,
     token: CompletionToken,
 }
 

@@ -39,6 +39,7 @@ struct NativeState {
     output_schedule: OutputSchedule,
     pipeline: Pipeline,
     completion: EventCompletion,
+    // Final device drain follows the release of every native resource above.
     device: Device,
 }
 
@@ -49,10 +50,10 @@ impl Drop for NativeState {
             tap.finish(&self.device);
         }
         // SAFETY: core retirement has completed all uses (or confirmed removal) before this
-        // owner is destroyed. Release context bindings before output/pipeline/device fields.
+        // owner is destroyed. Unbind before resource fields release; Device drains their
+        // deferred destruction afterward, rather than flushing while they are still owned.
         unsafe {
             self.device.context.ClearState();
-            self.device.context.Flush();
         }
     }
 }

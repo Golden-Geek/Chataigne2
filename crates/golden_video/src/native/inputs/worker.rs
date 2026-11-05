@@ -433,10 +433,10 @@ impl Drop for Session {
                 timing.abandon();
             }
         }
-        // SDK/native fields drop on this source worker only, while its pool lifetime stays held.
+        // SDK/native fields drop on this source worker only. Device performs the final
+        // deferred-destruction drain after them, while the storage lease still stays held.
         unsafe {
             self.device.context.ClearState();
-            self.device.context.Flush();
         }
         // Publish zero only after the committed source-owned bridge objects/handles drop.
         self.slots.clear();

@@ -3,8 +3,9 @@ use super::UnitRect;
 use crate::{LinearColor, Opacity};
 use std::{sync::Arc, time::Duration};
 mod text;
-pub(crate) use text::TextSource;
-pub use text::{CANVAS_LABEL_BYTES, CanvasText, CanvasTextStyle, MAX_CANVAS_TEXT_BYTES};
+#[cfg(all(windows, feature = "d3d11"))]
+pub(crate) use text::{CANVAS_LABEL_BYTES, TextSource};
+pub use text::{CanvasText, CanvasTextStyle, MAX_CANVAS_TEXT_BYTES};
 
 /// Maximum primitive count in one admitted procedural canvas.
 pub const MAX_CANVAS_PRIMITIVES: usize = 32;

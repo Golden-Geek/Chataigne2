@@ -158,11 +158,25 @@ fn outputs(adapter: &IDXGIAdapter1) -> Result<Vec<AdapterOutput>> {
     unreachable!("bounded enumeration returns at index 32")
 }
 
+/// Declare this after its owner's native resources and before allocation leases. Its final
+/// drain must follow resource release, while resource accounting still covers that destruction.
 pub(super) struct Device {
     pub(super) device: ID3D11Device,
     pub(super) context: ID3D11DeviceContext,
     pub(super) adapter: AdapterId,
     _local: PhantomData<Rc<()>>,
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        // SAFETY: the creating worker has completed all uses or confirmed removal before
+        // releasing its resources. Flush drains deferred destruction after those releases;
+        // it is not a GPU-completion fence and is never part of recurring frame work.
+        unsafe {
+            self.context.ClearState();
+            self.context.Flush();
+        }
+    }
 }
 
 impl Device {

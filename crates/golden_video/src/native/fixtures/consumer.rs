@@ -545,10 +545,9 @@ impl Drop for FixtureConsumer {
             );
         }
         // SAFETY: all own uses completed or actual removal was confirmed. Release bindings
-        // before SDK/log/capture fields, which remain owned by this worker throughout drain.
+        // before SDK/log/capture fields. Device drains deferred destruction after those release.
         unsafe {
             self.device.context.ClearState();
-            self.device.context.Flush();
         }
     }
 }

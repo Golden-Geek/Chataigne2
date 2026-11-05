@@ -1,19 +1,27 @@
 # Production renderer qualification runner
 
-**Current retained result (2026-11-05):** the corrective release 100-cycle replay has matching
-environment identities, fresh paired overlay-Off observations and a bracketed native interval.
-Maximum checkpoint growth is **52.070 MiB against 32 MiB**; final growth is 6.578 MiB, handles
-fall by six, the exact logical live set returns and tracked native textures/bridges/outputs
-release. All 103 fixed fixture children exit normally; shutdown takes 119 ms with no forced
-cleanup. The peak-growth failure is confirmed under a stable environment; final drainage does
-not override it. [Stable replay](evidence/mapgyver-m03-resource-growth-stable-2026-11-05.json).
+**Current retained result (2026-11-05):** the final native-resource drain correction passes
+software, strict lint, release compilation and four native regression groups. The unchanged
+100-cycle lifecycle still fails: **53.602 MiB against 32 MiB**, final growth 6.859 MiB, handles
+down six, exact logical live set restored and tracked native resources released. All 103 fixed
+fixture children exit normally; shutdown takes 116 ms without forced cleanup. Paired environment
+identities match, fresh overlay-Off observations bracket the native work, and the unchanged
+independent checker agrees. [Correction and result](evidence/mapgyver-m03-late-drain-2026-11-05.json).
 
-The earlier [51.828 MiB run](evidence/mapgyver-m03-resource-growth-2026-11-05.json) remains preserved
-with its different surrounding display routes and interrupted post-overlay check. Two native
-runs are complete; stop this investigation without another probe. The private-memory cause is
-unproven. Keep the original target and gate open; the recommended next priority is M08's
-critical retirement blocker. A precise 64 MiB checkpoint-target alternative was presented for
-explicit review, retaining other limits and requiring fresh validation; it is not applied.
+Golden Video's `Device` now drains deferred destruction after its owner's native resource
+fields release, while allocation leases remain held. Owners still unbind early and require
+actual completion or confirmed device removal. This follows Microsoft's documented
+[release → ClearState → Flush ordering](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-flush).
+Flush remains asynchronous and is not a GPU-completion fence; no recurring frame flush was
+added. The ownership correction is retained, but it does not resolve checkpoint private growth.
+
+The earlier [51.828 MiB run](evidence/mapgyver-m03-resource-growth-2026-11-05.json) and
+[stable 52.070 MiB replay](evidence/mapgyver-m03-resource-growth-stable-2026-11-05.json) remain
+preserved. The private-memory cause is unproven. Stop this correction's memory investigation
+without another variant. Another memory run requires new root-cause evidence supporting a
+different owning correction, or an explicit reviewed target revision. The proposed 64 MiB
+checkpoint target has not been approved or applied. M03/9 remains open; its independent GPU
+critical-path/window deadline and prescribed Q01/Q02 requirements also remain required.
 
 ## Environment and GPU/display route
 
