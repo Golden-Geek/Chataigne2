@@ -5,6 +5,7 @@ mod calibration;
 pub(crate) mod catalog_runtime;
 pub(crate) mod creation;
 pub mod display_matching;
+mod editor;
 mod geometry;
 mod nodes;
 pub mod protocol;

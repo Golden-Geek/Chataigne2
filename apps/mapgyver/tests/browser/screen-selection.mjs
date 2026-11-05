@@ -61,7 +61,7 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	const rejected = observeRejectedRequests(page, () => 'Screen selection');
-	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
+	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
 	const main = page.locator('[data-panel-id="screen-warp"]');
 	const groups = (target) => target.getByRole('group', { name: /^Warp handles for / });
 	const handles = (target, label) =>

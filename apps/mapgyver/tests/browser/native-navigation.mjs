@@ -42,6 +42,7 @@ import { verifyAdaptiveMatrixGrid } from './matrix-adaptive-grid.mjs';
 import { verifyMatrixGridUi } from './matrix-grid.mjs';
 import { verifyInspectorContentBinding } from './inspector-content-binding.mjs';
 import { verifyPreviewContinuity } from './preview-continuity.mjs';
+import { verifyScreenBindings } from './screen-bindings.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -66,6 +67,7 @@ try {
 		[
 			['--content-binding', verifyInspectorContentBinding],
 			['--preview-bindings', verifyPreviewContinuity],
+			['--screen-bindings', verifyScreenBindings],
 			[
 				'--matrix-grid',
 				async (options) => {

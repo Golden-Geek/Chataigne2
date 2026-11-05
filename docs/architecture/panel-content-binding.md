@@ -28,11 +28,23 @@ new document's relevant selection, but it cannot reuse that document's unrelated
 to revive an old target. Missing targets remain unavailable and can recover through Undo or
 same-document Load. Bounded pages and independent selected-object reads remain unchanged.
 
-Composition, Media Preview and Inspector publish the same capability and have no body lock.
+Composition, Media Preview, Inspector, Screen Warping and Surface Source publish the same
+capability and have no body lock.
 Composition stores the last successful target even while unlocked. Media Preview retains
 its existing explicit lock/channel/grid/page behavior. The Matrix spatial adapter must use
-this same capability and relevant-target rule when integrated under M12/6–7; this slice does
-not claim that future integration or complete M12/6 acceptance.
+this same capability and relevant-target rule when integrated under M12/6–7; current Screen
+integration does not claim that future Matrix integration or complete M12/6 acceptance.
+
+Screen/Surface editors own separate readers and geometry gestures; they no longer share a
+window-level selection/controller. `InspectEditor` resolves relevant ancestors and locks in
+Rust, with the same persisted-root fencing and unrelated-selection retention. Screen pages
+contain at most 128 Surface definitions plus one independent selected Surface. Surface Source
+reads its exact Surface without traversing a Screen's child list. Native Screen rendering
+still includes the complete authored scene. `DropSourceAt` resolves the topmost actual Surface
+at drop time through the admitted projective mapping, including beyond the geometry page;
+the editor's viewport hit is only a visual hint. Explicit handle drops retain their explicit
+target. Screen rows remain public Golden outliner projections with bounded row readers.
+The obsolete shared editor context and its manager/media catalog reads are removed.
 
 The native `--content-binding`, `--composition-panels` and `--preview-bindings` flows verify
 real tab input, independent instances, target deletion/history, layout reload, reconnect and

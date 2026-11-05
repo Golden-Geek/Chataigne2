@@ -157,6 +157,9 @@ impl Default for SurfaceDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEdit {
+    InspectEditor {
+        query: ScreenEditorQuery,
+    },
     /// Bounded metadata for one mounted outliner row; never includes descendants.
     InspectRow {
         node: NodeUuid,
@@ -204,6 +207,12 @@ pub enum ScreenEdit {
         screen: ScreenId,
         surface: Option<SurfaceId>,
         #[ts(type = "string")]
+        source: NodeUuid,
+    },
+    /// Resolve the complete Screen's topmost Surface at drop time, independent of editor paging.
+    DropSourceAt {
+        screen: ScreenId,
+        point: Point,
         source: NodeUuid,
     },
     ConfigureSurface {
@@ -309,6 +318,43 @@ pub struct ScreenManagerSnapshot {
     pub screens: Vec<ScreenSnapshot>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum ScreenEditorKind {
+    Screen,
+    Surface,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum ScreenEditorTarget {
+    Screen { screen: ScreenId },
+    Surface { reference: SurfaceReference },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenEditorQuery {
+    pub editor: ScreenEditorKind,
+    pub selected: Option<NodeUuid>,
+    pub document: Option<NodeUuid>,
+    pub locked: Option<ScreenEditorTarget>,
+    pub retained: Option<ScreenEditorTarget>,
+    pub surface: Option<SurfaceId>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenEditorPage {
+    pub document: NodeUuid,
+    pub document_matches: bool,
+    pub target: Option<ScreenEditorTarget>,
+    /// First 128 Surface definitions; native rendering retains the complete Screen.
+    pub screen: Option<ScreenSnapshot>,
+    pub has_more_surfaces: bool,
+    /// Retained identity remains available for Undo even when its definition is missing.
+    pub selected_surface: Option<SurfaceId>,
+    /// Independent lookup keeps off-page selected geometry editable.
+    pub surface: Option<SurfaceSnapshot>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ScreenRowSnapshot {
     pub node: NodeUuid,
@@ -320,6 +366,9 @@ pub struct ScreenRowSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
+    Editor {
+        page: ScreenEditorPage,
+    },
     Row {
         /// None when deletion/project replacement overtook a mounted row's read.
         snapshot: Option<ScreenRowSnapshot>,

@@ -23,6 +23,16 @@ fn inspections_preserve_active_gestures_redo_and_events_for_every_public_caller(
         for edit in [
             ScreenEdit::InspectManager,
             ScreenEdit::InspectScreen { screen },
+            ScreenEdit::InspectEditor {
+                query: ScreenEditorQuery {
+                    editor: ScreenEditorKind::Screen,
+                    selected: Some(reference.surface.0),
+                    document: None,
+                    locked: None,
+                    retained: None,
+                    surface: None,
+                },
+            },
             ScreenEdit::InspectSurface { reference },
             ScreenEdit::InspectRow { node: screen.0 },
             ScreenEdit::InspectRow {

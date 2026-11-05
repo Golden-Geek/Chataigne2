@@ -70,12 +70,22 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return Err("unsupported screen operation".into());
     }
     let edit: ScreenEdit = serde_json::from_value(payload).map_err(|error| error.to_string())?;
+    let edit = match edit {
+        ScreenEdit::DropSourceAt { screen, point, source } => ScreenEdit::DropSource {
+            screen,
+            surface: super::editor::hit_test(engine, screen, point)?,
+            source,
+        },
+        edit => edit,
+    };
     if let Some(result) = super::queries::read(engine, &edit)? {
         return serde_json::to_value(result).map_err(|error| error.to_string());
     }
     let pending = engine.edits.pending.len();
     let result = match edit {
         ScreenEdit::InspectRow { .. }
+        | ScreenEdit::InspectEditor { .. }
+        | ScreenEdit::DropSourceAt { .. }
         | ScreenEdit::InspectManager
         | ScreenEdit::InspectSurface { .. }
         | ScreenEdit::InspectScreen { .. } => unreachable!("inspection handled before mutation dispatch"),

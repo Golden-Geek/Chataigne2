@@ -1,0 +1,131 @@
+{
+  "before": {
+    "definition": {
+      "calibration": "Off",
+      "crop": {
+        "height": 1,
+        "width": 1,
+        "x": 0,
+        "y": 0
+      },
+      "enabled": true,
+      "opacity": 1,
+      "quad": {
+        "corners": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 0,
+            "y": 1
+          }
+        ]
+      },
+      "source": {
+        "channel": "7d9ad0fe-a0bd-447c-88de-3cc79225ce63",
+        "media": "feaaf04e-1017-4ce1-8044-1458b822ac71"
+      }
+    },
+    "label": "Binding surface B",
+    "mapping_valid": true,
+    "reference": {
+      "screen": "85bf541a-0681-4d4b-9efa-ebb5697fd697",
+      "surface": "7f2f1db6-1024-40a3-86a7-5b71cd3dc1b3"
+    }
+  },
+  "after": {
+    "definition": {
+      "calibration": "Off",
+      "crop": {
+        "height": 1,
+        "width": 1,
+        "x": 0,
+        "y": 0
+      },
+      "enabled": true,
+      "opacity": 1,
+      "quad": {
+        "corners": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 0,
+            "y": 1
+          }
+        ]
+      },
+      "source": {
+        "channel": "1c5b8d26-ea66-42cb-ab02-eb8c4ff1fdce",
+        "media": "345cf90c-9464-431e-b490-3e11e68b4ede"
+      }
+    },
+    "label": "Binding surface B",
+    "mapping_valid": true,
+    "reference": {
+      "screen": "85bf541a-0681-4d4b-9efa-ebb5697fd697",
+      "surface": "7f2f1db6-1024-40a3-86a7-5b71cd3dc1b3"
+    }
+  },
+  "undo": {
+    "definition": {
+      "calibration": "Off",
+      "crop": {
+        "height": 1,
+        "width": 1,
+        "x": 0,
+        "y": 0
+      },
+      "enabled": true,
+      "opacity": 1,
+      "quad": {
+        "corners": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 0
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 0,
+            "y": 1
+          }
+        ]
+      },
+      "source": {
+        "channel": "7d9ad0fe-a0bd-447c-88de-3cc79225ce63",
+        "media": "feaaf04e-1017-4ce1-8044-1458b822ac71"
+      }
+    },
+    "label": "Binding surface B",
+    "mapping_valid": true,
+    "reference": {
+      "screen": "85bf541a-0681-4d4b-9efa-ebb5697fd697",
+      "surface": "7f2f1db6-1024-40a3-86a7-5b71cd3dc1b3"
+    }
+  }
+}

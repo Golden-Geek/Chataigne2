@@ -1,0 +1,64 @@
+{
+	"date": "2026-11-05",
+	"milestone": "M12/6 independent Screen and Surface Source bindings",
+	"gate": "Active",
+	"acceptance": { "verified": 62, "total": 78, "m12_verified": 5, "m12_total": 11 },
+	"delivered": [
+		"Screen Warping and Surface Source each own their reader, gesture and typed persisted document/target/lock state. Both publish the existing public Golden tab capability; the shared window editor context is removed.",
+		"InspectEditor resolves relevant descendants, retained/locked targets and document fencing in Rust. Wrong-kind and unscoped bindings reject; missing targets remain unavailable for Undo/Load. Selected Surface identity survives a missing definition.",
+		"Screen inspection returns at most 128 definitions plus one independently selected Surface. Surface Source reads one exact Surface without enumerating Screen children. Native Screen rendering still includes the full authored scene.",
+		"DropSourceAt resolves the complete Screen's topmost admitted mapping once at drop time, including outside the bounded editor page. Explicit handle drops keep their explicit target. Source replacement uses the existing atomic authoring/history boundary.",
+		"The Screens manager uses the public Golden hierarchy and bounded row readers directly, without the obsolete shared manager/media catalog requests. Reader refresh follows Screen edits and relevant typed Inspector leaves, without subscribing to unrelated media authoring changes."
+	],
+	"software": {
+		"rust": "93 Screen tests pass, including new binding/large-page/drop tests, generated TypeScript parity, immutable held-edit queries and the hosted script manager's new editor query. Existing geometry, parameters, routing, persistence, creation and history cases remain covered.",
+		"ui": "31 Screen UI tests pass. The previous shared-controller cases were ported to per-panel ownership and extended for bounded/latest reads, live held Inspector feedback, no UI defaults, error/history/session/project fences, reconnect presentation, independent off-page definitions and typed persisted identities.",
+		"type_check": "Svelte: 0 errors, 0 warnings.",
+		"strict": "All-target Clippy with native-qualification,application-process-fixture and -D warnings passes.",
+		"build": "Ordinary app build terminal success before native execution; final binary SHA256 aafcf32de01469c4a7e8a2368b838ac803f2db2985822af524694c55b5e18b43.",
+		"format": "Root/golden_core cargo fmt, scoped Prettier, Node syntax and diff checks pass."
+	},
+	"native": {
+		"bindings": {
+			"flag": "--screen-bindings",
+			"pid": 16104,
+			"exit": 0,
+			"absent_after_close": true,
+			"proof": "Two independent Screen and two Surface Source targets; keyboard tab lock, unrelated/relevant selection, locked rename/title updates, trusted outliner source drop/source-only replacement and exact Undo, persisted layout restore, Surface/Screen deletion/Undo, actual transport reconnect and New/Load document fencing. 255 native intents/255 receipts, no rejections or page errors. Both visible native Source leases remain identical through reconnect."
+		},
+		"retained_interactions": [
+			{
+				"flag": "--selection",
+				"pid": 30668,
+				"exit": 0,
+				"proof": "Surface/Inspector selection, selected-only handles, background deselection, independent corner selection, Escape/pan isolation and pointer drag with one Undo."
+			},
+			{
+				"flag": "--fit",
+				"pid": 25640,
+				"exit": 0,
+				"proof": "Cropped-source aspect Fit, Fill, unchanged unrelated settings, automatic Picture native preview and one-step history."
+			},
+			{
+				"flag": "--source",
+				"pid": 33584,
+				"exit": 0,
+				"proof": "Generic Surface Parameters, calibration/crop/origin/clamping, live update before pointer release, Escape, source loss and history."
+			},
+			{
+				"flag": "--keyboard",
+				"pid": 32628,
+				"exit": 0,
+				"proof": "100 repeats plus Shift pixels at zoom, release, exact grouped Undo, blur/modifier isolation and New while held."
+			}
+		],
+		"all_owned_hosts_absent_after_normal_close": true,
+		"artifacts": "assets/mapgyver-m12-screen-bindings-2026-11-05/"
+	},
+	"corrected_during_validation": [
+		"The first native read exposed an initial Svelte dependency gap: the page getter returned before reading reactive page state while its private context was empty. It now always reads page state before applying context guards; the unchanged native target assertions pass.",
+		"The retained pointer fixture used an exact bare tab title. It now accepts the existing target-bearing title contract; all original interaction/history assertions remain."
+	],
+	"remaining_requirement": "M12/6 remains Active. Implement independent Matrix grid bindings and prove the shared Matrix spatial adapter's last-relevant-target/lock contract required by M12/6–7, retaining all original selection, layout/history/reconnect and cross-project checks for that owner. This slice awards no complete gate.",
+	"limits": "Screenshots establish DOM/tab layout, not native image pixels or physical alignment/cadence. An additional unchanged --screen-identity resource helper refused the ordinary host's command shape before its checks; no new executable/window resource-identity claim is made. The dedicated binding flow verifies current locked rename/title behavior directly. Earlier M11 identity acceptance and retained M03/M05/M08 qualification requirements are unchanged."
+}

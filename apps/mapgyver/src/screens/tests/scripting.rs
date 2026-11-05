@@ -92,8 +92,13 @@ fn hosted_manager_methods_support_create_inspect_and_domain_rejection() {
         function onAppOperationResult(reply) {{
             gc.emit('screen-test-reply', reply);
             if (reply.request_id === 'create') local.inspectScreens('catalog');
-            if (reply.request_id === 'catalog') local.editScreens('reject', JSON.stringify({{
-                kind: 'RenameScreen', screen: reply.value.snapshot.screens[0].id, label: ''
+            if (reply.request_id === 'catalog') local.editScreens('editor', JSON.stringify({{
+                kind: 'InspectEditor', query: {{ editor: 'Surface',
+                    selected: reply.value.snapshot.screens[0].surfaces[0].reference.surface,
+                    document: null, locked: null, retained: null, surface: null }}
+            }}));
+            if (reply.request_id === 'editor') local.editScreens('reject', JSON.stringify({{
+                kind: 'RenameScreen', screen: reply.value.page.screen.id, label: ''
             }}));
         }}
     "#
@@ -105,11 +110,14 @@ fn hosted_manager_methods_support_create_inspect_and_domain_rejection() {
     service_script_app_operations(&mut engine).unwrap();
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     service_script_app_operations(&mut engine).unwrap();
+    service_script_app_operations(&mut engine).unwrap();
     let replies = replies(&engine);
-    assert_eq!(replies.len(), 3);
+    assert_eq!(replies.len(), 4);
     assert_eq!(replies[0]["status"], "applied");
     assert_eq!(replies[1]["value"]["kind"], "Manager");
-    assert_eq!(replies[2]["status"], "rejected");
+    assert_eq!(replies[2]["value"]["kind"], "Editor");
+    assert!(replies[2]["value"]["page"]["surface"].is_object());
+    assert_eq!(replies[3]["status"], "rejected");
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
 }

@@ -1,284 +1,202 @@
+import { ReadQueue } from '../requests/read-queue.ts';
+import type { Connection } from '../requests/connection';
+import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
+import type { ScreenEditorPage } from './generated/ScreenEditorPage';
 import type { ScreenEdit } from './generated/ScreenEdit';
 import type { ScreenEditResult } from './generated/ScreenEditResult';
-import type { ScreenId } from './generated/ScreenId';
-import type { SurfaceId } from './generated/SurfaceId';
-import type { SurfaceReference } from './generated/SurfaceReference';
-import type { ScreenManagerSnapshot } from './generated/ScreenManagerSnapshot';
-import type { MediaManagerSnapshot } from '../media/generated/MediaManagerSnapshot';
 import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 
-interface Connection {
-	readonly status: string;
-	readonly snapshotGeneration: number;
-	readonly currentHistoryStateId: number;
-	readonly loading: { readonly visible: boolean };
+interface EditorConnection extends Connection {
+	readonly projectGeneration: number | null;
 }
-
-interface Client<S> {
-	screens(session: S, edit: ScreenEdit): Promise<ScreenEditResult>;
-	media(session: S): Promise<MediaManagerSnapshot>;
-}
-
-type OwnerInspection = Extract<ScreenEdit, { kind: 'InspectSurface' | 'InspectScreen' }>;
-
-export interface ScreenAuthoringState {
-	catalog: ScreenManagerSnapshot | null;
-	media: MediaManagerSnapshot | null;
-	selectedScreen: ScreenId | null;
-	selectedSurface: SurfaceId | null;
-	pending: boolean;
-	refreshing: boolean;
-	error: string;
-	interacting: boolean;
-	projectedHistoryStateId: number | null;
-}
-
-export const createScreenAuthoringState = (): ScreenAuthoringState => ({
-	catalog: null,
-	media: null,
-	selectedScreen: null,
-	selectedSurface: null,
+export const screenEditorState = () => ({
+	page: null as ScreenEditorPage | null,
 	pending: false,
 	refreshing: false,
-	error: '',
+	resolving: false,
 	interacting: false,
-	projectedHistoryStateId: null
+	error: '',
+	readError: '',
+	presentedHistory: undefined as unknown
 });
+export type ScreenEditorState = ReturnType<typeof screenEditorState>;
 
-/** Presentation state only. Session/project fences discard stale reads and edit replies. */
-export class ScreenAuthoringController<S extends Connection> {
-	private getSession: () => S | null;
-	private state: ScreenAuthoringState;
-	private client: Client<S>;
-	private read = 0;
-	private operation = 0;
+/** One bounded reader and gesture owner per panel; no manager or media catalog reads. */
+export class ScreenEditorController<S extends EditorConnection> {
+	private reads = new ReadQueue();
 	private disposed = false;
-	private context: { session: S; generation: number } | null = null;
-	private ownerEpoch = 0;
-	private ownerLatest: {
-		session: S;
-		generation: number;
-		epoch: number;
-		request: OwnerInspection;
-	} | null = null;
-	private ownerTask: Promise<void> | null = null;
-
-	constructor(getSession: () => S | null, state: ScreenAuthoringState, client: Client<S>) {
-		this.getSession = getSession;
+	private operation = 0;
+	private context: { session: S; project: number } | null = null;
+	private query: ScreenEditorQuery | null = null;
+	private queryKey = '';
+	private session: () => S | null;
+	private state: ScreenEditorState;
+	private invoke: (session: S, edit: ScreenEdit) => Promise<ScreenEditResult>;
+	constructor(
+		session: () => S | null,
+		state: ScreenEditorState,
+		invoke: (session: S, edit: ScreenEdit) => Promise<ScreenEditResult>
+	) {
+		this.session = session;
 		this.state = state;
-		this.client = client;
+		this.invoke = invoke;
 	}
-
+	get page() {
+		const page = this.state.page;
+		const session = this.session();
+		return session &&
+			this.context?.session === session &&
+			session.projectGeneration !== null &&
+			this.context.project === session.projectGeneration
+			? page
+			: null;
+	}
 	get screen() {
-		return this.state.catalog?.screens.find((screen) => screen.id === this.state.selectedScreen);
+		const page = this.page,
+			screen = page?.screen,
+			selected = page?.surface;
+		return screen &&
+			selected &&
+			!screen.surfaces.some((item) => item.reference.surface === selected.reference.surface)
+			? { ...screen, surfaces: [...screen.surfaces, selected] }
+			: (screen ?? null);
 	}
 	get surface() {
-		return this.screen?.surfaces.find(
-			(surface) => surface.reference.surface === this.state.selectedSurface
-		);
+		return this.page?.surface ?? null;
 	}
 	get busy() {
-		const session = this.getSession();
+		const session = this.session();
 		return (
 			this.disposed ||
 			this.state.pending ||
-			(!this.state.interacting &&
-				this.state.projectedHistoryStateId !== session?.currentHistoryStateId) ||
-			!this.state.catalog ||
+			this.state.resolving ||
+			!this.page?.screen ||
 			session?.status !== 'connected' ||
-			session.loading.visible
+			session.loading.visible ||
+			(!this.state.interacting && this.state.presentedHistory !== session.currentHistoryStateId)
 		);
 	}
-
-	private current(session: S, generation: number) {
+	private current(session: S, generation: number, project: number) {
 		return (
 			!this.disposed &&
-			this.getSession() === session &&
+			this.session() === session &&
 			session.status === 'connected' &&
 			!session.loading.visible &&
-			session.snapshotGeneration === generation
+			session.snapshotGeneration === generation &&
+			session.projectGeneration === project
 		);
 	}
-
-	async refresh() {
-		if (this.disposed) return;
-		if (this.state.interacting) return;
-		this.invalidateOwnerRead();
-		++this.read;
-		const session = this.getSession();
-		if (!session || session.status !== 'connected' || session.loading.visible) {
-			this.reset();
+	refresh(query = this.query) {
+		if (this.disposed || !query) return;
+		this.query = query;
+		const session = this.session();
+		if (
+			this.context &&
+			(this.context.session !== session || this.context.project !== session?.projectGeneration)
+		) {
+			this.operation++;
+			this.state.pending = false;
+			this.state.interacting = false;
+			this.state.page = null;
+			this.state.error = '';
+			this.state.readError = '';
+			this.context = null;
+		}
+		if (this.state.interacting || this.state.pending) return;
+		this.reads.invalidate();
+		if (
+			!session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.projectGeneration === null
+		) {
+			this.state.refreshing = false;
 			return;
 		}
-		const generation = session.snapshotGeneration;
-		const historyStateId = session.currentHistoryStateId;
-		if (this.context?.session !== session || this.context.generation !== generation) this.reset();
-		this.context = { session, generation };
+		const generation = session.snapshotGeneration,
+			project = session.projectGeneration;
+		const key = JSON.stringify(query),
+			history = session.currentHistoryStateId;
+		if (key !== this.queryKey) this.state.resolving = true;
+		this.queryKey = key;
 		this.state.refreshing = true;
-		const active = this.read;
-		try {
-			const [result, media] = await Promise.all([
-				this.client.screens(session, { kind: 'InspectManager' }),
-				this.client.media(session)
-			]);
-			if (active !== this.read || !this.current(session, generation)) return;
-			if (result.kind !== 'Manager')
-				throw new Error('Screen inspection returned an unexpected result');
-			this.state.catalog = result.snapshot;
-			this.state.projectedHistoryStateId = historyStateId;
-			this.state.media = media;
-			if (!this.screen) this.state.selectedScreen = result.snapshot.screens[0]?.id ?? null;
-			if (!this.surface) this.state.selectedSurface = null;
-			this.state.error = '';
-		} catch (cause) {
-			if (active === this.read && this.current(session, generation))
-				this.state.error = String(cause);
-		} finally {
-			if (active === this.read) this.state.refreshing = false;
-		}
-	}
-
-	/** Live Inspector feedback reads one owner, with one in-flight and one newest request. */
-	refreshOwner(request: OwnerInspection): Promise<void> {
-		if (this.disposed || this.state.interacting) return Promise.resolve();
-		const session = this.getSession();
-		if (!session || session.status !== 'connected' || session.loading.visible) {
-			this.reset();
-			return Promise.resolve();
-		}
-		if (
-			!this.state.catalog ||
-			this.context?.session !== session ||
-			this.context.generation !== session.snapshotGeneration
-		)
-			return this.refresh();
-		// A stale full-catalog reply must not replace a newer live Parameter projection.
-		++this.read;
-		this.state.refreshing = false;
-		this.ownerLatest = {
-			session,
-			generation: session.snapshotGeneration,
-			epoch: this.ownerEpoch,
-			request
-		};
-		this.runOwnerRead();
-		return this.ownerTask ?? Promise.resolve();
-	}
-
-	private runOwnerRead() {
-		if (this.ownerTask || !this.ownerLatest) return;
-		const task = this.pumpOwnerRead();
-		this.ownerTask = task;
-		void task.finally(() => {
-			this.ownerTask = null;
-			this.runOwnerRead();
-		});
-	}
-
-	private async pumpOwnerRead() {
-		while (this.ownerLatest) {
-			const read = this.ownerLatest;
-			this.ownerLatest = null;
-			try {
-				const result = await this.client.screens(read.session, read.request);
-				if (
-					!this.current(read.session, read.generation) ||
-					read.epoch !== this.ownerEpoch ||
-					this.state.interacting
-				)
-					continue;
-				if (result.kind === 'Surface') this.acceptSurface(result.snapshot);
-				else if (result.kind === 'ScreenDefinition') {
-					const screen = this.state.catalog?.screens.find((screen) => screen.id === result.screen);
-					if (screen) screen.definition = result.definition;
-				} else throw new Error('Owner inspection returned an unexpected result');
-				this.state.error = '';
-			} catch (cause) {
-				if (
-					this.current(read.session, read.generation) &&
-					read.epoch === this.ownerEpoch &&
-					!this.state.interacting
-				)
-					this.state.error = String(cause);
+		const current = () =>
+			this.current(session, generation, project) &&
+			this.queryKey === key &&
+			session.currentHistoryStateId === history &&
+			!this.state.interacting;
+		this.reads.request(
+			current,
+			() => this.invoke(session, { kind: 'InspectEditor', query }),
+			(result) => {
+				if (!current()) return;
+				if (result.kind !== 'Editor') {
+					this.state.readError = 'Unexpected Screen editor response';
+					return;
+				}
+				this.context = { session, project };
+				this.state.page = result.page;
+				this.state.presentedHistory = history;
+				this.state.resolving = false;
+				this.state.readError = '';
+			},
+			(error) => {
+				if (current()) this.state.readError = String(error);
+			},
+			() => {
+				if (current()) this.state.refreshing = false;
 			}
-		}
+		);
 	}
-
-	private invalidateOwnerRead() {
-		this.ownerEpoch++;
-		this.ownerLatest = null;
-	}
-
 	async edit(edit: ScreenEdit): Promise<ScreenEditResult | undefined> {
-		const session = this.getSession();
-		if (!session || this.busy) return;
-		const generation = session.snapshotGeneration;
-		const operation = ++this.operation;
-		++this.read;
-		this.state.refreshing = false;
-		this.invalidateOwnerRead();
+		const session = this.session();
+		if (
+			!session ||
+			this.busy ||
+			this.state.interacting ||
+			session.hasActiveEditSession ||
+			session.projectGeneration === null
+		)
+			return;
+		const generation = session.snapshotGeneration,
+			project = session.projectGeneration,
+			operation = ++this.operation;
+		this.reads.invalidate();
 		this.state.pending = true;
 		this.state.error = '';
 		try {
-			const result = await this.client.screens(session, edit);
-			if (operation !== this.operation || !this.current(session, generation)) return;
-			if (result.kind === 'ScreenCreated') {
-				this.state.selectedScreen = result.screen;
-				this.state.selectedSurface = result.surface.surface;
-			} else if (result.kind === 'SurfaceCreated') {
-				this.state.selectedScreen = result.reference.screen;
-				this.state.selectedSurface = result.reference.surface;
-			}
-			await this.refresh();
-			return result;
+			const result = await this.invoke(session, edit);
+			if (operation === this.operation && this.current(session, generation, project)) return result;
 		} catch (cause) {
-			if (operation === this.operation && this.current(session, generation))
+			if (operation === this.operation && this.current(session, generation, project))
 				this.state.error = String(cause);
 		} finally {
-			if (operation === this.operation) this.state.pending = false;
+			if (operation === this.operation) {
+				this.state.pending = false;
+				if (this.current(session, generation, project)) this.refresh();
+			}
 		}
 	}
-
-	selectScreen(screen: ScreenId) {
-		this.state.selectedScreen = screen;
-		this.state.selectedSurface = null;
-	}
-
-	selectSurface(reference: SurfaceReference) {
-		this.state.selectedScreen = reference.screen;
-		this.state.selectedSurface = reference.surface;
-	}
-
 	acceptSurface(snapshot: SurfaceSnapshot) {
-		const screen = this.state.catalog?.screens.find(
-			(screen) => screen.id === snapshot.reference.screen
+		const page = this.page;
+		if (!page?.screen || page.screen.id !== snapshot.reference.screen) return;
+		if (page.surface?.reference.surface === snapshot.reference.surface) page.surface = snapshot;
+		const index = page.screen.surfaces.findIndex(
+			(item) => item.reference.surface === snapshot.reference.surface
 		);
-		const index =
-			screen?.surfaces.findIndex(
-				(surface) => surface.reference.surface === snapshot.reference.surface
-			) ?? -1;
-		if (screen && index >= 0) screen.surfaces[index] = snapshot;
+		if (index >= 0) page.screen.surfaces[index] = snapshot;
 	}
-
 	setInteracting(active: boolean) {
 		this.state.interacting = active;
 		if (active) {
-			++this.read;
+			this.reads.invalidate();
 			this.state.refreshing = false;
-			this.invalidateOwnerRead();
 		}
 	}
-
-	private reset() {
-		++this.read;
-		++this.operation;
-		this.invalidateOwnerRead();
-		this.context = null;
-		Object.assign(this.state, createScreenAuthoringState());
-	}
-
 	dispose() {
 		this.disposed = true;
-		this.reset();
+		this.operation++;
+		this.reads.invalidate();
+		this.context = null;
 	}
 }
