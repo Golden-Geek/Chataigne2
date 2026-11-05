@@ -1,0 +1,54 @@
+{
+	"date_utc": "2026-11-05",
+	"gate": "M12/8",
+	"result": "Screen-only baseline exposes retained Intel 4K cost failure; branch-only candidate rejected; no acceptance or budget revision",
+	"product_source": "dd12724f9269b9e9510bd7aff9600ab7957fe26c",
+	"fixture": "../../../apps/mapgyver/tests/screen_antialiasing_costs.rs",
+	"analysis": "../../../tools/mapgyver/screen_costs.py",
+	"artifacts": "mapgyver-m12-screen-costs-2026-11-05/cohorts.zip",
+	"rejected_candidate": "rejected-candidate.patch inside cohorts.zip; git apply --check passes against the restored product source",
+	"build": "cargo rustc --locked -p MapGyver --profile test --features native-qualification,application-process-fixture --test screen_antialiasing_costs -- -C extra-filename=-screen-costs",
+	"baseline_executable_sha256": "f445583491cace2a26cbca7389bb91e48087ceb12315af1f9ab6ee378671bb78",
+	"candidate_executable_sha256": "583b11106eeec0b71fa57eaed828fcf19fd00c6b01bbae605bd371a924dc04bc",
+	"scope": {
+		"profile": "Optimized Cargo test profile",
+		"scene": "One 8x8 Solid Color channel; two Surfaces on one Screen, official calibration plus 25%-opacity source; one independent SDK output",
+		"cases_per_experiment": 8,
+		"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"extents": ["1920x1080", "3840x2160"],
+		"modes": ["Raw", "Smooth2x"],
+		"sample_seconds": 5,
+		"warmup_seconds": 0,
+		"experiments": 2,
+		"complete_cpu_gpu_coverage": true,
+		"production_qualified": false,
+		"limits": "Short diagnostic baseline, not the required warmed sustained series or complete Q01/Q02; no external source worker, physical delivery, source age or scanout claim"
+	},
+	"baseline_gpu_ms": {
+		"intel_1080_raw": { "median": 2.638229, "p95": 4.851146, "p99": 8.038021 },
+		"intel_1080_smooth": { "median": 10.957396, "p95": 13.062708, "p99": 15.445 },
+		"intel_4k_raw": { "median": 12.190208, "p95": 14.671927, "p99": 17.69849 },
+		"intel_4k_smooth": { "median": 39.38224, "p95": 55.967448, "p99": 66.984219 },
+		"nvidia_4k_smooth": { "median": 3.213024, "p95": 3.728608, "p99": 4.190048 }
+	},
+	"candidate": {
+		"hypothesis": "Coherent early branches skip unnecessary transfer math for linear textures and work outside Canvas primitive bounds",
+		"intel_4k_smooth_gpu_ms": { "median": 39.658333, "p95": 42.662083, "p99": 43.438698 },
+		"decision": "No material median improvement; short-run tail variation is insufficient evidence of value. Both shader and control-test changes removed; exact original product source restored",
+		"quality": "710 software tests, strict all-target Clippy, eight native kernel/resource checks and 42 complete both-GPU Screen images pass; tolerances unchanged",
+		"original_control": "Opaque-transfer comparison still isolates its original branch; unrelated candidate hints were excluded from that control"
+	},
+	"checks": {
+		"fixture_compile": true,
+		"strict_clippy": true,
+		"production_analysis_unit_tests": 27,
+		"python_syntax": true,
+		"baseline_native_exit": 0,
+		"candidate_native_exit": 0,
+		"product_source_restored_to_head": true,
+		"owned_retirement": "Every finite capture waits for retirement within the original two-second bound; native inventories and diagnostic health are retained in raw streams"
+	},
+	"next": "Keep M12/8 Pending with unchanged timing requirements. Deliver independent M12/9 thumbnail Fit, then return with a concrete generic Canvas evaluation change and the original warmed sustained cost series; do not rerun branch hints or add another profiler",
+	"ordering": "Plan and ledger explicitly advance independent M12/9; all M12 gates still precede Video/final qualification. No original gate, cost requirement or historical failure is waived",
+	"progress": "64/78 (82%), M12 7/11 (64%) unchanged"
+}
