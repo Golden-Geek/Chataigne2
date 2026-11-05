@@ -197,13 +197,13 @@ fn invalid_launches_and_missing_executables_reject_before_any_fixture_executes()
     invalid.push(value);
     for value in invalid {
         assert_eq!(
-            SuspendedProcess::create(&value).err().unwrap().kind(),
+            SuspendedProcess::create(&value).err().unwrap().error().kind(),
             io::ErrorKind::InvalidInput
         );
     }
     let missing = ProcessSpec::new(directory.path().join("missing.exe"));
     assert_eq!(
-        SuspendedProcess::create(&missing).err().unwrap().raw_os_error(),
+        SuspendedProcess::create(&missing).err().unwrap().error().raw_os_error(),
         Some(2)
     );
     assert!(!report.exists());

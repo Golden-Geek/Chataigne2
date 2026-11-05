@@ -5,6 +5,18 @@ Golden IO now captures ordinary debug-chain process births before user execution
 x64 ordinary-app singleton case reaches Idle with its external singleton preserved. This is a
 delivered ownership correction, not complete Windows retirement qualification.
 
+Creation failures now retain a returned target through `CreateError::into_parts`: its optional
+`OwnedProcess` permits retirement, never resume. MapGyver publishes that PID and keeps the process
+and worker lifetime through Stopping/RetirementUnverified, preventing retry or replacement before
+proof. Pre-creation errors keep their OS code and normal backoff. Ownership mapping/drop tests and
+three fake-time creation/replacement cases pass, as does a native forced post-create verification
+rejection: error 5 retains the real owner, retirement completes and target code never executes.
+This is forced verification rejection, not a claim of a genuine post-create OS access denial.
+The [creation-owner receipt](evidence/mapgyver-m08-create-owner-2026-11-05.json) pins the new
+source/tests: 72 IO software tests, 441 app tests, strict all-target/all-feature lint, 13 IO native
+checks (WOW64 explicitly ignored), all 14 native app runtime tests, native pre-resume cancellation
+and the forced post-create rejection. Root assignment remains atomic in this milestone.
+
 ## Ownership boundary and correction
 
 `golden_io::owned_process` owns explicit suspended creation, atomic job-list assignment, native
@@ -76,11 +88,12 @@ an executed-child count. That does not identify the missing lifetime here or aut
 it. A candidate owning correction is assignment of the returned root while both primary-thread
 suspension and the uncontinued creation debug event fence user execution, before any resume or
 event continuation. This preserves job-before-execution without enrolling creation-time candidates.
-Before changing that boundary, replace the creation API's bare IO error with a typed failure that
-can retain a created owner, and carry it through MapGyver's existing stop/retirement barrier.
-Otherwise failed assignment could drop the only owner before cleanup is verified. Implement and
-test that failure path first; the current atomic job-list launch remains unchanged. This is an
-implementation prerequisite, not a third native probe or a claim about the failure's cause.
+The typed creation-failure prerequisite is implemented and verified. The current atomic job-list
+launch remains unchanged. Next implement the fenced assignment itself, including a typed rejected
+pre-execution root whose exact handle remains owned even if job assignment fails. Its root-only
+retirement must not pretend that an unassigned root is a job member or resume rejected code.
+Then replay the corrected WOW64 case after software prerequisites; this requires the actual owning
+boundary correction, not a third unchanged probe or a claim about the previous failure's cause.
 See [job accounting](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information),
 [assignment](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)
 and [creation event fencing](https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events).

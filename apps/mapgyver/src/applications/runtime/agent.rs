@@ -10,10 +10,14 @@ pub(super) struct ResumeFailure<P> {
     pub message: String,
     pub process: Box<P>,
 }
+pub(super) struct CreateFailure<P> {
+    pub message: String,
+    pub process: Option<Box<P>>,
+}
 pub(super) trait Backend {
     type Suspended;
     type Process;
-    fn create(&mut self, spec: &ProcessSpec) -> Result<Self::Suspended, String>;
+    fn create(&mut self, spec: &ProcessSpec) -> Result<Self::Suspended, CreateFailure<Self::Process>>;
     fn resume(&mut self, process: Self::Suspended) -> Result<Self::Process, ResumeFailure<Self::Process>>;
     fn abandon(&mut self, process: Self::Suspended) -> Self::Process;
     fn id(&self, process: &Self::Process) -> u32;
@@ -24,16 +28,22 @@ pub(super) trait Backend {
 pub(super) struct Native;
 pub(super) enum NativeProcess {
     Suspended(SuspendedProcess),
-    Running(OwnedProcess),
+    Owned(OwnedProcess),
 }
 impl Backend for Native {
     type Suspended = SuspendedProcess;
     type Process = NativeProcess;
-    fn create(&mut self, spec: &ProcessSpec) -> Result<Self::Suspended, String> {
-        SuspendedProcess::create(spec).map_err(|e| e.to_string())
+    fn create(&mut self, spec: &ProcessSpec) -> Result<Self::Suspended, CreateFailure<Self::Process>> {
+        SuspendedProcess::create(spec).map_err(|error| {
+            let (error, process) = error.into_parts();
+            CreateFailure {
+                message: error.to_string(),
+                process: process.map(|process| Box::new(NativeProcess::Owned(process))),
+            }
+        })
     }
     fn resume(&mut self, process: Self::Suspended) -> Result<Self::Process, ResumeFailure<Self::Process>> {
-        process.resume().map(NativeProcess::Running).map_err(|error| {
+        process.resume().map(NativeProcess::Owned).map_err(|error| {
             let (error, process) = error.into_parts();
             ResumeFailure {
                 message: error.to_string(),
@@ -47,26 +57,26 @@ impl Backend for Native {
     fn id(&self, process: &Self::Process) -> u32 {
         match process {
             NativeProcess::Suspended(process) => process.id(),
-            NativeProcess::Running(process) => process.id(),
+            NativeProcess::Owned(process) => process.id(),
         }
     }
     fn snapshot(&mut self, process: &Self::Process) -> Result<ProcessSnapshot, String> {
         match process {
             NativeProcess::Suspended(process) => process.snapshot(),
-            NativeProcess::Running(process) => process.snapshot(),
+            NativeProcess::Owned(process) => process.snapshot(),
         }
         .map_err(|e| e.to_string())
     }
     fn close(&mut self, process: &Self::Process) -> Result<(), String> {
         match process {
             NativeProcess::Suspended(_) => Ok(()),
-            NativeProcess::Running(process) => process.request_close().map(|_| ()).map_err(|e| e.to_string()),
+            NativeProcess::Owned(process) => process.request_close().map(|_| ()).map_err(|e| e.to_string()),
         }
     }
     fn terminate(&mut self, process: &Self::Process) -> Result<(), String> {
         match process {
             NativeProcess::Suspended(process) => process.terminate(1),
-            NativeProcess::Running(process) => process.terminate(1),
+            NativeProcess::Owned(process) => process.terminate(1),
         }
         .map_err(|e| e.to_string())
     }
@@ -172,6 +182,12 @@ impl<B: Backend> Agent<B> {
         {
             self.message(error);
         }
+    }
+    fn stop_failed_launch(&mut self, now: u64, process: B::Process, message: &str) {
+        self.status.process_id = Some(self.backend.id(&process));
+        self.process = Some(process);
+        self.begin_stop(now, true, message);
+        self.stop.as_mut().unwrap().force = now;
     }
     /// One background service turn. A target with no definition retains an existing owner only.
     /// The admission closure is checked again after suspended creation, before any target executes.
@@ -321,7 +337,16 @@ impl<B: Backend> Agent<B> {
         publish(&self.status);
         let launched: Result<Option<B::Process>, String> = (|| {
             let spec = target.process_spec()?.ok_or("application has no executable")?;
-            let suspended = self.backend.create(&spec)?;
+            let suspended = match self.backend.create(&spec) {
+                Ok(suspended) => suspended,
+                Err(error) => {
+                    if let Some(process) = error.process {
+                        self.stop_failed_launch(now, *process, &error.message);
+                        return Ok(None);
+                    }
+                    return Err(error.message);
+                }
+            };
             if !admitted() {
                 self.process = Some(self.backend.abandon(suspended));
                 self.begin_stop(now, false, "launch cancelled before resume");
@@ -331,9 +356,7 @@ impl<B: Backend> Agent<B> {
             match self.backend.resume(suspended) {
                 Ok(process) => Ok(Some(process)),
                 Err(error) => {
-                    self.process = Some(*error.process);
-                    self.begin_stop(now, true, &error.message);
-                    self.stop.as_mut().unwrap().force = now;
+                    self.stop_failed_launch(now, *error.process, &error.message);
                     Ok(None)
                 }
             }

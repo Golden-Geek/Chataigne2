@@ -1,0 +1,95 @@
+{
+	"schema": 1,
+	"date": "2026-11-05",
+	"gate": "M08/4",
+	"base_revision": "61e6cc986194d82df08606154288f4bb41917406",
+	"status": "CREATION_FAILURE_OWNER_IMPLEMENTED_AND_VERIFIED_M08_OPEN",
+	"capability": "A post-create rejection retains a retirement-only owner and PID; MapGyver prevents resume, retry, replacement and existing worker-lifetime release until completion proof",
+	"boundaries": {
+		"primitive": "golden_io::owned_process::CreateError<P = OwnedProcess>",
+		"public_failure_owner": "OwnedProcess permits terminate/snapshot/wait, with no resume operation",
+		"platform": "The creating native thread observes the process on successful and retained-failure result paths",
+		"app": "CreateFailure carries the optional owner through Agent Stopping/RetirementUnverified; normal no-owner errors keep original OS codes and backoff",
+		"worker_lifetime": "Existing worker.rs release remains conditional on !agent.has_process(); retained-owner behavior verified in fake-time tests",
+		"launch": "Atomic PROC_THREAD_ATTRIBUTE_JOB_LIST remains unchanged; no fenced-assignment or unassigned-root qualification claimed"
+	},
+	"checks": {
+		"io_software": {
+			"passed": 72,
+			"failed": 0,
+			"ignored": 1,
+			"seconds": 0.2,
+			"retained_ignore": "Native post-create rejection executed separately"
+		},
+		"app_software": {
+			"passed": 441,
+			"failed": 0,
+			"ignored": 3,
+			"seconds": 12.08,
+			"scope": "Includes three new before/after creation/replacement tests and existing generated-contract equality",
+			"ignores": "Native pre-resume cancellation executed separately; independent inactive-media scale/display catalog tests retained"
+		},
+		"strict_lint": "PASS: golden_io and MapGyver all targets/all features (includes required native/process feature set)",
+		"native_post_create_rejection": {
+			"passed": 1,
+			"failed": 0,
+			"seconds": 0.01,
+			"error_code": 5,
+			"error_origin": "Explicit private verification rejection after real Windows CreateProcess, not genuine OS access denial",
+			"owner_returned": true,
+			"root_handle_completion_verified": true,
+			"observer_completion_verified": true,
+			"target_main_executed": false
+		},
+		"io_native": {
+			"passed": 13,
+			"failed": 0,
+			"ignored": 1,
+			"seconds": 1.03,
+			"retained_ignore": "Unverified WOW64 system-tool retirement; not replayed"
+		},
+		"app_native_runtime": {
+			"passed": 14,
+			"failed": 0,
+			"ignored": 0,
+			"seconds": 6.42
+		},
+		"native_pre_resume_cancellation": {
+			"passed": 1,
+			"failed": 0,
+			"seconds": 0.01
+		},
+		"formatting": "Both workspace Cargo formatters; owning Markdown/JSON formatter"
+	},
+	"hashes": {
+		"crates/golden_core/runtime/io/src/owned_process/creation.rs": "908d82488575209250be619db2550eafaddf27ea1f204ca3e8b052a781c7ba07",
+		"crates/golden_core/runtime/io/src/owned_process/windows.rs": "f3dba16cbcea02d036a5b9727031c323d83ed122e63eeef0e15bb5be76648300",
+		"crates/golden_core/runtime/io/src/owned_process/windows/tests/mod.rs": "d11bc28baffd92d05b493fc7437d8dc1cae52aef71fe2fed8878671fd92b2f15",
+		"apps/mapgyver/src/applications/runtime/agent.rs": "ee02959d0d606a5c2228ffb67bd14aea8df73025d85e4b9533442357c31d455f",
+		"apps/mapgyver/src/applications/runtime/tests/creation.rs": "f3345b2f70a3996c40ef5856eb350954bb9ee2d8978d334942ed713db0d98427",
+		"target/debug/deps/golden_io-035646276b39d8f9.exe": "f89394c4d976e383c52fae03e61044a2754d3885115f794040a6d26b8e3b0fa3",
+		"target/debug/deps/owned_process-a13eb1697f280b74.exe": "f05fafb54dcd9bce0f3b49d9a84466d838bae99e7b4f2ba0bc018a422121dcf0",
+		"target/debug/deps/application_runtime-26c742b338f73dcc.exe": "9bad839e892d26eec7879c822fe42e365eb94e416d9d5f3e40ef162d112f400f",
+		"target/debug/deps/mapgyver-1755e0c92f50b88c.exe": "b5eb68f3912fcf460687d1d26bf9ff3de5c319cb9fb3b97f19be894f827abc5f",
+		"target/debug/golden_io_process_fixture.exe": "3ce166a2dfa16174bd3090b1b36962bfcf6674396b8bbe2d0d997f1682a54e79",
+		"target/m08-create-owner-io-software.log": "c7ac440093905b82e22fd6590004cf9158c3aa78d31fb9b4dee46cd018820485",
+		"target/m08-create-owner-native.log": "a268b7e934ddc09071a918be5f326c409dd2ac97f1fd3d583ee008834663f280",
+		"target/m08-create-owner-io-native.log": "9e91a0f206a16274b3a084b1daf4775888d2edc02684dfb1487cd3fc3ac2dc5e",
+		"target/m08-create-owner-app-native.log": "a79d11becdfc78a2ce3cf403dd7ebd50a9797641fc68318983c522b615226c7d",
+		"target/m08-create-owner-cancellation.log": "c6e1fa42c79fbd5a1fa68f40345ca921e8b1986b376ab3b135e759b3a698ae0c"
+	},
+	"next": "Implement suspended/debug-event-fenced root assignment with a typed rejected pre-execution root and exact root-handle retirement if assignment fails; only then corrected WOW64 acceptance after software prerequisites",
+	"limits": [
+		"No new WOW64 probe; previous baseline/corrective investigation allowance is retained",
+		"Fresh elevated execution remains pending; old ordinary app binary is not this new implementation's elevated proof",
+		"No DTO or authored UI changes; full release/physical/performance qualification is not claimed",
+		"Unrelated user changes and normal user app/sender preserved"
+	],
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "57/67 (85%)",
+		"phases": "7/12",
+		"M03_growth_mib": 32
+	}
+}

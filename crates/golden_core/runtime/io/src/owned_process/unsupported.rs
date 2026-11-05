@@ -1,4 +1,4 @@
-use super::{ProcessSnapshot, ProcessSpec};
+use super::{CreateError, ProcessSnapshot, ProcessSpec};
 use std::io;
 pub(super) struct Process;
 pub(super) fn validate(_: &ProcessSpec) -> io::Result<()> {
@@ -11,8 +11,8 @@ fn unsupported<T>() -> io::Result<T> {
     ))
 }
 impl Process {
-    pub fn create(_: &ProcessSpec) -> io::Result<Self> {
-        unsupported()
+    pub fn create(_: &ProcessSpec) -> Result<Self, CreateError<Self>> {
+        unsupported().map_err(Into::into)
     }
     pub fn id(&self) -> u32 {
         unreachable!("unsupported platforms cannot construct an owned process")

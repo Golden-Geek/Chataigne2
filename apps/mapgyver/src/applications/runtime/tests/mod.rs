@@ -3,8 +3,10 @@ use golden_io::owned_process::{ProcessSnapshot, ProcessSpec, RootProcessState};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod callbacks;
 mod configuration;
+mod creation;
 mod observation;
 mod retirement;
+use creation::CreationRejection;
 mod supervision;
 
 struct Fake {
@@ -17,6 +19,7 @@ struct Fake {
     retired: bool,
     retire_on_kill: bool,
     fail_resume: bool,
+    reject_create: Option<CreationRejection>,
     cancel_create: Option<Arc<AtomicBool>>,
     on_create: Option<Box<dyn FnMut()>>,
     observation: Option<Result<ProcessSnapshot, String>>,
@@ -33,6 +36,7 @@ impl Default for Fake {
             retired: false,
             retire_on_kill: true,
             fail_resume: false,
+            reject_create: None,
             cancel_create: None,
             on_create: None,
             observation: None,
@@ -42,16 +46,28 @@ impl Default for Fake {
 impl Backend for Fake {
     type Suspended = ();
     type Process = ();
-    fn create(&mut self, specification: &ProcessSpec) -> Result<(), String> {
+    fn create(&mut self, specification: &ProcessSpec) -> Result<(), CreateFailure<()>> {
         self.specifications.push(specification.clone());
         if let Some(callback) = &mut self.on_create {
             callback();
         }
         self.creates += 1;
+        if matches!(self.reject_create, Some(CreationRejection::BeforeCreation)) {
+            return Err(CreateFailure {
+                message: "creation denied before process".into(),
+                process: None,
+            });
+        }
         self.running = true;
         self.retired = false;
         if let Some(cancel) = &self.cancel_create {
             cancel.store(false, Ordering::Release);
+        }
+        if matches!(self.reject_create, Some(CreationRejection::AfterCreation)) {
+            return Err(CreateFailure {
+                message: "created process verification denied".into(),
+                process: Some(Box::new(())),
+            });
         }
         Ok(())
     }

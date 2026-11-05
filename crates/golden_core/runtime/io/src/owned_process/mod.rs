@@ -7,6 +7,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod creation;
+pub use creation::CreateError;
+
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
@@ -107,8 +110,10 @@ impl std::error::Error for ResumeError {
     }
 }
 impl SuspendedProcess {
-    pub fn create(spec: &ProcessSpec) -> io::Result<Self> {
-        platform::Process::create(spec).map(|process| Self(OwnedProcess(process)))
+    pub fn create(spec: &ProcessSpec) -> Result<Self, CreateError> {
+        platform::Process::create(spec)
+            .map(|process| Self(OwnedProcess(process)))
+            .map_err(|error| error.map_owner(OwnedProcess))
     }
     pub fn id(&self) -> u32 {
         self.0.id()

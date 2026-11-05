@@ -15,6 +15,15 @@ no executable-name lookup, implicit shell, elevation fallback or ownership of pr
 If resume fails, `ResumeError::into_parts` returns both the OS error and suspended owner. Keep that
 owner through bounded termination/retirement observation; a failed resume is not cleanup proof.
 
+Creation returns `CreateError` rather than discarding a process created before later verification
+fails. `error()` exposes the original IO error/code. `into_parts()` returns that error and an optional
+retirement-only `OwnedProcess`: None means no target was returned; Some must stay owned through
+termination and verified retirement. It has no resume operation. The native event thread continues
+observing the retained owner on either result path. Dropping the error requests termination but
+does not prove cleanup. MapGyver keeps a returned owner in its existing stop/retirement state,
+publishes its PID, and prevents retry/replacement or slot release before completion proof.
+Validation/OS failures before a target exists retain ordinary failure/backoff behavior.
+
 `ProcessSpec::validate` checks the same launch encoding and configuration bounds without creating
 a process or opening the executable. Applications can reject invalid authored definitions before
 committing them; successful validation does not prove the target exists or will start.

@@ -1,4 +1,4 @@
-use super::{ProcessSnapshot, ProcessSpec, ProcessWindow, RootProcessState};
+use super::{CreateError, ProcessSnapshot, ProcessSpec, ProcessWindow, RootProcessState};
 use ::windows::{
     Win32::{
         Foundation::{HANDLE, HWND, LPARAM, WAIT_OBJECT_0, WAIT_TIMEOUT, WPARAM},
@@ -51,24 +51,35 @@ struct Observed {
     success: bool,
 }
 impl Process {
-    pub fn create(spec: &ProcessSpec) -> io::Result<Self> {
+    pub fn create(spec: &ProcessSpec) -> Result<Self, CreateError<Self>> {
+        Self::start(spec, verify_membership)
+    }
+    fn start(
+        spec: &ProcessSpec,
+        verify: fn(&OwnedHandle, &OwnedHandle) -> io::Result<()>,
+    ) -> Result<Self, CreateError<Self>> {
         validate(spec)?;
         let spec = spec.clone();
         let (send, receive) = mpsc::sync_channel(1);
         // Windows requires creation, WaitForDebugEvent and ContinueDebugEvent on the same thread.
         let observer = std::thread::Builder::new()
             .name("owned-process-events".into())
-            .spawn(move || match Self::create_native(&spec) {
-                Err(error) => {
-                    let _ = send.send(Err(error));
-                }
-                Ok(process) => {
+            .spawn(move || {
+                let outcome = Self::create_native(&spec, verify);
+                let process = outcome
+                    .as_ref()
+                    .ok()
+                    .or_else(|| outcome.as_ref().err().and_then(CreateError::owner));
+                let observation = process.map(|process| {
                     let job = process.job.clone();
                     let observed = process.observed.clone();
                     let id = process.id;
-                    if send.send(Ok(process)).is_err() {
-                        return;
-                    }
+                    (job, observed, id)
+                });
+                if send.send(outcome).is_err() {
+                    return;
+                }
+                if let Some((job, observed, id)) = observation {
                     let result = observer::run(&job, &observed, id);
                     if let Ok(mut state) = observed.lock() {
                         state.success = result.is_ok();
@@ -80,13 +91,22 @@ impl Process {
                     }
                 }
             })?;
-        let mut process = receive
+        let mut outcome = receive
             .recv()
-            .map_err(|_| io::Error::other("process observer stopped during creation"))??;
-        process.observer = Some(observer);
-        Ok(process)
+            .map_err(|_| io::Error::other("process observer stopped during creation"))?;
+        let owner = match &mut outcome {
+            Ok(process) => Some(process),
+            Err(error) => error.owner_mut(),
+        };
+        if let Some(process) = owner {
+            process.observer = Some(observer);
+        }
+        outcome
     }
-    fn create_native(spec: &ProcessSpec) -> io::Result<Self> {
+    fn create_native(
+        spec: &ProcessSpec,
+        verify: fn(&OwnedHandle, &OwnedHandle) -> io::Result<()>,
+    ) -> Result<Self, CreateError<Self>> {
         let mut prepared = launch::Prepared::new(spec)?;
         // SAFETY: anonymous non-inheritable job; OwnedHandle assumes the successful returned handle.
         let job = unsafe { OwnedHandle::from_raw_handle(CreateJobObjectW(None, PCWSTR::null()).map_err(os_error)?.0) };
@@ -144,15 +164,10 @@ impl Process {
             observed: Arc::new(Mutex::new(Observed::default())),
             observer: None,
         };
-        let mut assigned = BOOL::default();
-        let membership = unsafe { IsProcessInJob(raw(&process.root), Some(raw(&process.job)), &mut assigned) };
-        if membership.is_err() || !assigned.as_bool() {
+        if let Err(error) = verify(&process.root, &process.job) {
             // Primary thread is still suspended; reject without ever allowing unowned execution.
             let _ = unsafe { TerminateProcess(raw(&process.root), 1) };
-            return Err(membership
-                .err()
-                .map(os_error)
-                .unwrap_or_else(|| io::Error::other("created process did not enter the owned job")));
+            return Err(CreateError::with_owner(error, process));
         }
         Ok(process)
     }
@@ -252,6 +267,17 @@ impl Process {
             return Err(io::Error::other(format!("process observer failed: {error}")));
         }
         Ok(state)
+    }
+}
+fn verify_membership(root: &OwnedHandle, job: &OwnedHandle) -> io::Result<()> {
+    let mut assigned = BOOL::default();
+    unsafe {
+        IsProcessInJob(raw(root), Some(raw(job)), &mut assigned).map_err(os_error)?;
+    }
+    if assigned.as_bool() {
+        Ok(())
+    } else {
+        Err(io::Error::other("created process did not enter the owned job"))
     }
 }
 impl Drop for Process {
