@@ -10,6 +10,62 @@ fn color(rgb: [f32; 3]) -> LinearColor {
 }
 
 #[test]
+#[ignore = "explicit D3D11 Canvas indexed-payload addressing on every hardware adapter"]
+fn hardware_canvas_addresses_every_primitive_through_full_capacity() {
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let gpu = Device::new(adapter.id).unwrap();
+        let pipeline = Pipeline::new(&gpu.device).unwrap();
+        let target = Texture::new(
+            &gpu.device,
+            TextureDescriptor {
+                extent: Extent2D::new(32, 8).unwrap(),
+                format: PixelFormat::Rgba8Unorm,
+                color_encoding: ColorEncoding::Linear,
+                alpha_mode: AlphaMode::Premultiplied,
+            },
+        )
+        .unwrap();
+        let primitives = (0..32)
+            .map(|index| {
+                let red = index as f32 / 31.;
+                CanvasPrimitive::rectangle(
+                    UnitRect {
+                        x: index as f32 / 32.,
+                        y: 0.,
+                        width: 1. / 32.,
+                        height: 1.,
+                    },
+                    CanvasPaint::solid(LinearColor::from_straight(red, 1. - red, (index % 2) as f32, 0.5).unwrap()),
+                )
+                .unwrap()
+            })
+            .collect();
+        let canvas = CanvasPattern::new(primitives).unwrap();
+        let samples: Vec<_> = (0..32)
+            .map(|index| {
+                let red = f64::from(index) / 31.;
+                (
+                    [index, 4],
+                    [
+                        (red * 127.5).round() as u8,
+                        ((1. - red) * 127.5).round() as u8,
+                        if index % 2 == 0 { 0 } else { 128 },
+                        128,
+                    ],
+                )
+            })
+            .collect();
+        check(&gpu, &pipeline, &target, canvas, &samples);
+    }
+}
+
+#[test]
 #[ignore = "requires explicitly available hardware D3D11 adapters"]
 fn hardware_canvas_text_matches_bitmap_rows_tile_lookup_spacing_and_alpha() {
     use crate::plan::{CanvasText, CanvasTextStyle};

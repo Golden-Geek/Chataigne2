@@ -8,7 +8,7 @@ use super::*;
 use crate::native::backend::D3d11Backend;
 use crate::native::completion::EventCompletion;
 use crate::native::device::{Device, adapters};
-use crate::native::pipeline::{CONSTANT_BYTES, Pipeline};
+use crate::native::pipeline::{FIXED_BUFFER_BYTES, Pipeline};
 use crate::native::texture::Texture;
 use crate::native::{D3d11Config, D3d11Control, InputLimits, OutputBinding};
 use crate::plan::{BlendMode, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SampleFilter};
@@ -248,7 +248,7 @@ fn hardware_window_charge_has_only_two_backbuffers_and_rejects_foreign_context_b
         max_texture_bytes: 1024,
     })
     .unwrap();
-    assert_eq!(backend.base_resource_bytes().unwrap(), CONSTANT_BYTES + 2 * 64);
+    assert_eq!(backend.base_resource_bytes().unwrap(), FIXED_BUFFER_BYTES + 2 * 64);
     assert_eq!(
         backend.resource_bytes(&plan).unwrap(),
         64,

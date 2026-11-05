@@ -156,7 +156,7 @@ fn hardware_initial_native_allocation_retries_real_unavailable_adapter_then_serv
     });
     let pending = runtime.snapshot().resources.unwrap();
     let first_device = pending.last_submitted.device;
-    let baseline = CONSTANT_BYTES + descriptor().byte_len().unwrap();
+    let baseline = FIXED_BUFFER_BYTES + descriptor().byte_len().unwrap();
     assert_eq!(first_device.generation(), 1);
     assert_eq!(pending.bytes_used, baseline);
     assert_eq!(pending.peak_bytes, baseline);

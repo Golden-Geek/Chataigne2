@@ -1,0 +1,151 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/8",
+	"decision": "Active — reproduced Intel calibration performance defect fixed; both-GPU full-size image requirements verified; physical/cost/overload acceptance remains open",
+	"source_base": "54c00c6754665e84c656738749adf2b297ea86b1",
+	"capability": "Generic Golden Canvas evaluation now uses directly indexed GPU payload reads, making Raw and Smooth calibration usable on Intel while retaining the authored Screen contract, raster math and pixel limits.",
+	"ownership": "Golden Video native Pipeline owns the fixed packed GPU payload and view. MapGyver still owns Screen mode, calibration geometry and projection. No app-specific behavior enters Golden.",
+	"reproduction": {
+		"baseline_app_sha256": "066E8125B56048A9A12045ED3387512D93C1E7FE826934417CA5FCEA5D7830D1",
+		"adapter": "dxgi:00000000:00015b69",
+		"raw": "Full-size pixels passed, but observed 1080p samples were approximately 9–14 submitted FPS and 4K approximately 3 FPS.",
+		"smooth": "1080p first sample approximately 2 submitted FPS; landscape/portrait/square captured, then 4K finite SDK receive failed its unchanged five-second deadline.",
+		"evidence": "mapgyver-m12-canvas-indexed-2026-11-05/before.json"
+	},
+	"cause_and_fix": {
+		"before": {
+			"fxc_instruction_slots": 1402,
+			"temporary_registers": 40,
+			"bytecode_bytes": 45436,
+			"mechanism": "Dynamic selection of CanvasPrimitive aggregates from a constant buffer lowered to a 32-way mask/merge scan inside the per-pixel primitive loop."
+		},
+		"rejected_offline_only": [
+			{
+				"shape": "flat uint constant array",
+				"instruction_slots": 12506,
+				"temporary_registers": 225,
+				"bytecode_bytes": 389896
+			},
+			{
+				"shape": "flat float constant array",
+				"instruction_slots": 8359,
+				"temporary_registers": 224,
+				"bytecode_bytes": 331920
+			}
+		],
+		"after": {
+			"fxc_instruction_slots": 452,
+			"temporary_registers": 20,
+			"bytecode_bytes": 15636,
+			"mechanism": "ByteAddressBuffer direct row loads; no full-capacity selection scan. Same 15,008-byte header/palette/primitive/text packing and update, one Canvas draw, unchanged geometry/blending/transfer."
+		},
+		"storage": "One raw shader buffer replaces the former pattern constant buffer; one read-only view is prepared before submission and unbound after drawing. Pipeline retains both through the existing worker/GPU retirement. No duplicate payload allocation. Compile-time size/offset assertions guard packing. Fixed buffer storage remains 15,248 bytes per Pipeline, of which this payload is 15,008 bytes.",
+		"limit": "This preserves declared fixed GPU-buffer bytes; it does not assert identical driver metadata/physical VRAM or close retained process-memory qualification."
+	},
+	"checks": {
+		"software": {
+			"command": "cargo test --locked -p MapGyver -p golden_video --features MapGyver/native-qualification,MapGyver/application-process-fixture,golden_video/qualification --lib -- --quiet",
+			"mapgyver_passed": 502,
+			"mapgyver_ignored": 3,
+			"golden_video_passed": 208,
+			"golden_video_ignored": 31,
+			"exit_code": 0,
+			"generated": "App generated-contract parity tests pass; no DTO/protocol change.",
+			"final_golden_rerun": "208 passed / 31 ignored after extending the affected Grid/Bars regression to both GPUs."
+		},
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver -p golden_video --all-targets --features MapGyver/native-qualification,MapGyver/application-process-fixture,golden_video/qualification -- -D warnings",
+			"exit_code": 0
+		},
+		"format": "Root and golden_core cargo fmt; targeted Prettier, Python syntax and staged whitespace checks pass.",
+		"native_kernels": {
+			"executable": "target/debug/deps/golden_video-f2a1384d74779b62.exe",
+			"sha256": "30A5499429FB03056B85D94A68204088A3CADFD5FCCB17BF12A927BDFBE162A5",
+			"profile": "Cargo test optimized + debuginfo",
+			"passed": 6,
+			"adapters": [
+				"Intel(R) Graphics / dxgi:00000000:00015b69",
+				"NVIDIA GeForce RTX 5080 Laptop GPU / dxgi:00000000:00016022"
+			],
+			"scope": [
+				"Canvas geometry/palette/circle/diagonal/shared-clock landmarks at 1080p, portrait, square and 4K",
+				"All 32 distinct primitive slots and half-alpha colors",
+				"Exact bitmap text/tile/spacing/alpha",
+				"Canvas bitmap sRGB-before-filter, opacity and projective mapping",
+				"448 legacy Grid/Bars/mapping/order/alpha pixels on each GPU, now 896 total",
+				"One bitmap upload, two resource generations, zero receivers and final CPU lease release on each GPU"
+			],
+			"tolerances": "Existing Canvas 1/255 and legacy 2/255 unchanged.",
+			"evidence": "mapgyver-m12-canvas-indexed-2026-11-05/kernels.log"
+		},
+		"native_screens": {
+			"executable": "target/debug/deps/screen_antialiasing-screen-indexed.exe",
+			"sha256": "9E6792125F14DFB250D8CB7AA0619942733F7564FABBBD7EBD4D569965A9D449",
+			"build": "cargo rustc --locked -p MapGyver --profile test --features native-qualification,application-process-fixture --test screen_antialiasing -- -C extra-filename=-screen-indexed",
+			"images": 42,
+			"texels_checked": 32256,
+			"maximum_error_outside_legal_interval": 0,
+			"maximum_nominal_error": 1,
+			"scope": "Both-GPU Raw/Smooth warped opaque/translucent output, two SDK targets plus preview, undo/redo and reload; each fixture checks zero live plan allocations, balanced create/release and empty outputs/sources after retirement.",
+			"evidence": "mapgyver-m12-canvas-indexed-2026-11-05/screen-pixels.log"
+		},
+		"actual_app": {
+			"executable": "target/debug/deps/MapGyver-screen-aa-indexed.exe",
+			"sha256": "FA42C611779CAEF6D1C0B84026949EEBD4A5BEA23BD720D4A3B040FAFDDC9F3F",
+			"build": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-screen-aa-indexed",
+			"profile": "dev optimized + debuginfo, functional image verification; not production timing qualification",
+			"calibration_captures": 40,
+			"cohorts": 4,
+			"scope": "Exact private-profile GPU selection, Raw/Smooth on both GPUs through 1080p/portrait/square/4K/odd resize/live/warp/source restoration; strict text/palette/time/rainbow checks; every owned session exits normally and retirement counter increases 6→7 after disable.",
+			"observer": "Unchanged native_qualification-m1110.exe, SHA256 17E1030274CBED3889C94EEBB670170DF172342B07225582EB0FD4AAF37F724C; same five-second SDK receive deadline and bounded 128 MiB observer pool.",
+			"edge_landmarks": 8192,
+			"smooth_fractional_samples": 1152,
+			"maximum_edge_error_outside_legal_interval": 0,
+			"pixel_tolerances": "Unchanged 2/255 legal-UNORM interval bounds; no renderer or observer timeout increase.",
+			"cohort_evidence": "mapgyver-m12-canvas-indexed-2026-11-05/cohorts.json",
+			"edge_evidence": [
+				"mapgyver-m12-canvas-indexed-2026-11-05/intel-edges.json",
+				"mapgyver-m12-canvas-indexed-2026-11-05/nvidia-edges.json"
+			],
+			"inspector": {
+				"pid": 35936,
+				"exit_code": 0,
+				"page_errors": [],
+				"evidence": "mapgyver-m12-canvas-indexed-2026-11-05/inspector.log"
+			}
+		}
+	},
+	"observed_result": "Final Intel Raw and Smooth 1080p steady samples are about 60 submitted FPS; the formerly timing-out 4K Smooth finite capture completes. Current NVIDIA cohorts also pass. These are functional cohort observations, not GPU elapsed-time/scanout/deadline or sustained 4K production-FPS acceptance.",
+	"fixture_corrections": [
+		{
+			"issue": "A first fixed-app Raw cohort captured all images but failed the final retirement log-count assertion.",
+			"cause": "native-editor retains a rolling 16 KiB log. Counting substrings in that window is not monotonic; older retirement events can fall out while a new event arrives.",
+			"fix": "Count complete retirement lines on the owned stderr stream. Preserve the same retirement condition/deadline; all four final cohorts prove 6→7. Original capture-only pixels also passed."
+		},
+		{
+			"issue": "Intel Smooth's spatial rainbow comparison sampled exact 0.75-pixel stroke boundaries; two 2x subpixels could receive legal f32 coverage differences over different backgrounds.",
+			"fix": "Use the existing odd-size resize image for spatial phase, with explicit assertions that both subpixels lie strictly inside the chosen lines. Preserve 2/255 tolerance, live-frame hue-change requirement and off-line background checks. No raster change or tolerance widening."
+		},
+		{
+			"issue": "The first final native-kernel PowerShell loop returned a wrapper status 1 after all tests reported success, because native stderr generated nonterminating PowerShell error records.",
+			"fix": "Keep explicit per-native-process failure checks and exit 0 only after all pass. Rerun final six checks successfully; qualified log is retained."
+		}
+	],
+	"retained_images": "Eight paired 1080p/4K native PNGs under intel-{raw,smooth} and nvidia-{raw,smooth}; enough to rerun both independent static-edge checks. Other finite captures remain in named target directories, with exact decoded results retained in cohorts.json.",
+	"remaining": [
+		"Physical versus Shared Texture output parity for Raw/Smooth",
+		"Both-GPU optimized 1080p/4K cost envelope, full native live/retiring allocation accounting and overload/recovery under unchanged M03/M11 budgets"
+	],
+	"acceptance": {
+		"gate_closed": false,
+		"verified": 64,
+		"total": 78,
+		"overall_percent": 82,
+		"m12_verified": 7,
+		"m12_total": 11,
+		"completed_phases": 7,
+		"total_phases": 13,
+		"denominator_changed": false
+	},
+	"retained_limits": "No M03/M11 budget revision, fallback, original device-removal/lifecycle waiver, release qualification or M12/10 typography waiver. Sky inventory succeeded; physical checks can use current supported owned-window automation."
+}

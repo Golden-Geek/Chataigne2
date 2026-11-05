@@ -249,8 +249,22 @@ def main():
         first = Image.open(args.directory / "live-a" / "pixels.png")
         second = Image.open(args.directory / "live-b" / "pixels.png")
         edge = first.getpixel((120, 300))[:3]
-        same_phase = first.getpixel((360, 165))[:3]
-        assert all(abs(a - b) <= 2 for a, b in zip(edge, same_phase))
+        # At integer grid positions, a 2x subpixel sits exactly on the 0.75px
+        # stroke boundary. Compare spatial phase at the odd-size resize instead:
+        # both subpixels are strictly inside each chosen line, so background
+        # parity and legal f32 edge rounding cannot alter the comparison.
+        spatial = Image.open(args.directory / "resize" / "pixels.png")
+        width, height = spatial.size
+        cell = max(min(width, height) / 9, max(width, height) / 32, 1)
+        stroke = min(1.5, max(0.5, cell / 160))
+        first_x, second_x = math.floor(cell), math.floor(3 * cell)
+        first_y = 300
+        second_y = round(first_y - (second_x - first_x) * height / width)
+        for x, boundary in [(first_x, cell), (second_x, 3 * cell)]:
+            assert all(abs(x + subpixel - boundary) < stroke for subpixel in [0.25, 0.75])
+        spatial_edge = spatial.getpixel((first_x, first_y))[:3]
+        same_phase = spatial.getpixel((second_x, second_y))[:3]
+        assert all(abs(a - b) <= 2 for a, b in zip(spatial_edge, same_phase))
         assert (
             sum(abs(a - b) for a, b in zip(edge, second.getpixel((120, 300))[:3])) > 32
         )

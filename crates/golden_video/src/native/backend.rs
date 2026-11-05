@@ -19,7 +19,7 @@ use super::device::Device;
 use super::inputs::{CopyFrame, SourceDemands, SourcePool};
 use super::outputs::OutputPool;
 use super::outputs::scheduling::{Admission, Attempt, OutputSchedule};
-use super::pipeline::{CONSTANT_BYTES, Pipeline};
+use super::pipeline::{FIXED_BUFFER_BYTES, Pipeline};
 use super::texture::Texture;
 use super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
@@ -325,7 +325,7 @@ impl Backend for D3d11Backend {
     fn base_resource_bytes(&self) -> Result<u64, BackendError> {
         // This accounts every owned texture pool and the constant buffer. DXGI/driver physical
         // residency, alignment and native-object overhead need separate measured qualification.
-        let base = CONSTANT_BYTES
+        let base = FIXED_BUFFER_BYTES
             .checked_add(self.config.inputs.max_storage_bytes)
             .ok_or(BackendError::ResourceSizeOverflow)?;
         self.config.outputs.iter().try_fold(base, |total, binding| {

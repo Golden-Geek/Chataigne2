@@ -1,5 +1,6 @@
 Texture2D<float4> source_image : register(t0);
 Texture2D<float4> previous_image : register(t1);
+ByteAddressBuffer pattern_data : register(t2);
 
 cbuffer Parameters : register(b0) {
     uint2 source_extent;
@@ -16,25 +17,6 @@ cbuffer Parameters : register(b0) {
     float4 inverse_row0;
     float4 inverse_row1;
     float4 inverse_row2;
-};
-
-struct CanvasPrimitive {
-    uint4 metadata;
-    float4 bounds;
-    float4 geometry0;
-    float4 geometry1;
-    float4 paint;
-    float4 colors[8];
-};
-cbuffer PatternParameters : register(b1) {
-    uint pattern_kind;
-    uint pattern_mapped;
-    uint2 pattern_cells;
-    float pattern_width;
-    uint3 pattern_reserved;
-    float4 pattern_colors[8];
-    CanvasPrimitive canvas_primitives[32];
-    uint4 canvas_text[512];
 };
 
 cbuffer OverlayParameters : register(b2) {
@@ -187,58 +169,79 @@ float4 ps_mapped(Vertex input) : SV_Target {
     return finish_pixel(input, source);
 }
 
-float4 canvas_glyph(CanvasPrimitive item, float2 p) {
-    float2 tile = floor(p * item.geometry0.xy);
-    if (any(tile >= ceil(item.geometry0.xy))) return 0;
-    float2 local = p - tile / item.geometry0.xy - item.geometry1.xy;
-    if (any(local < 0) || local.y >= item.geometry0.w) return 0;
-    uint character = (uint)floor(local.x / item.geometry0.z);
-    if (character >= item.metadata.w) return 0;
-    uint columns = (uint)ceil(item.geometry0.x);
-    uint offset = item.metadata.z + ((uint)tile.y * columns + (uint)tile.x) * item.metadata.w + character;
+float4 canvas_row(uint index, uint row) {
+    // CPU header/palette: 160 bytes; each unchanged primitive occupies thirteen rows.
+    return asfloat(pattern_data.Load4(160 + (index * 13 + row) * 16));
+}
+
+float4 canvas_color(uint index, uint color) {
+    return canvas_row(index, 5 + color);
+}
+
+float4 canvas_glyph(uint index, float2 p) {
+    uint4 metadata = pattern_data.Load4(160 + index * 208);
+    float4 geometry0 = canvas_row(index, 2);
+    float4 geometry1 = canvas_row(index, 3);
+    float2 tile = floor(p * geometry0.xy);
+    if (any(tile >= ceil(geometry0.xy))) return 0;
+    float2 local = p - tile / geometry0.xy - geometry1.xy;
+    if (any(local < 0) || local.y >= geometry0.w) return 0;
+    uint character = (uint)floor(local.x / geometry0.z);
+    if (character >= metadata.w) return 0;
+    uint columns = (uint)ceil(geometry0.x);
+    uint offset = metadata.z + ((uint)tile.y * columns + (uint)tile.x) * metadata.w + character;
     if (offset >= 8192) return 0;
-    uint word = canvas_text[offset / 16][(offset / 4) % 4];
+    uint word = pattern_data.Load(6816 + (offset / 4) * 4);
     uint code = (word >> ((offset % 4) * 8)) & 127;
-    uint2 pixel = (uint2)floor(float2(frac(local.x / item.geometry0.z) * 9, local.y / item.geometry0.w * 8));
+    uint2 pixel = (uint2)floor(float2(frac(local.x / geometry0.z) * 9, local.y / geometry0.w * 8));
     if (pixel.x >= 8 || pixel.y >= 8) return 0;
     uint2 glyph = canvas_font[code];
     uint row = ((pixel.y < 4 ? glyph.x : glyph.y) >> ((pixel.y % 4) * 8)) & 255;
-    return ((row >> pixel.x) & 1) != 0 ? item.colors[0] : 0;
+    return ((row >> pixel.x) & 1) != 0 ? canvas_color(index, 0) : 0;
 }
 
-float4 canvas_primitive(CanvasPrimitive item, float2 uv) {
-    float2 p = (uv - item.bounds.xy) / item.bounds.zw;
+float4 canvas_primitive(uint index, float2 uv) {
+    float4 bounds = canvas_row(index, 1);
+    float2 p = (uv - bounds.xy) / bounds.zw;
     if (any(p < 0) || any(p > 1)) return 0;
-    uint kind = item.metadata.x;
-    if (kind == 6) return sample_source(p) * item.colors[0].a;
-    if (kind == 7) return canvas_glyph(item, p);
+    uint4 metadata = pattern_data.Load4(160 + index * 208);
+    uint kind = metadata.x;
+    if (kind == 6) return sample_source(p) * canvas_color(index, 0).a;
+    if (kind == 7) return canvas_glyph(index, p);
+    float4 geometry0 = canvas_row(index, 2);
     if (kind == 1) {
-        uint2 cell = (uint2)floor(p * item.geometry0.xy);
-        return item.colors[(cell.x + cell.y) & 1];
+        uint2 cell = (uint2)floor(p * geometry0.xy);
+        return canvas_color(index, (cell.x + cell.y) & 1);
     }
     if (kind == 2) {
-        float2 phase = frac(p * item.geometry0.xy);
-        float2 distance = min(phase, 1-phase) / item.geometry0.xy;
-        if (all(distance > item.geometry0.zw)) return 0;
+        float2 phase = frac(p * geometry0.xy);
+        float2 distance = min(phase, 1-phase) / geometry0.xy;
+        if (all(distance > geometry0.zw)) return 0;
     }
-    if (kind == 3 && abs(length((p - 0.5) * 2) - 1) > item.geometry0.x) return 0;
+    if (kind == 3 && abs(length((p - 0.5) * 2) - 1) > geometry0.x) return 0;
     if (kind == 4) {
-        float2 aspect = float2(item.geometry1.y, 1);
-        float2 start = item.geometry0.xy * aspect;
-        float2 delta = (item.geometry0.zw - item.geometry0.xy) * aspect;
+        float4 geometry1 = canvas_row(index, 3);
+        float2 aspect = float2(geometry1.y, 1);
+        float2 start = geometry0.xy * aspect;
+        float2 delta = (geometry0.zw - geometry0.xy) * aspect;
         float along = saturate(dot(p * aspect - start, delta) / dot(delta, delta));
-        if (length(p * aspect - start - delta * along) > item.geometry1.x) return 0;
+        if (length(p * aspect - start - delta * along) > geometry1.x) return 0;
     }
-    if (kind == 5) return item.colors[min((uint)floor(p.x * 8), 7)];
-    if (item.metadata.y != 0) {
-        float hue = dot(p, item.paint.xy) - item.paint.z;
+    if (kind == 5) return canvas_color(index, min((uint)floor(p.x * 8), 7));
+    if (metadata.y != 0) {
+        float4 paint = canvas_row(index, 4);
+        float hue = dot(p, paint.xy) - paint.z;
         float3 rgb = saturate(abs(frac(hue + float3(0, 2.0/3.0, 1.0/3.0)) * 6 - 3) - 1);
-        return float4(rgb * item.paint.w, item.paint.w);
+        return float4(rgb * paint.w, paint.w);
     }
-    return item.colors[0];
+    return canvas_color(index, 0);
 }
 
 float4 ps_pattern(Vertex input) : SV_Target {
+    uint4 header = pattern_data.Load4(0);
+    uint pattern_kind = header.x;
+    uint pattern_mapped = header.y;
+    uint2 pattern_cells = header.zw;
     float3 position = float3(input.uv, 1);
     float3 projected = pattern_mapped != 0 ? float3(
         dot(inverse_row0.xyz, position), dot(inverse_row1.xyz, position),
@@ -250,15 +253,15 @@ float4 ps_pattern(Vertex input) : SV_Target {
             uv = source_rect.xy + uv * source_rect.zw;
             if (pattern_kind == 0) {
                 float2 phase = frac(uv * pattern_cells);
-                bool is_grid_line = any(min(phase, 1-phase) < pattern_width);
-                color = is_grid_line ? pattern_colors[0] : pattern_colors[1];
+                bool is_grid_line = any(min(phase, 1-phase) < asfloat(pattern_data.Load(16)));
+                color = asfloat(pattern_data.Load4(is_grid_line ? 32 : 48));
             } else if (pattern_kind == 1) {
                 uint stripe = min((uint)floor(uv.x * 8), 7);
-                color = pattern_colors[stripe];
+                color = asfloat(pattern_data.Load4(32 + stripe * 16));
             } else {
                 [loop]
-                for (uint index = 0; index < min(pattern_reserved.x, 32); index++) {
-                    float4 top = canvas_primitive(canvas_primitives[index], uv);
+                for (uint index = 0; index < min(pattern_data.Load(20), 32); index++) {
+                    float4 top = canvas_primitive(index, uv);
                     color = top + color * (1 - top.a);
                 }
             }

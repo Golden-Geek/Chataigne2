@@ -1,0 +1,80 @@
+{
+	"passed": true,
+	"checks": [
+		{
+			"label": "landscape",
+			"extent": [
+				1920,
+				1080
+			],
+			"checks": [
+				{
+					"mode": "Raw",
+					"feature": "circle",
+					"landmarks": 512,
+					"fractional_coverage": 0,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Smooth2x",
+					"feature": "circle",
+					"landmarks": 512,
+					"fractional_coverage": 114,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Raw",
+					"feature": "diagonal",
+					"landmarks": 512,
+					"fractional_coverage": 0,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Smooth2x",
+					"feature": "diagonal",
+					"landmarks": 512,
+					"fractional_coverage": 155,
+					"maximum_error_outside_legal_interval": 0
+				}
+			]
+		},
+		{
+			"label": "4k",
+			"extent": [
+				3840,
+				2160
+			],
+			"checks": [
+				{
+					"mode": "Raw",
+					"feature": "circle",
+					"landmarks": 512,
+					"fractional_coverage": 0,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Smooth2x",
+					"feature": "circle",
+					"landmarks": 512,
+					"fractional_coverage": 148,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Raw",
+					"feature": "diagonal",
+					"landmarks": 512,
+					"fractional_coverage": 0,
+					"maximum_error_outside_legal_interval": 0
+				},
+				{
+					"mode": "Smooth2x",
+					"feature": "diagonal",
+					"landmarks": 512,
+					"fractional_coverage": 159,
+					"maximum_error_outside_legal_interval": 0
+				}
+			]
+		}
+	],
+	"scope": "512 deterministic static landmarks per feature/mode/size, independent circle and point-line distance, unchanged 2/255 legal-UNORM interval tolerance; not complete-image or timing qualification"
+}

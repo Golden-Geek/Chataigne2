@@ -31,6 +31,14 @@ switching to Raw removes the intermediate pass/storage from the demanded graph. 
 choice lives on a real enum Parameter, projects through Rust-generated DTOs, and uses normal
 history, duplication and persistence. There is no UI-owned setting or output-specific fork.
 
+Golden's generic procedural payload uses one worker-owned indexed shader buffer. FXC lowered
+constant-buffer aggregate selection into a full 32-entry mask/merge scan inside every pixel's
+primitive loop; even a flat constant array retained that problem. A read-only raw buffer makes
+each required row a direct GPU load. The 15,008-byte packed header/palette/primitive/text layout,
+frame update, single Canvas draw, raster math and fixed storage charge remain unchanged. A view
+is created before submission, unbound after each draw, and retained with the render worker through
+GPU retirement. Compile-time offsets and full-capacity native pixel checks guard the byte layout.
+
 Microsoft documents that MSAA shares shader results across samples and does not remove surface
 aliasing. That is why this path supersamples shader evaluation as well as warp boundaries:
 [Direct3D rasterization rules](https://learn.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-rasterizer-stage-rules).

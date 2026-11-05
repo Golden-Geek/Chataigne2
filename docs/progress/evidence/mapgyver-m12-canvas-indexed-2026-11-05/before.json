@@ -1,0 +1,169 @@
+{
+	"raw": {
+		"pid": 11212,
+		"gpu": "dxgi:00000000:00015b69",
+		"frames": [
+			{
+				"label": "landscape",
+				"before": 1793914762647,
+				"after": 1793914763762,
+				"pixels": {
+					"height": 1080,
+					"retired": true,
+					"width": 1920
+				},
+				"runtime": {
+					"sequence": 4,
+					"state": "Running",
+					"submitted_fps": 8.931948378499055,
+					"cpu_submit_ms": 0.40700000000000003,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "4k",
+				"before": 1793914766691,
+				"after": 1793914770043,
+				"pixels": {
+					"height": 2160,
+					"retired": true,
+					"width": 3840
+				},
+				"runtime": {
+					"sequence": 10,
+					"state": "Running",
+					"submitted_fps": 2.970885029621209,
+					"cpu_submit_ms": 1.438,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 405032084,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "live-b",
+				"before": 1793914774886,
+				"after": 1793914775888,
+				"pixels": {
+					"height": 1080,
+					"retired": true,
+					"width": 1920
+				},
+				"runtime": {
+					"sequence": 15,
+					"state": "Running",
+					"submitted_fps": 10.905140544459961,
+					"cpu_submit_ms": 1.6182,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			}
+		]
+	},
+	"smooth_partial": {
+		"pid": 5948,
+		"gpu": "dxgi:00000000:00015b69",
+		"frames": [
+			{
+				"label": "landscape",
+				"before": 1793914812685,
+				"after": 1793914816338,
+				"runtime": {
+					"sequence": 6,
+					"state": "Running",
+					"submitted_fps": 1.9788159833716137,
+					"cpu_submit_ms": 0.4779,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "portrait",
+				"before": 1793914816645,
+				"after": 1793914820834,
+				"runtime": {
+					"sequence": 11,
+					"state": "Running",
+					"submitted_fps": 2.978072452532007,
+					"cpu_submit_ms": 1.5539,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "square",
+				"before": 1793914821140,
+				"after": 1793914823422,
+				"runtime": {
+					"sequence": 13,
+					"state": "Running",
+					"submitted_fps": null,
+					"cpu_submit_ms": 0.7747,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 334859412,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			}
+		],
+		"terminal": "4K calibration-pixels role timed out at unchanged five-second receive deadline; overall exit 1",
+		"directory": "target/m12-screen-aa/intel-smooth"
+	}
+}

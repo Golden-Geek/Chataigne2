@@ -6,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
+import { adapterKey as hardwareAdapterKey } from './native-adapter.mjs';
 
 const execute = promisify(execFile);
 const directory = path.resolve(process.env.MAPGYVER_CALIBRATION_DIRECTORY);
@@ -13,7 +14,44 @@ await mkdir(directory, { recursive: true });
 const observer = path.resolve(process.env.MAPGYVER_CALIBRATION_OBSERVER);
 const antiAliasing = process.env.MAPGYVER_CALIBRATION_AA ?? 'Raw';
 assert(['Raw', 'Smooth2x'].includes(antiAliasing), 'unknown calibration anti-aliasing mode');
-const native = await openNativeEditor();
+const selectedAdapter = process.env.MAPGYVER_CALIBRATION_GPU;
+let appDataDirectory;
+if (selectedAdapter) {
+	const hardware = JSON.parse(
+		(await execute(observer, ['--role', 'hardware'], { windowsHide: true })).stdout
+	);
+	assert(
+		hardware.adapters.some(
+			(adapter) => !adapter.software && hardwareAdapterKey(adapter.id) === selectedAdapter
+		),
+		'requested hardware GPU must exist'
+	);
+	appDataDirectory = path.join(directory, 'app-data');
+	const preferencesDirectory = path.join(appDataDirectory, 'MapGyver');
+	await mkdir(preferencesDirectory, { recursive: true });
+	await execute(
+		observer,
+		[
+			'--role',
+			'gpu-preferences',
+			'--file',
+			path.join(preferencesDirectory, 'preferences.json'),
+			'--selected',
+			selectedAdapter
+		],
+		{ windowsHide: true }
+	);
+}
+const native = await openNativeEditor({ appDataDirectory });
+let retirementCount = 0,
+	outputBuffer = '';
+native.app.stderr.on('data', (chunk) => {
+	outputBuffer += chunk.toString();
+	const lines = outputBuffer.split('\n');
+	outputBuffer = lines.pop();
+	for (const line of lines)
+		if (line.trim() === '[mapgyver-output] native session retired') retirementCount++;
+});
 const observations = [];
 const routingOnly = process.argv.includes('--routing-only');
 let token;
@@ -114,6 +152,8 @@ try {
 		(value) => value.state === 'Running' && value.submitted_fps > 0,
 		'running source-free calibration'
 	);
+	if (selectedAdapter)
+		assert.equal(running.gpu_adapter, selectedAdapter, 'exact GPU preference must be honored');
 	const hardware = await fixture(['--role', 'hardware']);
 	const planLine = () =>
 		native
@@ -223,9 +263,7 @@ try {
 		Object.fromEntries(Object.entries(routed.crop).map(([key, value]) => [key, Math.fround(value)]))
 	);
 	await capture('restored-source', 1920, 1080);
-	const retirementCountBefore = native
-		.log()
-		.split('[mapgyver-output] native session retired').length;
+	const retirementCountBefore = retirementCount;
 	await target(1920, 1080, false);
 	// A host may retain its transparent presenter. Observe this output's withdrawal, not global idleness.
 	const withdrawn = await waitFor(
@@ -256,7 +294,7 @@ try {
 	);
 	// The media preview can retain its independently selected red source; the calibration output is gone.
 	await waitFor(
-		() => native.log().split('[mapgyver-output] native session retired').length,
+		() => retirementCount,
 		(count) => count > retirementCountBefore,
 		'calibration output retirement'
 	);
@@ -270,6 +308,8 @@ try {
 				pid: native.app.pid,
 				adapter,
 				anti_aliasing: antiAliasing,
+				retirementCountBefore,
+				retirementCountAfter: retirementCount,
 				gpu: running.gpu_adapter,
 				observations,
 				withdrawn,

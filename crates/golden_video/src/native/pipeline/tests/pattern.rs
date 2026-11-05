@@ -36,12 +36,19 @@ fn pixels(gpu: &Device, target: &Texture, expected: impl Fn(usize, usize) -> [u8
 #[test]
 #[ignore = "requires an explicitly available Windows hardware D3D11 adapter"]
 fn hardware_procedural_patterns_mapping_order_and_alpha_match_pixel_oracles() {
-    let adapter = adapters()
+    let hardware = adapters()
         .unwrap()
         .into_iter()
-        .find(|adapter| !adapter.software)
-        .unwrap();
-    let gpu = Device::new(adapter.id).unwrap();
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        check_adapter(adapter.id);
+    }
+}
+
+fn check_adapter(adapter: crate::native::AdapterId) {
+    let gpu = Device::new(adapter).unwrap();
     let pipeline = Pipeline::new(&gpu.device).unwrap();
     let descriptor = TextureDescriptor {
         extent: Extent2D::new(8, 8).unwrap(),
@@ -169,5 +176,7 @@ fn hardware_procedural_patterns_mapping_order_and_alpha_match_pixel_oracles() {
         SampleFilter::Nearest,
     );
     pixels(&gpu, &target, |_, _| [0, 0, 128, 128]);
-    eprintln!("448/448 finite pattern/crop/mapping/order/alpha/texture pixels matched, tolerance 2/255");
+    eprintln!(
+        "adapter={adapter:?}: 448/448 finite pattern/crop/mapping/order/alpha/texture pixels matched, tolerance 2/255"
+    );
 }

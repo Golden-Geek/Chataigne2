@@ -1,0 +1,76 @@
+running 3 tests
+golden_video-f2a1384d74779b62.exe : canvas hardware AdapterId { low: 88937, high: 0 } Intel(R) Graphics: 1920x1080
+checker/palette/circle/diagonal/clock landmarks pass
+At line:2 char:290
++ ...  ($first) { & target/debug/deps/golden_video-f2a1384d74779b62.exe $fi ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (canvas hardware... landmarks pass:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+canvas hardware AdapterId { low: 88937, high: 0 } Intel(R) Graphics: 1080x1920 checker/palette/circle/diagonal/clock
+landmarks pass
+canvas hardware AdapterId { low: 88937, high: 0 } Intel(R) Graphics: 1024x1024 checker/palette/circle/diagonal/clock
+landmarks pass
+canvas hardware AdapterId { low: 88937, high: 0 } Intel(R) Graphics: 3840x2160 checker/palette/circle/diagonal/clock
+landmarks pass
+canvas hardware AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: 1920x1080
+checker/palette/circle/diagonal/clock landmarks pass
+canvas hardware AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: 1080x1920
+checker/palette/circle/diagonal/clock landmarks pass
+canvas hardware AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: 1024x1024
+checker/palette/circle/diagonal/clock landmarks pass
+canvas hardware AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: 3840x2160
+checker/palette/circle/diagonal/clock landmarks pass
+test native::pipeline::tests::canvas::hardware_batched_canvas_geometry_palettes_and_shared_clock_match_landmarks ... ok
+test native::pipeline::tests::canvas::hardware_canvas_addresses_every_primitive_through_full_capacity ... ok
+test native::pipeline::tests::canvas::hardware_canvas_text_matches_bitmap_rows_tile_lookup_spacing_and_alpha ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 0.56s
+
+
+running 1 test
+golden_video-f2a1384d74779b62.exe : canvas bitmap AdapterId { low: 88937, high: 0 } Intel(R) Graphics: alpha,
+sRGB-before-filter, placement, opacity and mapped pixels pass
+At line:2 char:496
++ ... se } else { & target/debug/deps/golden_video-f2a1384d74779b62.exe $fi ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (canvas bitmap A...ped pixels pass:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+canvas bitmap AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: alpha, sRGB-before-filter,
+placement, opacity and mapped pixels pass
+test native::pipeline::tests::bitmap::hardware_canvas_bitmaps_preserve_alpha_color_filtering_opacity_and_mapping ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 238 filtered out; finished in 0.19s
+
+
+running 1 test
+golden_video-f2a1384d74779b62.exe : adapter=AdapterId { low: 88937, high: 0 }: 448/448 finite
+pattern/crop/mapping/order/alpha/texture pixels matched, tolerance 2/255
+At line:2 char:496
++ ... se } else { & target/debug/deps/golden_video-f2a1384d74779b62.exe $fi ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (adapter=Adapter...tolerance 2/255:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+adapter=AdapterId { low: 90146, high: 0 }: 448/448 finite pattern/crop/mapping/order/alpha/texture pixels matched,
+tolerance 2/255
+test native::pipeline::tests::pattern::hardware_procedural_patterns_mapping_order_and_alpha_match_pixel_oracles ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 238 filtered out; finished in 0.20s
+
+
+running 1 test
+golden_video-f2a1384d74779b62.exe : canvas bitmap assets AdapterId { low: 88937, high: 0 } Intel(R) Graphics: one
+upload, two resource generations, zero receivers and final CPU lease release pass
+At line:2 char:496
++ ... se } else { & target/debug/deps/golden_video-f2a1384d74779b62.exe $fi ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (canvas bitmap a...se release pass:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+canvas bitmap assets AdapterId { low: 90146, high: 0 } NVIDIA GeForce RTX 5080 Laptop GPU: one upload, two resource
+generations, zero receivers and final CPU lease release pass
+test native::backend::tests::images::hardware_canvas_bitmap_assets_share_uploads_and_release_with_last_resource ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 238 filtered out; finished in 0.59s

@@ -1,0 +1,1030 @@
+{
+	"intel_raw": {
+		"working_directory": "target/m12-screen-aa/intel-indexed-raw-final",
+		"pid": 18076,
+		"gpu": "dxgi:00000000:00015b69",
+		"mode": "Raw",
+		"exit_code": 0,
+		"page_errors": [],
+		"retirement_before": 6,
+		"retirement_after": 7,
+		"source_free_plan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+		"withdrawn_plan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+		"frames": [
+			{
+				"label": "landscape",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916044056,
+				"after": 1793916044322,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "landscape",
+					"clock": "23:00:44.163",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 3,
+					"state": "Running",
+					"submitted_fps": 59.66965684577044,
+					"cpu_submit_ms": 0.5812999999999999,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 9216951214,
+						"in_flight": 1,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "portrait",
+				"extent": [
+					1080,
+					1920
+				],
+				"before": 1793916044628,
+				"after": 1793916044889,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "portrait",
+					"clock": "23:00:44.716",
+					"resolution": "1080 x 1920",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "square",
+				"extent": [
+					1024,
+					1024
+				],
+				"before": 1793916045195,
+				"after": 1793916045430,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "square",
+					"clock": "23:00:45.285",
+					"resolution": "1024 x 1024",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "4k",
+				"extent": [
+					3840,
+					2160
+				],
+				"before": 1793916045738,
+				"after": 1793916046177,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "4k",
+					"clock": "23:00:45.864",
+					"resolution": "3840 x 2160",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 5,
+					"state": "Running",
+					"submitted_fps": null,
+					"cpu_submit_ms": 0.38630000000000003,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 405032084,
+						"limit_bytes": 9216951214,
+						"in_flight": 1,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "resize",
+				"extent": [
+					1919,
+					1079
+				],
+				"before": 1793916046484,
+				"after": 1793916046743,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "resize",
+					"clock": "23:00:46.590",
+					"resolution": "1919 x 1079",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-a",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916047049,
+				"after": 1793916047310,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-a",
+					"clock": "23:00:47.141",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-b",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916048814,
+				"after": 1793916049074,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-b",
+					"clock": "23:00:48.908",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 8,
+					"state": "Running",
+					"submitted_fps": 60.38434536836232,
+					"cpu_submit_ms": 0.4969,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 9216951214,
+						"in_flight": 1,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "warped",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916049381,
+				"after": 1793916049631,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "warped",
+					"clock": "23:00:49.475",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": true
+				}
+			},
+			{
+				"label": "routed-calibration",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916049939,
+				"after": 1793916050208,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "routed-calibration",
+					"clock": "23:00:50.042",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "restored-source",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916050516,
+				"after": 1793916050737,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "restored-source",
+					"solid_red_every_pixel": true
+				}
+			}
+		],
+		"pixel_verification_passed": true,
+		"live_clock_changed": true,
+		"rainbow_flow": true,
+		"routing_restored": true
+	},
+	"intel_smooth": {
+		"working_directory": "target/m12-screen-aa/intel-indexed-smooth",
+		"pid": 25084,
+		"gpu": "dxgi:00000000:00015b69",
+		"mode": "Smooth2x",
+		"exit_code": 0,
+		"page_errors": [],
+		"retirement_before": 6,
+		"retirement_after": 7,
+		"source_free_plan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+		"withdrawn_plan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+		"frames": [
+			{
+				"label": "landscape",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916085256,
+				"after": 1793916085514,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "landscape",
+					"clock": "23:01:25.339",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 59,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 3,
+					"state": "Running",
+					"submitted_fps": 60.3485912709621,
+					"cpu_submit_ms": 0.3824,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 9216951214,
+						"in_flight": 1,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "portrait",
+				"extent": [
+					1080,
+					1920
+				],
+				"before": 1793916085822,
+				"after": 1793916086091,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "portrait",
+					"clock": "23:01:25.930",
+					"resolution": "1080 x 1920",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "square",
+				"extent": [
+					1024,
+					1024
+				],
+				"before": 1793916086398,
+				"after": 1793916086633,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "square",
+					"clock": "23:01:26.492",
+					"resolution": "1024 x 1024",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "4k",
+				"extent": [
+					3840,
+					2160
+				],
+				"before": 1793916086940,
+				"after": 1793916087561,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "4k",
+					"clock": "23:01:27.180",
+					"resolution": "3840 x 2160",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 5,
+					"state": "Running",
+					"submitted_fps": null,
+					"cpu_submit_ms": 1.6392,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 537742484,
+						"limit_bytes": 9216951214,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "resize",
+				"extent": [
+					1919,
+					1079
+				],
+				"before": 1793916087867,
+				"after": 1793916088136,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "resize",
+					"clock": "23:01:27.975",
+					"resolution": "1919 x 1079",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-a",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916088442,
+				"after": 1793916088714,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-a",
+					"clock": "23:01:28.550",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-b",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916090220,
+				"after": 1793916090495,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-b",
+					"clock": "23:01:30.334",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 8,
+					"state": "Running",
+					"submitted_fps": 60.45857532043293,
+					"cpu_submit_ms": 0.5397000000000001,
+					"gpu": "Intel(R) Graphics",
+					"gpu_adapter": "dxgi:00000000:00015b69",
+					"gpu_preference": "dxgi:00000000:00015b69",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 9216951214,
+						"in_flight": 1,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "warped",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916090801,
+				"after": 1793916091056,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "warped",
+					"clock": "23:01:30.901",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": true
+				}
+			},
+			{
+				"label": "routed-calibration",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916091365,
+				"after": 1793916091637,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "routed-calibration",
+					"clock": "23:01:31.467",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "restored-source",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916091946,
+				"after": 1793916092171,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "restored-source",
+					"solid_red_every_pixel": true
+				}
+			}
+		],
+		"pixel_verification_passed": true,
+		"live_clock_changed": true,
+		"rainbow_flow": true,
+		"routing_restored": true
+	},
+	"nvidia_raw": {
+		"working_directory": "target/m12-screen-aa/nvidia-indexed-raw",
+		"pid": 35992,
+		"gpu": "dxgi:00000000:00016022",
+		"mode": "Raw",
+		"exit_code": 0,
+		"page_errors": [],
+		"retirement_before": 6,
+		"retirement_after": 7,
+		"source_free_plan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+		"withdrawn_plan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+		"frames": [
+			{
+				"label": "landscape",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916283588,
+				"after": 1793916285285,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "landscape",
+					"clock": "23:04:43.758",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 5,
+					"state": "Running",
+					"submitted_fps": 59.33966230391579,
+					"cpu_submit_ms": 0.36000000000000004,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "portrait",
+				"extent": [
+					1080,
+					1920
+				],
+				"before": 1793916285593,
+				"after": 1793916287290,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "portrait",
+					"clock": "23:04:45.748",
+					"resolution": "1080 x 1920",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "square",
+				"extent": [
+					1024,
+					1024
+				],
+				"before": 1793916287596,
+				"after": 1793916289271,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "square",
+					"clock": "23:04:47.758",
+					"resolution": "1024 x 1024",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "4k",
+				"extent": [
+					3840,
+					2160
+				],
+				"before": 1793916289577,
+				"after": 1793916291413,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "4k",
+					"clock": "23:04:49.749",
+					"resolution": "3840 x 2160",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 10,
+					"state": "Running",
+					"submitted_fps": null,
+					"cpu_submit_ms": 0.29369999999999996,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 405032084,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "resize",
+				"extent": [
+					1919,
+					1079
+				],
+				"before": 1793916291720,
+				"after": 1793916293425,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "resize",
+					"clock": "23:04:51.900",
+					"resolution": "1919 x 1079",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-a",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916293732,
+				"after": 1793916295428,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-a",
+					"clock": "23:04:53.898",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-b",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916296933,
+				"after": 1793916298637,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-b",
+					"clock": "23:04:57.114",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 17,
+					"state": "Running",
+					"submitted_fps": 59.60622932781459,
+					"cpu_submit_ms": 0.2725,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 330382484,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "warped",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916298942,
+				"after": 1793916300642,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "warped",
+					"clock": "23:04:59.114",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": true
+				}
+			},
+			{
+				"label": "routed-calibration",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916300950,
+				"after": 1793916302656,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "routed-calibration",
+					"clock": "23:05:01.114",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "restored-source",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916302964,
+				"after": 1793916304635,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "restored-source",
+					"solid_red_every_pixel": true
+				}
+			}
+		],
+		"pixel_verification_passed": true,
+		"live_clock_changed": true,
+		"rainbow_flow": true,
+		"routing_restored": true
+	},
+	"nvidia_smooth": {
+		"working_directory": "target/m12-screen-aa/nvidia-indexed-smooth",
+		"pid": 38392,
+		"gpu": "dxgi:00000000:00016022",
+		"mode": "Smooth2x",
+		"exit_code": 0,
+		"page_errors": [],
+		"retirement_before": 6,
+		"retirement_after": 7,
+		"source_free_plan": "[mapgyver-presentation] plan installed; channels=0 screens=1 outputs=1",
+		"withdrawn_plan": "Owned output session retired after disable; sender absent. Independent Media Preview may retain its red source.",
+		"frames": [
+			{
+				"label": "landscape",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916358891,
+				"after": 1793916360588,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "landscape",
+					"clock": "23:05:59.057",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 5,
+					"state": "Running",
+					"submitted_fps": 59.4413228943803,
+					"cpu_submit_ms": 0.3583,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "portrait",
+				"extent": [
+					1080,
+					1920
+				],
+				"before": 1793916360894,
+				"after": 1793916362609,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "portrait",
+					"clock": "23:06:01.059",
+					"resolution": "1080 x 1920",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "square",
+				"extent": [
+					1024,
+					1024
+				],
+				"before": 1793916362914,
+				"after": 1793916364585,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "square",
+					"clock": "23:06:03.078",
+					"resolution": "1024 x 1024",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "4k",
+				"extent": [
+					3840,
+					2160
+				],
+				"before": 1793916364890,
+				"after": 1793916366765,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "4k",
+					"clock": "23:06:05.091",
+					"resolution": "3840 x 2160",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 11,
+					"state": "Running",
+					"submitted_fps": 60.39890406683644,
+					"cpu_submit_ms": 0.38430000000000003,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 537742484,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "resize",
+				"extent": [
+					1919,
+					1079
+				],
+				"before": 1793916367072,
+				"after": 1793916368773,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "resize",
+					"clock": "23:06:07.248",
+					"resolution": "1919 x 1079",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-a",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916369079,
+				"after": 1793916370780,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-a",
+					"clock": "23:06:09.245",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": null,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "live-b",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916372287,
+				"after": 1793916373994,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "live-b",
+					"clock": "23:06:12.462",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				},
+				"runtime_context": {
+					"sequence": 18,
+					"state": "Running",
+					"submitted_fps": 59.56873427757719,
+					"cpu_submit_ms": 0.2967,
+					"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+					"gpu_adapter": "dxgi:00000000:00016022",
+					"gpu_preference": "dxgi:00000000:00016022",
+					"gpu_restart_required": false,
+					"resources": {
+						"used_bytes": 363560084,
+						"limit_bytes": 7987527680,
+						"in_flight": 2,
+						"retiring": 0
+					},
+					"error": null,
+					"screens": []
+				}
+			},
+			{
+				"label": "warped",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916374300,
+				"after": 1793916376010,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "warped",
+					"clock": "23:06:14.479",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": true
+				}
+			},
+			{
+				"label": "routed-calibration",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916376319,
+				"after": 1793916378018,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "routed-calibration",
+					"clock": "23:06:16.479",
+					"resolution": "1920 x 1080",
+					"measured_renderer_fps": 60,
+					"cell_label": "B4",
+					"palette_samples": 16,
+					"warp": false
+				}
+			},
+			{
+				"label": "restored-source",
+				"extent": [
+					1920,
+					1080
+				],
+				"before": 1793916378326,
+				"after": 1793916379978,
+				"finite_observer_retired": true,
+				"checks": {
+					"label": "restored-source",
+					"solid_red_every_pixel": true
+				}
+			}
+		],
+		"pixel_verification_passed": true,
+		"live_clock_changed": true,
+		"rainbow_flow": true,
+		"routing_restored": true
+	}
+}

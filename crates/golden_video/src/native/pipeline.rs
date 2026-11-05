@@ -67,7 +67,7 @@ struct Parameters {
 }
 
 const _: () = assert!(size_of::<Parameters>() == 112);
-pub(super) const CONSTANT_BYTES: u64 =
+pub(super) const FIXED_BUFFER_BYTES: u64 =
     (size_of::<Parameters>() + size_of::<PatternParameters>() + overlay::CONSTANT_BYTES) as u64;
 
 struct DrawSettings {
@@ -92,7 +92,7 @@ pub(super) struct Pipeline {
     overlay_constants: ID3D11Buffer,
     overlay_blend: ID3D11BlendState,
     constants: ID3D11Buffer,
-    pattern_constants: ID3D11Buffer,
+    pattern_data: pattern::PatternBuffer,
     rasterizer: ID3D11RasterizerState,
     _local: PhantomData<Rc<()>>,
 }
@@ -114,7 +114,6 @@ impl Pipeline {
         let mut mapped_pixel = None;
         let mut pattern_pixel = None;
         let mut constants = None;
-        let mut pattern_constants = None;
         let mut rasterizer = None;
         // SAFETY: compiler-validated immutable programs are embedded in this crate. Each
         // native object still belongs exclusively to this device/worker and its retirement.
@@ -143,16 +142,6 @@ impl Pipeline {
                 Some(&mut rasterizer),
             )?;
             device.CreatePixelShader(shaders::PATTERN_PIXEL, None, Some(&mut pattern_pixel))?;
-            device.CreateBuffer(
-                &D3D11_BUFFER_DESC {
-                    ByteWidth: size_of::<PatternParameters>() as u32,
-                    Usage: D3D11_USAGE_DEFAULT,
-                    BindFlags: D3D11_BIND_CONSTANT_BUFFER.0 as u32,
-                    ..Default::default()
-                },
-                None,
-                Some(&mut pattern_constants),
-            )?;
         }
         let (overlay_pixel, overlay_constants, overlay_blend) = overlay::prepare(device)?;
         Ok(Self {
@@ -166,7 +155,7 @@ impl Pipeline {
             mapped_pixel: mapped_pixel.ok_or_else(missing_output)?,
             pattern_pixel: pattern_pixel.ok_or_else(missing_output)?,
             constants: constants.ok_or_else(missing_output)?,
-            pattern_constants: pattern_constants.ok_or_else(missing_output)?,
+            pattern_data: pattern::PatternBuffer::new(device)?,
             rasterizer: rasterizer.ok_or_else(missing_output)?,
             _local: PhantomData,
         })
@@ -316,15 +305,7 @@ impl Pipeline {
         unsafe {
             if let Some(pattern) = &pattern {
                 let data = PatternParameters::with_frame(pattern, mapping.is_some(), self.frame_text.get());
-                context.UpdateSubresource(
-                    &self.pattern_constants,
-                    0,
-                    None,
-                    (&data as *const PatternParameters).cast(),
-                    0,
-                    0,
-                );
-                context.PSSetConstantBuffers(1, Some(&[Some(self.pattern_constants.clone())]));
+                self.pattern_data.bind(context, &data);
             }
             context.UpdateSubresource(
                 &self.constants,
@@ -375,7 +356,7 @@ impl Pipeline {
                 bottom: ((destination.y + destination.height) * height).ceil().min(height) as i32,
             }]));
             context.Draw(3, 0);
-            context.PSSetShaderResources(0, Some(&[None, None]));
+            context.PSSetShaderResources(0, Some(&[None, None, None]));
             context.OMSetRenderTargets(None, None);
         }
     }

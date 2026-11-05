@@ -1,7 +1,9 @@
 use crate::plan::canvas::{CANVAS_LABEL_BYTES, MAX_CANVAS_TEXT_BYTES, TextSource};
 use crate::plan::{CanvasPrimitive, CanvasShape, MAX_CANVAS_PRIMITIVES, Pattern};
 pub(super) mod frame;
+mod storage;
 use frame::{AsciiLine, FrameText};
+pub(super) use storage::PatternBuffer;
 
 #[cfg(test)]
 mod tests;
@@ -139,3 +141,6 @@ impl PatternParameters {
 
 const _: () = assert!(size_of::<PrimitiveParameters>() == 208);
 const _: () = assert!(size_of::<PatternParameters>() == 15008);
+const _: () = assert!(std::mem::offset_of!(PatternParameters, colors) == 32);
+const _: () = assert!(std::mem::offset_of!(PatternParameters, primitives) == 160);
+const _: () = assert!(std::mem::offset_of!(PatternParameters, text) == 6816);
