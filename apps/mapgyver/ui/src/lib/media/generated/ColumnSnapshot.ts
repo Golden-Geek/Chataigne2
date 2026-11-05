@@ -4,4 +4,4 @@ import type { ColumnDefinition } from "./ColumnDefinition";
 import type { ColumnGroupId } from "./ColumnGroupId";
 import type { ColumnId } from "./ColumnId";
 
-export type ColumnSnapshot = { id: ColumnId, parent: ColumnGroupId | null, label: string, definition: ColumnDefinition, application: ApplicationId, };
+export type ColumnSnapshot = { id: ColumnId, axis_index: number, parent: ColumnGroupId | null, label: string, definition: ColumnDefinition, application: ApplicationId, };

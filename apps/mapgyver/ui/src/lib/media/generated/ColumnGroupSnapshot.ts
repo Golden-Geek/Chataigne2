@@ -6,7 +6,7 @@ export type ColumnGroupSnapshot = { id: ColumnGroupId, parent: ColumnGroupId | n
 /**
  * Position among this parent's Column/Column Group children.
  */
-ordinal: number, label: string, application: ApplicationId,
+ordinal: number, depth: number, axis_start: number, axis_count: number, empty: boolean, label: string, application: ApplicationId,
 /**
  * Derived half-open range in the flattened Column projection; not authored storage.
  */

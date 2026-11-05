@@ -126,6 +126,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             copy,
         } => return super::cells::drop_source(engine, &document, layer, column, source, copy),
         MatrixEdit::InspectTargets { .. } => unreachable!(),
+        MatrixEdit::DropColumnItem { .. } => unreachable!(),
         MatrixEdit::InspectViewport { .. } => unreachable!(),
         MatrixEdit::LaunchColumn { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),

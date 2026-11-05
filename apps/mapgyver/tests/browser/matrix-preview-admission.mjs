@@ -122,7 +122,7 @@ export async function verifyMatrixPreviewAdmission({ page, edit, post, nativePid
 	const view = (
 		await matrixEdit({
 			kind: 'InspectViewport',
-			viewport: { row_start: 0, row_count: 3, column_start: 0, column_count: 4 },
+			viewport: { row_start: 0, row_count: 3, axis_start: 0, axis_count: 4 },
 			selection: null
 		})
 	).snapshot;

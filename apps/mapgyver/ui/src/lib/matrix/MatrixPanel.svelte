@@ -13,6 +13,7 @@
 	import { gridActions } from './grid-actions';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
+	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	let props: PanelProps = $props();
 	export const setPanelState = (_next: PanelState) => {};
 	const owner = useMatrixAuthoring();
@@ -33,10 +34,11 @@
 		event: MouseEvent,
 		row?: MatrixViewRow,
 		column?: ColumnSnapshot,
-		creationOnly = false
+		creationOnly = false,
+		group?: ColumnGroupSnapshot
 	) {
 		if (busy) return;
-		items = gridActions(owner, selection, row, column, creationOnly);
+		items = gridActions(owner, selection, row, column, creationOnly, group);
 		anchor = { kind: 'point', x: event.clientX, y: event.clientY };
 	}
 	$effect(() => {
@@ -71,6 +73,11 @@
 					selectColumn={(column) => {
 						controller.select(view.selected?.item ?? null, column.id);
 						selectDocumentNode(column.id);
+					}}
+					selectedGroup={owner.session?.getSelectedNodes()[0]?.uuid ?? null}
+					selectGroup={(group) => {
+						controller.select(null, null);
+						selectDocumentNode(group.id);
 					}}
 					select={(row, column) => {
 						controller.select(row.item.id, column.id);

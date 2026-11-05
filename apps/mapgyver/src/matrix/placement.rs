@@ -3,6 +3,58 @@ use super::{document::Document, protocol::*};
 /// Resolve presentation targets against the complete committed order, not the visible window.
 pub(super) fn resolve(document: &Document, edit: MatrixEdit) -> Result<Option<MatrixEdit>, String> {
     let resolved = match edit {
+        MatrixEdit::DropColumnItem { item, target } => {
+            document.column_item(item)?;
+            let before = matches!(target, ColumnItemDropTarget::Before { .. });
+            let (parent, after) = match target {
+                ColumnItemDropTarget::Root => (
+                    None,
+                    super::column_groups::siblings(&document.snapshot, None)
+                        .into_iter()
+                        .rfind(|entry| *entry != item),
+                ),
+                ColumnItemDropTarget::Inside { group } => {
+                    document.column_parent(Some(group))?;
+                    (
+                        Some(group),
+                        super::column_groups::siblings(&document.snapshot, Some(group))
+                            .into_iter()
+                            .rfind(|entry| *entry != item),
+                    )
+                }
+                ColumnItemDropTarget::Before { item: target } | ColumnItemDropTarget::After { item: target } => {
+                    document.column_item(target)?;
+                    if item == target {
+                        return Err("a Column item cannot be dropped on itself".into());
+                    }
+                    let parent = match target {
+                        ColumnItemId::Column { id } => {
+                            document.snapshot.columns.iter().find(|c| c.id == id).unwrap().parent
+                        }
+                        ColumnItemId::Group { id } => {
+                            document
+                                .snapshot
+                                .column_groups
+                                .iter()
+                                .find(|g| g.id == id)
+                                .unwrap()
+                                .parent
+                        }
+                    };
+                    let after = if before {
+                        super::column_groups::siblings(&document.snapshot, parent)
+                            .into_iter()
+                            .filter(|entry| *entry != item)
+                            .take_while(|entry| *entry != target)
+                            .last()
+                    } else {
+                        Some(target)
+                    };
+                    (parent, after)
+                }
+            };
+            MatrixEdit::MoveColumnItem { item, parent, after }
+        }
         MatrixEdit::DropItem { item, target } => {
             document.item(item)?;
             let (parent, after) = match target {

@@ -11,6 +11,9 @@ pub(crate) struct ViewIndex {
     rows: Vec<ViewRow>,
     row_positions: HashMap<MatrixItemId, usize>,
     columns: Vec<(ColumnId, NodeId)>,
+    axis: Vec<ColumnItemId>,
+    groups: HashMap<ColumnGroupId, (ColumnGroupSnapshot, NodeId)>,
+    axis_depth: u8,
     column_nodes: HashMap<ColumnId, NodeId>,
     column_positions: HashMap<ColumnId, usize>,
     cells: HashMap<(LayerId, ColumnId), NodeId>,
@@ -49,11 +52,38 @@ impl ViewIndex {
             .iter()
             .map(|column| (column.id, document.columns[&column.id]))
             .collect();
+        let mut axis = vec![None; columns.len() + document.snapshot.column_groups.iter().filter(|g| g.empty).count()];
+        for column in &document.snapshot.columns {
+            axis[column.axis_index as usize] = Some(ColumnItemId::Column { id: column.id });
+        }
+        for group in &document.snapshot.column_groups {
+            if group.empty {
+                axis[group.axis_start as usize] = Some(ColumnItemId::Group { id: group.id });
+            }
+        }
         Self {
-            column_positions: columns
+            column_positions: document
+                .snapshot
+                .columns
                 .iter()
-                .enumerate()
-                .map(|(index, (id, _))| (*id, index))
+                .map(|column| (column.id, column.axis_index as usize))
+                .collect(),
+            axis: axis.into_iter().map(Option::unwrap).collect(),
+            axis_depth: document
+                .snapshot
+                .column_groups
+                .iter()
+                .map(|g| g.depth + 1)
+                .max()
+                .unwrap_or(0),
+            groups: document
+                .snapshot
+                .column_groups
+                .into_iter()
+                .map(|g| {
+                    let node = document.column_groups[&g.id];
+                    (g.id, (g, node))
+                })
                 .collect(),
             row_positions: rows
                 .iter()
@@ -174,12 +204,18 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
     })
 }
 
-fn column_snapshot(engine: &AppEngine, id: ColumnId, node_id: NodeId) -> Result<ColumnSnapshot, String> {
+fn column_snapshot(
+    engine: &AppEngine,
+    index: &ViewIndex,
+    id: ColumnId,
+    node_id: NodeId,
+) -> Result<ColumnSnapshot, String> {
     let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(node_id) else {
         return Err("Matrix column changed".into());
     };
     Ok(ColumnSnapshot {
         id,
+        axis_index: index.column_positions[&id] as u32,
         parent: super::column_axis::parent(engine, node_id),
         label: node.node_data().meta.label.clone(),
         definition: node.definition(),
@@ -250,7 +286,7 @@ fn selected_snapshot(
     let column = selection
         .column
         .and_then(|id| index.column_nodes.get(&id).map(|node| (id, *node)))
-        .map(|(id, node)| column_snapshot(engine, id, node))
+        .map(|(id, node)| column_snapshot(engine, index, id, node))
         .transpose()?;
     let cell = match (row.as_ref().map(|row| row.item.id), column.as_ref()) {
         (Some(MatrixItemId::Layer { id: layer }), Some(column)) => index
@@ -284,9 +320,9 @@ pub(super) fn inspect(
 ) -> Result<MediaEditResult, String> {
     if viewport.row_count == 0
         || viewport.row_count > 128
-        || viewport.column_count == 0
-        || viewport.column_count > 64
-        || u32::from(viewport.row_count) * u32::from(viewport.column_count) > 4096
+        || viewport.axis_count == 0
+        || viewport.axis_count > 64
+        || u32::from(viewport.row_count) * u32::from(viewport.axis_count) > 4096
     {
         return Err("Matrix viewport admits 1..128 rows, 1..64 columns and at most 4096 addresses".into());
     }
@@ -300,18 +336,50 @@ pub(super) fn inspect(
     };
     let control = node.matrix_playback().ok_or("Matrix playback owner is missing")?;
     let row_start = (viewport.row_start as usize).min(index.rows.len());
-    let column_start = (viewport.column_start as usize).min(index.columns.len());
+    let axis_start = (viewport.axis_start as usize).min(index.axis.len());
     let mut rows = Vec::new();
     let mut columns = Vec::new();
     let mut cells = Vec::new();
-    for (id, node_id) in index
-        .columns
+    let mut group_ids = std::collections::HashSet::new();
+    for item in index
+        .axis
         .iter()
-        .skip(column_start)
-        .take(usize::from(viewport.column_count))
+        .skip(axis_start)
+        .take(usize::from(viewport.axis_count))
     {
-        columns.push(column_snapshot(engine, *id, *node_id)?);
+        let mut group = match item {
+            ColumnItemId::Column { id } => {
+                let column = column_snapshot(engine, &index, *id, index.column_nodes[id])?;
+                let parent = column.parent;
+                columns.push(column);
+                parent
+            }
+            ColumnItemId::Group { id } => Some(*id),
+        };
+        while let Some(id) = group {
+            if !group_ids.insert(id) {
+                break;
+            }
+            group = index.groups[&id].0.parent;
+        }
     }
+    let mut column_groups = group_ids
+        .into_iter()
+        .map(|id| {
+            let (snapshot, node) = &index.groups[&id];
+            let mut snapshot = snapshot.clone();
+            snapshot.label = engine
+                .nodes
+                .get(*node)
+                .ok_or("Column Group changed")?
+                .node_data()
+                .meta
+                .label
+                .clone();
+            Ok(snapshot)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    column_groups.sort_by_key(|g| (g.depth, g.axis_start));
     for row in index.rows.iter().skip(row_start).take(usize::from(viewport.row_count)) {
         rows.push(row_snapshot(engine, row)?);
         let MatrixItemId::Layer { id: layer } = row.id else {
@@ -347,10 +415,13 @@ pub(super) fn inspect(
             revision: control.authoring_revision(),
             row_total: index.rows.len() as u32,
             column_total: index.columns.len() as u32,
+            axis_total: index.axis.len() as u32,
+            axis_depth: index.axis_depth,
             row_start: row_start as u32,
-            column_start: column_start as u32,
+            axis_start: axis_start as u32,
             rows,
             columns,
+            column_groups,
             cells,
             selected: selection
                 .map(|selection| selected_snapshot(engine, &index, selection))

@@ -3,7 +3,7 @@
 	import { usePreview } from '../preview/context.svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 	import { cellPreviewGroups } from './cell-previews';
-	import { gridSize, type Metrics } from './viewport';
+	import { gridSize, groupHeaderHeight, type Metrics } from './viewport';
 	let { snapshot, metrics }: { snapshot: MatrixViewportSnapshot; metrics: Metrics } = $props();
 	const owner = usePreview();
 	const groups = $derived(cellPreviewGroups(snapshot, metrics));
@@ -19,7 +19,9 @@
 	aria-hidden="true"
 	style:width={`${metrics.width}px`}
 	style:height={`${metrics.height}px`}>
-	<div class="data-area" style:inset={`${gridSize.header}rem 0 0 ${gridSize.label}rem`}>
+	<div
+		class="data-area"
+		style:inset={`${gridSize.header + groupHeaderHeight(metrics, snapshot.axis_depth)}rem 0 0 ${gridSize.label}rem`}>
 		<div class="source-group">
 			<NativePreview
 				session={owner.session}

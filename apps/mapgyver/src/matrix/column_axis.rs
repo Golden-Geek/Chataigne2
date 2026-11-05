@@ -48,6 +48,7 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
         })
         .collect::<Vec<_>>();
     pending.reverse();
+    let mut slots = 0u32;
     while let Some(visit) = pending.pop() {
         let Visit::Enter {
             node: id,
@@ -58,6 +59,7 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
         else {
             let Visit::Leave(index) = visit else { unreachable!() };
             axis.groups[index].column_count = axis.columns.len() as u32 - axis.groups[index].column_start;
+            axis.groups[index].axis_count = slots - axis.groups[index].axis_start;
             continue;
         };
         let node = engine.nodes.get(id).ok_or("Column axis changed")?;
@@ -74,11 +76,13 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
                 axis.column_nodes.insert(column_id, id);
                 axis.columns.push(ColumnSnapshot {
                     id: column_id,
+                    axis_index: slots,
                     parent,
                     label: node.node_data().meta.label.clone(),
                     definition: column.definition(),
                     application: crate::applications::protocol::ApplicationId(uuid),
                 });
+                slots += 1;
             }
             AppNode::MatrixColumnGroup(group) => {
                 if depth >= MAX_DEPTH {
@@ -91,6 +95,10 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
                     id: group_id,
                     parent,
                     ordinal,
+                    depth: depth as u8,
+                    axis_start: slots,
+                    axis_count: 0,
+                    empty: false,
                     label: node.node_data().meta.label.clone(),
                     application: crate::applications::protocol::ApplicationId(uuid),
                     column_start: axis.columns.len() as u32,
@@ -106,6 +114,10 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
                         return Err("Column Group children must be Columns or Column Groups".into());
                     }
                     nested.push(child);
+                }
+                if nested.is_empty() {
+                    axis.groups[index].empty = true;
+                    slots += 1;
                 }
                 pending.extend(
                     nested

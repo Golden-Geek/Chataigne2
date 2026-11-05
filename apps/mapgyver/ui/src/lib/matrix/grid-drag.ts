@@ -2,7 +2,10 @@ import type { MatrixItemId } from '../media/generated/MatrixItemId';
 import type { MatrixItemDropTarget } from '../media/generated/MatrixItemDropTarget';
 import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 
-export type GridDrag = { kind: 'Item'; item: MatrixItemId } | { kind: 'Column'; column: string };
+export type GridDrag =
+	| { kind: 'Item'; item: MatrixItemId }
+	| { kind: 'Column'; column: string }
+	| { kind: 'ColumnGroup'; group: string };
 
 // Pointer fractions are presentation hints. The backend resolves parents and complete order.
 export function rowDropTarget(row: MatrixViewRow, fraction: number): MatrixItemDropTarget {

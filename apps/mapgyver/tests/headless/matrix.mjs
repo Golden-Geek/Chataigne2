@@ -37,7 +37,7 @@ export async function verifyMatrix({ post, intent, edit }) {
 	const matrix = (value) => edit({ kind: 'Matrix', media: root.media, edit: value });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
 	const playback = async () => (await matrix({ kind: 'InspectPlayback' })).snapshot;
-	const viewport = { row_start: 0, row_count: 32, column_start: 0, column_count: 16 };
+	const viewport = { row_start: 0, row_count: 32, axis_start: 0, axis_count: 16 };
 	const window = async () => (await matrix({ kind: 'InspectViewport', viewport })).snapshot;
 	await matrix({
 		kind: 'Configure',

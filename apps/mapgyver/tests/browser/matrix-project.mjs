@@ -61,7 +61,7 @@ export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) 
 		const window = (media) =>
 			operation(media, {
 				kind: 'InspectViewport',
-				viewport: { row_start: 0, row_count: 16, column_start: 0, column_count: 8 }
+				viewport: { row_start: 0, row_count: 16, axis_start: 0, axis_count: 8 }
 			});
 		await page.goto(base);
 		const tab = page.getByRole('tab').filter({ hasText: /^Matrix(?::|$)/ });

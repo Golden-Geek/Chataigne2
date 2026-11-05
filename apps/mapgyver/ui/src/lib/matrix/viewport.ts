@@ -7,6 +7,14 @@ export const gridSize = {
 	previewLabel: 2.2,
 	maximum: 50000
 };
+export const groupHeaderRow = 1.8;
+export function groupHeaderHeight(metrics: Metrics, depth: number) {
+	return Math.min(
+		depth * groupHeaderRow,
+		8,
+		Math.max(0, metrics.height / Math.max(metrics.rem, 1)) * 0.3
+	);
+}
 export interface Metrics {
 	top: number;
 	left: number;
@@ -21,19 +29,21 @@ export function selectionScroll(
 	rows: number,
 	columns: number,
 	row: number | null,
-	column: number | null
+	column: number | null,
+	groupDepth = 0
 ) {
+	const header = gridSize.header + groupHeaderHeight(metrics, groupDepth);
 	const rem = metrics.rem > 0 ? metrics.rem : 1;
 	const width = metrics.width / rem,
 		height = metrics.height / rem;
 	const logicalWidth = gridSize.label + columns * gridSize.column;
-	const logicalHeight = gridSize.header + rows * gridSize.row;
+	const logicalHeight = header + rows * gridSize.row;
 	const logicalLeft =
 		column == null
 			? null
 			: Math.max(0, gridSize.label + (column + 0.5) * gridSize.column - width / 2);
 	const logicalTop =
-		row == null ? null : Math.max(0, gridSize.header + (row + 0.5) * gridSize.row - height / 2);
+		row == null ? null : Math.max(0, header + (row + 0.5) * gridSize.row - height / 2);
 	return {
 		left:
 			logicalLeft == null
@@ -50,8 +60,10 @@ export function selectionScroll(
 	};
 }
 /** Rem-based geometry with compressed scroll ranges below browser layout limits. */
-export function projectGrid(metrics: Metrics, rows: number, columns: number) {
-	const { row, column, label, header, maximum } = gridSize;
+export function projectGrid(metrics: Metrics, rows: number, columns: number, groupDepth = 0) {
+	const { row, column, label, maximum } = gridSize;
+	const groupHeight = groupHeaderHeight(metrics, groupDepth);
+	const header = gridSize.header + groupHeight;
 	const rem = metrics.rem > 0 ? metrics.rem : 1;
 	const width = metrics.width / rem,
 		height = metrics.height / rem;
@@ -70,14 +82,16 @@ export function projectGrid(metrics: Metrics, rows: number, columns: number) {
 			Math.max(0, Math.floor((logicalTop - header) / row) - 2)
 		),
 		row_count: Math.min(64, Math.max(1, Math.ceil(height / row) + 4)),
-		column_start: Math.min(
+		axis_start: Math.min(
 			Math.max(0, columns - 1),
 			Math.max(0, Math.floor((logicalLeft - label) / column) - 2)
 		),
-		column_count: Math.min(32, Math.max(1, Math.ceil(width / column) + 4))
+		axis_count: Math.min(32, Math.max(1, Math.ceil(width / column) + 4))
 	};
 	return {
 		viewport,
+		header,
+		groupHeight,
 		canvasWidth,
 		canvasHeight,
 		top,

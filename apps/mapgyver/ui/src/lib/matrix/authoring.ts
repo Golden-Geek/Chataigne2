@@ -25,7 +25,7 @@ export const matrixState = (): MatrixState => ({
 	generation: null,
 	media: null,
 	window: null,
-	viewport: { row_start: 0, row_count: 32, column_start: 0, column_count: 16 },
+	viewport: { row_start: 0, row_count: 32, axis_start: 0, axis_count: 16 },
 	selected: null,
 	pending: false,
 	refreshing: false,
@@ -123,7 +123,7 @@ export class MatrixController<S extends Connection> {
 		this.state.media = media;
 		this.state.window = null;
 		this.state.selected = null;
-		this.state.viewport = { ...this.state.viewport, row_start: 0, column_start: 0 };
+		this.state.viewport = { ...this.state.viewport, row_start: 0, axis_start: 0 };
 		this.refresh();
 	}
 	select(item: MatrixItemId | null, column: string | null) {
@@ -208,7 +208,7 @@ export class MatrixController<S extends Connection> {
 				this.state.media = result.reference.media;
 				this.state.selected = null;
 				this.state.window = null;
-				this.state.viewport = { ...this.state.viewport, row_start: 0, column_start: 0 };
+				this.state.viewport = { ...this.state.viewport, row_start: 0, axis_start: 0 };
 			}
 			return result;
 		} catch (error) {

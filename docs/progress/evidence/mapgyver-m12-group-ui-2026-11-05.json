@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/4 bounded Column Group grid and actual standard Inspector",
+  "gate": "Active",
+  "acceptance": { "verified": 60, "total": 78, "m12_verified": 3, "m12_total": 11 },
+  "capability": [
+    "Nested Column Group bands and selectable empty leaf groups use derived presentation slots while playback retains flat stable Column identities.",
+    "Viewport queries return intersecting slots and their ancestors, not the full group hierarchy. Deep bands scroll within 8 rem/30 percent of viewport height.",
+    "Shared selection opens the standard typed Inspector. Context actions create Columns/nested groups, duplicate, ungroup, remove and move groups to root. Inline rename and Column/group drag use backend-resolved intents.",
+    "Sparse Cell and native-preview geometry use the same slot positions and header height. Empty groups never materialize Columns or Cells."
+  ],
+  "checks": {
+    "rust_library": "464 passed, 2 existing ignored; generated-contract parity included",
+    "final_axis_tests": "3 passed after strict-lint iterator cleanup",
+    "strict_clippy": "All targets with native-qualification,application-process-fixture and -D warnings passed",
+    "svelte": "0 errors, 0 warnings",
+    "node_units": "28 passed: Matrix UI geometry/read lifetime and media operation activity",
+    "native_app_build": "Passed",
+    "format": "Root and golden_core cargo fmt, scoped Prettier and diff checks passed",
+    "backend_scale": "1000 empty groups page eight at a time without materializing Columns/Cells or rebuilding lifecycle snapshots; nested/empty positions, offscreen selected Column and reload pass"
+  },
+  "native": {
+    "command": "MAPGYVER_GROUP_UI_DIRECTORY=target/m124-group-ui-2026-11-05 node apps/mapgyver/tests/browser/native-navigation.mjs --column-groups",
+    "app_sha256": "96cfdd9835d0bdcd68e3c86b5ba4739575977cf51869628352eb3764521c6fd7",
+    "pid": 19180,
+    "result": "Pass; runner terminal exit 0; owned host closed normally and PID absent afterwards",
+    "transport": { "requests": 342, "acknowledgements": 342, "rejected": 0 },
+    "page_errors": 0,
+    "mounted_sparse_cells": 27,
+    "verified": [
+      "Create an actual empty group from the toolbar, select its standard Inspector and configure App file",
+      "Conditional Window setting is absent before configuration, defaults Normal and authors Hidden with Undo/Redo",
+      "Inline rename, contextual child Column and nested empty-group creation",
+      "Trusted WebView Column drag into nested group and group drag back to root; exact Undo identity",
+      "Contextual copy/delete/ungroup with exact Undo/Redo snapshots",
+      "After 1000 additional Columns, scrolling unmounts the group header while its standard Inspector stays editable; no authored Cells are created",
+      "No rejected requests or visible failed activity at completion"
+    ],
+    "assets": "assets/mapgyver-m12-group-ui-2026-11-05/"
+  },
+  "corrected_during_validation": "A screenshot exposed false failed-edit activity after scoped resync even though all 314 observed server requests were applied. Nested Matrix/application inspections were marked as user actions. They now use background activity while readers retain rejection handling and mutations retain user activity; focused tests and the final native run pass.",
+  "remaining_requirement": [
+    "Actual group Normal/explicit-Hidden native window visibility, not only the parameter values verified here",
+    "Actual group source/output integration and truthful requested/submitted/stopping markers, including the retained native ownership/recovery scope",
+    "Complete M12/4 acceptance before starting M12/5; retained M08/4 and other original physical/performance/production gates remain unaccepted"
+  ],
+  "limits": "This native scene has no authored source Cells and does not claim GPU group output, process window visibility or production timing acceptance. No whole gate closes."
+}

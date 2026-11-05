@@ -16,6 +16,21 @@ never parallel authored lists. Empty groups retain their real sibling position. 
 resolution follows at most 32 groups, independently of Matrix size. The existing 100,000
 document-element limit includes groups, Columns, Layers and materialized Cells.
 
+The viewport uses derived presentation slots: each Column occupies one slot, and an empty
+leaf group occupies one selectable slot without a Column or Cell. `MatrixViewport` requests
+`axis_start`/`axis_count`; `column_total` remains the real Column count and `axis_total`
+includes empty placeholders. Column snapshots expose their `axis_index`. Group snapshots
+carry depth and slot ranges separately from playback's flat Column ranges. The cached view
+index returns only the intersecting slots and their ancestors, bounded by 64 slots and 32
+levels; selected Column data is resolved independently of the visible window.
+
+`ColumnGroupHeaders.svelte` renders the bounded ancestry bands. Deep headers scroll within
+at most 8 rem or 30% of the viewport height, and Cell/native-preview geometry uses the same
+header height and slot positions. Group selection uses Golden's shared selection and standard
+Inspector; inline names and context actions send ordinary Matrix intents. `DropColumnItem`
+passes root/inside/before/after presentation targets to the backend, which resolves complete
+sibling order and rejects invalid cycles. Group layout adds no authored settings or Cells.
+
 `column_groups.rs` implements creation, rename, reparent/reorder, ungroup and removal.
 Cell addresses remain stable Column IDs when topology changes. Ungroup moves existing
 children in one transaction; it does not recreate Columns or Cells. Removal also removes
@@ -43,7 +58,8 @@ process sharing and stop/re-entry; the Matrix does not launch or supervise a sec
 covers real owned nested-group sharing, 20 unload/reload cycles, five stopping re-entries,
 reload/delete/Undo and shutdown, alongside software range and retained-plan checks.
 
-M12/4 remains partial delivery until bounded group grid/contextual authoring, actual group
-Inspector/default-window and requested/submitted/stopping marker checks, and the complete
-native ownership/recovery scope in the [implementation plan](../plan/MapGyver_Implementation_Plan.md)
-pass. Backend topology and demand checks do not alone establish full actual-app acceptance.
+The group grid and actual standard Inspector are verified in the native WebView, including
+Normal/Hidden parameter history and offscreen editing. M12/4 remains partial delivery until
+actual group native window visibility, source/output integration and requested/submitted/
+stopping marker checks complete the [implementation plan](../plan/MapGyver_Implementation_Plan.md)
+scope. Parameter values and native process fixtures alone do not establish those actual-app gates.

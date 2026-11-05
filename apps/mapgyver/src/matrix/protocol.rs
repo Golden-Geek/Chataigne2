@@ -215,6 +215,7 @@ impl LayerSettings {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ColumnSnapshot {
     pub id: ColumnId,
+    pub axis_index: u32,
     pub parent: Option<ColumnGroupId>,
     pub label: String,
     pub definition: ColumnDefinition,
@@ -226,6 +227,10 @@ pub struct ColumnGroupSnapshot {
     pub parent: Option<ColumnGroupId>,
     /// Position among this parent's Column/Column Group children.
     pub ordinal: u32,
+    pub depth: u8,
+    pub axis_start: u32,
+    pub axis_count: u32,
+    pub empty: bool,
     pub label: String,
     pub application: crate::applications::protocol::ApplicationId,
     /// Derived half-open range in the flattened Column projection; not authored storage.
@@ -260,8 +265,8 @@ pub struct CellAssignment {
 pub struct MatrixViewport {
     pub row_start: u32,
     pub row_count: u16,
-    pub column_start: u32,
-    pub column_count: u16,
+    pub axis_start: u32,
+    pub axis_count: u16,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewRow {
@@ -301,10 +306,13 @@ pub struct MatrixViewportSnapshot {
     pub revision: u64,
     pub row_total: u32,
     pub column_total: u32,
+    pub axis_total: u32,
+    pub axis_depth: u8,
     pub row_start: u32,
-    pub column_start: u32,
+    pub axis_start: u32,
     pub rows: Vec<MatrixViewRow>,
     pub columns: Vec<ColumnSnapshot>,
+    pub column_groups: Vec<ColumnGroupSnapshot>,
     pub cells: Vec<MatrixViewCell>,
     /// Inspector data is bounded independently of the virtualized grid window.
     pub selected: Option<Box<MatrixSelectionSnapshot>>,
@@ -352,7 +360,20 @@ pub enum MatrixItemDropTarget {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
+pub enum ColumnItemDropTarget {
+    Root,
+    Before { item: ColumnItemId },
+    After { item: ColumnItemId },
+    Inside { group: ColumnGroupId },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
 pub enum MatrixEdit {
+    DropColumnItem {
+        item: ColumnItemId,
+        target: ColumnItemDropTarget,
+    },
     DropItem {
         item: MatrixItemId,
         target: MatrixItemDropTarget,

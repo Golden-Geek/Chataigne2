@@ -17,6 +17,8 @@
 	import { sameSelection } from './selection';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import GridLabel from './GridLabel.svelte';
+	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
+	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
 	import RuntimeFeedback from './RuntimeFeedback.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
@@ -29,6 +31,8 @@
 		select,
 		selectRow,
 		selectColumn,
+		selectGroup,
+		selectedGroup,
 		launch,
 		trigger,
 		drop,
@@ -43,6 +47,8 @@
 		select(row: MatrixViewRow, column: ColumnSnapshot): void;
 		selectRow(row: MatrixViewRow): void;
 		selectColumn(column: ColumnSnapshot): void;
+		selectGroup(group: ColumnGroupSnapshot): void;
+		selectedGroup: string | null;
 		launch(column: string): void;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
@@ -51,7 +57,8 @@
 			event: MouseEvent,
 			row?: MatrixViewRow,
 			column?: ColumnSnapshot,
-			creationOnly?: boolean
+			creationOnly?: boolean,
+			group?: ColumnGroupSnapshot
 		): void;
 	} = $props();
 	const layerRequests = $derived(
@@ -99,14 +106,50 @@
 	): { edit: MatrixEdit; element: HTMLElement; position: string } | null {
 		if (!element || !dragging || disabled || !(event.target instanceof Element)) return null;
 		const header = event.target.closest<HTMLElement>('[data-matrix-drop]');
-		if (dragging.kind === 'Column') {
+		if (dragging.kind !== 'Item') {
+			const item =
+				dragging.kind === 'Column'
+					? { kind: 'Column' as const, id: dragging.column }
+					: { kind: 'Group' as const, id: dragging.group };
+			if (header?.dataset.matrixDrop === 'ColumnGroup') {
+				const group = header.dataset.columnGroupId;
+				if (!group || group === item.id) return null;
+				const rect = header.getBoundingClientRect();
+				const fraction = (event.clientX - rect.left) / rect.width;
+				const target =
+					fraction >= 1 / 3 && fraction <= 2 / 3
+						? { kind: 'Inside' as const, group }
+						: {
+								kind: fraction < 0.5 ? ('Before' as const) : ('After' as const),
+								item: { kind: 'Group' as const, id: group }
+							};
+				return {
+					edit: { kind: 'DropColumnItem', item, target },
+					element: header,
+					position: target.kind.toLowerCase()
+				};
+			}
+			if (
+				header?.dataset.matrixDrop === 'Root' ||
+				event.target === element ||
+				event.target.classList.contains('canvas')
+			)
+				return {
+					edit: { kind: 'DropColumnItem', item, target: { kind: 'Root' } },
+					element: header ?? element,
+					position: 'inside'
+				};
 			if (header?.dataset.matrixDrop !== 'Column') return null;
 			const target = header.dataset.columnId;
-			if (!target || target === dragging.column) return null;
+			if (!target || target === item.id) return null;
 			const rect = header.getBoundingClientRect();
 			const before = event.clientX < rect.left + rect.width / 2;
 			return {
-				edit: { kind: 'DropColumn', column: dragging.column, target, before },
+				edit: {
+					kind: 'DropColumnItem',
+					item,
+					target: { kind: before ? 'Before' : 'After', item: { kind: 'Column', id: target } }
+				},
 				element: header,
 				position: before ? 'left' : 'right'
 			};
@@ -135,7 +178,9 @@
 		return null;
 	}
 	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
-	const projection = $derived(projectGrid(metrics, snapshot.row_total, snapshot.column_total));
+	const projection = $derived(
+		projectGrid(metrics, snapshot.row_total, snapshot.axis_total, snapshot.axis_depth)
+	);
 	function measure() {
 		if (!element) return;
 		metrics = {
@@ -189,9 +234,10 @@
 			...selectionScroll(
 				metrics,
 				snapshot.row_total,
-				snapshot.column_total,
+				snapshot.axis_total,
 				frameTarget.row_index,
-				frameTarget.column_index
+				frameTarget.column_index,
+				snapshot.axis_depth
 			),
 			behavior: scrollBehavior()
 		});
@@ -207,7 +253,11 @@
 		const column = snapshot.columns.find(
 			(column) => column.id === target?.closest('[data-column-id]')?.getAttribute('data-column-id')
 		);
-		menu(event, row, column);
+		const group = snapshot.column_groups.find(
+			(group) =>
+				group.id === target?.closest('[data-column-group-id]')?.getAttribute('data-column-group-id')
+		);
+		menu(event, row, column, false, group);
 	}
 	$effect(() => {
 		const wanted = projection.viewport;
@@ -239,6 +289,11 @@
 		label="Add column"
 		{disabled}
 		onclick={() => edit({ kind: 'AddColumns', parent: null, count: 1 })} />
+	<IconButton
+		icon={groupIcon}
+		label="Add Column Group"
+		{disabled}
+		onclick={() => edit({ kind: 'AddColumnGroup', parent: null, label: null })} />
 	<IconButton
 		icon={deleteIcon}
 		label="Unload Matrix"
@@ -282,7 +337,7 @@
 			role="grid"
 			aria-label="Scrollable Matrix grid"
 			aria-rowcount={snapshot.row_total + 1}
-			aria-colcount={snapshot.column_total + 1}
+			aria-colcount={snapshot.axis_total + 1}
 			tabindex="0"
 			style:--row={`${gridSize.row}rem`}
 			style:--column={`${gridSize.column}rem`}
@@ -300,9 +355,25 @@
 					role="toolbar"
 					aria-label="Matrix actions"
 					style:top={`${projection.top}rem`}
+					style:height={`${projection.header}rem`}
 					style:left={`${projection.left}rem`}>
 					<RuntimeFeedback {snapshot} {observation} />
 				</div>
+				<ColumnGroupHeaders
+					groups={snapshot.column_groups}
+					start={snapshot.axis_start}
+					end={snapshot.axis_start + projection.viewport.axis_count}
+					depth={snapshot.axis_depth}
+					height={projection.groupHeight}
+					width={metrics.width / Math.max(metrics.rem, 1)}
+					top={projection.top}
+					left={projection.left}
+					origin={projection.columnOrigin}
+					selected={selectedGroup}
+					{disabled}
+					select={selectGroup}
+					{edit}
+					drag={(event, group) => startDrag(event, { kind: 'ColumnGroup', group })} />
 				<div role="row" aria-rowindex="1">
 					{#each snapshot.columns as column, index (column.id)}
 						<div
@@ -313,12 +384,12 @@
 							role="columnheader"
 							tabindex="0"
 							data-column-id={column.id}
-							aria-colindex={snapshot.column_start + index + 2}
+							aria-colindex={column.axis_index + 2}
 							class:requested={snapshot.playback.desired_column === column.id}
 							class:installed={observation?.installed?.columns.includes(column.id) === true}
 							class:submitted={observation?.submitted?.columns.includes(column.id) === true}
-							style:top={`${projection.top}rem`}
-							style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
+							style:top={`${projection.top + projection.groupHeight}rem`}
+							style:left={`${projection.columnOrigin + column.axis_index * gridSize.column}rem`}>
 							<GridLabel
 								label={column.label}
 								selected={selected?.column === column.id}
@@ -386,7 +457,7 @@
 								addLabel="Set media"
 								replaceOnly={cell?.cell.media ? column.id : null}
 								data-column-id={column.id}
-								style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
+								style={`position:absolute;top:0;left:${projection.columnOrigin + column.axis_index * gridSize.column}rem;width:var(--column);height:var(--row)`}
 								onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 								<button
 									class="cell"
@@ -396,7 +467,7 @@
 									{disabled}
 									aria-selected={selected?.item?.id === row.item.id.id &&
 										selected?.column === column.id}
-									aria-colindex={snapshot.column_start + columnIndex + 2}
+									aria-colindex={column.axis_index + 2}
 									class:selected={selected?.item?.id === row.item.id.id &&
 										selected?.column === column.id}
 									onclick={() => select(row, column)}

@@ -36,6 +36,7 @@ import { verifyScreenIdentity } from './screen-identity.mjs';
 import { verifyNativeSurfaceEnabled } from './native-surface-enabled.mjs';
 import { verifyApplicationReentry } from '../headless/reentry.mjs';
 import { verifyNativeApplicationEndpoint } from './native-application-endpoint.mjs';
+import { verifyColumnGroupsUi } from './column-groups.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -62,6 +63,7 @@ try {
 			['--surface-enabled', verifyNativeSurfaceEnabled],
 			['--application-reentry', verifyApplicationReentry],
 			['--application-endpoint', verifyNativeApplicationEndpoint],
+			['--column-groups', verifyColumnGroupsUi],
 			[
 				'--matrix-native-acceptance',
 				async (options) => {

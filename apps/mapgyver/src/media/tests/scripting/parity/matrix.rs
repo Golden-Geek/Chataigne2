@@ -647,8 +647,8 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                 viewport: MatrixViewport {
                     row_start: 0,
                     row_count: 32,
-                    column_start: 0,
-                    column_count: 16,
+                    axis_start: 0,
+                    axis_count: 16,
                 },
             },
             MatrixEdit::InspectTargets {
@@ -680,8 +680,8 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                 viewport: MatrixViewport {
                     row_start: 0,
                     row_count: 0,
-                    column_start: 0,
-                    column_count: 16,
+                    axis_start: 0,
+                    axis_count: 16,
                 },
             },
         ] {

@@ -65,8 +65,8 @@ fn nested_axis_has_one_authored_order_and_survives_ungroup_history_and_reload() 
             viewport: MatrixViewport {
                 row_start: 0,
                 row_count: 1,
-                column_start: 0,
-                column_count: 5,
+                axis_start: 0,
+                axis_count: 5,
             },
             selection: None,
         },

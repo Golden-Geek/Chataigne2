@@ -1,6 +1,7 @@
 import type { ContextMenuItem } from 'golden_ui';
 import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
+import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
 import type { useMatrixAuthoring } from './context.svelte';
 import type { useDocumentSelection } from '../selection.svelte';
@@ -10,7 +11,8 @@ export function gridActions(
 	selection: ReturnType<typeof useDocumentSelection>,
 	row?: MatrixViewRow,
 	column?: ColumnSnapshot,
-	creationOnly = false
+	creationOnly = false,
+	group?: ColumnGroupSnapshot
 ): ContextMenuItem[] {
 	const session = owner.session,
 		generation = session?.snapshotGeneration,
@@ -25,6 +27,10 @@ export function gridActions(
 		const select = selection.capture();
 		const result = await owner.edit(edit);
 		if (result?.kind === 'MatrixMediaCreated') select(result.media);
+		if (result?.kind === 'MatrixColumnGroupCreated') {
+			owner.controller.select(null, null);
+			select(result.group);
+		}
 		if (result?.kind === 'MatrixCreated') {
 			const item = result.items[0];
 			const column = result.columns[0];
@@ -41,6 +47,25 @@ export function gridActions(
 		label,
 		action: () => run(edit)
 	});
+	if (group)
+		return [
+			{
+				label: 'Inspect Column Group settings',
+				action: () => {
+					if (current()) selection.select(group.id);
+				}
+			},
+			action('Add Column in group', { kind: 'AddColumns', parent: group.id, count: 1 }),
+			action('Add nested Column Group', { kind: 'AddColumnGroup', parent: group.id, label: null }),
+			action('Move Column Group to root', {
+				kind: 'DropColumnItem',
+				item: { kind: 'Group', id: group.id },
+				target: { kind: 'Root' }
+			}),
+			action('Ungroup Columns', { kind: 'UngroupColumns', group: group.id }),
+			action('Duplicate Column Group', { kind: 'DuplicateColumnGroup', group: group.id }),
+			action('Delete Column Group', { kind: 'RemoveColumnGroup', group: group.id })
+		];
 	if (row?.item.id.kind === 'Layer' && column) {
 		const layer = row.item.id.id;
 		const cell = owner.matrixWindow?.cells.find(
@@ -119,6 +144,7 @@ export function gridActions(
 		action('Add layer', { kind: 'AddLayers', parent: null, count: 1 }),
 		action('Add group', { kind: 'AddGroup', parent: null, label: null }),
 		action('Add column', { kind: 'AddColumns', parent: null, count: 1 }),
+		action('Add Column Group', { kind: 'AddColumnGroup', parent: null, label: null }),
 		action('Unload Matrix', { kind: 'ClearPlayback' })
 	];
 }

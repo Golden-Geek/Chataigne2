@@ -10,17 +10,20 @@ export function cellPreviewGroups(
 	snapshot: MatrixViewportSnapshot,
 	metrics: Metrics
 ): CellPreviewGroup[] {
-	const projection = projectGrid(metrics, snapshot.row_total, snapshot.column_total);
+	const projection = projectGrid(
+		metrics,
+		snapshot.row_total,
+		snapshot.axis_total,
+		snapshot.axis_depth
+	);
 	const rows = new Map(
 		snapshot.rows.map((row, index) => [row.item.id.id, snapshot.row_start + index])
 	);
-	const columns = new Map(
-		snapshot.columns.map((column, index) => [column.id, snapshot.column_start + index])
-	);
+	const columns = new Map(snapshot.columns.map((column) => [column.id, column.axis_index]));
 	const groups = new Map<string, CellPreviewGroup>();
 	const rem = metrics.rem > 0 ? metrics.rem : 1;
 	const width = metrics.width - gridSize.label * rem;
-	const height = metrics.height - gridSize.header * rem;
+	const height = metrics.height - projection.header * rem;
 	if (width <= 0 || height <= 0) return [];
 	let count = 0;
 	for (const cell of snapshot.cells) {
@@ -36,7 +39,9 @@ export function cellPreviewGroups(
 					gridSize.label +
 					0.2) *
 				rem,
-			y: (projection.rowOrigin + row * gridSize.row - projection.top - gridSize.header + 0.2) * rem,
+			y:
+				(projection.rowOrigin + row * gridSize.row - projection.top - projection.header + 0.2) *
+				rem,
 			width: (gridSize.column - 0.4) * rem,
 			height: (gridSize.row - (gridSize.previewLabel + 0.4)) * rem
 		};

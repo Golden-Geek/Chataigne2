@@ -8,10 +8,16 @@ function scene() {
 	const snapshot = {
 		row_total: 1000,
 		column_total: 100,
+		axis_total: 100,
+		axis_depth: 0,
 		row_start: 0,
-		column_start: 0,
+		axis_start: 0,
 		rows: [{ item: { id: { kind: 'Layer', id: 'row' } } }],
-		columns: [{ id: 'one' }, { id: 'two' }, { id: 'three' }],
+		columns: [
+			{ id: 'one', axis_index: 0 },
+			{ id: 'two', axis_index: 1 },
+			{ id: 'three', axis_index: 2 }
+		],
 		cells: ['one', 'two', 'three'].map((column, index) => ({
 			cell: {
 				layer: 'row',
@@ -58,4 +64,17 @@ test('missing sources and stale windows do not retain native tile demand', () =>
 	for (const cell of snapshot.cells) cell.source_missing = false;
 	snapshot.rows = [];
 	assert.deepEqual(cellPreviewGroups(snapshot, metrics), []);
+});
+
+test('empty group slots leave gaps while native tiles retain their Column position below nested headers', () => {
+	const { snapshot, metrics } = scene();
+	snapshot.axis_depth = 2;
+	snapshot.axis_total += 1;
+	snapshot.columns[1].axis_index = 2;
+	snapshot.columns[2].axis_index = 3;
+	const shared = cellPreviewGroups(snapshot, metrics).find(
+		(g) => JSON.parse(g.source).reference.media === 'shared-media'
+	)!;
+	assert.equal(shared.tiles[1].x - shared.tiles[0].x, 2 * 7.5 * metrics.rem);
+	assert(Math.abs(shared.tiles[0].y - 3.2) < 0.001);
 });

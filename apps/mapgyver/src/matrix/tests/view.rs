@@ -93,8 +93,8 @@ fn deleted_viewport_reports_typed_absence_without_history_and_recovers_on_undo()
             viewport: MatrixViewport {
                 row_start: 0,
                 row_count: 16,
-                column_start: 0,
-                column_count: 8,
+                axis_start: 0,
+                axis_count: 8,
             },
             selection: None,
         },
@@ -116,8 +116,8 @@ fn viewport(engine: &mut AppEngine, media: MediaId, row: u32, column: u32) -> Ma
             viewport: MatrixViewport {
                 row_start: row,
                 row_count: 16,
-                column_start: column,
-                column_count: 8,
+                axis_start: column,
+                axis_count: 8,
             },
         },
     ) else {
@@ -363,8 +363,8 @@ fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_sou
                 viewport: MatrixViewport {
                     row_start: 0,
                     row_count: 1,
-                    column_start: 0,
-                    column_count: 1,
+                    axis_start: 0,
+                    axis_count: 1,
                 },
                 selection: Some(selection),
             },
@@ -452,8 +452,8 @@ fn oversized_viewports_and_choice_queries_reject_without_changes() {
                         viewport: MatrixViewport {
                             row_start: 0,
                             row_count: rows,
-                            column_start: 0,
-                            column_count: cols
+                            axis_start: 0,
+                            axis_count: cols
                         }
                     }
                 }
