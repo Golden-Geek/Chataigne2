@@ -8,6 +8,7 @@ import {
 import type { SurfaceGeometryEdit } from '../generated/SurfaceGeometryEdit';
 import type { Point } from '../generated/Point';
 import type { SurfaceSnapshot } from '../generated/SurfaceSnapshot';
+import { SurfaceKeyboard } from '../surface-keyboard.ts';
 
 const reference = { screen: 'screen', surface: 'surface' };
 const deferred = <T>() => {
@@ -94,6 +95,50 @@ const snapshot = (x: number): SurfaceSnapshot => ({
 			]
 		}
 	}
+});
+
+test('native keyboard tap during an asynchronous edit close is retained in its own history group', async () => {
+	const target = { document: '1:screen', reference, corner: 0, origin: { x: 0.1, y: 0 } };
+	const f = fixture();
+	const keyboard = new SurfaceKeyboard({
+		start: (current) =>
+			f.gesture.start(reference, {
+				kind: 'QuadCornerPixels',
+				corner: 0,
+				origin: current.origin
+			}),
+		move: (pixels) => f.gesture.move(pixels),
+		finish: () => f.gesture.finish(),
+		stop: () => f.gesture.stop()
+	});
+	const right = {
+		key: 'ArrowRight',
+		repeat: false,
+		shiftKey: false,
+		altKey: false,
+		ctrlKey: false,
+		metaKey: false
+	};
+	keyboard.keydown(right, target);
+	keyboard.keyup('ArrowRight');
+	await flush();
+	keyboard.observe(target, true, false);
+	keyboard.keydown(right, target);
+	keyboard.keyup('ArrowRight');
+	assert.equal(f.pending.length, 1);
+	f.pending[0].resolve(snapshot(0.10125));
+	await flush();
+	keyboard.observe({ ...target, origin: { x: 0.10125, y: 0 } }, false, true);
+	await flush();
+	assert.deepEqual(f.edits[1], {
+		kind: 'QuadCornerPixels',
+		corner: 0,
+		origin: { x: 0.10125, y: 0 },
+		pixels: { x: 1, y: 0 }
+	});
+	f.pending[1].resolve(snapshot(0.1025));
+	await flush();
+	assert.deepEqual(f.counts(), { begins: 2, ends: 2, finished: 2 });
 });
 
 test('cumulative pixel samples preserve final distance through bounded coalescing', async () => {

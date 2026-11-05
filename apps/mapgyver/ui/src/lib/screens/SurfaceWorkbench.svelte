@@ -108,7 +108,8 @@
 				disabled={controller.busy}
 				select={selectSurface}
 				start={(reference, handle) => gesture.start(reference, handle)}
-				pixelsActive={gesture.pixelsActive}
+				pixelsActive={() => gesture.pixelsActive}
+				gestureActive={gestureState.active}
 				move={(point) => gesture.move(point)}
 				finish={() => gesture.finish()}
 				stop={() => gesture.stop()} />

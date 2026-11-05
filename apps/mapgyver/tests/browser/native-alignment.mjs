@@ -152,6 +152,32 @@ try {
 		.waitFor();
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
 	await delay(250);
+	// Install only after startup navigation and native preview readiness. Observe actual native
+	// arrow delivery without capturing text or changing input behavior.
+	await page.evaluate(() => {
+		window.__alignmentArrows = { events: [], overflow: false };
+		for (const phase of ['keydown', 'keyup'])
+			window.addEventListener(
+				phase,
+				(event) => {
+					if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+					const journal = window.__alignmentArrows;
+					if (journal.events.length >= 256) {
+						journal.overflow = true;
+						return;
+					}
+					journal.events.push({
+						phase,
+						key: event.key,
+						trusted: event.isTrusted,
+						repeat: event.repeat,
+						shift: event.shiftKey,
+						timestamp: event.timeStamp
+					});
+				},
+				{ capture: true, passive: true }
+			);
+	});
 	const bounds = await view.locator('.active-zone').boundingBox();
 	assert(bounds);
 	const metadata = {
@@ -335,6 +361,10 @@ try {
 			await delay(50);
 		}
 	}
+	await writeFile(
+		path.join(directory, 'native-arrows.json'),
+		JSON.stringify(await page.evaluate(() => window.__alignmentArrows), null, 2)
+	);
 	console.log(
 		JSON.stringify({
 			result: 'fixture complete',

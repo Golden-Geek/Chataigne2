@@ -20,6 +20,14 @@ Undo/Redo, a new gesture waits for the matching projection instead of copying a 
 origin into an edit. Ordinary background refresh remains interactive; an admitted gesture
 keeps its ownership until it closes.
 
+Screen keyboard input retains up to 32 pending press/release gestures while an earlier edit
+closes or its authoritative geometry projection catches up. Each starts from the current
+accepted corner and keeps its own history group; held repeat still coalesces integer offsets
+within one group. Readiness changes drain this bounded queue without polling. Selection,
+document and connection loss cancel pending input, and focus loss never replays it later.
+The app input adapter owns this sequencing; backend geometry still owns output-pixel conversion
+and validity. Native gesture ownership is queried synchronously when closing a queued gesture.
+
 ## Acceptance
 
 M11/6 is **Accepted**. Software suites and native anchored/reduced-motion navigation,

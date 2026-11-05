@@ -89,3 +89,46 @@ test('focus release flushes once; modifiers, absent target and denied begin prod
 	assert(!denied.keyboard.keydown(key('ArrowRight'), target));
 	assert.equal(denied.samples.length, 0);
 });
+
+test('separate taps wait for closure and begin from the latest accepted origin', () => {
+	const starts: KeyboardTarget[] = [];
+	const samples: PixelOffset[] = [];
+	let finishes = 0;
+	const keyboard = new SurfaceKeyboard({
+		start: (current) => (starts.push(current), true),
+		move: (pixels) => samples.push(pixels),
+		finish: () => finishes++,
+		stop: () => assert.fail('valid queued gestures must not cancel')
+	});
+	keyboard.keydown(key('ArrowRight'), target);
+	keyboard.keyup('ArrowRight');
+	keyboard.observe(target, true, false);
+	keyboard.keydown(key('ArrowDown', { shiftKey: true }), target);
+	keyboard.keyup('ArrowDown');
+	assert.equal(starts.length, 1);
+	assert.equal(finishes, 1);
+	keyboard.observe({ ...target, origin: { x: 0.2, y: 0.3 } }, false, true);
+	assert.deepEqual(starts[1].origin, { x: 0.2, y: 0.3 });
+	assert.deepEqual(samples, [
+		{ x: 1, y: 0 },
+		{ x: 0, y: 10 }
+	]);
+	assert.equal(finishes, 2);
+});
+
+test('queued taps are bounded and never replay after focus, target or connection loss', () => {
+	for (const loss of ['focus', 'target', 'connection']) {
+		const f = fixture();
+		f.keyboard.observe(target, false, false);
+		for (let i = 0; i < 32; i++) {
+			assert(f.keyboard.keydown(key('ArrowRight'), target));
+			f.keyboard.keyup('ArrowRight');
+		}
+		assert(!f.keyboard.keydown(key('ArrowRight'), target));
+		if (loss === 'focus') f.keyboard.finish();
+		else f.keyboard.observe(loss === 'connection' ? null : { ...target, corner: 1 }, false);
+		f.keyboard.observe(target, false, true);
+		assert.equal(f.samples.length, 0);
+		assert.equal(f.counts().begins, 0);
+	}
+});

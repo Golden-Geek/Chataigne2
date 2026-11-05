@@ -19,6 +19,7 @@
 		select,
 		start,
 		pixelsActive,
+		gestureActive,
 		move,
 		finish,
 		stop,
@@ -29,7 +30,8 @@
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, handle: SurfaceHandle): boolean;
-		pixelsActive: boolean;
+		pixelsActive(): boolean;
+		gestureActive: boolean;
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
@@ -64,13 +66,22 @@
 			}),
 		move: (pixels) => move(pixels),
 		finish: () => {
-			if (pixelsActive) finish();
+			if (pixelsActive()) finish();
 		},
 		stop: () => {
-			if (pixelsActive) stop();
+			if (pixelsActive()) stop();
 		}
 	});
-	$effect(() => keyboard.observe(keyboardTarget, pixelsActive));
+	const inputAvailable = $derived(
+		appState.session?.status === 'connected' && !appState.session.loading.visible
+	);
+	$effect(() =>
+		keyboard.observe(
+			inputAvailable ? keyboardTarget : null,
+			pixelsActive(),
+			!disabled && !gestureActive
+		)
+	);
 	onDestroy(() => keyboard.cancel());
 	$effect(() => {
 		if (corner && (corner.document !== documentIdentity || corner.surface !== selected))
@@ -113,7 +124,7 @@
 				keyboard.cancel();
 				corner = null;
 				event.preventDefault();
-			} else if (keyboard.keydown(event, keyboardTarget)) {
+			} else if (keyboard.keydown(event, inputAvailable ? keyboardTarget : null)) {
 				event.preventDefault();
 				event.stopPropagation();
 			}
