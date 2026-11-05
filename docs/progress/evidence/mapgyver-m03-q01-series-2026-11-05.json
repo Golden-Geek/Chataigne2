@@ -1,0 +1,488 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"source_base": "e0ac9e4acff43a794685b9221eb163730d613ebe",
+	"status": "UNAVAILABLE",
+	"accepted": false,
+	"scope": "Original release Q01 prescribed three-sample series; timing criteria verified, full gate remains open",
+	"method": {
+		"warmup_seconds": 30,
+		"sample_seconds": 120,
+		"editor_minimized_seconds": 60,
+		"editor_disconnected_seconds": 60,
+		"samples": 3,
+		"adapter": {
+			"high": 0,
+			"low": 90146
+		},
+		"presentmon": "Pinned 2.6.0, exact owned renderer PID, paired environment and native overlay-Off observations"
+	},
+	"checks": "129 production analyzer tests passed; unchanged source retains prior software/strict/native/release evidence",
+	"common_passed_criteria": [
+		"functional_completion",
+		"fixed_scene",
+		"telemetry_coverage",
+		"input_identity",
+		"gpu_context_coverage",
+		"cpu_submission",
+		"output_api_cadence",
+		"producer_api_cadence",
+		"submission_deadlines",
+		"deadline_misses",
+		"editor_independence",
+		"source_to_consumer_age",
+		"spout_capture_identity",
+		"spout_capture_age",
+		"source_publication_age",
+		"logical_texture_charge",
+		"native_allocation_ownership",
+		"completion_retirement",
+		"shutdown",
+		"native_preparation",
+		"plan_publication_age",
+		"window_presentation",
+		"plan_age_and_published_queue",
+		"environment_identity"
+	],
+	"samples": [
+		{
+			"sample": "sample-001",
+			"renderer_pid": 17720,
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.6819,
+				"p95_ms": 0.8254,
+				"p99_ms": 0.9325,
+				"maximum_ms": 2.0744
+			},
+			"outputs": [
+				{
+					"output": 1,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6727,
+						"p95_ms": 17.0494,
+						"p99_ms": 17.164,
+						"maximum_ms": 17.6285
+					}
+				},
+				{
+					"output": 2,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6696,
+						"p95_ms": 17.0921,
+						"p99_ms": 17.2493,
+						"maximum_ms": 17.6113
+					}
+				},
+				{
+					"output": 3,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6723,
+						"p95_ms": 17.0942,
+						"p99_ms": 17.2557,
+						"maximum_ms": 17.618
+					}
+				}
+			],
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				}
+			],
+			"spout_source_age": [
+				{
+					"samples": 7200,
+					"median_ms": 17.6407,
+					"p95_ms": 18.77,
+					"p99_ms": 19.8124,
+					"maximum_ms": 21.8571
+				},
+				{
+					"samples": 7200,
+					"median_ms": 12.2987,
+					"p95_ms": 13.2424,
+					"p99_ms": 14.0987,
+					"maximum_ms": 15.7783
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 16.9552,
+				"p95_ms": 18.9325,
+				"p99_ms": 21.9312,
+				"maximum_ms": 26.3357
+			},
+			"shutdown_ms": 457.4775,
+			"unavailable": [
+				"gpu_critical_path",
+				"dxgi_admission",
+				"renderer_private_memory",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"raw_sha256": {
+				"consumer.jsonl": "a093949bbb331db911da0217dcd3e4cf43bc73613bb81bac8e205b1c96a3a145",
+				"fixture-0-exit.json": "15b769c7d6fa816fcdc624039d4307a4e56750a00ef8c2f635d62f84edba8c53",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "86fd51b33b543118314360ff84de2525de8855e118869373e987bbd357e51233",
+				"fixture-1-exit.json": "5dcb527a59fab3081523dc7ae618e889516059e795bf1abb5f1472a482ed66f2",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "e2f86979c9b85e0b466f8c6d159bbe505133c935995c204357b19e2d8618f8d0",
+				"fixture-2-exit.json": "967b8c57b0e31d60bd6428d084a9b5d5962d11bae1abb4b1ef88975012b29b94",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "9369a75208528acbb6c14fbf9d29b71b15bcf977fb0ccbba452aecd22dc0f52a",
+				"inputs.json": "61841794228747e34d3b280062712c44a09273e87d5398fcf96b58dd79f60223",
+				"launcher.json": "faf92ad3db136d90a27f2ed573cac9cc53f8d4167bcf8023988717987e117716",
+				"manifest.json": "7af449a5169d5f36ea6b9d09bc8a9380d38b0aadfa9191d21db68eab9ed93574",
+				"parent-summary.json": "34b75055c9dd259c6d69a6b63a31a26cecab15dc47c2cd4798e5c27e496f9228",
+				"presentmon.json": "dec1ad2916958c7262d67f252eb01915be273ecebb55ab6d6e2ebec20582333e",
+				"renderer-summary.json": "d9df964b43e44ac1bd10f384f0bf6c7675a5b2dfd4bc1a5c7e2f46d3371489ef",
+				"renderer.jsonl": "724a969ae9fdcb03a40f58a69977c9549a695af568f5d949eb9caf5bc80a7e8e",
+				"source-1.jsonl": "57ce438e27e9d1ae52ec95a7f021f8eb67ed574783532c145bf9fe4e78f3641d",
+				"source-2.jsonl": "5ed3ed506962a67a35e80e7947d13e644a8e6e42fdcf613e04dabbda22594956"
+			}
+		},
+		{
+			"sample": "sample-002",
+			"renderer_pid": 10248,
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.6956,
+				"p95_ms": 0.8419,
+				"p99_ms": 0.9364,
+				"maximum_ms": 3.6007
+			},
+			"outputs": [
+				{
+					"output": 1,
+					"counts": {
+						"Accepted": 7197,
+						"Busy": 3
+					},
+					"accepted_shortfall_fraction": 0.0004166666666666667,
+					"accepted_call_intervals": {
+						"samples": 7196,
+						"median_ms": 16.6741,
+						"p95_ms": 17.0564,
+						"p99_ms": 17.1854,
+						"maximum_ms": 33.6289
+					}
+				},
+				{
+					"output": 2,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.67,
+						"p95_ms": 17.1025,
+						"p99_ms": 17.2765,
+						"maximum_ms": 19.4085
+					}
+				},
+				{
+					"output": 3,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.668,
+						"p95_ms": 17.1027,
+						"p99_ms": 17.2883,
+						"maximum_ms": 19.4963
+					}
+				}
+			],
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7197,
+						"OnTime": 7194,
+						"late_display": 3,
+						"Miss": 6,
+						"not_accepted": 3
+					},
+					"miss_fraction_upper_bound": 0.0008333333333333334,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				}
+			],
+			"spout_source_age": [
+				{
+					"samples": 7200,
+					"median_ms": 16.9647,
+					"p95_ms": 18.2248,
+					"p99_ms": 19.1203,
+					"maximum_ms": 21.2646
+				},
+				{
+					"samples": 7200,
+					"median_ms": 11.247,
+					"p95_ms": 12.6799,
+					"p99_ms": 13.7651,
+					"maximum_ms": 15.5722
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 16.9491,
+				"p95_ms": 19.0421,
+				"p99_ms": 20.83,
+				"maximum_ms": 24.8254
+			},
+			"shutdown_ms": 408.533,
+			"unavailable": [
+				"gpu_critical_path",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"raw_sha256": {
+				"consumer.jsonl": "a8d3b01ea2fdd269b62df8d17f8585a772b2932107f23dca2e1696465c86c83c",
+				"fixture-0-exit.json": "526fc69db769b1fad99fbe40e42f9b0b8ff6bdaa85a58f5f26780127daa85b60",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "75efccd776ca98f48e7bb8fa9a62128faba88eaaa4b42b60d4c511ad2ed26cfd",
+				"fixture-1-exit.json": "5e5e6b2f4235678f5f2d861a11b2da852c1d821078f89d04df4b782319c6696f",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "2575e32436eefdc46203edf144fa212191af6f382506b33bbfeedbe3a2a3c590",
+				"fixture-2-exit.json": "bb96bd16baeac083f478a2cf3eb3b17ef0c64261042d3561a3a5a792438067ef",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "dab2ff9d5c31696f9c7976bff19887cf3800ce16027364cabdc8f522bf65b53d",
+				"inputs.json": "61841794228747e34d3b280062712c44a09273e87d5398fcf96b58dd79f60223",
+				"launcher.json": "1f1493eeb432b80ac9df15b018419968721fa52bb7f2d0de8cc489570cab88c7",
+				"manifest.json": "c073bb656408bfb44e597232c05b4f2911ab5b6266e932825e8d94fce55a596a",
+				"parent-summary.json": "14fb83d289bc7decbc5c42a8ce7c21b3dba927e6b97caefa6f19ec2d811b602d",
+				"presentmon.json": "510eb8652ed93e6f4acaeb6e4236a3f6cbf0f7f1f4dfbd85ca907e2efeb62163",
+				"renderer-summary.json": "47006dc27a07ed134b2e90edd86530cba8fea868daf8e44dc990b6186df6f343",
+				"renderer.jsonl": "2f0ea15782989117295df6c678d1eded5c20785ca5ee295ebe1416e3be5eed8a",
+				"source-1.jsonl": "7ac093ea754ce8dd4f949946c9dfeb6984d519fbba2a37688cca96d024a11c97",
+				"source-2.jsonl": "67a29ed64c96bb0c664cef68d08061e1c9eb6250ec39bdfe9a32c13fce83b4e6"
+			}
+		},
+		{
+			"sample": "sample-003",
+			"renderer_pid": 15236,
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.689,
+				"p95_ms": 0.8224,
+				"p99_ms": 0.9082,
+				"maximum_ms": 1.4121
+			},
+			"outputs": [
+				{
+					"output": 1,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6708,
+						"p95_ms": 17.0479,
+						"p99_ms": 17.1599,
+						"maximum_ms": 17.6457
+					}
+				},
+				{
+					"output": 2,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6669,
+						"p95_ms": 17.0739,
+						"p99_ms": 17.2181,
+						"maximum_ms": 17.765
+					}
+				},
+				{
+					"output": 3,
+					"counts": {
+						"Accepted": 7200
+					},
+					"accepted_shortfall_fraction": 0,
+					"accepted_call_intervals": {
+						"samples": 7199,
+						"median_ms": 16.6657,
+						"p95_ms": 17.0798,
+						"p99_ms": 17.2371,
+						"maximum_ms": 17.7742
+					}
+				}
+			],
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				}
+			],
+			"spout_source_age": [
+				{
+					"samples": 7200,
+					"median_ms": 13.6813,
+					"p95_ms": 14.3591,
+					"p99_ms": 14.9153,
+					"maximum_ms": 15.4357
+				},
+				{
+					"samples": 7200,
+					"median_ms": 7.3969,
+					"p95_ms": 8.0924,
+					"p99_ms": 8.2649,
+					"maximum_ms": 9.2002
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 16.9546,
+				"p95_ms": 18.9045,
+				"p99_ms": 19.7399,
+				"maximum_ms": 21.4703
+			},
+			"shutdown_ms": 439.6945,
+			"unavailable": [
+				"gpu_critical_path",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"raw_sha256": {
+				"consumer.jsonl": "f75eb092633cc90f1f98314dbef470ae5f278fddc45ec5f063715cc6a38aae8c",
+				"fixture-0-exit.json": "14bae5df3825d9fcb5f04abc91cfc396a21502593b1d7c49d8af02e713717583",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "94b193e389d2449be64aa9d9ec8ab41d63e2921067e7f32c08859a5b6d002c30",
+				"fixture-1-exit.json": "f2a1f3e736a31c2eb1a0a7b0d902e3a420267a6c5381a25d5d3376db53bbfcfd",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "f9bbac39f063a76930cec7608f67a96b94b0f0f6f37ea64f3f5c68fd1aee73b2",
+				"fixture-2-exit.json": "38b64f458bd482e00c2ace7116d75a3358d4e6fc5e0dadb5b58d11b0f91d6177",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "d884246da95001e38dd96ca3319c9119ea4571238b8538d80542d1717e5a0355",
+				"inputs.json": "61841794228747e34d3b280062712c44a09273e87d5398fcf96b58dd79f60223",
+				"launcher.json": "08fd2ef0c8bb456e1b407377ffb3f897b757ec032814296573b7bb48d603f79b",
+				"manifest.json": "2f2b09a08088a6a98c416ba185c5a4e54ed96c0a0200f656f5a348c599256e32",
+				"parent-summary.json": "bc8cd084eaa3817b261e1d0d40c16d0aced5fe3d94651d719be15b4b6978fd1e",
+				"presentmon.json": "35a00b0e55e5477c4112c46c56348585f3c96129302750b134ecfa8b7be60da3",
+				"renderer-summary.json": "a701087af0531e1f648db3522bbf365f21bd6dec150452689068fa30fd390b1b",
+				"renderer.jsonl": "648db07f314b9038b1a5d749b03822ad0b7df32e2e0ef55f35c97a87f1aa3a2c",
+				"source-1.jsonl": "c6febaf04dcebe2ae79302395096956b958114e083f89af5533d9b96b403f3dc",
+				"source-2.jsonl": "5a516a0bbee7e3885ea06a25666157bdc32d5961096bf321c92608d31f928e7e"
+			}
+		}
+	],
+	"artifacts": {
+		"Q01\\analysis-environment.json": "55373f4cfbc0b79d6ddf1842e526348e829faebd18c69e7825f0c1e5e44034c6",
+		"environment-before.json": "ca3999f79b5f5e79a6519823ca5bf06aaf5a42ee7ef3d87368887dddf5a109cc",
+		"environment-after.json": "ba67a08c7f721eb2bc6c22093034516d4a8a001844bc646bbba9b4d2ee493d91"
+	},
+	"limits": [
+		"GPU critical path remains unavailable: CPU enclosure is too loose; context spans are not substituted",
+		"Sample 1 DXGI/private-memory observation coverage is incomplete; samples 2 and 3 pass those criteria",
+		"Separate original 100-cycle memory growth remains failed at 53.602 MiB versus 32 MiB",
+		"M05 physical input/display and M09 full-app Q05 are separate unverified scopes"
+	],
+	"next_action": "Preserve full Q01 raw files and verified distributions; correct the observed resource-observation cadence drift before the next native series",
+	"progress": {
+		"accepted_gates": 57,
+		"total_gates": 67,
+		"percent": 85,
+		"completed_phases": 7,
+		"total_phases": 12
+	}
+}

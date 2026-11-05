@@ -1,5 +1,22 @@
 # Production renderer qualification runner
 
+**Current Q01 series (2026-11-05):** the original release three-sample series verifies CPU
+submission, producer/output cadence, anchored delivery deadlines, source-to-output age,
+exact window/Spout cohorts and both 60-second editor interruption cases in every sample.
+Each measured interval covers 7,200 opportunities per output. Sample 2's main window has six
+misses (0.0833%, within 0.1%); the other eight sample/output combinations have zero. CPU
+submission wall-upper-bound p99 is 0.908–0.936 ms. All three renderers/collectors retire normally,
+with matching inputs and paired environment/overlay evidence.
+[Full distributions and retained raw hashes](evidence/mapgyver-m03-q01-series-2026-11-05.json).
+
+This verifies 24 common criteria, not the whole gate. GPU critical-path CPU-enclosure p95 is
+18.905–19.042 ms and remains inconclusive; context spans are not substituted. Sample 1 has
+118 one-Hz resource observations against the unchanged minimum of 119; its DXGI/private-memory
+coverage stays unavailable, while samples 2 and 3 pass. Raw observation spacing spans 118.669
+seconds over 117 intervals. The fixture currently schedules from service time, accumulating
+delay. Anchor that existing observation schedule before the next native series; do not lower
+the coverage requirement or infer missing observations. Separate lifecycle growth still fails.
+
 **Current retained result (2026-11-05):** the final native-resource drain correction passes
 software, strict lint, release compilation and four native regression groups. The unchanged
 100-cycle lifecycle still fails: **53.602 MiB against 32 MiB**, final growth 6.859 MiB, handles
