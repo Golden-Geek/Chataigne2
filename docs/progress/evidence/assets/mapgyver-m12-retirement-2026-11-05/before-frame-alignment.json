@@ -1,0 +1,33 @@
+{
+  "result": "failed",
+  "compared_red_frames": 410,
+  "no_red_frames": 131,
+  "outside_dom_trace": 1,
+  "mismatches": [
+    {
+      "frame": 54,
+      "actual": [
+        1193,
+        373,
+        1494,
+        711
+      ],
+      "error_px": 299
+    },
+    {
+      "frame": 161,
+      "actual": [
+        1249,
+        391,
+        1494,
+        693
+      ],
+      "error_px": 88
+    }
+  ],
+  "maximum_error_px": 299,
+  "scope": "Rightmost uninterrupted red Final span bounds; capture interval plus 50ms DOM sampling margin; not full-raster acceptance",
+  "input_latency_verified": false,
+  "missing_frames_verified": false,
+  "trace_overflow": false
+}

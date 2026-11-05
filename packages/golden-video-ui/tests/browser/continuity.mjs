@@ -148,13 +148,14 @@ export async function verifyContinuity(browser, baseUrl) {
 				window.__continuityRequests.at(-1)?.kind === 'Layout' &&
 				window.__continuityRequests.at(-1).views.length === 1
 		);
-		const retirementColors = await page
-			.locator('[data-native-preview-retirement]')
-			.evaluateAll((elements) =>
-				elements.map((element) => getComputedStyle(element).backgroundColor)
-			);
-		assert(retirementColors.length > 0, 'removed native view must stay covered until withdrawal');
-		assert(retirementColors.every((color) => color === 'rgb(0, 0, 0)'));
+		const retirement = await page
+			.locator('[data-native-preview-retirement-layer]')
+			.evaluate((element) => ({
+				covers: element.querySelectorAll('[data-native-preview-retirement^="cover:"]').length,
+				paint: getComputedStyle(element.querySelector(':scope > rect')).fill
+			}));
+		assert(retirement.covers > 0, 'removed native view must stay covered until withdrawal');
+		assert.equal(retirement.paint, 'rgb(0, 0, 0)');
 		const result = await page.evaluate(() => ({
 			flashes: window.__continuityFlashes,
 			ids: window.__continuityRequests

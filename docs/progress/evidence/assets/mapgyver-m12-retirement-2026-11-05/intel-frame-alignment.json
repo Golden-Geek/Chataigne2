@@ -1,0 +1,12 @@
+{
+  "result": "pass",
+  "compared_red_frames": 703,
+  "no_red_frames": 0,
+  "outside_dom_trace": 212,
+  "mismatches": [],
+  "maximum_error_px": 1,
+  "scope": "Rightmost uninterrupted red Final span bounds; capture interval plus 50ms DOM sampling margin; not full-raster acceptance",
+  "input_latency_verified": false,
+  "missing_frames_verified": false,
+  "trace_overflow": true
+}

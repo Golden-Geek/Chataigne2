@@ -1,0 +1,104 @@
+{
+  "cycles": 3,
+  "peerId": "mediaPreview-1",
+  "originalView": "93a3502d-5bb5-4633-85cf-5d7b8e91a425",
+  "peerRegistrationPreserved": true,
+  "newViewsRetired": true,
+  "lockedLoadRecovered": true,
+  "receiver": {
+    "adapter": {
+      "key": "dxgi:00000000:00015b69",
+      "index": 0,
+      "description": "Intel(R) Graphics"
+    },
+    "copies": 1907,
+    "loggedFrames": 1907,
+    "absent": 0,
+    "failedReceives": 0,
+    "descriptorMismatch": 0,
+    "stableSharedHandle": 2147485570,
+    "firstFrame": 54,
+    "lastFrame": 2359,
+    "maxReceiveGapMs": 104.4267,
+    "exitCode": 0
+  },
+  "pixels": {
+    "result": "pass",
+    "frames": 62,
+    "unexpected_native": 0,
+    "changed_ui": 0,
+    "stages": {
+      "tabs": 41,
+      "new": 4,
+      "loaded": 10,
+      "replacing": 7
+    }
+  },
+  "outputPixels": [
+    {
+      "phase": "first-grid",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-0",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-1",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-2",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "restored-output",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ]
+}

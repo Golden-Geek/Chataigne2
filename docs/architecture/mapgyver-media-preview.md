@@ -39,6 +39,13 @@ Its tile positions project the measured scroll offset; it must not feed those me
 back into normal-flow sizing. Otherwise fractional dock bounds can alternate scrollbar
 presence and keep unrelated previews in the shared native session awaiting installation.
 
+Golden's shared retirement layer composes historical coverage as one SVG luminance mask,
+subtracting all retained live apertures together. A view's old cover must not crop a neighbor's
+new aperture. Overlapping cutouts remain a union; hidden/removed/fenced views supply no cutout.
+The existing retained-presentation predicate and confirmed-installation release are unchanged.
+At most 64 cover rectangles and 64 live cutouts are reused, avoiding fragment growth during
+layout churn. This coverage contract does not establish synchronized browser/native presentation.
+
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
 

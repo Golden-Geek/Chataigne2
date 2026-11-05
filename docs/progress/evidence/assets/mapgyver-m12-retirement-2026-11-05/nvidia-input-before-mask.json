@@ -1,0 +1,114 @@
+{
+  "inspector": {
+    "actions": 12,
+    "frames": 946,
+    "removed": 0,
+    "parameterWitnesses": 1,
+    "disconnectedFrames": 0,
+    "fadedFrames": 0,
+    "minimumOpacity": 1
+  },
+  "matrixClicks": 16,
+  "captures": {
+    "inspector": {
+      "result": "pass",
+      "frames": 44,
+      "changed_regions": 0,
+      "changed_ui_frames": 0,
+      "regions_per_frame": 1,
+      "initial_rgb": [
+        [
+          255,
+          0,
+          0
+        ]
+      ],
+      "ui_regions_per_frame": 1,
+      "ui_region_sizes": [
+        [
+          258,
+          52
+        ]
+      ]
+    },
+    "matrix": {
+      "result": "pass",
+      "frames": 23,
+      "changed_regions": 0,
+      "changed_ui_frames": 0,
+      "regions_per_frame": 1,
+      "initial_rgb": [
+        [
+          255,
+          0,
+          0
+        ]
+      ],
+      "ui_regions_per_frame": 1,
+      "ui_region_sizes": [
+        [
+          282,
+          47
+        ]
+      ]
+    }
+  },
+  "receiver": {
+    "adapter": {
+      "key": "dxgi:00000000:00016022",
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+    },
+    "copies": 3279,
+    "loggedFrames": 3279,
+    "absent": 0,
+    "failedReceives": 0,
+    "descriptorMismatch": 0,
+    "stableSharedHandle": 1073742594,
+    "firstFrame": 170,
+    "lastFrame": 3448,
+    "maxReceiveGapMs": 32.6874,
+    "exitCode": 0
+  },
+  "outputPixels": [
+    {
+      "phase": "first-grid",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "inspector-complete",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "matrix-complete",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ]
+}

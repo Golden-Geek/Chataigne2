@@ -45,7 +45,7 @@ export async function verifyPreviewContinuity({
 			}
 		};
 	});
-	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
+	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}(?::|$)`) });
 	const panel = (id) => page.locator(`.media-preview-panel[data-panel-id="${id}"]`);
 	const main = panel('media-preview');
 	async function select(label) {

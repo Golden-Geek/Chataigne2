@@ -1,0 +1,114 @@
+{
+  "inspector": {
+    "actions": 12,
+    "frames": 906,
+    "removed": 0,
+    "parameterWitnesses": 1,
+    "disconnectedFrames": 0,
+    "fadedFrames": 0,
+    "minimumOpacity": 1
+  },
+  "matrixClicks": 16,
+  "captures": {
+    "inspector": {
+      "result": "pass",
+      "frames": 45,
+      "changed_regions": 0,
+      "changed_ui_frames": 0,
+      "regions_per_frame": 1,
+      "initial_rgb": [
+        [
+          255,
+          0,
+          0
+        ]
+      ],
+      "ui_regions_per_frame": 1,
+      "ui_region_sizes": [
+        [
+          258,
+          52
+        ]
+      ]
+    },
+    "matrix": {
+      "result": "pass",
+      "frames": 24,
+      "changed_regions": 0,
+      "changed_ui_frames": 0,
+      "regions_per_frame": 1,
+      "initial_rgb": [
+        [
+          255,
+          0,
+          0
+        ]
+      ],
+      "ui_regions_per_frame": 1,
+      "ui_region_sizes": [
+        [
+          282,
+          47
+        ]
+      ]
+    }
+  },
+  "receiver": {
+    "adapter": {
+      "key": "dxgi:00000000:00015b69",
+      "index": 0,
+      "description": "Intel(R) Graphics"
+    },
+    "copies": 1737,
+    "loggedFrames": 1737,
+    "absent": 0,
+    "failedReceives": 0,
+    "descriptorMismatch": 0,
+    "stableSharedHandle": 3221231170,
+    "firstFrame": 76,
+    "lastFrame": 2019,
+    "maxReceiveGapMs": 182.8732,
+    "exitCode": 0
+  },
+  "outputPixels": [
+    {
+      "phase": "first-grid",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "inspector-complete",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "matrix-complete",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ]
+}

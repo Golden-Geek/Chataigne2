@@ -5,6 +5,7 @@ import { chromium } from 'playwright-core';
 import { verifyQualification } from './qualification.mjs';
 import { verifyContinuity } from './continuity.mjs';
 import { verifyNativeInput } from './input.mjs';
+import { verifyRetirement } from './retirement.mjs';
 
 const server = await preview({
 	configFile: path.resolve('tests/native/vite.config.ts'),
@@ -113,6 +114,7 @@ try {
 	const qualification = await verifyQualification(browser, `http://127.0.0.1:${address.port}/`);
 	const continuity = await verifyContinuity(browser, `http://127.0.0.1:${address.port}/`);
 	const nativeInput = await verifyNativeInput(browser, `http://127.0.0.1:${address.port}/`);
+	const retirement = await verifyRetirement(browser, `http://127.0.0.1:${address.port}/`);
 	console.log(
 		JSON.stringify({
 			fakeNativeVisibleCounts: report.trace.map((item) => item.state.visibleViews),
@@ -122,6 +124,7 @@ try {
 			qualification,
 			continuity,
 			nativeInput,
+			retirement,
 			pageErrors: []
 		})
 	);

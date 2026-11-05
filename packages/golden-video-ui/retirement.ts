@@ -1,31 +1,8 @@
 import type { CssRect } from './generated/CssRect';
-import { intersectRect } from './geometry';
 
 export const MAX_RETIREMENT_COVERS = 64;
-export const MAX_RETIREMENT_MASKS = MAX_RETIREMENT_COVERS * 4;
-
-/** Cover stale/newly exposed pixels without covering the still-presented overlap. */
-export function subtractRect(rect: CssRect, aperture?: CssRect): CssRect[] {
-	if (!aperture) return [rect];
-	const overlap = intersectRect(rect, aperture);
-	if (overlap.width <= 0 || overlap.height <= 0) return [rect];
-	return [
-		{ x: rect.x, y: rect.y, width: rect.width, height: overlap.y - rect.y },
-		{
-			x: rect.x,
-			y: overlap.y + overlap.height,
-			width: rect.width,
-			height: rect.y + rect.height - overlap.y - overlap.height
-		},
-		{ x: rect.x, y: overlap.y, width: overlap.x - rect.x, height: overlap.height },
-		{
-			x: overlap.x + overlap.width,
-			y: overlap.y,
-			width: rect.x + rect.width - overlap.x - overlap.width,
-			height: overlap.height
-		}
-	].filter((piece) => piece.width > 0 && piece.height > 0);
-}
+// One historical cover and one live cutout per bounded view, without rectangle subdivision.
+export const MAX_RETIREMENT_MASKS = MAX_RETIREMENT_COVERS * 2;
 
 const union = (a: CssRect, b: CssRect): CssRect => {
 	const x = Math.min(a.x, b.x),

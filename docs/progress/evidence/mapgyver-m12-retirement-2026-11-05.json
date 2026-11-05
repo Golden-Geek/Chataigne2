@@ -1,0 +1,109 @@
+{
+  "date": "2026-11-05",
+  "gate": "M12/1",
+  "state": "Active; partial product correction and scoped native acceptance",
+  "accepted_gates_added": 0,
+  "delivered": "Golden retirement coverage subtracts every retained live aperture from the union of historical covers. One view's old cover can no longer clip its neighboring live aperture.",
+  "boundary": {
+    "owner": "packages/golden-video-ui/retirement-layer.ts and observation.ts",
+    "representation": "One SVG luminance mask: white historical coverage followed by black live cutouts. Overlapping apertures remain a union, with no rectangle subdivision.",
+    "bounds": "At most 64 historical rectangles plus 64 live cutouts, reused across layout churn. The former mask-rectangle upper bound was 256; the new primitive upper bound is 128. No source, view, producer, physical memory or lifetime budget was raised.",
+    "lifetime": "Existing nativeRect/visible/presentedViews predicate determines eligibility. Hidden, removed and fenced views provide no cutout. Only confirmed installation releases historical coverage; disconnect/disposal safety remains.",
+    "contracts": "No Rust runtime, wire protocol, authored Parameter, persistence or GPU presentation policy changed. Existing single-aperture rectangle subdivision was removed rather than retained as a second path."
+  },
+  "binaries": {
+    "before_mask": {
+      "path": "target/debug/MapGyver-codex-m12-layout.exe",
+      "sha256": "b1d3b643281ff5c3f22a8cb0ed5656d2b3174d526d87b39aaed546c59d2db2d9"
+    },
+    "current": {
+      "path": "target/debug/MapGyver-codex-m12-retirement.exe",
+      "sha256": "419d1166d81e6831c8a151104f4e9ee1d20c6e11f4434ab97cb2731f583b9a88"
+    },
+    "independent_sdk_consumer": {
+      "path": "target/debug/native_qualification.exe",
+      "sha256": "00a5ae084452ff7d98170b51cf18f8ee87407d48f795d22a522370df91ee0983"
+    },
+    "preserved_user_inputs": "Unstaged Cargo/theme inputs retain the hashes in mapgyver-m12-panel-layout-2026-11-05.json and remain outside this milestone."
+  },
+  "software": [
+    "Golden Video UI: 30 unit tests PASS; obsolete subdivision-only test replaced by actual browser SVG raster checks",
+    "Golden Video UI svelte-check: 0 errors, 0 warnings",
+    "Golden browser lifecycle/qualification/continuity/input suites: PASS, no page errors; delayed installation, source/project fences and retirement remain covered",
+    "New browser raster checks: crossing neighbors, overlapping holes, removed neighbor, complete fencing, 1000 updates with four reused rectangles, full 128-primitive capacity and overflow rejection PASS",
+    "MapGyver svelte-check: 0 errors, 0 warnings; UI production build PASS",
+    "Fresh MapGyver native build: cargo build --locked -p MapGyver --bin MapGyver PASS",
+    "Preview continuity browser flow PASS after correcting its stale exact Screen Warping tab selector to include dynamic Screen suffixes",
+    "Scoped Prettier, Node syntax, Python py_compile, root and golden_core Cargo formatters PASS; unchanged prior strict Rust evidence retained"
+  ],
+  "native_accepted_subsets": {
+    "environment": "Owned private test profiles, explicit persisted adapter preference, ordinary app startup/shutdown; OS display configuration unchanged; DPR 1.25 / 120 DPI",
+    "gpu_identities": {
+      "nvidia": "dxgi:00000000:00016022 / NVIDIA GeForce RTX 5080 Laptop GPU",
+      "intel": "dxgi:00000000:00015b69 / Intel(R) Graphics"
+    },
+    "before_mask_input": "Both GPUs: 12 actual Inspector collapse/expand/width edits; unchanged sibling remains mounted, opacity 1. Sixteen actual Matrix Cell selections preserve the unrelated locked preview and toolbar. NVIDIA: 44 Inspector and 23 Matrix physical frames; Intel: 45 and 24. Zero changed witness regions/UI frames. Native DOM samples 946/906, no removals, disconnections or fades.",
+    "before_mask_reconnect": "Both complete flows pass eight concurrent previews, independent choice, graph reconnect, layout reload, preview closure, edit without previews and New/Load lock recovery. Five native views remain identical and available through reconnect. NVIDIA: 22 physical frames; Intel: nine. Zero changed sampled regions.",
+    "current_project_retirement": "Both current-binary runs pass three native preview close/reopen cycles, retain the peer registration, retire all views on New and recover locked authored media after Load. NVIDIA: 113 physical frames (72 tabs, four settled New, 27 settled Load, ten replacement). Intel: 62 (41/four/ten/seven). Zero unexpected sampled native content or unrelated File-menu changes.",
+    "output": "Independent exact-adapter Spout receivers report zero absent/failed/descriptor-mismatched receives in every retained complete flow, with stable shared handles and advancing frame counters. Current project runs: NVIDIA 6269 copies; Intel 1907. Full 96x64 expected RGBA checks pass at each retained checkpoint. Receivers intentionally stop before New destroys their output, then restored output is checked independently.",
+    "normal_exit": "All eight retained complete app wrapper flows and their consumers exit 0; both separate current resize wrappers also exit 0.",
+    "timing_limits": "These are ownership/pixel continuity checks, not timing qualification. Intel pre-mask input's maximum receive gap is 182.8732ms; current Intel project gap is 104.4267ms. No renderer/display FPS, deadline, GPU elapsed-path, memory or latency acceptance is inferred.",
+    "retained_reports": [
+      "assets/mapgyver-m12-retirement-2026-11-05/nvidia-input-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/intel-input-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/nvidia-project-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/intel-project-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/nvidia-continuity-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/intel-continuity-before-mask.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/nvidia-project-current.json",
+      "assets/mapgyver-m12-retirement-2026-11-05/intel-project-current.json"
+    ]
+  },
+  "physical_resize": {
+    "replay": "python apps/mapgyver/tests/native/panel_frame_alignment.py <recording-directory>; exact owned PID/HWND foreground RGB capture with recorded physical bounds, client origin, per-frame times and DOM/DPR trace",
+    "oracle_scope": "Checks the rightmost uninterrupted red Final span against matching measured DOM bounds, allowing the capture interval plus a 50ms sampling margin. Two-pixel diagnostic tolerance is not a change to M05's one-physical-pixel acceptance budget. It does not qualify complete raster, missing frames, UI/native synchronization or latency.",
+    "before": "Replaying the prior sizing-only candidate fails at movie frames 54 and 161: visible span errors 299 and 88 pixels. First clipped edge matches another view's historical coverage. Original physical frame peer-mask-before.png is retained.",
+    "intel_current": {
+      "pid": 27904,
+      "hwnd": 4653634,
+      "movie_frames": 915,
+      "dom_samples": 4096,
+      "trace_overflow": true,
+      "compared_red_frames": 703,
+      "outside_dom_trace_unverified": 212,
+      "maximum_compared_error_px": 1,
+      "mismatches": 0,
+      "removed_or_missing_original_dom": 0,
+      "local_directory": "target/m121-retirement-intel-2026-11-05",
+      "movie_sha256": "fc1df3fae68ceee6276053ac0ef874600a0ffda88e3049a59caf7e8966d2f5ff",
+      "trace_sha256": "ab32c9470a5a5ef9624acfce272366780a3580d0bb0366223e02f9fba520aa44"
+    },
+    "nvidia_current": {
+      "pid": 25448,
+      "hwnd": 3475612,
+      "movie_frames": 416,
+      "dom_samples": 2368,
+      "trace_overflow": false,
+      "compared_red_frames": 416,
+      "outside_dom_trace_unverified": 0,
+      "mismatches": [{ "frame": 234, "rightmost_span_error_px": 88 }],
+      "removed_or_missing_original_dom": 0,
+      "local_directory": "target/m121-retirement-nvidia-2026-11-05",
+      "movie_sha256": "896944e4fe7c2259abf2b8db583fe17cdab33139ee502e967722c37fe6e8a280",
+      "trace_sha256": "1fc6a7ed9ad9cca30fcff33c2720c74cd89c3c24882eafb79a545290781b9e29"
+    },
+    "remaining_failure": "Original remaining-handoff.png visibly combines the enlarged red image with the preceding browser divider/grid paint, exposing fragments behind unrelated content. Its uninterrupted rightmost span remains at the preceding aperture. A browser/native visual handoff race is consistent with this image; the exact ordering boundary is not yet established. Black historical matte outside live apertures can also appear during the handoff. This is not an accepted resize result.",
+    "recording_limits": "Lossless movie metadata declares 30 FPS; actual foreground capture is about ten FPS and per-frame wall times govern. CUA cursor/glow can occlude pixels; a trial solid-fill threshold produced cursor false positives and was discarded. No threshold was relaxed to pass full-raster acceptance; only the explicitly scoped uninterrupted-span oracle is retained. The Intel trace cap leaves its final 212 movie frames unverified; no extrapolation or new whole-gate acceptance.",
+    "retained_frames": {
+      "peer-mask-before.png": "f39701207ae4d1b095df3c48398198ffb020b3f7367787d1b0e78048e0434cee",
+      "remaining-handoff.png": "3a5c9b8dd6ccd86dac54dbd75ac3d9f0aae382fa31148a5b9c1a5ec3811f703b"
+    },
+    "retained_results": "assets/mapgyver-m12-retirement-2026-11-05/{before,intel,nvidia}-frame-alignment.json"
+  },
+  "fixture_corrections": [
+    "Initial Intel continuity run passed reconnect pixels then failed on the obsolete exact Screen Warping tab selector. Complete corrected flow reran and passed; initial partial run is not counted.",
+    "Initial Golden continuity test inspected DIV backgroundColor, which no longer describes SVG mask paint. It now checks retained cover ownership and black paint; separate raster tests prove actual composited coverage.",
+    "Native resize fixture can use an explicitly provided private app-data profile for each persisted GPU choice. User preferences are unchanged."
+  ],
+  "next_requirement": "Keep M12/1 alone Active. Make browser/native visual geometry handoff coherent through divider motion, then verify that the retained failing frame no longer occurs, including matte/background and Matrix header/draft/scroll behavior. Reuse passing scoped transition evidence for unchanged behavior. Do not restart the resolved size-oscillation or peer-mask investigations, add another capture variant, weaken retirement, relax a budget, or accept the whole gate from these partial results."
+}

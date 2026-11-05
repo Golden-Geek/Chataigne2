@@ -1,6 +1,7 @@
 import type { PreviewGeometry, PreviewSession, PreviewSessionState } from './session';
 import type { CssRect } from './generated/CssRect';
-import { RetirementCovers, subtractRect } from './retirement';
+import { RetirementCovers } from './retirement';
+import { RetirementLayer } from './retirement-layer';
 
 const observations = new WeakMap<PreviewSession, LayoutObservation>();
 interface View {
@@ -15,14 +16,14 @@ class LayoutObservation {
 	private readonly views = new Map<string, View>();
 	private readonly targets = new Set<HTMLElement>();
 	private readonly covers = new RetirementCovers();
-	private readonly masks = new Map<string, HTMLElement>();
-	private layer: HTMLElement | null = null;
+	private layer: RetirementLayer | null = null;
 	private everConnected = false;
 	private started = false;
 	private unsubscribe = () => {};
 	private readonly resize = new ResizeObserver(() => this.session.invalidate());
 	private readonly mutation = new MutationObserver((records) => {
-		if (this.layer && records.every((record) => this.layer!.contains(record.target))) return;
+		if (this.layer && records.every((record) => this.layer!.element.contains(record.target)))
+			return;
 		this.observeAncestors();
 		this.session.invalidate();
 	});
@@ -103,65 +104,23 @@ class LayoutObservation {
 	private renderCovers() {
 		const entries = this.covers.entries();
 		if (!entries.length) {
-			this.layer?.remove();
+			this.layer?.element.remove();
 			this.layer = null;
-			this.masks.clear();
 			return;
 		}
 		if (!this.layer) {
-			this.layer = document.createElement('div');
-			this.layer.dataset.nativePreviewRetirementLayer = '';
-			this.layer.setAttribute('aria-hidden', 'true');
-			Object.assign(this.layer.style, {
-				position: 'fixed',
-				inset: '0',
-				pointerEvents: 'none',
-				zIndex: '-1'
-			});
-			document.body.prepend(this.layer);
+			this.layer = new RetirementLayer();
+			document.body.prepend(this.layer.element);
 		}
-		const current = new Set<string>();
-		for (const [viewId, covered] of entries) {
-			const view = this.views.get(viewId);
-			const aperture =
-				view?.nativeRect &&
+		const apertures: Array<readonly [string, CssRect]> = [];
+		for (const view of this.views.values())
+			if (
+				view.nativeRect &&
 				view.latest?.visible &&
-				this.session.state.presentedViews.includes(viewId)
-					? view.latest.clip
-					: undefined;
-			for (const [index, rect] of subtractRect(covered, aperture).entries()) {
-				const id = `${viewId}:${index}`;
-				current.add(id);
-				let mask = this.masks.get(id);
-				if (!mask) {
-					mask = document.createElement('div');
-					mask.dataset.nativePreviewRetirement = id;
-					Object.assign(mask.style, {
-						position: 'fixed',
-						pointerEvents: 'none',
-						background: '#000'
-					});
-					this.layer.append(mask);
-					this.masks.set(id, mask);
-				}
-				const values = {
-					left: `${rect.x}px`,
-					top: `${rect.y}px`,
-					width: `${rect.width}px`,
-					height: `${rect.height}px`
-				};
-				for (const [property, value] of Object.entries(values)) {
-					if (mask.style.getPropertyValue(property) !== value)
-						mask.style.setProperty(property, value);
-				}
-			}
-		}
-		for (const [id, mask] of this.masks) {
-			if (!current.has(id)) {
-				mask.remove();
-				this.masks.delete(id);
-			}
-		}
+				this.session.state.presentedViews.includes(view.id)
+			)
+				apertures.push([view.id, view.latest.clip]);
+		this.layer.update(entries, apertures);
 	}
 
 	private finishIfUnused() {

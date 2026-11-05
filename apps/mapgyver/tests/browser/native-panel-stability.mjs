@@ -9,7 +9,7 @@ const directory = path.resolve(process.argv[2]);
 await mkdir(directory, { recursive: true });
 const exists = async (name) => !!(await stat(path.join(directory, name)).catch(() => null));
 assert(!(await exists('ready.json')), 'Use a fresh reproduction directory');
-const native = await openNativeEditor();
+const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 let token;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {

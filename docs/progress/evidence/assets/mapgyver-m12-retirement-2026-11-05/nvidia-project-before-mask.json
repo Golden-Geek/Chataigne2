@@ -1,0 +1,104 @@
+{
+  "cycles": 3,
+  "peerId": "mediaPreview-1",
+  "originalView": "6783f17e-e34b-419c-b926-d43ac7f8b404",
+  "peerRegistrationPreserved": true,
+  "newViewsRetired": true,
+  "lockedLoadRecovered": true,
+  "receiver": {
+    "adapter": {
+      "key": "dxgi:00000000:00016022",
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+    },
+    "copies": 2128,
+    "loggedFrames": 2128,
+    "absent": 0,
+    "failedReceives": 0,
+    "descriptorMismatch": 0,
+    "stableSharedHandle": 3221239618,
+    "firstFrame": 228,
+    "lastFrame": 2355,
+    "maxReceiveGapMs": 32.7011,
+    "exitCode": 0
+  },
+  "pixels": {
+    "result": "pass",
+    "frames": 118,
+    "unexpected_native": 0,
+    "changed_ui": 0,
+    "stages": {
+      "tabs": 82,
+      "new": 4,
+      "loaded": 23,
+      "replacing": 9
+    }
+  },
+  "outputPixels": [
+    {
+      "phase": "first-grid",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-0",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-1",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "close-reopen-2",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "restored-output",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ]
+}
