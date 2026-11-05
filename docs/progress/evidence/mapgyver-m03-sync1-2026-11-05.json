@@ -1,0 +1,444 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"decision": "Reject sync-1 as a proven presentation fix; production and analyzer sources restored exactly to HEAD after preserving the candidate",
+	"source_base": "328499bf18a631dd80fd78f7e8e57e9207bfb9df",
+	"candidate_stash": "99fbc78cbc5abfdf35ea0db1f07026d209edc8f3",
+	"candidate_stash_name": "mapgyver-rejected-sync1-presentation-2026-11-05",
+	"binary_sha256": "797561309798af8379f8ea1ed73176fcf6b08f4f16ba8369babdca61566d2743",
+	"source_set_sha256": "9eeb4f0f8d660d262209272f620f802e082da0e0ff57f87202f7c05ebeb12206",
+	"build_record": "target/m039-sync1-release-2026-11-05/build.json",
+	"baseline": "docs/progress/evidence/mapgyver-m03-q02-series-2026-11-05.json",
+	"hypothesis": "Prevent sync-0 flip-queue replacement of accepted window images by synchronizing one refresh, while preserving DO_NOT_WAIT, one waitable permit, maximum latency one and two buffers",
+	"baseline_observation": {
+		"common_dropped_tokens": [4251, 4281, 4620, 4632, 4680],
+		"reported_render_complete_after_present_ms": [3.5759, 5.2666],
+		"limit": "Render-completion observations before deadlines do not prove the compositor's cause"
+	},
+	"documentation": "https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present",
+	"checks": "Candidate: 208 software tests, 130 analyzer tests, strict all-target Clippy, two native window pixel/budget tests and pinned release build passed before Q02; restoration verified by exact diff against HEAD",
+	"method": {
+		"samples": 3,
+		"warmup_seconds": 30,
+		"sample_seconds": 120,
+		"editor_minimized_seconds": 60,
+		"editor_disconnected_seconds": 60,
+		"adapter": {
+			"high": 0,
+			"low": 90146
+		},
+		"original_limits_unchanged": true
+	},
+	"samples": [
+		{
+			"sample": "sample-001",
+			"renderer_pid": 22632,
+			"observed_present_intervals": [1],
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.4466,
+				"p95_ms": 0.6377,
+				"p99_ms": 0.7617,
+				"maximum_ms": 1.5269
+			},
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7199,
+						"late_display": 1,
+						"Miss": 1
+					},
+					"miss_fraction_upper_bound": 0.0001388888888888889,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7199,
+						"late_display": 1,
+						"Miss": 1
+					},
+					"miss_fraction_upper_bound": 0.0001388888888888889,
+					"deadline_verdict": true
+				}
+			],
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 0,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7200,
+							"median_ms": 15.6769,
+							"p95_ms": 16.294,
+							"p99_ms": 20.1679,
+							"maximum_ms": 33.0501
+						},
+						{
+							"samples": 7200,
+							"median_ms": 14.0284,
+							"p95_ms": 30.6914,
+							"p99_ms": 30.8895,
+							"maximum_ms": 34.981
+						}
+					]
+				},
+				{
+					"output": 3,
+					"dropped": 0,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7200,
+							"median_ms": 15.6769,
+							"p95_ms": 16.2952,
+							"p99_ms": 20.188,
+							"maximum_ms": 33.0501
+						},
+						{
+							"samples": 7200,
+							"median_ms": 14.0285,
+							"p95_ms": 30.694,
+							"p99_ms": 30.89,
+							"maximum_ms": 34.981
+						}
+					]
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 17.7748,
+				"p95_ms": 32.1481,
+				"p99_ms": 33.5176,
+				"maximum_ms": 35.7111
+			},
+			"shutdown_ms": 409.6759,
+			"failed": [],
+			"unavailable": [
+				"gpu_critical_path",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"environment_status": "PASSED_NATIVE",
+			"raw_sha256": {
+				"consumer.jsonl": "17d6e97621b40d49faf05d356becce87a94a61032873b6fc4b9b4f2d13abdc87",
+				"fixture-0-exit.json": "d3ab4432033a0b211ed0a257923958b18980c10ee12d0cdfffc79044ee060439",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "9f507fc2ee88b385a1bd90a3888ac34ef0daa7e8c483eb672730616ad869a67b",
+				"fixture-1-exit.json": "8f73947a8aacc491c89fa3f012673245a2fb4454b6b249d612f97551b235d946",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "ba699ae3dc9e3acab1abcc15dc15b5b42ab791625e2a2a8d62ba5f77c617b768",
+				"fixture-2-exit.json": "ad9192f3bfee16a002aff54a4a76783fb61753abbf31d0da9a42ffca69b17c62",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "1145f558d8dda47b714c5854c4af76b254f6331ec8912fddced8ef5e2c601f80",
+				"inputs.json": "bd78775e0c0c8c0653a07a0e0ce462be410af8f77e2c1e8a51835669f96d2169",
+				"launcher.json": "0f61bee1cb5f889b58672468092a5eab5c4bf53da2e1138e885fa9699b06e1a7",
+				"manifest.json": "43582ba7fc28b227220f195fa4848271a8baf0949a72fc34fa4508879eff081e",
+				"parent-summary.json": "3cf01503dca95ccaa5fd49dfd83320d66117a166362b7c0d46977d750c40d90c",
+				"presentmon.json": "74eb570011a7dff4537b6cc795319ada8d93296e904e05833eee2e295774ca93",
+				"renderer-summary.json": "7bc232104f9953e6e5518603efa4d04bb104cb648ef3b5e13ca5e5e950077b70",
+				"renderer.jsonl": "dc159a4b409c0811040a76a88316c2d2b37961ef6d15baed63801ab4554d0758",
+				"source-1.jsonl": "aa735bb5520b81e094cbad694274cd87b29a08f08a6860b82c479d07f53eb09b",
+				"source-2.jsonl": "e252896fe67669daa59de901fa23d822bb584445cbf047877d34378b1e426cae"
+			}
+		},
+		{
+			"sample": "sample-002",
+			"renderer_pid": 13504,
+			"observed_present_intervals": [1],
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.5084,
+				"p95_ms": 0.6902,
+				"p99_ms": 0.8016,
+				"maximum_ms": 1.1818
+			},
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7196,
+						"OnTime": 7196,
+						"dropped": 4,
+						"Miss": 4
+					},
+					"miss_fraction_upper_bound": 0.0005555555555555556,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7199,
+						"OnTime": 7199,
+						"not_accepted": 1,
+						"Miss": 1
+					},
+					"miss_fraction_upper_bound": 0.0001388888888888889,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7196,
+						"OnTime": 7194,
+						"dropped": 4,
+						"Miss": 6,
+						"late_display": 2
+					},
+					"miss_fraction_upper_bound": 0.0008333333333333334,
+					"deadline_verdict": true
+				}
+			],
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 4,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7196,
+							"median_ms": 23.4949,
+							"p95_ms": 24.2516,
+							"p99_ms": 27.758,
+							"maximum_ms": 28.4439
+						},
+						{
+							"samples": 7196,
+							"median_ms": 12.2734,
+							"p95_ms": 16.3992,
+							"p99_ms": 29.2113,
+							"maximum_ms": 33.5207
+						}
+					]
+				},
+				{
+					"output": 3,
+					"dropped": 4,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7196,
+							"median_ms": 23.5017,
+							"p95_ms": 24.2691,
+							"p99_ms": 27.9052,
+							"maximum_ms": 31.524
+						},
+						{
+							"samples": 7196,
+							"median_ms": 12.281,
+							"p95_ms": 16.6439,
+							"p99_ms": 29.2117,
+							"maximum_ms": 33.5207
+						}
+					]
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 16.9593,
+				"p95_ms": 19.6909,
+				"p99_ms": 23.7202,
+				"maximum_ms": 34.4849
+			},
+			"shutdown_ms": 407.7409,
+			"failed": ["window_presentation"],
+			"unavailable": [
+				"source_to_consumer_age",
+				"gpu_critical_path",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"environment_status": "PASSED_NATIVE",
+			"raw_sha256": {
+				"consumer.jsonl": "a597a1b12fb24da21b7b88fd2f3584e83f7ef980616e950e3932bb6bdb6300b7",
+				"fixture-0-exit.json": "c2cc3383bd133d55c16710b1e6f0ec64d956ca7b04ed922007a840ae783eac7b",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "262b3810af19d60e432a690d771763a89da4debdb0d0914a113736a3221bb82a",
+				"fixture-1-exit.json": "b48a5d34041c37fe963192795414069c1f9003bc2a1d9b33494de1705cbeabc1",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "6f883e95c6dba5128080388be16af2ea56b0b6ca1d009e2004779e3e972981e3",
+				"fixture-2-exit.json": "668ecc5e9fa347c30389d75c69194f4d799a29ef5bb8a3a6eb565419926068e9",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "d1ecb0c3b779779ef06e840ac62a897151820c0608fe17aeffeee87f812df53b",
+				"inputs.json": "bd78775e0c0c8c0653a07a0e0ce462be410af8f77e2c1e8a51835669f96d2169",
+				"launcher.json": "8e4583c8df441fb34a93245a66fa7fe2564e3cbbcbbaddd47a1d31edd50dfca6",
+				"manifest.json": "84b18e31d7d892377f6d6fc0813779e5572d3c0b8cf0bb226c0c9a0f3fc9a57e",
+				"parent-summary.json": "0cdf3ecf2ba9deedd5d08130574f84585ac446f5329d0dd03df9e782294ad8c6",
+				"presentmon.json": "491f7d56e56e97d51786446705f6bb2002b25936e3d0de7ee36e5db3352b450a",
+				"renderer-summary.json": "6515f3f87fd4d3e19de090b85a61e499df8112e7ec3ffeb33d6b1dcf1c069a24",
+				"renderer.jsonl": "f5d1fa152e005e28822cca26d75bc230b80486adfe55e7476c7b84b99bcb2918",
+				"source-1.jsonl": "8e410372309222234371347f52470d200018464321a0ef0d8fbf3acf83a6291e",
+				"source-2.jsonl": "d9dad9a241be0de44939d667f7f3131bb282b54fca0ff784215978a53e731c42"
+			}
+		},
+		{
+			"sample": "sample-003",
+			"renderer_pid": 22056,
+			"observed_present_intervals": [1],
+			"cpu_submission_wall_upper_bound": {
+				"samples": 7200,
+				"median_ms": 0.4903,
+				"p95_ms": 0.6359,
+				"p99_ms": 0.6967,
+				"maximum_ms": 1.3238
+			},
+			"delivery_deadlines": [
+				{
+					"output": 1,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 2,
+					"expected_slots": 7200,
+					"counts": {
+						"capture_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				},
+				{
+					"output": 3,
+					"expected_slots": 7200,
+					"counts": {
+						"display_witnesses": 7200,
+						"OnTime": 7200
+					},
+					"miss_fraction_upper_bound": 0,
+					"deadline_verdict": true
+				}
+			],
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 0,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7200,
+							"median_ms": 21.6959,
+							"p95_ms": 22.3636,
+							"p99_ms": 25.3868,
+							"maximum_ms": 26.616
+						},
+						{
+							"samples": 7200,
+							"median_ms": 15.3063,
+							"p95_ms": 16.0676,
+							"p99_ms": 19.1652,
+							"maximum_ms": 20.2823
+						}
+					]
+				},
+				{
+					"output": 3,
+					"dropped": 0,
+					"missing_rows": 0,
+					"source_to_software_display_age": [
+						{
+							"samples": 7200,
+							"median_ms": 21.6998,
+							"p95_ms": 22.3679,
+							"p99_ms": 25.515,
+							"maximum_ms": 26.616
+						},
+						{
+							"samples": 7200,
+							"median_ms": 15.308,
+							"p95_ms": 16.0731,
+							"p99_ms": 19.3168,
+							"maximum_ms": 20.2823
+						}
+					]
+				}
+			],
+			"gpu_path_cpu_upper_bound": {
+				"samples": 7200,
+				"median_ms": 16.9331,
+				"p95_ms": 18.8398,
+				"p99_ms": 19.6713,
+				"maximum_ms": 21.2005
+			},
+			"shutdown_ms": 417.7583,
+			"failed": [],
+			"unavailable": [
+				"gpu_critical_path",
+				"renderer_handle_growth",
+				"physical_display_dpi_input",
+				"Q05_handles_growth"
+			],
+			"environment_status": "PASSED_NATIVE",
+			"raw_sha256": {
+				"consumer.jsonl": "c2af9aa670012042a80ee1ea9b4c018f7fec00eef1015fb415df4508122f6bdb",
+				"fixture-0-exit.json": "e7aaa90e9d721bae44c11e5c23c0cba7239d9f715c7127460ee5d02a0578434e",
+				"fixture-0-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-0-stdout.jsonl": "004d2b769e45c73fe8d62ddbe364f6b8badcc3948b1cc8780dcaa43c0683cf5e",
+				"fixture-1-exit.json": "c91224798958eb3219b40ff033ad09f2f231f3ef5ca85558afe2eea59c4f8596",
+				"fixture-1-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-1-stdout.jsonl": "76a1d6cf4c1e8647d3bdaf4e9a8aa575d1b3d59b58e5061e5b5767e51779fe4c",
+				"fixture-2-exit.json": "ac7fac389f0a943ed22448d85d5dd0a3555a30548ea5cd7bc509b4dfef1969c8",
+				"fixture-2-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+				"fixture-2-stdout.jsonl": "9f8bceaddc0198af016f7218e9e76fc45f4bfcaae2b28c7f6c95ad470402fb18",
+				"inputs.json": "bd78775e0c0c8c0653a07a0e0ce462be410af8f77e2c1e8a51835669f96d2169",
+				"launcher.json": "c98cc60ff464e7435d4e0b21b8f5253575e039f85a63961f26a5db58782e6441",
+				"manifest.json": "04a609f2045e24807efc1f570cedd255770bd8ac1b662230c3f02847ba0f0949",
+				"parent-summary.json": "ec147a1d3afbe48f9befa634019c44f0eb024dce695873186585353e46d59555",
+				"presentmon.json": "663abd336eba0fa15f7c991f034ac5908e9edb396fbb153c2eded310b45378d9",
+				"renderer-summary.json": "b3ef85e524ef451739c636432a4c4a9c12efd457b2686d49596040b1e226b7b6",
+				"renderer.jsonl": "dc2d8106e991c44bb9e8caae4c0ec7ee805189f3c1bbd833fe4d874a86d04eda",
+				"source-1.jsonl": "5696b2331edc5daf1caa51c3880fac5d38b9db3c16b6a7cfb6dd53330e5920bc",
+				"source-2.jsonl": "7452e2fdb0ffa06ea91e32fe31725893aa9397264e84c3b3a23fc8280e84cfb9"
+			}
+		}
+	],
+	"artifacts": {
+		"Q02/analysis-environment.json": "e4ecd61ff08ae1052eb4d760cf73662d8f8c5aef9134a114dbb25c7b726e2f9d",
+		"environment-before.json": "ca886d8da80e4bc554e10ec7a88ba4580b732a53d4c48b9efbd36dc4ecb2b667",
+		"environment-after.json": "e6eb00428d9cc6d0ec13596008d0cd8f24760206123cf6b831a024650409315e"
+	},
+	"conclusion": "All nine output/sample deadline budgets pass, but four images still drop per window in sample 2; window presentation fails and complete source-to-window age remains unavailable. The simple replacement hypothesis is not a complete explanation. Favorable deadline counts do not establish a reliable fix or override the other criteria.",
+	"next_action": "Stop this two-experiment question; audit the original cohort/p95 requirements against treatment of known dropped frames before another parameter change or native run. No budget revision or automatic candidate restoration.",
+	"remaining": [
+		"Original production Q02 deadline/presentation failure",
+		"Current Q01 resource-coverage requirement",
+		"Unqualified GPU critical path",
+		"Failed 53.602/32 MiB lifecycle growth",
+		"Other retained physical/app qualification"
+	],
+	"progress": {
+		"accepted_gates": 57,
+		"total_gates": 67,
+		"percent": 85,
+		"completed_phases": 7,
+		"total_phases": 12
+	}
+}

@@ -1,5 +1,25 @@
 # Production renderer qualification runner
 
+**Current presentation decision (2026-11-05):** reject sync-1 as a proven fix. The original
+Q02 three-sample verification meets all nine 0.1% output/sample deadline budgets, but sample 2
+still drops four images in each window. Window presentation fails and complete source-to-window
+age remains unavailable; favorable deadline counts do not override those criteria. Sources and
+analysis were restored to `328499bf`; the four-file candidate is preserved, unaccepted, in
+stash `99fbc78cbc5abfdf35ea0db1f07026d209edc8f3`
+(`mapgyver-rejected-sync1-presentation-2026-11-05`). Do not restore it automatically.
+[Complete result, distributions and raw hashes](evidence/mapgyver-m03-sync1-2026-11-05.json).
+
+The retained baseline drops the same five tokens in both windows, despite short Present calls
+and reported render completion 3.576–5.267 ms later, before their deadlines. Sync-0 replacement
+is [documented](https://learn.microsoft.com/en-us/windows/win32/api/dxgi/nf-dxgi-idxgiswapchain-present),
+but the changed run shows it is not a complete explanation. The candidate kept two buffers,
+maximum latency one, waitable admission and `DO_NOT_WAIT`. Its 208 software/130 analyzer tests,
+strict lint, two native window tests, pinned release build, paired environment evidence and normal
+retirement pass; those checks do not establish a reliable presentation fix. Stop this bounded
+question without another parameter trial. Next audit the original cohort/p95 requirements
+against the analyzer's handling of known dropped frames, preserving all misses, unknowns and
+original thresholds; no acceptance-scope or budget change has been approved.
+
 **Current Q02 series (2026-11-05):** the existing fixture's resource observations now stay on
 their original one-Hz phase and coalesce missed slots without catch-up rows. Eight qualifier
 tests, strict Clippy and the pinned release build pass. All three original Q02 samples record
