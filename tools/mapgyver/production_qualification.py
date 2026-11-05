@@ -505,10 +505,10 @@ def analyze_capture(directory, environment=None):
     delivery_deadlines = DELIVERY_DEADLINES["analyze_delivery_deadlines"](
         deadlines, native["Output"], presentmon, full_spout, frequency, distribution,
         telemetry_complete=complete, capture_complete=consumer_complete)
-    all_output_age_covered = complete and consumer_complete and cohort["coverage_complete"] and presentmon["coverage_complete"]
+    all_output_age_accounted = complete and consumer_complete and cohort["coverage_complete"] and presentmon["coverage_complete"]
     window_age_ok = presentmon["coverage_complete"] and all(
-        age is not None and age["p95_ms"] <= 50 for output in presentmon["outputs"]
-        for age in output["source_to_software_display_age"])
+        age["p95_within_target"] is True for output in presentmon["outputs"]
+        for age in output["source_to_software_display_age_upper_bounds"])
     marker_count = min(channel["valid"] for channel in markers["channels"])
     markers["expected_samples_at_60hz"] = duration * 60
     markers["capture_count_at_least_nominal"] = consumer_complete and marker_count >= duration * 60 * 0.999
@@ -604,9 +604,9 @@ def analyze_capture(directory, environment=None):
         "editor_independence": criterion(independence["complete"] if complete else None,
                                          manifest.get("independence_seconds") == 60),
         "source_to_consumer_age": criterion(cohort["observed_age_p95_within_budget"] and window_age_ok
-                                            if all_output_age_covered else None, eligible,
+                                            if all_output_age_accounted else None, eligible,
             observed_capture_p95_within_budget=age_ok,
-            reason="every accepted Spout GPU capture and both exact window software-display cohorts are required; no physical scanout claim"),
+            reason="exact accepted cohorts required; known dropped window images retain unbounded ages in whole-cohort p95 bounds; no physical scanout claim"),
         "spout_capture_identity": criterion(cohort["coverage_complete"] if complete and consumer_complete else None, eligible,
             scope="sample-accepted Spout output images, exact renderer source-use versions and GPU marker contents"),
         "spout_capture_age": criterion(cohort["observed_age_p95_within_budget"]
@@ -636,7 +636,7 @@ def analyze_capture(directory, environment=None):
         "plan_publication_age": criterion(plan_age["coverage_complete"] if complete else None, eligible,
                                           scope=plan_age["scope"]),
         "window_presentation": criterion(presentmon["coverage_complete"] if complete and presentmon["captured"] else None,
-                                          eligible, scope="exact native Present/ETW software display cohort; not physical scanout"),
+                                          eligible, scope="exact native Present/ETW outcomes including known drops; latency/deadline criteria separate; not physical scanout"),
         "plan_age_and_published_queue": criterion(output_queue["observed_within_target"]
             if plan_age["coverage_complete"] else None, eligible, scope=output_queue["scope"]),
         "environment_identity": criterion(environment_result["observed_within_target"], eligible,

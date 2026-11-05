@@ -205,6 +205,29 @@ class ProductionQualificationTests(unittest.TestCase):
         result = self.analyze()
         self.assertTrue(result['criteria']['source_to_consumer_age']['observed_within_target'])
         self.assertEqual(result['criteria']['plan_age_and_published_queue']['status'], 'UNAVAILABLE')
+        # A known non-display remains in the accepted cohort as an unbounded latency.
+        # One of 60 is below the p95 rank; no-drop coverage is not an extra target.
+        dropped_rows = list(csv.reader(io.StringIO(report['stdout'])))
+        dropped_rows[1][3] = '1'
+        dropped_stream = io.StringIO(newline='')
+        csv.writer(dropped_stream).writerows(dropped_rows)
+        report['stdout'] = dropped_stream.getvalue()
+        (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
+        dropped = self.analyze()
+        self.assertTrue(dropped['criteria']['window_presentation']['observed_within_target'])
+        self.assertTrue(dropped['criteria']['source_to_consumer_age']['observed_within_target'])
+        bounds = dropped['window_presentation']['outputs'][0]['source_to_software_display_age_upper_bounds'][0]
+        self.assertEqual((bounds['accepted_images'], bounds['finite_age_images'], bounds['unbounded_age_images']), (60, 59, 1))
+        for index in (1, 3, 5, 7):
+            dropped_rows[index][3] = '1'
+        dropped_stream = io.StringIO(newline='')
+        csv.writer(dropped_stream).writerows(dropped_rows)
+        report['stdout'] = dropped_stream.getvalue()
+        (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
+        too_many = self.analyze()
+        self.assertTrue(too_many['criteria']['window_presentation']['observed_within_target'])
+        self.assertFalse(too_many['criteria']['source_to_consumer_age']['observed_within_target'])
+        report['stdout'] = stream.getvalue()
         report['stdout'] = report['stdout'].splitlines()[0]+'\n'+'\n'.join(report['stdout'].splitlines()[2:])+'\n'
         (self.directory/'presentmon.json').write_text(json.dumps(report), encoding='utf-8')
         self.assertIsNone(self.analyze()['criteria']['source_to_consumer_age']['observed_within_target'])

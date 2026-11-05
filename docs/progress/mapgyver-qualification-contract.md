@@ -152,6 +152,16 @@ transitions. Each renderer keeps at most one preparation in flight, one latest d
 and two retiring plan generations; pressure must coalesce or reject without blocking the
 actor/UI thread. Superseded work still releases its resources after GPU completion.
 
+Window latency qualification retains the entire accepted-image cohort. A trusted known drop
+is an accounted non-display and remains a deadline miss; its unmeasured age contributes an
+unbounded endpoint to conservative whole-cohort percentile bounds. Qualify p95 only when its
+original-cohort rank has a finite upper bound within the existing target. Do not compute a
+passing percentile by excluding drops, invent their display/consumption timestamps, or treat
+missing/untrusted rows or source/plan identities as complete coverage. Finite observed-only
+distributions are reported separately, and exact pending occupancy remains unknown when its
+consumption witnesses are absent. This clarifies percentile accounting, not a new zero-drop
+requirement or a change to the existing deadline/latency budgets.
+
 Q05 must return handles to within 10 of its warmed stable baseline and texture allocations to
 the current scene's exact live set after a 10-second drain. Private-byte growth after the first
 10 cycles must be ≤32 MiB over the remaining cycles; retained caches must have explicit measured

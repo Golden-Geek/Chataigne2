@@ -1,0 +1,431 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"source_base": "91a5bdda41f2b60c476f4c601dac39195c5b10e0",
+	"scope": "Offline whole accepted-window cohort correction; runtime, collector, workloads and numerical targets unchanged",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"native_runs_added": 0,
+	"original_targets": {
+		"source_age_p95_ms": 50,
+		"deadline_miss_fraction": 0.001
+	},
+	"method": "Every accepted image remains in the nearest-rank cohort; every unmeasured age has an unbounded upper endpoint. Only a finite conservative p95 bound within the original target qualifies; exact rational comparison avoids rounding across the threshold.",
+	"coverage": "Known dropped images are trusted accounted outcomes, still deadline misses. Missing/untrusted rows and source/plan identities cannot qualify coverage. No display or consumption timestamp is invented.",
+	"checks": "137 production analyzer tests passed, including a false-pass counterexample for excluding drops, inclusive exact thresholds/outward-rounded bounds, censored ranks, missing/loss/identity and uncensored regressions; independent threshold-count proof and raw/deadline/finite-distribution equality pass",
+	"samples": [
+		{
+			"sample": "sample-001",
+			"raw_hashes_identical": true,
+			"deadline_analysis_identical": true,
+			"observed_finite_distributions_identical": true,
+			"changed_criteria": {},
+			"remaining_nonpassed": {
+				"gpu_critical_path": "UNAVAILABLE",
+				"renderer_handle_growth": "UNAVAILABLE",
+				"physical_display_dpi_input": "UNAVAILABLE",
+				"Q05_handles_growth": "UNAVAILABLE"
+			},
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 0,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 14.133700000000001,
+							"p95_upper_ms": 18.5119,
+							"p99_upper_ms": 18.7831,
+							"maximum_upper_ms": 26.1456,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "185119",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 18.2569,
+							"p95_upper_ms": 22.7132,
+							"p99_upper_ms": 22.997000000000003,
+							"maximum_upper_ms": 30.732100000000003,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "56783",
+								"denominator": "2500"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7200, 7200],
+					"exact_pending_software_display_available": false
+				},
+				{
+					"output": 3,
+					"dropped": 0,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 14.1348,
+							"p95_upper_ms": 18.514300000000002,
+							"p99_upper_ms": 18.785500000000003,
+							"maximum_upper_ms": 26.1456,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "185143",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 18.2573,
+							"p95_upper_ms": 22.7147,
+							"p99_upper_ms": 22.998600000000003,
+							"maximum_upper_ms": 30.732100000000003,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "227147",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7200, 7200],
+					"exact_pending_software_display_available": false
+				}
+			]
+		},
+		{
+			"sample": "sample-002",
+			"raw_hashes_identical": true,
+			"deadline_analysis_identical": true,
+			"observed_finite_distributions_identical": true,
+			"changed_criteria": {
+				"source_to_consumer_age": {
+					"before": "UNAVAILABLE",
+					"after": "PASSED_NATIVE"
+				},
+				"window_presentation": {
+					"before": "FAILED_NATIVE",
+					"after": "PASSED_NATIVE"
+				}
+			},
+			"remaining_nonpassed": {
+				"deadline_misses": "FAILED_NATIVE",
+				"gpu_critical_path": "UNAVAILABLE",
+				"renderer_handle_growth": "UNAVAILABLE",
+				"physical_display_dpi_input": "UNAVAILABLE",
+				"Q05_handles_growth": "UNAVAILABLE"
+			},
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 5,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7195,
+							"unbounded_age_images": 5,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 11.094700000000001,
+							"p95_upper_ms": 15.344700000000001,
+							"p99_upper_ms": 27.6812,
+							"maximum_upper_ms": null,
+							"unbounded_statistics": ["maximum"],
+							"p95_upper_exact_ms": {
+								"numerator": "153447",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7195,
+							"unbounded_age_images": 5,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 21.8444,
+							"p95_upper_ms": 25.436500000000002,
+							"p99_upper_ms": 26.350700000000003,
+							"maximum_upper_ms": null,
+							"unbounded_statistics": ["maximum"],
+							"p95_upper_exact_ms": {
+								"numerator": "50873",
+								"denominator": "2000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7195, 7195],
+					"exact_pending_software_display_available": false
+				},
+				{
+					"output": 3,
+					"dropped": 5,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7195,
+							"unbounded_age_images": 5,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 11.0949,
+							"p95_upper_ms": 15.344700000000001,
+							"p99_upper_ms": 27.6812,
+							"maximum_upper_ms": null,
+							"unbounded_statistics": ["maximum"],
+							"p95_upper_exact_ms": {
+								"numerator": "153447",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7195,
+							"unbounded_age_images": 5,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 21.844600000000003,
+							"p95_upper_ms": 25.4419,
+							"p99_upper_ms": 26.350700000000003,
+							"maximum_upper_ms": null,
+							"unbounded_statistics": ["maximum"],
+							"p95_upper_exact_ms": {
+								"numerator": "254419",
+								"denominator": "10000"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7195, 7195],
+					"exact_pending_software_display_available": false
+				}
+			]
+		},
+		{
+			"sample": "sample-003",
+			"raw_hashes_identical": true,
+			"deadline_analysis_identical": true,
+			"observed_finite_distributions_identical": true,
+			"changed_criteria": {},
+			"remaining_nonpassed": {
+				"gpu_critical_path": "UNAVAILABLE",
+				"renderer_handle_growth": "UNAVAILABLE",
+				"physical_display_dpi_input": "UNAVAILABLE",
+				"Q05_handles_growth": "UNAVAILABLE"
+			},
+			"windows": [
+				{
+					"output": 1,
+					"dropped": 0,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 10.2689,
+							"p95_upper_ms": 14.6844,
+							"p99_upper_ms": 27.143700000000003,
+							"maximum_upper_ms": 31.594800000000003,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "36711",
+								"denominator": "2500"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 18.875300000000003,
+							"p95_upper_ms": 22.1716,
+							"p99_upper_ms": 23.3642,
+							"maximum_upper_ms": 23.7591,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "55429",
+								"denominator": "2500"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7200, 7200],
+					"exact_pending_software_display_available": false
+				},
+				{
+					"output": 3,
+					"dropped": 0,
+					"accepted_images": 7200,
+					"age_upper_bounds": [
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 10.2689,
+							"p95_upper_ms": 14.6844,
+							"p99_upper_ms": 27.143700000000003,
+							"maximum_upper_ms": 31.594800000000003,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "36711",
+								"denominator": "2500"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						},
+						{
+							"accepted_images": 7200,
+							"finite_age_images": 7200,
+							"unbounded_age_images": 0,
+							"ranks": {
+								"median": 3600,
+								"p95": 6840,
+								"p99": 7128,
+								"maximum": 7200
+							},
+							"median_upper_ms": 18.875300000000003,
+							"p95_upper_ms": 22.1716,
+							"p99_upper_ms": 23.3642,
+							"maximum_upper_ms": 23.7591,
+							"unbounded_statistics": [],
+							"p95_upper_exact_ms": {
+								"numerator": "55429",
+								"denominator": "2500"
+							},
+							"p95_within_target": true,
+							"p95_target_ms": 50,
+							"scope": "all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time"
+						}
+					],
+					"independent_within_50ms_counts": [7200, 7200],
+					"exact_pending_software_display_available": false
+				}
+			]
+		}
+	],
+	"artifacts": {
+		"directory": "target/m039-q02-anchored-2026-11-05",
+		"original_analysis_sha256": "09184865c9762537e5d3f55ce1ae1f80bcef7b4f786cadfbca9b6c16f2196e4b",
+		"derived_analysis_sha256": "c2b8a8cbc70c5763a7c145ff754478ac5dde98fda060063a9faab48d75ddf6ef",
+		"original_analysis": "Q02/analysis-environment.json",
+		"derived_analysis": "Q02/analysis-cohort-bounds-final.json"
+	},
+	"analyzer_source_sha256": {
+		"tools/mapgyver/production_presentmon.py": "6d71f257dc439c8053e1668cdb01922c2b0febd2550bd4c07ee08833e74300f7",
+		"tools/mapgyver/production_qualification.py": "bc00a97c3ee1bb6efb243d09aa08f5fedd90c8243b6eeed7e6b94451c8413496",
+		"tools/mapgyver/tests/test_production_presentmon.py": "385437dbdbd063914ffe9b71ce4b22322fb2e2d7f4504a2a1990f460a694ba62",
+		"tools/mapgyver/tests/test_production_qualification.py": "5371461e9e426270b4c2b62d66e2e3a04ff84fa8aea237b09b04c0ce18dc2900"
+	},
+	"decision": "Correct the undocumented zero-drop guard without weakening the original p95/deadline targets. Source-age bounds and trusted window-outcome coverage now verify for production Q02; sample-2 deadlines still fail unchanged at 10/11 misses per 7200. Preserve original results as superseded only for the cohort interpretation.",
+	"limits": [
+		"Exact pending occupancy/consumption remains unknown",
+		"GPU critical path remains inconclusive",
+		"Q01 resource coverage and 53.602/32 MiB lifecycle growth remain open",
+		"Rejected sync-1 runtime remains un-restored in stash 99fbc78cbc5abfdf35ea0db1f07026d209edc8f3"
+	],
+	"next_action": "Deliberately reassess the preserved presentation candidate using corrected original cohort/latency criteria and its native publication-capacity evidence before any runtime restoration or new native check",
+	"progress": {
+		"accepted_gates": 57,
+		"total_gates": 67,
+		"percent": 85,
+		"completed_phases": 7,
+		"total_phases": 12
+	}
+}

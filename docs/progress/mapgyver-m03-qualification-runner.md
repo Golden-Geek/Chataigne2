@@ -1,6 +1,24 @@
 # Production renderer qualification runner
 
-**Current presentation decision (2026-11-05):** reject sync-1 as a proven fix. The original
+**Current cohort correction (2026-11-05):** the original contract allows ≤0.1% missed deadlines
+and requires p95 source age ≤50 ms; it does not add zero dropped images. The offline verifier
+now accounts for trusted known drops and keeps them as unbounded ages in the entire accepted
+cohort. Its nearest-rank bounds use exact rational comparisons and outward-rounded numeric
+representations. Missing/untrusted outcomes and source/plan identities remain incomplete;
+no display or consumption timestamp is guessed. Finite observed-only distributions remain
+separate. [Audit, derived result and source hashes](evidence/mapgyver-m03-cohort-bounds-2026-11-05.json).
+
+137 tests pass, including a counterexample where discarding drops falsely passes p95, exact
+inclusive thresholds, censoring, missing/loss/identity and unchanged no-drop behavior. The
+preserved production Q02 data has identical raw hashes, finite distributions and deadline
+classifications. Sample 2 retains five unbounded images per 7,200-image window cohort; rank
+6,840 has a finite p95 upper bound ≤25.442 ms. Outcome coverage and p95 age now verify, while
+the series remains **FAILED_NATIVE** for the unchanged 10/11 deadline misses. Exact pending
+occupancy, GPU critical path, Q01 resource coverage and lifecycle growth remain open. No native
+run or runtime change occurred. The rejected candidate needs deliberate reassessment under
+corrected criteria and its publication-capacity evidence; it was not automatically restored.
+
+**Retained pre-audit presentation decision (2026-11-05):** reject sync-1 as a proven fix. The original
 Q02 three-sample verification meets all nine 0.1% output/sample deadline budgets, but sample 2
 still drops four images in each window. Window presentation fails and complete source-to-window
 age remains unavailable; favorable deadline counts do not override those criteria. Sources and
@@ -20,7 +38,7 @@ question without another parameter trial. Next audit the original cohort/p95 req
 against the analyzer's handling of known dropped frames, preserving all misses, unknowns and
 original thresholds; no acceptance-scope or budget change has been approved.
 
-**Current Q02 series (2026-11-05):** the existing fixture's resource observations now stay on
+**Retained Q02 collection, pre-cohort analysis (2026-11-05):** the existing fixture's resource observations now stay on
 their original one-Hz phase and coalesce missed slots without catch-up rows. Eight qualifier
 tests, strict Clippy and the pinned release build pass. All three original Q02 samples record
 120 DXGI and renderer-resource observations against the unchanged minimum of 119; resource
@@ -37,7 +55,7 @@ evidence. GPU critical path remains inconclusive. Q01's earlier 118/119 coverage
 separate memory-growth failure remain open. Stop this two-workload batch; inspect the retained
 sample-2 presentation failure before selecting an owning correction or another native run.
 
-**Current Q01 series (2026-11-05):** the original release three-sample series verifies CPU
+**Retained Q01 series (2026-11-05):** the original release three-sample series verifies CPU
 submission, producer/output cadence, anchored delivery deadlines, source-to-output age,
 exact window/Spout cohorts and both 60-second editor interruption cases in every sample.
 Each measured interval covers 7,200 opportunities per output. Sample 2's main window has six

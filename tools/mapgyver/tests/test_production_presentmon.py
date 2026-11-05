@@ -2,12 +2,15 @@ import copy
 import csv
 import io
 import json
+from fractions import Fraction
 from pathlib import Path
 import runpy
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
-ANALYZE = runpy.run_path(str(ROOT/'tools/mapgyver/production_presentmon.py'))['analyze_presentmon']
+PRESENTMON = runpy.run_path(str(ROOT/'tools/mapgyver/production_presentmon.py'))
+ANALYZE = PRESENTMON['analyze_presentmon']
+AGE_BOUNDS = PRESENTMON['_age_upper_bounds']
 
 
 def fixture():
@@ -53,18 +56,17 @@ class ProductionPresentMonTests(unittest.TestCase):
         report = analyze(fixture())
         self.assertTrue(report['coverage_complete'])
         self.assertEqual(report['outputs'][0]['records'][0]['display_qpc'], {'numerator': '211', 'denominator': '2'})
-        self.assertEqual(report['outputs'][0]['source_to_software_display_age'][0]['values'], [55.5])
+        self.assertEqual(report['outputs'][0]['observed_source_to_software_display_age'][0]['values'], [55.5])
+        self.assertEqual(report['outputs'][0]['source_to_software_display_age_upper_bounds'][0]['p95_upper_ms'], 55.5)
         self.assertEqual(report['outputs'][0]['plan_publication_to_software_display_age']['values'], [85.5])
         self.assertIn('not app/native buffer occupancy', report['outputs'][0]['pending_software_display']['scope'])
 
-    def test_missing_or_dropped_rows_never_shrink_the_accepted_image_cohort(self):
-        for mode in ('missing', 'dropped', 'unknown display', 'no identity'):
+    def test_unknown_rows_never_shrink_or_qualify_the_accepted_image_cohort(self):
+        for mode in ('missing', 'unknown display', 'no identity'):
             with self.subTest(mode=mode):
                 parts = fixture()
                 if mode == 'missing':
                     parts[3].pop(0)
-                elif mode == 'dropped':
-                    parts[3][0][3] = 1
                 elif mode == 'unknown display':
                     parts[3][0][4] = 'NA'
                 else:
@@ -73,6 +75,90 @@ class ProductionPresentMonTests(unittest.TestCase):
                 self.assertFalse(report['coverage_complete'])
                 self.assertEqual(report['outputs'][0]['expected_accepted_images'], 1)
                 self.assertFalse(report['outputs'][0]['pending_software_display']['coverage_complete'])
+
+    def test_known_drop_is_accounted_without_an_invented_display_age_or_retirement(self):
+        parts = fixture()
+        parts[3][0][3] = 1
+        report = analyze(parts)
+        self.assertTrue(report['coverage_complete'])
+        output = report['outputs'][0]
+        self.assertEqual(output['dropped'], 1)
+        self.assertEqual(output['records'][0]['display_disposition'], 'Dropped')
+        self.assertIsNone(output['records'][0]['display_qpc'])
+        self.assertIsNone(output['records'][0]['source_age_ms'])
+        self.assertFalse(output['pending_software_display']['coverage_complete'])
+        for bound in output['source_to_software_display_age_upper_bounds']:
+            self.assertEqual(bound['accepted_images'], 1)
+            self.assertEqual(bound['unbounded_age_images'], 1)
+            self.assertIsNone(bound['p95_upper_ms'])
+            self.assertIsNone(bound['p95_within_target'])
+
+    def test_dropped_frame_still_requires_exact_source_and_plan_identity(self):
+        for field in ('SourceUse', 'Plan'):
+            parts = fixture()
+            parts[3][0][3] = 1
+            parts[1][field].clear()
+            self.assertFalse(analyze(parts)['coverage_complete'])
+        parts = fixture()
+        parts[3][0][3] = 1
+        parts[1]['SourceUse'][0]['publication']['publication_qpc'] = 111
+        with self.assertRaisesRegex(ValueError, 'endpoint clock'):
+            analyze(parts)
+
+    def test_censored_p95_keeps_the_original_rank_and_unbounded_tail(self):
+        bound = AGE_BOUNDS([Fraction(i) for i in range(19)], 20)
+        self.assertEqual(bound['accepted_images'], 20)
+        self.assertEqual(bound['finite_age_images'], 19)
+        self.assertEqual(bound['ranks']['p95'], 19)
+        self.assertEqual(bound['p95_upper_ms'], 18)
+        self.assertTrue(bound['p95_within_target'])
+        self.assertIsNone(bound['p99_upper_ms'])
+        self.assertIsNone(bound['maximum_upper_ms'])
+        self.assertEqual(bound['unbounded_statistics'], ['p99', 'maximum'])
+        insufficient = AGE_BOUNDS([Fraction(i) for i in range(18)], 20)
+        self.assertIsNone(insufficient['p95_upper_ms'])
+        self.assertIsNone(insufficient['p95_within_target'])
+
+    def test_p95_target_comparison_uses_exact_rationals_at_the_inclusive_boundary(self):
+        self.assertTrue(AGE_BOUNDS([Fraction(50)] * 19, 20)['p95_within_target'])
+        above = Fraction(50) + Fraction(1, 10**18)
+        bound = AGE_BOUNDS([above] * 19, 20)
+        self.assertGreater(bound['p95_upper_ms'], 50.0)
+        self.assertFalse(bound['p95_within_target'])
+        self.assertEqual(bound['p95_upper_exact_ms'],
+                         {'numerator': str(above.numerator), 'denominator': str(above.denominator)})
+
+    def test_numeric_upper_bounds_round_outward_from_exact_rationals(self):
+        for value in (Fraction(1, 10), Fraction(3, 10), Fraction(50)-Fraction(1, 10**18),
+                      Fraction(50), Fraction(50)+Fraction(1, 10**18)):
+            with self.subTest(value=value):
+                bound = AGE_BOUNDS([value], 1)
+                self.assertGreaterEqual(Fraction(bound['p95_upper_ms']), value)
+                self.assertEqual(bound['p95_within_target'], value <= 50)
+
+    def test_excluding_drops_would_falsely_pass_the_latency_target(self):
+        observed = [Fraction(49)] * 91 + [Fraction(51)] * 4
+        conditional = AGE_BOUNDS(observed, 95)
+        whole = AGE_BOUNDS(list(reversed(observed)), 100)
+        self.assertEqual(conditional['p95_upper_ms'], 49)
+        self.assertTrue(conditional['p95_within_target'])
+        self.assertEqual(whole['p95_upper_ms'], 51)
+        self.assertFalse(whole['p95_within_target'])
+        self.assertEqual(whole['accepted_images'], 100)
+        self.assertEqual(whole['unbounded_age_images'], 5)
+
+    def test_empty_invalid_or_fabricated_age_counts_never_certify_a_percentile(self):
+        self.assertIsNone(AGE_BOUNDS([], 0)['p95_within_target'])
+        for values, total in [([Fraction(1)], 0), ([], -1), ([], True),
+                              ([Fraction(-1)], 1), ([float('nan')], 1)]:
+            with self.assertRaisesRegex(ValueError, 'whole-cohort'):
+                AGE_BOUNDS(values, total)
+
+    def test_complete_cohort_bounds_preserve_uncensored_nearest_rank_statistics(self):
+        bound = AGE_BOUNDS([Fraction(i, 10) for i in range(1, 101)], 100)
+        self.assertEqual([bound[name+'_upper_ms'] for name in ('median', 'p95', 'p99', 'maximum')],
+                         [5, 9.5, 9.9, 10])
+        self.assertEqual(bound['unbounded_statistics'], [])
 
     def test_wrong_pid_is_rejected_instead_of_becoming_a_webview_or_source_join(self):
         parts = fixture()
@@ -141,6 +227,6 @@ class ProductionPresentMonTests(unittest.TestCase):
             parts[1]['SourceUse' if mode == 'source' else 'Plan'].clear()
             report = analyze(parts)
             self.assertFalse(report['coverage_complete'])
-            field = 'source_to_software_display_age' if mode == 'source' else 'plan_publication_to_software_display_age'
+            field = 'observed_source_to_software_display_age' if mode == 'source' else 'plan_publication_to_software_display_age'
             observed = report['outputs'][0][field]
             self.assertEqual(observed, [None, None] if mode == 'source' else None)

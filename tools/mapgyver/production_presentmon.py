@@ -4,6 +4,7 @@ from bisect import bisect_right
 from collections import defaultdict
 from fractions import Fraction
 import json
+import math
 from pathlib import Path
 import runpy
 
@@ -16,6 +17,35 @@ def _key(value):
 
 def _unavailable(reason):
     return {'captured': False, 'coverage_complete': False, 'reason': reason, 'outputs': []}
+
+
+def _age_upper_bounds(values, total):
+    """Retain the accepted cohort; each unmeasured age has an unbounded upper endpoint."""
+    if type(total) is not int or total < 0 or len(values) > total \
+            or any(not isinstance(value, Fraction) or value < 0 for value in values):
+        raise ValueError('invalid whole-cohort age observations')
+    ordered = sorted(values)
+    ranks = {name: (total * percentile + 99) // 100
+             for name, percentile in (('median', 50), ('p95', 95), ('p99', 99), ('maximum', 100))}
+    bounds = {name: ordered[rank-1] if 0 < rank <= len(ordered) else None
+              for name, rank in ranks.items()}
+    p95 = bounds['p95']
+    def upper_float(value):
+        if value is None:
+            return None
+        approximate = float(value)
+        return math.nextafter(approximate, math.inf) if Fraction(approximate) < value else approximate
+    return {
+        'accepted_images': total, 'finite_age_images': len(ordered),
+        'unbounded_age_images': total-len(ordered), 'ranks': ranks,
+        **{name+'_upper_ms': upper_float(value) for name, value in bounds.items()},
+        'unbounded_statistics': [name for name, value in bounds.items() if value is None],
+        'p95_upper_exact_ms': {'numerator': str(p95.numerator), 'denominator': str(p95.denominator)}
+                              if p95 is not None else None,
+        'p95_within_target': p95 <= 50 if p95 is not None else None,
+        'p95_target_ms': 50,
+        'scope': 'all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time',
+    }
 
 
 def analyze_presentmon(report, native, sources, window, pid, frequency, distribution):
@@ -116,22 +146,26 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
             row = entry['csv'] if entry else None
             record = {'token': output['token'], 'endpoint': output.get('window_present'),
                       'present_qpc': row.qpc if row else None, 'display_qpc': None,
-                      'missing': None, 'source_age_ms': None}
+                      'display_disposition': 'Missing', 'missing': None, 'source_age_ms': None}
             records.append(record)
             if row is None:
                 missing += 1
                 record['missing'] = 'no exact CSV row in native PID/address/API interval'
                 continue
-            if row.dropped or row.display_qpc is None:
-                dropped += int(row.dropped)
-                undisplayed += int(not row.dropped)
-                record['missing'] = 'dropped' if row.dropped else 'display timing unavailable'
-                continue
-            displayed = row.display_qpc
-            record['display_qpc'] = {'numerator': str(displayed.numerator), 'denominator': str(displayed.denominator)}
-            delays.append(float((displayed-row.qpc)*1000/frequency))
+            displayed = None if row.dropped else row.display_qpc
+            dropped += int(row.dropped)
+            undisplayed += int(not row.dropped and displayed is None)
+            record['display_disposition'] = 'Dropped' if row.dropped else \
+                                            'Displayed' if displayed is not None else 'DisplayTimeUnavailable'
+            # Without a display witness this boundary checks only publication identity/order.
+            # It never substitutes the API return time for an unknown display timestamp.
+            identity_boundary = displayed if displayed is not None else Fraction(output['consumer_api']['end'])
+            if displayed is not None:
+                record['display_qpc'] = {'numerator': str(displayed.numerator), 'denominator': str(displayed.denominator)}
+                delays.append(float((displayed-row.qpc)*1000/frequency))
             ages = []
             retained = []
+            resolved_sources = 0
             for index in range(2):
                 use = uses.get((_key(output['token']), index+1))
                 publication = use.get('publication') if use else None
@@ -140,25 +174,31 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
                     ages = []
                     break
                 stamp = matches[0]['submission']['stamp']
-                if stamp['source'] != index+1 or not 0 < stamp['qpc'] <= publication['publication_qpc'] <= displayed:
-                    raise ValueError('source/publication/display clock or identity differs')
-                ages.append(float((displayed-stamp['qpc'])*1000/frequency))
-                retained.append(float((displayed-publication['publication_qpc'])*1000/frequency))
-            if not ages:
+                if stamp['source'] != index+1 or not 0 < stamp['qpc'] <= publication['publication_qpc'] <= identity_boundary:
+                    raise ValueError('source/publication/endpoint clock or identity differs')
+                resolved_sources += 1
+                if displayed is not None:
+                    ages.append((displayed-stamp['qpc'])*1000/frequency)
+                    retained.append(float((displayed-publication['publication_qpc'])*1000/frequency))
+            if resolved_sources != 2:
                 missing_sources += 1
                 record['missing'] = 'no exact producer/source-use publication'
                 continue
-            record['source_age_ms'] = ages
+            frame = frames.get(_key(output['token']))
+            publication = published.get(_key(frame['generation']['identity'])) if frame else None
+            if publication is None or publication > identity_boundary:
+                missing_plans += 1
+                record['missing'] = 'no exact plan publication'
+            elif displayed is not None:
+                plan_age.append(float((displayed-publication)*1000/frequency))
+            if displayed is None:
+                if not row.dropped:
+                    record['missing'] = record['missing'] or 'display timing unavailable'
+                continue
+            record['source_age_ms'] = [float(age) for age in ages]
             for index in range(2):
                 source_age[index].append(ages[index])
                 publication_age[index].append(retained[index])
-            frame = frames.get(_key(output['token']))
-            publication = published.get(_key(frame['generation']['identity'])) if frame else None
-            if publication is not None and publication <= displayed:
-                plan_age.append(float((displayed-publication)*1000/frequency))
-            else:
-                missing_plans += 1
-                record['missing'] = 'no exact plan publication'
         # Every pre-window publication can still contribute to the observed backlog. A dropped
         # or unmatched frame has no measured consumption time and cannot certify the bound.
         events, pending, queue_complete = [], 0, True
@@ -173,7 +213,7 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
                 continue
             entry = by_token.get(_key(output['token']))
             row = entry['csv'] if entry else None
-            if row is None or row.display_qpc is None:
+            if row is None or row.dropped or row.display_qpc is None:
                 queue_complete = False
                 continue
             if row.display_qpc <= window['begin_qpc']:
@@ -188,13 +228,16 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
         for _, change in sorted(events):
             pending += change
             peak = max(peak, pending)
-        complete = bool(accepted) and missing+dropped+undisplayed+missing_sources == 0 \
-            and len(plan_age) == len(accepted) and healthy and not unmatched
+        complete = bool(accepted) and missing+undisplayed+missing_sources+missing_plans == 0 \
+            and len(plan_age)+dropped == len(accepted) and healthy and not unmatched
         reports.append({'output': output_id, 'expected_accepted_images': len(accepted),
                         'exact_present_rows': len(accepted)-missing, 'missing_rows': missing,
                         'dropped': dropped, 'display_time_unavailable': undisplayed, 'missing_sources': missing_sources,
                         'missing_plans': missing_plans,
-                        'coverage_complete': complete, 'source_to_software_display_age': [distribution(v) for v in source_age],
+                        'coverage_complete': complete,
+                        'observed_source_to_software_display_age': [distribution([float(age) for age in v]) for v in source_age],
+                        'source_to_software_display_age_upper_bounds': [_age_upper_bounds(v, len(accepted)) for v in source_age],
+                        'observed_distributions_scope': 'finite displayed/identity-joined observations; whole accepted-cohort source-age upper bounds are separate',
                         'publication_to_software_display_age': [distribution(v) for v in publication_age],
                         'plan_publication_to_software_display_age': distribution(plan_age),
                         'present_to_software_display': distribution(delays),
@@ -203,6 +246,7 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
                                             'scope': 'known Present start to software display; not app/native buffer occupancy; unknown/drop retirement is not guessed'},
                         'records': records})
     return {'captured': True, 'coverage_complete': all(r['coverage_complete'] for r in reports),
+            'coverage_scope': 'every accepted image has an exact trusted outcome/source/plan join; known drops are accounted, not displayed',
             'present_observations': observations,
             'csv_rows': total, 'unmatched_rows': unmatched, 'nonaccepted_native_rows': rejected,
             'collector_healthy': healthy, 'live_loss_query_covers_native_calls': live,
