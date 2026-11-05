@@ -82,7 +82,7 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
                     }
                 }
             };
-            (detail, None, definition.enabled && surface.node_data().meta.enabled)
+            (detail, None, definition.enabled)
         }
         _ => return Err("row object is not a Screen or Surface".into()),
     };

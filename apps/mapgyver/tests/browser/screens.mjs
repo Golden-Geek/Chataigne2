@@ -48,7 +48,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 		let snapshot = await wait(screens, (value) => value.screens.length === 1);
 		const id = snapshot.screens[0].id;
 		const first = snapshot.screens[0].surfaces[0].reference;
-		await controls.fields(['Target', 'Enabled'], wait);
+		await controls.fields(['Target', 'Width', 'Height', 'Sender name'], wait);
 		await warpTab.click();
 		await editor.locator('.native-preview').waitFor();
 		const backgrounds = await page.evaluate(() => {
@@ -69,7 +69,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 					manager: background(manager.closest('.dv-groupview')),
 					inspector: background(app.querySelector('.inspector').closest('.dv-groupview')),
 					preview: background(editor.closest('.dv-groupview')),
-					toolbar: background(editor.querySelector('.editor-toolbar'))
+					toolbar: background(editor.querySelector('.canvas-toolbar'))
 				};
 			} finally {
 				theme.remove();
@@ -83,20 +83,24 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			'rgba(0, 0, 0, 0)',
 			'Native aperture ancestors stay transparent'
 		);
-		for (const area of ['manager', 'inspector', 'toolbar'])
+		for (const area of ['manager', 'inspector'])
 			assert.equal(backgrounds[area], backgrounds.theme, `${area} retains the opaque panel theme`);
+		assert.notEqual(
+			backgrounds.toolbar,
+			'rgba(0, 0, 0, 0)',
+			'floating navigation retains its themed backdrop'
+		);
 		await controls.rename(snapshot.screens[0].label, 'UI Screen');
 		await wait(screens, (value) => value.screens[0].label === 'UI Screen');
 		stage = 'generic Screen target Parameters';
 		await controls.choice('Target').selectOption('Fullscreen');
-		await controls.fields(['Target', 'Display identity', 'Enabled'], wait);
-		await controls.setText('Display identity', 'Parameter UI unavailable display');
-		await wait(
-			screens,
-			(value) => value.screens[0].definition.target?.display === 'Parameter UI unavailable display'
+		await controls.fields(['Target', 'Display'], wait);
+		assert.equal(
+			await controls.choice('Display').inputValue(),
+			(await screens()).screens[0].definition.target?.display ?? ''
 		);
 		await controls.choice('Target').selectOption('Rectangle');
-		await controls.fields(['Target', 'Left', 'Top', 'Width', 'Height', 'Enabled'], wait);
+		await controls.fields(['Target', 'Left', 'Top', 'Width', 'Height'], wait);
 		const widthParameter = await controls.parameter('Width').getAttribute('data-node-id');
 		for (const [label, value, read] of [
 			['Left', -100, (target) => target.bounds.left],
@@ -107,8 +111,8 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			await controls.setNumber(label, value);
 			await wait(screens, (snapshot) => read(snapshot.screens[0].definition.target) === value);
 		}
-		await controls.choice('Target').selectOption('Spout');
-		await controls.fields(['Target', 'Width', 'Height', 'Sender name', 'Enabled'], wait);
+		await controls.choice('Target').selectOption('Shared Texture');
+		await controls.fields(['Target', 'Width', 'Height', 'Sender name'], wait);
 		await controls.setText('Sender name', 'Parameter UI output');
 		await wait(
 			screens,
@@ -119,17 +123,24 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			width: 800,
 			height: 600
 		});
-		await controls.parameter('Enabled').locator('input.editor-checkbox').check();
-		await wait(screens, (value) => value.screens[0].definition.enabled);
-		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		assert.equal(await controls.parameter('Enabled').count(), 0);
+		await page
+			.locator('.inspector-header')
+			.getByRole('switch', { name: 'Toggle node enabled' })
+			.click();
 		await wait(screens, (value) => !value.screens[0].definition.enabled);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(screens, (value) => value.screens[0].definition.enabled);
 		await manager
 			.getByRole('button', { name: snapshot.screens[0].surfaces[0].label, exact: true })
 			.click();
 		await controls.fields(surfaceParameterLabels, wait);
 		await controls.rename(snapshot.screens[0].surfaces[0].label, 'UI Surface');
 		await wait(screens, (value) => value.screens[0].surfaces[0].label === 'UI Surface');
-		await manager.getByRole('button', { name: 'Add Surface', exact: true }).click();
+		await manager
+			.getByRole('treeitem', { name: 'UI Screen', exact: true })
+			.getByRole('button', { name: 'Add child item', exact: true })
+			.click();
 		snapshot = await wait(screens, (value) => value.screens[0].surfaces.length === 2);
 		const peer = snapshot.screens[0].surfaces[1];
 		await manager.getByRole('button', { name: 'UI Surface', exact: true }).click();
@@ -160,7 +171,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			'Warping canvas fills its own panel'
 		);
 		assert.equal(
-			await editor.locator('input,select,fieldset').count(),
+			await editor.locator('input:not(.zoom-slider),select,fieldset').count(),
 			0,
 			'Parameters belong in Inspector'
 		);

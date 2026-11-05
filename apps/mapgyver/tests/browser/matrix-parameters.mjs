@@ -6,7 +6,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixParametersUi({ base, edit }) {
+export async function verifyMatrixParametersUi({ base, edit, page: nativePage = null }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -19,8 +19,8 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 	const { items: layers } = await matrix({ kind: 'AddLayers', parent: groups[0].id, count: 1 });
 	await matrix({ kind: 'AddColumns', count: 1 });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1200 } }));
 	page.setDefaultTimeout(7000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
@@ -37,7 +37,7 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 		}
 	}
 	try {
-		await page.goto(base);
+		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
 			.filter({ hasText: /^Medias$/ })
@@ -55,6 +55,7 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			const row = (await inspect()).items.find((row) => row.id.id === item.id);
 			await grid.getByTitle(`Select ${row.label}`, { exact: true }).click();
 			await parameter('Opacity').locator('input.number-field').waitFor();
+			assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
 			assert.equal(
 				await page.getByRole('button', { name: 'Save row settings', exact: true }).count(),
 				0
@@ -74,7 +75,7 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 					await input.fill(String(value));
 					await input.press('Enter');
 				} else if (field === 'blend') {
-					await parameter('Blend').locator('select').selectOption(value);
+					await parameter('Blend Mode').locator('select').selectOption(value);
 				} else {
 					const checkbox = parameter('Render enabled').locator('input[type=checkbox]');
 					await wait(
@@ -206,6 +207,63 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 		await parameter('Opacity').locator('input.number-field').fill('0.625');
 		await parameter('Opacity').locator('input.number-field').press('Tab');
 		await wait(inspect, (state) => cellSettings(state).opacity === 0.625);
+		assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
+		await matrix({
+			kind: 'CreateCellMedia',
+			layer: layers[0].id,
+			column: (await inspect()).columns[0].id,
+			media_kind: 'SolidColor'
+		});
+		const ownedSource = (await inspect()).cells.find((cell) => cell.layer === layers[0].id)
+			.definition.source;
+		const readOwned = async () =>
+			(await edit({ kind: 'InspectChannel', reference: ownedSource })).snapshot.definition.source
+				.rgba;
+		await grid.evaluate((element) => {
+			element.scrollTop = 0;
+			element.dispatchEvent(new Event('scroll'));
+		});
+		await grid
+			.locator(`[role="row"][data-row-id="${layers[0].id}"]`)
+			.getByTitle('Layer 1 / Column 1', { exact: true })
+			.click({ button: 'right', position: { x: 5, y: 5 } });
+		await page.getByRole('menuitem', { name: 'Inspect media', exact: true }).click();
+		const color = parameter('Color');
+		await color.locator('.cp-preview').click();
+		await color.locator('.cp-input-hex').fill('ff0000');
+		await color.locator('.cp-input-hex').press('Tab');
+		await wait(readOwned, (rgba) => isDeepStrictEqual(rgba, [1, 0, 0, 1]));
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(readOwned, (rgba) => isDeepStrictEqual(rgba, [1, 1, 1, 1]));
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(readOwned, (rgba) => isDeepStrictEqual(rgba, [1, 0, 0, 1]));
+		await edit({ kind: 'CreateMedia', media_kind: 'SolidColor', label: 'Mixed Inspector peer' });
+		const manager = page.getByRole('region', { name: 'Medias', exact: true });
+		const matrixNode = manager.getByRole('button', { name: 'Typed Matrix rows', exact: true });
+		const peerNode = manager.getByRole('button', { name: 'Mixed Inspector peer', exact: true });
+		await matrixNode.click();
+		await page
+			.locator('.inspector-header .title-text')
+			.filter({ hasText: /^Typed Matrix rows$/ })
+			.waitFor();
+		assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
+		const beforeMixed = await inspect();
+		await peerNode.click({ modifiers: ['Control'] });
+		await page
+			.locator('.inspector-header .title-text')
+			.filter({ hasText: /^No node selected$/ })
+			.waitFor();
+		assert.equal(
+			await page.locator('.inspector .parameter-inspector').count(),
+			0,
+			'mixed selection exposes no stale ordinary widgets'
+		);
+		await peerNode.click({ modifiers: ['Control'] });
+		await page
+			.locator('.inspector-header .title-text')
+			.filter({ hasText: /^Typed Matrix rows$/ })
+			.waitFor();
+		assert.deepEqual(await inspect(), beforeMixed, 'mixed selection does not author Matrix state');
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
@@ -214,8 +272,8 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Typed Layer/Group and Cell settings; native-sized Cell has no size; exact per-field Undo/Redo; offscreen Layer and Cell Inspector; no playback side effects',
-				browser: browser.version()
+					'Standard Layer/Group, Matrix and Cell Inspectors; exact per-field Undo/Redo; offscreen Layer/Cell editing; mixed selection clears stale widgets and restores the remaining selection; no Matrix runtime prose or playback side effects',
+				browser: browser?.version() ?? 'native WebView'
 			})
 		);
 	} catch (error) {
@@ -229,6 +287,6 @@ export async function verifyMatrixParametersUi({ base, edit }) {
 		);
 		throw error;
 	} finally {
-		await browser.close();
+		await browser?.close();
 	}
 }

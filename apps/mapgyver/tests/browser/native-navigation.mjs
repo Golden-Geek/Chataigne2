@@ -25,6 +25,7 @@ import { verifyNativeChannelFile } from './native-channel-file.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
+import { verifyMatrixParametersUi } from './matrix-parameters.mjs';
 import { verifyCompositionCreation } from './composition-creation.mjs';
 import { verifyMatrixCellPreviews } from './matrix-cell-previews.mjs';
 import { verifyMatrixPreviewAdmission } from './matrix-preview-admission.mjs';
@@ -32,6 +33,7 @@ import { verifyMatrixOutputExposure } from './matrix-output-exposure.mjs';
 import { verifyMatrixSparsePreviews } from './matrix-sparse-previews.mjs';
 import { verifyWorkbenchIdentity } from './workbench-identity.mjs';
 import { verifyScreenIdentity } from './screen-identity.mjs';
+import { verifyNativeSurfaceEnabled } from './native-surface-enabled.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -55,6 +57,7 @@ try {
 		[
 			['--workbench-identity', verifyWorkbenchIdentity],
 			['--screen-identity', verifyScreenIdentity],
+			['--surface-enabled', verifyNativeSurfaceEnabled],
 			[
 				'--matrix-native-acceptance',
 				async (options) => {
@@ -68,6 +71,7 @@ try {
 			['--matrix-preview-admission', verifyMatrixPreviewAdmission],
 			['--matrix-cell-previews', verifyMatrixCellPreviews],
 			['--matrix-viewport', verifyMatrixViewportUi],
+			['--matrix-parameters', verifyMatrixParametersUi],
 			['--composition-creation', verifyCompositionCreation],
 			[
 				'--canvas-remaining',

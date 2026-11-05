@@ -1,0 +1,120 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/2",
+	"result": "Accepted",
+	"scope": "One authored Surface enable state and standard Inspectors for current Matrix objects; compact grid runtime details",
+	"progress": { "accepted": 59, "total": 78, "percent": 76, "m12Accepted": 2, "m12Total": 11 },
+	"implementation": {
+		"surface": "Removed the render_enabled Parameter. Construction and ConfigureSurface write NodeMeta.enabled; definitions and manager rows project that metadata. Render capture uses effective_enabled and invalidates stale work. Parameter and metadata changes share one history transaction.",
+		"inspectors": "Layer/Layer Group register only Golden child filters. Column/Cell keep the default Inspector. Matrix and child-media adapters keep standard typed widgets, without the removed MatrixRuntimeInspector or runtime prose.",
+		"feedback": "Requested/submitted grid markers remain; the grid corner exposes compact status with keyboard-accessible details for requested, observed freshness, renderer, availability, installed, submitted and error state.",
+		"futureColumnGroups": "Column Groups are introduced in M12/4, rather than claimed as implemented here. They inherit the same type-agnostic Golden Inspector contract; actual group editing, copy and reload remain mandatory in M12/4 acceptance. No custom Column Group Inspector or duplicate settings form is authorized by this acceptance."
+	},
+	"candidate": {
+		"path": "target/debug/MapGyver-codex-m12-inspectors.exe",
+		"sha256": "2c8a0c77658bc34d420582f92d99a3430b9616013e35adde0a0690e4de0c2cf0",
+		"sdkConsumer": "target/debug/native_qualification.exe",
+		"sdkConsumerSha256": "00a5ae084452ff7d98170b51cf18f8ee87407d48f795d22a522370df91ee0983",
+		"appCargoInputSha256": "3a4672f23e988bcea4efe3328ad15f287e891517a1215f34b2ab70dda2afaa65",
+		"colorsInputSha256": "334db7d0f617fda4fe05e0c1df37b2ef592616a2faac24c9d95cc3306d4173e3",
+		"goldenCoreCssInputSha256": "ec64141b0dd71ea0b24b6935bff3bc2af5d50bd3893b7352cb296ebf074b892f",
+		"limits": "Local Windows development artifact with the pinned existing user inputs; no production artifact qualification or release claim."
+	},
+	"software": [
+		{
+			"command": "cargo test --locked -p MapGyver --lib",
+			"result": "pass",
+			"passed": 445,
+			"failed": 0,
+			"ignored": 2,
+			"includes": "New disabled Surface creation/configuration/ancestor rendering/script tests, disabled Surface copy/history/reload, existing Matrix parameter/copy/persistence/caller parity, and Rust-generated TypeScript drift checks"
+		},
+		{
+			"command": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings",
+			"result": "pass"
+		},
+		{
+			"command": "npm run check --workspace mapgyver-ui",
+			"result": "pass",
+			"errors": 0,
+			"warnings": 0
+		},
+		{
+			"command": "node --test apps/mapgyver/ui/src/lib/matrix/tests/*.test.ts",
+			"result": "pass",
+			"passed": 25,
+			"includes": "Bounded viewport/selected reads, offscreen state, late reply fencing, selection identity and no implicit launches"
+		},
+		{
+			"command": "npm run build --workspace mapgyver-ui",
+			"result": "pass",
+			"limits": "Existing frontend chunk-size advisory remains"
+		},
+		{ "command": "cargo build --locked -p MapGyver --bin MapGyver", "result": "pass" },
+		{
+			"command": "Scoped Prettier and Node syntax checks; cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+			"result": "pass"
+		}
+	],
+	"interaction": [
+		{
+			"flow": "headless/media.mjs --matrix-parameters-ui --matrix-viewport-ui",
+			"result": "pass",
+			"checks": "Real standard Layer/Group/Cell widgets and per-field Undo/Redo; independently selected offscreen Layer/Cell editing; child-media Color widget with Undo/Redo; mixed media selection clears stale widgets and restores the remaining Matrix; no Inspector runtime prose. 64x64 bounded grid and offscreen Column Inspector/history, tab lifetime, fractional bounds, narrow 125% layout, background draft and exact scroll retention."
+		},
+		{
+			"flow": "headless/media.mjs --surface-source-ui",
+			"result": "pass",
+			"checks": "Exactly ten ordinary Surface Parameters, metadata enable switch, references/crop/calibration, live edits, clamping, Escape, source loss and exact history"
+		},
+		{
+			"flow": "headless/media.mjs --screen-ui",
+			"result": "pass",
+			"checks": "Current Shared Texture defaults, generic enum/number fields and metadata enable switch, selection, references, free warp, Escape and history"
+		},
+		{
+			"flow": "headless/media.mjs --matrix-review, then --matrix-project-ui",
+			"result": "pass",
+			"reviewDirectory": "target/m122-standard-inspectors-2026-11-05/current-review",
+			"reviewSha256": "ab530ba7c39cc8b0ea869a78df97d81631f3655386fc1f0f917474b0b3021eb4",
+			"checks": "Current-schema caller parity, copy/history/Save/New/Load; actual File New/browser upload, stable saved IDs/fresh epochs, held-drag reload fencing and usable current generic Inspector/grid controls",
+			"pageErrors": 0,
+			"rejectedRequests": 0
+		},
+		{
+			"flow": "browser/native-navigation.mjs --matrix-parameters",
+			"result": "pass",
+			"checks": "Same standard/offscreen/child-media/mixed-selection Inspector flow in bundled native WebView; normal owned shutdown"
+		},
+		{
+			"flow": "browser/native-navigation.mjs --source",
+			"result": "pass",
+			"checks": "Surface metadata switch and ordinary typed editing/history in bundled native WebView; zero page errors or expected crop rejections; normal owned shutdown"
+		},
+		{
+			"flow": "browser/native-navigation.mjs --matrix-feedback",
+			"result": "pass",
+			"checks": "Actual native Column/Cell requests, independent selection, submitted mix and steady completion, unchanged authoring, compact expandable runtime feedback and consumer-retirement clearing; no rejected requests/page errors; normal owned shutdown"
+		}
+	],
+	"gpuOutput": {
+		"result": "pass",
+		"flow": "browser/native-navigation.mjs --surface-enabled",
+		"nvidia": "assets/mapgyver-m12-inspectors-2026-11-05/nvidia-enabled.json",
+		"intel": "assets/mapgyver-m12-inspectors-2026-11-05/intel-enabled.json",
+		"checks": "Ten complete 96x64 Spout SDK pixel captures across two enumerated active GPUs. Per GPU: initial white; generic metadata disabled transparent; Undo white; ConfigureSurface disabled transparent; generic metadata restored white. Every pixel matches the expected RGBA value; original PNGs accompany the reports. Both owned hosts exit normally.",
+		"limits": "Settled image checks after a 250ms allowance; no transition latency, output cadence, physical desktop alignment, driver reset or production qualification claim. Empty premultiplied Screen Composite output is transparent black by the existing Golden backend contract."
+	},
+	"preservedFailuresAndLimits": [
+		"Initial Svelte nullable observation error was corrected before native checks; final diagnostics are zero.",
+		"Old Matrix Blend label, Screen controls/defaults/navigation selectors and an ambiguous nested Layer label were corrected to current contracts/stable row identity. Final behavioral assertions pass.",
+		"The original M07 review fixture contains obsolete mapgyver.media.v5 data and was correctly rejected. It remains untouched; a separate current-schema scene passes the complete browser replacement flow. No compatibility migration was added.",
+		"The first SDK test expected opaque black for disabled output. The renderer's existing transparent Composite clear was inspected; the test expectation was corrected without changing product behavior. Fresh both-GPU runs pass all five full-raster checkpoints.",
+		"Mixed selection follows Golden's existing single-object Inspector policy: it presents no singular inspected object or stale editable widgets. This verifies selection fencing and restoration, not bulk multi-object editing.",
+		"Column Group instances and aggregate control belong to M12/4 and retain that gate's Inspector/edit/copy/reload requirements. M12/3 and all later gates remain unfinished.",
+		"M03/M05 physical/performance budgets and M08/WOW64 retirement scope remain unchanged and unaccepted. Existing user changes are preserved."
+	],
+	"localArtifacts": "target/m122-standard-inspectors-2026-11-05 (passing JSON stdout reports are retained in UTF-16LE PowerShell Tee-Object logs; original failed attempts are retained separately)",
+	"architecture": "../../architecture/mapgyver-inspectors.md",
+	"nextGate": "M12/3: reliable zero-preload/postload app re-entry and visible launch defaults"
+}

@@ -140,7 +140,8 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let surface_fields = parameters(&engine, surface_node);
     assert_eq!(screen_fields.len(), 14);
     assert!(!screen_fields.contains_key("parameters/render_enabled"));
-    assert_eq!(surface_fields.len(), 11);
+    assert_eq!(surface_fields.len(), 10);
+    assert!(!surface_fields.contains_key("parameters/render_enabled"));
     assert!(
         engine
             .nodes
@@ -231,7 +232,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let loaded_screen_fields = parameters(&loaded, loaded.node_id_by_uuid(screen.0).unwrap());
     let loaded_surface_fields = parameters(&loaded, loaded.node_id_by_uuid(surface.surface.0).unwrap());
     assert_eq!(loaded_screen_fields.len(), 14);
-    assert_eq!(loaded_surface_fields.len(), 11);
+    assert_eq!(loaded_surface_fields.len(), 10);
     // Sparse projects omit unchanged, unreferenced declared leaves. Their schema
     // declarations restore the same parameter configuration with fresh identities.
     for (original_fields, loaded_fields) in [
@@ -712,9 +713,17 @@ fn copying_a_surface_preserves_parameters_controls_and_shared_sources_independen
         node: opacity,
         state: ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression),
     });
+    engine.edits.push(Edit::PatchMeta {
+        node: root,
+        patch: golden_core::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
     engine.apply_edits().unwrap();
     dispatch(&mut engine);
     let original_definition = definition(&engine, original);
+    assert!(!original_definition.enabled);
     assert_eq!(original_definition.source, Some(source));
     let parameter = engine.nodes.get(opacity).unwrap().engine_param_snapshot().unwrap();
     assert_ne!(parameter.value, parameter.default_value);
@@ -740,7 +749,7 @@ fn copying_a_surface_preserves_parameters_controls_and_shared_sources_independen
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(definition(&engine, copied), original_definition);
     let copied_fields = parameters(&engine, copied_root);
-    assert_eq!(copied_fields.len(), 11);
+    assert_eq!(copied_fields.len(), 10);
     for (name, original_id) in &fields {
         let copied_id = copied_fields[name];
         let original_node = engine.nodes.get(*original_id).unwrap();

@@ -18,6 +18,7 @@
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import GridLabel from './GridLabel.svelte';
 	import CellPreviews from './CellPreviews.svelte';
+	import RuntimeFeedback from './RuntimeFeedback.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	let {
 		snapshot,
@@ -300,6 +301,7 @@
 					aria-label="Matrix actions"
 					style:top={`${projection.top}rem`}
 					style:left={`${projection.left}rem`}>
+					<RuntimeFeedback {snapshot} {observation} />
 				</div>
 				<div role="row" aria-rowindex="1">
 					{#each snapshot.columns as column, index (column.id)}

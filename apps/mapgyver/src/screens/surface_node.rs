@@ -30,7 +30,6 @@ use golden_io::{RevisionGuard, RevisionSource};
         bottom_left: Vec2 = Vec2::new(0.0, 1.0) (label = "Bottom left");
         opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
         calibration: Enum = "Off" (label = "Calibration", enum_options = crate::parameters::enum_options(&["Off", "Grid", "ColorBars"]));
-        render_enabled: bool = true (label = "Enabled");
     }
 )]
 pub struct SurfaceNode {
@@ -43,6 +42,7 @@ impl SurfaceNode {
         let mut node = Self::new();
         let permissions = node.node_data().meta.user_permissions.clone();
         node.node_data_mut().meta = NodeMeta::new(label).with_user_permissions(permissions);
+        node.node_data_mut().meta.enabled = definition.enabled;
         let (media, channel) = source_references(definition.source);
         node.source_media = ParameterHandle::new(media);
         node.source_channel = ParameterHandle::new(channel);
@@ -54,7 +54,6 @@ impl SurfaceNode {
         node.bottom_left = ParameterHandle::new(point_vector(definition.quad.corners[3]));
         node.opacity = ParameterHandle::new(f64::from(definition.opacity));
         node.calibration = ParameterHandle::new(Enum::new(calibration_name(definition.calibration)));
-        node.render_enabled = ParameterHandle::new(definition.enabled);
         node
     }
 
@@ -94,7 +93,6 @@ impl SurfaceNode {
                 self.calibration.id(),
                 ParamValue::Enum(calibration_name(definition.calibration).into()),
             ),
-            (self.render_enabled.id(), ParamValue::Bool(definition.enabled)),
         ]);
         values
     }
@@ -112,7 +110,7 @@ impl SurfaceNode {
         reader.guard_at(reader.current())
     }
 
-    fn parameter_ids(&self) -> [NodeId; 11] {
+    fn parameter_ids(&self) -> [NodeId; 10] {
         [
             self.source_media.id(),
             self.source_channel.id(),
@@ -124,7 +122,6 @@ impl SurfaceNode {
             self.bottom_left.id(),
             self.opacity.id(),
             self.calibration.id(),
-            self.render_enabled.id(),
         ]
     }
 
@@ -142,7 +139,7 @@ impl SurfaceNode {
             ],
             opacity: read(&self.opacity, change),
             calibration: read(&self.calibration, change),
-            enabled: read(&self.render_enabled, change),
+            enabled: self.node_data().meta.enabled,
         }
     }
 }

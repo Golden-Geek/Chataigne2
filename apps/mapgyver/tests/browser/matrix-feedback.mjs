@@ -90,11 +90,14 @@ export async function verifyMatrixFeedback({ page, post, edit }) {
 				exact: true
 			});
 		await grid.getByTitle('Select Layer 1', { exact: true }).click();
-		const feedback = page.getByRole('region', { name: 'Matrix runtime feedback', exact: true });
+		await grid.getByLabel('Matrix runtime details', { exact: true }).click();
+		const feedback = grid.getByLabel('Matrix runtime feedback', { exact: true });
+		await feedback.waitFor({ state: 'visible' });
+		await grid.getByLabel('Matrix runtime details', { exact: true }).click();
 		stage = 'actual native installation before any launch';
 		await wait(
-			() => feedback.innerText(),
-			(text) => text.includes('Renderer:') && !text.includes('No native Matrix observation.')
+			() => feedback.textContent(),
+			(text) => text.includes('Renderer') && !text.includes('Unobserved')
 		);
 		assert.equal((await playback()).desired_column, null);
 		stage = 'Column launch becomes observed steady submission';
@@ -102,8 +105,8 @@ export async function verifyMatrixFeedback({ page, post, edit }) {
 		await grid.getByRole('button', { name: 'Launch Column 1', exact: true }).click();
 		await wait(playback, (state) => state.desired_column === initial.columns[0].id);
 		await wait(
-			() => feedback.innerText(),
-			(text) => text.includes('Frame submitted for Column 1.') && text.includes('Steady plan')
+			() => feedback.textContent(),
+			(text) => text.includes('Column 1 · Steady')
 		);
 		assert(
 			await column(0).evaluate(
@@ -149,8 +152,8 @@ export async function verifyMatrixFeedback({ page, post, edit }) {
 		await grid.getByRole('button', { name: 'Launch Column 1', exact: true }).click();
 		await grid.getByTitle('Select Layer 1', { exact: true }).click();
 		await wait(
-			() => feedback.innerText(),
-			(text) => text.includes('Steady plan') && !text.includes('Waiting for the renderer')
+			() => feedback.textContent(),
+			(text) => text.includes('Steady') && !text.includes('Pending')
 		);
 		await wait(
 			() => cell(0, 1).getAttribute('data-submitted'),
@@ -171,8 +174,8 @@ export async function verifyMatrixFeedback({ page, post, edit }) {
 		stage = 'retire actual renderer consumer';
 		await screens({ kind: 'ConfigureScreen', screen, definition: { enabled: false, target } });
 		await wait(
-			() => feedback.innerText(),
-			(text) => text.includes('No native Matrix observation.')
+			() => feedback.textContent(),
+			(text) => text.includes('Unobserved')
 		);
 		assert.equal(
 			await column(0).evaluate((element) => element.classList.contains('submitted')),

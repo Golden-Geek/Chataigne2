@@ -6,45 +6,82 @@
 		observation
 	}: { snapshot: MatrixViewportSnapshot; observation: MatrixRenderStatus | null } = $props();
 	const columnName = (id: string | null) =>
-		!id
-			? 'None'
-			: (snapshot.columns.find((column) => column.id === id)?.label ?? 'Outside visible columns');
+		!id ? 'None' : (snapshot.columns.find((column) => column.id === id)?.label ?? id);
 	const latest = $derived(
 		observation?.desired.playback.request_id === snapshot.playback.request_id &&
 			observation?.desired.revision === snapshot.revision
 	);
+	const state = $derived(
+		observation?.error
+			? 'Error'
+			: !observation
+				? 'Unobserved'
+				: !latest
+					? 'Pending'
+					: observation.stage
+	);
 </script>
 
-<section aria-label="Matrix runtime feedback">
-	<h3>Runtime</h3>
-	<p>Requested column: {columnName(snapshot.playback.desired_column)}</p>
-	{#if observation}
-		<p role="status">Renderer: {observation.stage} · Matrix channel: {observation.availability}</p>
-		{#if !latest}<p>Waiting for the renderer to observe the current launch or edit.</p>{/if}
-		<p>
-			Installed column: {observation.installed
+<details class="runtime-feedback">
+	<summary aria-label="Matrix runtime details" title={`Matrix: ${state}`}>
+		<span class="state" class:error={!!observation?.error} role="status">{state}</span>
+	</summary>
+	<dl aria-label="Matrix runtime feedback">
+		<dt>Requested</dt>
+		<dd>{columnName(snapshot.playback.desired_column)}</dd>
+		<dt>Observed</dt>
+		<dd>{latest ? 'Current' : 'Pending'}</dd>
+		<dt>Renderer</dt>
+		<dd>{observation?.stage ?? 'Unobserved'}</dd>
+		<dt>Channel</dt>
+		<dd>{observation?.availability ?? 'Unobserved'}</dd>
+		<dt>Installed</dt>
+		<dd>
+			{observation?.installed
 				? columnName(observation.installed.playback.desired_column)
-				: 'No installation observed'}
-		</p>
-		{#if observation.submitted}
-			<p>
-				Frame submitted for {columnName(observation.submitted.playback.desired_column)}.
-				{observation.submitted.transitioning ? 'Transition mix' : 'Steady plan'}:
-				{observation.submitted.columns.length} participating column(s).
-			</p>
-		{:else}<p>No frame submission observed for the installed Matrix plan.</p>{/if}
-		{#if observation.error}<p role="alert">{observation.error}</p>{/if}
-	{:else}<p>No native Matrix observation. A launch request does not confirm rendering.</p>{/if}
-	<small
-		>Submitted-mix markers show renderer observations; display or receiver confirmation is separate.</small>
-</section>
+				: 'Unobserved'}
+		</dd>
+		<dt>Submitted</dt>
+		<dd>
+			{observation?.submitted
+				? `${columnName(observation.submitted.playback.desired_column)} · ${observation.submitted.transitioning ? 'Mix' : 'Steady'} · ${observation.submitted.columns.length} column(s)`
+				: 'Unobserved'}
+		</dd>
+		{#if observation?.error}<dt>Error</dt>
+			<dd role="alert">{observation.error}</dd>{/if}
+	</dl>
+</details>
 
 <style>
-	h3 {
-		font-size: 1rem;
+	.runtime-feedback {
+		position: relative;
+		max-width: 100%;
+		font-size: 0.8rem;
 	}
-	p,
-	small {
-		font-size: 0.85rem;
+	summary {
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.state.error {
+		color: var(--gc-color-error);
+	}
+	dl {
+		position: absolute;
+		left: 0;
+		top: 100%;
+		z-index: 6;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: 0.35rem 0.6rem;
+		width: min(24rem, 65vw);
+		padding: 0.6rem;
+		margin: 0.25rem 0 0;
+		background: var(--gc-color-panel);
+		border: 0.05rem solid var(--gc-color-border);
+		color: var(--gc-color-text);
+		overflow-wrap: anywhere;
+	}
+	dd {
+		margin: 0;
 	}
 </style>

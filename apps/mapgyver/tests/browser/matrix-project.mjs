@@ -11,10 +11,11 @@ import { observeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) {
-	const project = path.resolve('target/m07-grid-review/MatrixReview.mapgyver');
-	const review = JSON.parse(
-		await readFile(path.resolve('target/m07-grid-review/review.json'), 'utf8')
+	const reviewDirectory = path.resolve(
+		process.env.MAPGYVER_MATRIX_REVIEW_DIRECTORY ?? 'target/m07-grid-review'
 	);
+	const project = path.join(reviewDirectory, 'MatrixReview.mapgyver');
+	const review = JSON.parse(await readFile(path.join(reviewDirectory, 'review.json'), 'utf8'));
 	const projectHash = async () =>
 		createHash('sha256')
 			.update(await readFile(project))
@@ -214,15 +215,19 @@ export async function verifyMatrixProjectUi({ base, post, edit, inspectMedia }) 
 		const loadedEpoch = (await window(review.root.media)).project;
 		assert.notEqual(loadedEpoch, secondEpoch);
 		assert.notEqual(loadedEpoch, firstEpoch);
-		const feedback = properties.getByRole('region', {
-			name: 'Matrix runtime feedback',
-			exact: true
-		});
-		await wait(
-			() => feedback.innerText(),
-			(value) => value.includes('Requested column: None')
+		assert.equal(
+			await properties.getByLabel('Matrix runtime feedback', { exact: true }).count(),
+			0
 		);
-		assert((await feedback.innerText()).includes('No native Matrix observation.'));
+		await grid.getByLabel('Matrix runtime details', { exact: true }).click();
+		const feedback = grid.getByLabel('Matrix runtime feedback', { exact: true });
+		await feedback.waitFor({ state: 'visible' });
+		await grid.getByLabel('Matrix runtime details', { exact: true }).click();
+		await wait(
+			() => feedback.textContent(),
+			(value) => /Requested\s+None/.test(value)
+		);
+		assert((await feedback.textContent()).includes('Unobserved'));
 		await wait(() => undo.isDisabled(), Boolean);
 		await wait(() => redo.isDisabled(), Boolean);
 		stage = 'loaded editor mutation and history stay in loaded project';

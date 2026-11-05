@@ -76,6 +76,7 @@ export async function createPreviewOutputObserver(post, directory, page) {
 				target: { kind: 'Spout', sender, extent: { width: 96, height: 64 } }
 			}
 		});
+		return { screen, surface };
 	}
 	async function pixels(phase, expected) {
 		const actual = await observeNativeAdapter(page, hardware);
@@ -165,6 +166,9 @@ export async function createPreviewOutputObserver(post, directory, page) {
 	}
 	return {
 		demand,
+		get adapter() {
+			return adapter;
+		},
 		observations,
 		observePixels: pixels,
 		finish,

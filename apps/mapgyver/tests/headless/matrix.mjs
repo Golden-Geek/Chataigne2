@@ -90,7 +90,9 @@ export async function verifyMatrix({ post, intent, edit }) {
 		null,
 		'inspecting/selecting a viewport is not launch'
 	);
-	const directory = path.resolve('target/m07-grid-review');
+	const directory = path.resolve(
+		process.env.MAPGYVER_MATRIX_REVIEW_DIRECTORY ?? 'target/m07-grid-review'
+	);
 	await mkdir(directory, { recursive: true });
 	const project = path.join(directory, 'MatrixReview.mapgyver');
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);

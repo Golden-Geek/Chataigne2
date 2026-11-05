@@ -1,0 +1,83 @@
+{
+  "result": "pass",
+  "nativePid": 34908,
+  "adapter": {
+    "key": "dxgi:00000000:00015b69",
+    "index": 0,
+    "description": "Intel(R) Graphics"
+  },
+  "surface": {
+    "screen": "92aa2470-19db-4969-8db2-8c31271dff8a",
+    "surface": "ce6d6033-a060-464c-bd90-cc7839eabca4"
+  },
+  "observations": [
+    {
+      "phase": "initial-enabled",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "metadata-disabled",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "undo-enabled",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "domain-disabled",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "metadata-restored",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ],
+  "errors": [],
+  "rejected": [],
+  "limits": "Five settled complete 96x64 SDK pixel snapshots; no transition timing claim"
+}

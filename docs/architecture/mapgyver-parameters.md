@@ -40,7 +40,7 @@ metadata. No parallel UI store or project/schema conversion owns their values.
 | Composition child media   | Placement, scale, pivot, rotation in degrees, opacity and blend on the actual owned child media                                           |
 | Asset                     | One typed File; the backend derives a project-relative or native absolute locator                                                         |
 | Screen                    | Enablement, target kind, display choice, physical rectangle, Spout name/extent and typed recovery hints                                   |
-| Surface                   | Enablement, source references, crop, four finite corners, opacity and calibration                                                         |
+| Surface                   | Source references, crop, four finite corners, opacity and calibration; enablement uses node metadata                                      |
 | Matrix Layer              | Position, canvas size, opacity, blend, transition duration and enabling                                                                   |
 | Matrix Group              | Opacity, blend, enabling and real hierarchy/order                                                                                         |
 | Matrix Column             | Optional transition override, App file and conditional app-control fields with integer preload/postload                                   |

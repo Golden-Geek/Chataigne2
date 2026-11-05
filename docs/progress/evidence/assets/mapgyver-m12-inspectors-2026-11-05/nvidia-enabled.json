@@ -1,0 +1,83 @@
+{
+  "result": "pass",
+  "nativePid": 38656,
+  "adapter": {
+    "key": "dxgi:00000000:00016022",
+    "index": 1,
+    "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+  },
+  "surface": {
+    "screen": "29111d8f-6cfc-482d-8670-26cc32b22374",
+    "surface": "596ef7d0-eb1a-4083-bfb9-597774f1ae62"
+  },
+  "observations": [
+    {
+      "phase": "initial-enabled",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "metadata-disabled",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "undo-enabled",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "domain-disabled",
+      "rgba": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "metadata-restored",
+      "rgba": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ],
+  "errors": [],
+  "rejected": [],
+  "limits": "Five settled complete 96x64 SDK pixel snapshots; no transition timing claim"
+}

@@ -48,11 +48,11 @@
 		'mapgyver.media.folder',
 		'mapgyver.screen',
 		'mapgyver.surface',
-		'mapgyver.matrix.layer.v3',
-		'mapgyver.matrix.group.v2',
 		'mapgyver.app_control.v1'
 	])
 		registerNodeInspector(type, { component: DomainInspector });
+	for (const type of ['mapgyver.matrix.layer.v3', 'mapgyver.matrix.group.v2'])
+		registerNodeInspector(type, { childFilter: (child) => child.decl_id === 'parameters' });
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Medias', icon: panelIcons.media, component: MediaManagerPanel },
 		mediaPreview: { title: 'Media Preview', icon: panelIcons.media, component: MediaPreviewPanel },

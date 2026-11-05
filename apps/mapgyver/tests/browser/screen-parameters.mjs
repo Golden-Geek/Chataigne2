@@ -62,6 +62,5 @@ export const surfaceParameterLabels = [
 	'Bottom right',
 	'Bottom left',
 	'Opacity',
-	'Calibration',
-	'Enabled'
+	'Calibration'
 ];

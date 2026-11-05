@@ -45,6 +45,42 @@ fn replies(engine: &AppEngine) -> Vec<serde_json::Value> {
 }
 
 #[test]
+fn hosted_surface_configuration_updates_the_same_enabled_metadata_as_generic_callers() {
+    use golden_core::node::Node;
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    let request = serde_json::to_string(&ScreenEdit::ConfigureSurface {
+        reference,
+        definition: SurfaceDefinition {
+            enabled: false,
+            opacity: 0.5,
+            ..definition(&engine, reference)
+        },
+    })
+    .unwrap();
+    script(
+        &mut engine,
+        format!(
+            r#"
+            function init() {{ local.listen({{level:1}}); local.editScreens('disable', {request:?}); }}
+            function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}
+            "#
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    assert_eq!(replies(&engine)[0]["status"], "applied");
+    let root = engine.node_id_by_uuid(reference.surface.0).unwrap();
+    assert!(!engine.nodes.get(root).unwrap().node_data().meta.enabled);
+    assert!(!definition(&engine, reference).enabled);
+    assert_eq!(definition(&engine, reference).opacity, 0.5);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert!(definition(&engine, reference).enabled);
+    assert_eq!(definition(&engine, reference).opacity, 1.0);
+}
+
+#[test]
 fn hosted_manager_methods_support_create_inspect_and_domain_rejection() {
     let mut engine = fixture();
     let create = serde_json::to_string(&ScreenEdit::CreateScreen { label: None }).unwrap();

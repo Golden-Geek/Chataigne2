@@ -230,9 +230,17 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             {
                 crate::media::channel(engine, source)?;
             }
+            let enabled = definition.enabled;
             engine.edits.push(Edit::SetParamsAtomic {
                 values: current.parameter_values(definition),
                 behaviour: ParameterEventBehaviour::Append,
+            });
+            engine.edits.push(Edit::PatchMeta {
+                node,
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                },
             });
             ScreenEditResult::Changed
         }

@@ -127,7 +127,11 @@ export async function verifySurfaceSourceUi({
 				.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
 				.waitFor();
 		await remember();
-		await controls.parameter('Enabled').locator('input.editor-checkbox').uncheck();
+		assert.equal(await controls.parameter('Enabled').count(), 0);
+		await page
+			.locator('.inspector-header')
+			.getByRole('switch', { name: 'Toggle node enabled' })
+			.click();
 		await wait(definition, (value) => !value.enabled);
 		await remember();
 		await controls.setNumber('Opacity', 0.65);

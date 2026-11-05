@@ -285,7 +285,7 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
             return Err("Screen children must be Surfaces".into());
         };
         let mut definition = surface.definition();
-        definition.enabled &= surface.node_data().effective_enabled;
+        definition.enabled = surface.node_data().effective_enabled;
         surfaces.push(definition);
         guards.push(surface.guard());
     }
