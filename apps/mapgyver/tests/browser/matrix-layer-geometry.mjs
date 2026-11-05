@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { writeFile } from 'node:fs/promises';
 import { clearMatrixScene } from './matrix-scene.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { verifySpatialKeyboard, assertRectKeyboardResize } from './spatial-keyboard.mjs';
 
 export async function verifyMatrixLayerGeometry({ page, edit, nativePid }) {
 	let stage = 'arrange';
@@ -105,10 +106,15 @@ export async function verifyMatrixLayerGeometry({ page, edit, nativePid }) {
 		await wait(
 			async () => [
 				Number(await panel.locator(`[data-layer-id="${layer}"]`).getAttribute('x')),
-				Number(await panel.locator(`[data-layer-id="${layer}"]`).getAttribute('width'))
+				Number(await panel.locator(`[data-layer-id="${layer}"]`).getAttribute('width')),
+				Number(await panel.locator(`[data-layer-id="${layer}"]`).getAttribute('y')),
+				Number(await panel.locator(`[data-layer-id="${layer}"]`).getAttribute('height'))
 			],
 			(value) =>
-				Math.abs(value[0] - expected.position[0]) < 0.01 && value[1] === expected.size.width
+				Math.abs(value[0] - expected.position[0]) < 0.01 &&
+				value[1] === expected.size.width &&
+				Math.abs(value[2] - expected.position[1]) < 0.01 &&
+				value[3] === expected.size.height
 		);
 		const box = await svg.boundingBox(),
 			handle = await locator.boundingBox();
@@ -192,12 +198,27 @@ export async function verifyMatrixLayerGeometry({ page, edit, nativePid }) {
 		await page.mouse.move(15, 15);
 		assert.deepEqual(await inspect(), stopped);
 		await history(baseline, stopped);
+		stage = 'Layer keyboard geometry';
+		const layerSettings = (value) => value.items.find((item) => item.id.id === layer).layer;
+		const keyboard = await verifySpatialKeyboard({
+			page,
+			view: panel.getByRole('application', { name: 'Matrix Layer layout view', exact: true }),
+			inspect,
+			ready,
+			position: (value) => layerSettings(value).position,
+			resize: {
+				locator: (name) => panel.locator(`[data-matrix-layer-resize="${name}"]`),
+				validate: (before, after, name) =>
+					assertRectKeyboardResize(layerSettings(before), layerSettings(after), name)
+			}
+		});
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(receipts.rejected, []);
 		await page.screenshot({ path: 'target/m12-layer-geometry-ui.png' });
 		const result = {
 			result: 'pass',
+			keyboard,
 			nativePid,
 			reports,
 			errors,

@@ -1,0 +1,40 @@
+﻿{"flow":["--matrix-layer-geometry"],"nativePid":33200}
+node : {"stage":"resize TopRight","errors":[],"receipts":{"rejected":[],"observed":{"requests":165,"receipts":165}},"bo
+dy":"FILE\nUntitled*\nMAPGYVER 0.1.0\nClear UI\n➖ 🟩 🔴\nMedias\nScreens\nLayer geometry\nScreen Warping\nSurface
+Source\nComposition: Layer geometry / Matrix Layers\nMatrix: Layer geometry\nMedia
+Preview\n3\nFrame\nHome\n−\n100%\n+\nInspector: Layer 1\nLayer 1\nParameters\nOpacity\nBlend
+Mode\nNormal\nAdd\nMultiply\nScreen\nExpose Channel\nRender enabled\nPosition\n⟷\n⟷\nCanvas size\nTransition
+duration\nRaw Data\nMedia Preview opened\n59.5 fps\nNVIDIA GeForce RTX 5080 Laptop GPU\n0.19 ms CPU\n304.9 MB\n200 Hz"}
+At line:2 char:78
++ ... board.exe'; node apps/mapgyver/tests/browser/native-navigation.mjs -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ({"stage":"resiz....9 MB\n200 Hz"}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: resize TopRight: {"cells":[],"column_groups":[],"columns":[],"definition":{"canvas":{"h
+eight":300,"width":400},"empty_cell":"Transparent"},"final_channel":{"channel":"0f6b3d1c-6e98-45e6-af58-73be62a8a7c9","
+media":"b98311e2-5ce4-43f7-bd37-760d78275dd4"},"items":[{"channel":{"channel":"e451adb2-30b5-417e-acb8-d0f229f61a63","m
+edia":"b98311e2-5ce4-43f7-bd37-760d78275dd4"},"id":{"id":"4ae04bd9-ec0a-47f4-a00b-950f92cf7d1d","kind":"Group"},"label"
+:"Geometry group","layer":null,"parent":null,"settings":{"blend":"Normal","enabled":true,"expose_channel":false,"opacit
+y":1}},{"channel":{"channel":"d16845c4-07e3-4f3f-8e42-f06f38da35d0","media":"b98311e2-5ce4-43f7-bd37-760d78275dd4"},"id
+":{"id":"561ec679-bbe9-468b-b3f3-16370737b126","kind":"Layer"},"label":"Layer 1","layer":{"duration_ms":777,"position":
+[80,70],"size":{"height":90,"width":120}},"parent":"4ae04bd9-ec0a-47f4-a00b-950f92cf7d1d","settings":{"blend":"Add","en
+abled":false,"expose_channel":false,"opacity":0.75}}],"media":"b98311e2-5ce4-43f7-bd37-760d78275dd4"}
+    at wait (file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/matrix-layer-geometry.mjs:19:4)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async verifyMatrixLayerGeometry
+(file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/matrix-layer-geometry.mjs:151:18)
+    at async file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/native-navigation.mjs:174:2 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v26.5.0

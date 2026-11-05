@@ -8,6 +8,8 @@
 	import SpatialViewport from './SpatialViewport.svelte';
 	import RectLayoutControls from './RectLayoutControls.svelte';
 	import { createLayerEditor } from './layer-editor.svelte';
+	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
+	import type { Point } from '../media/generated/Point';
 	let props: {
 		panelId: string;
 		media: string;
@@ -104,6 +106,17 @@
 	);
 	const pages = $derived(Math.max(1, Math.ceil((snapshot?.row_total ?? 0) / SPATIAL_PAGE_SIZE)));
 	const selection = useDocumentSelection();
+	function start(id: string, mode: RectGeometryMode, point: Point) {
+		const object = objects.find((object) => object.id === id);
+		return (
+			!!object &&
+			geometry.start(id, {
+				origin: { position: [...object.position], size: { ...object.size } },
+				mode,
+				start: point
+			})
+		);
+	}
 </script>
 
 <section
@@ -150,6 +163,18 @@
 				channel={snapshot.final_output}
 				{canvas}
 				selection={bounds}
+				keyboard={{
+					id: selected?.item.id.id ?? null,
+					disabled: owner.busy,
+					active: geometry.state.active,
+					start: (mode) =>
+						!!selected &&
+						(typeof mode === 'string' || !('Rotate' in mode)) &&
+						start(selected.item.id.id, mode, { x: 0, y: 0 }),
+					move: (point) => geometry.gesture.move(point),
+					finish: () => geometry.gesture.finish(),
+					stop: () => geometry.gesture.stop()
+				}}
 				identity={snapshot.final_output.reference.channel}
 				label="Matrix Layer layout view"
 				{actions}>
@@ -161,17 +186,7 @@
 					disabled={owner.busy}
 					select={(uuid) => selection.select(uuid)}
 					active={geometry.state.active}
-					start={(id, mode, start) => {
-						const object = objects.find((object) => object.id === id);
-						return (
-							!!object &&
-							geometry.start(id, {
-								origin: { position: [...object.position], size: { ...object.size } },
-								mode,
-								start
-							})
-						);
-					}}
+					{start}
 					move={(point) => geometry.gesture.move(point)}
 					finish={() => geometry.gesture.finish()}
 					stop={() => geometry.gesture.stop()}

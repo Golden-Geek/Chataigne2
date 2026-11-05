@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { writeFile } from 'node:fs/promises';
 import { clearMatrixScene } from './matrix-scene.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { verifySpatialKeyboard, assertRectKeyboardResize } from './spatial-keyboard.mjs';
 
 export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 	let stage = 'arrange';
@@ -189,6 +190,22 @@ export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 		await page.mouse.move(15, 15);
 		assert.deepEqual(await inspect(), stopped);
 		await history(baseline, stopped);
+		stage = 'Cell keyboard geometry';
+		const keyboard = await verifySpatialKeyboard({
+			page,
+			view: panel.getByRole('application', { name: 'Matrix Cell content view', exact: true }),
+			inspect,
+			ready,
+			position: (value) => settings(value).position,
+			resize: {
+				locator: (name) => panel.locator(`[data-matrix-cell-resize="${name}"]`),
+				validate: (before, after, name) =>
+					assertRectKeyboardResize(settings(before), settings(after), name, {
+						width: 120,
+						height: 90
+					})
+			}
+		});
 		stage = 'unavailable source translation';
 		await matrix({ kind: 'SetCells', assignments: [{ layer, column: columns[0], source: null }] });
 		await ready();
@@ -202,6 +219,14 @@ export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 		const movedUnavailable = await wait(inspect, (value) => !isDeepStrictEqual(value, unavailable));
 		assert.equal(settings(movedUnavailable).size, null);
 		await history(unavailable, movedUnavailable);
+		stage = 'unavailable Cell keyboard movement';
+		const unavailableKeyboard = await verifySpatialKeyboard({
+			page,
+			view: panel.getByRole('application', { name: 'Matrix Cell content view', exact: true }),
+			inspect,
+			ready,
+			position: (value) => settings(value).position
+		});
 		const playback = (await matrix({ kind: 'InspectPlayback' })).snapshot;
 		assert.equal(playback.desired_column, null);
 		assert.deepEqual(playback.layers, []);
@@ -209,6 +234,8 @@ export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 		assert.deepEqual(receipts.rejected, []);
 		const result = {
 			result: 'pass',
+			keyboard,
+			unavailableKeyboard,
 			nativePid,
 			reports,
 			errors,

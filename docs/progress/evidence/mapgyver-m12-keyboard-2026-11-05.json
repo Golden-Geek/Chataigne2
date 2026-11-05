@@ -1,0 +1,77 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7 Active; shared keyboard geometry verified",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "The shared spatial canvas moves Composition instances, Matrix Layers and Cells with arrows. Shift uses ten canvas pixels. Tab reaches selected resize handles; focused handles resize with opposite anchors, and Composition rotation handles rotate. Held arrows form one history group, while rapid separate taps retain separate groups and fresh geometry. Natural/unavailable Cell movement preserves natural Size and does not launch playback.",
+	"ownership": {
+		"golden": "Public golden_ui/store/keyboard-gesture owns bounded held-key collection, one running gesture and up to 32 queued taps, fresh-start admission after asynchronous close, focus flushing and stale-repeat/identity cancellation. It has no app, transport or geometry dependency. ViewportHandle honors an explicit tabindex while preserving its default -1.",
+		"app": "Screen corner input is a typed adapter over the shared collector. The spatial viewport owns focused input, session/project/snapshot/mode identity and the captured active client's lifetime. Composition and Matrix adapters capture their own immutable origins and send existing backend geometry intents. No new authored setting or protocol was introduced.",
+		"parameters": "Backend bounds, coordinate checks, opposite-anchor math, atomic typed Parameter edits, source policy and grouped history remain authoritative. HTML handle focus stays usable during an active gesture; the existing admission guard still rejects new pointer starts.",
+		"architecture": "../../architecture/mapgyver-spatial-geometry.md"
+	},
+	"software": {
+		"golden": "244 tests pass in 48 files, including five generic held-key tests: cumulative multi-key/Shift input, asynchronous tap closure/fresh basis, identity/mode/repeat fencing, bounded pending input/focus loss, and modifier/admission isolation.",
+		"app": "90 related Spatial/Composition/Matrix/media/Screen tests pass, including the Screen asynchronous close/history regression after extraction. Svelte check reports 0 errors and 0 warnings.",
+		"strict": "All-target Clippy with native-qualification,application-process-fixture and -D warnings passes. Scoped Prettier, Node syntax, owned diff checks and root/golden_core Cargo formatting pass.",
+		"retained_backend": "Rust implementation and generated DTOs are unchanged from 10e16fcf. Its 495 passing Rust tests, both generated-contract checks and 42 both-GPU inactive Cell pixel images remain evidence for unchanged backend/rendering behavior; they were not rerun or counted as new native pixel evidence.",
+		"build": {
+			"command": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-spatial-keyboard",
+			"exit": 0,
+			"binary": "target/debug/deps/MapGyver-spatial-keyboard.exe",
+			"sha256": "75fc9f479b0b1eb24eb5cc07c82f5a2bb9caeca21a9e244379703c8ff3b27ddf"
+		}
+	},
+	"native": {
+		"commands": "MAPGYVER_TEST_BINARY selects the isolated binary above; native-navigation.mjs --matrix-cell-geometry, --matrix-layer-geometry, --composition and --keyboard run sequentially after inspected terminal software/build success. Each owned host's close asserts normal exit 0; all four processes are absent afterward.",
+		"cell": {
+			"pid": 23676,
+			"exit": 0,
+			"retired": true,
+			"keyboard_cases": 13,
+			"unavailable_keyboard_cases": 4,
+			"scope": "Held repeats+Shift in one exact history group, rapid taps with individual Undo/Redo and fresh bases, focus/stale-repeat fencing, Escape, actual Tab access and all eight opposite-anchor resizes. Repeats movement/history/focus/Escape with no source, no synthetic dimensions and no playback. Existing natural translation/eight pointer handles and typed settings preservation also pass.",
+			"observed_requests": 2205,
+			"observed_receipts": 2204,
+			"rejected": 0,
+			"page_errors": 0,
+			"receipt_limit": "One background request is in flight at the saved observer snapshot. This is not a claim of 2205 completed receipts; exact geometry/history assertions passed.",
+			"result": "mapgyver-m12-keyboard-2026-11-05/cell.json"
+		},
+		"layer": {
+			"pid": 36304,
+			"exit": 0,
+			"retired": true,
+			"keyboard_cases": 13,
+			"scope": "Same held/tap/focus/Escape/Tab/eight-keyboard-handle matrix on an inactive nested Layer. Exact grouped history, duration/composite preservation, existing pointer controls and no implicit launch pass.",
+			"observed_requests": 1447,
+			"observed_receipts": 1447,
+			"rejected": 0,
+			"page_errors": 0,
+			"result": "mapgyver-m12-keyboard-2026-11-05/layer.json"
+		},
+		"composition": {
+			"pid": 37868,
+			"exit": 0,
+			"retired": true,
+			"keyboard_cases": 17,
+			"scope": "Held/tap/focus/Escape/Tab, eight opposite-anchor keyboard resizes and four keyboard rotation handles on a rotated mirrored transform with a noncentral pivot. Position/scale/pivot/rotation preservation, exact history and existing eight pointer resizes/four rotations/smooth zoom/tab lifetime pass. 47 zoom observations remain inside the original pointer-anchor bound.",
+			"page_errors": 0,
+			"receipt_limit": "This older fixture's rejection observer does not correlate an already-established native socket. Its empty rejection list alone proves no receipt coverage; actual backend snapshots and exact Undo/Redo establish the listed geometry/history behavior.",
+			"log": "mapgyver-m12-keyboard-2026-11-05/m12-keyboard-composition.log"
+		},
+		"screen_regression": {
+			"pid": 36028,
+			"exit": 0,
+			"retired": true,
+			"scope": "Existing native Screen contract passes after sharing the collector: 100 repeats and Shift ten-pixel input at zoom, chord release, exact one-step Undo, blur, modifier isolation and New while a key is held.",
+			"page_errors": 0,
+			"log": "mapgyver-m12-keyboard-2026-11-05/m12-keyboard-screen.log"
+		}
+	},
+	"repairs_and_limits": [
+		"Initial Cell PID 12864 passed movement/tap/focus/Escape but a resize made no edit. The fixture now waits for handle admission and asserts actual focus before sending keys. PID 35836 passed the same binary afterward; the final Tab/session-fenced binary passes as PID 23676. The initial log is retained.",
+		"Initial Layer PID 33200 stopped at pointer TopRight before keyboard checks. Its old history wait only checked x/width; it now waits x/y/width/height, as the Cell fixture already did. The final flow passes as PID 36304. Failure log retained.",
+		"No backend/render budget, error bound, protocol denominator or original acceptance requirement changed. Native DOM screenshots are not GPU pixel evidence."
+	],
+	"next": "Complete the original M12/7 acceptance audit across both domains, selection/locks, active/inactive Cells, native pixels, nested groups, aspect/alpha/blend, source resize, history/copy/reload and large sparse projects. Reuse retained evidence only within unchanged tested scope; close the gate only after every requirement is proved."
+}

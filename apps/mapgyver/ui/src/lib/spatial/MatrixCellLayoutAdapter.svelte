@@ -183,6 +183,18 @@
 				channel={page.context}
 				canvas={layer.size}
 				selection={bounds}
+				keyboard={{
+					id: selected?.view.cell.id ?? null,
+					disabled: reader.busy,
+					active: geometry.state.active,
+					start: (mode) =>
+						!!selected &&
+						(typeof mode === 'string' || !('Rotate' in mode)) &&
+						start(selected.view.cell.id, mode, { x: 0, y: 0 }),
+					move: (point) => geometry.gesture.move(point),
+					finish: () => geometry.gesture.finish(),
+					stop: () => geometry.gesture.stop()
+				}}
 				identity={props.layer}
 				label="Matrix Cell content view"
 				preview={selected?.preview ?? null}

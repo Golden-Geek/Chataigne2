@@ -11,7 +11,8 @@
 	import InstanceHandles from './InstanceHandles.svelte';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
-	import { outline } from './presentation';
+	import { outline, gizmo } from './presentation';
+	import type { SpatialKeyboardMode } from '../spatial/keyboard.svelte';
 	let {
 		channel,
 		composition,
@@ -64,6 +65,37 @@
 					}
 			: null
 	);
+	let keyboardOrigin: Point = { x: 0, y: 0 };
+	function keyboardStart(mode: SpatialKeyboardMode) {
+		if (!instance) return false;
+		const origin = instance.definition.transform;
+		let geometryMode: InstanceHandle['mode'] = 'Translate';
+		keyboardOrigin = { x: 0, y: 0 };
+		if (typeof mode !== 'string') {
+			if (!extent) return false;
+			const handles = gizmo(origin, extent);
+			const handle =
+				'Resize' in mode
+					? handles.resize.find((handle) => handle.name === mode.Resize.handle)
+					: handles.rotate.find((handle) => handle.name === mode.Rotate.handle);
+			if (!handle) return false;
+			keyboardOrigin = { ...handle.point };
+			geometryMode =
+				'Resize' in mode
+					? { Resize: { handle: mode.Resize.handle, extent: { ...extent } } }
+					: 'Rotate';
+		}
+		return start(instance.reference, {
+			mode: geometryMode,
+			origin: {
+				...origin,
+				position: [...origin.position],
+				scale: [...origin.scale],
+				pivot: [...origin.pivot]
+			},
+			start: { ...keyboardOrigin }
+		});
+	}
 </script>
 
 <SpatialViewport
@@ -72,6 +104,15 @@
 	canvas={composition.canvas}
 	identity={channel.reference.channel}
 	{selection}
+	keyboard={{
+		id: instance?.reference.instance ?? null,
+		disabled,
+		active,
+		start: keyboardStart,
+		move: (point) => move({ x: keyboardOrigin.x + point.x, y: keyboardOrigin.y + point.y }),
+		finish,
+		stop
+	}}
 	label="Composition view">
 	<InstanceHandles
 		{composition}

@@ -118,8 +118,10 @@
 			y={object.position[1] / canvas.height}
 			data-layout-cell={kind === 'Cell' ? object.id : undefined}
 			label={`Move ${object.label}`}
-			{disabled}
-			onclick={() => select(object.id)}
+			disabled={disabled && !active}
+			onclick={() => {
+				if (!disabled) select(object.id);
+			}}
 			onpointerdown={(event) => down(event, object, 'Translate')} />{/if}
 {/each}
 
@@ -129,11 +131,12 @@
 			x={(item.position[0] + handle.x * item.size.width) / canvas.width}
 			y={(item.position[1] + handle.y * item.size.height) / canvas.height}
 			label={`Resize ${item.label} ${handle.name}`}
+			tabindex={disabled ? -1 : 0}
 			data-matrix-layer-handle={kind === 'Layer' ? 'Resize' : undefined}
 			data-matrix-layer-resize={kind === 'Layer' ? handle.name : undefined}
 			data-matrix-cell-resize={kind === 'Cell' ? handle.name : undefined}
 			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
-			{disabled}
+			disabled={disabled && !active}
 			onpointerdown={(event) => {
 				if (item) down(event, item, { Resize: { handle: handle.name } });
 			}} />

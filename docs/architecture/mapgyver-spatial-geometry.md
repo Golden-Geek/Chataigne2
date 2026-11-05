@@ -1,6 +1,6 @@
 # Spatial editor geometry
 
-MapGyver's spatial panel shares viewport, native image lifetime, pointer capture and edit-group
+MapGyver's spatial panel shares viewport, native image lifetime, pointer/keyboard input and edit-group
 mechanisms. Composition and Matrix adapters retain their own document queries and typed
 authoring operations. Matrix documents are never converted into Compositions.
 
@@ -28,8 +28,22 @@ inactive Layers inside Layer Groups. The generic Inspector and canvas edit the s
 pointer editing never launches playback. Native input/history and retained binding checks are
 recorded in the [Layer geometry receipt](../progress/evidence/mapgyver-m12-layer-geometry-2026-11-05.json).
 
-The [per-Layer Cell-content view](mapgyver-cell-layout.md) supplies bounded navigation and
-inactive preview. Cell canvas manipulation and grouped keyboard editing remain required in
-M12/7. The verified [Cell placement contract](mapgyver-cell-placement.md) supplies
-their independent natural/fixed Size and Fit/Fill/Stretch policy. Full original spatial/pixel
-acceptance remains in the [current ledger](../progress/mapgyver-status.md).
+The [per-Layer Cell-content view](mapgyver-cell-layout.md) supplies bounded navigation, inactive
+preview and Cell move/resize. The verified [Cell placement contract](mapgyver-cell-placement.md)
+supplies independent natural/fixed Size and Fit/Fill/Stretch policy.
+
+Golden UI's public `store/keyboard-gesture` owns bounded held-arrow collection and asynchronous
+edit-drain sequencing. It receives opaque target identities and current-start callbacks, and
+has no app geometry or transport dependency. Screen warping supplies its corner adapter;
+`spatial/keyboard.svelte.ts` supplies focused Composition/Matrix input. One arrow moves one
+canvas pixel; Shift moves ten. Focused resize/rotation handles use their existing typed geometry
+intent, while the canvas/body moves the selection. Each held-key set is one history group;
+separate taps wait for closure and begin from the latest accepted geometry.
+
+Viewport ownership excludes inputs and navigation controls. Focus loss flushes the current
+gesture and discards queued input; Escape, changed target/mode/project/snapshot and unavailable
+sessions cancel unsent input. Stale repeats cannot reopen a cancelled gesture. Handle buttons
+retain focus during their active gesture while the ordinary admission guard rejects new starts.
+Only the backend authors Parameters or validates coordinates and opposite anchors.
+
+Full original spatial/pixel acceptance remains in the [current ledger](../progress/mapgyver-status.md).

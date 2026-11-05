@@ -44,6 +44,8 @@ adds no history. The shared latest-sample gesture owns one history group; held r
 accepted settings update visible/off-page presentation, and completion refreshes the latest query.
 Escape, selection/project replacement and disposal retire the owned gesture and pointer capture.
 
-Grouped keyboard geometry and the full spatial/pixel acceptance matrix remain required in
-M12/7. The standard Inspector edits the same Cell placement Parameters; see
-[shared geometry](mapgyver-spatial-geometry.md) for Layer and Composition controls.
+The shared keyboard input moves the selected Cell and resizes a focused handle through the
+same typed geometry operations, including natural and unavailable-source movement. Held arrows
+share one history group; separate taps capture fresh geometry after closure. The standard
+Inspector edits the same Cell placement Parameters; see [shared geometry](mapgyver-spatial-geometry.md)
+for lifecycle and Layer/Composition controls. Full spatial/pixel acceptance remains in M12/7.

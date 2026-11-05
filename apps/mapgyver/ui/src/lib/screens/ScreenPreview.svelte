@@ -10,7 +10,7 @@
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
-	import { SurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
+	import { createSurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
 	import type { SurfaceHandle } from './surface-gesture';
 	let {
 		screen,
@@ -56,7 +56,7 @@
 			? { document: documentIdentity, reference: surface.reference, corner: corner.index, origin }
 			: null;
 	});
-	const keyboard = new SurfaceKeyboard({
+	const keyboard = createSurfaceKeyboard({
 		start: (target) =>
 			!disabled &&
 			start(target.reference, {

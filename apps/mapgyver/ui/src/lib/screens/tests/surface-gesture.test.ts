@@ -8,7 +8,7 @@ import {
 import type { SurfaceGeometryEdit } from '../generated/SurfaceGeometryEdit';
 import type { Point } from '../generated/Point';
 import type { SurfaceSnapshot } from '../generated/SurfaceSnapshot';
-import { SurfaceKeyboard } from '../surface-keyboard.ts';
+import { createSurfaceKeyboard } from '../surface-keyboard.ts';
 
 const reference = { screen: 'screen', surface: 'surface' };
 const deferred = <T>() => {
@@ -100,7 +100,7 @@ const snapshot = (x: number): SurfaceSnapshot => ({
 test('native keyboard tap during an asynchronous edit close is retained in its own history group', async () => {
 	const target = { document: '1:screen', reference, corner: 0, origin: { x: 0.1, y: 0 } };
 	const f = fixture();
-	const keyboard = new SurfaceKeyboard({
+	const keyboard = createSurfaceKeyboard({
 		start: (current) =>
 			f.gesture.start(reference, {
 				kind: 'QuadCornerPixels',

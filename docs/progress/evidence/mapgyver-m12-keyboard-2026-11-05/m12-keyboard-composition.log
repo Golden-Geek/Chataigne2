@@ -1,0 +1,10 @@
+﻿{"flow":["--composition"],"nativePid":37868}
+{"keyboardResize":"TopLeft"}
+{"keyboardResize":"Top"}
+{"keyboardResize":"TopRight"}
+{"keyboardResize":"Right"}
+{"keyboardResize":"BottomRight"}
+{"keyboardResize":"Bottom"}
+{"keyboardResize":"BottomLeft"}
+{"keyboardResize":"Left"}
+{"result":"pass","keyboard":["held-repeat-Shift-one-history-group","rapid-taps-own-history-and-fresh-origin","focus-loss-and-stale-repeat-fence","Escape-retirement","Tab-reachable-resize-handles","keyboard-resize-TopLeft","keyboard-resize-Top","keyboard-resize-TopRight","keyboard-resize-Right","keyboard-resize-BottomRight","keyboard-resize-Bottom","keyboard-resize-BottomLeft","keyboard-resize-Left","keyboard-rotate-TopLeft","keyboard-rotate-TopRight","keyboard-rotate-BottomRight","keyboard-rotate-BottomLeft"],"native":true,"scope":"actual pointer selection/anchored resize/outside rotation/cursor/smooth zoom/Escape/history/tab lifetime","reports":[{"resize":"TopLeft","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"Top","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"TopRight","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"Right","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"BottomRight","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"Bottom","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"BottomLeft","fixedOppositeAnchor":true,"groupedHistory":true},{"resize":"Left","fixedOppositeAnchor":true,"groupedHistory":true},{"rotate":"TopLeft","outsideCorner":true,"rotationCursor":true,"groupedHistory":true},{"rotate":"TopRight","outsideCorner":true,"rotationCursor":true,"groupedHistory":true},{"rotate":"BottomRight","outsideCorner":true,"rotationCursor":true,"groupedHistory":true},{"rotate":"BottomLeft","outsideCorner":true,"rotationCursor":true,"groupedHistory":true}],"zoomSamples":47,"pageErrors":[],"rejected":[],"screenshot":"target/m06-composition-handles.png"}

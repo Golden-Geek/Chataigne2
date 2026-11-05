@@ -4,6 +4,7 @@
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
+	import { createSpatialKeyboard, type SpatialKeyboardClient } from './keyboard.svelte';
 	let {
 		channel,
 		canvas,
@@ -13,7 +14,8 @@
 		actions,
 		children,
 		preview,
-		previewLabel
+		previewLabel,
+		keyboard: keyboardClient
 	}: {
 		channel: ChannelSnapshot;
 		canvas: { width: number; height: number };
@@ -24,8 +26,12 @@
 		children?: Snippet;
 		preview?: PreviewSource | null;
 		previewLabel?: string;
+		keyboard?: SpatialKeyboardClient;
 	} = $props();
+	const keyboard = createSpatialKeyboard(() => keyboardClient);
 </script>
+
+<svelte:window onkeyup={keyboard.keyup} onblur={keyboard.finish} />
 
 <Viewport2D
 	{actions}
@@ -33,6 +39,8 @@
 	identity={`${appState.session?.projectGeneration ?? 0}:${identity}`}
 	{selection}
 	{label}
+	onkeydown={keyboard.keydown}
+	onfocusout={keyboard.finish}
 	native>
 	{#if preview !== null}<ChannelPreview
 			{channel}

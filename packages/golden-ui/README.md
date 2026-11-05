@@ -19,6 +19,11 @@ installation acknowledgement. Defaults preserve the ordinary Golden theme.
 drag pan temporarily. Camera state survives same-document snapshots, geometry edits and selection
 changes; only an actual document identity change or an explicit navigation action reframes it.
 
+`store/keyboard-gesture` collects held arrows into bounded integer-offset gestures. Callers
+provide opaque identities, current geometry at start and their existing edit lifecycle. It
+retains separate taps while a previous edit closes, cancels stale targets/repeats and discards
+queued input on focus loss. Domain geometry and backend mutation semantics stay with callers.
+
 `components/common/node-drag` owns the public node/Parameter drag payload and protected-dragover
 cache. Consumers resolve the payload against the current session/document generation and graph
 using both node ID and UUID before sending app intents; reopening identical saved UUIDs still

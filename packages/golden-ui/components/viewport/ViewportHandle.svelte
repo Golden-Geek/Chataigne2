@@ -27,7 +27,7 @@
 	aria-label={label}
 	aria-pressed={selected ?? attributes['aria-pressed']}
 	aria-hidden={ghost ? 'true' : undefined}
-	tabindex={-1}
+	tabindex={attributes.tabindex ?? -1}
 	disabled={ghost || attributes.disabled}></button>
 
 <style>

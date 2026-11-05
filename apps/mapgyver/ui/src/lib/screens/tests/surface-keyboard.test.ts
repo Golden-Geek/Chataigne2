@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { SurfaceKeyboard, type KeyboardTarget } from '../surface-keyboard.ts';
+import { createSurfaceKeyboard, type KeyboardTarget } from '../surface-keyboard.ts';
 import type { PixelOffset } from '../generated/PixelOffset';
 
 const target: KeyboardTarget = {
@@ -23,7 +23,7 @@ function fixture(allowed = true) {
 	let begins = 0,
 		ends = 0,
 		stops = 0;
-	const keyboard = new SurfaceKeyboard({
+	const keyboard = createSurfaceKeyboard({
 		start: () => {
 			begins++;
 			return allowed;
@@ -94,7 +94,7 @@ test('separate taps wait for closure and begin from the latest accepted origin',
 	const starts: KeyboardTarget[] = [];
 	const samples: PixelOffset[] = [];
 	let finishes = 0;
-	const keyboard = new SurfaceKeyboard({
+	const keyboard = createSurfaceKeyboard({
 		start: (current) => (starts.push(current), true),
 		move: (pixels) => samples.push(pixels),
 		finish: () => finishes++,

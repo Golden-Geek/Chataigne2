@@ -152,7 +152,7 @@
 			label={`Move ${item.label}`}
 			data-instance-drop-target={item.reference.instance}
 			data-source-drop-object={item.reference.instance}
-			{disabled}
+			disabled={disabled && !active}
 			onpointerdown={(event) => down(event, item, 'Translate')} />
 	{/if}
 {/each}
@@ -164,17 +164,18 @@
 		data-instance-drop-target={instance.reference.instance}
 		data-source-drop-object={instance.reference.instance}
 		data-instance-handle="Translate"
-		{disabled}
+		disabled={disabled && !active}
 		onpointerdown={(event) => down(event, instance!, 'Translate')} />
 	{#each handles.resize as handle (handle.name)}
 		<ViewportHandle
 			x={handle.point.x / composition.canvas.width}
 			y={handle.point.y / composition.canvas.height}
 			label={`Resize ${instance.label} ${handle.name}`}
+			tabindex={disabled ? -1 : 0}
 			data-instance-handle="Resize"
 			data-instance-resize={handle.name}
 			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
-			{disabled}
+			disabled={disabled && !active}
 			onpointerdown={(event) => {
 				if (selectedExtent)
 					down(event, instance!, { Resize: { handle: handle.name, extent: selectedExtent } });
@@ -185,10 +186,11 @@
 			x={handle.point.x / composition.canvas.width}
 			y={handle.point.y / composition.canvas.height}
 			label={`Rotate ${instance.label} ${handle.name}`}
+			tabindex={disabled ? -1 : 0}
 			data-instance-handle="Rotate"
 			data-instance-rotation={handle.name}
 			style={`width: 1.2rem; height: 1.2rem; background: transparent; border: none; transform: translate(-50%, -50%) translate(${handle.offset.x * 1.3}rem, ${handle.offset.y * 1.3}rem); cursor: url(${JSON.stringify(rotateCursor)}) 12 12, crosshair`}
-			{disabled}
+			disabled={disabled && !active}
 			onpointerdown={(event) => down(event, instance!, 'Rotate')} />
 	{/each}
 {/if}

@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import { screenParameterControls } from './screen-parameters.mjs';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { verifySpatialKeyboard } from './spatial-keyboard.mjs';
 
 const near = (actual, expected, epsilon = 0.05) =>
 	actual.every((value, index) => Math.abs(value - expected[index]) < epsilon);
@@ -304,12 +305,43 @@ export async function verifyCompositionHandles({ page, edit }) {
 	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	await ready();
 	assert.deepEqual(await inspect(), baseline);
+	stage = 'Composition keyboard geometry';
+	const transform = (value) =>
+		value.instances.find((item) => item.reference.instance === primary).definition.transform;
+	const keyboard = await verifySpatialKeyboard({
+		page,
+		view,
+		inspect,
+		ready,
+		position: (value) => transform(value).position,
+		resize: {
+			locator: (name) => panel.locator(`[data-instance-resize="${name}"]`),
+			validate: (before, after, name) => {
+				const a = transform(before),
+					b = transform(after),
+					opposite = fraction[name].map((value) => 1 - value);
+				assert(near(projected(a, opposite), projected(b, opposite), 0.001));
+				assert.deepEqual(b, { ...a, position: b.position, scale: b.scale });
+				assert.notDeepEqual(b.scale, a.scale);
+			}
+		},
+		rotate: {
+			locator: (name) => panel.locator(`[data-instance-rotation="${name}"]`),
+			validate: (before, after) => {
+				const a = transform(before),
+					b = transform(after);
+				assert.deepEqual(b, { ...a, rotation_degrees: b.rotation_degrees });
+				assert.notEqual(b.rotation_degrees, a.rotation_degrees);
+			}
+		}
+	});
 	await page.screenshot({ path: 'target/m06-composition-handles.png' });
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
+			keyboard,
 			native: true,
 			scope:
 				'actual pointer selection/anchored resize/outside rotation/cursor/smooth zoom/Escape/history/tab lifetime',

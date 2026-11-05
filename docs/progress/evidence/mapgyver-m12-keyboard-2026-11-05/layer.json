@@ -1,0 +1,38 @@
+{
+  "result": "pass",
+  "keyboard": [
+    "held-repeat-Shift-one-history-group",
+    "rapid-taps-own-history-and-fresh-origin",
+    "focus-loss-and-stale-repeat-fence",
+    "Escape-retirement",
+    "Tab-reachable-resize-handles",
+    "keyboard-resize-TopLeft",
+    "keyboard-resize-Top",
+    "keyboard-resize-TopRight",
+    "keyboard-resize-Right",
+    "keyboard-resize-BottomRight",
+    "keyboard-resize-Bottom",
+    "keyboard-resize-BottomLeft",
+    "keyboard-resize-Left"
+  ],
+  "nativePid": 36304,
+  "reports": [
+    "TopLeft",
+    "Top",
+    "TopRight",
+    "Right",
+    "BottomRight",
+    "Bottom",
+    "BottomLeft",
+    "Left"
+  ],
+  "errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 1447,
+      "receipts": 1447
+    }
+  },
+  "scope": "actual bundled inactive nested Layer body translation and all eight opposite-anchor integer-pixel resize handles; duration/composite preservation, exact grouped Undo/Redo, Escape capture retirement and no implicit launch"
+}

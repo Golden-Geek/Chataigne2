@@ -1,0 +1,47 @@
+﻿{"flow":["--matrix-cell-geometry"],"nativePid":12864}
+node : {"stage":"Cell keyboard geometry","errors":[],"receipts":{"rejected":[],"observed":{"requests":1222,"receipts":1
+222}},"body":"FILE\nUntitled*\nMAPGYVER 0.1.0\nClear UI\n➖ 🟩 🔴\nMedias\nScreens\nCell geometry\nScreen
+Warping\nSurface Source\nComposition: Cell geometry / Layer 1 Cells\nMatrix: Cell geometry\nMedia
+Preview\n2\nFrame\nHome\n−\n100%\n+\nLayer 1\nInspector: Cell\nCell\nSolid
+Color\nParameters\nResolution\nChannels\nChannel 1\nColor\nParameters\nColumn\nColumn 1\nOutput\nEmpty
+reference\nPosition\n⟷\n⟷\nSize\nFit Mode\nFit\nFill\nStretch\nOpacity\nEnabled\nOverride transition\nTransition
+duration\nTransition curve\nLinear\nSmoothStep\nApp control\nParameters\nApp file\nAllowed: .exe\nRuntime\nRaw
+Data\nMedia Preview opened\n60.4 fps\nNVIDIA GeForce RTX 5080 Laptop GPU\n0.22 ms CPU\n305.0 MB\n200 Hz"}
+At line:2 char:78
++ ... board.exe'; node apps/mapgyver/tests/browser/native-navigation.mjs -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ({"stage":"Cell ....0 MB\n200 Hz"}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"cells":[{"definition":{"application":"b0729713-b61f-4c8c-885b-e11a315b9e86","column":
+"9828cc7f-24f1-4a8b-9c90-71ff5cf13418","settings":{"enabled":false,"fit_mode":"Fill","opacity":0.5,"position":[80,70],"
+size":null},"source":{"channel":"36196c01-bc46-4fb5-90fc-68c585093627","media":"34c67c46-3359-404e-ac0c-ac9e642c842a"},
+"transition":null},"id":"b0729713-b61f-4c8c-885b-e11a315b9e86","layer":"614f4816-adff-456a-9ad5-7c9bf951403d","media":"
+34c67c46-3359-404e-ac0c-ac9e642c842a"}],"column_groups":[],"columns":[{"application":"9828cc7f-24f1-4a8b-9c90-71ff5cf13
+418","axis_index":0,"definition":{"transition":null},"id":"9828cc7f-24f1-4a8b-9c90-71ff5cf13418","label":"Column 1","pa
+rent":null}],"definition":{"canvas":{"height":1080,"width":1920},"empty_cell":"Transparent"},"final_channel":{"channel"
+:"e2bbfc63-1f30-4e1a-b3a3-046811190437","media":"46c5d498-b5cc-489b-95b9-4f90b5cde4e4"},"items":[{"channel":{"channel":
+"3cf8a36f-a0a7-44fa-a1c7-5e85906c1a94","media":"46c5d498-b5cc-489b-95b9-4f90b5cde4e4"},"id":{"id":"614f4816-adff-456a-9
+ad5-7c9bf951403d","kind":"Layer"},"label":"Layer 1","layer":{"duration_ms":777,"position":[0,0],"size":{"height":300,"w
+idth":400}},"parent":null,"settings":{"blend":"Normal","enabled":true,"expose_channel":false,"opacity":1}}],"media":"46
+c5d498-b5cc-489b-95b9-4f90b5cde4e4"}
+    at wait (file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/spatial-keyboard.mjs:52:4)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async verifySpatialKeyboard
+(file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/spatial-keyboard.mjs:150:18)
+    at async verifyMatrixCellGeometry
+(file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/matrix-cell-geometry.mjs:194:20)
+    at async file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/native-navigation.mjs:174:2 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v26.5.0

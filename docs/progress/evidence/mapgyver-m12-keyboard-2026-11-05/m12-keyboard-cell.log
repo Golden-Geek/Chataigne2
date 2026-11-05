@@ -1,0 +1,10 @@
+﻿{"flow":["--matrix-cell-geometry"],"nativePid":23676}
+{"keyboardResize":"TopLeft"}
+{"keyboardResize":"Top"}
+{"keyboardResize":"TopRight"}
+{"keyboardResize":"Right"}
+{"keyboardResize":"BottomRight"}
+{"keyboardResize":"Bottom"}
+{"keyboardResize":"BottomLeft"}
+{"keyboardResize":"Left"}
+{"result":"pass","keyboard":["held-repeat-Shift-one-history-group","rapid-taps-own-history-and-fresh-origin","focus-loss-and-stale-repeat-fence","Escape-retirement","Tab-reachable-resize-handles","keyboard-resize-TopLeft","keyboard-resize-Top","keyboard-resize-TopRight","keyboard-resize-Right","keyboard-resize-BottomRight","keyboard-resize-Bottom","keyboard-resize-BottomLeft","keyboard-resize-Left"],"unavailableKeyboard":["held-repeat-Shift-one-history-group","rapid-taps-own-history-and-fresh-origin","focus-loss-and-stale-repeat-fence","Escape-retirement"],"nativePid":23676,"reports":["TopLeft","Top","TopRight","Right","BottomRight","Bottom","BottomLeft","Left"],"errors":[],"receipts":{"rejected":[],"observed":{"requests":2205,"receipts":2204}},"scope":"inactive natural Cell translation, eight opposite-anchor resizes, exact grouped history, Escape retirement, unavailable-source translation without synthetic dimensions and no playback"}
