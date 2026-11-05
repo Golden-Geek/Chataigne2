@@ -22,7 +22,7 @@ fn named_column_cell_and_unload_calls_preserve_anchor_policy_without_authored_hi
         &mut baseline,
         MediaEdit::Matrix {
             media: matrix.media,
-            edit: MatrixEdit::AddColumns { count: 2 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 2 },
         },
     ) else {
         panic!()
@@ -84,7 +84,7 @@ fn owned_application_configuration_inspection_and_rejection_match_every_public_c
         &mut engine,
         MediaEdit::Matrix {
             media: matrix.media,
-            edit: MatrixEdit::AddColumns { count: 2 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 2 },
         },
     ) else {
         panic!()

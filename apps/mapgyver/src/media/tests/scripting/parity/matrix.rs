@@ -2,6 +2,65 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn nested_column_group_topology_uses_the_same_intents_for_every_public_caller() {
+    let scene = scene();
+    let media = scene.root.media;
+    let create = MediaEdit::Matrix {
+        media,
+        edit: MatrixEdit::AddColumnGroup {
+            parent: None,
+            label: Some("Cue group".into()),
+        },
+    };
+    let mut baseline = loaded(&scene.document);
+    let result = run(&mut baseline, Caller::Ui, create.clone()).unwrap();
+    let MediaEditResult::MatrixColumnGroupCreated { group } = serde_json::from_value(result).unwrap() else {
+        panic!()
+    };
+    let group_document = to_sparse_project_json_pretty(&baseline).unwrap();
+    let add = MediaEdit::Matrix {
+        media,
+        edit: MatrixEdit::AddColumns {
+            parent: Some(group),
+            count: 2,
+        },
+    };
+    run(&mut baseline, Caller::Ui, add.clone()).unwrap();
+    let populated_document = to_sparse_project_json_pretty(&baseline).unwrap();
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        run(&mut engine, caller, create.clone()).unwrap();
+        let mut engine = loaded(&group_document);
+        let result = run(&mut engine, caller, add.clone()).unwrap();
+        let MediaEditResult::MatrixCreated { columns, .. } = serde_json::from_value(result).unwrap() else {
+            panic!()
+        };
+        let snapshot = crate::matrix::inspect(&engine, media).unwrap();
+        assert_eq!(snapshot.column_groups[0].column_count, 2, "{caller:?}");
+        assert!(
+            snapshot
+                .columns
+                .iter()
+                .filter(|c| columns.contains(&c.id))
+                .all(|c| c.parent == Some(group))
+        );
+        let mut engine = loaded(&populated_document);
+        run(
+            &mut engine,
+            caller,
+            MediaEdit::Matrix {
+                media,
+                edit: MatrixEdit::UngroupColumns { group },
+            },
+        )
+        .unwrap();
+        let snapshot = crate::matrix::inspect(&engine, media).unwrap();
+        assert!(snapshot.column_groups.is_empty());
+        assert!(snapshot.columns.iter().all(|c| c.parent.is_none()));
+    }
+}
+
+#[test]
 fn contextual_cell_creation_is_backend_owned_for_all_media_kinds_and_public_callers() {
     let scene = scene();
     let row = scene
@@ -246,7 +305,7 @@ fn scene() -> Scene {
             count: 2,
         },
     );
-    matrix_edit(&mut engine, root, MatrixEdit::AddColumns { count: 2 });
+    matrix_edit(&mut engine, root, MatrixEdit::AddColumns { parent: None, count: 2 });
     let snapshot = crate::matrix::inspect(&engine, root.media).unwrap();
     let layers = snapshot
         .items
@@ -482,7 +541,7 @@ fn matrix_creation_and_copy_return_committed_exports_and_columns_for_every_calle
                 parent: Some(id),
                 count: 2,
             },
-            MatrixEdit::AddColumns { count: 2 },
+            MatrixEdit::AddColumns { parent: None, count: 2 },
             MatrixEdit::DuplicateItem { item: group },
             MatrixEdit::DuplicateColumn {
                 column: scene.snapshot.columns[0].id,

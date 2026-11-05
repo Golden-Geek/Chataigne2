@@ -18,9 +18,11 @@ fn layer_canvas_and_position_map_native_sized_cells_and_survive_output_resolutio
     let MatrixItemId::Layer { id: row } = items[0] else {
         panic!()
     };
-    let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 1 })
-    else {
+    let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddColumns { parent: None, count: 1 },
+    ) else {
         panic!()
     };
     matrix_edit(
@@ -200,9 +202,11 @@ fn hidden_layer_is_internal_to_final_and_cannot_leak_through_a_concurrent_public
     let MatrixItemId::Layer { id: layer } = items[0] else {
         panic!()
     };
-    let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 1 })
-    else {
+    let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddColumns { parent: None, count: 1 },
+    ) else {
         panic!()
     };
     matrix_edit(
@@ -335,7 +339,11 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
             count: 2,
         },
     );
-    matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 2 });
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddColumns { parent: None, count: 2 },
+    );
     let authored = inspect(&mut engine, matrix.media);
     let layers = authored
         .items

@@ -81,6 +81,7 @@ fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
             match engine.nodes.get(*id) {
                 Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
                 Some(AppNode::MatrixColumn(node)) => node.bind_runtime(control.binding()),
+                Some(AppNode::MatrixColumnGroup(node)) => node.bind_runtime(control.binding()),
                 Some(AppNode::MatrixCell(node)) => node.bind_runtime(control.binding()),
                 _ => unreachable!(),
             }
@@ -179,6 +180,7 @@ fn column_snapshot(engine: &AppEngine, id: ColumnId, node_id: NodeId) -> Result<
     };
     Ok(ColumnSnapshot {
         id,
+        parent: super::column_axis::parent(engine, node_id),
         label: node.node_data().meta.label.clone(),
         definition: node.definition(),
         application: crate::applications::protocol::ApplicationId(id.0),

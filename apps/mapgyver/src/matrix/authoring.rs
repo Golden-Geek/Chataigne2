@@ -212,9 +212,10 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                 columns: vec![],
             });
         }
-        MatrixEdit::AddColumns { count } => {
+        MatrixEdit::AddColumns { parent, count } => {
             let count = admit_count(&document, count)?;
-            let mut names = children(engine, document.root)?
+            let parent = document.column_parent(parent)?;
+            let mut names = children(engine, parent)?
                 .into_iter()
                 .map(|id| engine.nodes.get(id).unwrap().node_data().meta.label.clone())
                 .collect::<HashSet<_>>();
@@ -231,10 +232,18 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
                 };
                 let node = super::ColumnNode::from_definition(label, ColumnDefinition::default());
                 columns.push(ColumnId(node.node_data().meta.uuid));
-                items.push(UserItemTreeInsertion::new(document.root, NodeTree::new(node)));
+                items.push(UserItemTreeInsertion::new(parent, NodeTree::new(node)));
             }
             engine.edits.push(Edit::AddUserItemTrees { items });
             return Ok(MediaEditResult::MatrixCreated { items: vec![], columns });
+        }
+        edit @ (MatrixEdit::AddColumnGroup { .. }
+        | MatrixEdit::RenameColumnGroup { .. }
+        | MatrixEdit::MoveColumnItem { .. }
+        | MatrixEdit::UngroupColumns { .. }
+        | MatrixEdit::RemoveColumnGroup { .. }
+        | MatrixEdit::DuplicateColumnGroup { .. }) => {
+            return super::column_groups::apply(engine, &document, edit);
         }
         MatrixEdit::ConfigureItem { item, settings } => {
             settings.validate()?;
@@ -328,13 +337,16 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         } => return super::cell_applications::configure_column(engine, &document, column, definition, pre, post),
         MatrixEdit::ReorderColumn { column, after } => {
             let node = document.column(column)?;
+            let parent = engine.nodes.get(node).unwrap().node_data().parent.unwrap();
             let previous = after.map(|id| document.column(id)).transpose()?;
-            if previous == Some(node) {
-                return Err("column cannot follow itself".into());
+            if previous == Some(node)
+                || previous.is_some_and(|id| engine.nodes.get(id).unwrap().node_data().parent != Some(parent))
+            {
+                return Err("Column reorder requires distinct siblings; use a Column item move to reparent".into());
             }
             engine.edits.push(Edit::MoveNode {
                 node,
-                new_parent: document.root,
+                new_parent: parent,
                 new_prev_sibling: previous,
             });
         }

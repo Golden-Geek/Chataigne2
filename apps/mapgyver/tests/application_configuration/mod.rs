@@ -44,7 +44,7 @@ fn cell_owned_control_launches_without_media_and_preserves_pid_across_neighbor_t
         &mut engine,
         MediaEdit::Matrix {
             media: reference.media,
-            edit: MatrixEdit::AddColumns { count: 3 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 3 },
         },
     ) else {
         panic!()

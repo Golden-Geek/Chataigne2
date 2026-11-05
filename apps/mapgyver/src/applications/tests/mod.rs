@@ -55,7 +55,7 @@ pub(crate) fn matrix(engine: &mut AppEngine) -> (MediaId, Vec<ColumnId>) {
         engine,
         MediaEdit::Matrix {
             media: reference.media,
-            edit: MatrixEdit::AddColumns { count: 5 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 5 },
         },
     ) else {
         panic!()

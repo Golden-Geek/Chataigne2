@@ -118,7 +118,7 @@ export function gridActions(
 	return [
 		action('Add layer', { kind: 'AddLayers', parent: null, count: 1 }),
 		action('Add group', { kind: 'AddGroup', parent: null, label: null }),
-		action('Add column', { kind: 'AddColumns', count: 1 }),
+		action('Add column', { kind: 'AddColumns', parent: null, count: 1 }),
 		action('Unload Matrix', { kind: 'ClearPlayback' })
 	];
 }

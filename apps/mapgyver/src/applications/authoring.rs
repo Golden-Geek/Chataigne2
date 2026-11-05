@@ -16,7 +16,8 @@ fn node_id(engine: &AppEngine, application: ApplicationId) -> Result<NodeId, Str
     let settings = match engine.nodes.get(owner) {
         Some(AppNode::MatrixCell(node)) => node.application_node(),
         Some(AppNode::MatrixColumn(node)) => node.application_node(),
-        _ => return Err("App control requires a Column or Cell owner identity".into()),
+        Some(AppNode::MatrixColumnGroup(node)) => node.application_node(),
+        _ => return Err("App control requires a Column, Column Group or Cell owner identity".into()),
     }
     .ok_or("Declared app-control settings are missing")?;
     if !matches!(engine.nodes.get(settings), Some(AppNode::Application(_))) {
@@ -89,6 +90,7 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
             let valid = match settings.node_data().parent.and_then(|id| engine.nodes.get(id)) {
                 Some(AppNode::MatrixCell(owner)) => owner.application_node() == Some(settings.id()),
                 Some(AppNode::MatrixColumn(owner)) => owner.application_node() == Some(settings.id()),
+                Some(AppNode::MatrixColumnGroup(owner)) => owner.application_node() == Some(settings.id()),
                 _ => false,
             };
             if !valid {

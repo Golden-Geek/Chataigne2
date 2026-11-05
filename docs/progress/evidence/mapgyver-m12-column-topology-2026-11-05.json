@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/4 persisted Column Group topology and public authoring checkpoint",
+  "gate": "Active",
+  "acceptance": { "verified": 60, "total": 78, "m12_verified": 3, "m12_total": 11 },
+  "capability": [
+    "Real typed Column Group nodes own ordered Columns and nested groups, independently of Layer Groups.",
+    "One tree derives flat stable Column order, parent identities, sibling ordinals and group ranges, including empty groups.",
+    "Public intents create, rename, reparent/reorder, ungroup, remove and duplicate groups; sparse Cell addresses remain stable or are remapped during copy.",
+    "Nested Column launch, render projection and bounded viewport queries resolve the actual owner through at most 32 groups.",
+    "Intrinsic typed App Control settings use the existing model, Normal defaults and persistent explicit Hidden. Standard Inspector registration and app-owner references recognize groups."
+  ],
+  "checks": {
+    "rust_library": "454 passed, 2 existing ignored; includes generated TypeScript contract parity and UI/QuickJS/hosted/named public caller parity",
+    "final_column_group_tests": "6 passed after final bulk ungroup assertions; 1024 Columns remain sparse, bulk create/ungroup each one history step and at most 8 lifecycle snapshots; 32 nested groups roundtrip and deeper creation rejects atomically",
+    "strict_clippy": "Passed all targets with native-qualification and application-process-fixture, -D warnings",
+    "svelte": "0 errors, 0 warnings",
+    "matrix_ui_units": "25 passed",
+    "ui_production_build": "Passed; existing bundle-size advisory remains",
+    "format": "Root and golden_core cargo fmt; scoped UI Prettier passed"
+  },
+  "corrected_during_validation": [
+    "Cell reference validation assumed Columns were direct Final children; it now resolves the bounded axis owner while retaining foreign-Matrix rejection.",
+    "Playback owner resolution and document cache binding now support actual nested groups."
+  ],
+  "remaining_requirement": [
+    "Aggregate group application demand and flat pre/post distances, including independent Cell triggers and continuous same-group switches.",
+    "Outgoing/final-use group retention, cross-group release, normalized shared executable ownership and rapid re-entry/recovery.",
+    "Bounded group header/selection and contextual authoring UI, including actual group standard Inspector editing and Normal/explicit-Hidden window checks.",
+    "Full M12/4 requested/actual/stopping marker and sparse scale acceptance. No native group application execution is claimed by this checkpoint."
+  ]
+}

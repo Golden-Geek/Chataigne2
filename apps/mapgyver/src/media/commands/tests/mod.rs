@@ -142,7 +142,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 &mut engine,
                 MediaEdit::Matrix {
                     media: target.media,
-                    edit: MatrixEdit::AddColumns { count: 1 },
+                    edit: MatrixEdit::AddColumns { parent: None, count: 1 },
                 },
             ) else {
                 panic!()

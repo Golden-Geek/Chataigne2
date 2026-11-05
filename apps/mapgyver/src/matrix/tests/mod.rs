@@ -15,6 +15,7 @@ mod bulk_authoring;
 mod cell_creation;
 mod cell_playback;
 mod cell_settings;
+mod column_groups;
 mod copying;
 mod defaults;
 mod layer_settings;
@@ -91,7 +92,9 @@ fn layers(engine: &mut AppEngine, media: MediaId, parent: Option<GroupId>, count
     items
 }
 fn columns(engine: &mut AppEngine, media: MediaId, count: u16) -> Vec<ColumnId> {
-    let MediaEditResult::MatrixCreated { columns, .. } = edit(engine, media, MatrixEdit::AddColumns { count }) else {
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        edit(engine, media, MatrixEdit::AddColumns { parent: None, count })
+    else {
         panic!()
     };
     columns

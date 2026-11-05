@@ -454,6 +454,9 @@ pub enum MediaEditResult {
         cell: crate::matrix::protocol::CellId,
         application: crate::applications::protocol::ApplicationId,
     },
+    MatrixColumnGroupCreated {
+        group: crate::matrix::protocol::ColumnGroupId,
+    },
     CompositionEditor {
         page: super::composition::protocol::CompositionEditorPage,
     },

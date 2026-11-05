@@ -10,7 +10,7 @@ fn app_file_command_preserves_other_typed_settings_and_has_atomic_rejection_and_
         &mut engine,
         MediaEdit::Matrix {
             media: matrix.media,
-            edit: MatrixEdit::AddColumns { count: 1 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 1 },
         },
     ) else {
         panic!()

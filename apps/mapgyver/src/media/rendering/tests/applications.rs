@@ -35,7 +35,7 @@ fn committed_column_capture_resolves_neighbors_and_keeps_active_bindings_through
     let mut engine = engine();
     let matrix = create(&mut engine, MediaKind::Matrix);
     let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 5 })
+        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { parent: None, count: 5 })
     else {
         panic!()
     };
@@ -97,7 +97,7 @@ fn rendering_app_bound_columns_requires_the_matching_admitted_lifecycle_owner() 
     let mut engine = engine();
     let matrix = create(&mut engine, MediaKind::Matrix);
     let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 1 })
+        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { parent: None, count: 1 })
     else {
         panic!()
     };
@@ -148,7 +148,7 @@ fn interrupted_application_fades_keep_removed_outgoing_references_until_transiti
     let matrix = create(&mut engine, MediaKind::Matrix);
     matrix_edit(&mut engine, matrix, MatrixEdit::AddLayers { parent: None, count: 1 });
     let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { count: 3 })
+        matrix_edit(&mut engine, matrix, MatrixEdit::AddColumns { parent: None, count: 3 })
     else {
         panic!()
     };

@@ -31,7 +31,7 @@ fn fixture() -> (AppEngine, ChannelReference, Vec<ColumnId>) {
         &mut engine,
         MediaEdit::Matrix {
             media: matrix.media,
-            edit: MatrixEdit::AddColumns { count: 2 },
+            edit: MatrixEdit::AddColumns { parent: None, count: 2 },
         },
     ) else {
         panic!()

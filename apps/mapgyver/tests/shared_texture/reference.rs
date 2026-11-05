@@ -340,7 +340,11 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
                 matrix.media,
                 MatrixEdit::AddLayers { parent: None, count: 1 },
             );
-            matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 2 });
+            matrix_edit(
+                &mut engine,
+                matrix.media,
+                MatrixEdit::AddColumns { parent: None, count: 2 },
+            );
             let MediaEditResult::Matrix { snapshot } = matrix_edit(&mut engine, matrix.media, MatrixEdit::Inspect)
             else {
                 panic!()

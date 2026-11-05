@@ -53,9 +53,11 @@ fn native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adap
         let MatrixItemId::Layer { id: layer } = items[0] else {
             panic!()
         };
-        let MediaEditResult::MatrixCreated { columns, .. } =
-            matrix(&mut engine, root.media, MatrixEdit::AddColumns { count: 1 })
-        else {
+        let MediaEditResult::MatrixCreated { columns, .. } = matrix(
+            &mut engine,
+            root.media,
+            MatrixEdit::AddColumns { parent: None, count: 1 },
+        ) else {
             panic!()
         };
         matrix(

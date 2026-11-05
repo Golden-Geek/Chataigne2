@@ -32,6 +32,17 @@ pub(crate) fn capture_application_columns(
             node.bind_runtime(control.binding());
         }
     }
+    for (group, id) in &document.column_groups {
+        let Some(crate::app::AppNode::MatrixColumnGroup(node)) = engine.nodes.get(*id) else {
+            unreachable!()
+        };
+        node.bind_runtime(control.binding());
+        if let Some(settings) =
+            crate::applications::control_node(engine, crate::applications::protocol::ApplicationId(group.0))
+        {
+            super::cell_applications::bind(settings, control);
+        }
+    }
     let mut columns = document
         .snapshot
         .columns

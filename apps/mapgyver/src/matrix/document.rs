@@ -15,6 +15,7 @@ pub(super) struct Document {
     pub snapshot: MatrixSnapshot,
     pub items: HashMap<MatrixItemId, NodeId>,
     pub columns: HashMap<ColumnId, NodeId>,
+    pub column_groups: HashMap<ColumnGroupId, NodeId>,
     pub cells: HashMap<(LayerId, ColumnId), NodeId>,
     pub elements: HashSet<NodeId>,
     pub exports: HashMap<MatrixItemId, ChannelReference>,
@@ -73,6 +74,7 @@ impl Document {
         }
         let (root, final_channel, definition) = root.ok_or("Matrix final output is missing")?;
         let roots = children(engine, root)?;
+        let axis = super::column_axis::load(engine, root)?;
         let mut document = Self {
             media: media_node,
             root,
@@ -81,33 +83,32 @@ impl Document {
                 definition,
                 final_channel,
                 items: vec![],
-                columns: vec![],
+                columns: axis.columns,
+                column_groups: axis.groups,
                 cells: vec![],
             },
             items: HashMap::new(),
-            columns: HashMap::new(),
+            columns: axis.column_nodes,
+            column_groups: axis.group_nodes,
             cells: HashMap::new(),
             elements: HashSet::new(),
             exports: HashMap::new(),
         };
-        for id in &roots {
-            if let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(*id) {
-                let column = ColumnId(node.node_data().meta.uuid);
-                document.columns.insert(column, *id);
-                document.elements.insert(*id);
-                document.snapshot.columns.push(ColumnSnapshot {
-                    id: column,
-                    label: node.node_data().meta.label.clone(),
-                    definition: node.definition(),
-                    application: crate::applications::protocol::ApplicationId(column.0),
-                });
-            }
-        }
+        document.elements.extend(
+            document
+                .columns
+                .values()
+                .chain(document.column_groups.values())
+                .copied(),
+        );
         let mut pending = roots.into_iter().rev().map(|id| (id, None, 0usize)).collect::<Vec<_>>();
         while let Some((id, parent, depth)) = pending.pop() {
-            if matches!(engine.nodes.get(id), Some(AppNode::MatrixColumn(_))) {
+            if matches!(
+                engine.nodes.get(id),
+                Some(AppNode::MatrixColumn(_) | AppNode::MatrixColumnGroup(_))
+            ) {
                 if parent.is_some() {
-                    return Err("Columns belong directly to Matrix Final".into());
+                    return Err("Column axis nodes cannot belong to Layer Groups".into());
                 }
                 continue;
             }
@@ -190,6 +191,22 @@ impl Document {
             .map(|id| self.item(MatrixItemId::Group { id }))
             .unwrap_or(Ok(self.root))
     }
+    pub fn column_parent(&self, parent: Option<ColumnGroupId>) -> Result<NodeId, String> {
+        parent
+            .map(|group| {
+                self.column_groups
+                    .get(&group)
+                    .copied()
+                    .ok_or("Column Group is missing or belongs to another Matrix".into())
+            })
+            .unwrap_or(Ok(self.root))
+    }
+    pub fn column_item(&self, item: ColumnItemId) -> Result<NodeId, String> {
+        match item {
+            ColumnItemId::Column { id } => self.column(id),
+            ColumnItemId::Group { id } => self.column_parent(Some(id)),
+        }
+    }
     pub fn channel(&self, item: MatrixItemId) -> ChannelReference {
         self.exports[&item]
     }
@@ -216,7 +233,10 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
     for (id, node) in engine.nodes.iter() {
         if matches!(
             node,
-            AppNode::MatrixElement(_) | AppNode::MatrixColumn(_) | AppNode::MatrixCell(_)
+            AppNode::MatrixElement(_)
+                | AppNode::MatrixColumn(_)
+                | AppNode::MatrixColumnGroup(_)
+                | AppNode::MatrixCell(_)
         ) && !owned.contains(&id)
         {
             return Err("Matrix element is outside a Matrix document".into());

@@ -24,7 +24,7 @@ use std::sync::Arc;
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
-        application_owner: NodeReference = NodeReference::empty() (label = "App control owner", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into(), "mapgyver.matrix.cell.v3".into()]);
+        application_owner: NodeReference = NodeReference::empty() (label = "App control owner", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into(), "mapgyver.matrix.column_group.v1".into(), "mapgyver.matrix.cell.v3".into()]);
         application_file: File = File::default() (label = "App file", file_allowed_extensions = vec!["exe".into()]);
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");

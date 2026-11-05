@@ -11,7 +11,14 @@ macro_rules! identity {
         pub struct $name(pub NodeUuid);
     )+};
 }
-identity!(LayerId, GroupId, ColumnId, CellId);
+identity!(LayerId, GroupId, ColumnId, ColumnGroupId, CellId);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum ColumnItemId {
+    Column { id: ColumnId },
+    Group { id: ColumnGroupId },
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixItemId {
@@ -208,9 +215,22 @@ impl LayerSettings {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ColumnSnapshot {
     pub id: ColumnId,
+    pub parent: Option<ColumnGroupId>,
     pub label: String,
     pub definition: ColumnDefinition,
     pub application: crate::applications::protocol::ApplicationId,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct ColumnGroupSnapshot {
+    pub id: ColumnGroupId,
+    pub parent: Option<ColumnGroupId>,
+    /// Position among this parent's Column/Column Group children.
+    pub ordinal: u32,
+    pub label: String,
+    pub application: crate::applications::protocol::ApplicationId,
+    /// Derived half-open range in the flattened Column projection; not authored storage.
+    pub column_start: u32,
+    pub column_count: u32,
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct CellSnapshot {
@@ -226,6 +246,7 @@ pub struct MatrixSnapshot {
     pub final_channel: ChannelReference,
     pub items: Vec<MatrixItemSnapshot>,
     pub columns: Vec<ColumnSnapshot>,
+    pub column_groups: Vec<ColumnGroupSnapshot>,
     pub cells: Vec<CellSnapshot>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -390,7 +411,30 @@ pub enum MatrixEdit {
         label: Option<String>,
     },
     AddColumns {
+        parent: Option<ColumnGroupId>,
         count: u16,
+    },
+    AddColumnGroup {
+        parent: Option<ColumnGroupId>,
+        label: Option<String>,
+    },
+    RenameColumnGroup {
+        group: ColumnGroupId,
+        label: String,
+    },
+    MoveColumnItem {
+        item: ColumnItemId,
+        parent: Option<ColumnGroupId>,
+        after: Option<ColumnItemId>,
+    },
+    UngroupColumns {
+        group: ColumnGroupId,
+    },
+    RemoveColumnGroup {
+        group: ColumnGroupId,
+    },
+    DuplicateColumnGroup {
+        group: ColumnGroupId,
     },
     ConfigureItem {
         item: MatrixItemId,

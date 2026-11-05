@@ -81,7 +81,7 @@ fn fixture_arguments(readiness: ApplicationReadiness, arguments: Vec<String>) ->
         &mut engine,
         MediaEdit::Matrix {
             media: reference.media,
-            edit: mapgyver::matrix::protocol::MatrixEdit::AddColumns { count: 1 },
+            edit: mapgyver::matrix::protocol::MatrixEdit::AddColumns { parent: None, count: 1 },
         },
     ) else {
         panic!()
@@ -493,7 +493,8 @@ fn rendered_process_retention(individual: bool) {
             settings: MatrixSettings { ..Default::default() },
         },
     );
-    let MediaEditResult::MatrixCreated { columns, .. } = matrix(&mut engine, MatrixEdit::AddColumns { count: 3 })
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix(&mut engine, MatrixEdit::AddColumns { parent: None, count: 3 })
     else {
         panic!()
     };
@@ -700,9 +701,11 @@ fn project_wide_driver_keeps_column_process_across_neighbor_and_exact_demand_wit
         let MediaEditResult::Created { reference } = serde_json::from_value(ack.result.unwrap().value).unwrap() else {
             panic!()
         };
-        let MediaEditResult::MatrixCreated { columns, .. } =
-            matrix_edit(engine, reference.media, MatrixEdit::AddColumns { count: 3 })
-        else {
+        let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(
+            engine,
+            reference.media,
+            MatrixEdit::AddColumns { parent: None, count: 3 },
+        ) else {
             panic!()
         };
         matrix_edit(

@@ -238,7 +238,7 @@
 		icon={addIcon}
 		label="Add column"
 		{disabled}
-		onclick={() => edit({ kind: 'AddColumns', count: 1 })} />
+		onclick={() => edit({ kind: 'AddColumns', parent: null, count: 1 })} />
 	<IconButton
 		icon={deleteIcon}
 		label="Unload Matrix"

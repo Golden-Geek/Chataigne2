@@ -164,7 +164,8 @@ fn layers(engine: &mut AppEngine, media: MediaId, parent: Option<GroupId>, count
     items
 }
 fn columns(engine: &mut AppEngine, media: MediaId, count: u16) -> Vec<ColumnId> {
-    let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(engine, media, MatrixEdit::AddColumns { count })
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix_edit(engine, media, MatrixEdit::AddColumns { parent: None, count })
     else {
         panic!()
     };

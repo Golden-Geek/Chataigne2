@@ -22,20 +22,29 @@ pub(super) fn resolve(document: &Document, edit: MatrixEdit) -> Result<Option<Ma
             if column == target {
                 return Err("a Column cannot be dropped on itself".into());
             }
+            let parent = document
+                .snapshot
+                .columns
+                .iter()
+                .find(|entry| entry.id == target)
+                .unwrap()
+                .parent;
             let after = if before {
-                document
-                    .snapshot
-                    .columns
-                    .iter()
-                    .filter(|entry| entry.id != column)
-                    .take_while(|entry| entry.id != target)
+                super::column_groups::siblings(&document.snapshot, parent)
+                    .into_iter()
+                    .filter(|entry| *entry != ColumnItemId::Column { id: column })
+                    .take_while(|entry| *entry != ColumnItemId::Column { id: target })
                     .last()
-                    .map(|entry| entry.id)
             } else {
-                Some(target)
+                Some(ColumnItemId::Column { id: target })
             };
-            MatrixEdit::ReorderColumn { column, after }
+            MatrixEdit::MoveColumnItem {
+                item: ColumnItemId::Column { id: column },
+                parent,
+                after,
+            }
         }
+        edit @ MatrixEdit::MoveColumnItem { .. } => edit,
         edit => return Ok(Some(edit)),
     };
     let unchanged = match &resolved {
@@ -52,15 +61,26 @@ pub(super) fn resolve(document: &Document, edit: MatrixEdit) -> Result<Option<Ma
                     .map(|entry| entry.id)
                     == *after
         }
-        MatrixEdit::ReorderColumn { column, after } => {
-            document
-                .snapshot
-                .columns
-                .iter()
-                .take_while(|entry| entry.id != *column)
-                .last()
-                .map(|entry| entry.id)
-                == *after
+        MatrixEdit::MoveColumnItem { item, parent, after } => {
+            document.column_item(*item)?;
+            let current_parent = match item {
+                ColumnItemId::Column { id } => document.snapshot.columns.iter().find(|c| c.id == *id).unwrap().parent,
+                ColumnItemId::Group { id } => {
+                    document
+                        .snapshot
+                        .column_groups
+                        .iter()
+                        .find(|g| g.id == *id)
+                        .unwrap()
+                        .parent
+                }
+            };
+            current_parent == *parent
+                && super::column_groups::siblings(&document.snapshot, *parent)
+                    .into_iter()
+                    .take_while(|entry| entry != item)
+                    .last()
+                    == *after
         }
         _ => unreachable!(),
     };

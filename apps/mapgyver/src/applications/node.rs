@@ -111,6 +111,7 @@ impl AppControlNode {
         let id = match owner {
             Some(crate::app::AppNode::MatrixCell(cell)) => cell.node_data().meta.uuid,
             Some(crate::app::AppNode::MatrixColumn(column)) => column.node_data().meta.uuid,
+            Some(crate::app::AppNode::MatrixColumnGroup(group)) => group.node_data().meta.uuid,
             _ => self.node_data().meta.uuid,
         };
         Ok(ApplicationSnapshot {

@@ -138,7 +138,7 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
             count: 2,
         },
     );
-    matrix_edit(&mut engine, MatrixEdit::AddColumns { count: 3 });
+    matrix_edit(&mut engine, MatrixEdit::AddColumns { parent: None, count: 3 });
     let MediaEditResult::Matrix { snapshot } = matrix_edit(&mut engine, MatrixEdit::Inspect) else {
         panic!()
     };

@@ -58,9 +58,11 @@ fn native_cell_position_opacity_enabled_and_undo_preserve_child_size_on_each_ada
         let MatrixItemId::Layer { id: layer } = items[0] else {
             panic!()
         };
-        let MediaEditResult::MatrixCreated { columns, .. } =
-            matrix(&mut engine, root.media, MatrixEdit::AddColumns { count: 2 })
-        else {
+        let MediaEditResult::MatrixCreated { columns, .. } = matrix(
+            &mut engine,
+            root.media,
+            MatrixEdit::AddColumns { parent: None, count: 2 },
+        ) else {
             panic!()
         };
         matrix(

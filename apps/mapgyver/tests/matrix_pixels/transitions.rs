@@ -108,7 +108,11 @@ pub(super) fn check(adapter: AdapterId) {
     let MatrixItemId::Layer { id: layer } = item else {
         panic!()
     };
-    matrix(&mut engine, root.media, MatrixEdit::AddColumns { count: 3 });
+    matrix(
+        &mut engine,
+        root.media,
+        MatrixEdit::AddColumns { parent: None, count: 3 },
+    );
     let snapshot = inspect(&mut engine, root.media);
     matrix(
         &mut engine,

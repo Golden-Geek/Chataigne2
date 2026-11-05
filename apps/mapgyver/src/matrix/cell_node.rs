@@ -259,7 +259,7 @@ impl Node for CellNode {
                     .downcast_ref::<crate::media::ChannelNode>()
                     .is_some_and(|node| node.is_matrix_final())
                 {
-                    if column.node_data().parent != Some(id) {
+                    if super::column_axis::owner(column.id(), |id| change.node(id)) != Some(id) {
                         return Err("Cell column belongs to another Matrix".into());
                     }
                     break;

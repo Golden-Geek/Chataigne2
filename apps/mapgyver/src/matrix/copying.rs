@@ -15,7 +15,7 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour},
     ui_sync::UiDuplicateNodeSpec,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 fn raw_children(engine: &AppEngine, root: NodeId) -> Vec<NodeId> {
     let mut next = engine.nodes.get(root).unwrap().node_data().first_child;
@@ -99,7 +99,8 @@ pub(super) fn column(engine: &mut AppEngine, document: &Document, column: Column
         .map(|cell| document.cells[&(cell.layer, column)])
         .collect::<Vec<_>>();
     document.admit(cells.len() + 1)?;
-    let mut specs = vec![spec(root, document.root)];
+    let parent = engine.nodes.get(root).unwrap().node_data().parent.unwrap();
+    let mut specs = vec![spec(root, parent)];
     for id in &cells {
         specs.push(spec(*id, engine.nodes.get(*id).unwrap().node_data().parent.unwrap()));
     }
@@ -154,5 +155,56 @@ pub(super) fn item(engine: &mut AppEngine, document: &Document, item: MatrixItem
     Ok(MediaEditResult::MatrixCreated {
         items: vec![new_item],
         columns: vec![],
+    })
+}
+
+pub(super) fn column_group(
+    engine: &mut AppEngine,
+    document: &Document,
+    group: ColumnGroupId,
+) -> Result<MediaEditResult, String> {
+    let root = document.column_parent(Some(group))?;
+    let range = document
+        .snapshot
+        .column_groups
+        .iter()
+        .find(|entry| entry.id == group)
+        .unwrap();
+    let columns: HashSet<_> = document.snapshot.columns
+        [range.column_start as usize..(range.column_start + range.column_count) as usize]
+        .iter()
+        .map(|column| column.id)
+        .collect();
+    let mut groups = HashSet::from([group]);
+    for current in &document.snapshot.column_groups {
+        if current.parent.is_some_and(|parent| groups.contains(&parent)) {
+            groups.insert(current.id);
+        }
+    }
+    let cells: Vec<_> = document
+        .snapshot
+        .cells
+        .iter()
+        .filter(|cell| columns.contains(&cell.definition.column))
+        .map(|cell| document.cells[&(cell.layer, cell.definition.column)])
+        .collect();
+    document.admit(columns.len() + groups.len() + cells.len())?;
+    let parent = engine.nodes.get(root).unwrap().node_data().parent.unwrap();
+    let mut root_spec = spec(root, parent);
+    root_spec.new_prev_sibling = Some(root);
+    let mut specs = vec![root_spec];
+    specs.extend(
+        cells
+            .iter()
+            .map(|id| spec(*id, engine.nodes.get(*id).unwrap().node_data().parent.unwrap())),
+    );
+    let copies = duplicate(engine, specs)?;
+    let (remap, copied) = mapping(
+        engine,
+        std::iter::once((root, copies[0])).chain(cells.into_iter().zip(copies.iter().copied().skip(1))),
+    )?;
+    patch_references(engine, &copied, &remap, vec![]);
+    Ok(MediaEditResult::MatrixColumnGroupCreated {
+        group: ColumnGroupId(engine.nodes.get(copies[0]).unwrap().node_data().meta.uuid),
     })
 }

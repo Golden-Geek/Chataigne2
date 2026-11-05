@@ -289,13 +289,14 @@ pub(super) fn launch(
     column: ColumnId,
     mode: LaunchMode,
 ) -> Result<MediaEditResult, String> {
-    // Column parentage resolves the Final channel in O(1), independently of grid size.
+    // Resolve through at most 32 axis groups, independently of Matrix size.
     let id = engine.node_id_by_uuid(column.0).ok_or("Matrix column is missing")?;
     let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(id) else {
         return Err("reference is not a Matrix column".into());
     };
     let column_definition = node.definition();
-    let parent = node.node_data().parent.ok_or("Matrix column has no owner")?;
+    let parent = super::column_axis::owner(id, |id| engine.nodes.get(id).map(|node| node as &dyn Node))
+        .ok_or("Matrix column has no owner")?;
     let Some(AppNode::MediaChannel(root)) = engine.nodes.get(parent) else {
         return Err("Matrix Final channel is missing".into());
     };

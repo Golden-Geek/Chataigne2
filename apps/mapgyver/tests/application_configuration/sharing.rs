@@ -49,9 +49,11 @@ fn columns_and_cells_in_two_matrices_share_one_process_and_only_effective_key_ch
         panic!()
     };
     let second_media = reference.media;
-    let MediaEditResult::MatrixCreated { columns, .. } =
-        matrix(&mut engine, second_media, MatrixEdit::AddColumns { count: 3 })
-    else {
+    let MediaEditResult::MatrixCreated { columns, .. } = matrix(
+        &mut engine,
+        second_media,
+        MatrixEdit::AddColumns { parent: None, count: 3 },
+    ) else {
         panic!()
     };
     let MediaEditResult::MatrixCreated { items, .. } = matrix(

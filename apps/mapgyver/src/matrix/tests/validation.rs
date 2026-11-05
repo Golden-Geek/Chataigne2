@@ -216,7 +216,10 @@ fn ownership_batch_and_export_invariants_reject_before_mutation() {
     let history = engine.undo_len();
     for operation in [
         MatrixEdit::AddLayers { parent: None, count: 0 },
-        MatrixEdit::AddColumns { count: 4097 },
+        MatrixEdit::AddColumns {
+            parent: None,
+            count: 4097,
+        },
         MatrixEdit::SetCells {
             assignments: vec![CellAssignment {
                 layer: layer(items[0]),

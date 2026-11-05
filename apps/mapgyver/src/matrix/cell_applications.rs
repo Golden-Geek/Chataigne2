@@ -120,7 +120,7 @@ fn ensure(
     Ok((cell, settings))
 }
 
-fn bind(node: &crate::applications::AppControlNode, control: &super::playback::PlaybackControl) {
+pub(super) fn bind(node: &crate::applications::AppControlNode, control: &super::playback::PlaybackControl) {
     let binding = control.binding();
     node.bind_invalidation(move || {
         binding.invalidate();

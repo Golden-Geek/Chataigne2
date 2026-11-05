@@ -64,16 +64,20 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         if record.node_type == "mapgyver.app_control.v1"
             && !matches!(
                 parent_type,
-                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.cell.v3")
+                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.column_group.v1" | "mapgyver.matrix.cell.v3")
             )
         {
-            return Err("Standalone app-control records are unsupported; settings require a Column or Cell".into());
+            return Err(
+                "Standalone app-control records are unsupported; settings require a Column, Column Group or Cell"
+                    .into(),
+            );
         }
         if record.node_type.starts_with("mapgyver.matrix.column")
             && record.node_type != crate::matrix::column_node::COLUMN_TYPE
+            && record.node_type != crate::matrix::column_group_node::COLUMN_GROUP_TYPE
         {
             return Err(format!(
-                "Unsupported Matrix Column schema '{}': typed Column v2 is required",
+                "Unsupported Matrix Column schema '{}': typed Column v2 or Column Group v1 is required",
                 record.node_type
             ));
         }

@@ -28,6 +28,7 @@
 		const parentId = session?.graph.state.parentById.get(node.node_id);
 		const parent = parentId == null ? null : session?.getNodeData(parentId);
 		return parent?.node_type === 'mapgyver.matrix.cell.v3' ||
+			parent?.node_type === 'mapgyver.matrix.column_group.v1' ||
 			parent?.node_type === 'mapgyver.matrix.column.v2'
 			? parent.uuid
 			: node.uuid;

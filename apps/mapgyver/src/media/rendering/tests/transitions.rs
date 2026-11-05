@@ -55,7 +55,11 @@ pub(super) fn fixture() -> (
         matrix.media,
         MatrixEdit::AddLayers { parent: None, count: 1 },
     );
-    matrix_edit(&mut engine, matrix.media, MatrixEdit::AddColumns { count: 4 });
+    matrix_edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::AddColumns { parent: None, count: 4 },
+    );
     let MediaEditResult::Matrix { snapshot } = matrix_edit(&mut engine, matrix.media, MatrixEdit::Inspect) else {
         panic!()
     };
@@ -519,7 +523,11 @@ fn atomic_cell_replacement_cannot_erase_a_retained_runtime_feedback_edge() {
     let MediaEditResult::MatrixCreated {
         columns: second_columns,
         ..
-    } = matrix_edit(&mut engine, second.media, MatrixEdit::AddColumns { count: 1 })
+    } = matrix_edit(
+        &mut engine,
+        second.media,
+        MatrixEdit::AddColumns { parent: None, count: 1 },
+    )
     else {
         panic!()
     };

@@ -25,7 +25,8 @@ fn disabled_destination_keeps_shared_column_and_cell_process_without_a_renderer_
             },
         )
     };
-    let MediaEditResult::MatrixCreated { columns, .. } = matrix(&mut engine, MatrixEdit::AddColumns { count: 2 })
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix(&mut engine, MatrixEdit::AddColumns { parent: None, count: 2 })
     else {
         panic!()
     };
@@ -170,7 +171,8 @@ fn direct_cell_without_column_anchor_launches_its_owned_process_and_unload_retir
             },
         )
     };
-    let MediaEditResult::MatrixCreated { columns, .. } = matrix(&mut engine, MatrixEdit::AddColumns { count: 2 })
+    let MediaEditResult::MatrixCreated { columns, .. } =
+        matrix(&mut engine, MatrixEdit::AddColumns { parent: None, count: 2 })
     else {
         panic!()
     };

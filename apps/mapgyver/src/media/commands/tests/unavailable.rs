@@ -49,7 +49,7 @@ fn typed_drop_commands_accept_unavailable_reference_entries_with_atomic_history(
                         &mut engine,
                         MediaEdit::Matrix {
                             media: owner.media,
-                            edit: MatrixEdit::AddColumns { count: 1 },
+                            edit: MatrixEdit::AddColumns { parent: None, count: 1 },
                         },
                     );
                     let snapshot = crate::matrix::inspect(&engine, owner.media).unwrap();

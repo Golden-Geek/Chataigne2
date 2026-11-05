@@ -206,7 +206,10 @@ fn headless_admission_errors_are_visible_without_processes_and_clear_after_deman
         &mut engine,
         MediaEdit::Matrix {
             media: first,
-            edit: MatrixEdit::AddColumns { count: 60 },
+            edit: MatrixEdit::AddColumns {
+                parent: None,
+                count: 60,
+            },
         },
     ) else {
         panic!()

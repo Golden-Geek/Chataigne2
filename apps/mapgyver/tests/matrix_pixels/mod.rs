@@ -330,7 +330,14 @@ fn large_and_burst(engine: &mut AppEngine, scene: &Scene, fixture: &mut Fixture,
         "Matrix large-grid Layer authoring elapsed_ms={}",
         started.elapsed().as_millis()
     );
-    matrix(engine, scene.root.media, MatrixEdit::AddColumns { count: 997 });
+    matrix(
+        engine,
+        scene.root.media,
+        MatrixEdit::AddColumns {
+            parent: None,
+            count: 997,
+        },
+    );
     eprintln!(
         "Matrix large-grid Layer/Column authoring elapsed_ms={}",
         started.elapsed().as_millis()

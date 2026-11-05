@@ -287,6 +287,7 @@ impl Node for ChannelNode {
             crate::matrix::node::LAYER_TYPE,
             crate::matrix::node::GROUP_TYPE,
             crate::matrix::node::COLUMN_TYPE,
+            crate::matrix::column_group_node::COLUMN_GROUP_TYPE,
         ]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
@@ -296,6 +297,9 @@ impl Node for ChannelNode {
         if self.is_matrix_final() {
             if node_type == crate::matrix::column_node::COLUMN_TYPE {
                 return Some(Box::new(crate::matrix::ColumnNode::new()));
+            }
+            if node_type == crate::matrix::column_group_node::COLUMN_GROUP_TYPE {
+                return Some(Box::new(crate::matrix::ColumnGroupNode::new()));
             }
             crate::matrix::node::create(node_type).map(|node| Box::new(node) as Box<dyn Node>)
         } else {

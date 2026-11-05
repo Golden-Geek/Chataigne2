@@ -254,7 +254,11 @@ fn retired_nested_matrix_finishes_its_envelope_without_authored_nodes_or_control
         template.media,
         MatrixEdit::AddLayers { parent: None, count: 1 },
     );
-    matrix_edit(&mut engine, template.media, MatrixEdit::AddColumns { count: 2 });
+    matrix_edit(
+        &mut engine,
+        template.media,
+        MatrixEdit::AddColumns { parent: None, count: 2 },
+    );
     let snapshot = crate::matrix::inspect(&engine, template.media).unwrap();
     let nested_row = row(&engine, snapshot.items[0].channel);
     matrix_edit(
