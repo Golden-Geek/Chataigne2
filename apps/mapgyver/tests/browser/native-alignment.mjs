@@ -13,8 +13,14 @@ const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignm
 await mkdir(directory, { recursive: true });
 const exists = async (name) => !!(await stat(path.join(directory, name)).catch(() => null));
 assert(!(await exists('ready.json')), 'Alignment fixture requires a fresh output directory');
-const native = await openNativeEditor();
 const sourceEditor = process.argv.includes('--source');
+const holdArgument = process.argv.find((value) => value.startsWith('--hold-seconds='));
+const holdSeconds = Number(holdArgument?.slice('--hold-seconds='.length) ?? 300);
+assert(
+	Number.isInteger(holdSeconds) && holdSeconds >= 30 && holdSeconds <= 480,
+	'Alignment hold must be 30–480 seconds, below the owned host watchdog'
+);
+const native = await openNativeEditor();
 let token;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {
@@ -154,6 +160,7 @@ try {
 			? { extent: [800, 600], internalRedRect: [160, 120, 480, 360], crop: [0.2, 0.2, 0.6, 0.6] }
 			: null,
 		pid: native.app.pid,
+		holdSeconds,
 		directory,
 		base: native.base,
 		reference,
@@ -322,7 +329,7 @@ try {
 			if (capture.exitCode === null) capture.kill();
 		}
 	} else {
-		const deadline = Date.now() + 5 * 60_000;
+		const deadline = Date.now() + holdSeconds * 1000;
 		while (!(await exists('finish'))) {
 			assert(Date.now() < deadline, 'alignment fixture timeout');
 			await delay(50);

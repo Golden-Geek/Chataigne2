@@ -1,0 +1,95 @@
+{
+	"date": "2026-11-05",
+	"owner_gate": "M05/8",
+	"status": "PARTIAL_PHYSICAL_EVIDENCE_AND_VERIFIED_HOST_REPAIR",
+	"whole_gate_accepted": false,
+	"source_base": "668f2b5209ff1310ccbac008f93162325d51b4c9",
+	"desktop": {
+		"authorization": "Desktop automation may resume",
+		"foreground_method": "Supported Computer Use Raise; exact HWND/PID foreground guard before visible capture",
+		"observed_monitor_physical_bounds": [
+			[0, 0, 2560, 1600],
+			[2560, 0, 4480, 1080]
+		],
+		"tested_window_dpi": 120,
+		"monitor_settings_changed": false
+	},
+	"settled_overlay_projection": {
+		"artifact": "target/m058-physical-2026-11-05/foreground-screen/visible-125/baseline.png",
+		"png_sha256": "2118a5990d874e5b8a458c4f690635212dbae3e7e3a290ed07dcedbc2af52650",
+		"capture_size_physical_px": [1518, 1010],
+		"capture_desktop_bounds": [128, 128, 1646, 1138],
+		"client_desktop_origin": [137, 129],
+		"active_css_rect": [262.3999938964844, 164.125, 669.0000305175781, 501.75],
+		"device_pixel_ratio": 1.25,
+		"quad_normalized": [0.2, 0.2, 0.8, 0.8],
+		"projected_edges_capture_px": [
+			504.25000000000006, 1006.0000228881837, 331.59375, 707.9062500000001
+		],
+		"observed_blue_pixel_centers": [504, 1006, 331.5, 708],
+		"max_center_error_physical_px": 0.25000000000005684,
+		"red_bbox_exclusive": [506, 333, 1004, 706],
+		"red_to_blue_index_centroid_offsets": [2.5, 2.5, 2, 2.5],
+		"method": "Existing visible_zoom.positions threshold runs at horizontal/vertical red-interior center lines. Add 0.5 to pixel indices to compare pixel centers with continuous DOM/DPR/client-origin projection.",
+		"limits": "One settled 125% Screen scene. Blue overlay center projection passes; visible red lies inside the overlaid stroke. This does not establish full image/overlay error, animation, Source editor, other DPI configurations or input latency. The fixture later reached its 300-second hold timeout; its earlier foreground capture remains valid."
+	},
+	"native_input": {
+		"artifact_directory": "target/m058-physical-2026-11-05/input-screen",
+		"pid": 42044,
+		"hwnd": 3281138,
+		"executable_sha256": "0d46f2ca57a02d64f1dc0ecd50e5defb2d7735607a32a75b04517cbd9d1755fe",
+		"first_right_backend_x": 0.20125000178813934,
+		"sent_ordinary_right_keys": 30,
+		"after_ordinary_keys_backend_x": 0.23624996840953827,
+		"after_shift_right_backend_x": 0.2487499713897705,
+		"assessment": "First Right moves one output pixel and Shift+Right moves ten at 800-wide output. Only 29 ordinary increments are reflected after 30 sent keys; no all-gestures pass awarded. Actual native key receipt/async gesture closure needs verification.",
+		"outside_preview_drag": {
+			"start_screenshot_xy": [429, 265],
+			"release_screenshot_xy": [1051, 260],
+			"committed_top_left": [1.176681637763977, 0.1878923624753952],
+			"mapping_valid_after_drag": false,
+			"history_active_after_release": false,
+			"single_undo_top_left": [0.2487499713897705, 0.20000000298023224],
+			"mapping_valid_after_undo": true
+		},
+		"baseline_dialog_limit": "Unparented Open picker showed All Files instead of the requested project filter. Cancellation via the parent screenshot was not confirmed; later main-window capture had zero red pixels and normal shutdown exceeded seven seconds. The owned fixture was force-cleaned by its existing failure path. Do not claim a confirmed cancellation/recovery defect or successful normal shutdown for this baseline.",
+		"baseline_stderr_sha256": "2b42e8f2f56245604a0fb965aba7968ff28f06a696e2f08f92db1d163948880d"
+	},
+	"host_repair": {
+		"owner": "golden_host_desktop::desktop_commands",
+		"behavior": "Open/save commands await RFD AsyncFileDialog, parent to the requesting Tauri window and explicitly accept the shared adapter's snake_case arguments. Engine, persistence and app shells own no picker behavior.",
+		"basis": "Synchronous Tauri commands execute on the main thread; the former RFD blocking picker entered that thread's native dialog loop. No new dependency or app workaround.",
+		"primary_reference": "https://v2.tauri.app/develop/calling-rust/#async-commands",
+		"candidate_executable_sha256": "0b18aab14a4fb1dbeb5c330ea910e5be83f7e88245aeb424c5694834640b6c28",
+		"artifact_directory": "target/m058-physical-2026-11-05/owned-dialog",
+		"pid": 18940,
+		"hwnd": 17633236,
+		"open_observed": "Open a MapGyver Project; MapGyver Project (*.mapgyver) filter; actual dialog-region Cancel removes dialog and restores native red image",
+		"save_observed": "Save a MapGyver Project; MapGyver Project (*.mapgyver) filter; Untitled.mapgyver suggested; actual dialog-region Cancel removes dialog and restores native red image",
+		"save_dialog_hwnd": 6556244,
+		"save_dialog_pid": 18940,
+		"save_dialog_native_owner_hwnd": 17633236,
+		"after_open_cancel_native_red_pixels": 185618,
+		"after_save_cancel_native_red_pixels": 185618,
+		"after_open_cancel_png_sha256": "ccd803f6ec4d8221bc624fc3077ca8fe0f27930bf00f1c97a0c7d8646c9f5691",
+		"after_save_cancel_png_sha256": "4378e88c3038d3a524a31598b3a3152e929b1b40758c799482d53bddda491404",
+		"project_geometry_unchanged": true,
+		"fixture_and_normal_app_shutdown_exit_code": 0,
+		"limits": "Cancellation only; no file was opened or written. Native Open and Save appeared above the preview. No claim that this repair alone resolves the baseline's unconfirmed cancellation symptom."
+	},
+	"validation": {
+		"desktop_host_software": "37 passed, 1 ignored, 2 hardware tests filtered",
+		"desktop_host_strict_clippy_all_targets": "PASS",
+		"mapgyver_locked_native_qualification_build": "PASS",
+		"alignment_fixture_node_syntax_and_prettier": "PASS",
+		"invalid_hold_481_seconds_rejected_before_app_start": true,
+		"formatting": "cargo fmt root and golden_core; required touched-file formatting",
+		"unchanged_prerequisites": "Reuse prior app/Golden software, UI and repaired Wry callback checks for unchanged sources; candidate actual-app build and native dialogs validate this host integration."
+	},
+	"remaining": [
+		"Reliable receipt and application of all native gestures, including the observed ordinary-key discrepancy",
+		"Complete Screen and Surface Source image/overlay physical matrix at 100/125/150/200%, mixed DPI and negative origins",
+		"Animation, alpha/color/reference patterns, capture/overlay combinations and contract input-to-visible latency",
+		"M05/5 display identity/hotplug and all unchanged M03/M08/M09/M10 requirements"
+	]
+}

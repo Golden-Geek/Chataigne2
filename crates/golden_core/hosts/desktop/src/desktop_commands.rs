@@ -101,10 +101,10 @@ fn normalize_dialog_title(title: Option<String>) -> Option<String> {
 }
 
 fn apply_extension_filter(
-    mut dialog: rfd::FileDialog,
+    mut dialog: rfd::AsyncFileDialog,
     filter_label: Option<String>,
     normalized_extensions: &[String],
-) -> rfd::FileDialog {
+) -> rfd::AsyncFileDialog {
     if normalized_extensions.is_empty() {
         return dialog;
     }
@@ -115,7 +115,7 @@ fn apply_extension_filter(
     dialog
 }
 
-fn apply_dialog_title(dialog: rfd::FileDialog, title: Option<String>) -> rfd::FileDialog {
+fn apply_dialog_title(dialog: rfd::AsyncFileDialog, title: Option<String>) -> rfd::AsyncFileDialog {
     let Some(title) = normalize_dialog_title(title) else {
         return dialog;
     };
@@ -123,7 +123,7 @@ fn apply_dialog_title(dialog: rfd::FileDialog, title: Option<String>) -> rfd::Fi
     dialog.set_title(title)
 }
 
-fn apply_suggested_path(dialog: rfd::FileDialog, suggested_path: Option<String>) -> rfd::FileDialog {
+fn apply_suggested_path(dialog: rfd::AsyncFileDialog, suggested_path: Option<String>) -> rfd::AsyncFileDialog {
     let (directory, file_name) = resolve_suggested_path_parts(suggested_path);
 
     let dialog = if let Some(directory) = directory {
@@ -207,28 +207,38 @@ pub fn start_drag<R: tauri::Runtime>(window: tauri::Window<R>) -> Result<(), Str
     window.start_dragging().map_err(|err| err.to_string())
 }
 
-#[tauri::command]
-pub fn open_file_dialog(
+// Native pickers own their platform worker and remain modal to the requesting window.
+// A synchronous command would enter the platform dialog loop on Tauri's UI thread.
+#[tauri::command(rename_all = "snake_case")]
+pub async fn open_file_dialog<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     allowed_extensions: Option<Vec<String>>,
     filter_label: Option<String>,
     title: Option<String>,
 ) -> Result<Option<String>, String> {
     let normalized_extensions = normalize_extensions(allowed_extensions);
-    let dialog = apply_dialog_title(rfd::FileDialog::new(), title);
+    let dialog = apply_dialog_title(rfd::AsyncFileDialog::new().set_parent(&window), title);
     let dialog = apply_extension_filter(dialog, filter_label, &normalized_extensions);
-    Ok(dialog.pick_file().map(|path| path.to_string_lossy().to_string()))
+    Ok(dialog
+        .pick_file()
+        .await
+        .map(|file| file.path().to_string_lossy().to_string()))
 }
 
-#[tauri::command]
-pub fn save_file_dialog(
+#[tauri::command(rename_all = "snake_case")]
+pub async fn save_file_dialog<R: tauri::Runtime>(
+    window: tauri::Window<R>,
     suggested_path: Option<String>,
     allowed_extensions: Option<Vec<String>>,
     filter_label: Option<String>,
     title: Option<String>,
 ) -> Result<Option<String>, String> {
     let normalized_extensions = normalize_extensions(allowed_extensions);
-    let dialog = apply_dialog_title(rfd::FileDialog::new(), title);
+    let dialog = apply_dialog_title(rfd::AsyncFileDialog::new().set_parent(&window), title);
     let dialog = apply_extension_filter(dialog, filter_label, &normalized_extensions);
     let dialog = apply_suggested_path(dialog, suggested_path);
-    Ok(dialog.save_file().map(|path| path.to_string_lossy().to_string()))
+    Ok(dialog
+        .save_file()
+        .await
+        .map(|file| file.path().to_string_lossy().to_string()))
 }

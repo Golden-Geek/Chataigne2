@@ -47,6 +47,12 @@ app target's graceful-close protocol and proof of every native descendant's reti
 - Native file dialogs are desktop-only behavior and should remain outside pure engine or persistence layers.
 - Apps may override CLI parsing or bootstrap by calling lower-level `golden_core::app` APIs, but they should not need app-shell host files by default.
 
+Open/save picker commands use RFD's asynchronous platform implementation and explicitly parent
+the picker to the requesting Tauri window. They never enter a blocking picker loop on the host
+UI thread. Their snake_case argument names match the shared UI adapter, including extension
+filters, titles and suggested save paths. Cancellation returns `null` without changing the
+document; project loading/saving and file formats remain owned by their existing layers.
+
 Reusable independent native output windows live in
 `crates/golden_core/hosts/desktop/src/output_window`. The public `NativeOutputBounds` validates
 signed physical desktop client rectangles; `NativeOutputWindow` creates a borderless, topmost
