@@ -75,6 +75,15 @@ struct Capture {
     output_hwnd: isize,
 }
 
+#[cfg(test)]
+mod tests;
+
+fn next_resource_deadline(deadline: Instant, observed: Instant) -> Instant {
+    // Preserve the original one-Hz phase, coalescing missed slots rather than issuing
+    // catch-up observations that would disguise a gap in resource coverage.
+    deadline + Duration::from_secs(observed.duration_since(deadline).as_secs() + 1)
+}
+
 pub fn run(input: Input, stop: NativePresentationStop) -> io::Result<()> {
     let summary = input.config.directory.join("renderer-summary.json");
     let result = run_capture(input, stop);
@@ -201,7 +210,7 @@ impl Capture {
         }
         if now >= self.next_resources {
             self.recorder.resources(&self.input.config)?;
-            self.next_resources = now + Duration::from_secs(1);
+            self.next_resources = next_resource_deadline(self.next_resources, now);
         }
         let _ = self.input.signal.recv_timeout(Duration::from_millis(20));
         Ok(())

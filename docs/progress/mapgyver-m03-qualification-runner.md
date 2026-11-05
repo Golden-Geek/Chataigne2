@@ -1,5 +1,22 @@
 # Production renderer qualification runner
 
+**Current Q02 series (2026-11-05):** the existing fixture's resource observations now stay on
+their original one-Hz phase and coalesce missed slots without catch-up rows. Eight qualifier
+tests, strict Clippy and the pinned release build pass. All three original Q02 samples record
+120 DXGI and renderer-resource observations against the unchanged minimum of 119; resource
+coverage, admission/private-memory, CPU submission, Spout capture/age, queue bounds, editor
+independence and normal retirement pass. CPU wall-upper-bound p99 is 0.769–0.800 ms.
+[Complete distributions and raw hashes](evidence/mapgyver-m03-q02-series-2026-11-05.json).
+
+**Q02 is FAILED_NATIVE.** Sample 2 has five dropped accepted images in each window, plus five/six
+late displays: 10/11 misses out of 7,200 opportunities (0.139%/0.153%, exceeding 0.1%). Window
+presentation fails and complete source-to-window age stays unavailable for that sample. Sample
+1 has one miss per window and sample 3 has zero; neither overrides sample 2. All collectors and
+native processes finish normally, with pinned source/tool identities and paired environment
+evidence. GPU critical path remains inconclusive. Q01's earlier 118/119 coverage gap and the
+separate memory-growth failure remain open. Stop this two-workload batch; inspect the retained
+sample-2 presentation failure before selecting an owning correction or another native run.
+
 **Current Q01 series (2026-11-05):** the original release three-sample series verifies CPU
 submission, producer/output cadence, anchored delivery deadlines, source-to-output age,
 exact window/Spout cohorts and both 60-second editor interruption cases in every sample.
