@@ -86,6 +86,9 @@ try {
 	await preview.locator('.native-preview').waitFor({ state: 'attached' });
 	const metadata = await page.evaluate(async () => ({
 		viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+		background: getComputedStyle(document.documentElement)
+			.getPropertyValue('--gc-color-background')
+			.trim(),
 		views: [...document.querySelectorAll('.native-preview')].map((view) => ({
 			state: view.dataset.previewState,
 			installed: view.dataset.previewInstalled,

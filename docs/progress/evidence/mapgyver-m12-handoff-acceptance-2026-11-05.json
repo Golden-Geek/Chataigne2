@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-05",
+  "gate": "M12/1",
+  "state": "Accepted",
+  "accepted_gates_added": 1,
+  "progress": "58/78 fixed acceptance gates = 74%; M12 1/11 = 9%; complete phases remain 7/13. Denominator unchanged.",
+  "delivered": "Measured native preview layouts are frozen and dispatched after a browser rendering opportunity; stale source/session work cancels before dispatch and empty withdrawal remains prompt. Retirement paint matches Golden's background while remaining opaque.",
+  "ownership": "Golden Video UI session/render-opportunity and retirement layer. MapGyver contributes its existing panel adapters and native acceptance flows. No Rust runtime, protocol, persistence, authored setting or GPU presentation policy changes.",
+  "ordering": {
+    "before": "Layout IPC could leave an animation callback before its browser rendering task completed. A retained native frame combined enlarged image geometry with preceding divider/grid paint.",
+    "after": "The session serializes the measured DTO cohort, then waits for an animation callback followed by a later task before dispatch. It never remeasures into that staged cohort. Source replacement, unregister, reconnect and disposal cancel stale staged work; empty withdrawal bypasses the rendering wait. Suppressed rendering has a 1500ms bound and uses existing failure/reconnect handling.",
+    "reference": "https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering",
+    "limit": "A rendering opportunity is not a compositor-present acknowledgement. Acceptance is based on the actual recorded native sequences below, not an untested claim of universally atomic presentation."
+  },
+  "binary": {
+    "path": "target/debug/MapGyver-codex-m12-handoff-final.exe",
+    "sha256": "47b024df1f9a27c3742e061b394e973a8a1ea375260a96248fc7769e15b6a672",
+    "consumer": "target/debug/native_qualification.exe",
+    "consumer_sha256": "00a5ae084452ff7d98170b51cf18f8ee87407d48f795d22a522370df91ee0983",
+    "profiles": "Fresh owned projects using private nvidia-data/intel-data profiles under target/m121-transitions-2026-11-05. Persisted explicit GPU choices are observed again by the independent consumer. User preferences and unrelated work remain untouched.",
+    "concurrent_inputs": "Unstaged Cargo/theme hashes match mapgyver-m12-panel-layout-2026-11-05.json; HEAD's background token is also #151515. They are not included in this milestone."
+  },
+  "software": [
+    "38 Golden Video UI unit tests PASS: post-animation task ordering, immutable geometry cohort, stale source cancellation, prompt suppressed-frame unregister/disposal and bounded timeout, plus existing session/input/retirement behavior",
+    "Golden Video UI svelte-check: 0 errors / 0 warnings",
+    "Complete Golden browser lifecycle/qualification/continuity/input/raster suites PASS, including crossing/overlapping apertures, retirement fencing, opaque themed paint, churn and full 128-primitive bound",
+    "MapGyver svelte-check: 0 errors / 0 warnings; UI production build and fresh cargo build --locked -p MapGyver --bin MapGyver PASS",
+    "Browser Matrix viewport flow PASS with the stronger background-edit draft and exact-scroll assertions; same flow passes in both native private profiles",
+    "Scoped Prettier, Python syntax, root and golden_core Cargo formatters PASS; unchanged prior strict Rust validation retained"
+  ],
+  "requirement_evidence": {
+    "recorded_interactions_and_causes": "The supplied selection/launch, header/grid and divider/locked-preview recordings were reviewed before fixing. Prior receipts preserve the reproduced sizing feedback and cross-view retirement mask causes, failed native frame and baseline binaries. This final candidate addresses the retained early layout dispatch and black matte.",
+    "native_matrix_selection_rename_launch": "Both final owned windows receive actual CUA divider drags, Column 1 rename, Layer 3 selection and Column 2/3/1 launches. Original Matrix/Media Preview/native-view DOM nodes remain connected; each native view ID has one observed value, availability stays available, and each Column header has one measured rectangle through selection/rename/launch. NVIDIA's movie covers all launch clicks; Intel's movie covers through Column 2, with later Column 3/1 clicks verified by trusted events and native AX state rather than claimed as filmed.",
+    "native_resize_clipping_aspect_background": "Three divider drags per GPU cover narrow/large locked Media Preview with simultaneous Cell previews. NVIDIA: 601 physical frames, 464 comparable red frames; Intel: 600 physical frames, 427 comparable red frames. Every compared span is within one physical pixel of measured geometry; paired padding witnesses match #151515, with zero matte mismatches. Representative original wide frames are retained and visually inspected. The retained preceding NVIDIA 88-pixel failure no longer occurs in these final recordings.",
+    "inspector_and_unrelated_flash": "Current final binary: both GPUs perform 12 real Inspector collapse/expand/width actions and 16 Matrix Cell selections. Native witnesses preserve the unrelated locked red preview and complete UI regions. NVIDIA 43 Inspector / 24 Matrix frames; Intel retry 40 / 24. Zero changed native regions or UI frames, no sibling removals/disconnections/fades; minimum opacity 1 across 932/884 DOM samples.",
+    "draft_scroll_and_background_reads": "Both native WebView profiles pass 64x64 bounded keyboard scrolling, selected offscreen Inspector/history, tab lifetime and narrow 125% Inspector geometry. An uncommitted transition draft stays focused in the identical field while an unrelated backend Column rename is processed by the grid. Subsequent offscreen Inspector edits and Undo/Redo retain the exact Matrix scroll coordinates. Native reports record backgroundDraftPreserved and exactScrollPreserved true.",
+    "reconnect_and_leases": "Both final native continuity flows pass eight concurrent views, independent channel choice, actual graph socket reconnect, layout reload and preview closure. Five original reconnect views remain mounted and available across 412/147 DOM samples; 22 NVIDIA / nine Intel physical frames preserve all five sampled regions without changes.",
+    "close_reopen_new_load": "Both final project flows pass three close/reopen cycles while preserving the peer's registration. New withdraws all preview views and old red imagery; Load restores locked authored media. NVIDIA 119 physical frames (80 tabs / four New / 26 Load / nine intentional replacement); Intel 61 (39 / four / nine / nine). Zero unexpected sampled native content or unrelated File-menu changes.",
+    "independent_output": "Six current input/project/continuity SDK consumers receive 13969 copies in total, zero absent/failed/descriptor-mismatched receives, stable per-run handles and advancing producer counters. Full 96x64 expected RGBA images pass at 32 checkpoints, including green after editing without previews and red after Load. Receivers intentionally stop before New destroys their output; restored output is checked independently.",
+    "normal_shutdown": "Both resize hosts, both native viewport hosts and all six successful input/project/continuity hosts exit 0. No owned MapGyver test process remains."
+  },
+  "physical_runs": {
+    "nvidia": {
+      "adapter": "dxgi:00000000:00016022 / NVIDIA GeForce RTX 5080 Laptop GPU",
+      "pid": 41852, "hwnd": 2424976, "dpi": 120,
+      "bounds": [160, 160, 1678, 1170], "client_origin": [169, 161],
+      "dom_samples": 3654, "trusted_events": 24, "trace_overflow": false,
+      "outside_dom_trace": 1, "no_red_intentional_empty_column_frames": 136,
+      "movie_sha256": "53e2da1281ac1292819cbc346102a7b0319ec82df9738ee8d44764f35fc69858",
+      "trace_sha256": "733e311ba0d1114985182ddfdb7f47ec826c416956b00c367662fb9ca8f4abe6"
+    },
+    "intel": {
+      "adapter": "dxgi:00000000:00015b69 / Intel(R) Graphics",
+      "pid": 41956, "hwnd": 3411596, "dpi": 120,
+      "bounds": [256, 256, 1774, 1266], "client_origin": [265, 257],
+      "dom_samples": 4096, "trusted_events": 24, "trace_overflow": true,
+      "outside_dom_trace": 0, "no_red_intentional_empty_column_frames": 173,
+      "movie_sha256": "153ce31c4613098a3eab92a4e672e96def04a8302a4b60e5e5097a161e388f46",
+      "trace_sha256": "d940b19215a747487cf4ed19873f8ae31c7fa406649d8ea72c9842a23465355e"
+    },
+    "local_recordings": "target/m121-handoff-final-{nvidia,intel}-2026-11-05",
+    "replay": "python apps/mapgyver/tests/native/panel_frame_alignment.py <recording-directory> --check-matte",
+    "scope_limits": "Capture is approximately ten FPS despite 30-FPS movie metadata; wall timestamps govern. Bounds and two backdrop points are measured witnesses, not complete-raster or latency qualification. NVIDIA's initial pre-trace frame is excluded. Intel's DOM cap occurs after its entire 60-second movie, so no filmed resize frame is extrapolated. Late Intel launch clicks are not claimed as filmed. These limits do not revise original M03/M05 production, timing, DPI, overlay or memory gates."
+  },
+  "retained_evidence": "assets/mapgyver-m12-handoff-2026-11-05 contains both native input, project, continuity and viewport reports, frame-alignment results, and original nvidia-wide.png / intel-wide.png. Larger complete movie/DOM traces remain in the named local target directories with hashes above.",
+  "failed_attempts": [
+    "Initial unit installation-reply test assumed immediate dispatch after Connect. It now waits for dispatch before testing its original queued-measurement/acknowledgement invariant; all 38 tests pass.",
+    "The first final Intel Inspector capture lost foreground after four unchanged frames. Its strict guard failed and the wrapper stopped; that attempt is excluded. One fresh guarded retry completed both phases and passes. No foreground predicate was weakened."
+  ],
+  "qualification_limits": "This closes the revised functional stability gate, not release qualification. The final Intel input consumer's maximum receive gap is 175.6883ms; current project/reconnect reports also preserve their measured gaps. No timing or performance budget is waived. Rendering-opportunity delay applies only to layout dispatch, and its latency must still meet retained M05 qualification. Device removal, physical configuration matrix, M03 timing/memory and M08 retirement remain open in their owning gates.",
+  "next": "M12/2: standard Inspectors and one Surface enabled state. Keep subsequent M12 gates pending in their original order."
+}

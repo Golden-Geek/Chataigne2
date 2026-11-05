@@ -41,7 +41,7 @@ export class RetirementLayer {
 		const paint = svg('rect');
 		paint.setAttribute('width', '100%');
 		paint.setAttribute('height', '100%');
-		paint.setAttribute('fill', 'black');
+		paint.style.fill = 'var(--gc-color-background, #000)';
 		paint.setAttribute('mask', `url(#${id})`);
 		this.element.append(definitions, paint);
 	}

@@ -14,12 +14,13 @@ export async function verifyRetirement(browser, baseUrl) {
 			];
 			const left = ['left', { x: 0, y: 0, width: 140, height: 150 }];
 			const right = ['right', { x: 140, y: 0, width: 200, height: 150 }];
-			async function paint(apertures) {
+			async function paint(apertures, background = '') {
 				layer.update(covers, apertures);
 				const element = layer.element.cloneNode(true);
 				element.setAttribute('width', '400');
 				element.setAttribute('height', '300');
 				element.removeAttribute('style');
+				if (background) element.style.setProperty('--gc-color-background', background);
 				const source = new Blob([new XMLSerializer().serializeToString(element)], {
 					type: 'image/svg+xml'
 				});
@@ -48,6 +49,7 @@ export async function verifyRetirement(browser, baseUrl) {
 				['overlap', { x: 100, y: 0, width: 100, height: 150 }]
 			]);
 			const fenced = await paint([]);
+			const themed = await paint([left], '#123456');
 			for (let index = 0; index < 1000; index++) layer.update(covers, [left, right]);
 			const rectangles = layer.element.querySelectorAll('[data-native-preview-retirement]').length;
 			const full = Array.from({ length: 64 }, (_, index) => [
@@ -69,6 +71,7 @@ export async function verifyRetirement(browser, baseUrl) {
 				retired,
 				overlapping,
 				fenced,
+				themed,
 				rectangles,
 				capacityRectangles,
 				overflowRejected
@@ -83,6 +86,11 @@ export async function verifyRetirement(browser, baseUrl) {
 		);
 		assert.deepEqual(result.overlapping, result.crossing, 'overlapping apertures remain a union');
 		assert.deepEqual(result.retired, [red, black, black, red], 'retired neighbor stays covered');
+		assert.deepEqual(
+			result.themed,
+			[red, [18, 52, 86, 255], [18, 52, 86, 255], red],
+			'retirement remains opaque while matching the host theme'
+		);
 		assert.deepEqual(
 			result.fenced,
 			[black, black, black, red],

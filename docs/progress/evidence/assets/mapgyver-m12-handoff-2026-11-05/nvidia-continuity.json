@@ -1,0 +1,179 @@
+{
+  "flow": {
+    "concurrentViews": 8,
+    "sideBySide": true,
+    "channelPersisted": "74dd84da-096c-43cf-88e2-b16f6acb520e",
+    "actualTransportReconnect": true,
+    "layoutReload": true,
+    "allPreviewClose": true,
+    "projectNewLoadLockRecovery": true,
+    "native": true,
+    "pageErrors": []
+  },
+  "reconnect": {
+    "views": 5,
+    "removed": 0,
+    "missing": 0,
+    "unavailable": 0,
+    "samples": 412,
+    "pixels": {
+      "result": "pass",
+      "frames": 22,
+      "changed_regions": 0,
+      "changed_ui_frames": 0,
+      "regions_per_frame": 5,
+      "initial_rgb": [
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          0,
+          0,
+          255
+        ],
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255
+        ]
+      ],
+      "ui_regions_per_frame": 0,
+      "ui_region_sizes": []
+    }
+  },
+  "output": {
+    "adapter": {
+      "key": "dxgi:00000000:00016022",
+      "index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+    },
+    "copies": 2807,
+    "loggedFrames": 2807,
+    "absent": 0,
+    "failedReceives": 0,
+    "descriptorMismatch": 0,
+    "stableSharedHandle": 3221233922,
+    "firstFrame": 177,
+    "lastFrame": 2983,
+    "maxReceiveGapMs": 18.4432,
+    "exitCode": 0
+  },
+  "observations": [
+    {
+      "phase": "first-grid",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "concurrent-eight",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "transport-reconnected",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "peer-closed",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "lock-changed",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "all-previews-closed",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "output-edited-without-previews",
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "project-reloaded",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ]
+}

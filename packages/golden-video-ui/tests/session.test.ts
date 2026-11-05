@@ -60,6 +60,81 @@ describe('window preview session', () => {
 		for (const session of owned.splice(0)) void session.dispose();
 		await flush();
 		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	it('dispatches the frozen layout cohort only after the browser rendering task', async () => {
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+			frames.push(callback)
+		);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		const desired = geometry();
+		session.register('channel', () => desired);
+		await session.connect();
+		expect(endpoint.requests.filter((request) => request.kind === 'Layout')).toHaveLength(0);
+		desired.rect.x = 40;
+		desired.clip.x = 40;
+		frames.splice(0).forEach((callback) => callback(0));
+		await Promise.resolve();
+		expect(endpoint.requests.filter((request) => request.kind === 'Layout')).toHaveLength(0);
+		await flush();
+		const layout = endpoint.requests.find((request) => request.kind === 'Layout');
+		expect(layout?.views[0].rect.x).toBe(0);
+	});
+
+	it('cancels a staged visible layout on disposal and withdraws without waiting for a frame', async () => {
+		vi.stubGlobal('requestAnimationFrame', () => 1);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		session.register('channel', () => geometry());
+		await session.connect();
+		const disposal = session.dispose();
+		await flush();
+		await disposal;
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts).toHaveLength(1);
+		expect(layouts[0].views).toEqual([]);
+		expect(endpoint.requests.at(-1)?.kind).toBe('Disconnect');
+	});
+
+	it('withdraws an unregistered staged view even when browser animation frames are suppressed', async () => {
+		vi.stubGlobal('requestAnimationFrame', () => 1);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		const view = session.register('channel', () => geometry());
+		await session.connect();
+		view.unregister();
+		await flush();
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts).toHaveLength(1);
+		expect(layouts[0].views).toEqual([]);
+		expect(session.state.availability).toBe('available');
+	});
+
+	it('does not publish a staged source after its registration changes identity', async () => {
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+			frames.push(callback)
+		);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		const view = session.register('old-source', () => geometry());
+		await session.connect();
+		view.update('new-source');
+		frames.splice(0).forEach((callback) => callback(0));
+		await flush();
+		expect(endpoint.requests.filter((request) => request.kind === 'Layout')).toHaveLength(0);
+		frames.splice(0).forEach((callback) => callback(16));
+		await flush();
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts).toHaveLength(1);
+		expect(layouts[0].views[0].source).toBe('new-source');
 	});
 
 	it('reports browser capability unavailable without sending native requests', async () => {
@@ -425,6 +500,7 @@ describe('window preview session', () => {
 		const session = own(endpoint.value);
 		session.register('channel', () => geometry());
 		await session.connect();
+		await flush();
 		const layout = endpoint.requests.at(-1);
 		expect(layout?.kind).toBe('Layout');
 		session.invalidate();

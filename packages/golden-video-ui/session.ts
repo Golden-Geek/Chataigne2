@@ -5,6 +5,7 @@ import type { PreviewResponse } from './generated/PreviewResponse';
 import type { PreviewTransport } from './transport';
 import type { OverlayPrimitive } from './generated/OverlayPrimitive';
 import type { PreviewPointer } from './generated/PreviewPointer';
+import { RenderOpportunity } from './render-opportunity';
 
 export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'> & {
 	overlays?: OverlayPrimitive[];
@@ -82,6 +83,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	let pendingApplied: Extract<PreviewResponse, { kind: 'Applied' }> | null = null;
 	let maximumViews = MAX_VIEWS;
 	const registrations = new Map<string, Registration>();
+	const rendering = new RenderOpportunity();
 	const listeners = new Set<(state: PreviewSessionState) => void>();
 	const cleanupSessions = new Set<string>();
 	const idleWaiters = new Set<() => void>();
@@ -243,8 +245,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						continue;
 					}
 					try {
-						const views = measure();
-						const geometry = JSON.stringify(views);
+						const geometry = JSON.stringify(measure());
+						// Freeze the exact cohort before yielding; reactive overlay/tile arrays may
+						// change while the browser completes the rendering opportunity.
+						const views = JSON.parse(geometry) as PreviewView[];
 						if (geometry !== lastGeometry) {
 							lastGeometry = geometry;
 							update({ installed: false, presentedViews: retainPresentation(views) });
@@ -268,6 +272,18 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				} else {
 					if (closing && statusTimer === null) fail('Native preview clear could not be confirmed');
 					break;
+				}
+				if (request.kind === 'Layout' && request.views.some((view) => view.visible)) {
+					const ready = await rendering.wait();
+					if (turn !== generation || (disposed && !closing)) continue;
+					if (request.views.some((view) => registrations.get(view.id)?.source !== view.source)) {
+						dirty = true;
+						continue;
+					}
+					if (!ready) {
+						fail('Native preview rendering opportunity timed out');
+						continue;
+					}
 				}
 				let response: PreviewResponse;
 				// Withhold capability on timeout, but retain the serialized IPC slot until its
@@ -416,6 +432,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			return connection;
 		resolveConnection?.(false);
 		generation++;
+		rendering.cancel();
 		pendingApplied = null;
 		if (state.session) cleanupSessions.add(state.session);
 		stopHeartbeat();
@@ -504,6 +521,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				update(source) {
 					if (!disposed && active && registration.source !== source) {
 						registration.source = source;
+						rendering.cancel();
 						update({ installed: false });
 						invalidate();
 					}
@@ -514,6 +532,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						active = false;
 						registrations.delete(registration.id);
 						if (disposed) return;
+						rendering.cancel();
 						update({
 							installed: false,
 							presentedViews: state.presentedViews.filter((id) => id !== registration.id)
@@ -528,6 +547,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				disposed = true;
 				closing = Boolean(state.session) || running;
 				generation++;
+				rendering.cancel();
 				pendingApplied = null;
 				connectWanted = false;
 				dirty = closing;

@@ -1,0 +1,23 @@
+{
+  "source": "UTF-16 PowerShell Tee-Object logs retained under target/m121-handoff-acceptance-2026-11-05/{nvidia,intel}-viewport.log; reported values transcribed without changing assertions",
+  "nvidia_profile": {
+    "result": "pass",
+    "scope": "64x64 bounded keyboard scroll, offscreen Column Inspector/history without scrolling selection, tab lifetime, resize and narrow 125% Inspector geometry; no launch",
+    "initialRows": 64,
+    "initialColumns": 64,
+    "backgroundDraftPreserved": true,
+    "exactScrollPreserved": true,
+    "native": true,
+    "browser": "156.0.4314.58"
+  },
+  "intel_profile": {
+    "result": "pass",
+    "scope": "64x64 bounded keyboard scroll, offscreen Column Inspector/history without scrolling selection, tab lifetime, resize and narrow 125% Inspector geometry; no launch",
+    "initialRows": 64,
+    "initialColumns": 64,
+    "backgroundDraftPreserved": true,
+    "exactScrollPreserved": true,
+    "native": true,
+    "browser": "156.0.4314.58"
+  }
+}

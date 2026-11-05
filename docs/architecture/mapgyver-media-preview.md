@@ -46,6 +46,15 @@ The existing retained-presentation predicate and confirmed-installation release 
 At most 64 cover rectangles and 64 live cutouts are reused, avoiding fragment growth during
 layout churn. This coverage contract does not establish synchronized browser/native presentation.
 
+Visible native layouts are immutable measured cohorts. The session dispatches each cohort from
+a task after an animation callback, allowing the browser's rendering task to finish first;
+see the [HTML rendering order](https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering).
+This is a rendering opportunity, not a compositor-present receipt. Stale source/session work
+is cancelled before dispatch; disposal and empty-layout withdrawal bypass the rendering wait.
+A suppressed frame has a bounded timeout and uses the existing unavailable/reconnect path.
+Historical retirement paint uses Golden's background token, remaining opaque while matching
+the host's surrounding backdrop instead of introducing black rectangles outside live apertures.
+
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
 

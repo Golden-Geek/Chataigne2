@@ -152,10 +152,21 @@ export async function verifyContinuity(browser, baseUrl) {
 			.locator('[data-native-preview-retirement-layer]')
 			.evaluate((element) => ({
 				covers: element.querySelectorAll('[data-native-preview-retirement^="cover:"]').length,
-				paint: getComputedStyle(element.querySelector(':scope > rect')).fill
+				paint: getComputedStyle(element.querySelector(':scope > rect')).fill,
+				background: getComputedStyle(document.documentElement)
+					.getPropertyValue('--gc-color-background')
+					.trim()
 			}));
 		assert(retirement.covers > 0, 'removed native view must stay covered until withdrawal');
-		assert.equal(retirement.paint, 'rgb(0, 0, 0)');
+		const expectedPaint = await page.evaluate((background) => {
+			const element = document.createElement('div');
+			element.style.color = background || '#000';
+			document.body.append(element);
+			const color = getComputedStyle(element).color;
+			element.remove();
+			return color;
+		}, retirement.background);
+		assert.equal(retirement.paint, expectedPaint);
 		const result = await page.evaluate(() => ({
 			flashes: window.__continuityFlashes,
 			ids: window.__continuityRequests
@@ -168,7 +179,7 @@ export async function verifyContinuity(browser, baseUrl) {
 		await page.evaluate(() => (window.__continuityInstalled = true));
 		return {
 			blackPendingViews: true,
-			blackRetirementCovers: true,
+			opaqueRetirementCovers: true,
 			sourceSwap: true,
 			inspectorChurn: true,
 			panZoom: true,

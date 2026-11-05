@@ -73,6 +73,24 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		await parameter('Override transition').locator('input[type=checkbox]').check();
 		const duration = parameter('Transition duration').locator('input.number-field');
 		await duration.fill('00:00:01.234');
+		const draftInput = await duration.elementHandle();
+		await matrix({
+			kind: 'RenameColumn',
+			column: initial.columns[1].id,
+			label: 'Background renamed'
+		});
+		await grid.getByTitle('Select Background renamed', { exact: true }).waitFor();
+		assert.equal(
+			await duration.inputValue(),
+			'00:00:01.234',
+			'unrelated backend edit preserves the draft'
+		);
+		assert(
+			await draftInput.evaluate(
+				(element) => element.isConnected && document.activeElement === element
+			),
+			'background refresh preserves the focused field identity'
+		);
 		await duration.press('Enter');
 		const beforeScroll = await wait(
 			inspect,
@@ -92,6 +110,10 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		assert.equal(await grid.getByTitle('Select Layer 1', { exact: true }).count(), 0);
 		assert((await grid.getByRole('gridcell').count()) < 2048);
 		assert.deepEqual(await inspect(), beforeScroll);
+		const retainedScroll = await grid.evaluate((element) => ({
+			top: element.scrollTop,
+			left: element.scrollLeft
+		}));
 		await duration.fill('00:00:04.321');
 		await duration.press('Enter');
 		const edited = await wait(
@@ -102,6 +124,11 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		await wait(inspect, (state) => isDeepStrictEqual(state, beforeScroll));
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(inspect, (state) => isDeepStrictEqual(state, edited));
+		assert.deepEqual(
+			await grid.evaluate((element) => ({ top: element.scrollTop, left: element.scrollLeft })),
+			retainedScroll,
+			'Inspector/history refresh preserves the exact Matrix scroll position'
+		);
 		assert.equal(
 			await grid.getByTitle('Select Column 1', { exact: true }).count(),
 			0,
@@ -162,6 +189,8 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 					'64x64 bounded keyboard scroll, offscreen Column Inspector/history without scrolling selection, tab lifetime, resize and narrow 125% Inspector geometry; no launch',
 				initialRows: initial.items.length,
 				initialColumns: initial.columns.length,
+				backgroundDraftPreserved: true,
+				exactScrollPreserved: true,
 				native: !!nativePage,
 				browser: (browser ?? page.context().browser()).version()
 			})

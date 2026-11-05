@@ -67,6 +67,7 @@ try {
 			['--matrix-output-exposure', verifyMatrixOutputExposure],
 			['--matrix-preview-admission', verifyMatrixPreviewAdmission],
 			['--matrix-cell-previews', verifyMatrixCellPreviews],
+			['--matrix-viewport', verifyMatrixViewportUi],
 			['--composition-creation', verifyCompositionCreation],
 			[
 				'--canvas-remaining',

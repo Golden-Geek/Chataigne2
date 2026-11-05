@@ -12,7 +12,7 @@ import subprocess
 import numpy as np
 
 
-def verify(directory):
+def verify(directory, check_matte=False):
     observations = json.loads((directory / "observations.json").read_text())
     samples = observations["samples"]
     capture = json.loads((directory / "capture.json").read_text())
@@ -22,6 +22,10 @@ def verify(directory):
     origin = [capture["client_desktop_origin"][axis] - capture["desktop_bounds"][axis]
               for axis in range(2)]
     dpr = ready["viewport"]["dpr"]
+    background = ready.get("background", "").lstrip("#")
+    if check_matte:
+        assert len(background) == 6, "fixture requires an explicit six-digit background token"
+    expected_matte = tuple(int(background[index:index + 2], 16) for index in (0, 2, 4)) if check_matte else None
 
     def expected(sample):
         rect = sample["views"][1]["rect"]
@@ -35,6 +39,7 @@ def verify(directory):
               "scope": "Rightmost uninterrupted red Final span bounds; capture interval plus 50ms DOM sampling margin; not full-raster acceptance",
               "input_latency_verified": False, "missing_frames_verified": False,
               "trace_overflow": observations["overflow"]}
+    result.update(checked_matte_frames=0, matte_mismatches=[])
     decoder = subprocess.Popen(["ffmpeg", "-v", "error", "-i", str(directory / "native-frames.mkv"),
                                 "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"], stdout=subprocess.PIPE)
     try:
@@ -66,9 +71,17 @@ def verify(directory):
             result["maximum_error_px"] = max(result["maximum_error_px"], error)
             if error > 2:
                 result["mismatches"].append({"frame": frame["frame"], "actual": actual, "error_px": error})
+            if check_matte and error <= 2:
+                y = actual[1] - round(20 * dpr)
+                points = [left + round(20 * dpr), right - round(20 * dpr)]
+                colors = [tuple(int(value) for value in pixels[y, x]) for x in points]
+                result["checked_matte_frames"] += 1
+                if any(max(abs(a - b) for a, b in zip(color, expected_matte)) > 2 for color in colors):
+                    result["matte_mismatches"].append({"frame": frame["frame"], "colors": colors})
         assert decoder.wait(timeout=15) == 0
         assert result["compared_red_frames"] >= 30, "insufficient comparable red frames"
         assert not result["mismatches"], "cropped/displaced red Final preview"
+        assert not result["matte_mismatches"], "retirement paint or stale UI differs from the host backdrop"
         result["result"] = "pass"
         return result
     finally:
@@ -82,4 +95,6 @@ def verify(directory):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
-    verify(parser.parse_args().directory)
+    parser.add_argument("--check-matte", action="store_true")
+    args = parser.parse_args()
+    verify(args.directory, args.check_matte)
