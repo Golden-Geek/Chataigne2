@@ -1,6 +1,6 @@
 """Read-only capture baseline for an owned native-alignment fixture.
 
-Check that a capture contains both native red and SVG blue before attempting alignment.
+Check that a capture contains both native red and blue overlays before attempting alignment.
 This does not measure alignment or automate window input. --image reuses an existing capture.
 """
 import argparse
@@ -28,7 +28,25 @@ def visible_owned_window(hwnd, pid):
     rect = wintypes.RECT()
     assert user.GetWindowRect(hwnd, ctypes.byref(rect))
     bounds = (rect.left, rect.top, rect.right, rect.bottom)
-    return ImageGrab.grab(bbox=bounds, all_screens=True), bounds
+    image = ImageGrab.grab(bbox=bounds, all_screens=True)
+    assert user.GetForegroundWindow() == hwnd, "owned fixture lost foreground during capture"
+    assert user.GetWindowRect(hwnd, ctypes.byref(rect))
+    assert bounds == (rect.left, rect.top, rect.right, rect.bottom), "window moved during capture"
+    return image, bounds
+
+
+def client_geometry(hwnd):
+    """Physical client placement for the same capture, independent of caller DPI virtualization."""
+    user = ctypes.windll.user32
+    user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+    user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
+    user.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+    user.GetDpiForWindow.argtypes = [wintypes.HWND]
+    origin = wintypes.POINT()
+    assert user.ClientToScreen(hwnd, ctypes.byref(origin))
+    dpi = user.GetDpiForWindow(hwnd)
+    assert dpi > 0, "owned fixture has no valid window DPI"
+    return {"client_desktop_origin": [origin.x, origin.y], "window_dpi": dpi}
 
 
 def summarize(image):
@@ -69,7 +87,9 @@ def main():
         assert args.hwnd > 0, "Supply the positive HWND of the owned fixture"
         if args.visible:
             assert args.pid and args.pid > 0, "--visible requires the fixture PID"
+            geometry = client_geometry(args.hwnd)
             image, bounds = visible_owned_window(args.hwnd, args.pid)
+            assert geometry == client_geometry(args.hwnd), "client placement/DPI changed during capture"
         else:
             image = ImageGrab.grab(window=args.hwnd)
         image.save(args.output / "baseline.png")
@@ -77,7 +97,7 @@ def main():
         image = Image.open(args.image)
     result = summarize(image)
     if args.visible:
-        result.update(capture_mode="visible owned foreground window", desktop_bounds=list(bounds))
+        result.update(capture_mode="visible owned foreground window", desktop_bounds=list(bounds), **geometry)
     (args.output / "capture.json").write_text(
         json.dumps(result, indent=2) + "\n", encoding="utf-8"
     )

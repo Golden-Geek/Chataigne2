@@ -1,0 +1,430 @@
+{
+	"date": "2026-11-05",
+	"owner_gate": "M05/8",
+	"status": "FOUR_SETTLED_PHYSICAL_ALIGNMENT_CASES_VERIFIED",
+	"whole_gate_accepted": false,
+	"source_base": "c6d482aa3e78b4909f2283b8b58ace22b1ed238d",
+	"executable_sha256": "f25b4ae22021b5d60ad15a146a6ed600d595a7c9899c928eef694a5820314476",
+	"build": "Locked MapGyver dev profile, native-qualification; unchanged executable from the verified keyboard repair",
+	"inputs_sha256": {
+		"Cargo.lock": "8dac1d2fee7971e3e4ee30637b7c461cb60e1c1ea15b1eea585864ac7ec5a446",
+		"package-lock.json": "85a62b85ab751659a4efd486b12f982385d5f8bc62dee2cee9dadc1460c9f0af",
+		"apps/mapgyver/Cargo.toml": "3a4672f23e988bcea4efe3328ad15f287e891517a1215f34b2ab70dda2afaa65",
+		"packages/golden-ui/style/colors.css": "334db7d0f617fda4fe05e0c1df37b2ef592616a2faac24c9d95cc3306d4173e3",
+		"packages/golden-ui/style/golden-core.css": "ec64141b0dd71ea0b24b6935bff3bc2af5d50bd3893b7352cb296ebf074b892f",
+		"apps/mapgyver/tests/browser/native-editor.mjs": "1f168d1ff4e9e01041ed89c8bb0b984b3fd2501bab31ae4d4238b54ebf84c58f",
+		"apps/mapgyver/tests/browser/native-alignment.mjs": "caf26a5e530b680a633574e26dfadd29e3a1683081b55b7f411bb0e4af3a495d",
+		"apps/mapgyver/tests/native/window_capture.py": "bc1acbd9c12144d2522d003dd103ff816707d0b2b9f4d4a7ce2839fb338766ee",
+		"apps/mapgyver/tests/native/visible_zoom.py": "a8609f40b677b3163acdf27d7a80752b4a3a104729ce293783943fb44136ef9b"
+	},
+	"environment": {
+		"inventory_artifact": "target/m058-display-2026-11-05/environment.json",
+		"inventory_sha256": "75b7195d80f55517eddd8f6c6c6313ccce6fff84aa7a2bcd6a89129e8fd6ed93",
+		"os": [
+			{
+				"Caption": "Microsoft Windows 11 Famille",
+				"Version": "10.0.26300",
+				"BuildNumber": "26300",
+				"OSArchitecture": "64-bit"
+			},
+			{
+				"DisplayVersion": "26H2",
+				"CurrentBuild": "26300",
+				"UBR": 9711
+			}
+		],
+		"drivers": [
+			{
+				"Name": "Intel(R) Graphics",
+				"DriverVersion": "32.0.101.8331",
+				"DriverDate": "2026-01-29",
+				"CurrentHorizontalResolution": 2560,
+				"CurrentVerticalResolution": 1600,
+				"CurrentRefreshRate": 240
+			},
+			{
+				"Name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"DriverVersion": "32.0.15.9201",
+				"DriverDate": "2026-02-15",
+				"CurrentHorizontalResolution": 1920,
+				"CurrentVerticalResolution": 1080,
+				"CurrentRefreshRate": 60
+			}
+		],
+		"webview": [
+			{
+				"name": "Microsoft Edge WebView2 Runtime",
+				"pv": "156.0.4314.58"
+			}
+		],
+		"power_scheme": ["Power Scheme GUID: 3ce3a61f-21d2-4d5c-8d8a-edd03b1f14e7  (Perf)"],
+		"renderer_footer": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"limits": "Functional physical checks only. Exact renderer LUID and selected compiler/SDK were not repinned here; no full production qualification claim. Unrelated user Cargo/CSS inputs remain dirty, hashed above and unstaged."
+	},
+	"method": "Existing native-alignment --independent-landmark creates an 800x600 black Picture with a red rectangle from 10% to 90%. Its edges do not coincide with the blue crop/quad stroke. Screen places it inside its 20%-80% quad; Source shows the full image and 20%-80% crop. Existing visible_zoom.independent_landmark_alignment compares independent red run boundaries and blue pixel centers against DOM/client/DPR projection, then infers blue-edge positions from the red landmark. All three maximum errors must be at most one physical pixel. Only axis-aligned settled fixture geometry is qualified.",
+	"native_setup": "Supported Computer Use Raise plus exact owned foreground PID/HWND physical capture. Window-only screenshots sometimes omit native imagery/overlays and are not used for pixel acceptance. Capture records physical bounds, client origin and DPI with stability guards. Private APPDATA saved-window state selects the 100%/125% monitor through ordinary host startup; no monitor arrangement or scale setting changed. Automated existing-window title dragging did not move it; Alt+Space was intercepted by PowerToys and dismissed. Manual move request was superseded when its bounded scene closed. Startup placement is not mixed-DPI movement evidence.",
+	"cases": [
+		{
+			"name": "screen-125",
+			"editor": "screen",
+			"pid": 39196,
+			"artifact_directory": "target/m058-display-2026-11-05/screen",
+			"image": "docs/progress/evidence/assets/mapgyver-m05-alignment-2026-11-05/screen-125.png",
+			"image_sha256": "22dcc238246dcc8197b2a2eba9e531f082e10f16344d6d53d3f32318342b108d",
+			"geometry": {
+				"viewport": {
+					"width": 1200,
+					"height": 800,
+					"dpr": 1.25
+				},
+				"active": {
+					"x": 262.3999938964844,
+					"y": 164.125,
+					"width": 669.0000305175781,
+					"height": 501.75
+				}
+			},
+			"capture": {
+				"size": [1518, 1010],
+				"unique_colors": 6837,
+				"native_red_pixels": 113408,
+				"overlay_blue_pixels": 6616,
+				"rgb_sha256": "afdcbf33e9d392660044bbea05e3a355ee1c177e1a57829eee4beeabf1016d9e",
+				"capture_usable_for_alignment": true,
+				"alignment_verified": false,
+				"capture_mode": "visible owned foreground window",
+				"desktop_bounds": [32, 32, 1550, 1042],
+				"client_desktop_origin": [41, 33],
+				"window_dpi": 120
+			},
+			"landmark": {
+				"extent": [800, 600],
+				"internalRedRect": [80, 60, 640, 480],
+				"crop": [0, 0, 1, 1],
+				"independent": true
+			},
+			"authored_crop": {
+				"height": 1,
+				"width": 1,
+				"x": 0,
+				"y": 0
+			},
+			"authored_quad": {
+				"corners": [
+					{
+						"x": 0.20000000298023224,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.800000011920929
+					},
+					{
+						"x": 0.20000000298023224,
+						"y": 0.800000011920929
+					}
+				]
+			},
+			"measured": {
+				"red_edges": [554, 956, 369, 670],
+				"blue_centers": [504.5, 1006, 331.5, 708],
+				"red_expected": [554.4250022888184, 955.8250205993652, 369.225, 670.2750000000001],
+				"blue_expected": [504.25000000000006, 1006.0000228881837, 331.59375, 707.9062500000001],
+				"inferred_overlay_edges": [503.75, 1006.25, 331.375, 707.625],
+				"image_to_projection_max_px": 0.42500228881840485,
+				"overlay_to_projection_max_px": 0.24999999999994316,
+				"image_to_overlay_max_px": 0.75,
+				"settled_alignment_verified": true,
+				"input_latency_verified": false
+			},
+			"fixture_and_normal_app_shutdown_exit_code": 0
+		},
+		{
+			"name": "screen-100",
+			"editor": "screen",
+			"pid": 12824,
+			"artifact_directory": "target/m058-display-2026-11-05/screen-100",
+			"image": "docs/progress/evidence/assets/mapgyver-m05-alignment-2026-11-05/screen-100.png",
+			"image_sha256": "86bbbfb768cd016b6f5bade8d0fb3a69671aa648eb379c2511af0c26239e4951",
+			"geometry": {
+				"viewport": {
+					"width": 971,
+					"height": 645,
+					"dpr": 1
+				},
+				"active": {
+					"x": 217.390625,
+					"y": 137.6875,
+					"width": 532,
+					"height": 399
+				}
+			},
+			"capture": {
+				"size": [987, 654],
+				"unique_colors": 7999,
+				"native_red_pixels": 48960,
+				"overlay_blue_pixels": 3628,
+				"rgb_sha256": "492badf6ede7001c7c4e3dfec0c9027d9a5d5ac95e3c82d4de62dd5446e7f78a",
+				"capture_usable_for_alignment": true,
+				"alignment_verified": false,
+				"capture_mode": "visible owned foreground window",
+				"desktop_bounds": [2640, 80, 3627, 734],
+				"client_desktop_origin": [2648, 81],
+				"window_dpi": 96
+			},
+			"landmark": {
+				"extent": [800, 600],
+				"internalRedRect": [80, 60, 640, 480],
+				"crop": [0, 0, 1, 1],
+				"independent": true
+			},
+			"authored_crop": {
+				"height": 1,
+				"width": 1,
+				"x": 0,
+				"y": 0
+			},
+			"authored_quad": {
+				"corners": [
+					{
+						"x": 0.20000000298023224,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.800000011920929
+					},
+					{
+						"x": 0.20000000298023224,
+						"y": 0.800000011920929
+					}
+				]
+			},
+			"measured": {
+				"red_edges": [364, 619, 242, 434],
+				"blue_centers": [332, 651, 218.5, 458],
+				"red_expected": [363.710625, 619.0706250000001, 242.4275, 433.9475],
+				"blue_expected": [331.790625, 650.990625, 218.4875, 457.88750000000005],
+				"inferred_overlay_edges": [332.125, 650.875, 218, 458],
+				"image_to_projection_max_px": 0.4275000000000091,
+				"overlay_to_projection_max_px": 0.20937500000002274,
+				"image_to_overlay_max_px": 0.5,
+				"settled_alignment_verified": true,
+				"input_latency_verified": false
+			},
+			"fixture_and_normal_app_shutdown_exit_code": 0
+		},
+		{
+			"name": "source-125",
+			"editor": "source",
+			"pid": 15176,
+			"artifact_directory": "target/m058-display-2026-11-05/source-125",
+			"image": "docs/progress/evidence/assets/mapgyver-m05-alignment-2026-11-05/source-125.png",
+			"image_sha256": "09723d2a7227d58745f3ceb00b3bbb5d4103eb8a45154fb05a216540a410dd70",
+			"geometry": {
+				"viewport": {
+					"width": 1215,
+					"height": 808,
+					"dpr": 1.25
+				},
+				"active": {
+					"x": 265.3999938964844,
+					"y": 164.75,
+					"width": 678,
+					"height": 508.5
+				}
+			},
+			"capture": {
+				"size": [1536, 1020],
+				"unique_colors": 8461,
+				"native_red_pixels": 339014,
+				"overlay_blue_pixels": 6659,
+				"rgb_sha256": "d7211cbc7f014b5ec287309123e5bc828df598e5cd45db96571a50e5cc59243e",
+				"capture_usable_for_alignment": true,
+				"alignment_verified": false,
+				"capture_mode": "visible owned foreground window",
+				"desktop_bounds": [80, 80, 1616, 1100],
+				"client_desktop_origin": [89, 81],
+				"window_dpi": 120
+			},
+			"landmark": {
+				"extent": [800, 600],
+				"internalRedRect": [80, 60, 640, 480],
+				"crop": [0.2, 0.2, 0.6, 0.6],
+				"independent": true
+			},
+			"authored_crop": {
+				"height": 0.6000000238418579,
+				"width": 0.6000000238418579,
+				"x": 0.20000000298023224,
+				"y": 0.20000000298023224
+			},
+			"authored_quad": {
+				"corners": [
+					{
+						"x": 0.20000000298023224,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.800000011920929
+					},
+					{
+						"x": 0.20000000298023224,
+						"y": 0.800000011920929
+					}
+				]
+			},
+			"measured": {
+				"red_edges": [425, 1104, 270, 779],
+				"blue_centers": [510, 1019, 334, 715.5],
+				"red_expected": [425.49999237060547, 1103.4999923706055, 270.5, 779.0000000000001],
+				"blue_expected": [510.24999237060547, 1018.7499923706055, 334.0625, 715.4375],
+				"inferred_overlay_edges": [509.875, 1019.125, 333.625, 715.375],
+				"image_to_projection_max_px": 0.5000076293945312,
+				"overlay_to_projection_max_px": 0.25000762939453125,
+				"image_to_overlay_max_px": 0.375,
+				"settled_alignment_verified": true,
+				"input_latency_verified": false
+			},
+			"fixture_and_normal_app_shutdown_exit_code": 0
+		},
+		{
+			"name": "source-100",
+			"editor": "source",
+			"pid": 42920,
+			"artifact_directory": "target/m058-display-2026-11-05/source-100",
+			"image": "docs/progress/evidence/assets/mapgyver-m05-alignment-2026-11-05/source-100.png",
+			"image_sha256": "dd56a07fd26c4b161449b3dd4f7f0190baf87d360170a7005f5c7e2dc080b4bd",
+			"geometry": {
+				"viewport": {
+					"width": 971,
+					"height": 645,
+					"dpr": 1
+				},
+				"active": {
+					"x": 217.390625,
+					"y": 137.6875,
+					"width": 532,
+					"height": 399
+				}
+			},
+			"capture": {
+				"size": [987, 654],
+				"unique_colors": 7152,
+				"native_red_pixels": 132721,
+				"overlay_blue_pixels": 2993,
+				"rgb_sha256": "4a48a076fc11dea69b77831d462cf4d42d56359a4dff0f6a67295df396e63caf",
+				"capture_usable_for_alignment": true,
+				"alignment_verified": false,
+				"capture_mode": "visible owned foreground window",
+				"desktop_bounds": [2640, 80, 3627, 734],
+				"client_desktop_origin": [2648, 81],
+				"window_dpi": 96
+			},
+			"landmark": {
+				"extent": [800, 600],
+				"internalRedRect": [80, 60, 640, 480],
+				"crop": [0.2, 0.2, 0.6, 0.6],
+				"independent": true
+			},
+			"authored_crop": {
+				"height": 0.6000000238418579,
+				"width": 0.6000000238418579,
+				"x": 0.20000000298023224,
+				"y": 0.20000000298023224
+			},
+			"authored_quad": {
+				"corners": [
+					{
+						"x": 0.20000000298023224,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.20000000298023224
+					},
+					{
+						"x": 0.800000011920929,
+						"y": 0.800000011920929
+					},
+					{
+						"x": 0.20000000298023224,
+						"y": 0.800000011920929
+					}
+				]
+			},
+			"measured": {
+				"red_edges": [278, 704, 178, 498],
+				"blue_centers": [332, 651, 218.5, 458],
+				"red_expected": [278.590625, 704.190625, 178.5875, 497.7875],
+				"blue_expected": [331.790625, 650.990625, 218.4875, 457.88750000000005],
+				"inferred_overlay_edges": [331.25, 650.75, 218, 458],
+				"image_to_projection_max_px": 0.5906249999999886,
+				"overlay_to_projection_max_px": 0.20937500000002274,
+				"image_to_overlay_max_px": 0.75,
+				"settled_alignment_verified": true,
+				"input_latency_verified": false
+			},
+			"fixture_and_normal_app_shutdown_exit_code": 0
+		}
+	],
+	"native_input": {
+		"125_percent": "Reuse 31 trusted native keyboard gestures, Shift/history and normal exit in mapgyver-m05-native-keyboard-2026-11-05.json. This batch adds native Source crop outside-region release and single Undo.",
+		"100_percent": {
+			"screen_arrow_journal_sha256": "3d73acf45221101dca717590f24c5c352745f5ba2ac457450759099adbfb3f36",
+			"trusted_keydowns": 30,
+			"trusted_keyups": 30,
+			"journal_overflow": false,
+			"sequence": "15 Right/Left pairs at one selected native corner",
+			"screen_history_after_outside_drag": {
+				"undo_len": 36,
+				"active_edit_session": false,
+				"top_left": [1.2041529417037964, 0.1987781822681427],
+				"mapping_valid": false
+			},
+			"screen_undo": "Single Undo restores valid original quad; final captured geometry matches authored fixture.",
+			"menu_dialog": "File menu appears above the native preview. Native Open dialog appears above it; exact dialog-region Cancel restores the image without loading a file."
+		},
+		"source_crop_release": {
+			"125_percent": {
+				"history_undo_len": 6,
+				"active_edit_session": false,
+				"crop": [0.20000000298023224, 0.20000000298023224, 0.800000011920929, 0.5977384448051453]
+			},
+			"100_percent": {
+				"history_undo_len": 6,
+				"active_edit_session": false,
+				"crop": [0.20000000298023224, 0.20000000298023224, 0.800000011920929, 0.6002819538116455]
+			},
+			"undo": "One native Undo restores original 20% origin/60% size in both cases; final public snapshots checked."
+		},
+		"zoom_limit": "Thirty alternating native Source toolbar zoom actions were sent at 125%, but their accessibility snapshots all reported 100%. An isolated plus increased native red pixel area from 339014 to 488984, and Home restored it. This is a motion witness only: no per-gesture completion count, animation alignment or latency acceptance from those snapshots."
+	},
+	"validation": {
+		"replay": "python -m unittest discover -s apps/mapgyver/tests/native/tests -p test_landmark_alignment.py -v: 3 passed, covering all four retained images, shifted projections, mismatched DPI and background capture rejection",
+		"four_real_captures": "PASS: all image/projection, overlay/projection and independent image/overlay errors <=1 physical pixel",
+		"shifted_projection_negative_control": "PASS: +3 physical-pixel DOM projection offset rejects every stored case",
+		"static_checks": "Node syntax, Prettier and Python compile; root/golden_core cargo fmt",
+		"runtime_prerequisites": "Reuse unchanged passing app/Golden/host/Wry software, strict lint, UI and pinned build checks. No runtime/protocol sources changed."
+	},
+	"remaining": [
+		"150% and 200% scaling, genuine mixed-DPI moves and negative origins",
+		"Resize/maximize/restore, docking, scroll, tab hide/show and animation matrix",
+		"Full alpha/color/reference patterns and capture/overlay combinations",
+		"Measured p95 input-to-visible latency <=50 ms; event/AX snapshots are not latency evidence",
+		"M05/5 display identity/hotplug and all original M03/M08/M09/M10 requirements"
+	]
+}

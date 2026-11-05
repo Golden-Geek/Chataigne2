@@ -1,4 +1,4 @@
-"""Bounded same-frame native red/SVG blue observations for the owned Source fixture."""
+"""Bounded native image/overlay observations for owned Screen and Source fixtures."""
 import argparse
 import itertools
 import json
@@ -34,6 +34,58 @@ def positions(image, roi):
         offsets.extend([min(reds) - first, last - max(reds)])
         edges.extend([min(reds), max(reds), first, last])
     return offsets, edges
+
+
+def independent_landmark_alignment(image, geometry, capture, editor):
+    """Oracle for native-alignment's fixed --independent-landmark axis-aligned fixture.
+
+    The red source rectangle occupies 10–90% and is unobscured by the crop/quad stroke.
+    Screen maps that source into its 20–80% quad; Source shows the full image with a
+    20–80% crop. Infer overlay positions from those independent image edges as well as
+    checking both against DOM/client/DPR projection. This measures settled pixels only.
+    """
+    assert editor in ("screen", "source")
+    assert capture["capture_mode"] == "visible owned foreground window"
+    assert capture["capture_usable_for_alignment"]
+    assert list(image.size) == capture["size"]
+    active, scale = geometry["active"], geometry["viewport"]["dpr"]
+    assert scale > 0 and abs(capture["window_dpi"] / 96 - scale) < 1e-6
+    offset = [a - b for a, b in zip(
+        capture["client_desktop_origin"], capture["desktop_bounds"][:2])]
+
+    def project(fractions):
+        return [offset[0] + (active["x"] + active["width"] * v) * scale for v in fractions] + [
+            offset[1] + (active["y"] + active["height"] * v) * scale for v in fractions]
+
+    frame = project([0, 1])
+    roi = tuple(round(frame[i]) for i in (0, 2, 1, 3))
+    _, edges = positions(image.convert("RGB"), roi)
+    # Red run boundaries bracket sampled pixels; blue runs use pixel centers.
+    red_edges = [edges[0], edges[1] + 1, edges[4], edges[5] + 1]
+    blue_centers = [edges[i] + 0.5 for i in (2, 3, 6, 7)]
+    red_fractions = [0.26, 0.74] if editor == "screen" else [0.1, 0.9]
+    blue_fractions = [0.2, 0.8]
+    inferred = []
+    for start, end in ((red_edges[0], red_edges[1]), (red_edges[2], red_edges[3])):
+        slope = (end - start) / (red_fractions[1] - red_fractions[0])
+        inferred.extend(start + (v - red_fractions[0]) * slope for v in blue_fractions)
+
+    def error(a, b):
+        return max(abs(x - y) for x, y in zip(a, b))
+
+    red_expected, blue_expected = project(red_fractions), project(blue_fractions)
+    errors = {
+        "image_to_projection_max_px": error(red_edges, red_expected),
+        "overlay_to_projection_max_px": error(blue_centers, blue_expected),
+        "image_to_overlay_max_px": error(inferred, blue_centers),
+    }
+    return {
+        "red_edges": red_edges, "blue_centers": blue_centers,
+        "red_expected": red_expected, "blue_expected": blue_expected,
+        "inferred_overlay_edges": inferred, **errors,
+        "settled_alignment_verified": all(value <= 1 for value in errors.values()),
+        "input_latency_verified": False,
+    }
 
 
 def main():

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -20,8 +20,18 @@ async function listener() {
 	return socket;
 }
 
-export async function openNativeEditor({ appDataDirectory } = {}) {
+export async function openNativeEditor({ appDataDirectory, windowState } = {}) {
+	assert(
+		!windowState || !appDataDirectory,
+		'Seed window state only in the owned temporary app profile'
+	);
 	const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-native-editor-'));
+	if (windowState) {
+		// Exercise the host's ordinary saved-window restore; never reposition another app/window.
+		const appData = path.join(directory, 'data', 'MapGyver');
+		await mkdir(appData, { recursive: true });
+		await writeFile(path.join(appData, 'window-state.json'), JSON.stringify(windowState));
+	}
 	const hostSocket = await listener();
 	const cdpSocket = await listener();
 	const hostPort = hostSocket.address().port;

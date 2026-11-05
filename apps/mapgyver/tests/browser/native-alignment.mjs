@@ -14,13 +14,26 @@ await mkdir(directory, { recursive: true });
 const exists = async (name) => !!(await stat(path.join(directory, name)).catch(() => null));
 assert(!(await exists('ready.json')), 'Alignment fixture requires a fresh output directory');
 const sourceEditor = process.argv.includes('--source');
+const independentLandmark = process.argv.includes('--independent-landmark');
+assert(
+	!independentLandmark || !process.argv.includes('--zoom'),
+	'Independent landmarks require their projected geometry oracle, not the coincident-edge zoom oracle'
+);
+const pictureFixture = sourceEditor || independentLandmark;
+const redRect = independentLandmark ? [80, 60, 640, 480] : [160, 120, 480, 360];
 const holdArgument = process.argv.find((value) => value.startsWith('--hold-seconds='));
 const holdSeconds = Number(holdArgument?.slice('--hold-seconds='.length) ?? 300);
 assert(
 	Number.isInteger(holdSeconds) && holdSeconds >= 30 && holdSeconds <= 480,
 	'Alignment hold must be 30–480 seconds, below the owned host watchdog'
 );
-const native = await openNativeEditor();
+const windowStateArgument = process.argv.find((value) => value.startsWith('--window-state='));
+const windowState = windowStateArgument
+	? JSON.parse(
+			await readFile(path.resolve(windowStateArgument.slice('--window-state='.length)), 'utf8')
+		)
+	: undefined;
+const native = await openNativeEditor({ windowState });
 let token;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {
@@ -49,17 +62,18 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const { reference: source } = await edit('media', {
 		kind: 'CreateMedia',
-		media_kind: sourceEditor ? 'Picture' : 'SolidColor',
+		media_kind: pictureFixture ? 'Picture' : 'SolidColor',
 		label: 'Alignment red'
 	});
-	if (sourceEditor) {
-		// A red internal landmark surrounded by black defeats the prior full-image
-		// aperture false positive. Its edges coincide with the authored source crop.
+	if (pictureFixture) {
+		// A red internal landmark surrounded by black defeats the full-image aperture false
+		// positive. Independent mode keeps image edges clear of the authored overlay stroke.
 		const width = 800,
 			height = 600;
 		const raw = Buffer.alloc(height * (1 + width * 3));
-		for (let y = 120; y < 480; y++)
-			for (let x = 160; x < 640; x++) raw[y * (1 + width * 3) + 1 + x * 3] = 255;
+		for (let y = redRect[1]; y < redRect[1] + redRect[3]; y++)
+			for (let x = redRect[0]; x < redRect[0] + redRect[2]; x++)
+				raw[y * (1 + width * 3) + 1 + x * 3] = 255;
 		function chunk(name, data) {
 			const type = Buffer.from(name);
 			const length = Buffer.alloc(4);
@@ -182,8 +196,13 @@ try {
 	assert(bounds);
 	const metadata = {
 		editor: sourceEditor ? 'source' : 'screen',
-		landmark: sourceEditor
-			? { extent: [800, 600], internalRedRect: [160, 120, 480, 360], crop: [0.2, 0.2, 0.6, 0.6] }
+		landmark: pictureFixture
+			? {
+					extent: [800, 600],
+					internalRedRect: redRect,
+					crop: sourceEditor ? [0.2, 0.2, 0.6, 0.6] : [0, 0, 1, 1],
+					independent: independentLandmark
+				}
 			: null,
 		pid: native.app.pid,
 		holdSeconds,
@@ -364,6 +383,22 @@ try {
 	await writeFile(
 		path.join(directory, 'native-arrows.json'),
 		JSON.stringify(await page.evaluate(() => window.__alignmentArrows), null, 2)
+	);
+	// A mixed-DPI move changes DOM/DPR independently of the startup ready receipt.
+	// Record the settled final projection after the caller's last capture, before normal close.
+	await writeFile(
+		path.join(directory, 'settled.json'),
+		JSON.stringify(
+			await view.evaluate((element) => {
+				const active = element.querySelector('.active-zone').getBoundingClientRect();
+				return {
+					viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+					active: { x: active.x, y: active.y, width: active.width, height: active.height }
+				};
+			}),
+			null,
+			2
+		)
 	);
 	console.log(
 		JSON.stringify({
