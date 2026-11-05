@@ -35,4 +35,5 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.editMedia("rename", JSON.stringify({kind: "RenameMedia", media: mediaId, label: "Source"}));
 	// editMedia accepts the complete Rust-owned MediaEdit contract, including folders,
 	// assets, channel reorder/removal, Composition and Matrix operations.
+	// local.editMedia("axis", JSON.stringify({kind: "Matrix", media: matrixId, edit: {kind: "CreateAxisItem", item: "Column", context: selectedNodeUuid}})); // backend resolves selected hierarchy; null uses root
 }

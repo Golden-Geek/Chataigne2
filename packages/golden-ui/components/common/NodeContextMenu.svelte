@@ -31,6 +31,7 @@
 	import settingsIcon from '../../style/icons/settings.svg';
 	import duplicateIcon from '../../style/icons/duplicate.svg';
 	import deleteIcon from '../../style/icons/delete.svg';
+	import { resolveActionIcon } from './action-icons';
 	import watchIcon from '../../style/icons/watch.svg';
 
 	interface ResolvedNodeTarget {
@@ -723,7 +724,7 @@
 				commandId: 'edit.deleteSelection',
 				color: 'color-mix(in srgb, #ff8b8b 82%, white 18%)',
 				hoverColor: 'color-mix(in srgb, #ff5c5c 23%, transparent)',
-				icon: deleteIcon,
+				icon: resolveActionIcon('remove', deleteIcon),
 				action: selectDeleteNode
 			});
 		}

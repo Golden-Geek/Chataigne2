@@ -708,11 +708,16 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 Ok(())
             })();
             if let Err(error) = result {
-                if !layout.guard.is_current() || capture.as_ref().is_some_and(|capture| !capture.is_current()) {
+                if !layout.guard.is_current()
+                    || capture.as_ref().is_some_and(|capture| !capture.is_current())
+                    || supervisor.as_ref().is_some_and(|owner| !owner.is_current())
+                {
                     // A newer edit/layout superseded preparation. Keep the displayed frame and
                     // recapture immediately instead of exposing a transient error for 500 ms.
                     // Discard the obsolete metadata so a stable recapture failure cannot keep
                     // inheriting its stale guard and bypassing the normal recovery backoff.
+                    // New/Load can return a current capture after revoking its previous
+                    // application supervisor; that old owner's admission failure is stale too.
                     capture = None;
                     _capture_subscriptions.clear();
                     published = None;

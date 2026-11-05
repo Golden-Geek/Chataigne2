@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { IconButton } from 'golden_ui';
-	import { CanvasToolbar, canvasNavigationCommand } from 'golden_graph_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import groupIcon from 'golden_ui/style/icons/node/folder.svg';
-	import deleteIcon from 'golden_ui/style/icons/delete.svg';
+	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
+	import emptyIcon from '../icons/empty-cell.svg';
 	import { onMount, untrack } from 'svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 	import type { MatrixViewport } from '../media/generated/MatrixViewport';
@@ -13,8 +13,8 @@
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
 	import type { MatrixState } from './authoring';
-	import { gridSize, projectGrid, selectionScroll } from './viewport';
-	import { sameSelection } from './selection';
+	import { gridSize, projectGrid } from './viewport';
+	import GridCreationHeaders from './GridCreationHeaders.svelte';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
@@ -39,7 +39,8 @@
 		trigger,
 		drop,
 		edit,
-		menu
+		menu,
+		createMenu
 	}: {
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
@@ -56,6 +57,7 @@
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
 		edit(value: MatrixEdit): Promise<unknown>;
+		createMenu(event: MouseEvent, axis: 'Column' | 'Layer'): void;
 		menu(
 			event: MouseEvent,
 			row?: MatrixViewRow,
@@ -196,19 +198,11 @@
 	}
 	function navigate(event: KeyboardEvent) {
 		if (event.target !== element) return;
-		const command = canvasNavigationCommand(event);
-		if (command === 'home' || command === 'frame') {
-			event.preventDefault();
-			event.stopPropagation();
-			if (command === 'home') home();
-			else frameSelection();
-			return;
-		}
 		const delta: Record<string, ScrollToOptions> = {
-			ArrowDown: { top: gridSize.row * metrics.rem },
-			ArrowUp: { top: -gridSize.row * metrics.rem },
-			ArrowRight: { left: gridSize.column * metrics.rem },
-			ArrowLeft: { left: -gridSize.column * metrics.rem },
+			ArrowDown: { top: projection.row * metrics.rem },
+			ArrowUp: { top: -projection.row * metrics.rem },
+			ArrowRight: { left: projection.column * metrics.rem },
+			ArrowLeft: { left: -projection.column * metrics.rem },
 			PageDown: { top: element.clientHeight },
 			PageUp: { top: -element.clientHeight }
 		};
@@ -216,34 +210,6 @@
 			event.preventDefault();
 			element.scrollBy(delta[event.key]);
 		}
-	}
-	const frameTarget = $derived(
-		snapshot.selected && sameSelection(snapshot.selected.selection, selected)
-			? snapshot.selected
-			: null
-	);
-	const canFrame = $derived(frameTarget?.row_index != null || frameTarget?.column_index != null);
-	const scrollBehavior = () =>
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches
-			? ('auto' as const)
-			: ('smooth' as const);
-	function home() {
-		element?.scrollTo({ top: 0, left: 0, behavior: scrollBehavior() });
-	}
-	function frameSelection() {
-		if (!element || !frameTarget) return;
-		measure();
-		element.scrollTo({
-			...selectionScroll(
-				metrics,
-				snapshot.row_total,
-				snapshot.axis_total,
-				frameTarget.row_index,
-				frameTarget.column_index,
-				snapshot.axis_depth
-			),
-			behavior: scrollBehavior()
-		});
 	}
 	function context(event: MouseEvent) {
 		event.preventDefault();
@@ -276,37 +242,7 @@
 
 <svelte:window ondragend={endDrag} />
 
-{#snippet matrixActions()}
-	<IconButton
-		icon={addIcon}
-		label="Add layer"
-		{disabled}
-		onclick={() => edit({ kind: 'AddLayers', parent: null, count: 1 })} />
-	<IconButton
-		icon={groupIcon}
-		label="Add group"
-		{disabled}
-		onclick={() => edit({ kind: 'AddGroup', parent: null, label: null })} />
-	<IconButton
-		icon={addIcon}
-		label="Add column"
-		{disabled}
-		onclick={() => edit({ kind: 'AddColumns', parent: null, count: 1 })} />
-	<IconButton
-		icon={groupIcon}
-		label="Add Column Group"
-		{disabled}
-		onclick={() => edit({ kind: 'AddColumnGroup', parent: null, label: null })} />
-	<IconButton
-		icon={deleteIcon}
-		label="Unload Matrix"
-		disabled={disabled || (!snapshot.playback.desired_column && !snapshot.playback.layers.length)}
-		onclick={() => edit({ kind: 'ClearPlayback' })} />
-{/snippet}
-
 <div class="matrix-viewport-shell">
-	<CanvasToolbar frame={frameSelection} {home} {canFrame} actions={matrixActions} />
-
 	<div class="viewport-container">
 		<div
 			class="viewport"
@@ -339,11 +275,11 @@
 			}}
 			role="grid"
 			aria-label="Scrollable Matrix grid"
-			aria-rowcount={snapshot.row_total + 1}
-			aria-colcount={snapshot.axis_total + 1}
+			aria-rowcount={snapshot.row_total + 2}
+			aria-colcount={snapshot.axis_total + 2}
 			tabindex="0"
-			style:--row={`${gridSize.row}rem`}
-			style:--column={`${gridSize.column}rem`}
+			style:--row={`${projection.row}rem`}
+			style:--column={`${projection.column}rem`}
 			style:--header={`${gridSize.header}rem`}
 			style:--preview-label-height={`${gridSize.previewLabel}rem`}
 			style:--label={`${gridSize.label}rem`}>
@@ -362,6 +298,12 @@
 					style:left={`${projection.left}rem`}>
 					<RuntimeFeedback {snapshot} {observation} />
 				</div>
+				<GridCreationHeaders
+					{projection}
+					rows={snapshot.row_total}
+					columns={snapshot.axis_total}
+					{disabled}
+					menu={createMenu} />
 				<ColumnGroupHeaders
 					groups={snapshot.column_groups}
 					requested={snapshot.requested_column_groups}
@@ -375,6 +317,7 @@
 					top={projection.top}
 					left={projection.left}
 					origin={projection.columnOrigin}
+					columnSize={projection.column}
 					selected={selectedGroup}
 					{disabled}
 					select={selectGroup}
@@ -395,7 +338,7 @@
 							class:installed={observation?.installed?.columns.includes(column.id) === true}
 							class:submitted={observation?.submitted?.columns.includes(column.id) === true}
 							style:top={`${projection.top + projection.groupHeight}rem`}
-							style:left={`${projection.columnOrigin + column.axis_index * gridSize.column}rem`}>
+							style:left={`${projection.columnOrigin + column.axis_index * projection.column}rem`}>
 							<GridLabel
 								label={column.label}
 								selected={selected?.column === column.id}
@@ -434,7 +377,7 @@
 						role="row"
 						data-row-id={row.item.id.id}
 						aria-rowindex={snapshot.row_start + index + 2}
-						style:top={`${projection.rowOrigin + (snapshot.row_start + index) * gridSize.row}rem`}>
+						style:top={`${projection.rowOrigin + (snapshot.row_start + index) * projection.row}rem`}>
 						<div
 							class="row-label"
 							data-matrix-drop="Item"
@@ -463,7 +406,7 @@
 								addLabel="Set media"
 								replaceOnly={cell?.cell.media ? column.id : null}
 								data-column-id={column.id}
-								style={`position:absolute;top:0;left:${projection.columnOrigin + column.axis_index * gridSize.column}rem;width:var(--column);height:var(--row)`}
+								style={`position:absolute;top:0;left:${projection.columnOrigin + column.axis_index * projection.column}rem;width:var(--column);height:var(--row)`}
 								onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 								<button
 									class="cell"
@@ -489,6 +432,11 @@
 										[]
 									).includes(column.id)}
 									title={`${row.item.label} / ${column.label}`}>
+									{#if row.item.id.kind === 'Layer' && !cell?.cell.media}<span
+											class="empty-icon"
+											aria-hidden="true"
+											style:mask-image={`url("${emptyIcon}")`}></span
+										>{/if}
 									<span class="source-label" title={cell?.source_label ?? undefined}
 										>{row.item.id.kind === 'Group'
 											? ''
@@ -542,7 +490,6 @@
 	}
 	.viewport-container {
 		flex: 1;
-		margin-block-start: 3rem;
 		min-height: 0;
 		min-width: 0;
 		position: relative;
@@ -551,6 +498,7 @@
 	.viewport {
 		height: 100%;
 		overflow: auto;
+		scrollbar-gutter: stable;
 		position: relative;
 		background: transparent;
 		color: var(--gc-color-text);
@@ -706,6 +654,30 @@
 	.remove {
 		position: absolute;
 		z-index: 1;
+		opacity: 0;
+		pointer-events: none;
+	}
+	:global(.source-drop-zone:hover) .add,
+	:global(.source-drop-zone:focus-within) .add,
+	:global(.source-drop-zone:hover) .remove,
+	:global(.source-drop-zone:focus-within) .remove {
+		opacity: 1;
+		pointer-events: auto;
+	}
+	.empty-icon {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		background: currentColor;
+		mask-size: contain;
+		width: 1.4rem;
+		height: 1.4rem;
+		opacity: 0.2;
+	}
+	:global(.source-drop-zone:hover) .empty-icon,
+	:global(.source-drop-zone:focus-within) .empty-icon {
+		opacity: 0;
 	}
 	.add {
 		left: 50%;

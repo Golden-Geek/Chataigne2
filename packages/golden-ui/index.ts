@@ -82,6 +82,11 @@ export { default as UnknownPanel } from './components/panels/UnknownPanel.svelte
 export { default as ManagerListPanel } from './components/panels/manager/ManagerListPanel.svelte';
 export { default as IconButton } from './components/common/IconButton.svelte';
 export {
+	registerActionIcon,
+	resolveActionIcon,
+	type WorkbenchActionIcon
+} from './components/common/action-icons';
+export {
 	beginNodeDrag,
 	beginParameterDrag,
 	readNodeDragPayload,

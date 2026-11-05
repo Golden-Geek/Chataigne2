@@ -14,7 +14,7 @@
 	} from 'golden_ui';
 	import lockIcon from 'golden_ui/style/icons/lock.svg';
 	import copyIcon from 'golden_ui/style/icons/copy.svg';
-	import deleteIcon from 'golden_ui/style/icons/delete.svg';
+	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { createCompositionEditor } from './editor.svelte';
 	import {
@@ -193,6 +193,7 @@
 		<IconButton
 			icon={deleteIcon}
 			label="Remove instance"
+			class="mapgyver-remove-action"
 			disabled={busy || !instance}
 			onclick={remove} />
 		{#if pages > 1}
@@ -276,6 +277,10 @@
 	}} />
 
 <style>
+	:global(.canvas-toolbar:not(:hover):not(:focus-within) .mapgyver-remove-action) {
+		opacity: 0;
+		pointer-events: none;
+	}
 	:global(.previous img) {
 		transform: rotate(180deg);
 	}

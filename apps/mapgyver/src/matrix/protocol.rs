@@ -368,9 +368,24 @@ pub enum ColumnItemDropTarget {
     Inside { group: ColumnGroupId },
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum MatrixAxisItemKind {
+    Column,
+    ColumnGroup,
+    Layer,
+    LayerGroup,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    /// Append to the selected object's hierarchy. Unrelated live selection uses the root;
+    /// a removed context rejects rather than creating under a stale UI copy.
+    CreateAxisItem {
+        item: MatrixAxisItemKind,
+        #[ts(type = "string | null")]
+        context: Option<NodeUuid>,
+    },
     DropColumnItem {
         item: ColumnItemId,
         target: ColumnItemDropTarget,

@@ -93,10 +93,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return super::playback::unload(engine, media);
     }
     let document = Document::load(engine, media)?;
+    let edit = super::creation::resolve(engine, &document, edit)?;
     let Some(edit) = super::placement::resolve(&document, edit)? else {
         return Ok(MediaEditResult::Changed);
     };
     match edit {
+        MatrixEdit::CreateAxisItem { .. } => unreachable!("contextual creation was resolved"),
         MatrixEdit::CreateCellMedia {
             layer,
             column,

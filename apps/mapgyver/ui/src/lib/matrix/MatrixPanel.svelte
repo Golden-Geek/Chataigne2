@@ -39,7 +39,10 @@
 	) {
 		if (busy) return;
 		items = gridActions(owner, selection, row, column, creationOnly, group);
-		anchor = { kind: 'point', x: event.clientX, y: event.clientY };
+		anchor =
+			event.type === 'click' && event.detail === 0 && event.currentTarget instanceof HTMLElement
+				? { kind: 'element', element: event.currentTarget, placement: 'bottom-start' }
+				: { kind: 'point', x: event.clientX, y: event.clientY };
 	}
 	$effect(() => {
 		void view.media;
@@ -66,6 +69,15 @@
 					disabled={busy}
 					viewport={(value) => controller.setViewport(value)}
 					{menu}
+					createMenu={(event, axis) => {
+						if (busy) return;
+						items = gridActions(owner, selection, undefined, undefined, false, undefined, axis);
+						anchor = {
+							kind: 'element',
+							element: event.currentTarget instanceof HTMLElement ? event.currentTarget : null,
+							placement: 'bottom-start'
+						};
+					}}
 					edit={(value) => owner.edit(value)}
 					selectRow={(row) => {
 						controller.select(row.item.id, view.selected?.column ?? null);

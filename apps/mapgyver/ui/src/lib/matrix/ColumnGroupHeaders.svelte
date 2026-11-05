@@ -18,6 +18,7 @@
 		top,
 		left,
 		origin,
+		columnSize,
 		selected,
 		disabled,
 		select,
@@ -36,6 +37,7 @@
 		top: number;
 		left: number;
 		origin: number;
+		columnSize: number;
 		selected: string | null;
 		disabled: boolean;
 		select(group: ColumnGroupSnapshot): void;
@@ -76,8 +78,8 @@
 					draggable={!disabled}
 					ondragstart={(event) => drag(event, group.id)}
 					style:top={`${group.depth * groupHeaderRow}rem`}
-					style:left={`${origin + first * gridSize.column - left - gridSize.label}rem`}
-					style:width={`${(last - first) * gridSize.column}rem`}>
+					style:left={`${origin + first * columnSize - left - gridSize.label}rem`}
+					style:width={`${(last - first) * columnSize}rem`}>
 					<GridLabel
 						label={group.label}
 						selected={selected === group.id}

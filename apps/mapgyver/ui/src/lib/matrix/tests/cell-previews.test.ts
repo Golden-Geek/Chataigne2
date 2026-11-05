@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cellPreviewGroups } from '../cell-previews.ts';
+import { projectGrid, gridSize } from '../viewport.ts';
 import type { MatrixViewportSnapshot } from '../../media/generated/MatrixViewportSnapshot';
 
 function scene() {
@@ -77,4 +78,25 @@ test('empty group slots leave gaps while native tiles retain their Column positi
 	)!;
 	assert.equal(shared.tiles[1].x - shared.tiles[0].x, 2 * 7.5 * metrics.rem);
 	assert(Math.abs(shared.tiles[0].y - 3.2) < 0.001);
+});
+
+test('adaptive DOM and native tiles share expanded cell spans after resize at different font scales', () => {
+	const { snapshot } = scene();
+	snapshot.row_total = 2;
+	snapshot.axis_total = 3;
+	for (const rem of [12, 16, 24]) {
+		for (const width of [800, 1400]) {
+			const metrics = { top: 0, left: 0, width, height: 900, rem };
+			const projection = projectGrid(metrics, snapshot.row_total, snapshot.axis_total);
+			const shared = cellPreviewGroups(snapshot, metrics).find(
+				(entry) => JSON.parse(entry.source).reference.media === 'shared-media'
+			)!;
+			assert(Math.abs(shared.tiles[0].width - (projection.column - 0.4) * rem) < 1e-8);
+			assert(
+				Math.abs(shared.tiles[0].height - (projection.row - gridSize.previewLabel - 0.4) * rem) <
+					1e-8
+			);
+			assert(Math.abs(shared.tiles[1].x - shared.tiles[0].x - projection.column * rem) < 1e-8);
+		}
+	}
 });

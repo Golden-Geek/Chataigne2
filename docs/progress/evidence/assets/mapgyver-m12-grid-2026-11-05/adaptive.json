@@ -1,0 +1,35 @@
+{
+  "result": "pass",
+  "nativePid": 25152,
+  "group": "7ca69a54-19c4-4152-8f71-e71ac0788818",
+  "rowGroup": "755bba2b-bf78-4687-aba7-2b15aefa4179",
+  "geometry": [
+    [
+      715,
+      640,
+      "10.816666666666668rem",
+      "14.21875rem"
+    ],
+    [
+      996,
+      801,
+      "14.170833333333334rem",
+      "23rem"
+    ],
+    [
+      396,
+      346,
+      "7.5rem",
+      "7.5rem"
+    ]
+  ],
+  "preview_lease": "fb402793-4100-4399-b82a-1d1b395edbd4",
+  "preview_resize_frames": 135,
+  "errors": [],
+  "rejected": [],
+  "transport": {
+    "requests": 210,
+    "receipts": 210
+  },
+  "limits": "Actual native zero axes, trailing creation, selected hierarchy, keyboard reveal/create/remove, generic X hook, history and settled resize. Full group/Inspector and 1000x1000 cases run separately in the same acceptance flow."
+}

@@ -45,7 +45,8 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
-	await page.getByRole('button', { name: 'Add Column Group', exact: true }).click();
+	await grid.getByRole('button', { name: 'Add Column or Column Group', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Column Group', exact: true }).click();
 	let state = await wait(inspect, (s) => s.column_groups.length === 1);
 	const group = state.column_groups[0].id;
 	assert(state.column_groups[0].empty);
@@ -79,9 +80,10 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 	await band(nested).waitFor();
 	const moving = state.columns.find((c) => c.parent === null).id;
 	const beforeMove = await inspect();
+	await page.getByRole('menu').waitFor({ state: 'hidden' });
 	await grid
 		.locator(`[data-matrix-drop="Column"][data-column-id="${moving}"]`)
-		.dragTo(band(nested));
+		.dragTo(band(nested), { sourcePosition: { x: 16, y: 10 } });
 	await wait(inspect, (s) => s.columns.find((c) => c.id === moving)?.parent === nested);
 	await undo();
 	await wait(inspect, (s) => isDeepStrictEqual(s, beforeMove));

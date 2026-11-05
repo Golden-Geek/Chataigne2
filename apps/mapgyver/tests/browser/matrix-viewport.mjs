@@ -167,14 +167,14 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 			'narrow Inspector input stays inside its panel'
 		);
 		const toolbar = page.locator('[data-panel-id="matrix"] .canvas-toolbar');
-		await toolbar.getByRole('button', { name: 'Frame selection', exact: true }).click();
+		assert.equal(await toolbar.count(), 0, 'Matrix is a scrolling table without canvas navigation');
+		await grid.evaluate((element) => {
+			element.scrollTo({ top: 0, left: 0 });
+			element.dispatchEvent(new Event('scroll'));
+		});
 		await grid.getByTitle('Select Column 1', { exact: true }).waitFor();
 		await grid.getByTitle('Select Layer 1', { exact: true }).waitFor();
-		assert.deepEqual(
-			await inspect(),
-			edited,
-			'Frame uses bounded selection coordinates without authoring changes'
-		);
+		assert.deepEqual(await inspect(), edited, 'table scrolling does not author domain state');
 		assert.equal(await page.locator('[data-panel-id="matrix"] > .editor-toolbar').count(), 0);
 		assert((await grid.getByRole('gridcell').count()) <= 2048);
 		await page.evaluate(() => (document.documentElement.style.fontSize = ''));

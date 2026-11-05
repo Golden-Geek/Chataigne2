@@ -1,4 +1,5 @@
 import type { ContextMenuItem } from 'golden_ui';
+import removeIcon from 'golden_ui/style/icons/panels/close.svg';
 import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
@@ -12,7 +13,8 @@ export function gridActions(
 	row?: MatrixViewRow,
 	column?: ColumnSnapshot,
 	creationOnly = false,
-	group?: ColumnGroupSnapshot
+	group?: ColumnGroupSnapshot,
+	axis?: 'Column' | 'Layer'
 ): ContextMenuItem[] {
 	const session = owner.session,
 		generation = session?.snapshotGeneration,
@@ -43,10 +45,22 @@ export function gridActions(
 			}
 		}
 	};
-	const action = (label: string, edit: MatrixEdit): ContextMenuItem => ({
+	const action = (label: string, edit: MatrixEdit, icon?: string): ContextMenuItem => ({
 		label,
+		icon,
 		action: () => run(edit)
 	});
+	if (axis) {
+		const context = session?.getSelectedNodes()[0]?.uuid ?? null;
+		return (
+			axis === 'Column' ? (['Column', 'ColumnGroup'] as const) : (['Layer', 'LayerGroup'] as const)
+		).map((item) =>
+			action(
+				item === 'ColumnGroup' ? 'Column Group' : item === 'LayerGroup' ? 'Layer Group' : item,
+				{ kind: 'CreateAxisItem', item, context }
+			)
+		);
+	}
 	if (group)
 		return [
 			{
@@ -64,7 +78,7 @@ export function gridActions(
 			}),
 			action('Ungroup Columns', { kind: 'UngroupColumns', group: group.id }),
 			action('Duplicate Column Group', { kind: 'DuplicateColumnGroup', group: group.id }),
-			action('Delete Column Group', { kind: 'RemoveColumnGroup', group: group.id })
+			action('Delete Column Group', { kind: 'RemoveColumnGroup', group: group.id }, removeIcon)
 		];
 	if (row?.item.id.kind === 'Layer' && column) {
 		const layer = row.item.id.id;
@@ -99,10 +113,14 @@ export function gridActions(
 								if (current()) selection.select(cell.media!);
 							}
 						},
-						action('Remove media', {
-							kind: 'SetCells',
-							assignments: [{ layer, column: column.id, source: null }]
-						})
+						action(
+							'Remove media',
+							{
+								kind: 'SetCells',
+								assignments: [{ layer, column: column.id, source: null }]
+							},
+							removeIcon
+						)
 					]
 				: [{ label: 'Add Media', submenu: create }]),
 			{ separator: true },
@@ -125,7 +143,7 @@ export function gridActions(
 					]
 				: []),
 			action('Duplicate row', { kind: 'DuplicateItem', item: row.item.id }),
-			action('Delete row', { kind: 'RemoveItem', item: row.item.id })
+			action('Delete row', { kind: 'RemoveItem', item: row.item.id }, removeIcon)
 		];
 	if (column)
 		return [
@@ -138,7 +156,7 @@ export function gridActions(
 			action('Launch Column', { kind: 'LaunchColumn', column: column.id, mode: 'Configured' }),
 			action('Cut Column', { kind: 'LaunchColumn', column: column.id, mode: 'Cut' }),
 			action('Duplicate Column', { kind: 'DuplicateColumn', column: column.id }),
-			action('Delete Column', { kind: 'RemoveColumn', column: column.id })
+			action('Delete Column', { kind: 'RemoveColumn', column: column.id }, removeIcon)
 		];
 	return [
 		action('Add layer', { kind: 'AddLayers', parent: null, count: 1 }),

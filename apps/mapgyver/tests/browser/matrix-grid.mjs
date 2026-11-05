@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixGridUi({ base, edit }) {
+export async function verifyMatrixGridUi({ base, edit, page: nativePage = null }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -13,8 +13,8 @@ export async function verifyMatrixGridUi({ base, edit }) {
 	});
 	const matrix = (operation) => edit({ kind: 'Matrix', media: reference.media, edit: operation });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1600, height: 1200 } });
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1200 } }));
 	page.setDefaultTimeout(7000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
@@ -31,7 +31,7 @@ export async function verifyMatrixGridUi({ base, edit }) {
 	const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 	try {
-		await page.goto(base);
+		if (!nativePage) await page.goto(base);
 		await page
 			.getByRole('tab')
 			.filter({ hasText: /^Medias$/ })
@@ -45,13 +45,19 @@ export async function verifyMatrixGridUi({ base, edit }) {
 			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+		const initial = await inspect();
+		await grid.locator(`.row[data-row-id="${initial.items[0].id.id}"]`).waitFor();
 		const cell = (row = 'Layer 1', column = 'Column 1') =>
 			grid.getByTitle(`${row} / ${column}`, { exact: true });
 		await cell().waitFor();
 		const bounds = await cell().boundingBox();
-		assert(Math.abs(bounds.width - bounds.height) <= 1, JSON.stringify(bounds));
+		const rem = await page.evaluate(() =>
+			parseFloat(getComputedStyle(document.documentElement).fontSize)
+		);
+		assert(bounds.width >= 7.5 * rem - 1 && bounds.height >= 7.5 * rem - 1, JSON.stringify(bounds));
 		assert((await grid.boundingBox()).height > 500, 'grid uses panel height');
 		assert.equal(await page.locator('.editor-toolbar').count(), 0);
+		await cell().hover({ position: { x: 8, y: 8 } });
 		await grid
 			.getByRole('button', { name: 'Add Media to Layer 1 / Column 1', exact: true })
 			.click();
@@ -85,6 +91,7 @@ export async function verifyMatrixGridUi({ base, edit }) {
 			await wait(inspect, (state) => isDeepStrictEqual(state, after));
 		}
 		const beforeRemoval = await inspect();
+		await cell('Stage A', 'Scene A').hover({ position: { x: 8, y: 8 } });
 		await grid
 			.getByRole('button', { name: 'Remove media from Stage A / Scene A', exact: true })
 			.click();
@@ -110,10 +117,8 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		await wait(inspect, (state) => state.items.length === 4);
 		await undo();
 		await wait(inspect, (state) => state.items.length === 3);
-		await page
-			.locator('[data-panel-id="matrix"]')
-			.getByRole('button', { name: 'Add group', exact: true })
-			.click();
+		await grid.getByRole('button', { name: 'Add Layer or Layer Group', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Layer Group', exact: true }).click();
 		const grouped = await wait(inspect, (state) =>
 			state.items.some((row) => row.id.kind === 'Group')
 		);
@@ -124,6 +129,7 @@ export async function verifyMatrixGridUi({ base, edit }) {
 			state.items.some((row) => row.parent === group.id.id)
 		);
 		const child = withChild.items.find((row) => row.parent === group.id.id);
+		await cell(child.label, 'Scene A').hover({ position: { x: 8, y: 8 } });
 		await grid
 			.getByRole('button', { name: `Add Media to ${child.label} / Scene A`, exact: true })
 			.click();
@@ -169,7 +175,7 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		await matrix({ kind: 'AddLayers', parent: null, count: 128 });
 		await wait(
 			() => grid.getAttribute('aria-rowcount'),
-			(count) => count === '134'
+			(count) => count === '135'
 		);
 		await grid.evaluate((element) => {
 			element.scrollTop = element.scrollHeight;
@@ -195,8 +201,8 @@ export async function verifyMatrixGridUi({ base, edit }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Square full-panel grid; contextual owned-media creation/removal and structural actions; inline rename and exact history; bounded offscreen Cell Inspector; no implicit launch',
-				browser: browser.version()
+					'Adaptive full-panel grid; contextual owned-media creation/removal and structural actions; inline rename and exact history; bounded offscreen Cell Inspector; no implicit launch',
+				browser: (browser ?? page.context().browser()).version()
 			})
 		);
 	} catch (error) {
@@ -210,7 +216,7 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		);
 		throw error;
 	} finally {
-		await browser.close();
+		await browser?.close();
 	}
 }
 

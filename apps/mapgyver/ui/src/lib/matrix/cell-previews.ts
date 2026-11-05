@@ -34,16 +34,16 @@ export function cellPreviewGroups(
 		const tile = {
 			x:
 				(projection.columnOrigin +
-					column * gridSize.column -
+					column * projection.column -
 					projection.left -
 					gridSize.label +
 					0.2) *
 				rem,
 			y:
-				(projection.rowOrigin + row * gridSize.row - projection.top - projection.header + 0.2) *
+				(projection.rowOrigin + row * projection.row - projection.top - projection.header + 0.2) *
 				rem,
-			width: (gridSize.column - 0.4) * rem,
-			height: (gridSize.row - (gridSize.previewLabel + 0.4)) * rem
+			width: (projection.column - 0.4) * rem,
+			height: (projection.row - (gridSize.previewLabel + 0.4)) * rem
 		};
 		if (
 			tile.x + tile.width <= 0 ||

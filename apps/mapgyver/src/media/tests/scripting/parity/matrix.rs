@@ -2,6 +2,85 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn contextual_axis_creation_shares_backend_hierarchy_policy_for_every_public_caller() {
+    let scene = scene();
+    let media = scene.root.media;
+    let mut baseline = loaded(&scene.document);
+    let MediaEditResult::MatrixColumnGroupCreated { group } = serde_json::from_value(
+        run(
+            &mut baseline,
+            Caller::Ui,
+            MediaEdit::Matrix {
+                media,
+                edit: MatrixEdit::CreateAxisItem {
+                    item: MatrixAxisItemKind::ColumnGroup,
+                    context: None,
+                },
+            },
+        )
+        .unwrap(),
+    )
+    .unwrap() else {
+        panic!()
+    };
+    let MediaEditResult::MatrixCreated { items, .. } = serde_json::from_value(
+        run(
+            &mut baseline,
+            Caller::Ui,
+            MediaEdit::Matrix {
+                media,
+                edit: MatrixEdit::CreateAxisItem {
+                    item: MatrixAxisItemKind::LayerGroup,
+                    context: None,
+                },
+            },
+        )
+        .unwrap(),
+    )
+    .unwrap() else {
+        panic!()
+    };
+    let MatrixItemId::Group { id: row_group } = items[0] else {
+        panic!()
+    };
+    let document = to_sparse_project_json_pretty(&baseline).unwrap();
+    for caller in CALLERS {
+        for item in [
+            MatrixAxisItemKind::Column,
+            MatrixAxisItemKind::ColumnGroup,
+            MatrixAxisItemKind::Layer,
+            MatrixAxisItemKind::LayerGroup,
+        ] {
+            let mut engine = loaded(&document);
+            let context = match item {
+                MatrixAxisItemKind::Column | MatrixAxisItemKind::ColumnGroup => group.0,
+                _ => row_group.0,
+            };
+            run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media,
+                    edit: MatrixEdit::CreateAxisItem {
+                        item,
+                        context: Some(context),
+                    },
+                },
+            )
+            .unwrap();
+            let snapshot = crate::matrix::inspect(&engine, media).unwrap();
+            assert!(match item {
+                MatrixAxisItemKind::Column => snapshot.columns.iter().any(|entry| entry.parent == Some(group)),
+                MatrixAxisItemKind::ColumnGroup =>
+                    snapshot.column_groups.iter().any(|entry| entry.parent == Some(group)),
+                MatrixAxisItemKind::Layer | MatrixAxisItemKind::LayerGroup =>
+                    snapshot.items.iter().any(|entry| entry.parent == Some(row_group)),
+            });
+        }
+    }
+}
+
+#[test]
 fn nested_column_group_topology_uses_the_same_intents_for_every_public_caller() {
     let scene = scene();
     let media = scene.root.media;

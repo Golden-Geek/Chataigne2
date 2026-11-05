@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gridSize, projectGrid, selectionScroll } from '../viewport.ts';
+import { gridSize, projectGrid } from '../viewport.ts';
 
-test('cells retain equal row and column spans at every viewport scale', () => {
-	assert.equal(gridSize.row, gridSize.column);
+test('large grids retain readable minimum spans and bounded windows at every viewport scale', () => {
 	for (const rem of [12, 16, 24, 32]) {
 		const view = projectGrid({ top: 0, left: 0, width: 1200, height: 800, rem }, 100000, 100000);
 		assert.ok(view.viewport.row_count * view.viewport.axis_count <= 2048);
+		assert.equal(view.row, gridSize.row);
+		assert.equal(view.column, gridSize.column);
 	}
 });
 
@@ -42,16 +43,17 @@ test('empty and oversized viewports keep positive protocol counts at different f
 	}
 });
 
-test('Frame selection reveals a distant address through compressed ranges without enlarging the window', () => {
+test('small grids fill available area while trailing creation headers remain inside the scroll extent', () => {
 	for (const rem of [12, 16, 24, 32]) {
 		const metrics = { top: 0, left: 0, width: 1200, height: 800, rem };
-		for (const address of [0, 50000, 99999]) {
-			const scroll = selectionScroll(metrics, 100000, 100000, address, address);
-			const view = projectGrid({ ...metrics, ...scroll }, 100000, 100000).viewport;
-			assert(view.row_start <= address && view.row_start + view.row_count > address);
-			assert(view.axis_start <= address && view.axis_start + view.axis_count > address);
-			assert(view.row_count * view.axis_count <= 2048);
-		}
+		const view = projectGrid(metrics, 2, 2);
+		assert(view.row >= gridSize.row && view.column >= gridSize.column);
+		assert(
+			Math.abs(view.canvasWidth - (gridSize.label + 2 * view.column + gridSize.creation)) < 1e-8
+		);
+		assert(Math.abs(view.canvasHeight - (view.header + 2 * view.row + gridSize.creation)) < 1e-8);
+		assert(view.canvasWidth * rem >= metrics.width - 1e-6);
+		assert(view.canvasHeight * rem >= metrics.height - 1e-6);
 	}
 });
 

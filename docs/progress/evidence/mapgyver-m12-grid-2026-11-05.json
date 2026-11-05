@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/5 adaptive scrolling Matrix and contextual actions checkpoint",
+  "gate": "Active",
+  "acceptance": { "verified": 61, "total": 78, "m12_verified": 4, "m12_total": 11 },
+  "implemented": [
+    "Removed Matrix Frame/Home/Zoom navigation and toolbar; trailing Column/Column Group and Layer/Layer Group creation headers use ordinary scrolling.",
+    "CreateAxisItem resolves selected hierarchy in the backend, including Cell/owned child-media selection; groups receive children, Columns/Layers create siblings, unrelated live selection uses root and missing context rejects.",
+    "Small grids fill available area while larger grids retain readable 7.5 rem minimum spans, stable scrollbars and compressed bounded scroll ranges.",
+    "DOM Cells, Column Group bands and native thumbnail tiles share one adaptive projection; no authored empty Cells or new per-row readers.",
+    "Empty Cells show a subtle outline; Add and X removal appear on hover/focus with keyboard labels, tooltips and context-menu equivalents.",
+    "Golden exposes an app-agnostic removal icon hook. MapGyver supplies X for generic node menus, contributed Matrix removal and Composition/Cell actions; other apps retain their default.",
+    "Column Group removal from generic trees delegates to the app's paired structural intent."
+  ],
+  "software": {
+    "rust": "469 passed, 0 failed, 2 existing ignored; includes contextual insertion/history/reload, all four public caller paths, generated media/preview parity and existing sparse/topology/runtime coverage",
+    "script_followup": "32 scripting tests passed after the app-owned creation snippet update",
+    "strict": "All-target Clippy with native-qualification,application-process-fixture and -D warnings passed again after the host race correction",
+    "ui": "Svelte 0 errors/0 warnings; 28 Matrix units pass, including expanded native tile spans, compressed last-address access, empty/oversized counts and font-scale geometry",
+    "build": "Final ordinary MapGyver build terminal success before native execution",
+    "format": "Root and golden_core cargo fmt; scoped Prettier, Node syntax and diff checks pass"
+  },
+  "native": {
+    "command": "MAPGYVER_TEST_BINARY=target/debug/MapGyver.exe node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-grid",
+    "result": "Final combined flow terminal exit 0; host PID 25152 exited normally and is absent",
+    "binary_sha256": "e07db9d365b163d7cbc1bed84f3d1383e020be324deba01fb3ea794367159e35",
+    "adaptive": "Actual 2-column/group and 3-row/group creation, backend hierarchy insertion, quiet keyboard reveal/create/remove, generic menu X identity and history pass. Resize spans expand at 715x640 and 996x801, and fall back to 7.5 rem at 396x346. One actual native preview lease survives all 135 sampled resize frames.",
+    "authoring": "Retained actual native creation/removal, owned subtree copy, row/group/Column CRUD, inline rename, exact Undo/Redo and offscreen Cell Inspector pass without implicit launch.",
+    "viewport": "64x64 keyboard scrolling, draft identity, offscreen Column Inspector/history with exact scroll retention, tab lifetime, fractional dock dimensions and narrow 125% Inspector pass.",
+    "groups": "Nested Column Groups, actual typed Inspector Normal/Hidden/history, trusted Column/group drag, copy/delete/ungroup and offscreen editing pass. 1000 added Columns mount 27 Cells and author none.",
+    "sparse": "1000x1000 Matrix retains six authored Cells and mounts 64-100. Shared preview groups go 2 near, 2 far, 1 on source loss, 0 in empty viewport, 2 after scroll recovery and 2 after tab recovery. New publishes an empty source set and runtime error is null.",
+    "artifacts": "assets/mapgyver-m12-grid-2026-11-05/"
+  },
+  "corrected_during_acceptance": [
+    "A New-project race returned a fresh capture after revoking the previous application supervisor. Its admission failure was incorrectly exposed as a renderer error. The host now includes supervisor currency in its existing typed superseded-preparation guard and retries without publishing that old-scope failure. Full Rust/strict/native checks pass after the correction.",
+    "Fixtures now account for menu shortcut text, hover-revealed controls, actual row identity after media changes, completed context-menu closure before label dragging, and atomically observed installed preview leases. Existing authoring coverage was preserved."
+  ],
+  "remaining_requirement": "Verify actual zero-row/zero-column DOM state, not just backend state, before checking both visible creation headers and capturing the empty UI. The current fixture can capture the previous 3x3 grid while its backend is already empty; visual review caught this and prevented acceptance. Add explicit waits for zero mounted rows/Column headings/gridcells, verify one-axis-empty cases too, and capture the settled result. Keep M12/5 Active until this passes.",
+  "limits": "The 14:45 UTC batch cutoff was reached; no gate was awarded. stale-zero-capture.png is retained as evidence of the missing UI wait, not proof of an empty grid. Native DOM/preview lease lifetime is verified; screenshots do not capture native image surfaces or qualify physical latency/cadence. M03/M05/M08 retained budgets and blockers are unchanged."
+}

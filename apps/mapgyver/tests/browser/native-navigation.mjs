@@ -38,6 +38,8 @@ import { verifyApplicationReentry } from '../headless/reentry.mjs';
 import { verifyNativeApplicationEndpoint } from './native-application-endpoint.mjs';
 import { verifyColumnGroupsUi } from './column-groups.mjs';
 import { verifyColumnGroupRuntime } from './column-group-runtime.mjs';
+import { verifyAdaptiveMatrixGrid } from './matrix-adaptive-grid.mjs';
+import { verifyMatrixGridUi } from './matrix-grid.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -59,6 +61,16 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			[
+				'--matrix-grid',
+				async (options) => {
+					await verifyAdaptiveMatrixGrid(options);
+					await verifyMatrixGridUi(options);
+					await verifyMatrixViewportUi(options);
+					await verifyColumnGroupsUi(options);
+					await verifyMatrixSparsePreviews(options);
+				}
+			],
 			['--workbench-identity', verifyWorkbenchIdentity],
 			['--screen-identity', verifyScreenIdentity],
 			['--surface-enabled', verifyNativeSurfaceEnabled],

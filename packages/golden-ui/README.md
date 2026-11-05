@@ -33,6 +33,10 @@ children while their Inspector still exposes the same real nodes. Manager backgr
 creation continue to use the backend catalog. This is presentation policy, not edit authorization.
 The shared node menu delegates Parameter constraint menus/editors to `NodeConstraintMenu`;
 the root menu owns target selection, creation, clipboard and node actions.
+Apps may call `registerActionIcon('remove', asset)` before mounting the workbench to customize
+built-in removal presentation. `resolveActionIcon` preserves each caller's default when no
+application override is registered. This changes icons only; backend permissions and edit
+semantics remain with the owning action.
 Duplicate eligibility uses the parent's accepted item kinds, so creation aliases do not hide
 copying an existing subtree. The backend still validates each duplicate intent.
 Run `npm run test:browser --workspace golden_ui -- --node-menu` for numeric/enum constraint

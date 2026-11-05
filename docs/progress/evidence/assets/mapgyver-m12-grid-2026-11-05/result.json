@@ -1,0 +1,9 @@
+{
+  "result": "pass",
+  "nativePid": 25152,
+  "group": "e1524a6d-e225-455b-b8bb-533f001cbaa7",
+  "nested": "1eb0c0e3-d6c7-48da-a416-8886962ca196",
+  "mounted": 27,
+  "page_errors": [],
+  "scope": "actual native WebView group creation, typed standard Inspector Normal/Hidden/history, inline rename, nesting, trusted Column/group drag, copy/delete/ungroup history and offscreen Inspector with sparse horizontal virtualization"
+}
