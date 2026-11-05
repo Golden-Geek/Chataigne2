@@ -65,8 +65,8 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         }
         guards.push(root.guard());
         guards.push(control.application_guard());
-        let columns = crate::matrix::capture_application_columns(engine, root_id, control, columns_left)?;
-        columns_left -= columns.len();
+        let axis = crate::matrix::capture_application_axis(engine, root_id, control, columns_left)?;
+        columns_left -= axis.columns.len();
         let cursors = playback
             .desired_column
             .zip(playback.launch_id)
@@ -77,25 +77,21 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
             })
             .into_iter()
             .collect::<Vec<_>>();
-        let configuration = crate::matrix::configuration::index(
-            engine,
-            crate::media::protocol::MediaId(media.node_data().meta.uuid),
-            control,
-        )?;
         let holds = playback
             .layers
             .iter()
             .flat_map(|request| {
                 let cell = request
                     .column
-                    .and_then(|column| configuration.cell_apps.get(&(request.layer, column)));
+                    .and_then(|column| axis.cell_apps.get(&(request.layer, column)));
                 // Disabled destinations retain their previous Layer request, including a
                 // Column-origin control. Individual triggers never activate Column controls.
                 let column = request
                     .column
                     .filter(|_| !request.individual)
-                    .and_then(|column| configuration.column_apps.get(&column));
-                cell.into_iter().chain(column).copied()
+                    .into_iter()
+                    .flat_map(|column| axis.column_applications(column));
+                cell.into_iter().copied().chain(column)
             })
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
@@ -104,12 +100,13 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
                 reason: DemandReason::Preparation,
             })
             .collect::<Vec<_>>();
-        matrices.push((columns, cursors, holds));
+        matrices.push((axis, cursors, holds));
     }
     let inputs = matrices
         .iter()
-        .map(|(columns, cursors, holds)| MatrixDemand {
-            columns,
+        .map(|(axis, cursors, holds)| MatrixDemand {
+            columns: &axis.columns,
+            spans: &axis.spans,
             cursors,
             holds,
         })

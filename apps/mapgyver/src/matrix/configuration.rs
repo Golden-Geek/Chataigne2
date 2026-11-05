@@ -15,8 +15,6 @@ pub(crate) struct Configuration {
     pub layer_base: TransitionDefinition,
     pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
     pub transition_layers: HashSet<LayerId>,
-    pub cell_apps: HashMap<(LayerId, ColumnId), crate::applications::protocol::ApplicationId>,
-    pub column_apps: HashMap<ColumnId, crate::applications::protocol::ApplicationId>,
 }
 pub(crate) fn index(
     engine: &AppEngine,
@@ -104,17 +102,6 @@ pub(crate) fn index(
         cell_nodes: document.cells,
         disabled,
         overrides,
-        cell_apps,
-        column_apps: document
-            .snapshot
-            .columns
-            .iter()
-            .filter(|column| {
-                crate::applications::control_node(engine, column.application)
-                    .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
-            })
-            .map(|column| (column.id, column.application))
-            .collect(),
         transitions: document
             .snapshot
             .columns

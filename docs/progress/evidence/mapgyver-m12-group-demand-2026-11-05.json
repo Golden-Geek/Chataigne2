@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-05",
+  "milestone": "M12/4 aggregate Column Group application demand and retention",
+  "gate": "Active",
+  "acceptance": { "verified": 60, "total": 78, "m12_verified": 3, "m12_total": 11 },
+  "implementation": [
+    "One cached immutable application-axis projection supplies logical and render demand; each configured group contributes one half-open flat Column range rather than per-child bindings.",
+    "Nested groups aggregate Column-origin preparation/active/outgoing demand. Same-group switches preserve demand; flat pre/post neighbors clamp without wrapping; empty groups contribute no demand.",
+    "Independent Cell triggers retain their Cell controls without activating Column/group controls. Disabled destinations retain prior Column-origin ancestor leases.",
+    "Retained clips preserve prior ancestor references across topology changes/deletion. Settled captures release outgoing ancestors while already captured plans retain final-use references.",
+    "Typed group settings and structure invalidate cached demand and service guards. Groups use the existing normalized shared process runtime."
+  ],
+  "software": {
+    "rust_library": "461 passed, 2 existing ignored, including generated TypeScript parity",
+    "strict_clippy": "All targets with native-qualification,application-process-fixture; -D warnings passed",
+    "group_cases": [
+      "Nested same-group demand across 20 switches, cross-group release and independent Cell semantics",
+      "Regrouping invalidates ranges/capture guards; Undo and project reload restore demand",
+      "1024 sparse Columns use exactly one group range with no per-child group bindings",
+      "Typed pre/post edits invalidate cached demand and preserve exact flat-distance reasons without a render index",
+      "Range boundaries, empty ranges, reason aggregation and malformed/excess range rejection",
+      "Nested same-group rendered switches, deleted outgoing group references, transition settlement and immutable captured final-use references"
+    ],
+    "format": "Root and golden_core cargo fmt passed; scoped diff check passed"
+  },
+  "native": {
+    "prerequisites": "Software tests and strict lint passed before terminal-success native integration build; execution started only after inspecting --no-run success",
+    "command": "target/debug/deps/application_runtime-b15da0904ed0c1c1.exe --include-ignored --nocapture --test-threads=1",
+    "test_sha256": "e7fbc37d565a038611f5d59e38a0bdbb5c9ae35fa920d20eeca8cf1aa2054404",
+    "fixture_sha256": "01fe5c6b252995f64b88f3633ab83fbff126169e986f66f4c1c225b75c79824d",
+    "result": "15 passed, 0 failed, 0 ignored; terminal exit 0; 12.53 seconds",
+    "new_group_case": "application_configuration::column_groups::nested_groups_share_one_owned_process_across_switches_twenty_cycles_and_stopping_reentry",
+    "group_assertions": [
+      "Nested outer/inner consumers share one actual owned Ready process",
+      "Child switches and normalized peer-group handoff retain runtime, launch and PID",
+      "20 unload/reload cycles reach Idle and then fresh Ready launches",
+      "5 re-entries observed during Stopping reach a new launch and PID",
+      "Ephemeral playback preserves authored document/history",
+      "Loaded group project starts correctly; group delete retires and Undo restarts",
+      "Latest project retirement handle reaches Idle after driver shutdown"
+    ],
+    "other_coverage": "Existing actual Spout sender/first-image, crash/backoff, shared Column/Cell controls, renderer completion, project replacement and owned-tree retirement tests pass"
+  },
+  "remaining_requirement": [
+    "Bounded nested/empty group grid presentation, selection and contextual group authoring, including actual generic Inspector editing",
+    "Actual group Normal/explicit-Hidden native windows, source/output integration and requested/submitted/stopping marker acceptance",
+    "Complete M12/4 actual-app ownership/recovery and sparse UI scope; retained M08/4 remains separate and unaccepted"
+  ],
+  "limits": "Group native lifecycle uses the owned ProcessStarted fixture. The separate Spout/renderer tests cover existing Column/Cell controls; they do not claim actual group UI or group native output acceptance. No whole gate closes in this milestone."
+}

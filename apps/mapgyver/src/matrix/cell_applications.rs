@@ -134,7 +134,7 @@ pub(super) fn append(
     document: &Document,
     control: &super::playback::PlaybackControl,
     columns: &mut [DemandColumn],
-) -> Result<(), String> {
+) -> Result<usize, String> {
     let positions = columns
         .iter()
         .enumerate()
@@ -190,5 +190,5 @@ pub(super) fn append(
                 post,
             });
     }
-    Ok(())
+    Ok(count)
 }

@@ -24,8 +24,26 @@ together, then remaps typed references through the existing bulk duplication bou
 All operations use the public Matrix intent contract, including scripts and transport.
 Rust DTOs generate the TypeScript identities, edits and snapshots.
 
-The first topology milestone is partial M12/4 delivery. Aggregate group application demand,
-pre/post ranges, outgoing/final-use retention, shared executable ownership/recovery checks,
-bounded group grid presentation and actual group Inspector/window checks remain required.
-Group configuration persistence alone does not establish execution. Keep M12/4 Active until
-the complete gate in the [implementation plan](../plan/MapGyver_Implementation_Plan.md) passes.
+`application_axis.rs` caches one immutable application projection shared by logical demand
+and render capture. Each configured group contributes one half-open range over flat Columns;
+it does not copy a binding into every child. Empty groups contribute no demand. Pre/post
+distances extend the range by flat Column count, clamp at axis ends and never wrap. A Column
+cursor inside the range preserves its preparation/active/outgoing reason; outside neighbors
+contribute preload demand without being displayed. Group, Column and Cell associations share
+the existing 4,096-binding admission bound.
+
+Column-origin Layer requests retain their group ancestors, including when a disabled
+destination preserves a previous request. Independent Cell triggers activate their Cell
+controls without activating Column or group controls. This preserves the existing independent
+trigger contract. Retained render clips pin their prior application references across edits,
+regrouping and deletion; captured outgoing plans keep their final-use references. New captures
+release those references after transition settlement. The normalized application runtime owns
+process sharing and stop/re-entry; the Matrix does not launch or supervise a second process path.
+[Demand/lifecycle evidence](../progress/evidence/mapgyver-m12-group-demand-2026-11-05.json)
+covers real owned nested-group sharing, 20 unload/reload cycles, five stopping re-entries,
+reload/delete/Undo and shutdown, alongside software range and retained-plan checks.
+
+M12/4 remains partial delivery until bounded group grid/contextual authoring, actual group
+Inspector/default-window and requested/submitted/stopping marker checks, and the complete
+native ownership/recovery scope in the [implementation plan](../plan/MapGyver_Implementation_Plan.md)
+pass. Backend topology and demand checks do not alone establish full actual-app acceptance.

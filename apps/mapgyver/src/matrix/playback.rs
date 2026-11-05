@@ -40,7 +40,7 @@ struct State {
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
     view: Option<(u64, Arc<super::view::ViewIndex>)>,
-    application_columns: Option<(u64, Arc<[crate::applications::demand::DemandColumn]>)>,
+    application_axis: Option<(u64, Arc<super::application_axis::ApplicationAxis>)>,
 }
 
 #[derive(Clone)]
@@ -113,22 +113,22 @@ impl PlaybackControl {
         let reader = self.0.logical.reader();
         reader.guard_at(reader.current())
     }
-    pub(crate) fn application_columns(&self) -> Option<Arc<[crate::applications::demand::DemandColumn]>> {
+    pub(crate) fn application_axis(&self) -> Option<Arc<super::application_axis::ApplicationAxis>> {
         self.0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
-            .application_columns
+            .application_axis
             .as_ref()
             .filter(|(revision, _)| *revision == self.0.columns.reader().current())
-            .map(|(_, columns)| columns.clone())
+            .map(|(_, axis)| axis.clone())
     }
-    pub(crate) fn cache_application_columns(&self, columns: Arc<[crate::applications::demand::DemandColumn]>) {
+    pub(crate) fn cache_application_axis(&self, axis: Arc<super::application_axis::ApplicationAxis>) {
         self.0
             .state
             .lock()
             .expect("Matrix playback lock poisoned")
-            .application_columns = Some((self.0.columns.reader().current(), columns));
+            .application_axis = Some((self.0.columns.reader().current(), axis));
     }
     pub fn view(&self) -> Option<Arc<super::view::ViewIndex>> {
         self.0

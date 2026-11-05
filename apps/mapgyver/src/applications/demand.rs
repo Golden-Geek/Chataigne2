@@ -25,6 +25,7 @@ pub struct DemandHold {
 }
 pub struct MatrixDemand<'a> {
     pub columns: &'a [DemandColumn],
+    pub spans: &'a [DemandSpan],
     pub cursors: &'a [DemandCursor],
     pub holds: &'a [DemandHold],
 }
@@ -38,6 +39,14 @@ pub struct DemandBinding {
 pub struct DemandColumn {
     pub id: ColumnId,
     pub bindings: Vec<DemandBinding>,
+}
+
+/// One group association over a derived half-open interval, never duplicated per child.
+#[derive(Clone, Debug)]
+pub struct DemandSpan {
+    pub start: usize,
+    pub end: usize,
+    pub binding: DemandBinding,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,6 +111,7 @@ pub fn resolve(
     let mut columns_left = limits.columns;
     let mut cursors_left = limits.cursors;
     let mut holds_left = limits.holds;
+    let mut spans_left = limits.applications;
     let mut result = HashMap::new();
     for matrix in matrices {
         columns_left = columns_left
@@ -113,6 +123,9 @@ pub fn resolve(
         holds_left = holds_left
             .checked_sub(matrix.holds.len())
             .ok_or("application demand hold bound exceeded")?;
+        spans_left = spans_left
+            .checked_sub(matrix.spans.len())
+            .ok_or("application demand group range bound exceeded")?;
         let mut positions = HashMap::new();
         for (position, column) in matrix.columns.iter().enumerate() {
             if positions.insert(column.id, position).is_some() {
@@ -163,6 +176,36 @@ pub fn resolve(
                 for &(_, reason) in &admitted[exact_begin..exact_end] {
                     add(&mut result, association.application, reason, limits.applications)?;
                 }
+            }
+        }
+        for span in matrix.spans {
+            if span.start > span.end || span.end > matrix.columns.len() {
+                return Err("application demand group range is outside the Column axis".into());
+            }
+            if span.start == span.end {
+                continue;
+            }
+            let binding = &span.binding;
+            let low = span.start.saturating_sub(usize::from(binding.pre));
+            let high = span
+                .end
+                .saturating_add(usize::from(binding.post))
+                .min(matrix.columns.len());
+            let begin = cursors.partition_point(|(index, _)| *index < low);
+            let end = cursors.partition_point(|(index, _)| *index < high);
+            let admitted = &cursors[begin..end];
+            let inside_begin = admitted.partition_point(|(index, _)| *index < span.start);
+            let inside_end = admitted.partition_point(|(index, _)| *index < span.end);
+            if inside_begin > 0 || inside_end < admitted.len() {
+                add(
+                    &mut result,
+                    binding.application,
+                    DemandReason::Neighbor,
+                    limits.applications,
+                )?;
+            }
+            for &(_, reason) in &admitted[inside_begin..inside_end] {
+                add(&mut result, binding.application, reason, limits.applications)?;
             }
         }
         for hold in matrix.holds {

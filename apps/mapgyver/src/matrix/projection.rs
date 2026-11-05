@@ -16,9 +16,7 @@ pub(crate) struct RenderItem {
     pub end: usize,
 }
 pub(crate) struct RenderIndex {
-    pub cell_apps: HashMap<(LayerId, ColumnId), crate::applications::protocol::ApplicationId>,
-    pub column_apps: HashMap<ColumnId, crate::applications::protocol::ApplicationId>,
-    pub columns: Vec<crate::applications::demand::DemandColumn>,
+    pub applications: std::sync::Arc<super::application_axis::ApplicationAxis>,
     pub items: HashMap<MatrixItemId, RenderItem>,
     pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
 }
@@ -67,7 +65,6 @@ impl RenderIndex {
             items.get_mut(&id).unwrap().end = document.snapshot.items.len();
         }
         let mut cells = HashMap::<ColumnId, BTreeMap<usize, CellSource>>::new();
-        let mut cell_apps = HashMap::new();
         for cell in &document.snapshot.cells {
             let AppNode::MatrixCell(node) = engine
                 .nodes
@@ -76,11 +73,6 @@ impl RenderIndex {
             else {
                 unreachable!()
             };
-            if crate::applications::control_node(engine, cell.definition.application)
-                .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
-            {
-                cell_apps.insert((cell.layer, cell.definition.column), cell.definition.application);
-            }
             if !node.node_data().effective_enabled || !cell.definition.settings.enabled {
                 continue;
             }
@@ -108,30 +100,8 @@ impl RenderIndex {
                 );
             }
         }
-        let mut columns = document
-            .snapshot
-            .columns
-            .iter()
-            .map(|column| crate::applications::demand::DemandColumn {
-                id: column.id,
-                bindings: Vec::new(),
-            })
-            .collect::<Vec<_>>();
-        super::cell_applications::append(engine, document, control, &mut columns)?;
-        let column_apps = document
-            .snapshot
-            .columns
-            .iter()
-            .filter(|column| {
-                crate::applications::control_node(engine, column.application)
-                    .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
-            })
-            .map(|column| (column.id, column.application))
-            .collect();
         Ok(Self {
-            cell_apps,
-            column_apps,
-            columns,
+            applications: super::application_axis::for_document(engine, document, control)?,
             items,
             cells,
         })

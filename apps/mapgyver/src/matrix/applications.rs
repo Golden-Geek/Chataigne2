@@ -1,62 +1,7 @@
 use super::{projection::RenderIndex, protocol::*, timeline::Frame};
 use crate::applications::{demand::*, protocol::ApplicationId};
-use golden_core::node::{Node, NodeId};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-pub(crate) fn capture_application_columns(
-    engine: &crate::app::AppEngine,
-    root: NodeId,
-    control: &super::playback::PlaybackControl,
-    maximum: usize,
-) -> Result<Arc<[DemandColumn]>, String> {
-    if let Some(columns) = control.application_columns() {
-        if columns.len() > maximum {
-            return Err("logical Matrix aggregate column capacity exceeded".into());
-        }
-        return Ok(columns);
-    }
-    let owner = engine
-        .nodes
-        .get(root)
-        .and_then(|node| node.node_data().parent)
-        .and_then(|id| engine.nodes.get(id))
-        .ok_or("Matrix media is missing")?;
-    let document =
-        super::document::Document::load(engine, crate::media::protocol::MediaId(owner.node_data().meta.uuid))?;
-    if document.snapshot.columns.len() > maximum {
-        return Err("logical Matrix column capacity exceeded".into());
-    }
-    for id in document.columns.values() {
-        if let Some(crate::app::AppNode::MatrixColumn(node)) = engine.nodes.get(*id) {
-            node.bind_runtime(control.binding());
-        }
-    }
-    for (group, id) in &document.column_groups {
-        let Some(crate::app::AppNode::MatrixColumnGroup(node)) = engine.nodes.get(*id) else {
-            unreachable!()
-        };
-        node.bind_runtime(control.binding());
-        if let Some(settings) =
-            crate::applications::control_node(engine, crate::applications::protocol::ApplicationId(group.0))
-        {
-            super::cell_applications::bind(settings, control);
-        }
-    }
-    let mut columns = document
-        .snapshot
-        .columns
-        .iter()
-        .map(|column| DemandColumn {
-            id: column.id,
-            bindings: Vec::new(),
-        })
-        .collect::<Vec<_>>();
-    super::cell_applications::append(engine, &document, control, &mut columns)?;
-    let columns: Arc<[DemandColumn]> = columns.into();
-    control.cache_application_columns(columns.clone());
-    Ok(columns)
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct CapturedApplications {
@@ -101,6 +46,7 @@ impl Applications {
             return Ok(captured.clone());
         }
         let mut layers = index
+            .applications
             .cell_apps
             .keys()
             .map(|(layer, _)| *layer)
@@ -116,7 +62,7 @@ impl Applications {
             };
             if !entry.clip.individual {
                 let references = self.clips.entry((entry.clip.id, None)).or_default();
-                references.extend(index.column_apps.get(&entry.clip.column).copied());
+                references.extend(index.applications.column_applications(entry.clip.column));
                 references.sort_by_key(|id| id.0.0);
                 references.dedup();
                 holds.extend(references.iter().map(|application| DemandHold {
@@ -126,7 +72,7 @@ impl Applications {
             }
             if let Some(layer) = layer {
                 let references = self.clips.entry((entry.clip.id, Some(layer))).or_default();
-                references.extend(index.cell_apps.get(&(layer, entry.clip.column)).copied());
+                references.extend(index.applications.cell_apps.get(&(layer, entry.clip.column)).copied());
                 references.sort_by_key(|id| id.0.0);
                 references.dedup();
                 holds.extend(references.iter().map(|application| DemandHold {
@@ -187,7 +133,16 @@ impl Applications {
         let demand = resolve(
             &[],
             &[MatrixDemand {
-                columns: if scope.is_none() { &index.columns } else { &[] },
+                columns: if scope.is_none() {
+                    &index.applications.columns
+                } else {
+                    &[]
+                },
+                spans: if scope.is_none() {
+                    &index.applications.spans
+                } else {
+                    &[]
+                },
                 cursors: &cursors,
                 holds: &holds,
             }],

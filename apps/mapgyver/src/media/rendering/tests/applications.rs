@@ -218,3 +218,121 @@ fn interrupted_application_fades_keep_removed_outgoing_references_until_transiti
     assert_eq!(settled.application_demand().len(), 1);
     close(owner);
 }
+
+#[test]
+fn nested_group_applications_survive_same_group_switch_and_deleted_outgoing_children_until_settlement() {
+    let mut engine = engine();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    matrix_edit(&mut engine, matrix, MatrixEdit::AddLayers { parent: None, count: 1 });
+    let mut group = |parent| {
+        let MediaEditResult::MatrixColumnGroupCreated { group } =
+            matrix_edit(&mut engine, matrix, MatrixEdit::AddColumnGroup { parent, label: None })
+        else {
+            panic!()
+        };
+        group
+    };
+    let outer = group(None);
+    let inner = group(Some(outer));
+    let other = group(None);
+    let mut columns = |parent, count| {
+        let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(
+            &mut engine,
+            matrix,
+            MatrixEdit::AddColumns {
+                parent: Some(parent),
+                count,
+            },
+        ) else {
+            panic!()
+        };
+        columns
+    };
+    let children = columns(inner, 2);
+    let destination = columns(other, 1)[0];
+    let apps = [outer, inner, other].map(|group| {
+        let application = ApplicationId(group.0);
+        edit(
+            &mut engine,
+            MediaEdit::Applications {
+                edit: ApplicationEdit::Configure {
+                    application,
+                    definition: ApplicationDefinition {
+                        executable: Some("C:\\missing\\not-started.exe".into()),
+                        ..Default::default()
+                    },
+                },
+            },
+        );
+        application
+    });
+    let owner = renderer();
+    let anchor = owner.read_time().unwrap();
+    let at = |millis| {
+        anchor
+            .at_monotonic(anchor.monotonic().checked_add(Duration::from_millis(millis)).unwrap())
+            .unwrap()
+    };
+    let launch =
+        |engine: &mut AppEngine, column, mode| matrix_edit(engine, matrix, MatrixEdit::LaunchColumn { column, mode });
+    launch(&mut engine, children[0], LaunchMode::Cut);
+    let initial = crate::media::capture_channels_at(&engine, &[matrix], 8, at(0)).unwrap();
+    assert_eq!(
+        initial
+            .plan_applications()
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>(),
+        apps[..2].iter().copied().collect()
+    );
+    launch(&mut engine, children[1], LaunchMode::Configured);
+    let switched = crate::media::capture_channels_at(&engine, &[matrix], 8, at(100)).unwrap();
+    assert_eq!(switched.application_demand().len(), 2);
+    assert!(
+        switched
+            .application_demand()
+            .iter()
+            .all(|d| d.reasons.contains(&DemandReason::Active))
+    );
+    launch(&mut engine, destination, LaunchMode::Configured);
+    let outgoing = crate::media::capture_channels_at(&engine, &[matrix], 8, at(200)).unwrap();
+    for app in &apps[..2] {
+        assert!(
+            outgoing
+                .application_demand()
+                .iter()
+                .find(|d| d.application == *app)
+                .unwrap()
+                .reasons
+                .contains(&DemandReason::Outgoing)
+        );
+    }
+    matrix_edit(&mut engine, matrix, MatrixEdit::RemoveColumnGroup { group: outer });
+    let deleted = crate::media::capture_channels_at(&engine, &[matrix], 8, at(250)).unwrap();
+    assert_eq!(deleted.plan_applications().len(), 3);
+    for app in &apps[..2] {
+        assert_eq!(
+            deleted
+                .application_demand()
+                .iter()
+                .find(|d| d.application == *app)
+                .unwrap()
+                .availability,
+            crate::applications::demand::DefinitionAvailability::Missing
+        );
+    }
+    let mut settled = deleted.clone();
+    settled.settle_transitions(at(1000)).unwrap();
+    assert_eq!(settled.plan_applications(), vec![apps[2]]);
+    assert_eq!(
+        crate::media::capture_channels_at(&engine, &[matrix], 8, at(1000))
+            .unwrap()
+            .plan_applications(),
+        vec![apps[2]]
+    );
+    assert_eq!(
+        deleted.plan_applications().len(),
+        3,
+        "the already captured outgoing plan keeps its final-use references"
+    );
+    close(owner);
+}

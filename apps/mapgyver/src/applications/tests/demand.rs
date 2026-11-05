@@ -33,6 +33,7 @@ fn demand(
         catalog,
         &[MatrixDemand {
             columns,
+            spans: &[],
             cursors,
             holds,
         }],
@@ -155,6 +156,7 @@ fn admitted_large_sparse_columns_and_invalid_input_bounds_do_not_materialize_cel
             &catalog,
             &[MatrixDemand {
                 columns: &columns,
+                spans: &[],
                 cursors: &active,
                 holds: &[]
             }],
@@ -171,10 +173,164 @@ fn admitted_large_sparse_columns_and_invalid_input_bounds_do_not_materialize_cel
             &catalog,
             &[MatrixDemand {
                 columns: &columns,
+                spans: &[],
                 cursors: &bad,
                 holds: &[]
             }],
             Default::default()
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn group_ranges_preserve_exact_reasons_and_use_flat_neighbor_distances_without_wrap() {
+    let app = id();
+    let columns = columns(8);
+    let spans = [DemandSpan {
+        start: 2,
+        end: 5,
+        binding: DemandBinding {
+            application: app,
+            pre: 1,
+            post: 2,
+        },
+    }];
+    for index in 0..8 {
+        let cursors = [cursor(columns[index].id, DemandReason::Active)];
+        let result = resolve(
+            &[summary(app)],
+            &[MatrixDemand {
+                columns: &columns,
+                spans: &spans,
+                cursors: &cursors,
+                holds: &[],
+            }],
+            Default::default(),
+        )
+        .unwrap();
+        if (1..7).contains(&index) {
+            let reason = if (2..5).contains(&index) {
+                DemandReason::Active
+            } else {
+                DemandReason::Neighbor
+            };
+            assert_eq!(result[0].reasons, [reason].into_iter().collect(), "column {index}");
+        } else {
+            assert!(result.is_empty(), "column {index}");
+        }
+    }
+    let cursors = [
+        cursor(columns[1].id, DemandReason::Preparation),
+        cursor(columns[2].id, DemandReason::Outgoing),
+        cursor(columns[3].id, DemandReason::Active),
+        cursor(columns[4].id, DemandReason::Preparation),
+    ];
+    let result = resolve(
+        &[],
+        &[MatrixDemand {
+            columns: &columns,
+            spans: &spans,
+            cursors: &cursors,
+            holds: &[],
+        }],
+        Default::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        result[0].reasons,
+        [
+            DemandReason::Neighbor,
+            DemandReason::Preparation,
+            DemandReason::Active,
+            DemandReason::Outgoing
+        ]
+        .into_iter()
+        .collect()
+    );
+    let empty = [DemandSpan {
+        start: 4,
+        end: 4,
+        binding: DemandBinding {
+            application: app,
+            pre: u16::MAX,
+            post: u16::MAX,
+        },
+    }];
+    assert!(
+        resolve(
+            &[],
+            &[MatrixDemand {
+                columns: &columns,
+                spans: &empty,
+                cursors: &cursors,
+                holds: &[]
+            }],
+            Default::default()
+        )
+        .unwrap()
+        .is_empty()
+    );
+}
+
+#[test]
+fn group_range_admission_rejects_invalid_ranges_and_bounds_total_associations() {
+    let columns = columns(3);
+    for (start, end) in [(2, 1), (0, 4)] {
+        let spans = [DemandSpan {
+            start,
+            end,
+            binding: DemandBinding {
+                application: id(),
+                pre: 0,
+                post: 0,
+            },
+        }];
+        assert!(
+            resolve(
+                &[],
+                &[MatrixDemand {
+                    columns: &columns,
+                    spans: &spans,
+                    cursors: &[],
+                    holds: &[]
+                }],
+                Default::default()
+            )
+            .is_err()
+        );
+    }
+    let spans = [DemandSpan {
+        start: 0,
+        end: 3,
+        binding: DemandBinding {
+            application: id(),
+            pre: 0,
+            post: 0,
+        },
+    }];
+    let matrices = [
+        MatrixDemand {
+            columns: &columns,
+            spans: &spans,
+            cursors: &[],
+            holds: &[],
+        },
+        MatrixDemand {
+            columns: &columns,
+            spans: &spans,
+            cursors: &[],
+            holds: &[],
+        },
+    ];
+    assert!(
+        resolve(
+            &[],
+            &matrices,
+            DemandLimits {
+                applications: 1,
+                ..Default::default()
+            }
         )
         .is_err()
     );
