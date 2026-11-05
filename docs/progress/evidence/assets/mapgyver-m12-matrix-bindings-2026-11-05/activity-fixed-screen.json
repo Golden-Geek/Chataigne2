@@ -1,0 +1,53 @@
+{
+  "result": "pass",
+  "nativePid": 28904,
+  "bindings": [
+    {
+      "id": "screen-warp",
+      "target": {
+        "kind": "Screen",
+        "screen": "40baed7e-6d19-4720-8847-4e89a9669215"
+      }
+    },
+    {
+      "id": "screenWarp-1",
+      "target": {
+        "kind": "Screen",
+        "screen": "cf6d5995-e600-43e5-800b-8ab10957a76e"
+      }
+    },
+    {
+      "id": "surface-source",
+      "target": {
+        "kind": "Surface",
+        "reference": {
+          "screen": "cf6d5995-e600-43e5-800b-8ab10957a76e",
+          "surface": "3348ae66-1c5f-4996-a5e4-b2cff7491ac2"
+        }
+      }
+    },
+    {
+      "id": "surfaceSource-1",
+      "target": {
+        "kind": "Surface",
+        "reference": {
+          "screen": "40baed7e-6d19-4720-8847-4e89a9669215",
+          "surface": "ff33fbdd-aeaa-43a6-9b4d-2bfad348d059"
+        }
+      }
+    }
+  ],
+  "reconnect_leases": [
+    "8498a8a8-9af8-470e-a70f-1c7a60a33aa6",
+    "722f9c01-ee42-4c1f-b077-3e39fef280b7"
+  ],
+  "page_errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 247,
+      "receipts": 247
+    }
+  },
+  "scope": "two independent Screen and two independent Surface Source locks, keyboard, unrelated/relevant selection, real source drop, layout restore, deletion/Undo, reconnect and New/Load document fencing; DOM/native lease scope only"
+}

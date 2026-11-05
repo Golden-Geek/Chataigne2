@@ -167,13 +167,18 @@ export async function verifyColumnGroupsUi({ page, edit, nativePid, nativeLog })
 		element.dispatchEvent(new Event('scroll'));
 	});
 	await band(group).waitFor();
+	// Preserve the existing receipt evidence even when the final activity assertion fails.
+	await writeFile(path.join(directory, 'receipts.json'), JSON.stringify(receipts, null, 2));
+	await writeFile(path.join(directory, 'native.log'), nativeLog());
+	const rejectedActivity = await page
+		.locator('.user-action-activity.visible[data-phase="rejected"]')
+		.allTextContents();
+	if (rejectedActivity.length) console.log(JSON.stringify({ rejectedActivity, receipts }));
 	assert.equal(
 		await page.locator('.user-action-activity.visible[data-phase="rejected"]').count(),
 		0
 	);
 	await page.screenshot({ path: path.join(directory, 'column-groups.png') });
-	await writeFile(path.join(directory, 'receipts.json'), JSON.stringify(receipts, null, 2));
-	await writeFile(path.join(directory, 'native.log'), nativeLog());
 	assert.deepEqual(receipts.rejected, []);
 	assert.deepEqual(errors, []);
 	const result = {

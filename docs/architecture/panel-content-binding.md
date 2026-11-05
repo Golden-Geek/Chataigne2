@@ -61,3 +61,7 @@ real tab input, independent instances, target deletion/history, layout reload, r
 project fencing through isolated production hosts. Fixtures await the exact persisted panel
 identities before reloading, rather than a stale layout that happens to mention one target.
 The owning progress receipt records which checks have actually passed.
+
+Editor inspections use background operation activity. History or project transitions can cancel
+superseded reads through the ordinary receipt fences without presenting them as failed user
+edits. Authored operations retain user activity and their real rejection feedback.
