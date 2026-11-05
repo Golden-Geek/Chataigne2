@@ -1,0 +1,83 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7 Active; Cell canvas manipulation slice verified",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "Inactive Cells can move and resize through the shared spatial canvas. Translation preserves natural sizing and works without a source. Eight opposite-anchor handles author independent Size; a no-motion click changes neither Size nor history. The ordinary typed Inspector and media Resolution retain their existing ownership.",
+	"ownership": {
+		"backend": "EditCellGeometry resolves a Cell UUID and checks at most 64 ancestors before editing real Parameters, without loading the Matrix per sample. Natural resize validates the current source extent, shared checked math rejects crossed/oversized/nonfinite geometry atomically, and settings preserve Fit/opacity/enabled state and source runtime epoch.",
+		"ui": "RectLayoutControls replaces duplicated Layer/Cell rectangles and shares pointer capture, eight handles, Escape and destruction retirement. Cell gesture uses the shared one-active/latest sample and one edit group. Held reads are invalidated; accepted settings patch visible/independent selection; completion resumes the latest bounded query. Missing dimensions produce only a real-position move handle and presentation-only Frame bounds.",
+		"architecture": "../../architecture/mapgyver-cell-layout.md"
+	},
+	"software": {
+		"rust": "495 passed, 0 failed, 3 existing ignored, with native-qualification,application-process-fixture. Covers unconfigured/unavailable translation, all eight opposite anchors, natural basis rejection/source resize, no-motion history, source epoch preservation, grouped 100-sample Undo/Redo, duplicate/reload, ownership/kind/overflow/crossed-edge atomic rejection and four public callers. Both generated-contract tests pass.",
+		"ui": "77 related Spatial/Composition/Matrix/media tests pass. Svelte check: 0 errors, 0 warnings. Includes tagged immutable Cell bases, one active/latest sample, late snapshot cancellation, held query fences, visible/off-page patching, latest query resume and fixed/natural/unknown extent presentation.",
+		"lint": "Strict all-target Clippy with the same features and -D warnings passes. Root and golden_core cargo fmt, scoped Prettier, Node syntax and owned diff checks pass.",
+		"build": {
+			"app": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-cell-geometry",
+			"test": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --test matrix_rendering -- -C extra-filename=-cell-geometry",
+			"exit": 0,
+			"app_sha256": "19dc9f3e9ee8f71b0ba52b7f896b6cda234be2c1ee4af301ba016b89cc1d172d",
+			"test_sha256": "7965ed3053c6ece19f1d4cf9c404e08d93501d63d0b1d1f3f2a5dfa05d84d5a9"
+		}
+	},
+	"native": {
+		"pixels": {
+			"test": "matrix_pixels::cell_editor::native_cell_editor_previews_inactive_placement_without_playback_on_each_adapter",
+			"command": "target/debug/deps/matrix_rendering-cell-geometry.exe matrix_pixels::cell_editor::native_cell_editor_previews_inactive_placement_without_playback_on_each_adapter --ignored --exact --nocapture",
+			"exit": 0,
+			"tests": 1,
+			"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+			"images": 42,
+			"cases_per_adapter": 7,
+			"images_per_case": 3,
+			"extent": { "width": 32, "height": 24 },
+			"maximum_residual_error": "0/255 within unchanged envelope",
+			"maximum_nominal_error": "1/255 on NVIDIA; Intel 0/255",
+			"scope": "Inactive Fit/Fill/Stretch/natural placement, translation, anchored resize and Undo; two SDK outputs and native preview for each case; no desired Column or playback Layer; existing retirement assertions pass. DOM captures are not pixel evidence.",
+			"log": "mapgyver-m12-cell-geometry-2026-11-05/m12-cell-geometry-pixels.log"
+		},
+		"cell_manipulation": {
+			"pid": 23304,
+			"exit": 0,
+			"retired": true,
+			"scope": "Actual bundled natural translation, all eight anchored resizes, Size/Fit/opacity/enabled preservation, exact one-step Undo/Redo, Escape capture retirement, unavailable-source translation without fake dimensions and no playback.",
+			"observed_requests": 929,
+			"observed_receipts": 928,
+			"rejected": 0,
+			"page_errors": 0,
+			"receipt_limit": "One background request was in flight when the observer snapshot was written. Exact geometry/history assertions passed; this is not a claim of 929 completed receipts.",
+			"result": "mapgyver-m12-cell-geometry-2026-11-05/m12-cell-geometry-ui.json"
+		},
+		"layer_regression": {
+			"pid": 27992,
+			"exit": 0,
+			"retired": true,
+			"scope": "Inactive nested Layer body translation, eight opposite-anchor handles, duration/composite preservation, exact grouped history, Escape and no implicit launch through shared controls.",
+			"observed_requests": 698,
+			"observed_receipts": 697,
+			"rejected": 0,
+			"page_errors": 0,
+			"receipt_limit": "One background request was in flight at observer snapshot; geometry/history assertions passed.",
+			"result": "mapgyver-m12-cell-geometry-2026-11-05/layer-regression.json"
+		},
+		"cell_navigation_regression": {
+			"pid": 36412,
+			"exit": 0,
+			"retired": true,
+			"scope": "128 visible Cells plus independent off-page selection, inactive native preview, Frame/Home, pagination, tab lock/layout restore, visible target identity, reconnect, missing/Undo and New/Load without playback.",
+			"observed_requests": 208,
+			"observed_receipts": 208,
+			"rejected": 0,
+			"page_errors": 0,
+			"result": "mapgyver-m12-cell-geometry-2026-11-05/layout-regression.json"
+		}
+	},
+	"repairs_and_preserved_limits": [
+		"Initial software run exposed an empty history entry for zero-motion resize; direct backend geometry now returns without edits when typed settings are unchanged. Full rerun passes.",
+		"Initial Cell app PID 31988 passed translation and three handles before Right made no edit. The fixture had awaited x alone after Undo; it now waits all four displayed geometry values, and PID 23304 passes all eight. The initial failure log is retained.",
+		"Navigation PID 35272 attempted reload before the initial native UI settled and received ERR_ABORTED before arranging any scene. Waiting for the existing Medias tab before reload repairs fixture startup; PID 36412 passes the full original flow. Failure log retained.",
+		"An initial unqualified --exact GPU filter matched zero tests and earned no evidence. The fully qualified command above ran one native test and all 42 images.",
+		"No renderer budget, error bound, acceptance denominator or original gate requirement changed. No release readiness claimed. Keyboard grouping and the full original spatial/pixel matrix remain required."
+	],
+	"next": "Grouped keyboard geometry for Composition, Layers and Cells, then close the full M12/7 selection/lock/nested-group/aspect/alpha/blend/source-resize/history/copy/reload/large-sparse acceptance matrix."
+}

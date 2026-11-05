@@ -21,6 +21,10 @@ export async function verifyMatrixCellLayout({ page, edit, post, nativePid, dire
 			}
 		};
 	});
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.waitFor();
 	await page.reload();
 	const wait = async (read, test) => {
 		const until = Date.now() + 9000;

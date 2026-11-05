@@ -483,6 +483,11 @@ pub enum MediaEditResult {
         layer: crate::matrix::protocol::LayerId,
         settings: crate::matrix::protocol::LayerSettings,
     },
+    MatrixCellGeometryChanged {
+        media: MediaId,
+        cell: crate::matrix::protocol::CellId,
+        settings: crate::matrix::protocol::CellSettings,
+    },
     MediaPreview {
         page: MediaPreviewPage,
     },

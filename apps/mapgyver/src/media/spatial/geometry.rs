@@ -1,5 +1,27 @@
 use super::protocol::{RectGeometryEdit, RectGeometryMode, SpatialRect, SpatialResizeHandle};
 
+pub(crate) fn translate_position(
+    origin: [f32; 2],
+    start: golden_video::plan::Point,
+    point: golden_video::plan::Point,
+) -> Result<[f32; 2], String> {
+    if origin
+        .into_iter()
+        .chain([start.x, start.y, point.x, point.y])
+        .any(|value| !value.is_finite())
+    {
+        return Err("geometry coordinates must be finite".into());
+    }
+    let position = [
+        (f64::from(origin[0]) + f64::from(point.x) - f64::from(start.x)) as f32,
+        (f64::from(origin[1]) + f64::from(point.y) - f64::from(start.y)) as f32,
+    ];
+    if position.into_iter().any(|value| !value.is_finite()) {
+        return Err("geometry translation overflow".into());
+    }
+    Ok(position)
+}
+
 impl SpatialResizeHandle {
     pub(crate) fn position(self) -> [f64; 2] {
         match self {
@@ -33,9 +55,7 @@ impl RectGeometryEdit {
         ];
         match self.mode {
             RectGeometryMode::Translate => {
-                for axis in 0..2 {
-                    position[axis] += delta[axis];
-                }
+                position = translate_position(self.origin.position, self.start, self.point)?.map(f64::from);
             }
             RectGeometryMode::Resize { handle } => {
                 let handle = handle.position();

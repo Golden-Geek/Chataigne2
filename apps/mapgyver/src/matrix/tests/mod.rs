@@ -13,6 +13,7 @@ mod applications;
 mod bindings;
 mod bulk_authoring;
 mod cell_creation;
+mod cell_geometry;
 mod cell_layout;
 mod cell_playback;
 mod cell_settings;

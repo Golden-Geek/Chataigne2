@@ -1,0 +1,58 @@
+import { onDestroy, untrack } from 'svelte';
+import { appState, type WorkbenchSession } from 'golden_ui';
+import { createUiEditSession } from 'golden_ui/store/ui-intents';
+import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
+import { createCellGesture, type CellHandle } from './cell-gesture';
+import { invokeMediaEdit } from '../media/operations';
+import type { CellLayoutReader } from './cell-layout';
+
+export function createCellEditor(
+	reader: CellLayoutReader<WorkbenchSession>,
+	present: () => boolean
+) {
+	const state = $state(createLatestEditGestureState());
+	let activeCell = $state<string | null>(null);
+	const gesture = createCellGesture<WorkbenchSession>(() => appState.session, state, {
+		group: (session, handle) =>
+			createUiEditSession(`${handle.kind} Cell`, 'matrix-cell-geometry', session),
+		invoke: invokeMediaEdit,
+		accepted: (result) => reader.acceptCell(result),
+		active: (active) => {
+			reader.setInteracting(active);
+			if (!active) activeCell = null;
+		},
+		finished: () => reader.refresh()
+	});
+	$effect(() => {
+		const session = appState.session;
+		if (session) {
+			void session.status;
+			void session.loading.visible;
+			void session.snapshotGeneration;
+			void session.projectGeneration;
+			void session.hasActiveEditSession;
+			void session.editSessionEpoch;
+		}
+		const available = present(),
+			selected = session?.getSelectedNodes()[0]?.uuid;
+		untrack(() => {
+			gesture.observe();
+			if (!available || (activeCell && selected !== activeCell)) gesture.stop();
+		});
+	});
+	onDestroy(() => gesture.dispose());
+	return {
+		state,
+		gesture,
+		get activeCell() {
+			return activeCell;
+		},
+		start(cell: string, handle: CellHandle) {
+			const media = reader.page?.media;
+			if (!media || reader.busy || !present() || !gesture.start({ media, cell }, handle))
+				return false;
+			activeCell = cell;
+			return true;
+		}
+	};
+}

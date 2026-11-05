@@ -30,6 +30,20 @@ The transient producer and its dependencies count against existing channel/pass/
 it adds no persisted media or public output and sends no image frames over control IPC. Renderer
 tests inspect immutable capture and both hardware adapters through the same preview source key.
 
-Cell canvas manipulation and grouped keyboard geometry remain required in M12/7, alongside its
-full spatial/pixel acceptance matrix. The existing Inspector edits real Cell placement
-Parameters; [shared geometry](mapgyver-spatial-geometry.md) already supplies Layer canvas editing.
+Cell bodies translate through `EditCellGeometry` without requiring source dimensions. A move
+preserves the natural Size policy. Eight opposite-anchor handles share the Layer rectangle
+controls and checked backend geometry; the first effective resize authors independent Cell
+Size. A natural-size resize must match the current source extent before it can change anything.
+Unknown sources retain a move handle at their actual position, with no invented size or resize
+handles. Frame uses a presentation-only neighborhood around that position.
+
+The backend resolves the Cell UUID and checks at most 64 ancestors before editing its real
+typed Parameters; pointer samples never load the whole Matrix. It preserves Fit, opacity,
+enabled state and media Resolution, and does not replace the source runtime epoch. Zero motion
+adds no history. The shared latest-sample gesture owns one history group; held reads are fenced,
+accepted settings update visible/off-page presentation, and completion refreshes the latest query.
+Escape, selection/project replacement and disposal retire the owned gesture and pointer capture.
+
+Grouped keyboard geometry and the full spatial/pixel acceptance matrix remain required in
+M12/7. The standard Inspector edits the same Cell placement Parameters; see
+[shared geometry](mapgyver-spatial-geometry.md) for Layer and Composition controls.

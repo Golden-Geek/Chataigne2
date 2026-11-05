@@ -2,6 +2,46 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn cell_translation_preserves_natural_size_and_the_same_committed_contract_for_every_caller() {
+    let scene = scene();
+    let cell = scene.snapshot.cells.first().unwrap();
+    let original = cell.definition.settings;
+    let operation = MediaEdit::Matrix {
+        media: scene.root.media,
+        edit: MatrixEdit::EditCellGeometry {
+            cell: cell.id,
+            edit: CellGeometryEdit::Translate {
+                origin: original.position,
+                start: golden_video::plan::Point { x: 0.0, y: 0.0 },
+                point: golden_video::plan::Point { x: 4.0, y: -3.0 },
+            },
+        },
+    };
+    let mut expected = None;
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let value = run(&mut engine, caller, operation.clone()).unwrap();
+        assert_eq!(expected.get_or_insert_with(|| value.clone()), &value);
+        let MediaEditResult::MatrixCellGeometryChanged {
+            media,
+            cell: changed,
+            settings,
+        } = serde_json::from_value(value).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!((media, changed), (scene.root.media, cell.id));
+        assert_eq!(
+            settings,
+            CellSettings {
+                position: [original.position[0] + 4.0, original.position[1] - 3.0],
+                ..original
+            }
+        );
+    }
+}
+
+#[test]
 fn cell_layout_is_read_only_and_identical_for_every_public_caller() {
     let scene = scene();
     let cell = scene.snapshot.cells.last().unwrap();

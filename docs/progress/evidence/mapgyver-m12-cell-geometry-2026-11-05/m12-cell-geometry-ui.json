@@ -1,0 +1,23 @@
+{
+  "result": "pass",
+  "nativePid": 23304,
+  "reports": [
+    "TopLeft",
+    "Top",
+    "TopRight",
+    "Right",
+    "BottomRight",
+    "Bottom",
+    "BottomLeft",
+    "Left"
+  ],
+  "errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 928,
+      "receipts": 927
+    }
+  },
+  "scope": "inactive natural Cell translation, eight opposite-anchor resizes, exact grouped history, Escape retirement, unavailable-source translation without synthetic dimensions and no playback"
+}

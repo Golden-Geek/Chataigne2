@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
-	import { appState, IconButton, ViewportHandle } from 'golden_ui';
+	import { appState, IconButton } from 'golden_ui';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
@@ -11,6 +11,11 @@
 	import { CellLayoutReader, cellLayoutState } from './cell-layout';
 	import { SPATIAL_PAGE_SIZE } from './targets';
 	import SpatialViewport from './SpatialViewport.svelte';
+	import RectLayoutControls from './RectLayoutControls.svelte';
+	import { cellExtent } from './rect-presentation';
+	import { createCellEditor } from './cell-editor.svelte';
+	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
+	import type { Point } from '../media/generated/Point';
 	let props: {
 		panelId: string;
 		media: string;
@@ -26,6 +31,7 @@
 	} = $props();
 	const state = $state(cellLayoutState());
 	const reader = new CellLayoutReader(() => appState.session, state, invokeMediaEdit);
+	const geometry = createCellEditor(reader, () => props.present);
 	const selection = useDocumentSelection(),
 		preview = usePreview();
 	$effect(() => {
@@ -52,7 +58,11 @@
 	});
 	const page = $derived(reader.page),
 		layer = $derived(page?.row?.item.layer),
-		selected = $derived(page?.selected);
+		selected = $derived(
+			(geometry.activeCell
+				? page?.cells.find((cell) => cell.view.cell.id === geometry.activeCell)
+				: null) ?? page?.selected
+		);
 	const cells = $derived(
 		page
 			? selected && !page.cells.some((cell) => cell.view.cell.id === selected.view.cell.id)
@@ -63,21 +73,36 @@
 	const pages = $derived(Math.max(1, Math.ceil((page?.total ?? 0) / SPATIAL_PAGE_SIZE)));
 	function extent(cell: MatrixLayoutCell) {
 		const reference = cell.view.cell.definition.source;
-		return (
-			cell.view.cell.definition.settings.size ??
-			cell.extent ??
-			(reference ? preview.statuses.get(previewKey({ kind: 'Channel', reference }))?.extent : null)
+		return cellExtent(
+			cell,
+			reference ? preview.statuses.get(previewKey({ kind: 'Channel', reference }))?.extent : null
 		);
 	}
+	const objects = $derived(
+		cells.map((cell) => ({
+			id: cell.view.cell.id,
+			label: cell.label,
+			position: cell.view.cell.definition.settings.position,
+			size: extent(cell),
+			enabled: cell.view.cell.definition.settings.enabled
+		}))
+	);
 	const selectedExtent = $derived(selected ? extent(selected) : null);
 	const bounds = $derived(
-		selected && selectedExtent && layer
-			? {
-					x: selected.view.cell.definition.settings.position[0] / layer.size.width,
-					y: selected.view.cell.definition.settings.position[1] / layer.size.height,
-					width: selectedExtent.width / layer.size.width,
-					height: selectedExtent.height / layer.size.height
-				}
+		selected && layer
+			? selectedExtent
+				? {
+						x: selected.view.cell.definition.settings.position[0] / layer.size.width,
+						y: selected.view.cell.definition.settings.position[1] / layer.size.height,
+						width: selectedExtent.width / layer.size.width,
+						height: selectedExtent.height / layer.size.height
+					}
+				: {
+						x: selected.view.cell.definition.settings.position[0] / layer.size.width - 0.05,
+						y: selected.view.cell.definition.settings.position[1] / layer.size.height - 0.05,
+						width: 0.1,
+						height: 0.1
+					}
 			: null
 	);
 	$effect(() => {
@@ -85,17 +110,34 @@
 		untrack(() => props.onlabel(label));
 	});
 	$effect(() => {
-		if (page && page.selected_id !== props.cell) untrack(() => props.oncell(page.selected_id));
+		const selectedId = page?.selected_id;
+		if (page)
+			untrack(() => {
+				if (selectedId !== props.cell) props.oncell(selectedId ?? null);
+			});
 	});
 	onDestroy(() => {
 		reader.dispose();
 		props.onlabel(null);
 	});
-	function select(cell: MatrixLayoutCell) {
-		if (!reader.busy) {
-			props.oncell(cell.view.cell.id);
-			selection.select(cell.view.cell.id);
-		}
+	function select(id: string) {
+		props.oncell(id);
+		selection.select(id);
+	}
+	function start(id: string, mode: RectGeometryMode, point: Point) {
+		const object = objects.find((object) => object.id === id);
+		if (!object) return false;
+		if (mode === 'Translate')
+			return geometry.start(id, { kind: 'Translate', origin: [...object.position], start: point });
+		return (
+			!!object.size &&
+			geometry.start(id, {
+				kind: 'Resize',
+				origin: { position: [...object.position], size: { ...object.size } },
+				handle: mode.Resize.handle,
+				start: point
+			})
+		);
 	}
 </script>
 
@@ -111,7 +153,9 @@
 	data-composition-locked={props.locked}
 	aria-busy={reader.busy || !props.present}>
 	<div class="editor-canvas">
-		{#if state.error}<p class="editor-error" role="alert">{state.error}</p>{/if}
+		{#if state.error || geometry.state.error}<p class="editor-error" role="alert">
+				{state.error || geometry.state.error}
+			</p>{/if}
 		{#snippet actions()}
 			<IconButton
 				class="previous"
@@ -144,48 +188,18 @@
 				preview={selected?.preview ?? null}
 				previewLabel={selected?.label}
 				{actions}>
-				<svg
-					viewBox={`0 0 ${layer.size.width} ${layer.size.height}`}
-					preserveAspectRatio="none"
-					role="group"
-					aria-label="Matrix Cell layout controls">
-					{#each cells as cell (cell.view.cell.id)}
-						{@const size = extent(cell)}
-						{#if size}
-							<rect
-								data-layout-cell={cell.view.cell.id}
-								x={cell.view.cell.definition.settings.position[0]}
-								y={cell.view.cell.definition.settings.position[1]}
-								width={size.width}
-								height={size.height}
-								class:selected={selected?.view.cell.id === cell.view.cell.id}
-								class:inactive={!cell.view.cell.definition.settings.enabled}
-								role="button"
-								tabindex={reader.busy ? -1 : 0}
-								aria-label={`Select ${cell.label}`}
-								aria-disabled={reader.busy}
-								onclick={(event) => {
-									event.stopPropagation();
-									select(cell);
-								}}
-								onkeydown={(event) => {
-									if (event.key === 'Enter' || event.key === ' ') {
-										event.preventDefault();
-										select(cell);
-									}
-								}} />
-						{/if}
-					{/each}
-				</svg>
-				{#each cells as cell (cell.view.cell.id)}
-					{#if !extent(cell)}<ViewportHandle
-							x={cell.view.cell.definition.settings.position[0] / layer.size.width}
-							y={cell.view.cell.definition.settings.position[1] / layer.size.height}
-							data-layout-cell={cell.view.cell.id}
-							label={`Select ${cell.label}`}
-							disabled={reader.busy}
-							onclick={() => select(cell)} />{/if}
-				{/each}
+				<RectLayoutControls
+					{objects}
+					kind="Cell"
+					canvas={layer.size}
+					selected={selected?.view.cell.id ?? null}
+					disabled={reader.busy}
+					active={geometry.state.active}
+					{select}
+					{start}
+					move={(point) => geometry.gesture.move(point)}
+					finish={() => geometry.gesture.finish()}
+					stop={() => geometry.gesture.stop()} />
 				{#if page.selected_id && !selected}<p class="cell-empty">Cell unavailable in this Layer.</p>
 				{:else if !cells.length}<p class="cell-empty">No Cells in this Layer.</p>{/if}
 			</SpatialViewport>
@@ -198,30 +212,6 @@
 <style>
 	:global(.previous img) {
 		transform: rotate(180deg);
-	}
-	svg {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		overflow: visible;
-		pointer-events: none;
-	}
-	rect {
-		pointer-events: all;
-		fill: transparent;
-		stroke: var(--gc-color-border);
-		stroke-width: 0.06rem;
-		vector-effect: non-scaling-stroke;
-		cursor: pointer;
-	}
-	rect.selected,
-	rect:focus {
-		stroke: var(--gc-color-focus);
-		stroke-width: 0.12rem;
-	}
-	rect.inactive {
-		stroke-dasharray: 0.3rem 0.2rem;
 	}
 	.cell-empty {
 		position: absolute;

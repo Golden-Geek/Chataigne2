@@ -6,7 +6,7 @@
 	import { useDocumentSelection } from '../selection.svelte';
 	import { SPATIAL_PAGE_SIZE } from './targets';
 	import SpatialViewport from './SpatialViewport.svelte';
-	import MatrixLayerControls from './MatrixLayerControls.svelte';
+	import RectLayoutControls from './RectLayoutControls.svelte';
 	import { createLayerEditor } from './layer-editor.svelte';
 	let props: {
 		panelId: string;
@@ -87,6 +87,21 @@
 				}
 			: null
 	);
+	const objects = $derived(
+		rows.flatMap((row) =>
+			row.item.layer
+				? [
+						{
+							id: row.item.id.id,
+							label: row.item.label,
+							position: row.item.layer.position,
+							size: row.item.layer.size,
+							enabled: row.item.settings.enabled
+						}
+					]
+				: []
+		)
+	);
 	const pages = $derived(Math.max(1, Math.ceil((snapshot?.row_total ?? 0) / SPATIAL_PAGE_SIZE)));
 	const selection = useDocumentSelection();
 </script>
@@ -138,14 +153,25 @@
 				identity={snapshot.final_output.reference.channel}
 				label="Matrix Layer layout view"
 				{actions}>
-				<MatrixLayerControls
-					{rows}
+				<RectLayoutControls
+					{objects}
+					kind="Layer"
 					{canvas}
 					selected={selected?.item.id.id ?? null}
 					disabled={owner.busy}
 					select={(uuid) => selection.select(uuid)}
 					active={geometry.state.active}
-					start={geometry.start}
+					start={(id, mode, start) => {
+						const object = objects.find((object) => object.id === id);
+						return (
+							!!object &&
+							geometry.start(id, {
+								origin: { position: [...object.position], size: { ...object.size } },
+								mode,
+								start
+							})
+						);
+					}}
 					move={(point) => geometry.gesture.move(point)}
 					finish={() => geometry.gesture.finish()}
 					stop={() => geometry.gesture.stop()}

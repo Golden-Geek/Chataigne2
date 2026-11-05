@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { CellLayoutReader, cellLayoutState } from '../cell-layout.ts';
 import type { MatrixCellLayoutPage } from '../../media/generated/MatrixCellLayoutPage';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
+import type { MatrixLayoutCell } from '../../media/generated/MatrixLayoutCell';
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const query = { media: 'matrix', layer: 'layer', selected: 'cell', node: null, start: 0, count: 4 };
 const page: MatrixCellLayoutPage = {
@@ -23,6 +24,79 @@ const host = () => ({
 	currentHistoryStateId: 1,
 	hasActiveEditSession: false,
 	loading: { visible: false }
+});
+
+test('held Cell geometry patches bounded and independent selection while queries resume only after the gesture', async () => {
+	const session = host(),
+		state = cellLayoutState(),
+		requests: unknown[] = [];
+	const cell = (id: string): MatrixLayoutCell => ({
+		label: id,
+		extent: null,
+		preview: { kind: 'MatrixCell', media: 'matrix', cell: id },
+		view: {
+			source_label: null,
+			source_preview: null,
+			source_missing: false,
+			cell: {
+				id,
+				media: null,
+				layer: 'layer',
+				definition: {
+					column: id,
+					source: null,
+					application: id,
+					transition: null,
+					settings: { position: [0, 0], size: null, fit_mode: 'Fit', opacity: 1, enabled: false }
+				}
+			}
+		}
+	});
+	const projected = {
+		...page,
+		cells: [cell('visible')],
+		selected: cell('offpage'),
+		selected_id: 'offpage'
+	};
+	const reader = new CellLayoutReader(
+		() => session,
+		state,
+		async (_, edit) => {
+			requests.push(edit);
+			return { kind: 'MatrixCellLayout', page: projected };
+		}
+	);
+	reader.refresh(query);
+	await flush();
+	reader.setInteracting(true);
+	reader.refresh({ ...query, start: 128 });
+	assert.equal(requests.length, 1);
+	assert.equal(reader.busy, true);
+	const settings = {
+		position: [4, 3] as [number, number],
+		size: null,
+		fit_mode: 'Fill' as const,
+		opacity: 0.5,
+		enabled: false
+	};
+	for (const id of ['visible', 'offpage'])
+		reader.acceptCell({ kind: 'MatrixCellGeometryChanged', media: 'matrix', cell: id, settings });
+	assert.deepEqual(reader.page?.cells[0].view.cell.definition.settings, settings);
+	assert.deepEqual(reader.page?.selected?.view.cell.definition.settings, settings);
+	assert.equal(reader.page?.selected_id, 'offpage');
+	reader.acceptCell({
+		kind: 'MatrixCellGeometryChanged',
+		media: 'foreign',
+		cell: 'offpage',
+		settings: { ...settings, position: [99, 99] }
+	});
+	assert.deepEqual(reader.page?.selected?.view.cell.definition.settings.position, [4, 3]);
+	reader.setInteracting(false);
+	reader.refresh();
+	await flush();
+	assert.equal(requests.length, 2);
+	assert.deepEqual(requests[1], { kind: 'InspectMatrixCells', query: { ...query, start: 128 } });
+	reader.dispose();
 });
 
 test('Cell layout serializes one active/latest read and preserves missing identity without crossing project/history fences', async () => {

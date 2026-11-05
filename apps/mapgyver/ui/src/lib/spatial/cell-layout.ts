@@ -12,13 +12,15 @@ export const cellLayoutState = () => ({
 	error: '',
 	refreshing: false,
 	history: undefined as unknown,
-	generation: 0
+	generation: 0,
+	interacting: false
 });
 export class CellLayoutReader<S extends Host> {
 	private reads = new ReadQueue();
 	private disposed = false;
 	private context: { session: S; project: number } | null = null;
 	private key = '';
+	private query: MatrixCellLayoutQuery | null = null;
 	private session: () => S | null;
 	readonly state: ReturnType<typeof cellLayoutState>;
 	private invoke: (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
@@ -44,6 +46,7 @@ export class CellLayoutReader<S extends Host> {
 	get busy() {
 		const session = this.session();
 		return (
+			this.state.interacting ||
 			!this.page ||
 			session?.status !== 'connected' ||
 			session.loading.visible ||
@@ -52,10 +55,12 @@ export class CellLayoutReader<S extends Host> {
 			this.state.generation !== session.snapshotGeneration
 		);
 	}
-	refresh(query: MatrixCellLayoutQuery) {
+	refresh(query?: MatrixCellLayoutQuery) {
 		if (this.disposed) return;
+		if (query) this.query = query;
+		if (!this.query) return;
+		const request = this.query;
 		const session = this.session();
-		this.reads.invalidate();
 		if (
 			this.context &&
 			(this.context.session !== session || this.context.project !== session?.projectGeneration)
@@ -64,6 +69,8 @@ export class CellLayoutReader<S extends Host> {
 			this.state.page = null;
 			this.state.error = '';
 		}
+		if (this.state.interacting || session?.hasActiveEditSession) return;
+		this.reads.invalidate();
 		if (
 			!session ||
 			session.status !== 'connected' ||
@@ -77,7 +84,7 @@ export class CellLayoutReader<S extends Host> {
 		const generation = session.snapshotGeneration,
 			project = session.projectGeneration,
 			history = session.currentHistoryStateId,
-			key = JSON.stringify(query);
+			key = JSON.stringify(request);
 		this.key = key;
 		this.state.refreshing = true;
 		const current = () =>
@@ -91,7 +98,7 @@ export class CellLayoutReader<S extends Host> {
 			this.key === key;
 		this.reads.request(
 			current,
-			() => this.invoke(session, { kind: 'InspectMatrixCells', query }),
+			() => this.invoke(session, { kind: 'InspectMatrixCells', query: request }),
 			(result) => {
 				if (!current()) return;
 				if (result.kind !== 'MatrixCellLayout') {
@@ -111,6 +118,18 @@ export class CellLayoutReader<S extends Host> {
 				if (current()) this.state.refreshing = false;
 			}
 		);
+	}
+	setInteracting(active: boolean) {
+		this.state.interacting = active;
+		if (active) this.reads.invalidate();
+	}
+	acceptCell(result: Extract<MediaEditResult, { kind: 'MatrixCellGeometryChanged' }>) {
+		const page = this.page;
+		if (!page || page.media !== result.media) return;
+		for (const cell of page.cells)
+			if (cell.view.cell.id === result.cell) cell.view.cell.definition.settings = result.settings;
+		if (page.selected?.view.cell.id === result.cell)
+			page.selected.view.cell.definition.settings = result.settings;
 	}
 	dispose() {
 		this.disposed = true;

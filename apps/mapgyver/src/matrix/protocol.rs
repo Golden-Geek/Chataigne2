@@ -443,6 +443,10 @@ pub enum MatrixAxisItemKind {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    EditCellGeometry {
+        cell: CellId,
+        edit: CellGeometryEdit,
+    },
     EditLayerGeometry {
         layer: LayerId,
         edit: crate::media::spatial::protocol::RectGeometryEdit,
@@ -601,6 +605,22 @@ pub enum MatrixEdit {
     EnsureCell {
         layer: LayerId,
         column: ColumnId,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum CellGeometryEdit {
+    Translate {
+        origin: [f32; 2],
+        start: golden_video::plan::Point,
+        point: golden_video::plan::Point,
+    },
+    Resize {
+        origin: crate::media::spatial::protocol::SpatialRect,
+        handle: crate::media::spatial::protocol::SpatialResizeHandle,
+        start: golden_video::plan::Point,
+        point: golden_video::plan::Point,
     },
 }
 

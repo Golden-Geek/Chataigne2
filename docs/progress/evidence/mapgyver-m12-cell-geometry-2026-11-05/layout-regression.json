@@ -1,0 +1,15 @@
+{
+  "result": "pass",
+  "nativePid": 36412,
+  "lease": "1776e089-fb46-4414-ba16-83ed6c688f17",
+  "restoredLease": "da9bf5a4-33b3-4520-b7dc-f479528fc61c",
+  "errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 208,
+      "receipts": 208
+    }
+  },
+  "scope": "inactive Cell content preview without playback; 128 visible definitions plus independent selected Cell; Frame/Home, pagination, tab lock/layout restore, stable reconnect, missing/Undo, New/Load fencing"
+}

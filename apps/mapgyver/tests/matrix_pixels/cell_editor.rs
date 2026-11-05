@@ -143,6 +143,63 @@ fn native_cell_editor_previews_inactive_placement_without_playback_on_each_adapt
             fixture.publish_editor(&engine, source);
             fixture.pixels(adapter.id, &expected, label);
         }
+        use golden_video::plan::Point;
+        use mapgyver::matrix::protocol::CellGeometryEdit;
+        use mapgyver::media::spatial::protocol::{SpatialRect, SpatialResizeHandle};
+        matrix(
+            &mut engine,
+            root.media,
+            MatrixEdit::EditCellGeometry {
+                cell,
+                edit: CellGeometryEdit::Translate {
+                    origin: [3.0, 2.0],
+                    start: Point { x: 0.0, y: 0.0 },
+                    point: Point { x: 5.0, y: 3.0 },
+                },
+            },
+        );
+        for (position, scale, label) in [
+            ([8.0, 5.0], [1.0, 1.0], "inactive-editor-translated"),
+            ([4.0, 3.0], [1.5, 1.5], "inactive-editor-resized"),
+            ([8.0, 5.0], [1.0, 1.0], "inactive-editor-undo-resize"),
+        ] {
+            if label == "inactive-editor-resized" {
+                matrix(
+                    &mut engine,
+                    root.media,
+                    MatrixEdit::EditCellGeometry {
+                        cell,
+                        edit: CellGeometryEdit::Resize {
+                            origin: SpatialRect {
+                                position: [8.0, 5.0],
+                                size: Extent2D::new(8, 4).unwrap(),
+                            },
+                            handle: SpatialResizeHandle::TopLeft,
+                            start: Point { x: 0.0, y: 0.0 },
+                            point: Point { x: -4.0, y: -2.0 },
+                        },
+                    },
+                );
+            } else if label == "inactive-editor-undo-resize" {
+                assert!(engine.undo().unwrap());
+            }
+            let mut expected = image([0.0; 4]);
+            expected.draw(
+                &Image::solid(8, 4, [1.0; 4]),
+                &InstanceDefinition {
+                    transform: Transform2D {
+                        position,
+                        scale,
+                        pivot: [0.0; 2],
+                        ..Default::default()
+                    },
+                    opacity: 0.5,
+                    ..Default::default()
+                },
+            );
+            fixture.publish_editor(&engine, source);
+            fixture.pixels(adapter.id, &expected, label);
+        }
         let MediaEditResult::MatrixPlayback { snapshot } = matrix(&mut engine, root.media, MatrixEdit::InspectPlayback)
         else {
             panic!()
