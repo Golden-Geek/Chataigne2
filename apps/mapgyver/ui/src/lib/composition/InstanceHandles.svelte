@@ -12,6 +12,7 @@
 	import { previewKey } from '../preview/identity';
 	import { outline, gizmo } from './presentation';
 	import rotateCursor from './rotate-cursor.svg';
+	import { createSpatialPointer } from '../spatial/pointer';
 	let {
 		composition,
 		selected,
@@ -46,71 +47,46 @@
 	);
 	const handles = $derived(instance ? gizmo(instance.definition.transform, selectedExtent) : null);
 	let canvas: SVGSVGElement;
-	let pointer: number | null = null;
 	let ghost = $state<Point | null>(null);
-	function point(event: PointerEvent): Point | null {
-		const rect = canvas.getBoundingClientRect();
-		if (rect.width <= 0 || rect.height <= 0) return null;
-		return {
-			x: ((event.clientX - rect.left) / rect.width) * composition.canvas.width,
-			y: ((event.clientY - rect.top) / rect.height) * composition.canvas.height
-		};
-	}
+	const pointer = createSpatialPointer({
+		canvas: () => canvas,
+		extent: () => composition.canvas,
+		ghost: (at) => {
+			ghost = at;
+		},
+		move: (at) => move(at),
+		finish: () => finish(),
+		stop: () => stop()
+	});
 	function down(event: PointerEvent, item: InstanceSnapshot, mode: InstanceGeometryMode) {
-		const at = point(event);
-		if (disabled || event.button !== 0 || pointer !== null || !at) return;
-		const handle: InstanceHandle = {
-			mode,
-			origin: {
-				...item.definition.transform,
-				position: [...item.definition.transform.position],
-				scale: [...item.definition.transform.scale],
-				pivot: [...item.definition.transform.pivot]
-			},
-			start: at
-		};
-		if (!start(item.reference, handle)) return;
-		select(item.reference.instance);
-		event.preventDefault();
-		event.stopPropagation();
-		pointer = event.pointerId;
-		ghost = at;
-		canvas.setPointerCapture(pointer);
-	}
-	function cancel() {
-		if (pointer === null) return;
-		const previous = pointer;
-		pointer = null;
-		ghost = null;
-		if (canvas.hasPointerCapture(previous)) canvas.releasePointerCapture(previous);
-		stop();
-	}
-	function release(event: PointerEvent, cancelled = false) {
-		if (event.pointerId !== pointer) return;
-		if (cancelled) {
-			cancel();
-			return;
-		}
-		const next = point(event);
-		if (next) move(next);
-		finish();
-		const previous = pointer;
-		pointer = null;
-		ghost = null;
-		if (previous !== null && canvas.hasPointerCapture(previous))
-			canvas.releasePointerCapture(previous);
+		if (disabled) return;
+		pointer.start(event, (at) => {
+			const handle: InstanceHandle = {
+				mode,
+				origin: {
+					...item.definition.transform,
+					position: [...item.definition.transform.position],
+					scale: [...item.definition.transform.scale],
+					pivot: [...item.definition.transform.pivot]
+				},
+				start: at
+			};
+			if (!start(item.reference, handle)) return false;
+			select(item.reference.instance);
+			return true;
+		});
 	}
 	$effect(() => {
-		if (!active) cancel();
+		if (!active) pointer.cancel();
 	});
-	onDestroy(cancel);
+	onDestroy(pointer.cancel);
 </script>
 
 <svelte:window
 	onkeydown={(event) => {
-		if (event.key === 'Escape' && pointer !== null) {
+		if (event.key === 'Escape' && pointer.active) {
 			event.preventDefault();
-			cancel();
+			pointer.cancel();
 		}
 	}} />
 <svg
@@ -119,16 +95,10 @@
 	preserveAspectRatio="none"
 	aria-label="Composition transform controls"
 	role="group"
-	onpointermove={(event) => {
-		if (event.pointerId === pointer) {
-			ghost = point(event);
-			if (ghost) move(ghost);
-			else cancel();
-		}
-	}}
-	onpointerup={(event) => release(event)}
-	onpointercancel={(event) => release(event, true)}
-	onlostpointercapture={cancel}>
+	onpointermove={pointer.move}
+	onpointerup={(event) => pointer.release(event)}
+	onpointercancel={(event) => pointer.release(event, true)}
+	onlostpointercapture={pointer.cancel}>
 	{#each visible as item (item.reference.instance)}
 		{@const extent = item.definition.source
 			? owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))

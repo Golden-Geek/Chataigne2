@@ -85,4 +85,6 @@ edits. Authored operations retain user activity and their real rejection feedbac
 
 [Matrix Cell placement](mapgyver-cell-placement.md) uses typed optional Size and Fit Mode in
 the standard Inspector. Its backend projection is independent of media Resolution and adds no
-render pass. Shared Cell canvas manipulation remains part of the active M12/7 gate.
+render pass. [Shared spatial geometry](mapgyver-spatial-geometry.md) now supplies Layer body
+dragging and eight resize handles through the same pointer/edit-group lifetime as Composition.
+Cell-content navigation/manipulation and keyboard grouping remain part of the active M12/7 gate.

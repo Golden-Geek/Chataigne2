@@ -74,6 +74,9 @@ fn admit_count(document: &Document, count: u16) -> Result<usize, String> {
 }
 
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> Result<MediaEditResult, String> {
+    if let MatrixEdit::EditLayerGeometry { layer, edit } = edit {
+        return super::geometry::layer(engine, media, layer, edit);
+    }
     if let MatrixEdit::InspectTargets { query } = edit {
         return super::view::targets(engine, media, query);
     }
@@ -98,6 +101,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return Ok(MediaEditResult::Changed);
     };
     match edit {
+        MatrixEdit::EditLayerGeometry { .. } => unreachable!("direct geometry is resolved before document loading"),
         MatrixEdit::CreateAxisItem { .. } => unreachable!("contextual creation was resolved"),
         MatrixEdit::CreateCellMedia {
             layer,

@@ -1,7 +1,8 @@
 import type { Transform2D } from '../media/generated/Transform2D';
 import type { Extent2D } from '../media/generated/Extent2D';
 import type { Point } from '../media/generated/Point';
-import type { InstanceResizeHandle } from '../media/generated/InstanceResizeHandle';
+import type { SpatialResizeHandle } from '../media/generated/SpatialResizeHandle';
+import { SPATIAL_RESIZE_HANDLES } from '../spatial/handles.ts';
 
 /** Presentation only: source extent comes from the renderer, never from a UI domain default. */
 export function outline(transform: Transform2D, extent: Extent2D): Point[] {
@@ -26,21 +27,12 @@ export function outline(transform: Transform2D, extent: Extent2D): Point[] {
 /** Project real source bounds; hit-target reach is applied in rem by the view. */
 export function gizmo(transform: Transform2D, extent?: Extent2D | null) {
 	const pivot = { x: transform.position[0], y: transform.position[1] };
-	const resize: { name: InstanceResizeHandle; point: Point; cursor: string }[] = [];
-	const rotate: { name: InstanceResizeHandle; point: Point; offset: Point }[] = [];
+	const resize: { name: SpatialResizeHandle; point: Point; cursor: string }[] = [];
+	const rotate: { name: SpatialResizeHandle; point: Point; offset: Point }[] = [];
 	if (!extent) return { pivot, resize, rotate };
 	const corners = outline(transform, extent);
 	const center = { x: (corners[0].x + corners[2].x) / 2, y: (corners[0].y + corners[2].y) / 2 };
-	const names: InstanceResizeHandle[] = [
-		'TopLeft',
-		'Top',
-		'TopRight',
-		'Right',
-		'BottomRight',
-		'Bottom',
-		'BottomLeft',
-		'Left'
-	];
+	const names = SPATIAL_RESIZE_HANDLES.map((handle) => handle.name);
 	for (let index = 0; index < 8; index++) {
 		const first = corners[Math.floor(index / 2)];
 		const next = corners[(Math.floor(index / 2) + 1) % 4];

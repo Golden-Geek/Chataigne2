@@ -1,19 +1,4 @@
-use super::protocol::{InstanceDefinition, InstanceGeometryEdit, InstanceGeometryMode, InstanceResizeHandle};
-
-impl InstanceResizeHandle {
-    fn position(self) -> [f64; 2] {
-        match self {
-            Self::TopLeft => [0., 0.],
-            Self::Top => [0.5, 0.],
-            Self::TopRight => [1., 0.],
-            Self::Right => [1., 0.5],
-            Self::BottomRight => [1., 1.],
-            Self::Bottom => [0.5, 1.],
-            Self::BottomLeft => [0., 1.],
-            Self::Left => [0., 0.5],
-        }
-    }
-}
+use super::protocol::{InstanceDefinition, InstanceGeometryEdit, InstanceGeometryMode};
 
 impl InstanceGeometryEdit {
     /// Change only the requested transform field on a validated clone of the current definition.

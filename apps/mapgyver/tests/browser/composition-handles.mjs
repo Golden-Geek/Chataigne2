@@ -91,7 +91,7 @@ export async function verifyCompositionHandles({ page, edit }) {
 	const baseline = await inspect();
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
 	await tab('Medias').click();
-	await tab('Composition').click();
+	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	const manager = page.locator('section[aria-label="Medias"]');
 	const parent = manager.getByRole('treeitem', { name: 'Handle canvas', exact: true });
 	await parent.getByRole('button', { name: 'Handle canvas', exact: true }).click();
@@ -301,7 +301,7 @@ export async function verifyCompositionHandles({ page, edit }) {
 	await history(baseline, stopped);
 	await tab('Screens').click();
 	await tab('Screen Warping').click();
-	await tab('Composition').click();
+	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	await ready();
 	assert.deepEqual(await inspect(), baseline);
 	await page.screenshot({ path: 'target/m06-composition-handles.png' });

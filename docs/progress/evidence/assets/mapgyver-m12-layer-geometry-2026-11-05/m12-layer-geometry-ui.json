@@ -1,0 +1,23 @@
+{
+  "result": "pass",
+  "nativePid": 8656,
+  "reports": [
+    "TopLeft",
+    "Top",
+    "TopRight",
+    "Right",
+    "BottomRight",
+    "Bottom",
+    "BottomLeft",
+    "Left"
+  ],
+  "errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 760,
+      "receipts": 760
+    }
+  },
+  "scope": "actual bundled inactive nested Layer body translation and all eight opposite-anchor integer-pixel resize handles; duration/composite preservation, exact grouped Undo/Redo, Escape capture retirement and no implicit launch"
+}

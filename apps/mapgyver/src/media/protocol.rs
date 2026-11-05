@@ -472,6 +472,11 @@ pub enum MediaEditResult {
     SpatialEditor {
         binding: super::spatial::protocol::SpatialEditorBinding,
     },
+    MatrixLayerGeometryChanged {
+        media: MediaId,
+        layer: crate::matrix::protocol::LayerId,
+        settings: crate::matrix::protocol::LayerSettings,
+    },
     MediaPreview {
         page: MediaPreviewPage,
     },

@@ -7,6 +7,70 @@ import type { MediaEdit } from '../../media/generated/MediaEdit';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
 import type { MatrixEditorQuery } from '../../media/generated/MatrixEditorQuery';
 import type { MatrixSelection } from '../../media/generated/MatrixSelection';
+import type { MatrixViewRow } from '../../media/generated/MatrixViewRow';
+
+test('spatial Layer receipts update only matching bounded and independent selections while held reads stay fenced', async () => {
+	const host = connection(),
+		state = matrixState();
+	const reply = snapshot();
+	if (reply.kind !== 'MatrixEditor' || !reply.page.snapshot) throw Error();
+	const row: MatrixViewRow = {
+		depth: 0,
+		item: {
+			id: { kind: 'Layer', id: 'layer' },
+			parent: null,
+			label: 'Layer',
+			settings: { expose_channel: false, opacity: 1, blend: 'Normal', enabled: true },
+			layer: { position: [0, 0], size: { width: 80, height: 40 }, duration_ms: 777 },
+			channel: { media: 'matrix', channel: 'layer-output' }
+		}
+	};
+	reply.page.snapshot.rows = [structuredClone(row)];
+	reply.page.snapshot.selected = {
+		selection: { item: row.item.id, column: null },
+		row_index: 9999,
+		column_index: null,
+		row: structuredClone(row),
+		column: null,
+		cell: null
+	};
+	let reads = 0;
+	const controller = new MatrixController(
+		() => host,
+		state,
+		async () => {
+			reads++;
+			return structuredClone(reply);
+		}
+	);
+	controller.observe(query());
+	await flush();
+	controller.setInteracting(true);
+	controller.observe(query());
+	assert.equal(reads, 1);
+	const result = {
+		kind: 'MatrixLayerGeometryChanged',
+		media: 'matrix',
+		layer: 'layer',
+		settings: { position: [4, 5], size: { width: 90, height: 50 }, duration_ms: 777 }
+	} satisfies MediaEditResult;
+	controller.acceptLayer({ ...result, media: 'foreign' });
+	assert.deepEqual(state.window?.rows[0].item.layer?.position, [0, 0]);
+	controller.acceptLayer(result);
+	assert.deepEqual(state.window?.rows[0].item.layer?.position, [4, 5]);
+	assert.deepEqual(state.window?.selected?.row?.item.layer?.position, [4, 5]);
+	assert.equal(state.window?.rows.length, 1);
+	host.projectGeneration = 2;
+	controller.observe(query());
+	assert.equal(controller.window, null);
+	controller.acceptLayer(result);
+	assert.equal(state.window, null);
+	controller.setInteracting(false);
+	controller.observe(query());
+	await flush();
+	assert.equal(reads, 2);
+	controller.dispose();
+});
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const connection = () => ({

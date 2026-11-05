@@ -412,6 +412,10 @@ pub enum MatrixAxisItemKind {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    EditLayerGeometry {
+        layer: LayerId,
+        edit: crate::media::spatial::protocol::RectGeometryEdit,
+    },
     /// Append to the selected object's hierarchy. Unrelated live selection uses the root;
     /// a removed context rejects rather than creating under a stale UI copy.
     CreateAxisItem {

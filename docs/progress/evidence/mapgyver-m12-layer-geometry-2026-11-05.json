@@ -1,0 +1,45 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7 Active; shared pointer and Matrix Layer canvas editing verified",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "The shared spatial panel supports Matrix Layer body dragging and eight opposite-anchor resize handles, including inactive Layers inside Layer Groups, with typed backend geometry and exact grouped Undo/Redo. Composition retains its own transforms on the same pointer/capture lifetime.",
+	"ownership": {
+		"backend": "MapGyver shared spatial DTOs own resize directions and immutable rectangle samples. EditLayerGeometry resolves one UUID and at most 64 ancestors before full Matrix loading, without enumerating Cells. Rust rounds dimensions in 1..16384, fixes the opposite edge, checks finite coordinates/bounds and owner, and writes ordinary typed Parameters while preserving current duration and composite settings.",
+		"ui": "The shared spatial pointer projects actual canvas coordinates and owns capture/final sample/cancel/Escape retirement. Golden LatestEditGesture retains one group, one in-flight request and one latest sample. Matrix accepts exact typed owner/Layer replies into its bounded rows and independent selection while fencing background reads. Project/session/snapshot replacement fences stale receipts.",
+		"contracts": "Rust generates SpatialResizeHandle, SpatialRect, RectGeometryEdit/Mode and updated Matrix/Composition consumers in one milestone. The obsolete instance-specific resize enum is removed without an alias. Domains retain separate authoring and projection contracts.",
+		"architecture": "../../architecture/mapgyver-spatial-geometry.md"
+	},
+	"software": {
+		"rust": "488 passed, 0 failed, 3 retained ignored; --lib with native-qualification,application-process-fixture. All eight rounded opposite-anchor handles, nested/foreign/wrong-kind targets, invalid bounds/coordinates, 100 absolute samples in one history step, current duration, project/history paths and all four public callers pass. Existing Composition geometry and generated contracts pass.",
+		"ui": "71 related Spatial/Composition/Matrix/media tests pass, including exact Layer intent/basis, one active/latest sample, late-receipt fencing, shared pointer capture/final sample/cancellation, and bounded/independent selection updates without held background reads. Svelte check 0 errors and 0 warnings.",
+		"lint_format": "Strict all-target Clippy with native-qualification,application-process-fixture and -D warnings passes. Root and golden_core Cargo formatting, scoped Prettier, Node syntax and owned diff checks pass.",
+		"native_prerequisite": "Software and isolated bundled app build terminal success inspected before native execution. Binary SHA256 51ac8de6fd311aa56d6ceffa6fd5de76fce8d1678360d01aa9ed95d486bbd3d5."
+	},
+	"native": {
+		"matrix_layer_geometry": {
+			"flag": "--matrix-layer-geometry",
+			"pid": 8656,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Actual bundled inactive nested Layer: all eight resize handles preserve opposite anchors and integer dimensions; body translation preserves size, duration, opacity, blend and exposure. Every gesture has exact single-step Undo/Redo. Escape retires capture and discards later movement. No implicit playback, page errors or rejected receipts. 760 requests/760 clean receipts. Screenshot visually inspected."
+		},
+		"composition_regression": {
+			"flag": "--composition",
+			"pid": 42580,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Actual pointer selection, all eight opposite-anchor resize handles, four outside rotation handles and cursors, 43 smooth zoom samples, body translation, Escape, exact grouped history and tab lifetime pass; zero page errors/rejected receipts.",
+			"fixture_repairs": "Baselines PID 30852 and 29592 reached the final return-tab assertion but retained the historical exact Composition title. The first edit corrected its setup occurrence instead of the return occurrence. Both now use the stable panel identity; the unchanged geometry assertions and final tab-return check pass. All owned hosts retired normally; no product behavior or acceptance was weakened."
+		},
+		"mixed_binding_regression": {
+			"flag": "--spatial-bindings",
+			"pid": 7316,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Independent Composition/Matrix locks, unrelated and Cell/Layer selection, 128-definition page plus off-page selected Layer, Frame/Home, pagination, rename/layout, missing/Undo, reconnect with two stable native leases, New/Load/cross-project fences and no implicit launch pass. 270 requests/270 clean receipts; zero page errors/rejections."
+		},
+		"artifacts": "assets/mapgyver-m12-layer-geometry-2026-11-05/",
+		"pixel_scope": "These are bundled native input/geometry/lifetime checks; screenshots do not establish physical alignment or new GPU pixel qualification. The earlier both-GPU Cell placement pixels remain valid for unchanged rendering; the full M12/7 spatial/pixel matrix remains required."
+	},
+	"remaining": "M12/7 alone remains Active: per-Layer Cell-content navigation and bounded independently selected Cells; inactive Cell canvas move/resize using the verified Size/Fit contract; grouped keyboard edits and full original nested groups/aspect/alpha/blend/source resize/history/copy/reload/large-sparse native pixel matrix. No whole gate closes in this milestone; M12/8-11 and every retained qualification return action remain required."
+}

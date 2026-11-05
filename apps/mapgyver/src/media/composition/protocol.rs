@@ -1,4 +1,5 @@
 use super::super::protocol::ChannelReference;
+use crate::media::spatial::protocol::SpatialResizeHandle;
 use golden_core::model::NodeUuid;
 use golden_video::Extent2D;
 pub use golden_video::plan::BlendMode;
@@ -136,22 +137,10 @@ pub enum InstanceGeometryMode {
     Translate,
     Rotate,
     Resize {
-        handle: InstanceResizeHandle,
+        handle: SpatialResizeHandle,
         /// Source extent observed when the gesture starts; backend validates current dimensions.
         extent: Extent2D,
     },
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
-pub enum InstanceResizeHandle {
-    TopLeft,
-    Top,
-    TopRight,
-    Right,
-    BottomRight,
-    Bottom,
-    BottomLeft,
-    Left,
 }
 
 /// Canvas-texel pointer samples and the authored transform at gesture start, never accumulated deltas.

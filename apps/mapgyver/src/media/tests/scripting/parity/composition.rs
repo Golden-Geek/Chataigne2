@@ -244,7 +244,7 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
         InstanceGeometryMode::Translate,
         InstanceGeometryMode::Rotate,
         InstanceGeometryMode::Resize {
-            handle: InstanceResizeHandle::BottomRight,
+            handle: crate::media::spatial::protocol::SpatialResizeHandle::BottomRight,
             extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
         },
     ] {

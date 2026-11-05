@@ -7,6 +7,7 @@
 	import { SPATIAL_PAGE_SIZE } from './targets';
 	import SpatialViewport from './SpatialViewport.svelte';
 	import MatrixLayerControls from './MatrixLayerControls.svelte';
+	import { createLayerEditor } from './layer-editor.svelte';
 	let props: {
 		panelId: string;
 		media: string;
@@ -60,7 +61,14 @@
 			? source.output.definition.canvas
 			: null
 	);
-	const selected = $derived(snapshot?.selected?.row ?? null);
+	const geometry = createLayerEditor(owner, () => props.present);
+	const selected = $derived(
+		(geometry.activeLayer
+			? snapshot?.rows.find((row) => row.item.id.id === geometry.activeLayer)
+			: null) ??
+			snapshot?.selected?.row ??
+			null
+	);
 	const rows = $derived(
 		snapshot
 			? selected && !snapshot.rows.some((row) => row.item.id.id === selected.item.id.id)
@@ -93,8 +101,10 @@
 	data-composition-locked={props.locked}
 	aria-busy={owner.busy || !props.present}>
 	<div class="editor-canvas">
-		{#if owner.view.error || owner.view.readError}<p class="editor-error" role="alert">
-				{owner.view.error || owner.view.readError}
+		{#if geometry.state.error || owner.view.error || owner.view.readError}<p
+				class="editor-error"
+				role="alert">
+				{geometry.state.error || owner.view.error || owner.view.readError}
 			</p>{/if}
 		{#snippet actions()}
 			{#if pages > 1}
@@ -125,7 +135,12 @@
 					{canvas}
 					selected={selected?.item.id.id ?? null}
 					disabled={owner.busy}
-					select={(uuid) => selection.select(uuid)} />
+					select={(uuid) => selection.select(uuid)}
+					active={geometry.state.active}
+					start={geometry.start}
+					move={(point) => geometry.gesture.move(point)}
+					finish={() => geometry.gesture.finish()}
+					stop={() => geometry.gesture.stop()} />
 			</SpatialViewport>
 		{:else if !props.present}<p class="editor-empty">
 				{props.locked

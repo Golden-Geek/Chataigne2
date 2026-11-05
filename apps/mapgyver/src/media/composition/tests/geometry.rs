@@ -1,4 +1,5 @@
 use super::*;
+use crate::media::spatial::protocol::SpatialResizeHandle;
 use golden_core::{application::apply_project_intent, ui_sync::UiEditIntent};
 
 fn instance_fixture() -> (AppEngine, ChannelReference, InstanceSnapshot) {
@@ -107,7 +108,7 @@ fn rotation_uses_canvas_pivot_and_preserves_other_fields() {
     assert_eq!(rotated.definition, expected);
 }
 
-fn resize(handle: InstanceResizeHandle) -> InstanceGeometryMode {
+fn resize(handle: SpatialResizeHandle) -> InstanceGeometryMode {
     InstanceGeometryMode::Resize {
         handle,
         extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
@@ -129,14 +130,14 @@ fn projected(transform: Transform2D, fraction: [f64; 2]) -> [f64; 2] {
 #[test]
 fn all_resize_handles_fix_opposite_anchor_with_rotated_mirrored_nonuniform_geometry() {
     for (handle, opposite, axes) in [
-        (InstanceResizeHandle::TopLeft, [1., 1.], [true, true]),
-        (InstanceResizeHandle::Top, [0.5, 1.], [false, true]),
-        (InstanceResizeHandle::TopRight, [0., 1.], [true, true]),
-        (InstanceResizeHandle::Right, [0., 0.5], [true, false]),
-        (InstanceResizeHandle::BottomRight, [0., 0.], [true, true]),
-        (InstanceResizeHandle::Bottom, [0.5, 0.], [false, true]),
-        (InstanceResizeHandle::BottomLeft, [1., 0.], [true, true]),
-        (InstanceResizeHandle::Left, [1., 0.5], [true, false]),
+        (SpatialResizeHandle::TopLeft, [1., 1.], [true, true]),
+        (SpatialResizeHandle::Top, [0.5, 1.], [false, true]),
+        (SpatialResizeHandle::TopRight, [0., 1.], [true, true]),
+        (SpatialResizeHandle::Right, [0., 0.5], [true, false]),
+        (SpatialResizeHandle::BottomRight, [0., 0.], [true, true]),
+        (SpatialResizeHandle::Bottom, [0.5, 0.], [false, true]),
+        (SpatialResizeHandle::BottomLeft, [1., 0.], [true, true]),
+        (SpatialResizeHandle::Left, [1., 0.5], [true, false]),
     ] {
         for angle in [0., 37., 90.] {
             let (mut engine, composition, mut instance) = instance_fixture();
@@ -209,7 +210,7 @@ fn rejected_degenerate_nonfinite_and_wrong_owner_geometry_is_atomic() {
             request(
                 &instance,
                 InstanceGeometryMode::Resize {
-                    handle: InstanceResizeHandle::Right,
+                    handle: SpatialResizeHandle::Right,
                     extent: golden_video::Extent2D::new(20, 16).unwrap(),
                 },
                 [0.; 2],
@@ -218,7 +219,7 @@ fn rejected_degenerate_nonfinite_and_wrong_owner_geometry_is_atomic() {
         ),
         (
             composition,
-            request(&instance, resize(InstanceResizeHandle::Right), [0.; 2], [3840., 0.]),
+            request(&instance, resize(SpatialResizeHandle::Right), [0.; 2], [3840., 0.]),
         ),
         (
             composition,

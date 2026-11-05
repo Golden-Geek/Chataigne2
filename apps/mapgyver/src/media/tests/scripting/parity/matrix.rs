@@ -2,6 +2,52 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn layer_geometry_is_the_same_typed_bounded_operation_for_every_public_caller() {
+    use crate::media::spatial::protocol::*;
+    let scene = scene();
+    let item = scene.snapshot.items.iter().find(|item| item.layer.is_some()).unwrap();
+    let MatrixItemId::Layer { id: layer } = item.id else {
+        panic!()
+    };
+    let settings = item.layer.unwrap();
+    let operation = MediaEdit::Matrix {
+        media: scene.root.media,
+        edit: MatrixEdit::EditLayerGeometry {
+            layer,
+            edit: RectGeometryEdit {
+                origin: SpatialRect {
+                    position: settings.position,
+                    size: settings.size,
+                },
+                mode: RectGeometryMode::Resize {
+                    handle: SpatialResizeHandle::TopLeft,
+                },
+                start: golden_video::plan::Point { x: 0.0, y: 0.0 },
+                point: golden_video::plan::Point { x: 4.4, y: 3.6 },
+            },
+        },
+    };
+    let mut expected = None;
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let value = run(&mut engine, caller, operation.clone()).unwrap();
+        assert_eq!(expected.get_or_insert_with(|| value.clone()), &value);
+        let MediaEditResult::MatrixLayerGeometryChanged {
+            media,
+            layer: changed,
+            settings: after,
+        } = serde_json::from_value(value).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!((media, changed), (scene.root.media, layer));
+        assert_eq!(after.duration_ms, settings.duration_ms);
+        assert_eq!(after.size.width(), settings.size.width() - 4);
+        assert_eq!(after.size.height(), settings.size.height() - 4);
+    }
+}
+
+#[test]
 fn spatial_binding_query_preserves_the_same_matrix_owner_for_every_public_caller() {
     use crate::media::spatial::protocol::*;
     let scene = scene();

@@ -26,6 +26,7 @@ export interface MatrixState {
 	refreshing: boolean;
 	error: string;
 	readError: string;
+	interacting: boolean;
 	history: unknown;
 }
 export const matrixState = (): MatrixState => ({
@@ -39,6 +40,7 @@ export const matrixState = (): MatrixState => ({
 	refreshing: false,
 	error: '',
 	readError: '',
+	interacting: false,
 	history: undefined
 });
 export class MatrixController<S extends EditorConnection> {
@@ -132,7 +134,7 @@ export class MatrixController<S extends EditorConnection> {
 			this.state.error = '';
 			this.state.readError = '';
 		}
-		if (this.state.pending) return;
+		if (this.state.pending || this.state.interacting || session?.hasActiveEditSession) return;
 		this.reads.invalidate();
 		if (
 			!session ||
@@ -228,6 +230,21 @@ export class MatrixController<S extends EditorConnection> {
 				if (this.current(session, generation, project)) this.refresh();
 			}
 		}
+	}
+	setInteracting(active: boolean) {
+		this.state.interacting = active;
+		if (active) this.reads.invalidate();
+	}
+	acceptLayer(result: Extract<MediaEditResult, { kind: 'MatrixLayerGeometryChanged' }>) {
+		const window = this.window;
+		if (!window || window.media !== result.media) return;
+		for (const row of window.rows) {
+			if (row.item.id.kind === 'Layer' && row.item.id.id === result.layer)
+				row.item.layer = result.settings;
+		}
+		const selected = window.selected?.row;
+		if (selected?.item.id.kind === 'Layer' && selected.item.id.id === result.layer)
+			selected.item.layer = result.settings;
 	}
 	dispose() {
 		this.disposed = true;
