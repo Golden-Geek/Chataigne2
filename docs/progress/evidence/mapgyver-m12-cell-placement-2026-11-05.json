@@ -1,0 +1,45 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7 Active; backend and Inspector placement slice verified",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "Matrix Cells own optional typed placement Size and Fit/Fill/Stretch, independent of media Resolution. Natural source size is the default. Standard Inspector editing, sparse configuration, copy, persistence and history use the same Parameter nodes.",
+	"ownership": {
+		"document": "CellNode Size is an optional enabled/disabled Vec2 Parameter with whole-pixel 1..16384 limits; Fit Mode reuses the app-owned MediaFitMode. ConfigureCell validates first and groups value/metadata edits in one history entry. A missing address materializes one detached configured subtree.",
+		"rendering": "Matrix capture retains size and fit policy with source bindings. Placement changes invalidate the projection without replacing the source epoch. The renderer shares existing media aspect policy and applies crop/quad in the existing Layer input; no extra intermediate pass. Layer logical-canvas placement retains Stretch.",
+		"contracts": "Rust CellSettings generates TypeScript in the same milestone. Authored settings do not live in UI stores or opaque node data.",
+		"architecture": "../../architecture/mapgyver-cell-placement.md"
+	},
+	"software": {
+		"rust": "485 passed, 0 failed, 3 retained ignored; --lib with native-qualification,application-process-fixture. Includes typed Size metadata enable/disable and projection invalidation without source replacement, integer/bounds/enum rejection, atomic history, copy/save/reload, source-size changes, Fit/Fill/Stretch mappings and constant pass counts.",
+		"caller_parity": "Existing UI intent, QuickJS, hosted script and named manager parity now exercises explicit Cell size and Fill; generated TypeScript parity passes.",
+		"ui": "66 related Spatial/Composition/Matrix/media tests pass; Svelte check 0 errors and 0 warnings.",
+		"lint_format": "Strict all-target Clippy with the same features and -D warnings passes. Root and golden_core Cargo formatting, scoped Prettier, node syntax and owned diff checks pass.",
+		"prerequisites": "Software success and native test build terminal success inspected before hardware execution. Integration build also produced the ordinary bundled native app used by the Inspector flow."
+	},
+	"native": {
+		"pixel_tests": {
+			"command": "matrix_rendering-7306995259760760.exe native_cell_ --ignored --nocapture --test-threads=1",
+			"exit": 0,
+			"tests_passed": 2,
+			"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+			"images": 60,
+			"image_extent": { "width": 32, "height": 24 },
+			"maximum_nominal_error_255": 0,
+			"maximum_residual_error_255": 0,
+			"new_coverage": "30 complete images: patterned source Fit letterbox, centered Fill crop including edge interpolation, Stretch, natural sizing and exact placement Undo; two outputs plus preview on each GPU.",
+			"retained_regression": "30 complete images: natural source size, live Position/Opacity, Undo, disabled destination hold and enabled launch on both GPUs. Existing resource/retirement limits remain unchanged.",
+			"binary_sha256": "377549f5a4f2fd489ecddca8c674093f09422be1365727f1cf7e2ddcc4ae37d3"
+		},
+		"inspector": {
+			"flag": "--matrix-parameters",
+			"pid": 42784,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Actual bundled WebView: new Cell Size is disabled/natural; enable plus exact Undo/Redo; width/height edits plus exact history; Fit/Fill/Stretch plus exact history; disable restores natural size. Existing Layer/Group controls, offscreen Layer/Cell edits, owned-media Color history and mixed-selection cleanup pass. No page errors, rejected receipts or implicit playback.",
+			"binary_sha256": "d2a5dfe992bca2055cb90f05e61ac92fefee889ba15e64a560dfd977cc76b9cf"
+		},
+		"baseline_and_repair": "Inspector baseline PID 22372 exited normally after a stale test expected 259 rows. Current VirtualGrid declares backend row_total + 2 for the header and trailing creation row, yielding 260. The corrected exact expectation passed on PID 42784. Product row behavior and acceptance were unchanged. The earlier software midpoint assertion was corrected to a 1e-5 geometry tolerance after a 2.4e-7 float rounding difference; all 485 tests then passed.",
+		"artifacts": "assets/mapgyver-m12-cell-placement-2026-11-05/"
+	},
+	"remaining": "M12/7 remains Active: shared Layer/Cell canvas manipulation and opposite-anchor/grouped pointer-keyboard history; per-Layer Cell-content navigation and bounded independent selected definitions; inactive Cells, nested Layer Groups, aspect/alpha/blend/source resizing/history/copy/reload/large-sparse native acceptance matrix. This milestone adds a usable placement contract and Inspector, but closes no whole acceptance gate. M12/8-11 and retained qualification gates remain in the ledger return queue."
+}

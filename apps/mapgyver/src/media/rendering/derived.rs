@@ -183,20 +183,18 @@ pub(super) fn matrix_layers(
             let mapping = input
                 .placement
                 .map(|placement| {
-                    let extent = placement
-                        .size
-                        .or(source.resolution.extent)
-                        .ok_or("ready Matrix source has no extent")?;
+                    let intrinsic = source.resolution.extent.ok_or("ready Matrix source has no extent")?;
+                    let extent = placement.size.unwrap_or(intrinsic);
+                    let (crop, quad) = super::fit::geometry(intrinsic, extent, placement.fit_mode);
                     let canvas = channel.matrix.as_ref().unwrap().canvas;
                     let [x, y] = placement.position.map(f64::from);
                     let width = f64::from(extent.width());
                     let height = f64::from(extent.height());
-                    let corners =
-                        [[x, y], [x + width, y], [x + width, y + height], [x, y + height]].map(|[x, y]| Point {
-                            x: (x / f64::from(canvas.width())) as f32,
-                            y: (y / f64::from(canvas.height())) as f32,
-                        });
-                    ProjectiveMapping::new(UnitRect::FULL, Quad { corners }).map_err(|error| error.to_string())
+                    let corners = quad.corners.map(|point| Point {
+                        x: ((x + f64::from(point.x) * width) / f64::from(canvas.width())) as f32,
+                        y: ((y + f64::from(point.y) * height) / f64::from(canvas.height())) as f32,
+                    });
+                    ProjectiveMapping::new(crop, Quad { corners }).map_err(|error| error.to_string())
                 })
                 .transpose();
             Some(mapping.and_then(|mapping| {

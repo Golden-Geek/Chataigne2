@@ -1,5 +1,5 @@
 //! App-owned Matrix document and operation DTOs; runtime launch state is not persisted here.
-use crate::media::protocol::{ChannelReference, MediaId};
+use crate::media::protocol::{ChannelReference, MediaFitMode, MediaId};
 use golden_core::model::NodeUuid;
 use golden_video::{Extent2D, plan::BlendMode};
 use serde::{Deserialize, Serialize};
@@ -137,8 +137,11 @@ pub struct CellDefinition {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct CellSettings {
-    /// Top-left position relative to the Layer canvas, in pixels. Media keeps its own size.
+    /// Top-left placement relative to the Layer canvas, in pixels.
     pub position: [f32; 2],
+    /// None follows the source extent; authored placement never changes media Resolution.
+    pub size: Option<Extent2D>,
+    pub fit_mode: MediaFitMode,
     pub opacity: f32,
     pub enabled: bool,
 }
@@ -146,6 +149,8 @@ impl Default for CellSettings {
     fn default() -> Self {
         Self {
             position: [0.0; 2],
+            size: None,
+            fit_mode: MediaFitMode::Fit,
             opacity: 1.0,
             enabled: true,
         }
@@ -153,6 +158,12 @@ impl Default for CellSettings {
 }
 impl CellSettings {
     pub fn validate(&self) -> Result<(), String> {
+        if self
+            .size
+            .is_some_and(|size| size.width() > 16384 || size.height() > 16384)
+        {
+            return Err("Cell Size must contain whole pixels in 1..16384 per axis".into());
+        }
         if !self.position.into_iter().all(f32::is_finite)
             || !self.opacity.is_finite()
             || !(0.0..=1.0).contains(&self.opacity)

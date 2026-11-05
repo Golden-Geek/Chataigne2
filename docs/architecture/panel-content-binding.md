@@ -82,3 +82,7 @@ The owning progress receipt records which checks have actually passed.
 Editor inspections use background operation activity. History or project transitions can cancel
 superseded reads through the ordinary receipt fences without presenting them as failed user
 edits. Authored operations retain user activity and their real rejection feedback.
+
+[Matrix Cell placement](mapgyver-cell-placement.md) uses typed optional Size and Fit Mode in
+the standard Inspector. Its backend projection is independent of media Resolution and adds no
+render pass. Shared Cell canvas manipulation remains part of the active M12/7 gate.

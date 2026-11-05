@@ -11,6 +11,7 @@ fn contextual_cell_media_creation_uses_shared_defaults_preserves_settings_and_is
             position: [2.0, -3.0],
             opacity: 0.25,
             enabled: false,
+            ..Default::default()
         };
         edit(
             &mut engine,

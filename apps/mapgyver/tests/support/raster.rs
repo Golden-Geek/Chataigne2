@@ -90,6 +90,11 @@ impl Image {
     }
 
     pub fn draw(&mut self, source: &Self, definition: &InstanceDefinition) {
+        self.draw_clipped(source, definition, [0.0, 0.0, self.width as f64, self.height as f64]);
+    }
+
+    /// Independent raster scissor for placement Fill, applied at destination pixel centers.
+    pub fn draw_clipped(&mut self, source: &Self, definition: &InstanceDefinition, clip: [f64; 4]) {
         if !definition.enabled {
             return;
         }
@@ -97,6 +102,13 @@ impl Image {
         let angle = f64::from(t.rotation_degrees).to_radians();
         for y in 0..self.height {
             for x in 0..self.width {
+                if x as f64 + 0.5 < clip[0]
+                    || y as f64 + 0.5 < clip[1]
+                    || x as f64 + 0.5 >= clip[2]
+                    || y as f64 + 0.5 >= clip[3]
+                {
+                    continue;
+                }
                 let dx = x as f64 + 0.5 - f64::from(t.position[0]);
                 let dy = y as f64 + 0.5 - f64::from(t.position[1]);
                 let u = (angle.cos() * dx + angle.sin() * dy) / f64::from(t.scale[0])

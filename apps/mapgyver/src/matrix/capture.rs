@@ -39,6 +39,7 @@ pub(crate) struct MatrixPlacement {
     pub position: [f32; 2],
     /// Layer canvases keep their logical size even when output Resolution resamples them.
     pub size: Option<golden_video::Extent2D>,
+    pub fit_mode: crate::media::protocol::MediaFitMode,
 }
 #[derive(Clone)]
 pub(crate) struct CapturedMatrix {
@@ -229,7 +230,8 @@ pub(crate) fn capture(
                         opacity: settings.opacity,
                         placement: Some(MatrixPlacement {
                             position: settings.position,
-                            size: None,
+                            size: settings.size,
+                            fit_mode: settings.fit_mode,
                         }),
                     });
                 }
@@ -325,6 +327,7 @@ pub(crate) fn capture(
                             placement: entry.layer.map(|layer| MatrixPlacement {
                                 position: layer.position,
                                 size: Some(layer.size),
+                                fit_mode: crate::media::protocol::MediaFitMode::Stretch,
                             }),
                         });
                     }

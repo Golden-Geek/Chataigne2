@@ -132,7 +132,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		await matrix({ kind: 'AddLayers', parent: null, count: 256 });
 		await wait(
 			() => grid.getAttribute('aria-rowcount'),
-			(count) => count === '259'
+			(count) => count === '260'
 		);
 		await parameter('Opacity').locator('input.number-field').waitFor();
 		await grid.evaluate((element) => {
@@ -165,9 +165,20 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		await parameter('Enabled').locator('input[type=checkbox]').waitFor();
 		const cellSettings = (state) =>
 			state.cells.find((cell) => cell.layer === layers[0].id).definition.settings;
+		const sizeToggle = parameter('Size').getByRole('switch', { name: 'Toggle node enabled' });
+		assert.equal(cellSettings(await inspect()).size, null, 'new Cells follow natural source size');
+		const beforeSize = await inspect();
+		await sizeToggle.click();
+		const sized = await wait(inspect, (state) => cellSettings(state).size !== null);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(inspect, (state) => isDeepStrictEqual(state, beforeSize));
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(inspect, (state) => isDeepStrictEqual(state, sized));
 		for (const [label, component, value, field] of [
 			['Position', 0, 3.5, 'position'],
 			['Position', 1, -2, 'position'],
+			['Size', 0, 40, 'size'],
+			['Size', 1, 24, 'size'],
 			['Opacity', 0, 0.375, 'opacity'],
 			['Enabled', 0, false, 'enabled'],
 			['Enabled', 0, true, 'enabled']
@@ -186,15 +197,28 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 				await input.press('Tab');
 			}
 			const after = await wait(inspect, (state) =>
-				field === 'position'
-					? cellSettings(state).position[component] === value
-					: cellSettings(state)[field] === value
+				field === 'size'
+					? cellSettings(state).size[component === 0 ? 'width' : 'height'] === value
+					: field === 'position'
+						? cellSettings(state).position[component] === value
+						: cellSettings(state)[field] === value
 			);
 			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 			await wait(inspect, (state) => isDeepStrictEqual(state, before));
 			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 			await wait(inspect, (state) => isDeepStrictEqual(state, after));
 		}
+		for (const mode of ['Fill', 'Stretch', 'Fit']) {
+			const before = await inspect();
+			await parameter('Fit Mode').locator('select.dropdown-editor').selectOption(mode);
+			const after = await wait(inspect, (state) => cellSettings(state).fit_mode === mode);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(inspect, (state) => isDeepStrictEqual(state, before));
+			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+			await wait(inspect, (state) => isDeepStrictEqual(state, after));
+		}
+		await sizeToggle.click();
+		await wait(inspect, (state) => cellSettings(state).size === null);
 		assert.equal(await parameter('Canvas size').count(), 0);
 		await grid.evaluate((element) => {
 			element.scrollTop = element.scrollHeight;

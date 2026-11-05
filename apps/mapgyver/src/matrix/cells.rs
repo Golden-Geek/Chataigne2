@@ -74,7 +74,9 @@ pub(super) fn configure(
         let Some(AppNode::MatrixCell(node)) = engine.nodes.get(*id) else {
             unreachable!()
         };
-        engine.edits.push(node.configuration_edit(settings));
+        for edit in node.configuration_edits(settings) {
+            engine.edits.push(edit);
+        }
     } else {
         document.admit(1)?;
         let node = CellNode::from_address("Cell".into(), column, None).with_settings(settings);

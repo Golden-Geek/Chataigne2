@@ -17,6 +17,7 @@ use std::{
 };
 
 mod cell_geometry;
+mod cell_sizing;
 mod layer_geometry;
 mod tests;
 mod transitions;

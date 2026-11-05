@@ -511,6 +511,8 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
             column: b,
             settings: CellSettings {
                 position: [-2.0, 8.5],
+                size: Some(Extent2D::new(41, 23).unwrap()),
+                fit_mode: MediaFitMode::Fill,
                 opacity: 0.25,
                 enabled: false,
             },

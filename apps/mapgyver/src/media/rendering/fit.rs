@@ -19,7 +19,24 @@ pub(super) fn operation(
             filter: SampleFilter::Linear,
         });
     }
-    let (crop, quad) = match mode {
+    let (crop, quad) = geometry(intrinsic, target, mode);
+    Ok(RenderOperation::Composite {
+        layers: vec![Layer {
+            source: source.into(),
+            opacity: Opacity::new(1.0).map_err(|error| error.to_string())?,
+            opacity_envelope: None,
+            blend: BlendMode::Normal,
+            filter: SampleFilter::Linear,
+            mapping: Some(ProjectiveMapping::new(crop, quad).map_err(|error| error.to_string())?),
+        }],
+    })
+}
+
+/// Content geometry inside a normalized placement box; reused without an intermediate render pass.
+pub(super) fn geometry(intrinsic: Extent2D, target: Extent2D, mode: MediaFitMode) -> (UnitRect, Quad) {
+    let source_aspect = intrinsic.width() as f64 / intrinsic.height() as f64;
+    let target_aspect = target.width() as f64 / target.height() as f64;
+    match mode {
         MediaFitMode::Fit => {
             let width = (source_aspect / target_aspect).min(1.0) as f32;
             let height = (target_aspect / source_aspect).min(1.0) as f32;
@@ -53,16 +70,6 @@ pub(super) fn operation(
                 Quad::default(),
             )
         }
-        MediaFitMode::Stretch => unreachable!(),
-    };
-    Ok(RenderOperation::Composite {
-        layers: vec![Layer {
-            source: source.into(),
-            opacity: Opacity::new(1.0).map_err(|error| error.to_string())?,
-            opacity_envelope: None,
-            blend: BlendMode::Normal,
-            filter: SampleFilter::Linear,
-            mapping: Some(ProjectiveMapping::new(crop, quad).map_err(|error| error.to_string())?),
-        }],
-    })
+        MediaFitMode::Stretch => (UnitRect::FULL, Quad::default()),
+    }
 }

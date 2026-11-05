@@ -4,8 +4,9 @@ use golden_core::{
     node::Node,
     parameter::{ParamValue, ParameterEventBehaviour},
 };
+use golden_video::Extent2D;
 
-fn write(engine: &mut AppEngine, owner: CellId, field: &str, value: ParamValue) -> golden_core::ui_sync::UiAck {
+fn parameter(engine: &AppEngine, owner: CellId, field: &str) -> golden_core::node::NodeId {
     let owner = engine.node_id_by_uuid(owner.0).unwrap();
     let folder = engine
         .nodes
@@ -13,14 +14,17 @@ fn write(engine: &mut AppEngine, owner: CellId, field: &str, value: ParamValue) 
         .find(|(_, node)| node.node_data().parent == Some(owner) && crate::parameters::is_parameter_folder(*node))
         .unwrap()
         .0;
-    let node = engine
+    engine
         .nodes
         .iter()
         .find(|(_, node)| {
             node.node_data().parent == Some(folder) && node.node_data().meta.decl_id.0 == format!("parameters/{field}")
         })
         .unwrap()
-        .0;
+        .0
+}
+fn write(engine: &mut AppEngine, owner: CellId, field: &str, value: ParamValue) -> golden_core::ui_sync::UiAck {
+    let node = parameter(engine, owner, field);
     apply_project_intent(
         engine,
         UiEditIntent::SetParam {
@@ -32,6 +36,84 @@ fn write(engine: &mut AppEngine, owner: CellId, field: &str, value: ParamValue) 
 }
 
 #[test]
+fn optional_cell_size_is_a_typed_parameter_and_metadata_changes_invalidate_without_replacing_the_source() {
+    let mut engine = fixture();
+    let media = create(&mut engine, MediaKind::Matrix).media;
+    let row = layer(layers(&mut engine, media, None, 1)[0]);
+    let column = columns(&mut engine, media, 1)[0];
+    let source = create(&mut engine, MediaKind::SolidColor);
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::SetCells {
+            assignments: vec![CellAssignment {
+                layer: row,
+                column,
+                source: Some(source),
+            }],
+        },
+    );
+    let cell = inspect(&mut engine, media).cells[0].id;
+    assert_eq!(inspect(&mut engine, media).cells[0].definition.settings.size, None);
+    let id = engine.node_id_by_uuid(cell.0).unwrap();
+    let version = match engine.nodes.get(id).unwrap() {
+        AppNode::MatrixCell(cell) => cell.source_version(),
+        _ => panic!(),
+    };
+    assert!(write(&mut engine, cell, "size", ParamValue::Vec2(12.0, 8.0)).success);
+    assert_eq!(inspect(&mut engine, media).cells[0].definition.settings.size, None);
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::LaunchColumn {
+            column,
+            mode: LaunchMode::Cut,
+        },
+    );
+    let now = time();
+    let output = inspect(&mut engine, media).items[0].channel;
+    let before = crate::media::capture_channels_at(&engine, &[output], 16, now).unwrap();
+    let node = parameter(&engine, cell, "size");
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::PatchMeta {
+            node,
+            patch: golden_core::ui_sync::NodeMetaPatch {
+                enabled: Some(true),
+                ..Default::default()
+            },
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    assert!(!before.is_current());
+    assert_eq!(
+        capture(&engine, media, row, now).inputs[0].placement.unwrap().size,
+        Some(Extent2D::new(12, 8).unwrap())
+    );
+    let AppNode::MatrixCell(cell_node) = engine.nodes.get(id).unwrap() else {
+        panic!()
+    };
+    assert_eq!(cell_node.source_version(), version);
+    assert!(engine.undo().unwrap());
+    assert_eq!(inspect(&mut engine, media).cells[0].definition.settings.size, None);
+    assert!(engine.redo().unwrap());
+    assert_eq!(
+        inspect(&mut engine, media).cells[0].definition.settings.size,
+        Some(Extent2D::new(12, 8).unwrap())
+    );
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureCell {
+            layer: row,
+            column,
+            settings: CellSettings::default(),
+        },
+    );
+    assert_eq!(inspect(&mut engine, media).cells[0].definition.settings.size, None);
+}
+
+#[test]
 fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history_copy_project_and_schema() {
     let mut engine = fixture();
     let media = create(&mut engine, MediaKind::Matrix).media;
@@ -39,6 +121,8 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
     let column = columns(&mut engine, media, 2)[0];
     let settings = CellSettings {
         position: [2.5, -3.0],
+        size: Some(Extent2D::new(41, 23).unwrap()),
+        fit_mode: MediaFitMode::Fill,
         opacity: 0.25,
         enabled: false,
     };
@@ -95,6 +179,10 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
         ("position", ParamValue::Vec2(1e40, 0.0)),
         ("opacity", ParamValue::Float(-0.1)),
         ("opacity", ParamValue::Float(1.1)),
+        ("size", ParamValue::Vec2(1.5, 2.0)),
+        ("size", ParamValue::Vec2(0.0, 2.0)),
+        ("size", ParamValue::Vec2(16385.0, 2.0)),
+        ("fit_mode", ParamValue::Enum("Unknown".into())),
     ] {
         assert!(!write(&mut engine, cell, field, value).success);
         assert_eq!(engine.undo_len(), history);
@@ -114,7 +202,8 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
         CellSettings {
             position: [-4.0, 5.0],
             opacity: 0.5,
-            enabled: true
+            enabled: true,
+            ..settings
         }
     );
     // An atomic invalid edit cannot materialize another otherwise sparse address.

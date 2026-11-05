@@ -261,7 +261,7 @@ pub(super) fn inspect(engine: &mut AppEngine, media: MediaId) -> MatrixSnapshot 
     };
     snapshot
 }
-fn prepare(engine: &AppEngine, roots: &[ChannelReference]) -> super::super::plan::Prepared {
+pub(super) fn prepare(engine: &AppEngine, roots: &[ChannelReference]) -> super::super::plan::Prepared {
     let owner = renderer();
     let routes = roots
         .iter()

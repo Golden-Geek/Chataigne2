@@ -152,6 +152,7 @@ fn native_cell_position_opacity_enabled_and_undo_preserve_child_size_on_each_ada
             position: [1.0, 1.0],
             opacity: 0.5,
             enabled: false,
+            ..Default::default()
         };
         matrix(
             &mut engine,
