@@ -1,0 +1,46 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/8",
+	"result": "Physical/Shared Texture target parity verified; full gate remains Active",
+	"source_commit": "76f9a453cfc127708e878f440b28ddb0d457c765",
+	"fixture": "../../../apps/mapgyver/tests/native_output/screen_aa.mjs",
+	"pixel_oracle": "../../../apps/mapgyver/tests/native_output/screen_aa_pixels.py",
+	"application_sha256": "FA42C611779CAEF6D1C0B84026949EEBD4A5BEA23BD720D4A3B040FAFDDC9F3F",
+	"sdk_observer_sha256": "17E1030274CBED3889C94EEBB670170DF172342B07225582EB0FD4AAF37F724C",
+	"cohorts": [
+		"mapgyver-m12-screen-physical-2026-11-05/parity-intel/results.json",
+		"mapgyver-m12-screen-physical-2026-11-05/parity-nvidia-final/results.json"
+	],
+	"scope": {
+		"adapters": ["dxgi:00000000:00015b69", "dxgi:00000000:00016022"],
+		"modes": ["Raw", "Smooth2x"],
+		"physical_targets": ["Rectangle 512x384", "Fullscreen 1920x1080"],
+		"display": "Existing external 1920x1080 monitor, left 2560/top 0, DPI 96",
+		"scene": "Two equivalent Screens share one 8x8 translucent Solid Color channel and perspective quad",
+		"comparison": "Every actual composited desktop client RGB pixel against independent SDK straight-sRGB/alpha decoded to linear, composited over black and re-encoded",
+		"tolerance_rgb_bytes": 2,
+		"physical_pixels": 9080832,
+		"maximum_rgb_error": 1,
+		"pixels_outside_tolerance": 0,
+		"smooth_fractional_edge_pixels": 6395
+	},
+	"lifetime": {
+		"mode_switch_hwnd_stable": true,
+		"mode_switch_native_bindings_preserved": true,
+		"one_shared_channel_observed": true,
+		"physical_windows_after_disable": 0,
+		"sdk_sender_absent_after_disable": true,
+		"native_retirement_observed_after_disable": true,
+		"page_errors": 0,
+		"manual_activation_required": false,
+		"owned_processes_absent_after_cohorts": true
+	},
+	"prerequisites": "Unchanged product binary: prior 502 MapGyver and 208 Golden Video software tests, strict lint, generated contract, both-GPU kernel and complete Screen image checks passed. Fixture syntax/formatting and both native cohorts pass.",
+	"limits": [
+		"Settled static target parity only; no latency, scanout, animated alignment or mixed-DPI acceptance claim",
+		"Runtime snapshots during SDK/desktop readback are context, not optimized performance measurements",
+		"Raw alpha maxima of 127 or 128 and corresponding Smooth coverage levels are legal adapter rounding; unchanged two-byte RGB bound applies",
+		"Overall 64/78 and M12 7/11 unchanged; original M03/M05/M11 budgets and unfinished gates remain"
+	],
+	"remaining": "Both-GPU optimized 1080p/4K native costs, complete live/retiring allocations and overload/recovery under unchanged limits"
+}

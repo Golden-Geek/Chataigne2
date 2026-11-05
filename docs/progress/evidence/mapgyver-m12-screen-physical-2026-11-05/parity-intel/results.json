@@ -1,0 +1,317 @@
+{
+  "passed": true,
+  "pid": 32236,
+  "gpu": "dxgi:00000000:00015b69",
+  "display": {
+    "id": "\\\\?\\display#rtk3b3a#5&31070012&0&uid8450#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+    "name": "RTK FHD HDR",
+    "edid": "00ffffffffffff004a8b3a3b0101010111200104b50000783fee91a3544c99260f5054210800d1c081c0010101010101010101010101023a801871382d40582c450058c31000001e000000fc0052544b20464844204844520a20000000ff0064656d6f7365742d310a203020000000fd00323d545411010a202020202020011f",
+    "index": 5,
+    "primary": false,
+    "bounds": {
+      "left": 2560,
+      "top": 0,
+      "extent": {
+        "width": 1920,
+        "height": 1080
+      }
+    }
+  },
+  "results": [
+    {
+      "label": "Rectangle-Raw",
+      "passed": true,
+      "pid": 32236,
+      "mode": "Raw",
+      "window": {
+        "hwnd": 37224642,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2640,
+          "top": 80,
+          "extent": {
+            "width": 512,
+            "height": 384
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            188
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 196608,
+      "fractional_sdk_pixels": 0,
+      "sdk_alpha_levels": [
+        0,
+        128
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 384,
+        "retired": true,
+        "width": 512
+      },
+      "runtime": {
+        "sequence": 3,
+        "state": "Running",
+        "submitted_fps": 59.55991772392965,
+        "cpu_submit_ms": 0.48250000000000004,
+        "gpu": "Intel(R) Graphics",
+        "gpu_adapter": "dxgi:00000000:00015b69",
+        "gpu_preference": "dxgi:00000000:00015b69",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 309169556,
+          "limit_bytes": 9216951214,
+          "in_flight": 1,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "4af5550d-b477-4a3d-aeae-5dc85aeef221",
+            "extent": {
+              "width": 512,
+              "height": 384
+            },
+            "accepted_fps": 59.55991772392965,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Rectangle-Smooth2x",
+      "passed": true,
+      "pid": 32236,
+      "mode": "Smooth2x",
+      "window": {
+        "hwnd": 37224642,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2640,
+          "top": 80,
+          "extent": {
+            "width": 512,
+            "height": 384
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            188
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 196608,
+      "fractional_sdk_pixels": 729,
+      "sdk_alpha_levels": [
+        0,
+        32,
+        64,
+        96,
+        128
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 384,
+        "retired": true,
+        "width": 512
+      },
+      "runtime": {
+        "sequence": 4,
+        "state": "Running",
+        "submitted_fps": 60.5095174639251,
+        "cpu_submit_ms": 0.47659999999999997,
+        "gpu": "Intel(R) Graphics",
+        "gpu_adapter": "dxgi:00000000:00015b69",
+        "gpu_preference": "dxgi:00000000:00015b69",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 315461012,
+          "limit_bytes": 9216951214,
+          "in_flight": 1,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "4af5550d-b477-4a3d-aeae-5dc85aeef221",
+            "extent": {
+              "width": 512,
+              "height": 384
+            },
+            "accepted_fps": 60.5095174639251,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Fullscreen-Raw",
+      "passed": true,
+      "pid": 32236,
+      "mode": "Raw",
+      "window": {
+        "hwnd": 37224642,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2560,
+          "top": 0,
+          "extent": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            188
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 2073600,
+      "fractional_sdk_pixels": 0,
+      "sdk_alpha_levels": [
+        0,
+        128
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 1080,
+        "retired": true,
+        "width": 1920
+      },
+      "runtime": {
+        "sequence": 6,
+        "state": "Running",
+        "submitted_fps": 60.50626884621489,
+        "cpu_submit_ms": 0.9808,
+        "gpu": "Intel(R) Graphics",
+        "gpu_adapter": "dxgi:00000000:00015b69",
+        "gpu_preference": "dxgi:00000000:00015b69",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 354217364,
+          "limit_bytes": 9216951214,
+          "in_flight": 1,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "4af5550d-b477-4a3d-aeae-5dc85aeef221",
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            },
+            "accepted_fps": 43.643866053007464,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Fullscreen-Smooth2x",
+      "passed": true,
+      "pid": 32236,
+      "mode": "Smooth2x",
+      "window": {
+        "hwnd": 37224642,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2560,
+          "top": 0,
+          "extent": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            188
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 2073600,
+      "fractional_sdk_pixels": 2469,
+      "sdk_alpha_levels": [
+        0,
+        32,
+        64,
+        96,
+        128
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 1080,
+        "retired": true,
+        "width": 1920
+      },
+      "runtime": {
+        "sequence": 8,
+        "state": "Running",
+        "submitted_fps": 59.57537058859275,
+        "cpu_submit_ms": 0.9325,
+        "gpu": "Intel(R) Graphics",
+        "gpu_adapter": "dxgi:00000000:00015b69",
+        "gpu_preference": "dxgi:00000000:00015b69",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 420572564,
+          "limit_bytes": 9216951214,
+          "in_flight": 1,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "4af5550d-b477-4a3d-aeae-5dc85aeef221",
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            },
+            "accepted_fps": 48.653219314017406,
+            "state": "Ready"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "shared_channel": {
+    "channel": "cb1a24d9-5993-4b97-a99f-2fbe5891b49d",
+    "media": "0761673c-598f-409b-a164-6bb53b47cfee"
+  },
+  "shared_channel_observed": true,
+  "owned_sender_absent": true,
+  "retirements_before_disable": 4,
+  "retirements": 6
+}

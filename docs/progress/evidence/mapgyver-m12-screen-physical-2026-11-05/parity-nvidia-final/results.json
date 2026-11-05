@@ -1,0 +1,318 @@
+{
+  "passed": true,
+  "pid": 4428,
+  "gpu": "dxgi:00000000:00016022",
+  "display": {
+    "id": "\\\\?\\display#rtk3b3a#5&31070012&0&uid8450#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+    "name": "RTK FHD HDR",
+    "edid": "00ffffffffffff004a8b3a3b0101010111200104b50000783fee91a3544c99260f5054210800d1c081c0010101010101010101010101023a801871382d40582c450058c31000001e000000fc0052544b20464844204844520a20000000ff0064656d6f7365742d310a203020000000fd00323d545411010a202020202020011f",
+    "index": 5,
+    "primary": false,
+    "bounds": {
+      "left": 2560,
+      "top": 0,
+      "extent": {
+        "width": 1920,
+        "height": 1080
+      }
+    }
+  },
+  "results": [
+    {
+      "label": "Rectangle-Raw",
+      "passed": true,
+      "pid": 4428,
+      "mode": "Raw",
+      "window": {
+        "hwnd": 13766190,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2640,
+          "top": 80,
+          "extent": {
+            "width": 512,
+            "height": 384
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            187
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 196608,
+      "fractional_sdk_pixels": 0,
+      "sdk_alpha_levels": [
+        0,
+        127
+      ],
+      "maximum_rgb_error": 0,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 384,
+        "retired": true,
+        "width": 512
+      },
+      "runtime": {
+        "sequence": 4,
+        "state": "Running",
+        "submitted_fps": 60.74756954949404,
+        "cpu_submit_ms": 0.4115,
+        "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "gpu_adapter": "dxgi:00000000:00016022",
+        "gpu_preference": "dxgi:00000000:00016022",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 309169556,
+          "limit_bytes": 7987527680,
+          "in_flight": 2,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "90c58e8a-c7bd-48ad-ae92-cea8d4223e6e",
+            "extent": {
+              "width": 512,
+              "height": 384
+            },
+            "accepted_fps": 60.74756954949404,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Rectangle-Smooth2x",
+      "passed": true,
+      "pid": 4428,
+      "mode": "Smooth2x",
+      "window": {
+        "hwnd": 13766190,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2640,
+          "top": 80,
+          "extent": {
+            "width": 512,
+            "height": 384
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            187
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 196608,
+      "fractional_sdk_pixels": 729,
+      "sdk_alpha_levels": [
+        0,
+        32,
+        63,
+        95,
+        127
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 384,
+        "retired": true,
+        "width": 512
+      },
+      "runtime": {
+        "sequence": 7,
+        "state": "Running",
+        "submitted_fps": 60.54061779219285,
+        "cpu_submit_ms": 0.4575,
+        "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "gpu_adapter": "dxgi:00000000:00016022",
+        "gpu_preference": "dxgi:00000000:00016022",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 315461012,
+          "limit_bytes": 7987527680,
+          "in_flight": 2,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "90c58e8a-c7bd-48ad-ae92-cea8d4223e6e",
+            "extent": {
+              "width": 512,
+              "height": 384
+            },
+            "accepted_fps": 60.54061779219285,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Fullscreen-Raw",
+      "passed": true,
+      "pid": 4428,
+      "mode": "Raw",
+      "window": {
+        "hwnd": 13766190,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2560,
+          "top": 0,
+          "extent": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            187
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 2073600,
+      "fractional_sdk_pixels": 0,
+      "sdk_alpha_levels": [
+        0,
+        127
+      ],
+      "maximum_rgb_error": 0,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 1080,
+        "retired": true,
+        "width": 1920
+      },
+      "runtime": {
+        "sequence": 11,
+        "state": "Running",
+        "submitted_fps": 59.57742921009862,
+        "cpu_submit_ms": 0.5646,
+        "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "gpu_adapter": "dxgi:00000000:00016022",
+        "gpu_preference": "dxgi:00000000:00016022",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 354217364,
+          "limit_bytes": 7987527680,
+          "in_flight": 2,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "90c58e8a-c7bd-48ad-ae92-cea8d4223e6e",
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            },
+            "accepted_fps": 57.59151490309533,
+            "state": "Ready"
+          }
+        ]
+      }
+    },
+    {
+      "label": "Fullscreen-Smooth2x",
+      "passed": true,
+      "pid": 4428,
+      "mode": "Smooth2x",
+      "window": {
+        "hwnd": 13766190,
+        "title": "MapGyver output 2",
+        "bounds": {
+          "left": 2560,
+          "top": 0,
+          "extent": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "visible": true,
+        "minimized": false,
+        "center_rgb": [
+          [
+            137,
+            71,
+            187
+          ]
+        ]
+      },
+      "dpi": 96,
+      "pixels": 2073600,
+      "fractional_sdk_pixels": 2468,
+      "sdk_alpha_levels": [
+        0,
+        32,
+        63,
+        64,
+        95,
+        127
+      ],
+      "maximum_rgb_error": 1,
+      "outside_2_byte_tolerance": 0,
+      "capture": "actual composited desktop physical client; owned PID/class/bounds verified",
+      "sdk": {
+        "height": 1080,
+        "retired": true,
+        "width": 1920
+      },
+      "runtime": {
+        "sequence": 14,
+        "state": "Running",
+        "submitted_fps": 59.60789331697163,
+        "cpu_submit_ms": 0.5741999999999999,
+        "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "gpu_adapter": "dxgi:00000000:00016022",
+        "gpu_preference": "dxgi:00000000:00016022",
+        "gpu_restart_required": false,
+        "resources": {
+          "used_bytes": 420572564,
+          "limit_bytes": 7987527680,
+          "in_flight": 2,
+          "retiring": 0
+        },
+        "error": null,
+        "screens": [
+          {
+            "screen": "90c58e8a-c7bd-48ad-ae92-cea8d4223e6e",
+            "extent": {
+              "width": 1920,
+              "height": 1080
+            },
+            "accepted_fps": 59.60789331697163,
+            "state": "Ready"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "shared_channel": {
+    "channel": "6808831f-a755-4a06-b03b-495981185bac",
+    "media": "05cda1d3-01db-4d00-901b-6c7b94beab45"
+  },
+  "shared_channel_observed": true,
+  "owned_sender_absent": true,
+  "retirements_before_disable": 3,
+  "retirements": 5
+}

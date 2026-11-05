@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "pid": 32236,
+  "mode": "Smooth2x",
+  "window": {
+    "hwnd": 37224642,
+    "title": "MapGyver output 2",
+    "bounds": {
+      "left": 2640,
+      "top": 80,
+      "extent": {
+        "width": 512,
+        "height": 384
+      }
+    },
+    "visible": true,
+    "minimized": false,
+    "center_rgb": [
+      [
+        137,
+        71,
+        188
+      ]
+    ]
+  },
+  "dpi": 96,
+  "pixels": 196608,
+  "fractional_sdk_pixels": 729,
+  "sdk_alpha_levels": [
+    0,
+    32,
+    64,
+    96,
+    128
+  ],
+  "maximum_rgb_error": 1,
+  "outside_2_byte_tolerance": 0,
+  "capture": "actual composited desktop physical client; owned PID/class/bounds verified"
+}
