@@ -1,0 +1,101 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/3",
+	"result": "Accepted",
+	"progress": { "accepted": 60, "total": 78, "percent": 77, "m12Accepted": 3, "m12Total": 11 },
+	"deliverable": "Fresh Column/Cell app-control declarations and DTO defaults use Normal windows. Explicit Hidden remains authored and persistent. Current zero-preload/postload re-entry is verified through public headless intents and actual native Matrix input with active previews/output.",
+	"ownership": "MapGyver owns the typed launch default; Golden receives explicit process-window settings. The Golden test fixture's optional launch-window mode reports actual STARTUPINFO and IsWindowVisible. Production lifetime, readiness, retirement barriers and budgets were not weakened or patched without a reproduced cause.",
+	"candidate": {
+		"path": "target/debug/MapGyver-codex-m12-launch-defaults.exe",
+		"sha256": "3e2bcf1160fa38c256f1f3c6a1b6308d9078b7bb42b5d3f368656dcd69e6d1cc",
+		"applicationFixtureSha256": "5ae479b499d7a08c100663fe63401745bd9093fa736190b5763b763cb397e4d3",
+		"goldenFixtureSha256": "9badfbeadc0eb5182d7a01d038c2fb3e834f32cf73bf17114b9e5004950eb90d",
+		"limits": "Local Windows development build with the same existing user Cargo/theme inputs pinned by the M12/2 receipt; no release or production qualification claim."
+	},
+	"software": [
+		{
+			"command": "cargo test --locked -p MapGyver --lib",
+			"result": "pass",
+			"passed": 447,
+			"failed": 0,
+			"ignored": 2,
+			"scope": "Normal Column/Cell Params and DTO defaults, explicit Hidden history/reload, configuration-key distinction, existing scripting/headless/copy/persistence and generated-contract drift coverage"
+		},
+		{
+			"command": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings",
+			"result": "pass"
+		},
+		{
+			"command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification,application-process-fixture -- -D warnings",
+			"result": "pass"
+		},
+		{
+			"command": "cargo clippy --locked -p golden_io --features process-fixture --bin golden_io_process_fixture -- -D warnings",
+			"result": "pass"
+		},
+		{
+			"command": "Main app, native-qualified application fixture, Golden process fixture and application_runtime --no-run builds",
+			"result": "pass",
+			"scope": "Terminal success inspected before dependent native checks"
+		},
+		{ "command": "Both Cargo formatters, scoped Prettier and Node syntax checks", "result": "pass" }
+	],
+	"acceptance": [
+		{
+			"requirement": "Default Normal and explicit Hidden",
+			"evidence": "assets/mapgyver-m12-reentry-2026-11-05/windows.json",
+			"checks": "Actual owned Normal window: visible=true, startup_show=1; Hidden: visible=false, startup_show=0. Both retire gracefully. Real generic Column Inspector verifies Normal, Hidden selection and Undo/Redo; Cell and Column typed defaults/history/reload pass."
+		},
+		{
+			"requirement": "At least twenty zero-pre/post cycles and rapid stopping re-entry",
+			"evidence": "target/m123-reentry-2026-11-05/native-rendered/report.json",
+			"checks": "20 actual bundled-WebView Matrix button entry/exit cycles plus 5 re-entries during observed Stopping; pre=post=0, configured transitions, default 2000ms graceful stop/5000ms retirement and restart settings. Every start/re-entry reaches real Spout first-frame Ready; retired launches are replaced before readiness is accepted. Active shared-texture Cell, Matrix previews and 96x64 Spout output keep the native renderer/final-use path involved. Submitted Column markers are observed in every ordinary cycle. Normal owned shutdown.",
+			"cycles": 20,
+			"rapid": 5,
+			"nativeRendered": true
+		},
+		{
+			"requirement": "Headless parity",
+			"evidence": "target/m123-reentry-2026-11-05/normal-spout-final/report.json",
+			"checks": "The same 20 zero-pre/post first-frame cycles and 5 stopping re-entries pass through ordinary headless HTTP intents, without a renderer. Normal owned shutdown."
+		},
+		{
+			"requirement": "Shared/independent controls, delete/Undo and lifecycle ownership",
+			"evidence": "target/m123-reentry-2026-11-05/native-runtime.log",
+			"checks": "All 14 actual application_runtime tests pass, including the two explicitly included native cases, with zero ignored. Column/Cell sharing across matrices, effective-key splitting, independent direct Cell activation, disabled destinations/history, deletion/Undo retention, renderer final completion, tagged readiness rejection, crashes/backoff, absent endpoint timeout, project close and pinned descendant retirement are covered."
+		},
+		{
+			"requirement": "Healthy recovery after a real sender crash",
+			"evidence": "assets/mapgyver-m12-reentry-2026-11-05/crash-recovery.json",
+			"checks": "Ready owned sender PID 17652 is terminated, reaches Backoff with no process, then recovers actual first-frame readiness on fresh PID 36588/launch with the same normalized runtime. Subsequent zero-pre/post unload reaches Idle; normal host shutdown."
+		},
+		{
+			"requirement": "Endpoint loss/recovery while the application stays alive",
+			"evidence": "assets/mapgyver-m12-reentry-2026-11-05/endpoint.json",
+			"checks": "An independently controlled owned endpoint is stopped/recreated while configured process PID 11048 and launch remain unchanged. Source feedback reports loss and clears on recovery. Full 96x64 independent SDK output changes from red to green; actual active adapter is Intel dxgi:00000000:00015b69. Startup readiness and current source availability are distinct, truthful observations. Normal owned shutdown."
+		},
+		{
+			"requirement": "New/Load and shutdown",
+			"evidence": "target/m123-reentry-2026-11-05/project-replacement.log",
+			"checks": "Actual ordinary host Save/New/Load retires four known old PIDs, retires the interim PID, restores stable authored IDs with fresh project/definition lifetimes, rejects three stale callbacks, recovers bounded admission and retires all three pinned shutdown-tree PIDs. An external same-executable fixture survives all owned operations and normal host shutdown."
+		},
+		{
+			"requirement": "Current generic Inspector and shared ownership UI",
+			"evidence": "target/m123-reentry-2026-11-05/inspectors.log",
+			"checks": "Cell and Column application-control browser flows pass: typed File/Enum/pre/post/Argument edits, inactive conditional fields, exact history, shared Column/Cell runtime, disabled destinations and actual final Unload."
+		}
+	],
+	"baseline": "The pre-change M12/2 candidate passed 20 ordinary process and 20 Spout first-frame entry/exit cycles using zero pre/post and the old Hidden default. No stuck owner was reproduced in those controlled cases. The product fix changes the requested visible default; current re-entry is accepted from the stronger final headless/native rendered, stopping, crash and endpoint tests rather than an invented lifetime workaround.",
+	"preservedFailures": [
+		"An initial fixture incorrectly expected pre/post in ApplicationSnapshot; the actual typed ConfigureColumnApplication request owns these fields. Corrected before process activation.",
+		"A configuration-key test used Normal as its differing variant after Normal became the default; changed that variant to Hidden, preserving the distinct-key assertion. Final 447 tests and strict lint pass.",
+		"Strict lint found an unnecessary mutable borrow in a new test; corrected without runtime changes.",
+		"The first endpoint capture preceded settled output and saw transparent pixels; the final check waits source installation and 250ms before settled snapshots. An incorrect transport-session unavailable assertion was replaced by the actual source error/message feedback; the transport session stays available across source loss. Final red/green SDK raster assertions pass."
+	],
+	"limits": [
+		"No transition latency, FPS/cadence, memory-budget, physical alignment, driver-reset or production-artifact claim. Original M03/M05 requirements remain open.",
+		"Controlled owned x64 targets establish this functional contract; M08/4's WOW64 complete-retirement blocker and all original barriers remain unaccepted and unchanged.",
+		"Column Groups are introduced by M12/4 and must inherit the same Normal control declaration and pass actual-instance default/Hidden/history/reload checks there. This gate introduces no Column Group feature.",
+		"Detailed bounded runtime traces and original failed test attempts remain under target/m123-reentry-2026-11-05; only compact owning evidence is committed."
+	]
+}

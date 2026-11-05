@@ -1,0 +1,183 @@
+{
+  "result": "pass",
+  "sender": "MapGyverRecovery-46238f77-5c0a-4ff7-9dbd-cebc4e6e4b74",
+  "window": "Normal",
+  "pre": 0,
+  "post": 0,
+  "firstPid": 17652,
+  "recoveredPid": 36588,
+  "firstLaunch": "19a4cfcf-9f82-45da-a9f8-ec05abbdab08",
+  "recoveredLaunch": "572fd4d2-2ef9-4e6e-ad22-4957e9ac6d09",
+  "observations": [
+    {
+      "phase": "initial-first-frame",
+      "snapshot": {
+        "applications": [
+          {
+            "callback_backpressure": false,
+            "configuration": "Current",
+            "consumers": [
+              {
+                "application": "a2b1c4cc-fed4-4c12-9c8f-f65d6b03f8c0",
+                "configuration": "Current",
+                "definition_instance": "2b7af402-c2a3-4415-bb4d-7db2e4ecd62d",
+                "definition_revision": 6
+              }
+            ],
+            "exit_code": null,
+            "failures": 0,
+            "launch": "19a4cfcf-9f82-45da-a9f8-ec05abbdab08",
+            "message": null,
+            "next_action_ms": null,
+            "phase": "Ready",
+            "process_id": 17652,
+            "runtime": "488ba5ea-88b2-4956-aafb-2bb819714c05"
+          }
+        ],
+        "callbacks": {
+          "acknowledged": 3,
+          "fault": null,
+          "pending": 0
+        },
+        "elapsed_ms": 1185,
+        "project": "04578c44-ad8e-49c1-a04b-21dcb2d5d929",
+        "revision": 11,
+        "supervision": {
+          "callbacks": {
+            "kind": "Running"
+          },
+          "demand": {
+            "kind": "Running"
+          },
+          "host": "Headless"
+        }
+      }
+    },
+    {
+      "phase": "crashed-sender-retired",
+      "snapshot": {
+        "applications": [
+          {
+            "callback_backpressure": false,
+            "configuration": "NotRunning",
+            "consumers": [
+              {
+                "application": "a2b1c4cc-fed4-4c12-9c8f-f65d6b03f8c0",
+                "configuration": "Current",
+                "definition_instance": "2b7af402-c2a3-4415-bb4d-7db2e4ecd62d",
+                "definition_revision": 6
+              }
+            ],
+            "exit_code": 1,
+            "failures": 1,
+            "launch": "19a4cfcf-9f82-45da-a9f8-ec05abbdab08",
+            "message": "owned root exited",
+            "next_action_ms": 1769,
+            "phase": "Backoff",
+            "process_id": null,
+            "runtime": "488ba5ea-88b2-4956-aafb-2bb819714c05"
+          }
+        ],
+        "callbacks": {
+          "acknowledged": 4,
+          "fault": null,
+          "pending": 0
+        },
+        "elapsed_ms": 1276,
+        "project": "04578c44-ad8e-49c1-a04b-21dcb2d5d929",
+        "revision": 13,
+        "supervision": {
+          "callbacks": {
+            "kind": "Running"
+          },
+          "demand": {
+            "kind": "Running"
+          },
+          "host": "Headless"
+        }
+      }
+    },
+    {
+      "phase": "fresh-first-frame",
+      "snapshot": {
+        "applications": [
+          {
+            "callback_backpressure": false,
+            "configuration": "Current",
+            "consumers": [
+              {
+                "application": "a2b1c4cc-fed4-4c12-9c8f-f65d6b03f8c0",
+                "configuration": "Current",
+                "definition_instance": "2b7af402-c2a3-4415-bb4d-7db2e4ecd62d",
+                "definition_revision": 6
+              }
+            ],
+            "exit_code": null,
+            "failures": 1,
+            "launch": "572fd4d2-2ef9-4e6e-ad22-4957e9ac6d09",
+            "message": null,
+            "next_action_ms": null,
+            "phase": "Ready",
+            "process_id": 36588,
+            "runtime": "488ba5ea-88b2-4956-aafb-2bb819714c05"
+          }
+        ],
+        "callbacks": {
+          "acknowledged": 7,
+          "fault": null,
+          "pending": 0
+        },
+        "elapsed_ms": 2977,
+        "project": "04578c44-ad8e-49c1-a04b-21dcb2d5d929",
+        "revision": 19,
+        "supervision": {
+          "callbacks": {
+            "kind": "Running"
+          },
+          "demand": {
+            "kind": "Running"
+          },
+          "host": "Headless"
+        }
+      }
+    },
+    {
+      "phase": "unloaded",
+      "snapshot": {
+        "applications": [
+          {
+            "callback_backpressure": false,
+            "configuration": "NotRunning",
+            "consumers": [],
+            "exit_code": 1,
+            "failures": 1,
+            "launch": "572fd4d2-2ef9-4e6e-ad22-4957e9ac6d09",
+            "message": "demand released",
+            "next_action_ms": null,
+            "phase": "Idle",
+            "process_id": null,
+            "runtime": "488ba5ea-88b2-4956-aafb-2bb819714c05"
+          }
+        ],
+        "callbacks": {
+          "acknowledged": 9,
+          "fault": null,
+          "pending": 0
+        },
+        "elapsed_ms": 5101,
+        "project": "04578c44-ad8e-49c1-a04b-21dcb2d5d929",
+        "revision": 25,
+        "supervision": {
+          "callbacks": {
+            "kind": "Running"
+          },
+          "demand": {
+            "kind": "Running"
+          },
+          "host": "Headless"
+        }
+      }
+    }
+  ],
+  "limits": "Owned sender crash removes its endpoint; actual first-frame readiness must recover on a fresh launch. No latency/cadence claim."
+}

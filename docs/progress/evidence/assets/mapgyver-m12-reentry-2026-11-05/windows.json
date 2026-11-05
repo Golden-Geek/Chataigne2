@@ -1,0 +1,19 @@
+{
+  "result": "pass",
+  "results": [
+    {
+      "window": "Normal",
+      "pid": "41300",
+      "visible": "true",
+      "startup_show": "1",
+      "startup_flags": "1"
+    },
+    {
+      "window": "Hidden",
+      "pid": "31576",
+      "visible": "false",
+      "startup_show": "0",
+      "startup_flags": "1"
+    }
+  ]
+}

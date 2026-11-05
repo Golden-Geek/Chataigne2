@@ -45,6 +45,73 @@ fn children(engine: &AppEngine, application: ApplicationId) -> Vec<NodeId> {
 }
 
 #[test]
+fn fresh_column_and_cell_controls_default_to_normal_through_dto_and_declared_parameters() {
+    assert_eq!(ApplicationDefinition::default().window, ApplicationWindow::Normal);
+    let empty: ApplicationDefinition = serde_json::from_str("{}").unwrap();
+    assert_eq!(empty.window, ApplicationWindow::Normal);
+    let mut engine = fixture();
+    let (media, columns) = matrix(&mut engine);
+    let snapshot = crate::matrix::inspect(&engine, media).unwrap();
+    let MatrixItemId::Layer { id: layer } = snapshot.items[0].id else {
+        panic!()
+    };
+    let MediaEditResult::MatrixCellPrepared { application: cell, .. } = edit(
+        &mut engine,
+        MediaEdit::Matrix {
+            media,
+            edit: MatrixEdit::EnsureCell {
+                layer,
+                column: columns[0],
+            },
+        },
+    ) else {
+        panic!()
+    };
+    for application in columns.into_iter().map(|column| ApplicationId(column.0)).chain([cell]) {
+        assert_eq!(
+            crate::applications::inspect(&engine, application)
+                .unwrap()
+                .definition
+                .window,
+            ApplicationWindow::Normal
+        );
+        let field = parameter(&engine, root(&engine, application), "window");
+        let value = engine.nodes.get(field).unwrap().engine_param_snapshot().unwrap();
+        assert_eq!(value.value, ParamValue::Enum("Normal".into()));
+        assert_eq!(value.default_value, ParamValue::Enum("Normal".into()));
+    }
+}
+
+#[test]
+fn an_authored_hidden_choice_remains_typed_and_survives_history_and_project_reload() {
+    let mut engine = fixture();
+    let application = create(&mut engine);
+    let field = parameter(&engine, root(&engine, application), "window");
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    assert!(set(&mut engine, field, ParamValue::Enum("Hidden".into())).success);
+    assert_eq!(
+        crate::applications::inspect(&engine, application)
+            .unwrap()
+            .definition
+            .window,
+        ApplicationWindow::Hidden
+    );
+    let hidden = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&hidden).unwrap();
+    assert_eq!(
+        crate::applications::inspect(&loaded, application)
+            .unwrap()
+            .definition
+            .window,
+        ApplicationWindow::Hidden
+    );
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), hidden);
+}
+
+#[test]
 fn generic_parameters_and_public_configure_share_one_typed_history_and_project_model() {
     let mut engine = fixture();
     let application = create(&mut engine);

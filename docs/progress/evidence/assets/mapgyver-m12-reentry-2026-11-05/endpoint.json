@@ -1,0 +1,98 @@
+{
+  "result": "pass",
+  "adapter": {
+    "key": "dxgi:00000000:00015b69",
+    "index": 0,
+    "description": "Intel(R) Graphics"
+  },
+  "first": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "75d8b813-f8b9-4bb2-8a5f-97e41fa8903b",
+        "configuration": "Current",
+        "definition_instance": "f8d4d13f-dc56-479f-a062-7d25aae7b542",
+        "definition_revision": 5
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "4c80befa-5677-4757-a5bf-acd4c0302be1",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 11048,
+    "runtime": "301962a9-75e2-4ffd-ac35-829a4dd6fb8c"
+  },
+  "lost": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "75d8b813-f8b9-4bb2-8a5f-97e41fa8903b",
+        "configuration": "Current",
+        "definition_instance": "f8d4d13f-dc56-479f-a062-7d25aae7b542",
+        "definition_revision": 5
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "4c80befa-5677-4757-a5bf-acd4c0302be1",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 11048,
+    "runtime": "301962a9-75e2-4ffd-ac35-829a4dd6fb8c"
+  },
+  "lostMessage": "Source Unavailable",
+  "recovered": {
+    "callback_backpressure": false,
+    "configuration": "Current",
+    "consumers": [
+      {
+        "application": "75d8b813-f8b9-4bb2-8a5f-97e41fa8903b",
+        "configuration": "Current",
+        "definition_instance": "f8d4d13f-dc56-479f-a062-7d25aae7b542",
+        "definition_revision": 5
+      }
+    ],
+    "exit_code": null,
+    "failures": 0,
+    "launch": "4c80befa-5677-4757-a5bf-acd4c0302be1",
+    "message": null,
+    "next_action_ms": null,
+    "phase": "Ready",
+    "process_id": 11048,
+    "runtime": "301962a9-75e2-4ffd-ac35-829a4dd6fb8c"
+  },
+  "observations": [
+    {
+      "phase": "before-loss",
+      "rgba": [
+        255,
+        0,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    },
+    {
+      "phase": "after-recovery",
+      "rgba": [
+        0,
+        255,
+        0,
+        255
+      ],
+      "extent": [
+        96,
+        64
+      ]
+    }
+  ],
+  "limits": "An independently controlled, owned endpoint is removed/restored while the configured application process stays alive; no readiness injection, timing or cadence claim."
+}

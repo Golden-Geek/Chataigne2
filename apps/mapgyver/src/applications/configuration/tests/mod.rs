@@ -48,7 +48,7 @@ fn keys_keep_every_launch_and_control_setting_and_environment_mode_distinct() {
     changed.environment.as_mut().unwrap()[0].1.push('!');
     variants.push(changed);
     let mut changed = original.clone();
-    changed.window = ApplicationWindow::Normal;
+    changed.window = ApplicationWindow::Hidden;
     variants.push(changed);
     let mut changed = original.clone();
     changed.readiness = ApplicationReadiness::Spout {

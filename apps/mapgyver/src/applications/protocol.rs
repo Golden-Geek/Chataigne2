@@ -11,8 +11,8 @@ pub struct ApplicationRuntimeId(pub uuid::Uuid);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum ApplicationWindow {
-    #[default]
     Hidden,
+    #[default]
     Normal,
 }
 

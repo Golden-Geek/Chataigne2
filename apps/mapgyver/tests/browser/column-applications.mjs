@@ -87,6 +87,13 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		await file.fill(executable);
 		await file.press('Tab');
 		await wait(application, (s) => s.definition.executable === executable);
+		assert.equal(await parameter('Window').locator('select').inputValue(), 'Normal');
+		await parameter('Window').locator('select').selectOption('Hidden');
+		await wait(application, (s) => s.definition.window === 'Hidden');
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(application, (s) => s.definition.window === 'Normal');
+		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+		await wait(application, (s) => s.definition.window === 'Hidden');
 		for (const [label, value] of [
 			['Preload columns before', '1'],
 			['Keep columns after', '1']

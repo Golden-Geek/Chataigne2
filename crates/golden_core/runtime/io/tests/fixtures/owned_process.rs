@@ -1,4 +1,4 @@
-//! Finite, test-owned executable. Never starts an unrelated executable or opens a visible window.
+//! Finite, test-owned executable. Visible windows require the explicit launch-window mode.
 use std::{
     ffi::OsString,
     path::PathBuf,
@@ -17,7 +17,9 @@ fn main() {
     let stop = PathBuf::from(&arguments[2]);
     match mode {
         #[cfg(windows)]
-        "window" => owned_window::run(&report),
+        "window" => owned_window::run(&report, false),
+        #[cfg(windows)]
+        "launch-window" => owned_window::run(&report, true),
         "report" => {
             let mut text = format!(
                 "cwd={}\nenv={}\n",

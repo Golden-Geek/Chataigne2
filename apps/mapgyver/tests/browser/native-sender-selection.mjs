@@ -8,7 +8,7 @@ import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
 
-async function inventory() {
+export async function inventory() {
 	const child = spawn(
 		path.resolve('target/debug/native_qualification.exe'),
 		['--role', 'hardware'],
@@ -26,7 +26,7 @@ async function inventory() {
 	return JSON.parse(text);
 }
 
-async function source(adapter, name) {
+export async function source(adapter, name) {
 	const child = spawn(
 		path.resolve('target/debug/native_source_fixture.exe'),
 		['--adapter', String(adapter), '--sender', name],

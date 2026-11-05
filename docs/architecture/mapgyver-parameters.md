@@ -53,6 +53,14 @@ limits are runtime contracts, not editable channel descriptors. Disabled media R
 source-native size or 1920×1080 for procedural canvases. Enabled forces every channel's extent.
 Composition initially has one output.
 
+App-control launch policy belongs to MapGyver's `AppControlNode` declaration and
+`ApplicationDefinition`: fresh Column and Cell controls default to **Window = Normal**.
+An explicitly authored **Hidden** choice uses the same typed Enum, history and project codec.
+Future Column Groups must use that same control declaration. Golden receives an explicit
+process-window policy. Startup readiness identifies a launch; current endpoint availability is
+reported separately by the media runtime, so a healthy owned process can stay Ready while its
+source reports loss and reconnects without restarting that process.
+
 Default Composition/Matrix drops create Reference media; Alt+drag duplicates the media subtree
 with independent identities. A Reference owns no source/transport/decoder settings. Empty
 Matrix addresses stay sparse until content or authored settings require a Cell.

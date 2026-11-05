@@ -20,8 +20,8 @@ use std::sync::{
         label = "App file", file_allowed_extensions = vec!["exe".into()]
     );
     directory: File = File::default() (label = "Working directory");
-    window: Enum = "Hidden" (
-        label = "Window", enum_options = crate::parameters::enum_options(&["Hidden", "Normal"])
+    window: Enum = "Normal" (
+        label = "Window", enum_options = crate::parameters::enum_options(&["Normal", "Hidden"])
     );
     readiness: Enum = "ProcessStarted" (
         label = "Ready when", enum_options = crate::parameters::enum_options(&["ProcessStarted", "Spout"])

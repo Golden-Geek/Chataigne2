@@ -123,7 +123,10 @@ const exited = new Promise((resolve, reject) => {
 	app.once('error', reject);
 	app.once('close', resolve);
 });
-const watchdog = setTimeout(() => app.kill(), 60000);
+const watchdog = setTimeout(
+	() => app.kill(),
+	process.argv.includes('--application-reentry') ? 180000 : 60000
+);
 let token;
 async function post(route, body) {
 	const response = await fetch(`${base}${route}`, {
@@ -306,6 +309,18 @@ try {
 	if (process.argv.includes('--application-ui')) {
 		const { verifyApplicationUi } = await import('../browser/applications.mjs');
 		await verifyApplicationUi({ base, edit });
+	}
+	if (process.argv.includes('--application-reentry')) {
+		const { verifyApplicationReentry } = await import('./reentry.mjs');
+		await verifyApplicationReentry({ edit });
+	}
+	if (process.argv.includes('--application-window-defaults')) {
+		const { verifyLaunchWindows } = await import('./launch-windows.mjs');
+		await verifyLaunchWindows({ edit });
+	}
+	if (process.argv.includes('--application-crash-recovery')) {
+		const { verifyApplicationCrashRecovery } = await import('./crash-recovery.mjs');
+		await verifyApplicationCrashRecovery({ edit });
 	}
 	if (process.argv.includes('--cell-application-ui')) {
 		const { verifyCellApplicationsUi } = await import('../browser/cell-applications.mjs');
