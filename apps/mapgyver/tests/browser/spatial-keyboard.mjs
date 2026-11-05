@@ -155,8 +155,13 @@ export async function verifySpatialKeyboard({
 	reports.push('Escape-retirement');
 	if (resize) {
 		await ready();
-		await view.focus();
 		const first = resize.locator('TopLeft');
+		const deadline = Date.now() + 9000;
+		while (!(await first.isEnabled()) || (await first.getAttribute('tabindex')) !== '0') {
+			assert(Date.now() < deadline, 'Tab admission did not settle');
+			await delay(25);
+		}
+		await view.focus();
 		for (
 			let step = 0;
 			step < 16 && !(await first.evaluate((element) => document.activeElement === element));

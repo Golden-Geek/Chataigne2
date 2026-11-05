@@ -1,0 +1,2 @@
+﻿{"flow":["--matrix-cell-layout"],"nativePid":40516}
+{"result":"pass","nativePid":40516,"lease":"22601d21-7bd2-4897-a92e-9c071b5e3bc8","restoredLease":"6b2bb046-d43f-4f3e-bed9-003acdd465d4","errors":[],"receipts":{"rejected":[],"observed":{"requests":216,"receipts":216}},"scope":"inactive Cell content preview without playback; 128 visible definitions plus independent selected Cell; Frame/Home, pagination, tab lock/layout restore, stable reconnect, missing/Undo, New/Load fencing"}

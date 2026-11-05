@@ -29,8 +29,8 @@ prepared source extent. Layer logical-canvas placement remains Stretch, independ
 output Resolution.
 
 This supersedes the historical M07 no-Cell-size contract. It provides the backend/Inspector
-part of M12/7. [Shared spatial geometry](mapgyver-spatial-geometry.md) adds Layer canvas
-move/resize and grouped pointer history. [Per-Layer Cell layout](mapgyver-cell-layout.md) adds
-bounded navigation and inactive preview; Cell canvas manipulation, grouped keyboard history
-and the full acceptance matrix remain tracked in the
-[current ledger](../progress/mapgyver-status.md).
+part of M12/7. [Shared spatial geometry](mapgyver-spatial-geometry.md) adds Layer/Cell canvas
+move/resize and grouped pointer/keyboard history. [Per-Layer Cell layout](mapgyver-cell-layout.md)
+adds bounded navigation and inactive preview. The [complete M12/7 audit](../progress/evidence/mapgyver-m12-spatial-acceptance-2026-11-05.json)
+records native input, qualified both-GPU pixels and sparse/copy/project behavior;
+separate production qualification remains in the [current ledger](../progress/mapgyver-status.md).

@@ -1,0 +1,101 @@
+﻿
+running 1 test
+matrix_rendering-spatial-acceptance.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 4517fa5b-3cae-4d09-8e9c-ca8fdda592b6, generation: 1 })
+At line:2 char:349
++ ... EXITCODE }; & target/debug/deps/matrix_rendering-spatial-acceptance.e ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster inactive-editor-fit output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-fit output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-fit output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-fill output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-fill output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-fill output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-stretch output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-stretch output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-stretch output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-natural output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-natural output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-natural output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-translated output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-translated output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-translated output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-resized output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-resized output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-resized output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-undo-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-undo-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster inactive-editor-undo-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Inactive Cell editor preview pixels passed on Intel(R) Graphics without playback
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+19ca4b4e-4dd2-4174-9fed-c2ff9ed51042, generation: 1 })
+Raster inactive-editor-fit output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-fit output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-fit output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-fill output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-fill output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-fill output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-stretch output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-stretch output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-stretch output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-natural output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-natural output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-natural output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-translated output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-translated output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-translated output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-resized output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-resized output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-resized output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-undo-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-undo-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster inactive-editor-undo-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Inactive Cell editor preview pixels passed on NVIDIA GeForce RTX 5080 Laptop GPU without playback
+test matrix_pixels::cell_editor::native_cell_editor_previews_inactive_placement_without_playback_on_each_adapter ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 6.33s

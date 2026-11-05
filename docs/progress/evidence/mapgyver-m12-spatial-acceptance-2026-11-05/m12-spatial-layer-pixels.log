@@ -1,0 +1,53 @@
+﻿
+running 1 test
+matrix_rendering-spatial-acceptance.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 6fac7d97-e95d-45e3-8ba2-6020de23272b, generation: 1 })
+At line:2 char:1
++ & target/debug/deps/matrix_rendering-spatial-acceptance.exe matrix_pi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster layer-position-canvas output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-position-canvas output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-position-canvas output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Layer position/canvas/resize/Undo native pixels passed on Intel(R) Graphics
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+d44d177c-ed50-4e4c-bcd9-1ac93ac97977, generation: 1 })
+Raster layer-position-canvas output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-position-canvas output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-position-canvas output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster layer-canvas-undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Layer position/canvas/resize/Undo native pixels passed on NVIDIA GeForce RTX 5080 Laptop GPU
+test matrix_pixels::layer_geometry::native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adapter ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 2.77s

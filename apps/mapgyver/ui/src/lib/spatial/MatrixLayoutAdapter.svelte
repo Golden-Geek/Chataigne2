@@ -167,10 +167,17 @@
 					id: selected?.item.id.id ?? null,
 					disabled: owner.busy,
 					active: geometry.state.active,
-					start: (mode) =>
-						!!selected &&
-						(typeof mode === 'string' || !('Rotate' in mode)) &&
-						start(selected.item.id.id, mode, { x: 0, y: 0 }),
+					start: (mode) => {
+						const id = selected?.item.id.id;
+						if (
+							!id ||
+							(typeof mode !== 'string' && 'Rotate' in mode) ||
+							!start(id, mode, { x: 0, y: 0 })
+						)
+							return false;
+						selection.select(id);
+						return true;
+					},
 					move: (point) => geometry.gesture.move(point),
 					finish: () => geometry.gesture.finish(),
 					stop: () => geometry.gesture.stop()

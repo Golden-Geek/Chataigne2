@@ -13,7 +13,7 @@ cargo clippy --locked -p MapGyver --all-targets --features native-qualification,
 cargo test --locked -p MapGyver --features native-qualification --test matrix_rendering -- --ignored --nocapture --test-threads=1
 ```
 
-Run the complete native suite (four retained tests plus M11/8 exposure) serially, after
+Run the complete retained and M12 native suites serially, after
 inspecting terminal software and strict lint success. Use Cargo's optimized **test** profile,
 including `cargo rustc --profile test` when
 building an isolated executable. The dev profile and `test-fast` are not equivalent qualification
@@ -30,6 +30,14 @@ media and Layer canvases explicitly. The software preflight checks ownership, sp
 extent, ordering and exact project roundtrip before any hardware run. Separate native tests cover
 Cell position/opacity/enabling and Layer position/canvas/resize through Undo without stretching
 child media.
+
+M12's `spatial_acceptance.rs` exercises live Cell translation/resize through two nested Groups,
+all four blends and alpha, fixed versus natural placement after source resize, exact Undo/Redo,
+Column copy/project reload and an inactive original Cell editor while its copy keeps playing.
+The independent oracle reads Layer/Final/preview images on each hardware adapter. The separate
+Cell editor suite covers inactive Fit/Fill/Stretch and natural placement; the ordinary sizing
+suite retains its patterned crop/edge proof. Qualification uses `cargo rustc --profile test`
+for isolated binaries; a successful dev-profile run is functional evidence only.
 
 The complete native suite covers all blend modes, post-composite group opacity, ordering/Undo,
 shared source targets, missing source/Undo, empty columns, reload/recreation and independently

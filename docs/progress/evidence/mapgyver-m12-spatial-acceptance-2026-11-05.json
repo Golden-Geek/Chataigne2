@@ -1,0 +1,275 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/7",
+	"decision": "Accepted",
+	"next_active_gate": "M12/8",
+	"acceptance": {
+		"verified": 64,
+		"total": 78,
+		"overall_percent": 82,
+		"m12_verified": 7,
+		"m12_total": 11,
+		"m12_percent": 64,
+		"completed_phases": 7,
+		"total_phases": 13
+	},
+	"capability": "One Composition registration hosts focused Composition/Matrix adapters over the shared native viewport, selection, pointer and keyboard lifetime. Matrix Layer layout and per-Layer Cell content edit typed position/size, including inactive Cells without playback. Natural Size, independent authored Size, Fit/Fill/Stretch, opposite anchors, grouped history, bounded off-page editing and project/reconnect fences are verified.",
+	"requirements": [
+		{
+			"requirement": "Shared viewport/navigation/manipulation shell; separate Matrix playback grid and domain geometry/query ownership",
+			"proof": "Inspected SpatialPanel/SpatialViewport, shared pointer and Golden KeyboardGesture/LatestEditGesture, focused Composition/Matrix adapters and distinct backend geometry/query modules. No Matrix-to-Composition conversion or app domain policy in Golden. Current mixed-domain flow passes.",
+			"evidence": [
+				"../../architecture/mapgyver-spatial-geometry.md",
+				"mapgyver-m12-spatial-bindings-2026-11-05.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-bindings.log"
+			]
+		},
+		{
+			"requirement": "Existing Composition registration and truthful target/layout-level tab labels",
+			"proof": "SpatialPanel retains the existing registration and derives current Matrix/Layer labels plus layout level. Current mixed binding rename/layout and Cell navigation/layout-restore flows pass.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-bindings.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-layout.log"
+			]
+		},
+		{
+			"requirement": "Unlocked Matrix/Layer/Cell following, unrelated retention and independent locks",
+			"proof": "Current mixed Composition/Matrix flow exercises actual Cell/Layer grid selection, unrelated retention with native-view identity, separate locks, lock accessibility, rename, deletion/Undo and cross-project rejection. Composition panels independently pass follow/lock/layout and bounded selected-object behavior.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-bindings.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition.log"
+			]
+		},
+		{
+			"requirement": "Whole-Matrix Layer and per-Layer Cell layout with compact navigation",
+			"proof": "Actual Edit Layer Cells and breadcrumb return use the shared panel. The 1000x1000 sparse flow edits a far Layer, enters its Cells and preserves separate playback/grid behavior; bounded navigation regression passes.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-layout.log"
+			]
+		},
+		{
+			"requirement": "Layer and Cell position/size, including inactive authored Cells without triggering playback",
+			"proof": "Current Layer/Cell pointer and keyboard flows pass all eight handles and exact history. Qualified Layer pixels prove position/canvas resize without stretching the source. Qualified inactive editor images prove move/resize/Undo and all placement modes; selection/authoring does not launch a Matrix.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-layer-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-layer-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-inactive-editor-pixels.log"
+			]
+		},
+		{
+			"requirement": "Typed optional Cell Size independent of media Resolution; natural size until authored; explicit supersession of M07 no-size policy",
+			"proof": "Inspected CellNode Size/metadata and CellSettings DTO defaults: real optional Vec2 Parameter, disabled/natural by default, bounded whole pixels, generated TypeScript. Architecture explicitly supersedes M07. Current Rust tests cover validation/history/metadata/source epoch/copy/persistence; actual sparse UI and qualified pixels keep source Resolution independent of authored Size.",
+			"evidence": [
+				"../../architecture/mapgyver-cell-placement.md",
+				"mapgyver-m12-cell-placement-2026-11-05.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-pixels.log"
+			]
+		},
+		{
+			"requirement": "Backend Fit/Fill/Stretch placement policy and standard Inspector",
+			"proof": "Typed enum and ordinary Golden Parameter Inspector remain unchanged from the actual Inspector Size enable/dimensions/Fit/history/offscreen run. Current qualified patterned Fit/Fill/Stretch/natural/Undo images and inactive-editor modes pass on both GPUs. Placement is separate from thumbnail presentation and adds no intermediate Cell pass.",
+			"evidence": [
+				"mapgyver-m12-cell-placement-2026-11-05.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-cell-fit-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-inactive-editor-pixels.log"
+			]
+		},
+		{
+			"requirement": "Backend coordinate/bounds validation and opposite-anchor resizing",
+			"proof": "Current 495-test Rust suite includes all eight anchors, finite overflow, crossed edges, wrong kinds/owners, natural-source basis changes and atomic rejection. Native pointer/keyboard flows prove the corresponding controls, including rotated/mirrored Composition with a noncentral pivot.",
+			"evidence": [
+				"mapgyver-m12-cell-geometry-2026-11-05.json",
+				"mapgyver-m12-layer-geometry-2026-11-05.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-layer-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition-geometry.log"
+			]
+		},
+		{
+			"requirement": "Grouped pointer and keyboard history at the backend boundary",
+			"proof": "Current actual-app flows compare backend snapshots through exact one-step Undo/Redo for held pointer/arrow gestures and separate rapid keyboard taps. Shift, fresh origins after asynchronous close, focus loss, Escape, Tab reachability and stale repeats pass; Composition includes four rotation handles.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-layer-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-geometry.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition-geometry.log"
+			]
+		},
+		{
+			"requirement": "Bounded visible queries and independent offscreen selected definitions",
+			"proof": "Current 130-Cell and 130-instance flows retain an independent selected definition outside 128-entry pages and drive the ordinary Inspector. Mixed bindings prove 128 Layers plus one selected Layer. The sparse project retains exactly three authored Cells before copy, then four, with a 129-definition Layer bound.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-layout.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json"
+			]
+		},
+		{
+			"requirement": "Native canvas/history lifetime, selection/lock modes and document/reconnect fencing",
+			"proof": "Current mixed locks retain two native leases through actual reconnect; Cell navigation passes layout/reconnect/missing/Undo/New/Load. Composition panels pass peer/tab retirement and New during held pointer. Sparse spatial input rejects an old held repeat after New and reloading identical UUIDs, then admits fresh input with exact Undo.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-bindings.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-cell-layout.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json"
+			]
+		},
+		{
+			"requirement": "Active/inactive Cells, nested Layer Groups, native aspect/alpha/blend pixels",
+			"proof": "Qualified native Matrix test renders live Cell geometry through two nested Groups over translucent blue, all four blends and independent Cell/Layer/Group opacity. It later previews the disabled original while its copied Cell remains active. Composition native transforms/blends/resize/recovery and patterned/inactive placement suites pass on both hardware adapters.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-composition-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-cell-fit-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-inactive-editor-pixels.log"
+			]
+		},
+		{
+			"requirement": "Source resizing with natural and independent fixed placement",
+			"proof": "Qualified source 8x4 to 16x4 preserves fixed 16x8 Size/Fit, then natural placement follows 16x4; direct resize authors 24x6 independently. Actual UI source 120x90 to 240x90 updates natural bounds, authors 243x90 and leaves source Resolution 240x90, retaining the exact active playback request.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json"
+			]
+		},
+		{
+			"requirement": "History/copy/reload in both domains",
+			"proof": "Current qualified Matrix images cover geometry Undo/Redo, Column copy, reloaded placement/source sizing and inactive original preview. The sparse UI verifies exact settings copy and project/layout reload. Current Composition panels verify copy/removal and exact history; qualified Composition pixels verify missing-source Undo and reload/recreation.",
+			"evidence": [
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-pixels.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-final-composition.log",
+				"mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-composition-pixels.log"
+			]
+		},
+		{
+			"requirement": "Large sparse spatial projects",
+			"proof": "Actual bundled 1000-Layer x1000-Column project has three authored Cells, four after copying one populated address. Far Layer/Cell selection, bounded spatial metadata, Layer/active Cell geometry, source resize, history, copy/reload and generation fencing all pass. Existing backend large sparse query tests pass in the current Rust suite.",
+			"evidence": ["mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-ui.json"]
+		}
+	],
+	"software": {
+		"rust": "495 passed, 0 failed, 3 existing ignored; --lib with native-qualification,application-process-fixture, including both generated-contract checks and public caller/history/ownership/bounds/query/projection coverage.",
+		"ui": "90 related app tests and 244 Golden UI tests pass. Svelte: 0 errors, 0 warnings. Current shared selection and geometry consumers type-check.",
+		"strict": "Strict all-target Clippy with the same features and -D warnings passes; root/golden_core formatting, scoped Prettier, Node syntax and staged diff checks pass.",
+		"app_sha256": "efb21a7be7fc5a24cfbf72e798c56a11e78b902e8337274aa8f1f31f32809b11",
+		"native_builds": {
+			"profile": "test (opt-level=3); terminal success inspected before each dependent hardware suite",
+			"commands": [
+				"cargo rustc --locked -p MapGyver --profile test --features native-qualification,application-process-fixture --test matrix_rendering -- -C extra-filename=-spatial-acceptance",
+				"cargo rustc --locked -p MapGyver --profile test --features native-qualification,application-process-fixture --test composition_rendering -- -C extra-filename=-spatial-acceptance"
+			],
+			"matrix_sha256": "f688553c5e9a01719311600e299a68ee5dc21dd01e861e4065f80e67cca12220",
+			"composition_sha256": "e8496a126ef2e1b52416e448c87eeb470e043384ca62ad76ba160920430eef05"
+		}
+	},
+	"native_pixels": {
+		"tests_passed": 5,
+		"images": 222,
+		"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"scope": "Complete Layer/Final/preview or dual-output/preview readbacks per case on each adapter. Independent premultiplied linear-light raster oracle, propagated legal UNORM bounds and unchanged 2/255 residual tolerance; all fixture resource/retirement assertions pass.",
+		"suites": [
+			{
+				"test": "matrix_pixels::spatial_acceptance::native_spatial_live_geometry_source_resize_copy_reload_and_inactive_editor_on_each_adapter",
+				"cases_per_adapter": 13,
+				"images": 78,
+				"maximum_residual_255": 0,
+				"maximum_nominal_255": 1,
+				"log": "mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-acceptance-pixels.log"
+			},
+			{
+				"test": "matrix_pixels::cell_editor::native_cell_editor_previews_inactive_placement_without_playback_on_each_adapter",
+				"cases_per_adapter": 7,
+				"images": 42,
+				"maximum_residual_255": 0,
+				"maximum_nominal_255": 1,
+				"log": "mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-inactive-editor-pixels.log"
+			},
+			{
+				"test": "composition_pixels::native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_and_reload",
+				"cases_per_adapter": 9,
+				"images": 54,
+				"maximum_residual_255": 1,
+				"maximum_nominal_255": 1,
+				"log": "mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-composition-pixels.log"
+			},
+			{
+				"test": "matrix_pixels::layer_geometry::native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adapter",
+				"cases_per_adapter": 3,
+				"images": 18,
+				"maximum_residual_255": 0,
+				"maximum_nominal_255": 0,
+				"log": "mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-layer-pixels.log"
+			},
+			{
+				"test": "matrix_pixels::cell_sizing::native_cell_placement_fit_fill_stretch_crop_and_natural_size_on_each_adapter",
+				"cases_per_adapter": 5,
+				"images": 30,
+				"maximum_residual_255": 0,
+				"maximum_nominal_255": 0,
+				"log": "mapgyver-m12-spatial-acceptance-2026-11-05/m12-spatial-cell-fit-pixels.log"
+			}
+		]
+	},
+	"native_ui": {
+		"all_exit_zero_and_retired": true,
+		"flows": [
+			{
+				"flag": "--spatial-acceptance",
+				"pid": 8004,
+				"requests": 297,
+				"receipts": 296,
+				"rejected": 0,
+				"page_errors": 0,
+				"limit": "One background request is in flight at the observer snapshot; exact geometry/history/playback assertions pass. This is not a claim of 297 completed receipts."
+			},
+			{
+				"flag": "--spatial-bindings",
+				"pid": 35112,
+				"requests": 268,
+				"receipts": 268,
+				"rejected": 0,
+				"page_errors": 0
+			},
+			{ "flag": "--composition-panels", "pid": 29624, "page_errors": 0 },
+			{
+				"flag": "--matrix-cell-layout",
+				"pid": 40516,
+				"requests": 216,
+				"receipts": 216,
+				"rejected": 0,
+				"page_errors": 0
+			},
+			{ "flag": "--keyboard", "pid": 16164, "page_errors": 0 },
+			{
+				"flag": "--matrix-layer-geometry",
+				"pid": 17004,
+				"requests": 1460,
+				"receipts": 1460,
+				"rejected": 0,
+				"page_errors": 0
+			},
+			{
+				"flag": "--matrix-cell-geometry",
+				"pid": 15268,
+				"requests": 2359,
+				"receipts": 2359,
+				"rejected": 0,
+				"page_errors": 0
+			},
+			{ "flag": "--composition", "pid": 18932, "page_errors": 0, "zoom_samples": 39 }
+		],
+		"receipt_limit": "Older Composition/Screen fixtures do not correlate sockets established before attachment. Their empty rejection lists alone are not receipt coverage; exact backend state/history and lifetime assertions establish the listed behavior. Current mixed/Cell/Layer flows use the CDP observer."
+	},
+	"repairs_and_limits": [
+		"Initial sparse PID 8056 found a real correctness defect: a Cell resolved to its Layer canvas but keyboard start retained global Cell selection, causing the Layer ownership fence to cancel. Admitted keyboard gestures now select their displayed target consistently across adapters. Existing UUIDs select synchronously through Golden's index; new nodes retain guarded graph-delta selection. The graph-wide selection scan was removed. Current sparse and all eight native flows pass.",
+		"The next sparse run reached the repaired Layer behavior but the fixture assumed its far grid scroll position survived a tab revisit. It now explicitly scrolls to the far address before selecting it; no product acceptance was weakened. A Cell Tab check also now waits for the handle's actual enabled/tabindex admission before traversing focus. Initial logs are retained.",
+		"Initial GPU runs used Cargo's dev profile and are functional evidence only. Before accepting this gate, both binaries were rebuilt with required --profile test and all five suites/222 images passed. Earlier dev-profile results do not count toward this qualification.",
+		"The 15 proof rows reconcile the single fixed M12/7 acceptance gate; they do not change the 78-gate denominator or award partial progress. This closes exactly one gate: 63 to 64 accepted; M12 6 to 7.",
+		"No original renderer, memory, retirement, error, timing or admission budget changed. SDK/preview readbacks establish native pixel behavior, not physical monitor alignment or sustained production performance. Retained M03/M05/M08 and final qualification remain open; no release readiness is claimed."
+	],
+	"artifacts": "mapgyver-m12-spatial-acceptance-2026-11-05/",
+	"next": "M12/8: record the selected Raw/Smooth 2x rendering approach, then implement and prove it against the plan's unchanged resource/quality/performance contracts. M12/9-11 stay Pending in order."
+}

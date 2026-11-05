@@ -85,7 +85,8 @@
 					? { Resize: { handle: mode.Resize.handle, extent: { ...extent } } }
 					: 'Rotate';
 		}
-		return start(instance.reference, {
+		const id = instance.reference.instance;
+		const admitted = start(instance.reference, {
 			mode: geometryMode,
 			origin: {
 				...origin,
@@ -95,6 +96,8 @@
 			},
 			start: { ...keyboardOrigin }
 		});
+		if (admitted) select(id);
+		return admitted;
 	}
 </script>
 

@@ -4,7 +4,7 @@ import { captureSelectionGuard } from './selection-guard';
 
 const key = Symbol('mapgyver-document-selection');
 
-/** Resolve committed UUIDs when Golden's graph delta arrives; no polling or document mutations. */
+/** Select committed UUIDs through Golden's index; defer only nodes awaiting their graph delta. */
 export function provideDocumentSelection() {
 	let request = $state.raw<{
 		session: WorkbenchSession;
@@ -19,9 +19,7 @@ export function provideDocumentSelection() {
 			request = null;
 			return;
 		}
-		const node = [...session.graph.state.nodesById.values()].find(
-			(node) => node.uuid === pending.uuid
-		);
+		const node = session.graph.state.nodesById.getByUuid(pending.uuid);
 		if (node)
 			untrack(() => {
 				session.selectNode(node.node_id, 'REPLACE');
@@ -33,7 +31,11 @@ export function provideDocumentSelection() {
 		const current = captureSelectionGuard(session);
 		return (uuid: string) => {
 			if (!session || !current(appState.session)) return false;
-			request = { session, uuid, current };
+			const node = session.graph.state.nodesById.getByUuid(uuid);
+			if (node) {
+				request = null;
+				session.selectNode(node.node_id, 'REPLACE');
+			} else request = { session, uuid, current };
 			return true;
 		};
 	}

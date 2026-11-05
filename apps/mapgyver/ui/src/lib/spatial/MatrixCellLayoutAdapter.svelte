@@ -187,10 +187,17 @@
 					id: selected?.view.cell.id ?? null,
 					disabled: reader.busy,
 					active: geometry.state.active,
-					start: (mode) =>
-						!!selected &&
-						(typeof mode === 'string' || !('Rotate' in mode)) &&
-						start(selected.view.cell.id, mode, { x: 0, y: 0 }),
+					start: (mode) => {
+						const id = selected?.view.cell.id;
+						if (
+							!id ||
+							(typeof mode !== 'string' && 'Rotate' in mode) ||
+							!start(id, mode, { x: 0, y: 0 })
+						)
+							return false;
+						select(id);
+						return true;
+					},
 					move: (point) => geometry.gesture.move(point),
 					finish: () => geometry.gesture.finish(),
 					stop: () => geometry.gesture.stop()

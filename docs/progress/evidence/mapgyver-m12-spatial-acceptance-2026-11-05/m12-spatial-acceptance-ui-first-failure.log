@@ -1,0 +1,48 @@
+﻿{"flow":["--spatial-acceptance"],"nativePid":8056}
+node : {"stage":"far Layer keyboard geometry","errors":[],"receipts":{"rejected":[],"observed":{"requests":58,"receipts
+":58}},"body":"FILE\nUntitled*\nMAPGYVER 0.1.0\nClear UI\n➖ 🟩 🔴\nMedias\nScreens\nSpatial sparse source\nSpatial
+sparse Matrix\nScreen Warping\nSurface Source\nComposition: Spatial sparse Matrix / Matrix Layers\nMatrix: Spatial
+sparse Matrix\nMedia Preview\n3\nFrame\nHome\n−\n100%\n+\nPage 1 / 8\nInspector:
+Cell\nCell\nReference\nParameters\nTarget\nSpatial sparse source\nResolution\nChannels\nChannel
+1\nParameters\nColumn\nColumn 1000\nOutput\nChannel 1\nPosition\n⟷\n⟷\nSize\nFit
+Mode\nFit\nFill\nStretch\nOpacity\nEnabled\nOverride transition\nTransition duration\nTransition
+curve\nLinear\nSmoothStep\nApp control\nParameters\nApp file\nAllowed: .exe\nRuntime\nRaw Data\nMedia Preview
+opened\n60.4 fps\nNVIDIA GeForce RTX 5080 Laptop GPU\n0.23 ms CPU\n312.7 MB\n200 Hz"}
+At line:2 char:216
++ ... board.exe'; node apps/mapgyver/tests/browser/native-navigation.mjs -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ({"stage":"far L....7 MB\n200 Hz"}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: far Layer keyboard geometry: {"cells":[{"definition":{"application":"63815b5e-3151-4d25
+-a4c2-8984e3fd8e20","column":"722759cd-432e-4dc0-b339-899a706f8c57","settings":{"enabled":true,"fit_mode":"Fit","opacit
+y":1,"position":[0,0],"size":null},"source":{"channel":"a7ad7cc2-9cfc-4387-a454-efa10a2de73e","media":"2e7f1b06-fe01-47
+ad-b9fa-314ec14e1a52"},"transition":null},"id":"63815b5e-3151-4d25-a4c2-8984e3fd8e20","layer":"5787d305-c712-45ab-a1c2-
+8bc9296bfd36","media":"2e7f1b06-fe01-47ad-b9fa-314ec14e1a52"},{"definition":{"application":"3ac2578b-f2fe-4e6b-a915-74b
+8683ad5b3","column":"9af2ae33-5842-4754-890f-3639def03681","settings":{"enabled":true,"fit_mode":"Fill","opacity":0.5,"
+position":[80,70],"size":null},"source":{"channel":"a7ad7cc2-9cfc-4387-a454-efa10a2de73e","media":"567db3d6-9673-4dd1-a
+404-34d104d6f093"},"transition":null},"id":"3ac2578b-f2fe-4e6b-a915-74b8683ad5b3","layer":"f6c8ecbd-b8ca-4bfa-8cc8-7038
+b3164202","media":"567db3d6-9673-4dd1-a404-34d104d6f093"},{"definition":{"application":"dc7e425d-0264-4236-8b44-d3be4ad
+77701","column":"722759cd-432e-4dc0-b339-899a706f8c57","settings":{"enabled":true,"fit_mode":"Fit","opacity":1,"positio
+n":[0,0],"size":null},"source":{"channel":"a7ad7cc2-9cfc-4387-a454-efa10a2de73e","media":"aa72bc9e-a9bc-48c6-b4b9-1c7ab
+c244516"},"transition":null},"id":"dc7e425d-0264-4236-8b44-d3be4ad77701","layer":"f6c8ecbd-b8ca-4bfa-8cc8-7038b3164202"
+,"media":"aa72bc9e-a9bc-48c6-b4b9-1c7abc244516"}],"column_groups":[],"columns":[{"application":"722759cd-432e-4dc0-b339
+-899a706f8c57"
+    at wait (file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/spatial-acceptance.mjs:19:4)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async verifySpatialAcceptance
+(file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/spatial-acceptance.mjs:135:3)
+    at async file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/native-navigation.mjs:176:2 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v26.5.0

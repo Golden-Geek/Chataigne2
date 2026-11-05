@@ -1,0 +1,34 @@
+﻿{"flow":["--spatial-acceptance"],"nativePid":40540}
+node : {"stage":"far Layer keyboard geometry","errors":[],"receipts":{"rejected":[],"observed":{"requests":79,"receipts
+":79}},"body":"FILE\nUntitled*\nMAPGYVER 0.1.0\nClear UI\n➖ 🟩 🔴\nMedias\nScreens\nSpatial sparse source\nSpatial
+sparse Matrix\nScreen Warping\nSurface Source\nComposition: Spatial sparse Matrix / Matrix Layers\nMatrix: Spatial
+sparse Matrix\nMedia Preview\n3\nUnobserved\nColumn 1\nColumn 2\nColumn 3\nColumn 4\nColumn 5\nColumn 6\nColumn
+7\nColumn 8\nColumn 9\nColumn 10\nLayer 1\nSpatial sparse source [Channel 1]\nLayer 2\nLayer 3\nLayer 4\nLayer
+5\nLayer 6\nLayer 7\nLayer 8\nLayer 9\nLayer 10\nInspector: Layer 1000\nLayer 1000\nParameters\nOpacity\nBlend
+Mode\nNormal\nAdd\nMultiply\nScreen\nExpose Channel\nRender enabled\nPosition\n⟷\n⟷\nCanvas size\nTransition
+duration\nRaw Data\nMedia Preview opened\n60.5 fps\nNVIDIA GeForce RTX 5080 Laptop GPU\n0.27 ms CPU\n304.5 MB\n200 Hz"}
+At line:2 char:205
++ ... tance.exe'; node apps/mapgyver/tests/browser/native-navigation.mjs -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ({"stage":"far L....5 MB\n200 Hz"}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.click: Timeout 5000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('grid', { name: 'Scrollable Matrix grid', exact: true }).getByTitle('Layer 1000 / Column
+1000', { exact: true })[22m
+
+    at verifySpatialAcceptance (D:\Projects\Dev\Chataigne2\apps\mapgyver\tests\browser\spatial-acceptance.mjs:147:5)
+    at async file:///D:/Projects/Dev/Chataigne2/apps/mapgyver/tests/browser/native-navigation.mjs:176:2 {
+  log: [
+    "  - waiting for getByRole('grid', { name: 'Scrollable Matrix grid', exact: true }).getByTitle('Layer 1000 /
+Column 1000', { exact: true })"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v26.5.0

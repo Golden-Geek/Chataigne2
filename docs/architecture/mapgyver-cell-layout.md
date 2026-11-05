@@ -48,4 +48,5 @@ The shared keyboard input moves the selected Cell and resizes a focused handle t
 same typed geometry operations, including natural and unavailable-source movement. Held arrows
 share one history group; separate taps capture fresh geometry after closure. The standard
 Inspector edits the same Cell placement Parameters; see [shared geometry](mapgyver-spatial-geometry.md)
-for lifecycle and Layer/Composition controls. Full spatial/pixel acceptance remains in M12/7.
+for lifecycle and Layer/Composition controls. [M12/7 acceptance](../progress/evidence/mapgyver-m12-spatial-acceptance-2026-11-05.json)
+covers native spatial controls/pixels and large sparse documents; retained production qualification stays in the ledger.

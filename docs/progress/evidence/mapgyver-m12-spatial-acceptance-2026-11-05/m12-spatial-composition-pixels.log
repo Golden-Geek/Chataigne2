@@ -1,0 +1,104 @@
+﻿
+running 1 test
+composition_rendering-spatial-acceptance.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 935f4ce9-eefc-460d-af03-bf2859a32aab, generation: 1 })
+At line:2 char:1
++ & target/debug/deps/composition_rendering-spatial-acceptance.exe comp ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster normal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster normal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster normal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster multiply output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster multiply output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster multiply output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster screen output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster screen output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster screen output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster independent-transform output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster independent-transform output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster independent-transform output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster canvas-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster canvas-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster canvas-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster missing-shared-source output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster missing-shared-source output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster missing-shared-source output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+Raster undo-source-removal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster undo-source-removal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster undo-source-removal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=0 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=2 engine_build_ms=1
+Raster native adapter=Some(AdapterId { low: 88937, high: 0 }) device=Some(DeviceGeneration { runtime:
+e00848a0-c9c8-4b21-93ed-16b43b64f9a9, generation: 1 })
+Raster reload-recreate output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster reload-recreate output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster reload-recreate output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+M06 native Composition adapter=AdapterId { low: 88937, high: 0 } description=Intel(R) Graphics completed
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+b0dfb060-61cb-45f2-b802-7654165bdc24, generation: 1 })
+Raster normal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster normal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster normal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster add output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster multiply output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster multiply output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster multiply output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster screen output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster screen output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster screen output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster independent-transform output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster independent-transform output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster independent-transform output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster canvas-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster canvas-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=1/255
+Raster canvas-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255 nominal_error=1/255
+Raster missing-shared-source output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster missing-shared-source output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster missing-shared-source output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+Raster undo-source-removal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster undo-source-removal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster undo-source-removal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=0 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=2 engine_build_ms=1
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+6c028db4-a098-4681-bc1f-ebfbade0a732, generation: 1 })
+Raster reload-recreate output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster reload-recreate output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=1/255
+Raster reload-recreate output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=1/255
+nominal_error=1/255
+M06 native Composition adapter=AdapterId { low: 90146, high: 0 } description=NVIDIA GeForce RTX 5080 Laptop GPU
+completed
+test composition_pixels::native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_and_reload ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 8.11s

@@ -1,0 +1,71 @@
+﻿
+running 1 test
+matrix_rendering-spatial-acceptance.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 733ad2c5-2399-426c-a46b-411355543409, generation: 1 })
+At line:2 char:330
++ ... EXITCODE }; & target/debug/deps/matrix_rendering-spatial-acceptance.e ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster cell-fit-letterbox output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fit-letterbox output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fit-letterbox output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-stretch output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-stretch output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-stretch output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-natural-default output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-natural-default output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-natural-default output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Cell Fit/Fill/Stretch/natural/Undo pixels passed on Intel(R) Graphics
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+49dbb418-c526-4939-984c-ddccd8d25f61, generation: 1 })
+Raster cell-fit-letterbox output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fit-letterbox output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fit-letterbox output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-fill-centered-crop output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-stretch output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-stretch output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-stretch output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255 nominal_error=0/255
+Raster cell-natural-default output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-natural-default output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-natural-default output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster cell-placement-undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Cell Fit/Fill/Stretch/natural/Undo pixels passed on NVIDIA GeForce RTX 5080 Laptop GPU
+test matrix_pixels::cell_sizing::native_cell_placement_fit_fill_stretch_crop_and_natural_size_on_each_adapter ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 4.48s

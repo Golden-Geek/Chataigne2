@@ -46,4 +46,12 @@ sessions cancel unsent input. Stale repeats cannot reopen a cancelled gesture. H
 retain focus during their active gesture while the ordinary admission guard rejects new starts.
 Only the backend authors Parameters or validates coordinates and opposite anchors.
 
-Full original spatial/pixel acceptance remains in the [current ledger](../progress/mapgyver-status.md).
+Admitted keyboard geometry selects the displayed object through the same document-selection
+service as pointer input. Existing UUIDs resolve synchronously through Golden's graph index;
+newly created nodes alone wait for a guarded graph delta. This keeps the Inspector and gesture
+owner aligned when a selected Cell resolves to its Layer canvas, without scanning the graph
+or weakening the cancellation rule for later selection changes.
+
+The [complete M12/7 acceptance](../progress/evidence/mapgyver-m12-spatial-acceptance-2026-11-05.json)
+reconciles native controls, qualified pixels and large sparse projects. The
+[current ledger](../progress/mapgyver-status.md) retains separate physical/performance/final qualification.

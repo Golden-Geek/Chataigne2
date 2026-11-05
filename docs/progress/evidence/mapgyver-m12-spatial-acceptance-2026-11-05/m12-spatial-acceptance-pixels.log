@@ -1,0 +1,181 @@
+﻿
+running 1 test
+matrix_rendering-spatial-acceptance.exe : Raster native adapter=Some(AdapterId { low: 88937, high: 0 })
+device=Some(DeviceGeneration { runtime: 15dc7f2d-3c40-4fd6-bfea-fcf8a34e17d6, generation: 1 })
+At line:2 char:1
++ & target/debug/deps/matrix_rendering-spatial-acceptance.exe matrix_pi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Raster native a...eneration: 1 }):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Raster spatial-nested-Normal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Normal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Normal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=1 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=5 engine_build_ms=2
+Raster native adapter=Some(AdapterId { low: 88937, high: 0 }) device=Some(DeviceGeneration { runtime:
+053278f5-5877-4e1e-8653-386a32931e83, generation: 1 })
+Raster spatial-reload-live output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-reload-live output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-reload-live output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-inactive-original-editor-after-copy-reload output=0 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=0/255
+Raster spatial-inactive-original-editor-after-copy-reload output=1 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=0/255
+Raster spatial-inactive-original-editor-after-copy-reload output=2 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=0/255
+M12/7 live/nested/source-resize/copy/reload/inactive-editor pixels passed on Intel(R) Graphics
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+8820d584-7687-4a08-92db-75680561dde4, generation: 1 })
+Raster spatial-nested-Normal output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Normal output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Normal output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Add output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Multiply output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-nested-Screen output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-source-resize-fixed-Fit output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-natural-source-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-translate output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Undo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-live-resize-Redo output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-copy-live output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+[project-load] decode_ms=0 caches_ms=0 replay_ms=1 warnings_ms=0
+[project-load] parse_ms=0 expand_ms=5 engine_build_ms=2
+Raster native adapter=Some(AdapterId { low: 90146, high: 0 }) device=Some(DeviceGeneration { runtime:
+262c8cfc-665a-438d-9d99-2583b083ef01, generation: 1 })
+Raster spatial-reload-live output=0 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-reload-live output=1 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-reload-live output=2 extent=Extent2D { width: 32, height: 24 } texels=768 max_error=0/255
+nominal_error=0/255
+Raster spatial-inactive-original-editor-after-copy-reload output=0 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=1/255
+Raster spatial-inactive-original-editor-after-copy-reload output=1 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=1/255
+Raster spatial-inactive-original-editor-after-copy-reload output=2 extent=Extent2D { width: 32, height: 24 }
+texels=768 max_error=0/255 nominal_error=1/255
+M12/7 live/nested/source-resize/copy/reload/inactive-editor pixels passed on NVIDIA GeForce RTX 5080 Laptop GPU
+test matrix_pixels::spatial_acceptance::native_spatial_live_geometry_source_resize_copy_reload_and_inactive_editor_on_each_adapter ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 11.75s

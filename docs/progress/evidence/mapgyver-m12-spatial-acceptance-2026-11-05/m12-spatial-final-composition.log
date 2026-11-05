@@ -1,0 +1,2 @@
+﻿{"flow":["--composition-panels"],"nativePid":29624}
+{"result":"pass","native":true,"scope":"bounded selected child/Inspector/history, simultaneous independent follow/lock/page state, layout reload, actual reconnect, copy/removal history, peer/tab retirement, New during held pointer and same-document Load","instances":130,"pageLimit":128,"independentSelected":"ec4e9602-c99b-45b5-afea-09c96b8ee805","panelQueries":88,"pageErrors":[],"rejected":[]}

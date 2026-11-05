@@ -1,0 +1,19 @@
+{
+  "result": "pass",
+  "nativePid": 8004,
+  "stage": "New while held and same-identity Load fence",
+  "layers": 1000,
+  "columns": 1000,
+  "initialCells": 3,
+  "cellsAfterCopy": 4,
+  "visibleLayerBound": 129,
+  "errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 297,
+      "receipts": 296
+    }
+  },
+  "scope": "large sparse spatial Layer/Cell selection and geometry; active Cell authoring retains exact playback; natural source resize and independent authored Size; exact history/copy/layout/project reload; locked target and New-while-held/same-UUID Load fence"
+}
