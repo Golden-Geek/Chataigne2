@@ -1,3 +1,4 @@
+import { contentLock } from './content-lock.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -92,7 +93,7 @@ export async function verifyPreviewContinuity({
 		await select('Concurrent A');
 		await tab('Media Preview').click();
 		await selected(main, refs[0].media);
-		await main.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(main, false)).click();
 		await main.getByRole('button', { name: 'All-channel grid', exact: true }).click();
 		await checkpoint('first-grid', 4);
 		await select('Concurrent B');
@@ -116,7 +117,7 @@ export async function verifyPreviewContinuity({
 		assert(secondId);
 		const peer = panel(secondId);
 		await selected(peer, refs[1].media);
-		await peer.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(peer, false)).click();
 		await peer.getByRole('button', { name: 'All-channel grid', exact: true }).click();
 		await checkpoint('concurrent-eight', 8);
 		const boxes = await Promise.all([main.boundingBox(), peer.boundingBox()]);
@@ -173,9 +174,9 @@ export async function verifyPreviewContinuity({
 			.click();
 		await checkpoint('peer-closed', 1);
 		await select('Concurrent B');
-		await main.getByRole('button', { name: 'Unlock media', exact: true }).click();
+		await (await contentLock(main, true)).click();
 		await selected(main, refs[1].media);
-		await main.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(main, false)).click();
 		await checkpoint('lock-changed', 1);
 		const mainGroup = main.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]');
 		await mainGroup
@@ -202,7 +203,7 @@ export async function verifyPreviewContinuity({
 			.click();
 		const fresh = page.locator('.media-preview-panel');
 		await selected(fresh, refs[1].media);
-		await fresh.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(fresh, false)).click();
 		await settled(1);
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
 		await fresh.getByText('Locked media belongs to another project.', { exact: true }).waitFor();

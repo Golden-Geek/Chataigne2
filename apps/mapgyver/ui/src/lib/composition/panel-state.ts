@@ -2,6 +2,7 @@ import type { ChannelReference } from '../media/generated/ChannelReference';
 
 export interface CompositionPanelState {
 	locked: ChannelReference | null;
+	retained: ChannelReference | null;
 	document: string | null;
 	page: number;
 }
@@ -12,9 +13,12 @@ export function compositionPanelState(
 ): CompositionPanelState {
 	const validLock =
 		uuid(value.document) && uuid(value.locked?.media) && uuid(value.locked?.channel);
+	const validRetained =
+		uuid(value.document) && uuid(value.retained?.media) && uuid(value.retained?.channel);
 	return {
 		locked: validLock ? { ...value.locked! } : null,
-		document: validLock ? value.document! : null,
+		retained: validRetained ? { ...value.retained! } : null,
+		document: validLock || validRetained ? value.document! : null,
 		page:
 			Number.isSafeInteger(value.page) && value.page! >= 0 ? Math.min(value.page!, 0x1ffffff) : 0
 	};

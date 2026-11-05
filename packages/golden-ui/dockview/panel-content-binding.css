@@ -1,0 +1,26 @@
+.gc-dv-tab-binding {
+	border: 0;
+	inline-size: 1rem;
+	block-size: 1rem;
+	flex: 0 0 auto;
+	padding: 0;
+	background: currentColor;
+	mask: url('../style/icons/unlock.svg') center / contain no-repeat;
+	cursor: pointer;
+	opacity: 0.45;
+}
+.gc-dv-tab-binding[aria-pressed='true'],
+.gc-dv-tab-binding:hover,
+.gc-dv-tab-binding:focus-visible {
+	opacity: 1;
+}
+.gc-dv-tab-binding[aria-pressed='true'] {
+	mask-image: url('../style/icons/lock.svg');
+}
+.gc-dv-tab-binding:disabled {
+	opacity: 0.2;
+	cursor: default;
+}
+.gc-dv-tab-binding[hidden] {
+	display: none;
+}

@@ -12,7 +12,6 @@
 		type PanelProps,
 		type PanelState
 	} from 'golden_ui';
-	import lockIcon from 'golden_ui/style/icons/lock.svg';
 	import copyIcon from 'golden_ui/style/icons/copy.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
@@ -38,15 +37,23 @@
 	let title = $state(untrack(() => props.title));
 	let selectedInstance = $state<string | null>(null);
 	export const setPanelState = (next: PanelState) => {
-		owner.gesture.stop();
+		const restored = compositionPanelState(
+			readPanelPersistedState<CompositionPanelState>(next.params)
+		);
+		const targetChanged =
+			choice.document !== restored.document ||
+			choice.locked?.channel !== restored.locked?.channel ||
+			choice.retained?.channel !== restored.retained?.channel;
+		if (targetChanged || choice.page !== restored.page) owner.gesture.stop();
 		title = next.title;
-		choice = compositionPanelState(readPanelPersistedState<CompositionPanelState>(next.params));
-		selectedInstance = null;
+		choice = restored;
+		if (targetChanged) selectedInstance = null;
 	};
 	const owner = createCompositionEditor(() => ({
 		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
-		document: choice.locked ? choice.document : null,
+		document: choice.document,
 		locked: choice.locked,
+		retained: choice.retained,
 		instance: selectedInstance,
 		start: choice.page * COMPOSITION_PAGE_SIZE,
 		count: COMPOSITION_PAGE_SIZE
@@ -67,6 +74,35 @@
 	function persist() {
 		writePanelPersistedState(props.panelApi, { ...choice });
 	}
+	$effect(() => {
+		const page = view.page;
+		if (!page?.channel || !page.document_matches) return;
+		const reference = page.channel.reference;
+		if (
+			choice.document === page.document &&
+			choice.retained?.media === reference.media &&
+			choice.retained?.channel === reference.channel
+		)
+			return;
+		choice.retained = { ...reference };
+		choice.document = page.document;
+		untrack(persist);
+	});
+	$effect(() => {
+		props.panelApi.setContentBinding({
+			locked: !!choice.locked,
+			canLock: !!channel && !busy,
+			toggle: () => {
+				gesture.stop();
+				if (choice.locked) choice.locked = null;
+				else if (channel && view.page) {
+					choice.locked = { ...channel.reference };
+					choice.document = view.page.document;
+				}
+				persist();
+			}
+		});
+	});
 	$effect(() => {
 		if (instance) selectedInstance = instance.reference.instance;
 	});
@@ -170,21 +206,6 @@
 	data-composition-loading={view.refreshing}
 	data-composition-busy={busy}>
 	{#snippet actions()}
-		<IconButton
-			icon={lockIcon}
-			label={choice.locked ? 'Unlock Composition' : 'Lock Composition'}
-			disabled={busy || (!choice.locked && !channel)}
-			onclick={() => {
-				gesture.stop();
-				if (choice.locked) {
-					choice.locked = null;
-					choice.document = null;
-				} else if (channel && view.page) {
-					choice.locked = channel.reference;
-					choice.document = view.page.document;
-				}
-				persist();
-			}} />
 		<IconButton
 			icon={copyIcon}
 			label="Copy instance"

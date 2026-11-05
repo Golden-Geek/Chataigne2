@@ -1,0 +1,56 @@
+{
+	"date": "2026-11-05",
+	"milestone": "M12/6 public tab bindings and Composition retention",
+	"gate": "Active",
+	"acceptance": { "verified": 62, "total": 78, "m12_verified": 5, "m12_total": 11 },
+	"delivered": [
+		"Public PanelApi.setContentBinding capability, scoped to a workbench and exact panel instance. Live callbacks retire with content/tab subscriptions. Keyboard-accessible lock/unlock appears immediately before Close, with aria-pressed and no lock on fixed panels.",
+		"Inspector, Composition and Media Preview use the same capability; their body locks are removed. Existing per-panel typed target/lock and presentation state persists through the panel-parameter boundary.",
+		"Backend CompositionEditorQuery.retained is a document-scoped fallback for unrelated selection. Relevant selection follows while unlocked; an explicit lock overrides it. Old-document fallback cannot revive content in another document, while eligible new-document selection can establish a fresh target.",
+		"Inspector persists node UUID/document-root UUID and resolves the current numeric ID from Golden's projected identity index. A missing/deleted lock stays unavailable for Undo instead of adopting another node.",
+		"IdentifiedNodeMap shares the existing copy-on-write graph trie lifetime, including unpublished/cancelled projections. Complete UUID collision buckets, ID replacement/deletion/clear and fork isolation are tested; ordinary value updates leave the identity index unchanged. No per-panel full-document scan is added.",
+		"Chataigne Spatializer consumers now require the existing public VersionedNodeMap contract rather than a concrete stronger graph-state subtype; their behavior and tests remain unchanged. Golden's browser fixture target is ES2023, matching its existing findLast usage."
+	],
+	"software": {
+		"rust": "Full MapGyver library suite: 470 passed, 0 failed, 3 explicit native fixture ignores. After adding retained-query caller coverage, all 5 Composition scripting parity tests pass (including the new test); Rust/TypeScript generation parity passed in the full suite.",
+		"strict": "All-target Clippy with native-qualification,application-process-fixture and -D warnings passes.",
+		"golden_ui": "47 files / 239 tests pass, including UUID hash collision, fork/replacement/deletion isolation, existing graph index bounds and the per-instance binding registry.",
+		"app_units": "13 Composition/Media Preview reader and persisted-state tests pass; 9 Chataigne Spatializer child-index/catalog tests pass.",
+		"type_checks": "MapGyver, Chataigne and Golden browser fixture Svelte checks: 0 errors, 0 warnings after corrections.",
+		"build": "Ordinary MapGyver executable built successfully before the native checks.",
+		"format": "Root and golden_core cargo fmt, scoped Prettier/Node syntax and diff checks."
+	},
+	"native": {
+		"binary_sha256": "2653501b902412ffec19e3d60d4a0015f64bc763235b03d5be2c61a8b70025de",
+		"hosts": [
+			{
+				"flag": "--content-binding",
+				"pid": 41144,
+				"exit": 0,
+				"absent_after_close": true,
+				"proof": "Inspector Space/Enter tab controls, independent locked targets, delete/Undo, exact persisted layout reload, New/Load recovery and cross-document reused-ID fencing pass. Actual Medias, Screens, newly opened Logger and Dashboard tabs show no lock."
+			},
+			{
+				"flag": "--composition-panels",
+				"pid": 30544,
+				"exit": 0,
+				"absent_after_close": true,
+				"proof": "Unrelated selection preserves unlocked content and native view identity. Unlocked retained page survives reload; keyboard tab locking, two independent targets, rename/title, delete/Undo, actual transport reconnect, copy/remove history, close/tab lifetime and New during a held pointer followed by Load pass. 130 instances, 128-result bound, 65 observed panel queries, no page errors or rejected intents."
+			},
+			{
+				"flag": "--preview-bindings",
+				"pid": 32612,
+				"exit": 0,
+				"absent_after_close": true,
+				"proof": "Eight concurrent native views, independent side-by-side panel locks/channel choices, layout reload, actual transport reconnect, closing every preview and New/Load lock recovery pass; no page errors."
+			}
+		],
+		"artifacts": "assets/mapgyver-m12-panel-bindings-2026-11-05/"
+	},
+	"corrected_during_validation": [
+		"The first Inspector New/Load check reproduced numeric node-ID remapping. UUID/document guards prevented wrong-node display; projected UUID lookup now restores the intended node after remapping, with the same original assertions.",
+		"Reload fixtures previously waited only for a layout containing some target text. They now wait for the exact owning panel, locked identities and page state, avoiding old snapshots that happened to mention the same target. Independent suites use isolated hosts so a preceding fixture's saved locks cannot alter another fixture's setup. No production delay/retry was added."
+	],
+	"remaining_requirement": "M12/6 remains open. Finish the binding/independence audit and integration for the other selection-driven eligible editors (Screen/Surface and Matrix), and prove the same relevant-target retention contract for the shared Matrix spatial adapter required by M12/6–7. Preserve all original selection, independent-panel, deletion/history, layout/reconnect and project-fencing cases for every newly integrated owner. No gate is awarded for this coherent product slice.",
+	"limits": "Native screenshots show DOM/tab placement, not native GPU image pixels or physical cadence/latency. M03/M05/M08 retained qualification requirements and budgets are unchanged. The plan remains incomplete."
+}

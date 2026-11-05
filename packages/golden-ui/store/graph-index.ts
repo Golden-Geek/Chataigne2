@@ -65,11 +65,15 @@ export class VersionedNodeMap<Value> implements Map<NodeId, Value> {
 
 	fork(): VersionedNodeMap<Value> {
 		const fork = new VersionedNodeMap<Value>();
+		this.forkInto(fork);
+		return fork;
+	}
+
+	protected forkInto(fork: VersionedNodeMap<Value>): void {
 		fork.#root = this.#root;
 		fork.#size = this.#size;
 		// Both maps must copy shared paths, including when the original is edited after forking.
 		this.#owner = Symbol('graph-index-version');
-		return fork;
 	}
 
 	get(key: NodeId): Value | undefined {

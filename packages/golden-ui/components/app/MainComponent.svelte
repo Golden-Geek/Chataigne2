@@ -19,6 +19,7 @@
 	import 'dockview-core/dist/styles/dockview.css';
 	import { goldenDockviewTheme } from '../../dockview/goldenDockviewTheme';
 	import { createGoldenTabRenderer } from '../../dockview/createGoldenTabRenderer';
+	import { PanelContentBindings } from '../../dockview/panel-content-binding';
 
 	import type {
 		PanelApi,
@@ -194,6 +195,7 @@
 		return { direction };
 	};
 
+	const contentBindings = new PanelContentBindings();
 	const createPanelRenderer = (options: CreateComponentOptions): IContentRenderer => {
 		const hostElement = document.createElement('div');
 		hostElement.className = 'gc-dock-panel-host';
@@ -232,6 +234,7 @@
 				};
 
 				const panelApi: PanelApi = {
+					setContentBinding: (binding) => contentBindings.set(parameters.api.id, binding),
 					setTitle: (nextTitle: string): void => {
 						parameters.api.setTitle(nextTitle);
 					},
@@ -267,6 +270,7 @@
 				mountedPanel?.setPanelState(panelState);
 			},
 			dispose: (): void => {
+				contentBindings.set(options.id, null);
 				if (!mountedPanel) {
 					return;
 				}
@@ -650,7 +654,7 @@
 			defaultTabComponent: 'golden-tab',
 			createTabComponent: (options) =>
 				options.name === 'golden-tab'
-					? createGoldenTabRenderer((type) => panelDefinitions[type]?.icon)
+					? createGoldenTabRenderer((type) => panelDefinitions[type]?.icon, contentBindings)
 					: undefined,
 			createLeftHeaderActionComponent: (group) => createGroupAddRenderer(group),
 			theme: goldenDockviewTheme

@@ -180,6 +180,7 @@ export type {
 	UserPanelDefinitionMap
 } from './dockview/panel-types';
 export { readPanelPersistedState, writePanelPersistedState } from './dockview/panel-persistence';
+export type { PanelContentBinding } from './dockview/panel-content-binding';
 
 export * from './store/ui-warnings';
 export * from './store/ui-panels';

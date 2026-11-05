@@ -1,7 +1,8 @@
-import type { UiNodeDto, WorkbenchSession } from 'golden_ui';
+import type { UiNodeDto } from 'golden_ui';
+import type { VersionedNodeMap } from 'golden_ui/store/graph-index';
 import { SPATIALIZER_MODULE_TYPE } from './constants';
 
-type Nodes = WorkbenchSession['graph']['state']['nodesById'];
+type Nodes = VersionedNodeMap<UiNodeDto>;
 
 /** Keep module selection independent of unrelated matrix value/structure publications. */
 export class SpatializerModuleCatalog {

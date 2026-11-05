@@ -1,5 +1,6 @@
 import type { Component } from 'svelte';
 import type { DockviewPanelRenderer } from 'dockview-core';
+import type { PanelContentBinding } from './panel-content-binding';
 
 export type PanelParams = Record<string, unknown>;
 export type PanelDockDirection = 'within' | 'left' | 'right' | 'above' | 'below';
@@ -13,6 +14,7 @@ export interface PanelState {
 }
 
 export interface PanelApi {
+	setContentBinding: (binding: PanelContentBinding | null) => void;
 	setTitle: (title: string) => void;
 	close: () => void;
 	updateParams: (params: PanelParams) => void;

@@ -1,3 +1,4 @@
+import { contentLock } from './content-lock.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { observeRejectedRequests } from './intent-observer.mjs';
@@ -57,7 +58,7 @@ export async function verifyMediaPreviewUi({ base, edit, page: nativePage = null
 			first.media
 		);
 		await installed(1);
-		await firstPanel.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(firstPanel, false)).click();
 		await firstPanel.getByRole('button', { name: 'All-channel grid', exact: true }).click();
 		await firstPanel.locator('figure').nth(3).waitFor();
 		assert.equal(await firstPanel.locator('figure').count(), 4);
@@ -100,7 +101,7 @@ export async function verifyMediaPreviewUi({ base, edit, page: nativePage = null
 		);
 		await page.reload();
 		await tab('Media Preview').first().click();
-		await firstPanel.getByRole('button', { name: 'Unlock media', exact: true }).waitFor();
+		await (await contentLock(firstPanel, true)).waitFor();
 		await firstPanel.getByText('Preview variant 5', { exact: true }).waitFor();
 		assert.equal(await firstPanel.locator('figure').count(), 2);
 		await tab('Media Preview').nth(1).click();
@@ -113,7 +114,7 @@ export async function verifyMediaPreviewUi({ base, edit, page: nativePage = null
 		assert.equal(await tab('Media Preview').count(), 1);
 		await tab('Media Preview').first().click();
 		await installed(2);
-		await firstPanel.getByRole('button', { name: 'Unlock media', exact: true }).click();
+		await (await contentLock(firstPanel, true)).click();
 		await page.waitForFunction(
 			(id) =>
 				document
@@ -122,7 +123,7 @@ export async function verifyMediaPreviewUi({ base, edit, page: nativePage = null
 			second.media
 		);
 		await installed(1);
-		await firstPanel.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(firstPanel, false)).click();
 		await select('Preview Matrix');
 		await page
 			.getByRole('region', { name: 'Channels', exact: true })

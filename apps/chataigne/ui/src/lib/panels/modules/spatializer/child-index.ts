@@ -1,6 +1,10 @@
-import type { UiNodeDto, WorkbenchSession } from 'golden_ui';
+import type { UiNodeDto } from 'golden_ui';
+import type { VersionedNodeMap } from 'golden_ui/store/graph-index';
 
-type Snapshot = Pick<WorkbenchSession['graph']['state'], 'nodesById' | 'parentById'>;
+interface Snapshot {
+	nodesById: VersionedNodeMap<UiNodeDto>;
+	parentById: ReadonlyMap<number, number>;
+}
 
 /** Index only visited folders; value publications retain their declaration lookup. */
 export class SpatializerChildIndex {

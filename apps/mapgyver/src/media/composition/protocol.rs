@@ -183,6 +183,8 @@ pub struct CompositionEditorQuery {
     pub selected: Option<NodeUuid>,
     pub document: Option<NodeUuid>,
     pub locked: Option<ChannelReference>,
+    /// Last relevant content, used only when selection has no Composition owner in this document.
+    pub retained: Option<ChannelReference>,
     pub instance: Option<InstanceId>,
     pub start: u32,
     pub count: u16,

@@ -1,3 +1,4 @@
+import { contentLock } from './content-lock.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -83,12 +84,12 @@ export async function verifyNativeProjectTransitions({
 		await tab('Media Preview').click();
 		let main = panel('media-preview');
 		await ready(main);
-		await main.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(main, false)).click();
 		const peer = await addPreview(
 			group(page.getByRole('tab').filter({ hasText: /^Inspector(?:$|:)/ }))
 		);
 		await ready(peer);
-		await peer.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(peer, false)).click();
 		await output.observe('first-grid', { first: reference });
 		const peerId = await peer.getAttribute('data-panel-id');
 		const originalView = await peer.locator('.native-preview').getAttribute('data-preview-view');
@@ -120,7 +121,7 @@ export async function verifyNativeProjectTransitions({
 			main = await addPreview(group(tab('Matrix')));
 			await ready(main);
 			assert.equal(await main.getAttribute('data-preview-media'), reference.media);
-			await main.getByRole('button', { name: 'Lock media', exact: true }).click();
+			await (await contentLock(main, false)).click();
 			assert.equal(
 				await peer.locator('.native-preview').getAttribute('data-preview-view'),
 				originalView

@@ -19,6 +19,7 @@ const query = (selected = 'owner'): CompositionEditorQuery => ({
 	selected,
 	document: null,
 	locked: null,
+	retained: null,
 	instance: null,
 	start: 0,
 	count: 128
@@ -286,8 +287,16 @@ test('persisted panel choices copy valid document-scoped locks and reject malfor
 	assert.equal(second.locked?.media, id);
 	assert.deepEqual(compositionPanelState({ locked: input.locked, document: null, page: -1 }), {
 		locked: null,
+		retained: null,
 		document: null,
 		page: 0
 	});
 	assert.equal(compositionPanelState({ page: Number.POSITIVE_INFINITY }).page, 0);
+	const retained = compositionPanelState({ retained: input.locked, document: id });
+	assert.deepEqual(retained.retained, input.locked);
+	assert.equal(retained.locked, null);
+	assert.equal(retained.document, id);
+	retained.retained!.media = 'changed';
+	assert.equal(input.locked.media, id);
+	assert.equal(compositionPanelState({ retained: input.locked }).retained, null);
 });

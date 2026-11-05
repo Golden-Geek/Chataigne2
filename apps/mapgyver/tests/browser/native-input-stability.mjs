@@ -1,3 +1,4 @@
+import { contentLock } from './content-lock.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -91,7 +92,7 @@ export async function verifyNativeInputStability(options) {
 		await select('Stable native red');
 		await tab('Media Preview').click();
 		await settled(1);
-		await main.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(main, false)).click();
 		await output.observe('first-grid', { first: reference });
 		const inspector = await verifyInspectorStability({
 			...options,
@@ -123,7 +124,7 @@ export async function verifyNativeInputStability(options) {
 			);
 		assert(peerId);
 		const witness = page.locator(`.media-preview-panel[data-panel-id="${peerId}"]`);
-		await witness.getByRole('button', { name: 'Lock media', exact: true }).click();
+		await (await contentLock(witness, false)).click();
 		const { reference: matrixReference } = await edit({
 			kind: 'CreateMedia',
 			media_kind: 'Matrix',

@@ -14,6 +14,7 @@ import {
 	type GraphEventProjectionWork
 } from './graph-event-projection';
 import { VersionedNodeMap } from './graph-index';
+import { IdentifiedNodeMap } from './graph-node-index';
 import {
 	createStructuralChildrenWork,
 	updateStructuralChildren
@@ -21,7 +22,7 @@ import {
 
 export interface GraphState {
 	rootId: NodeId | null;
-	nodesById: VersionedNodeMap<UiNodeDto>;
+	nodesById: IdentifiedNodeMap<UiNodeDto>;
 	childrenById: VersionedNodeMap<NodeId[]>;
 	/** Only nonempty declaration-child lists; absent entries have no structural children. */
 	structuralChildrenById: VersionedNodeMap<NodeId[]>;
@@ -42,7 +43,7 @@ export interface GraphStore {
 
 const createEmptyState = (): GraphState => ({
 	rootId: null,
-	nodesById: new VersionedNodeMap(),
+	nodesById: new IdentifiedNodeMap(),
 	childrenById: new VersionedNodeMap(),
 	structuralChildrenById: new VersionedNodeMap(),
 	parentById: new VersionedNodeMap(),
@@ -72,7 +73,7 @@ const detectRoot = (
 };
 
 const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
-	const nodesById = new VersionedNodeMap<UiNodeDto>();
+	const nodesById = new IdentifiedNodeMap<UiNodeDto>();
 	const childrenById = new VersionedNodeMap<NodeId[]>();
 	const parentById = new VersionedNodeMap<NodeId>();
 	const paramsById = new VersionedNodeMap<UiParamDto>();

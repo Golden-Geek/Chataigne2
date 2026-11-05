@@ -102,6 +102,7 @@
 	let moduleId: number | null = null;
 	let params = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		setContentBinding: () => {},
 		setTitle() {},
 		close() {},
 		getParams: <T extends PanelParams = PanelParams>() => params as T,

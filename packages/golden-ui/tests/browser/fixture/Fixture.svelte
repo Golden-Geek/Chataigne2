@@ -29,6 +29,7 @@
 	let query = $state('');
 	let panelParams = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		setContentBinding: () => {},
 		setTitle: () => {},
 		close: () => {},
 		getParams: <T extends PanelParams = PanelParams>() => panelParams as T,

@@ -65,8 +65,8 @@ pub(in crate::media) fn inspect(
     if query.count == 0 || query.count > 128 {
         return Err("Composition editor pages require 1..128 results".into());
     }
-    if query.locked.is_some() && query.document.is_none() {
-        return Err("Composition locks require a document identity".into());
+    if (query.locked.is_some() || query.retained.is_some()) && query.document.is_none() {
+        return Err("Composition bindings require a document identity".into());
     }
     let document = engine
         .nodes
@@ -75,11 +75,13 @@ pub(in crate::media) fn inspect(
         .node_data()
         .meta
         .uuid;
+    let followed = owner(engine, query.selected);
+    let document_matches = query.document.is_none_or(|expected| expected == document);
     let mut page = CompositionEditorPage {
         label: None,
         media_types: crate::media::creation::media_choices(),
         document,
-        document_matches: query.document.is_none_or(|expected| expected == document),
+        document_matches: document_matches || (query.locked.is_none() && followed.is_some()),
         channel: None,
         composition: None,
         start: query.start,
@@ -89,8 +91,11 @@ pub(in crate::media) fn inspect(
     if !page.document_matches {
         return Ok(page);
     }
-    let followed = owner(engine, query.selected);
-    let Some(reference) = query.locked.or_else(|| followed.map(|(reference, _)| reference)) else {
+    let Some(reference) = query
+        .locked
+        .or_else(|| followed.map(|(reference, _)| reference))
+        .or(query.retained.filter(|_| document_matches))
+    else {
         return Ok(page);
     };
     let Some(channel) = crate::media::queries::inspect_channel(engine, reference)? else {

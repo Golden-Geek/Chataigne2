@@ -40,9 +40,12 @@ import { verifyColumnGroupsUi } from './column-groups.mjs';
 import { verifyColumnGroupRuntime } from './column-group-runtime.mjs';
 import { verifyAdaptiveMatrixGrid } from './matrix-adaptive-grid.mjs';
 import { verifyMatrixGridUi } from './matrix-grid.mjs';
+import { verifyInspectorContentBinding } from './inspector-content-binding.mjs';
+import { verifyPreviewContinuity } from './preview-continuity.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
+	console.log(JSON.stringify({ flow: process.argv.slice(2), nativePid: native.app.pid }));
 	let token;
 	async function post(route, body) {
 		const response = await fetch(`${native.base}${route}`, {
@@ -61,6 +64,8 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--content-binding', verifyInspectorContentBinding],
+			['--preview-bindings', verifyPreviewContinuity],
 			[
 				'--matrix-grid',
 				async (options) => {

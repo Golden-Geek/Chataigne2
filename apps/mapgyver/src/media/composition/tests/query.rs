@@ -17,6 +17,7 @@ fn query(selected: NodeUuid) -> CompositionEditorQuery {
         selected: Some(selected),
         document: None,
         locked: None,
+        retained: None,
         instance: None,
         start: 0,
         count: 4,
@@ -85,6 +86,46 @@ fn locks_are_project_scoped_and_follow_selection_never_uses_an_unrelated_composi
     assert!(mismatch.composition.is_none() && mismatch.selected.is_none());
     locked.document = None;
     assert!(!invoke(&mut engine, MediaEdit::InspectCompositionEditor { query: locked }).success);
+}
+
+#[test]
+fn retained_content_follows_relevant_selection_and_never_crosses_documents() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let owner = create(&mut engine, MediaKind::Composition);
+    let other = create(&mut engine, MediaKind::Composition);
+    let first = read(&mut engine, query(owner.media.0));
+    let mut request = CompositionEditorQuery {
+        document: Some(first.document),
+        retained: Some(owner),
+        ..query(source.media.0)
+    };
+    assert_eq!(read(&mut engine, request).channel.unwrap().reference, owner);
+    request.selected = Some(other.channel.0);
+    assert_eq!(read(&mut engine, request).channel.unwrap().reference, other);
+    request.locked = Some(owner);
+    assert_eq!(read(&mut engine, request).channel.unwrap().reference, owner);
+    request.locked = None;
+    request.selected = Some(source.media.0);
+    apply(&mut engine, MediaEdit::RemoveMedia { media: owner.media });
+    assert!(read(&mut engine, request).channel.is_none());
+    assert!(engine.undo().unwrap());
+    assert_eq!(read(&mut engine, request).channel.unwrap().reference, owner);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    loaded.apply_edits().unwrap();
+    assert_eq!(read(&mut loaded, request).channel.unwrap().reference, owner);
+    let mut unrelated = fixture();
+    assert!(!read(&mut unrelated, request).document_matches);
+    let fresh = create(&mut unrelated, MediaKind::Composition);
+    request.selected = Some(fresh.media.0);
+    let page = read(&mut unrelated, request);
+    assert!(page.document_matches);
+    assert_eq!(page.channel.unwrap().reference, fresh);
+    request.locked = Some(owner);
+    assert!(!read(&mut unrelated, request).document_matches);
+    request.document = None;
+    assert!(!invoke(&mut engine, MediaEdit::InspectCompositionEditor { query: request }).success);
 }
 
 #[test]

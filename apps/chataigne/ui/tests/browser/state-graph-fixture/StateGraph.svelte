@@ -22,6 +22,7 @@
 	let mounted = $state(true);
 	let params = $state.raw<PanelParams>({ camera: { x: 0, y: 0, zoom: 1 } });
 	const panelApi: PanelApi = {
+		setContentBinding: () => {},
 		setTitle() {},
 		close() {},
 		getParams: <T extends PanelParams = PanelParams>() => params as T,

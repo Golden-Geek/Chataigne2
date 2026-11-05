@@ -6,4 +6,8 @@ import type { NodeUuid } from "./NodeUuid";
 /**
  * Backend-resolved panel ownership. Locks are scoped to the persisted project root UUID.
  */
-export type CompositionEditorQuery = { selected: NodeUuid | null, document: NodeUuid | null, locked: ChannelReference | null, instance: InstanceId | null, start: number, count: number, };
+export type CompositionEditorQuery = { selected: NodeUuid | null, document: NodeUuid | null, locked: ChannelReference | null,
+/**
+ * Last relevant content, used only when selection has no Composition owner in this document.
+ */
+retained: ChannelReference | null, instance: InstanceId | null, start: number, count: number, };

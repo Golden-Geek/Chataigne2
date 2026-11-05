@@ -21,6 +21,7 @@
 	let processorPanel = $state<ReturnType<typeof StateProcessorManager>>();
 	let parameters = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		setContentBinding: () => {},
 		setTitle: () => {},
 		close: () => {},
 		getParams: <T extends PanelParams = PanelParams>() => parameters as T,

@@ -49,11 +49,44 @@ fn owned_creation_uses_the_named_method_and_atomic_boundary_for_every_caller() {
 }
 
 #[test]
+fn retained_editor_content_matches_every_public_caller_without_authored_changes() {
+    let scene = scene();
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let document = engine.nodes.get(engine.root).unwrap().node_data().meta.uuid;
+        let before = authored(&engine);
+        let value = run(
+            &mut engine,
+            caller,
+            MediaEdit::InspectCompositionEditor {
+                query: CompositionEditorQuery {
+                    selected: Some(scene.sources[0].media.0),
+                    document: Some(document),
+                    locked: None,
+                    retained: Some(scene.owner),
+                    instance: None,
+                    start: 0,
+                    count: 1,
+                },
+            },
+        )
+        .unwrap();
+        let MediaEditResult::CompositionEditor { page } = serde_json::from_value(value).unwrap() else {
+            panic!()
+        };
+        assert_eq!(page.channel.unwrap().reference, scene.owner);
+        assert_eq!(page.composition.unwrap().instances.len(), 1);
+        assert_eq!(authored(&engine), before);
+    }
+}
+
+#[test]
 fn bounded_editor_queries_match_all_public_callers_without_authored_changes() {
     let scene = scene();
     for count in [1, 128, 0, 129] {
         let operation = MediaEdit::InspectCompositionEditor {
             query: CompositionEditorQuery {
+                retained: None,
                 selected: Some(scene.instances[1].instance.0),
                 document: None,
                 locked: None,

@@ -40,14 +40,22 @@
 	let selectedNode = $derived(selectedNodes.length === 1 ? selectedNodes[0] : null);
 
 	let inspectorLocked = $state(false);
-	let lockedNodeId = $state<NodeId | null>(null);
+	let lockedNodeUuid = $state<string | null>(null);
+	let lockedDocument = $state<string | null>(null);
+	const documentUuid = $derived(
+		graphState?.rootId === null || graphState?.rootId === undefined
+			? null
+			: (graphState.nodesById.get(graphState.rootId)?.uuid ?? null)
+	);
 	let inspectedHistory = $state<NodeId[]>([]);
 	let inspectedHistoryIndex = $state(-1);
 	const INSPECT_HISTORY_LIMIT = 128;
 
 	let inspectedNodeId = $derived.by((): NodeId | null => {
 		if (inspectorLocked) {
-			return lockedNodeId;
+			return documentUuid === lockedDocument && lockedNodeUuid !== null
+				? (graphState?.nodesById.getByUuid(lockedNodeUuid)?.node_id ?? null)
+				: null;
 		}
 		return selectedNode?.node_id ?? null;
 	});
@@ -77,7 +85,13 @@
 		inspectedHistoryIndex >= 0 && inspectedHistoryIndex < inspectedHistory.length - 1
 	);
 	let canInspectParent = $derived(parentNodeId !== null);
-	let computedPanelTitle = $derived(node ? `Inspector: ${node.meta.label}` : 'Inspector');
+	let computedPanelTitle = $derived(
+		node
+			? `Inspector: ${node.meta.label}`
+			: inspectorLocked
+				? 'Inspector: unavailable'
+				: 'Inspector'
+	);
 
 	let warningCount = $derived(warnings ? warnings.length : 0);
 	let customInspectorEntry = $derived(node ? resolveNodeInspector(node) : null);
@@ -116,19 +130,12 @@
 		return Object.fromEntries(entries);
 	};
 
-	const sanitizeNodeId = (value: unknown): NodeId | null => {
-		const parsed = Number(value);
-		if (!Number.isFinite(parsed)) {
-			return null;
-		}
-		return Math.floor(parsed) as NodeId;
-	};
-
 	interface InspectorPersistedState {
 		dataInspectorCollapsed?: boolean;
 		watcherSettingsByParam?: Record<string, Partial<WatcherUiSettings>>;
 		inspectorLocked?: boolean;
-		inspectorLockedNodeId?: NodeId | null;
+		inspectorLockedNodeUuid?: string | null;
+		inspectorLockedDocument?: string | null;
 	}
 
 	const applyPersistedState = (nextParams: PanelState['params']): void => {
@@ -145,12 +152,15 @@
 
 		if (
 			typeof persistedState.inspectorLocked === 'boolean' ||
-			persistedState.inspectorLockedNodeId !== undefined
+			persistedState.inspectorLockedNodeUuid !== undefined
 		) {
-			const nextLockedNodeId = sanitizeNodeId(persistedState.inspectorLockedNodeId);
-			const nextLocked = Boolean(persistedState.inspectorLocked) && nextLockedNodeId !== null;
+			const nextLocked =
+				Boolean(persistedState.inspectorLocked) &&
+				typeof persistedState.inspectorLockedNodeUuid === 'string' &&
+				typeof persistedState.inspectorLockedDocument === 'string';
 			inspectorLocked = nextLocked;
-			lockedNodeId = nextLocked ? nextLockedNodeId : null;
+			lockedNodeUuid = nextLocked ? persistedState.inspectorLockedNodeUuid! : null;
+			lockedDocument = nextLocked ? persistedState.inspectorLockedDocument! : null;
 		}
 	};
 
@@ -159,17 +169,26 @@
 	};
 
 	const setInspectorLock = (nextLocked: boolean, targetNodeId: NodeId | null): void => {
-		const normalizedLocked = nextLocked && targetNodeId !== null;
-		const normalizedNodeId = normalizedLocked ? targetNodeId : null;
-		if (inspectorLocked === normalizedLocked && lockedNodeId === normalizedNodeId) {
+		const target =
+			nextLocked && targetNodeId !== null ? graphState?.nodesById.get(targetNodeId) : null;
+		const normalizedLocked = !!target && documentUuid !== null;
+		const uuid = normalizedLocked ? target.uuid : null;
+		const document = normalizedLocked ? documentUuid : null;
+		if (
+			inspectorLocked === normalizedLocked &&
+			lockedNodeUuid === uuid &&
+			lockedDocument === document
+		) {
 			return;
 		}
 
 		inspectorLocked = normalizedLocked;
-		lockedNodeId = normalizedNodeId;
+		lockedNodeUuid = uuid;
+		lockedDocument = document;
 		persistState({
 			inspectorLocked: normalizedLocked,
-			inspectorLockedNodeId: normalizedNodeId
+			inspectorLockedNodeUuid: lockedNodeUuid,
+			inspectorLockedDocument: lockedDocument
 		});
 	};
 
@@ -329,13 +348,11 @@
 	});
 
 	$effect(() => {
-		if (!inspectorLocked || lockedNodeId === null || !graphState) {
-			return;
-		}
-		if (graphState.nodesById.has(lockedNodeId)) {
-			return;
-		}
-		setInspectorLock(false, null);
+		panelApi.setContentBinding({
+			locked: inspectorLocked,
+			canLock: node !== null,
+			toggle: toggleInspectorLock
+		});
 	});
 
 	let lastAppliedPanelTitle = $state('');
@@ -418,7 +435,7 @@
 	});
 </script>
 
-<div class="inspector">
+<div class="inspector" data-panel-id={panelId} data-inspected-uuid={node?.uuid ?? ''}>
 	{#snippet builtInHeader(headerExtra?: Snippet)}
 		<div
 			class="inspector-header"
@@ -428,7 +445,10 @@
 			onpointerenter={handleHeaderPointerEnter}
 			onpointerleave={handleHeaderPointerLeave}>
 			{#if node == null}
-				<span class="title-text">No node selected</span>
+				<span class="title-text"
+					>{inspectorLocked
+						? 'Locked target unavailable in this document'
+						: 'No node selected'}</span>
 			{:else}
 				<span class="header-icon">
 					{#if iconURL}
@@ -526,15 +546,6 @@
 					disabled={!canGoHistoryForward}
 					onclick={inspectNextNode}>
 					<Arrow direction="right" />
-				</button>
-
-				<button
-					type="button"
-					class="inspector-nav-button lock-toggle"
-					title={inspectorLocked ? 'Unlock inspector from node' : 'Lock inspector to current node'}
-					disabled={node === null}
-					class:is-active={inspectorLocked}
-					onclick={toggleInspectorLock}>
 				</button>
 			</div>
 		</div>
@@ -678,23 +689,6 @@
 	.inspector-nav-button:disabled {
 		opacity: 0.2;
 		cursor: default;
-	}
-
-	.lock-toggle {
-		background-image: url('../../../style/icons/lock.svg');
-		background-repeat: no-repeat;
-		background-position: center;
-		background-size: contain;
-		opacity: 0.8;
-		filter: grayscale(100%);
-		transition:
-			opacity 0.2s ease,
-			filter 0.2s ease;
-	}
-
-	.lock-toggle.is-active {
-		opacity: 1;
-		filter: drop-shadow(0 0 3px rgba(255, 255, 0, 0.6));
 	}
 
 	.warning-info {

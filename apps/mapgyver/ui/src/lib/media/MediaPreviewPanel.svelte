@@ -8,7 +8,6 @@
 		type PanelProps,
 		type PanelState
 	} from 'golden_ui';
-	import lockIcon from 'golden_ui/style/icons/lock.svg';
 	import viewIcon from 'golden_ui/style/icons/viewport/frame.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import ChannelPreview from './ChannelPreview.svelte';
@@ -36,6 +35,22 @@
 	function persist() {
 		writePanelPersistedState(props.panelApi, { ...choice });
 	}
+	$effect(() => {
+		props.panelApi.setContentBinding({
+			locked: !!choice.lockedMedia,
+			canLock: !!page?.media,
+			toggle: () => {
+				if (choice.lockedMedia) {
+					choice.lockedMedia = null;
+					choice.document = null;
+				} else if (page?.media) {
+					choice.lockedMedia = page.media;
+					choice.document = page.document;
+				}
+				persist();
+			}
+		});
+	});
 	$effect(() => {
 		const current = session;
 		const query = {
@@ -74,20 +89,6 @@
 	data-preview-locked={!!choice.lockedMedia}>
 	<div class="editor-toolbar">
 		<span class="media-label">{page?.label ?? 'Media Preview'}</span>
-		<IconButton
-			icon={lockIcon}
-			label={choice.lockedMedia ? 'Unlock media' : 'Lock media'}
-			disabled={!choice.lockedMedia && !page?.media}
-			onclick={() => {
-				if (choice.lockedMedia) {
-					choice.lockedMedia = null;
-					choice.document = null;
-				} else if (page?.media) {
-					choice.lockedMedia = page.media;
-					choice.document = page.document;
-				}
-				persist();
-			}} />
 		<IconButton
 			icon={viewIcon}
 			label={choice.grid ? 'Single channel' : 'All-channel grid'}

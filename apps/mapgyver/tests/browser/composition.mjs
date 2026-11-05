@@ -1,3 +1,4 @@
+import { contentLock, persistedPanelState } from './content-lock.mjs';
 // Current typed Composition panels: real selection, Inspector, follow/lock, history and lifetime.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -209,7 +210,28 @@ export async function verifyCompositionUi({
 		);
 		await main.getByRole('button', { name: 'Next instances', exact: true }).click();
 		await target(main, owners[0]);
-		await main.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		stage = 'unrelated selection retains unlocked content and layout identity';
+		await settled(1);
+		const previewBefore = nativePage
+			? await main.locator('.native-preview').getAttribute('data-preview-view')
+			: null;
+		if (nativePage) assert(previewBefore);
+		await select('Panel source');
+		await target(main, owners[0]);
+		if (nativePage)
+			assert.equal(
+				await main.locator('.native-preview').getAttribute('data-preview-view'),
+				previewBefore
+			);
+		await persistedPanelState(page, 'composition', { page: 1, locked: null, retained: owners[0] });
+		await page.reload();
+		await target(main, owners[0]);
+		await main.getByText('Page 2 / 2', { exact: true }).waitFor();
+		assert.equal(await main.getAttribute('data-composition-locked'), 'false');
+		const lock = await contentLock(main, false);
+		await lock.focus();
+		await lock.press('Enter');
+		await contentLock(main, true);
 		await select('Panel B');
 		await target(main, owners[0]);
 		stage = 'independent simultaneous panels';
@@ -232,7 +254,7 @@ export async function verifyCompositionUi({
 		assert(secondId);
 		const peer = panel(secondId);
 		await target(peer, owners[1]);
-		await peer.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		await (await contentLock(peer, false)).click();
 		for (const [owner, label, currentPanel] of [
 			[owners[0], 'Renamed locked A', main],
 			[owners[1], 'Renamed locked B', peer]
@@ -252,14 +274,8 @@ export async function verifyCompositionUi({
 			boxes[0].x + boxes[0].width <= boxes[1].x + 1,
 			'simultaneous side-by-side workbench panels'
 		);
-		await page.waitForFunction(
-			({ id, channel }) =>
-				Object.entries(localStorage).some(
-					([key, value]) =>
-						key.endsWith('layout.v1') && value.includes(id) && value.includes(channel)
-				),
-			{ id: secondId, channel: owners[0].channel }
-		);
+		await persistedPanelState(page, 'composition', { page: 1, locked: owners[0] });
+		await persistedPanelState(page, secondId, { locked: owners[1] });
 		const project = path.join(directory, 'composition-panels.mapgyver');
 		assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 		stage = 'persisted layout and real reconnect';
@@ -295,8 +311,17 @@ export async function verifyCompositionUi({
 			.getByRole('button', { name: 'Close panel', exact: true })
 			.click();
 		await settled(1);
+		stage = 'locked target delete and Undo';
+		await edit({ kind: 'RemoveMedia', media: owners[0].media });
+		await main
+			.getByText('Locked Composition unavailable in this project.', { exact: true })
+			.waitFor();
+		await contentLock(main, true);
+		await undo();
+		await target(main, owners[0]);
+		await settled(1);
 		await select('Panel B');
-		await main.getByRole('button', { name: 'Unlock Composition', exact: true }).click();
+		await (await contentLock(main, true)).click();
 		await target(main, owners[1]);
 		const original = await inspect(owners[1]);
 		await main.getByRole('button', { name: 'Copy instance', exact: true }).click();
@@ -333,7 +358,7 @@ export async function verifyCompositionUi({
 			() => inspect(owners[1]),
 			(value) => isDeepStrictEqual(value, removed)
 		);
-		await main.getByRole('button', { name: 'Lock Composition', exact: true }).click();
+		await (await contentLock(main, false)).click();
 		await target(main, owners[1]);
 		stage = 'New during held pointer and document-scoped reload';
 		const svg = main.getByRole('group', { name: 'Composition transform controls', exact: true });

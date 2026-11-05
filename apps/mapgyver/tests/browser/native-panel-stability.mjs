@@ -1,3 +1,4 @@
+import { contentLock } from './content-lock.mjs';
 // Owned current-build reproduction of M12/1's Matrix and dock-resize recordings.
 import assert from 'node:assert/strict';
 import { mkdir, stat, writeFile } from 'node:fs/promises';
@@ -82,7 +83,7 @@ try {
 	const preview = page
 		.locator('.media-preview-panel')
 		.filter({ has: page.getByText('Stability Matrix', { exact: true }) });
-	await preview.getByRole('button', { name: 'Lock media', exact: true }).click();
+	await (await contentLock(preview, false)).click();
 	await preview.locator('.native-preview').waitFor({ state: 'attached' });
 	const metadata = await page.evaluate(async () => ({
 		viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
