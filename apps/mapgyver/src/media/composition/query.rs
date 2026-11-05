@@ -6,7 +6,7 @@ use crate::{
 };
 use golden_core::node::{Node, NodeId, NodeUuid};
 
-fn output(engine: &AppEngine, media: NodeId) -> Option<ChannelReference> {
+pub(in crate::media) fn output(engine: &AppEngine, media: NodeId) -> Option<ChannelReference> {
     let node = engine.nodes.get(media)?;
     if !matches!(node, AppNode::Media(node) if node.kind() == MediaKind::Composition) {
         return None;

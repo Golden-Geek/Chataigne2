@@ -271,6 +271,9 @@ pub enum MediaEdit {
     InspectMatrixEditor {
         query: crate::matrix::protocol::MatrixEditorQuery,
     },
+    InspectSpatialEditor {
+        query: super::spatial::protocol::SpatialEditorQuery,
+    },
     Matrix {
         media: MediaId,
         edit: crate::matrix::protocol::MatrixEdit,
@@ -465,6 +468,9 @@ pub enum MediaEditResult {
     },
     MatrixEditor {
         page: crate::matrix::protocol::MatrixEditorPage,
+    },
+    SpatialEditor {
+        binding: super::spatial::protocol::SpatialEditorBinding,
     },
     MediaPreview {
         page: MediaPreviewPage,

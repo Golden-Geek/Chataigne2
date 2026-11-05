@@ -1,0 +1,36 @@
+{
+  "result": "pass",
+  "nativePid": 36188,
+  "bindings": [
+    {
+      "id": "composition",
+      "initial": {
+        "kind": "Composition",
+        "reference": {
+          "channel": "9c5c0b03-8a4c-4053-a7d8-ebf381e2c99d",
+          "media": "43e16d9d-4b0f-4cda-9866-a3c0f7c7150f"
+        }
+      }
+    },
+    {
+      "id": "composition-1",
+      "target": {
+        "kind": "Matrix",
+        "media": "d8aa4d8e-7462-4961-abc4-74bee3a8b35b"
+      }
+    }
+  ],
+  "reconnect_leases": [
+    "6c002c80-4d1a-49ac-8366-1802134d0135",
+    "ce803216-fb3f-4337-bdd7-3ca4e0adefec"
+  ],
+  "page_errors": [],
+  "receipts": {
+    "rejected": [],
+    "observed": {
+      "requests": 270,
+      "receipts": 270
+    }
+  },
+  "scope": "one Composition registration with focused Composition/Matrix adapters and shared native viewport; mixed independent locks, eligible/unrelated/Cell/Layer selection, unlocked Matrix native-view retention, bounded independent off-page selection, Frame/Home, pagination/rename/layout, deletion/Undo with selected Layer retention, stable leases through reconnect, New/Load/cross-project fences and no implicit Matrix launch; M12/7 placement/Cell editing and native pixels remain separate"
+}

@@ -28,6 +28,7 @@ mod scripting;
 pub(crate) mod sender_catalog;
 mod source_api;
 mod source_node;
+pub mod spatial;
 pub(crate) mod structure;
 mod visibility;
 

@@ -153,6 +153,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectMatrixEditor { query } => MediaEditResult::MatrixEditor {
             page: crate::matrix::inspect_editor(engine, query)?,
         },
+        MediaEdit::InspectSpatialEditor { query } => MediaEditResult::SpatialEditor {
+            binding: super::spatial::inspect(engine, query)?,
+        },
         MediaEdit::Matrix { media, edit } => crate::matrix::apply(engine, media, edit)?,
         MediaEdit::Composition { reference, edit } => super::composition::apply(engine, reference, edit)?,
         MediaEdit::ImportPicture { locator, target, label } => {

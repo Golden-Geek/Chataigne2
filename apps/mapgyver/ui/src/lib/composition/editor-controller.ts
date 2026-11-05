@@ -15,6 +15,7 @@ export const createCompositionEditorState = () => ({
 	interacting: false,
 	error: '',
 	readError: '',
+	presentedGeneration: null as number | null,
 	presentedHistory: undefined as unknown
 });
 export type CompositionEditorState = ReturnType<typeof createCompositionEditorState>;
@@ -67,6 +68,7 @@ export class CompositionEditorController<S extends Connection> {
 			session.loading.visible ||
 			(this.state.page !== null &&
 				(this.state.presentedHistory !== session.currentHistoryStateId ||
+					this.state.presentedGeneration !== session.snapshotGeneration ||
 					this.context?.session !== session ||
 					this.context.generation !== session.snapshotGeneration))
 		);
@@ -85,11 +87,18 @@ export class CompositionEditorController<S extends Connection> {
 		this.query = query;
 		const session = this.getSession();
 		if (!session || session.status !== 'connected' || session.loading.visible) {
-			this.reset();
+			this.reads.invalidate();
+			this.state.refreshing = false;
+			if (this.context?.session !== session) this.reset();
 			return;
 		}
 		const generation = session.snapshotGeneration;
-		if (this.context?.session !== session || this.context.generation !== generation) this.reset();
+		if (this.context?.session !== session) this.reset();
+		else if (this.context.generation !== generation) {
+			this.reads.invalidate();
+			this.operation++;
+			this.state.pending = false;
+		}
 		this.context = { session, generation };
 		// Keep admitted geometry and loaded widgets usable while a grouped edit is held.
 		if (this.state.pending || this.state.interacting || session.hasActiveEditSession) return;
@@ -118,6 +127,7 @@ export class CompositionEditorController<S extends Connection> {
 				}
 				this.state.page = result.page;
 				this.state.presentedHistory = history;
+				this.state.presentedGeneration = generation;
 				this.state.resolving = false;
 				this.state.readError = '';
 			},

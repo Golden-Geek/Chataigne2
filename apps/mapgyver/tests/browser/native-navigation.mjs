@@ -44,6 +44,7 @@ import { verifyInspectorContentBinding } from './inspector-content-binding.mjs';
 import { verifyPreviewContinuity } from './preview-continuity.mjs';
 import { verifyScreenBindings } from './screen-bindings.mjs';
 import { verifyMatrixBindings } from './matrix-bindings.mjs';
+import { verifySpatialBindings } from './spatial-bindings.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -70,6 +71,7 @@ try {
 			['--preview-bindings', verifyPreviewContinuity],
 			['--screen-bindings', verifyScreenBindings],
 			['--matrix-bindings', verifyMatrixBindings],
+			['--spatial-bindings', verifySpatialBindings],
 			[
 				'--matrix-grid',
 				async (options) => {

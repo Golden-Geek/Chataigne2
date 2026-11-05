@@ -15,7 +15,7 @@
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 	import ScreenWarpPanel from '../lib/screens/ScreenWarpPanel.svelte';
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
-	import CompositionPanel from '../lib/composition/CompositionPanel.svelte';
+	import CompositionPanel from '../lib/spatial/SpatialPanel.svelte';
 	import MatrixPanel from '../lib/matrix/MatrixPanel.svelte';
 	import DomainInspector from '../lib/DomainInspector.svelte';
 	import VideoRuntimeFooter from '../lib/runtime/VideoRuntimeFooter.svelte';

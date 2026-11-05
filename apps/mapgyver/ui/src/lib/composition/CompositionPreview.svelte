@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { appState, Viewport2D, pointBounds } from 'golden_ui';
+	import { pointBounds } from 'golden_ui';
+	import SpatialViewport from '../spatial/SpatialViewport.svelte';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
 	import type { Point } from '../media/generated/Point';
 	import type { InstanceHandle } from './instance-gesture';
-	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import InstanceHandles from './InstanceHandles.svelte';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
@@ -66,14 +66,13 @@
 	);
 </script>
 
-<Viewport2D
+<SpatialViewport
 	{actions}
-	aspect={composition.canvas.width / composition.canvas.height}
-	identity={`${appState.session?.projectGeneration ?? 0}:${channel.reference.channel}`}
+	{channel}
+	canvas={composition.canvas}
+	identity={channel.reference.channel}
 	{selection}
-	label="Composition view"
-	native>
-	<ChannelPreview {channel} fill />
+	label="Composition view">
 	<InstanceHandles
 		{composition}
 		{selected}
@@ -84,4 +83,4 @@
 		{move}
 		{finish}
 		{stop} />
-</Viewport2D>
+</SpatialViewport>

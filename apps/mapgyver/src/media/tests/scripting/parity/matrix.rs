@@ -2,6 +2,37 @@ use super::*;
 use crate::matrix::protocol::*;
 
 #[test]
+fn spatial_binding_query_preserves_the_same_matrix_owner_for_every_public_caller() {
+    use crate::media::spatial::protocol::*;
+    let scene = scene();
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        let query = SpatialEditorQuery {
+            selected: Some(scene.snapshot.cells[0].id.0),
+            document: None,
+            locked: None,
+            retained: None,
+        };
+        let value = run(&mut engine, caller, MediaEdit::InspectSpatialEditor { query }).unwrap();
+        let expected = crate::media::spatial::inspect(&engine, query).unwrap();
+        assert_eq!(
+            value,
+            serde_json::to_value(MediaEditResult::SpatialEditor { binding: expected }).unwrap()
+        );
+        let MediaEditResult::SpatialEditor { binding } = serde_json::from_value(value).unwrap() else {
+            panic!()
+        };
+        assert_eq!(
+            binding.target,
+            Some(SpatialEditorTarget::Matrix {
+                media: scene.root.media
+            })
+        );
+        assert!(binding.present);
+    }
+}
+
+#[test]
 fn retained_matrix_editor_query_is_identical_and_read_only_for_every_public_caller() {
     let scene = scene();
     for caller in CALLERS {

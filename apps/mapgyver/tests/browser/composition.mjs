@@ -223,7 +223,11 @@ export async function verifyCompositionUi({
 				await main.locator('.native-preview').getAttribute('data-preview-view'),
 				previewBefore
 			);
-		await persistedPanelState(page, 'composition', { page: 1, locked: null, retained: owners[0] });
+		await persistedPanelState(page, 'composition', {
+			page: 1,
+			locked: null,
+			retained: { kind: 'Composition', reference: owners[0] }
+		});
 		await page.reload();
 		await target(main, owners[0]);
 		await main.getByText('Page 2 / 2', { exact: true }).waitFor();
@@ -274,8 +278,13 @@ export async function verifyCompositionUi({
 			boxes[0].x + boxes[0].width <= boxes[1].x + 1,
 			'simultaneous side-by-side workbench panels'
 		);
-		await persistedPanelState(page, 'composition', { page: 1, locked: owners[0] });
-		await persistedPanelState(page, secondId, { locked: owners[1] });
+		await persistedPanelState(page, 'composition', {
+			page: 1,
+			locked: { kind: 'Composition', reference: owners[0] }
+		});
+		await persistedPanelState(page, secondId, {
+			locked: { kind: 'Composition', reference: owners[1] }
+		});
 		const project = path.join(directory, 'composition-panels.mapgyver');
 		assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 		stage = 'persisted layout and real reconnect';

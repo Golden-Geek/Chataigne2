@@ -1,115 +1,58 @@
 <script lang="ts">
 	import { CanvasToolbar } from 'golden_graph_ui';
-	import { untrack } from 'svelte';
 	import {
 		appState,
 		ContextMenu,
 		type ContextMenuAnchor,
 		type ContextMenuItem,
-		IconButton,
-		readPanelPersistedState,
-		writePanelPersistedState,
-		type PanelProps,
-		type PanelState
+		IconButton
 	} from 'golden_ui';
 	import copyIcon from 'golden_ui/style/icons/copy.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { createCompositionEditor } from './editor.svelte';
-	import {
-		compositionPanelState,
-		COMPOSITION_PAGE_SIZE,
-		type CompositionPanelState
-	} from './panel-state';
+	import { SPATIAL_PAGE_SIZE } from '../spatial/targets';
+	import type { ChannelReference } from '../media/generated/ChannelReference';
 	import { useDocumentSelection } from '../selection.svelte';
 	import CompositionPreview from './CompositionPreview.svelte';
-	import { followPanelTitle } from '../panel-title.svelte';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import { pickCompositionSource } from '../media/source-hit';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
-	let props: PanelProps = $props();
-	let choice = $state(
-		untrack(() =>
-			compositionPanelState(readPanelPersistedState<CompositionPanelState>(props.params))
-		)
-	);
-	let title = $state(untrack(() => props.title));
+	let props: {
+		panelId: string;
+		title: string;
+		reference: ChannelReference;
+		document: string;
+		present: boolean;
+		locked: boolean;
+		page: number;
+		onpagechange(page: number): void;
+	} = $props();
 	let selectedInstance = $state<string | null>(null);
-	export const setPanelState = (next: PanelState) => {
-		const restored = compositionPanelState(
-			readPanelPersistedState<CompositionPanelState>(next.params)
-		);
-		const targetChanged =
-			choice.document !== restored.document ||
-			choice.locked?.channel !== restored.locked?.channel ||
-			choice.retained?.channel !== restored.retained?.channel;
-		if (targetChanged || choice.page !== restored.page) owner.gesture.stop();
-		title = next.title;
-		choice = restored;
-		if (targetChanged) selectedInstance = null;
-	};
 	const owner = createCompositionEditor(() => ({
 		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
-		document: choice.document,
-		locked: choice.locked,
-		retained: choice.retained,
+		document: props.document,
+		locked: props.reference,
+		retained: props.reference,
 		instance: selectedInstance,
-		start: choice.page * COMPOSITION_PAGE_SIZE,
-		count: COMPOSITION_PAGE_SIZE
+		start: props.page * SPATIAL_PAGE_SIZE,
+		count: SPATIAL_PAGE_SIZE
 	}));
 	const { view, controller, gestureState, gesture } = owner;
 	const channel = $derived(owner.channel),
 		composition = $derived(owner.composition),
 		instance = $derived(owner.instance),
-		busy = $derived(owner.busy);
-	followPanelTitle(
-		() => props.panelApi,
-		() => 'Composition',
-		() => (composition ? view.page?.label : null)
-	);
-	const pages = $derived(Math.max(1, Math.ceil((view.page?.total ?? 0) / COMPOSITION_PAGE_SIZE)));
+		busy = $derived(owner.busy || !props.present);
+	const pages = $derived(Math.max(1, Math.ceil((view.page?.total ?? 0) / SPATIAL_PAGE_SIZE)));
 	const selection = useDocumentSelection(),
 		preview = usePreview();
-	function persist() {
-		writePanelPersistedState(props.panelApi, { ...choice });
-	}
-	$effect(() => {
-		const page = view.page;
-		if (!page?.channel || !page.document_matches) return;
-		const reference = page.channel.reference;
-		if (
-			choice.document === page.document &&
-			choice.retained?.media === reference.media &&
-			choice.retained?.channel === reference.channel
-		)
-			return;
-		choice.retained = { ...reference };
-		choice.document = page.document;
-		untrack(persist);
-	});
-	$effect(() => {
-		props.panelApi.setContentBinding({
-			locked: !!choice.locked,
-			canLock: !!channel && !busy,
-			toggle: () => {
-				gesture.stop();
-				if (choice.locked) choice.locked = null;
-				else if (channel && view.page) {
-					choice.locked = { ...channel.reference };
-					choice.document = view.page.document;
-				}
-				persist();
-			}
-		});
-	});
 	$effect(() => {
 		if (instance) selectedInstance = instance.reference.instance;
 	});
 	$effect(() => {
-		if (view.page?.composition && choice.page >= pages) {
-			choice.page = pages - 1;
-			untrack(persist);
+		if (view.page?.composition && props.page >= pages) {
+			props.onpagechange(pages - 1);
 		}
 	});
 	let menuAnchor = $state<ContextMenuAnchor | null>(null);
@@ -198,11 +141,13 @@
 
 <section
 	class="workbench-editor"
-	aria-label={title ?? 'Composition'}
+	aria-label={props.title}
 	data-panel-id={props.panelId}
-	data-composition-channel={channel?.reference.channel ?? ''}
+	data-spatial-kind="Composition"
+	data-spatial-media={props.present ? (channel?.reference.media ?? '') : ''}
+	data-composition-channel={props.present ? (channel?.reference.channel ?? '') : ''}
 	data-composition-selected={instance?.reference.instance ?? ''}
-	data-composition-locked={!!choice.locked}
+	data-composition-locked={props.locked}
 	data-composition-loading={view.refreshing}
 	data-composition-busy={busy}>
 	{#snippet actions()}
@@ -222,20 +167,14 @@
 				icon={arrowIcon}
 				label="Previous instances"
 				class="previous"
-				disabled={busy || choice.page === 0}
-				onclick={() => {
-					choice.page--;
-					persist();
-				}} />
-			<span>Page {choice.page + 1} / {pages}</span>
+				disabled={busy || props.page === 0}
+				onclick={() => props.onpagechange(props.page - 1)} />
+			<span>Page {props.page + 1} / {pages}</span>
 			<IconButton
 				icon={arrowIcon}
 				label="Next instances"
-				disabled={busy || choice.page >= pages - 1}
-				onclick={() => {
-					choice.page++;
-					persist();
-				}} />
+				disabled={busy || props.page >= pages - 1}
+				onclick={() => props.onpagechange(props.page + 1)} />
 		{/if}
 	{/snippet}
 	<SourceDropZone
@@ -265,7 +204,7 @@
 		{#if view.error || view.readError || gestureState.error}<p class="editor-error" role="alert">
 				{view.error || view.readError || gestureState.error}
 			</p>{/if}
-		{#if channel && composition}
+		{#if props.present && channel && composition}
 			<CompositionPreview
 				{actions}
 				{channel}
@@ -281,8 +220,14 @@
 				move={(point) => gesture.move(point)}
 				finish={() => gesture.finish()}
 				stop={() => gesture.stop()} />
+		{:else if !props.present}<p class="editor-empty">
+				{props.locked
+					? 'Locked Composition unavailable in this project.'
+					: 'Composition unavailable in this project.'}
+			</p>
+			<CanvasToolbar {actions} disabled frame={() => {}} home={() => {}} />
 		{:else if view.refreshing}<p class="editor-empty" role="status">Loading Composition…</p>
-		{:else if choice.locked}<p class="editor-empty">
+		{:else if props.locked}<p class="editor-empty">
 				Locked Composition unavailable in this project.
 			</p>
 			<CanvasToolbar {actions} disabled frame={() => {}} home={() => {}} />

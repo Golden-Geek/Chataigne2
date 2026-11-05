@@ -1,0 +1,48 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/6 Accepted",
+	"acceptance": { "verified": 63, "total": 78, "m12_verified": 6, "m12_total": 11 },
+	"capability": "The existing Composition registration hosts focused Composition and Matrix adapters with one per-panel retained target/tab lock and a shared native viewport. Matrix Layers use typed bounds, standard Inspector selection, bounded paging and independent off-page selection without launching playback.",
+	"ownership": {
+		"backend": "InspectSpatialEditor resolves Composition/Matrix ownership through a bounded ancestor walk. Composition-owned media remain outer instances; their channels explicitly enter nested content. Locks precede relevant selection; unrelated selection retains content only in its document. Unscoped/wrong-kind targets reject, missing identities survive Undo/Load, and labels come from current nodes.",
+		"ui": "SpatialPanel owns binding and typed persisted document/target/page state. SpatialViewport owns the common Golden native viewport/navigation surface. CompositionAdapter retains creation, source drops, selection and gestures; MatrixLayoutAdapter consumes the cached bounded Matrix projection. Each adapter retains local identifiers through missing-target recovery while withdrawing imagery. Composition reconnect retains its projection/lease and fences edits until the current snapshot arrives.",
+		"contracts": "Rust DTOs generate the target/query/binding TypeScript in the same change. Domain projections and authoring remain with their existing owners; no app policy enters Golden and no Matrix is converted to Composition."
+	},
+	"software": {
+		"rust": "483 library tests pass, zero failures, three existing ignored tests. Includes generated parity; spatial descendant/instance/channel policy; missing/rename/Undo/Load/document fences; unscoped/wrong-kind rejection; immutable operation parity and all four public UI/script callers.",
+		"ui": "66 related Spatial/Composition/Matrix/media unit tests pass. New cases cover independent readers, active/latest coalescing, late absence/errors, session/project/history/snapshot/loading/disconnect/disposal fences, same-project retention, authoritative absence/recovery, typed persisted targets and Composition reconnect mutation fencing.",
+		"checks": "Svelte 0 errors/0 warnings. All-target Clippy with native-qualification,application-process-fixture and -D warnings passes. Root/golden_core cargo fmt, scoped Prettier, Node syntax and scoped diff checks pass.",
+		"native_build": "Ordinary isolated app build terminal success before native execution; user-running executable untouched. SHA256 8ee9d816f56c3e8f88a8e639c97efc71a919a93c9fdcc3171c9f72f55d1f3a90."
+	},
+	"native": {
+		"mixed_bindings": {
+			"flag": "--spatial-bindings",
+			"pid": 36188,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "Mixed Composition/Matrix locks; keyboard tab locking; cross-domain follow; unlocked Matrix retention through unrelated selection with the same installed view; actual Cell and Layer grid selection; 128 visible definitions plus independent selected Layer; shared Frame/Home; pagination and locked rename/title; exact persisted layout; deletion/Undo retaining the selected Layer; two stable leases through actual transport reconnect; no native DOM imagery after New; old locks reject a foreign document, explicit unlock follows its Matrix, and Load restores only matching-document locks. No implicit Matrix launch. 270 requests/270 receipts; zero rejected receipts/page errors."
+		},
+		"composition_regression": {
+			"flag": "--composition-panels",
+			"pid": 41412,
+			"exit": 0,
+			"absent_after_normal_close": true,
+			"proof": "130-instance scene, 128-definition pages and independent selected child; generic Inspector/history; simultaneous separate locks/page state; layout reload/reconnect; copy/removal and exact history; peer/tab retirement; New during held pointer and same-document Load. Zero page errors/rejections."
+		},
+		"artifacts": "assets/mapgyver-m12-spatial-bindings-2026-11-05/"
+	},
+	"gate_audit": [
+		"Composition follows relevant descendants and retains unrelated selection: current Composition regression and earlier panel-bindings receipt.",
+		"Matrix spatial adapter uses the same rule and independent locks: current mixed-domain native flow, bounded backend binding tests and UI reader tests.",
+		"Shared accessible tab lock immediately before Close, without body duplicates: existing public Golden capability and current contentLock assertions for both domains; earlier Inspector/Media Preview/Screen/Source/grid receipts remain valid.",
+		"Typed per-instance document-scoped state, truthful rename, missing/Undo, layout/reconnect/New/Load/cross-project fences: current mixed flow plus the retained owner-specific receipts. No retained target stores authored node definitions."
+	],
+	"prior_evidence": [
+		"mapgyver-m12-panel-bindings-2026-11-05.json",
+		"mapgyver-m12-screen-bindings-2026-11-05.json",
+		"mapgyver-m12-matrix-bindings-2026-11-05.json"
+	],
+	"corrected_during_validation": "The initial missing-Composition check exposed loading feedback taking priority over an authoritative missing binding. Missing status now wins immediately while the adapter keeps its selected identifiers for Undo. The unchanged lifetime assertion passes. A test-only label collision was corrected by isolating fixtures; Golden's backend naming policy was preserved.",
+	"remaining_requirement": "M12/7 is Active: complete the shared manipulation contract and Matrix whole-Layer/per-Layer Cell-content editing, typed independent Cell placement size/natural-size defaults and Fit/Fill/Stretch, backend bounds/opposite-anchor/grouped pointer-keyboard history, bounded selected-object reads, nested groups/aspect/alpha/blend/source resizing/copy/reload and full native pixels/large-sparse acceptance. M12/8–11 remain Pending in order. This receipt supersedes earlier statements that M12/6 still lacked spatial binding; their historical counts and failures remain preserved.",
+	"limits": "This accepts binding and lifetime scope only. DOM captures and installed-lease checks do not establish physical pixels/alignment/cadence, complete GPU retirement or M12/7 editing acceptance. Original retained M03/M05/M08 and final qualification requirements remain unchanged. Gate denominator stays 78."
+}

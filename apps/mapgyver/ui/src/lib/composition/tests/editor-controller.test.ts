@@ -5,7 +5,6 @@ import type { CompositionEditorQuery } from '../../media/generated/CompositionEd
 import type { CompositionEditorPage } from '../../media/generated/CompositionEditorPage';
 import type { MediaEdit } from '../../media/generated/MediaEdit';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
-import { compositionPanelState } from '../panel-state.ts';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const session = () => ({
@@ -278,25 +277,29 @@ test('mutation rejections remain visible across immutable refresh and selected d
 	assert.equal(editor.instance?.reference.instance, 'visible');
 });
 
-test('persisted panel choices copy valid document-scoped locks and reject malformed state', () => {
-	const id = '11111111-2222-4333-8444-555555555555';
-	const input = { locked: { media: id, channel: id }, document: id, page: 2 };
-	const first = compositionPanelState(input),
-		second = compositionPanelState(input);
-	first.locked!.media = 'changed';
-	assert.equal(second.locked?.media, id);
-	assert.deepEqual(compositionPanelState({ locked: input.locked, document: null, page: -1 }), {
-		locked: null,
-		retained: null,
-		document: null,
-		page: 0
-	});
-	assert.equal(compositionPanelState({ page: Number.POSITIVE_INFINITY }).page, 0);
-	const retained = compositionPanelState({ retained: input.locked, document: id });
-	assert.deepEqual(retained.retained, input.locked);
-	assert.equal(retained.locked, null);
-	assert.equal(retained.document, id);
-	retained.retained!.media = 'changed';
-	assert.equal(input.locked.media, id);
-	assert.equal(compositionPanelState({ retained: input.locked }).retained, null);
+test('same-owner reconnect preserves the viewport projection while mutation awaits the new snapshot', async () => {
+	const host = session(),
+		state = createCompositionEditorState(),
+		pending = deferred();
+	let calls = 0;
+	const editor = new CompositionEditorController(
+		() => host,
+		state,
+		async () => (++calls === 1 ? reply() : pending.promise)
+	);
+	editor.refresh(query());
+	await flush();
+	const shown = editor.composition;
+	host.status = 'disconnected';
+	editor.refresh();
+	assert.equal(editor.composition?.reference.channel, shown?.reference.channel);
+	assert.equal(editor.busy, true);
+	host.status = 'connected';
+	host.snapshotGeneration++;
+	editor.refresh();
+	assert(editor.composition);
+	assert.equal(editor.busy, true);
+	pending.resolve(reply());
+	await flush();
+	assert.equal(editor.busy, false);
 });

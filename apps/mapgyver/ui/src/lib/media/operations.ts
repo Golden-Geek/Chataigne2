@@ -25,7 +25,8 @@ export function mediaOperationActivity(edit: MediaEdit): 'background' | 'user' {
 		'InspectChoices',
 		'InspectCommandCatalog',
 		'InspectCompositionEditor',
-		'InspectMatrixEditor'
+		'InspectMatrixEditor',
+		'InspectSpatialEditor'
 	].includes(edit.kind)
 		? 'background'
 		: 'user';

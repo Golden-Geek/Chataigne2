@@ -28,12 +28,28 @@ new document's relevant selection, but it cannot reuse that document's unrelated
 to revive an old target. Missing targets remain unavailable and can recover through Undo or
 same-document Load. Bounded pages and independent selected-object reads remain unchanged.
 
-Composition, Media Preview, Inspector, Screen Warping, Surface Source and the Matrix grid publish the same
-capability and have no body lock.
-Composition stores the last successful target even while unlocked. Media Preview retains
-its existing explicit lock/channel/grid/page behavior. The Matrix spatial adapter must use
-this same capability and relevant-target rule when integrated under M12/6–7; current Screen
-integration does not claim that future Matrix integration or complete M12/6 acceptance.
+Composition, Media Preview, Inspector, Screen Warping, Surface Source and the Matrix grid
+publish the same capability and have no body lock. Media Preview retains its existing
+explicit lock/channel/grid/page behavior.
+
+The existing Composition registration hosts `spatial/SpatialPanel.svelte`. Its one per-panel
+binding reader and typed persisted target select focused Composition or Matrix adapters.
+`InspectSpatialEditor` resolves the nearest eligible domain through a bounded ancestor walk,
+including Matrix Layers/Cells and their Parameters. Owned Composition media remain editable
+instances of their outer Composition; their channels provide an explicit nested-domain entry.
+Locks precede relevant selection, unrelated selection retains the last target, and document
+root fencing prevents old identities from resolving in a new project. Missing same-document
+targets retain their adapter state for Undo while withdrawing their native imagery.
+
+`SpatialViewport.svelte` owns the shared Golden native viewport/navigation surface. The
+Composition adapter retains its existing creation, source drops, selection and geometry
+gesture. The Matrix adapter projects at most 128 Layer/Group definitions plus an independent
+selected row through the existing cached Matrix reader, displays the actual Final channel,
+and selects typed Layer bounds in the standard Inspector. Pagination never launches playback.
+The tab identifies Matrix content and its Layers level. M12/7 still owns the complete shared
+manipulation contract, per-Layer Cell-content level, independent Cell placement size and
+Fit/Fill/Stretch policy, domain geometry/history operations and native pixel acceptance.
+This initial binding integration does not claim those editing or pixel requirements.
 
 Screen/Surface editors own separate readers and geometry gestures; they no longer share a
 window-level selection/controller. `InspectEditor` resolves relevant ancestors and locks in
@@ -56,7 +72,8 @@ other editors. Grid presentation never launches playback. One application-runtim
 remains shared by the workbench, independently of the number of grids. The removed global
 Matrix controller no longer couples one panel's selection or viewport to another panel.
 
-The native `--content-binding`, `--composition-panels`, `--matrix-bindings` and `--preview-bindings` flows verify
+The native `--content-binding`, `--composition-panels`, `--matrix-bindings`, `--spatial-bindings`
+and `--preview-bindings` flows verify
 real tab input, independent instances, target deletion/history, layout reload, reconnect and
 project fencing through isolated production hosts. Fixtures await the exact persisted panel
 identities before reloading, rather than a stale layout that happens to mention one target.
