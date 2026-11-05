@@ -1,0 +1,46 @@
+{
+	"date": "2026-11-05",
+	"gate": "M12/8",
+	"result": "Both-GPU 1080p/4K Screen allocation admission, overload and recovery pass; native cost qualification remains open",
+	"product_source_commit": "c274947b9dcb94bcd1df39a4f4643182be342476",
+	"test": "../../../apps/mapgyver/tests/screen_antialiasing_resources.rs",
+	"executable_sha256": "8A36D948679053A51AADBA21EF4839BE501E9C5C7F87241B0B2D19B37A132CF0",
+	"cargo_lock_sha256": "8DAC1D2FEE7971E3E4EE30637B7C461CB60E1C1EA15B1EEA585864AC7EC5A446",
+	"profile": "Cargo test profile, optimized with debug information",
+	"build": "cargo test --locked -p MapGyver --features native-qualification,application-process-fixture --test screen_antialiasing_resources --no-run",
+	"validation": "Strict Clippy for the same target/features passes; root and golden_core cargo fmt pass; explicit native test exits 0",
+	"results": "mapgyver-m12-screen-resources-2026-11-05/results.json",
+	"native_log": "mapgyver-m12-screen-resources-2026-11-05/final.log",
+	"baseline_log": "mapgyver-m12-screen-resources-2026-11-05/baseline.log",
+	"scope": {
+		"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"extents": ["1920x1080", "3840x2160"],
+		"modes": ["Raw", "Smooth2x"],
+		"surfaces": [1, 2],
+		"steady_cases": 16,
+		"source": "One shared 8x8 Solid Color producer; no external receiver or picture cache demand",
+		"bindings": "Eight independent full-size SDK endpoints, each initialized by an accepted send before inventory assertions",
+		"per_generation_formula": "B = 4*width*height. Raw one/two Surface: 2B+256 / 3B+256; Smooth one/two Surface: 6B+256 / 10B+256. Includes source, final target, 2x target, multi-layer scratch and SDK conversion",
+		"baseline_formula": "15,248 fixed buffer bytes plus eight SDK shared images (8B)",
+		"admission": "Original 512 MiB / 1 GiB ceilings further clamped to half measured adapter LOCAL budget; production dimension/pass/dependency limits unchanged",
+		"checks": [
+			"Active generation charge, total settled reservation and actual deduplicated native inventory match exact formulas",
+			"Prepared <=1, in-flight <=2 and retiring generations <=2; reserved and peak bytes stay within ceiling",
+			"Pressure requests for seven 1080p or three 4K Smooth Screens return ResourcePressure before allocating textures",
+			"Rejected request preserves current Smooth identity, byte charge and created-texture count; no fallback",
+			"A subsequent valid Smooth publication succeeds with the same exact charge",
+			"Final native inventory has zero plan textures, balanced creation/release, no outputs and no sources"
+		],
+		"peak_reserved_bytes_1080p": 232258960,
+		"peak_reserved_bytes_4k": 928988560,
+		"retirement_ms": [46.3052, 99.6248, 12.9491, 32.5079],
+		"retirement_limit_ms": 2000
+	},
+	"baseline_correction": "First fixture stopped because unused SDK endpoints correctly reported unknown storage. Sequentially sending once through each bound endpoint establishes actual metadata without changing product behavior or treating unknown as zero. Corrected build/strict checks passed before the second and final native experiment.",
+	"limits": [
+		"Descriptor payload, conservative live/prepared/retiring reservation and physical driver residency remain distinct; opaque driver allocation bytes are unknown",
+		"No cadence, CPU/GPU timing, frame-age, scanout, source-worker or complete Q01/Q02 performance claim",
+		"Original M03 failures and budgets are preserved; complete M12/8 native cost evidence remains required",
+		"Overall 64/78 (82%) and M12 7/11 (64%) unchanged"
+	]
+}

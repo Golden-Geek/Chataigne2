@@ -1,0 +1,2982 @@
+[
+  {
+    "adapter": {
+      "dedicated_video_memory": 134217728,
+      "description": "Intel(R) Graphics",
+      "device_id": 32103,
+      "id": {
+        "high": 0,
+        "low": 88937
+      },
+      "outputs": {
+        "Observed": [
+          {
+            "attached_to_desktop": true,
+            "desktop_coordinates": [
+              0,
+              0,
+              2048,
+              1280
+            ],
+            "name": "\\\\.\\DISPLAY1"
+          }
+        ]
+      },
+      "shared_system_memory": 19239208796,
+      "software": false,
+      "vendor_id": 32902
+    },
+    "adapter_memory": {
+      "adapter": {
+        "high": 0,
+        "low": 88937
+      },
+      "dedicated_video_bytes": 134217728,
+      "local": {
+        "available_for_reservation_bytes": 9351168942,
+        "budget_bytes": 18433902428,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "local_hresult": null,
+      "nonlocal": {
+        "available_for_reservation_bytes": 0,
+        "budget_bytes": 0,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_hresult": null,
+      "observed_qpc": 1610600039984,
+      "process_id": 33340,
+      "qpc_frequency": 10000000,
+      "shared_system_capacity_bytes": 19239208796
+    },
+    "baseline_reserved_bytes": 66370448,
+    "ceiling": 536870912,
+    "driver_physical_bytes": "unknown; descriptor payload and conservative admission are separate",
+    "extent": {
+      "height": 1080,
+      "width": 1920
+    },
+    "final_inventory": {
+      "driver_physical_bytes": null,
+      "outputs": [],
+      "owned_texel_bytes": 0,
+      "plan": {
+        "created": 15,
+        "live": 0,
+        "peak_live": 6,
+        "peak_texel_bytes": 91238656,
+        "released": 15,
+        "texel_bytes": 0
+      },
+      "sources": []
+    },
+    "peak_reserved_bytes": 232258960,
+    "pressure_screen_count": 7,
+    "rejection": "ResourcePressure: resource charge 580608256 with 149314704 already reserved exceeds 536870912",
+    "retirement_ms": 46.3052,
+    "samples": [
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073746114
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745474
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241218
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241090
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221242370
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231938
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221233666
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221238402
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 82944256,
+          "plan": {
+            "created": 11,
+            "live": 3,
+            "peak_live": 4,
+            "peak_texel_bytes": 24883456,
+            "released": 8,
+            "texel_bytes": 16589056
+          },
+          "sources": []
+        },
+        "generation_bytes": 16589056,
+        "mode": "Raw",
+        "peak_reserved_bytes": 99548560,
+        "reserved_bytes": 82959504,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073746114
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745474
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241218
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241090
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221242370
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231938
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221233666
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221238402
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 116121856,
+          "plan": {
+            "created": 12,
+            "live": 4,
+            "peak_live": 4,
+            "peak_texel_bytes": 49766656,
+            "released": 8,
+            "texel_bytes": 49766656
+          },
+          "sources": []
+        },
+        "generation_bytes": 49766656,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 132726160,
+        "reserved_bytes": 116137104,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073746114
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745474
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241218
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241090
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221242370
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231938
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221233666
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221238402
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 91238656,
+          "plan": {
+            "created": 13,
+            "live": 4,
+            "peak_live": 5,
+            "peak_texel_bytes": 58061056,
+            "released": 9,
+            "texel_bytes": 24883456
+          },
+          "sources": []
+        },
+        "generation_bytes": 24883456,
+        "mode": "Raw",
+        "peak_reserved_bytes": 141020560,
+        "reserved_bytes": 91253904,
+        "surfaces": 2
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073746114
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745474
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241218
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221241090
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221242370
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231938
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221233666
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221238402
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 149299456,
+          "plan": {
+            "created": 15,
+            "live": 5,
+            "peak_live": 6,
+            "peak_texel_bytes": 91238656,
+            "released": 10,
+            "texel_bytes": 82944256
+          },
+          "sources": []
+        },
+        "generation_bytes": 82944256,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 174198160,
+        "reserved_bytes": 149314704,
+        "surfaces": 2
+      }
+    ],
+    "timing_qualification": false
+  },
+  {
+    "adapter": {
+      "dedicated_video_memory": 134217728,
+      "description": "Intel(R) Graphics",
+      "device_id": 32103,
+      "id": {
+        "high": 0,
+        "low": 88937
+      },
+      "outputs": {
+        "Observed": [
+          {
+            "attached_to_desktop": true,
+            "desktop_coordinates": [
+              0,
+              0,
+              2048,
+              1280
+            ],
+            "name": "\\\\.\\DISPLAY1"
+          }
+        ]
+      },
+      "shared_system_memory": 19239208796,
+      "software": false,
+      "vendor_id": 32902
+    },
+    "adapter_memory": {
+      "adapter": {
+        "high": 0,
+        "low": 88937
+      },
+      "dedicated_video_bytes": 134217728,
+      "local": {
+        "available_for_reservation_bytes": 9351168942,
+        "budget_bytes": 18433902428,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "local_hresult": null,
+      "nonlocal": {
+        "available_for_reservation_bytes": 0,
+        "budget_bytes": 0,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_hresult": null,
+      "observed_qpc": 1610603938397,
+      "process_id": 33340,
+      "qpc_frequency": 10000000,
+      "shared_system_capacity_bytes": 19239208796
+    },
+    "baseline_reserved_bytes": 265436048,
+    "ceiling": 1073741824,
+    "driver_physical_bytes": "unknown; descriptor payload and conservative admission are separate",
+    "extent": {
+      "height": 2160,
+      "width": 3840
+    },
+    "final_inventory": {
+      "driver_physical_bytes": null,
+      "outputs": [],
+      "owned_texel_bytes": 0,
+      "plan": {
+        "created": 15,
+        "live": 0,
+        "peak_live": 6,
+        "peak_texel_bytes": 364953856,
+        "released": 15,
+        "texel_bytes": 0
+      },
+      "sources": []
+    },
+    "peak_reserved_bytes": 928988560,
+    "pressure_screen_count": 3,
+    "rejection": "ResourcePressure: resource charge 995328256 with 597212304 already reserved exceeds 1073741824",
+    "retirement_ms": 99.6248,
+    "samples": [
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235074
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745602
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749250
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221240962
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236290
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221234050
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221237698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221226306
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 331776256,
+          "plan": {
+            "created": 11,
+            "live": 3,
+            "peak_live": 4,
+            "peak_texel_bytes": 99533056,
+            "released": 8,
+            "texel_bytes": 66355456
+          },
+          "sources": []
+        },
+        "generation_bytes": 66355456,
+        "mode": "Raw",
+        "peak_reserved_bytes": 398146960,
+        "reserved_bytes": 331791504,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235074
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745602
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749250
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221240962
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236290
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221234050
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221237698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221226306
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 464486656,
+          "plan": {
+            "created": 12,
+            "live": 4,
+            "peak_live": 4,
+            "peak_texel_bytes": 199065856,
+            "released": 8,
+            "texel_bytes": 199065856
+          },
+          "sources": []
+        },
+        "generation_bytes": 199065856,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 530857360,
+        "reserved_bytes": 464501904,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235074
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745602
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749250
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221240962
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236290
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221234050
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221237698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221226306
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 364953856,
+          "plan": {
+            "created": 13,
+            "live": 4,
+            "peak_live": 5,
+            "peak_texel_bytes": 232243456,
+            "released": 9,
+            "texel_bytes": 99533056
+          },
+          "sources": []
+        },
+        "generation_bytes": 99533056,
+        "mode": "Raw",
+        "peak_reserved_bytes": 564034960,
+        "reserved_bytes": 364969104,
+        "surfaces": 2
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235074
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073745602
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749250
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221240962
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236290
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221234050
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221237698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221226306
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 597197056,
+          "plan": {
+            "created": 15,
+            "live": 5,
+            "peak_live": 6,
+            "peak_texel_bytes": 364953856,
+            "released": 10,
+            "texel_bytes": 331776256
+          },
+          "sources": []
+        },
+        "generation_bytes": 331776256,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 696745360,
+        "reserved_bytes": 597212304,
+        "surfaces": 2
+      }
+    ],
+    "timing_qualification": false
+  },
+  {
+    "adapter": {
+      "dedicated_video_memory": 16780361728,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "device_id": 11353,
+      "id": {
+        "high": 0,
+        "low": 90146
+      },
+      "outputs": {
+        "Observed": [
+          {
+            "attached_to_desktop": true,
+            "desktop_coordinates": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "name": "\\\\.\\DISPLAY5"
+          }
+        ]
+      },
+      "shared_system_memory": 19239208796,
+      "software": false,
+      "vendor_id": 4318
+    },
+    "adapter_memory": {
+      "adapter": {
+        "high": 0,
+        "low": 90146
+      },
+      "dedicated_video_bytes": 16780361728,
+      "local": {
+        "available_for_reservation_bytes": 8121745408,
+        "budget_bytes": 15975055360,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "local_hresult": null,
+      "nonlocal": {
+        "available_for_reservation_bytes": 9351168942,
+        "budget_bytes": 18433902428,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_hresult": null,
+      "observed_qpc": 1610610255716,
+      "process_id": 33340,
+      "qpc_frequency": 10000000,
+      "shared_system_capacity_bytes": 19239208796
+    },
+    "baseline_reserved_bytes": 66370448,
+    "ceiling": 536870912,
+    "driver_physical_bytes": "unknown; descriptor payload and conservative admission are separate",
+    "extent": {
+      "height": 1080,
+      "width": 1920
+    },
+    "final_inventory": {
+      "driver_physical_bytes": null,
+      "outputs": [],
+      "owned_texel_bytes": 0,
+      "plan": {
+        "created": 15,
+        "live": 0,
+        "peak_live": 6,
+        "peak_texel_bytes": 91238656,
+        "released": 15,
+        "texel_bytes": 0
+      },
+      "sources": []
+    },
+    "peak_reserved_bytes": 232258960,
+    "pressure_screen_count": 7,
+    "rejection": "ResourcePressure: resource charge 580608256 with 149314704 already reserved exceeds 536870912",
+    "retirement_ms": 12.9491,
+    "samples": [
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235714
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231810
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221230722
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147486658
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073743682
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073750146
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147493698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147490498
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 82944256,
+          "plan": {
+            "created": 11,
+            "live": 3,
+            "peak_live": 4,
+            "peak_texel_bytes": 24883456,
+            "released": 8,
+            "texel_bytes": 16589056
+          },
+          "sources": []
+        },
+        "generation_bytes": 16589056,
+        "mode": "Raw",
+        "peak_reserved_bytes": 99548560,
+        "reserved_bytes": 82959504,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235714
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231810
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221230722
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147486658
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073743682
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073750146
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147493698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147490498
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 116121856,
+          "plan": {
+            "created": 12,
+            "live": 4,
+            "peak_live": 4,
+            "peak_texel_bytes": 49766656,
+            "released": 8,
+            "texel_bytes": 49766656
+          },
+          "sources": []
+        },
+        "generation_bytes": 49766656,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 132726160,
+        "reserved_bytes": 116137104,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235714
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231810
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221230722
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147486658
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073743682
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073750146
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147493698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147490498
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 91238656,
+          "plan": {
+            "created": 13,
+            "live": 4,
+            "peak_live": 5,
+            "peak_texel_bytes": 58061056,
+            "released": 9,
+            "texel_bytes": 24883456
+          },
+          "sources": []
+        },
+        "generation_bytes": 24883456,
+        "mode": "Raw",
+        "peak_reserved_bytes": 141020560,
+        "reserved_bytes": 91253904,
+        "surfaces": 2
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221235714
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221231810
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221230722
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147486658
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073743682
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073750146
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147493698
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 1080,
+                      "width": 1920
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147490498
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 149299456,
+          "plan": {
+            "created": 15,
+            "live": 5,
+            "peak_live": 6,
+            "peak_texel_bytes": 91238656,
+            "released": 10,
+            "texel_bytes": 82944256
+          },
+          "sources": []
+        },
+        "generation_bytes": 82944256,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 174198160,
+        "reserved_bytes": 149314704,
+        "surfaces": 2
+      }
+    ],
+    "timing_qualification": false
+  },
+  {
+    "adapter": {
+      "dedicated_video_memory": 16780361728,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "device_id": 11353,
+      "id": {
+        "high": 0,
+        "low": 90146
+      },
+      "outputs": {
+        "Observed": [
+          {
+            "attached_to_desktop": true,
+            "desktop_coordinates": [
+              2560,
+              0,
+              4480,
+              1080
+            ],
+            "name": "\\\\.\\DISPLAY5"
+          }
+        ]
+      },
+      "shared_system_memory": 19239208796,
+      "software": false,
+      "vendor_id": 4318
+    },
+    "adapter_memory": {
+      "adapter": {
+        "high": 0,
+        "low": 90146
+      },
+      "dedicated_video_bytes": 16780361728,
+      "local": {
+        "available_for_reservation_bytes": 8121745408,
+        "budget_bytes": 15975055360,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "local_hresult": null,
+      "nonlocal": {
+        "available_for_reservation_bytes": 9351168942,
+        "budget_bytes": 18433902428,
+        "current_reservation_bytes": 0,
+        "current_usage_bytes": 0
+      },
+      "nonlocal_hresult": null,
+      "observed_qpc": 1610616330652,
+      "process_id": 33340,
+      "qpc_frequency": 10000000,
+      "shared_system_capacity_bytes": 19239208796
+    },
+    "baseline_reserved_bytes": 265436048,
+    "ceiling": 1073741824,
+    "driver_physical_bytes": "unknown; descriptor payload and conservative admission are separate",
+    "extent": {
+      "height": 2160,
+      "width": 3840
+    },
+    "final_inventory": {
+      "driver_physical_bytes": null,
+      "outputs": [],
+      "owned_texel_bytes": 0,
+      "plan": {
+        "created": 15,
+        "live": 0,
+        "peak_live": 6,
+        "peak_texel_bytes": 364953856,
+        "released": 15,
+        "texel_bytes": 0
+      },
+      "sources": []
+    },
+    "peak_reserved_bytes": 928988560,
+    "pressure_screen_count": 3,
+    "rejection": "ResourcePressure: resource charge 995328256 with 597212304 already reserved exceeds 1073741824",
+    "retirement_ms": 32.5079,
+    "samples": [
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236418
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073751618
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073748354
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756994
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147492930
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749314
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756290
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073757186
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 331776256,
+          "plan": {
+            "created": 11,
+            "live": 3,
+            "peak_live": 4,
+            "peak_texel_bytes": 99533056,
+            "released": 8,
+            "texel_bytes": 66355456
+          },
+          "sources": []
+        },
+        "generation_bytes": 66355456,
+        "mode": "Raw",
+        "peak_reserved_bytes": 398146960,
+        "reserved_bytes": 331791504,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236418
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073751618
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073748354
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756994
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147492930
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749314
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756290
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073757186
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 464486656,
+          "plan": {
+            "created": 12,
+            "live": 4,
+            "peak_live": 4,
+            "peak_texel_bytes": 199065856,
+            "released": 8,
+            "texel_bytes": 199065856
+          },
+          "sources": []
+        },
+        "generation_bytes": 199065856,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 530857360,
+        "reserved_bytes": 464501904,
+        "surfaces": 1
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236418
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073751618
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073748354
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756994
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147492930
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749314
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756290
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073757186
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 364953856,
+          "plan": {
+            "created": 13,
+            "live": 4,
+            "peak_live": 5,
+            "peak_texel_bytes": 232243456,
+            "released": 9,
+            "texel_bytes": 99533056
+          },
+          "sources": []
+        },
+        "generation_bytes": 99533056,
+        "mode": "Raw",
+        "peak_reserved_bytes": 564034960,
+        "reserved_bytes": 364969104,
+        "surfaces": 2
+      },
+      {
+        "allocations": {
+          "driver_physical_bytes": null,
+          "outputs": [
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 3221236418
+                }
+              },
+              "generation": 1,
+              "output": 1
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073751618
+                }
+              },
+              "generation": 1,
+              "output": 2
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073748354
+                }
+              },
+              "generation": 1,
+              "output": 3
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756994
+                }
+              },
+              "generation": 1,
+              "output": 4
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 2147492930
+                }
+              },
+              "generation": 1,
+              "output": 5
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073749314
+                }
+              },
+              "generation": 1,
+              "output": 6
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073756290
+                }
+              },
+              "generation": 1,
+              "output": 7
+            },
+            {
+              "allocation": {
+                "Spout": {
+                  "descriptor": {
+                    "alpha_mode": "Straight",
+                    "color_encoding": "Srgb",
+                    "extent": {
+                      "height": 2160,
+                      "width": 3840
+                    },
+                    "format": "Bgra8Unorm"
+                  },
+                  "shared_handle": 1073757186
+                }
+              },
+              "generation": 1,
+              "output": 8
+            }
+          ],
+          "owned_texel_bytes": 597197056,
+          "plan": {
+            "created": 15,
+            "live": 5,
+            "peak_live": 6,
+            "peak_texel_bytes": 364953856,
+            "released": 10,
+            "texel_bytes": 331776256
+          },
+          "sources": []
+        },
+        "generation_bytes": 331776256,
+        "mode": "Smooth2x",
+        "peak_reserved_bytes": 696745360,
+        "reserved_bytes": 597212304,
+        "surfaces": 2
+      }
+    ],
+    "timing_qualification": false
+  }
+]
