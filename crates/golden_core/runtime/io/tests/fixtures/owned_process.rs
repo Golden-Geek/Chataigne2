@@ -56,7 +56,14 @@ fn main() {
             std::fs::write(report, std::process::id().to_string()).unwrap();
             wait(stop);
         }
-        "transient" => {
+        #[cfg(windows)]
+        "exception" => unsafe {
+            use windows::Win32::System::Diagnostics::Debug::{RaiseException, SEM_NOGPFAULTERRORBOX, SetErrorMode};
+            SetErrorMode(SEM_NOGPFAULTERRORBOX);
+            RaiseException(0xe042_0001, 0, None);
+            std::process::exit(3);
+        },
+        "transient" | "transient-burst-exit" => {
             let child_report = report.with_extension("child");
             let mut command = std::process::Command::new(std::env::current_exe().unwrap());
             command.args([
@@ -69,9 +76,13 @@ fn main() {
                 use std::os::windows::process::CommandExt;
                 command.creation_flags(0x0800_0000);
             }
-            assert!(command.status().unwrap().success());
+            for _ in 0..if mode == "transient" { 1 } else { 16 } {
+                assert!(command.status().unwrap().success());
+            }
             std::fs::write(report, b"transient exited").unwrap();
-            wait(stop);
+            if mode == "transient" {
+                wait(stop);
+            }
         }
         _ => std::process::exit(2),
     }

@@ -10,14 +10,16 @@ use ::windows::{
     core::{BOOL, PCWSTR, PWSTR},
 };
 use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     io,
-    mem::{offset_of, size_of},
+    mem::size_of,
     os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle},
+    sync::{Arc, Mutex, MutexGuard, mpsc},
+    thread::JoinHandle,
 };
 
 mod launch;
+mod observer;
 
 #[cfg(test)]
 mod tests;
@@ -33,20 +35,58 @@ pub(super) fn validate(spec: &ProcessSpec) -> io::Result<()> {
 }
 
 pub(super) struct Process {
-    // First drop closes the sole job handle, requesting termination even if the root already exited.
-    job: OwnedHandle,
+    // The observer retains the job through its last event. Drop explicitly terminates it first.
+    job: Arc<OwnedHandle>,
     root: OwnedHandle,
     thread: Option<OwnedHandle>,
     id: u32,
-    observed: RefCell<Observed>,
+    observed: Arc<Mutex<Observed>>,
+    observer: Option<JoinHandle<()>>,
 }
 #[derive(Default)]
 struct Observed {
     handles: HashMap<u32, OwnedHandle>,
     completed: u64,
+    error: Option<String>,
+    success: bool,
 }
 impl Process {
     pub fn create(spec: &ProcessSpec) -> io::Result<Self> {
+        validate(spec)?;
+        let spec = spec.clone();
+        let (send, receive) = mpsc::sync_channel(1);
+        // Windows requires creation, WaitForDebugEvent and ContinueDebugEvent on the same thread.
+        let observer = std::thread::Builder::new()
+            .name("owned-process-events".into())
+            .spawn(move || match Self::create_native(&spec) {
+                Err(error) => {
+                    let _ = send.send(Err(error));
+                }
+                Ok(process) => {
+                    let job = process.job.clone();
+                    let observed = process.observed.clone();
+                    let id = process.id;
+                    if send.send(Ok(process)).is_err() {
+                        return;
+                    }
+                    let result = observer::run(&job, &observed, id);
+                    if let Ok(mut state) = observed.lock() {
+                        state.success = result.is_ok();
+                        state.error = result.as_ref().err().map(ToString::to_string);
+                    }
+                    if result.is_err() {
+                        // Fail closed, including descendants that broke the debugging chain.
+                        let _ = unsafe { TerminateJobObject(raw(&job), 1) };
+                    }
+                }
+            })?;
+        let mut process = receive
+            .recv()
+            .map_err(|_| io::Error::other("process observer stopped during creation"))??;
+        process.observer = Some(observer);
+        Ok(process)
+    }
+    fn create_native(spec: &ProcessSpec) -> io::Result<Self> {
         let mut prepared = launch::Prepared::new(spec)?;
         // SAFETY: anonymous non-inheritable job; OwnedHandle assumes the successful returned handle.
         let job = unsafe { OwnedHandle::from_raw_handle(CreateJobObjectW(None, PCWSTR::null()).map_err(os_error)?.0) };
@@ -72,7 +112,7 @@ impl Process {
         };
         startup.lpAttributeList = attributes.list();
         let mut information = PROCESS_INFORMATION::default();
-        let mut flags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT;
+        let mut flags = CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT | DEBUG_PROCESS;
         if spec.window == ProcessWindow::Hidden {
             flags |= CREATE_NO_WINDOW;
         }
@@ -97,11 +137,12 @@ impl Process {
             .map_err(os_error)?;
         }
         let process = Self {
-            job,
+            job: Arc::new(job),
             root: unsafe { OwnedHandle::from_raw_handle(information.hProcess.0) },
             thread: Some(unsafe { OwnedHandle::from_raw_handle(information.hThread.0) }),
             id: information.dwProcessId,
-            observed: RefCell::new(Observed::default()),
+            observed: Arc::new(Mutex::new(Observed::default())),
+            observer: None,
         };
         let mut assigned = BOOL::default();
         let membership = unsafe { IsProcessInJob(raw(&process.root), Some(raw(&process.job)), &mut assigned) };
@@ -119,8 +160,7 @@ impl Process {
         self.id
     }
     pub fn resume(&mut self) -> io::Result<()> {
-        // Capture creation-time job members before user code can exit the root and its helpers.
-        self.observe_descendants()?;
+        drop(self.observation()?);
         let thread = self
             .thread
             .take()
@@ -135,7 +175,9 @@ impl Process {
         Ok(())
     }
     pub fn snapshot(&self) -> io::Result<ProcessSnapshot> {
-        self.observe_descendants()?;
+        // Serialize accounting with birth registration, before the observer permits execution.
+        let mut observed = self.observation()?;
+        observed.reap()?;
         let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
         unsafe {
             QueryInformationJobObject(
@@ -158,7 +200,6 @@ impl Process {
             }
             _ => return Err(io::Error::last_os_error()),
         };
-        let observed = self.observed.borrow();
         let known = 1 + observed.completed + observed.handles.len() as u64;
         let total = u64::from(accounting.TotalProcesses);
         if known > total {
@@ -172,19 +213,16 @@ impl Process {
             active_processes: accounting.ActiveProcesses,
             unobserved_processes: (total - known) as u32,
             pending_observed_processes: observed.handles.len() as u32,
+            observation_complete: observed.success && self.observer.as_ref().is_some_and(JoinHandle::is_finished),
         })
     }
     pub fn terminate(&self, exit_code: u32) -> io::Result<()> {
-        // Preserve actual handle completion evidence before termination can remove the job IDs.
-        // A failed observation must not prevent the kill; the accounting gap then remains unverified.
-        let _ = self.snapshot();
         unsafe { TerminateJobObject(raw(&self.job), exit_code).map_err(os_error) }
     }
     pub fn request_close(&self) -> io::Result<u32> {
-        self.observe_descendants()?;
         // Keep identity-pinning handles borrowed through enumeration. A stale PID alone must
         // never authorize a close request to an unrelated replacement process.
-        let observed = self.observed.borrow();
+        let observed = self.observation()?;
         let ids = std::iter::once(self.id as usize)
             .chain(observed.handles.keys().map(|id| *id as usize))
             .collect::<Vec<_>>();
@@ -205,78 +243,39 @@ impl Process {
         }
         Ok(close.sent)
     }
-    fn observe_descendants(&self) -> io::Result<()> {
-        let ids = self.process_ids()?;
-        let mut observed = self.observed.borrow_mut();
-        let mut completed = HashSet::new();
-        observed.handles.retain(|id, handle| {
-            if unsafe { WaitForSingleObject(raw(handle), 0) } == WAIT_OBJECT_0 {
-                completed.insert(*id);
-                false
-            } else {
-                true
-            }
-        });
-        observed.completed += completed.len() as u64;
-        for id in ids {
-            let id = id as u32;
-            if id == self.id
-                || observed.handles.contains_key(&id)
-                || completed.contains(&id)
-                || observed.handles.len() >= MAX_OBSERVED_PROCESSES
-            {
-                continue;
-            }
-            // Open and verify membership while the handle pins identity; never adopt a reused PID.
-            if let Ok(handle) = unsafe {
-                OpenProcess(
-                    PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_ACCESS_RIGHTS(0x0010_0000),
-                    false,
-                    id,
-                )
-            } {
-                let handle = unsafe { OwnedHandle::from_raw_handle(handle.0) };
-                let mut member = BOOL::default();
-                if unsafe { IsProcessInJob(raw(&handle), Some(raw(&self.job)), &mut member) }.is_ok()
-                    && member.as_bool()
-                {
-                    observed.handles.insert(id, handle);
-                }
-            }
+    fn observation(&self) -> io::Result<MutexGuard<'_, Observed>> {
+        let state = self
+            .observed
+            .lock()
+            .map_err(|_| io::Error::other("process observer state poisoned"))?;
+        if let Some(error) = &state.error {
+            return Err(io::Error::other(format!("process observer failed: {error}")));
         }
-        Ok(())
+        Ok(state)
     }
-    fn process_ids(&self) -> io::Result<Vec<usize>> {
-        let bytes =
-            offset_of!(JOBOBJECT_BASIC_PROCESS_ID_LIST, ProcessIdList) + MAX_OBSERVED_PROCESSES * size_of::<usize>();
-        let mut buffer = vec![0usize; bytes.div_ceil(size_of::<usize>())];
-        unsafe {
-            QueryInformationJobObject(
-                Some(raw(&self.job)),
-                JobObjectBasicProcessIdList,
-                buffer.as_mut_ptr().cast(),
-                bytes as u32,
-                None,
-            )
-            .map_err(os_error)?;
-        }
-        // SAFETY: usize-aligned allocation includes header and 4096 IDs; validate reported length first.
-        let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
-        let count = list.NumberOfProcessIdsInList as usize;
-        if count > MAX_OBSERVED_PROCESSES {
-            return Err(io::Error::other("job close observation exceeds 4096 processes"));
-        }
-        let ids = unsafe {
-            std::slice::from_raw_parts(
-                buffer
-                    .as_ptr()
-                    .cast::<u8>()
-                    .add(offset_of!(JOBOBJECT_BASIC_PROCESS_ID_LIST, ProcessIdList))
-                    .cast::<usize>(),
-                count,
-            )
-        };
-        Ok(ids.to_vec())
+}
+impl Drop for Process {
+    fn drop(&mut self) {
+        // Never join on the caller. Killing the job wakes the event thread, including before resume.
+        let _ = unsafe { TerminateJobObject(raw(&self.job), 1) };
+    }
+}
+impl Observed {
+    fn reap(&mut self) -> io::Result<()> {
+        let mut error = None;
+        self.handles
+            .retain(|_, handle| match unsafe { WaitForSingleObject(raw(handle), 0) } {
+                WAIT_OBJECT_0 => {
+                    self.completed += 1;
+                    false
+                }
+                WAIT_TIMEOUT => true,
+                _ => {
+                    error = Some(io::Error::last_os_error());
+                    true
+                }
+            });
+        error.map_or(Ok(()), Err)
     }
 }
 struct CloseWindows<'a> {

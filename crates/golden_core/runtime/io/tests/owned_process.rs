@@ -130,19 +130,11 @@ fn root_exit_does_not_release_descendants_and_termination_waits_for_the_entire_t
     let retired = owned.wait_tree(WAIT).unwrap();
     let observation = owned.snapshot().unwrap();
     assert_eq!(observation.active_processes, 0);
-    if retired {
-        assert!(
-            exited(&branch, 0) && exited(&leaf, 0),
-            "retirement cannot precede known handle completion"
-        );
-    } else {
-        // Transient members can exit before their handle is observed. Keep this gap explicit.
-        assert!(observation.unobserved_processes > 0, "{observation:?}");
-        assert!(
-            exited(&branch, 3000) && exited(&leaf, 3000),
-            "actual owned descendants must still terminate"
-        );
-    }
+    assert!(retired, "{observation:?}");
+    assert!(
+        exited(&branch, 0) && exited(&leaf, 0),
+        "retirement cannot precede known handle completion"
+    );
 }
 
 #[test]
@@ -233,11 +225,11 @@ fn a_close_request_reaches_only_the_owned_hidden_window_and_observes_graceful_ex
     let observation = owned.snapshot().unwrap();
     assert_eq!(observation.root, RootProcessState::Exited(0));
     assert_eq!(observation.active_processes, 0);
-    assert!(retired || observation.unobserved_processes > 0);
+    assert!(retired, "{observation:?}");
 }
 
 #[test]
-fn a_missed_transient_process_never_turns_empty_accounting_into_confirmed_retirement() {
+fn a_transient_child_is_captured_without_any_caller_snapshot_during_its_lifetime() {
     let directory = tempfile::tempdir().unwrap();
     let report = directory.path().join("transient.txt");
     let stop = directory.path().join("stop");
@@ -246,13 +238,92 @@ fn a_missed_transient_process_never_turns_empty_accounting_into_confirmed_retire
         .resume()
         .unwrap();
     wait(|| report.exists());
-    assert!(owned.snapshot().unwrap().unobserved_processes > 0);
+    assert_eq!(owned.snapshot().unwrap().unobserved_processes, 0);
     owned.terminate(1).unwrap();
-    assert!(!owned.wait_tree(Duration::from_millis(50)).unwrap());
+    assert!(owned.wait_tree(WAIT).unwrap());
     let observation = owned.snapshot().unwrap();
     assert_eq!(observation.active_processes, 0);
     assert!(matches!(observation.root, RootProcessState::Exited(_)));
-    assert!(!observation.tree_exited());
+    assert!(observation.tree_exited());
+}
+
+#[test]
+fn an_observer_that_has_not_stopped_cannot_authorize_retirement() {
+    use golden_io::owned_process::ProcessSnapshot;
+    let mut snapshot = ProcessSnapshot {
+        root_id: 42,
+        root: RootProcessState::Exited(0),
+        active_processes: 0,
+        pending_observed_processes: 0,
+        unobserved_processes: 0,
+        observation_complete: false,
+    };
+    assert!(!snapshot.tree_exited());
+    snapshot.observation_complete = true;
+    assert!(snapshot.tree_exited());
+    snapshot.unobserved_processes = 1;
+    assert!(!snapshot.tree_exited());
+}
+
+#[test]
+fn creation_and_observation_can_move_between_caller_threads() {
+    let directory = tempfile::tempdir().unwrap();
+    let specification = spec(
+        "report",
+        &directory.path().join("report"),
+        &directory.path().join("stop"),
+    );
+    let suspended = std::thread::spawn(move || SuspendedProcess::create(&specification).unwrap())
+        .join()
+        .unwrap();
+    let owned = suspended.resume().unwrap();
+    assert!(
+        std::thread::spawn(move || owned.wait_tree(WAIT).unwrap())
+            .join()
+            .unwrap()
+    );
+}
+
+#[test]
+fn sixteen_transient_lifetimes_and_root_exit_complete_without_caller_polling() {
+    let directory = tempfile::tempdir().unwrap();
+    let report = directory.path().join("burst");
+    let owned = SuspendedProcess::create(&spec("transient-burst-exit", &report, &directory.path().join("stop")))
+        .unwrap()
+        .resume()
+        .unwrap();
+    wait(|| report.exists());
+    assert!(owned.wait_tree(WAIT).unwrap());
+    assert!(owned.snapshot().unwrap().tree_exited());
+}
+
+#[test]
+fn an_application_exception_is_forwarded_and_its_real_exit_code_is_preserved() {
+    let directory = tempfile::tempdir().unwrap();
+    let owned = SuspendedProcess::create(&spec(
+        "exception",
+        &directory.path().join("report"),
+        &directory.path().join("stop"),
+    ))
+    .unwrap()
+    .resume()
+    .unwrap();
+    assert!(owned.wait_tree(WAIT).unwrap());
+    assert_eq!(owned.snapshot().unwrap().root, RootProcessState::Exited(0xe042_0001));
+}
+
+#[cfg(target_arch = "x86_64")]
+#[test]
+#[ignore = "retained WOW64 retirement qualification; see mapgyver-m08-retirement.md before replay"]
+fn a_wow64_system_tool_preserves_its_ordinary_exit_code() {
+    // Exercise the installed 32-bit loader without changing an OS file or launching a shell.
+    // WHERE /Q only tests existence; it neither executes CMD nor writes identifying output.
+    let directory = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
+    let mut specification = ProcessSpec::new(directory.join("SysWOW64").join("where.exe"));
+    specification.arguments = vec!["/q".into(), directory.join("System32").join("cmd.exe").into_os_string()];
+    let owned = SuspendedProcess::create(&specification).unwrap().resume().unwrap();
+    assert!(owned.wait_tree(WAIT).unwrap(), "{:?}", owned.snapshot());
+    assert_eq!(owned.snapshot().unwrap().root, RootProcessState::Exited(0));
 }
 impl Drop for ExternalFixture {
     fn drop(&mut self) {

@@ -275,11 +275,12 @@ impl<B: Backend> Agent<B> {
                     self.status.next_action_ms = None;
                     self.message(match &observation {
                         Ok(snapshot) => format!(
-                            "Owned tree retirement unverified: root={:?}, active={}, pending={}, unobserved={}",
+                            "Owned tree retirement unverified: root={:?}, active={}, pending={}, unobserved={}, observer_complete={}",
                             snapshot.root,
                             snapshot.active_processes,
                             snapshot.pending_observed_processes,
-                            snapshot.unobserved_processes
+                            snapshot.unobserved_processes,
+                            snapshot.observation_complete
                         ),
                         Err(error) => format!("Owned tree retirement observation failed: {error}"),
                     });

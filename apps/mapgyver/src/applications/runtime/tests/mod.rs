@@ -84,6 +84,7 @@ impl Backend for Fake {
             active_processes: u32::from(!self.retired),
             unobserved_processes: 0,
             pending_observed_processes: 0,
+            observation_complete: true,
         })
     }
     fn close(&mut self, _: &()) -> Result<(), String> {

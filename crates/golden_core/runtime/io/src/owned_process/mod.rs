@@ -64,10 +64,13 @@ pub struct ProcessSnapshot {
     pub unobserved_processes: u32,
     /// Captured descendant handles that have not signalled completion yet.
     pub pending_observed_processes: u32,
+    /// The native lifetime observer has continued its final exit event and stopped.
+    pub observation_complete: bool,
 }
 impl ProcessSnapshot {
     pub fn tree_exited(self) -> bool {
         self.active_processes == 0
+            && self.observation_complete
             && self.unobserved_processes == 0
             && self.pending_observed_processes == 0
             && matches!(self.root, RootProcessState::Exited(_))

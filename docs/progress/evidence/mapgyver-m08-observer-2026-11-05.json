@@ -1,0 +1,171 @@
+{
+	"schema": 1,
+	"date": "2026-11-05",
+	"gate": "M08/4",
+	"status": "VERIFIED_X64_RETIREMENT_CORRECTION_WINDOWS_QUALIFICATION_OPEN",
+	"base_revision": "5bc594fbbfe9d25fe8257e4b3912d92180ff8a4a",
+	"capability": "Creation-event handle pinning closes the ordinary x64 singleton/transient retirement gap; complete Windows qualification remains open",
+	"architecture": {
+		"owner": "golden_io::owned_process; MapGyver owns lifecycle policy",
+		"launch": "explicit executable, atomic private kill-on-close Job Object assignment, CREATE_SUSPENDED and DEBUG_PROCESS",
+		"observation": "creating thread verifies job membership and duplicates descendant creation-event handles before ContinueDebugEvent; actual kernel handle completion, independent job accounting and successful observer-thread completion remain required",
+		"drop": "explicit TerminateJobObject; no caller-side thread join; observer retains job through final event",
+		"limitations": [
+			"Visible debugger can affect targets or conflict with another debugger",
+			"Separate descendant debugging chains and unobserved job lifetimes do not authorize successful retirement",
+			"Native and WOW64 initial loader handshakes are one-time, first-chance and primary-thread guarded; application exceptions are forwarded",
+			"No elevation request, privilege adjustment, pre-existing-process attach, process-name adoption or target memory inspection"
+		]
+	},
+	"binaries": {
+		"target/debug/MapGyver-codex-m08-observer.exe": "184f831123e8e7612b0d8d70d589a5485d5c6bdbd60478126823f5d3eacaf16a",
+		"target/debug/application_process_fixture.exe": "38ffdc442476ed4f9d37c3f70744c5e8eb193d81700d3107985e72a8e523ad92",
+		"target/debug/application_elevation_required_fixture.exe": "54c1f87cbe94c58b27136bf90dd991129594f8ed7cfbe681d2bd5fd283fa06aa",
+		"target/debug/golden_io_process_fixture.exe": "b04ab04a3d21f38034c07809b6c5acc9ba7b1d90985325b59e84f9d86cbed049",
+		"target/debug/deps/owned_process-a13eb1697f280b74.exe": "1a7122e0fe5017b853bbbc32b362299406562f6853ff1ec181e528fdf873d23b",
+		"target/debug/deps/application_runtime-26c742b338f73dcc.exe": "e96bcb418facbd2dd2af851fb9b559c0195fae3da6c199592c550b7d9fe3d32c",
+		"target/debug/deps/mapgyver-1755e0c92f50b88c.exe": "33c07c2b58777bf2c1501d7d0da3ba8da87b80d72fafe7523bd2c13b913ca91e"
+	},
+	"source_sha256": {
+		"crates/golden_core/runtime/io/Cargo.toml": "983750dd4a81ece386def28d9b53f52e4263681e52cbce94d9516caad4165ba3",
+		"crates/golden_core/runtime/io/src/owned_process/mod.rs": "56f5eed4f847affe83eba8d45f6f03337413f55186730db8801cc621ddf6ff6d",
+		"crates/golden_core/runtime/io/src/owned_process/windows.rs": "4987a41abbb25bcdcb8083603e0194125f532f2d88d3e6e8eaba415e96c4b87e",
+		"crates/golden_core/runtime/io/src/owned_process/windows/observer.rs": "e9d4502c6cfc930485c24d3e5fd8c3d1dd349b45a8d692c1822f0048770e6298",
+		"crates/golden_core/runtime/io/src/owned_process/windows/launch.rs": "ddc30d875cc4af3fcf00b867d9a3695713649ff01dbcafadd8da72c777618cfb",
+		"apps/mapgyver/src/applications/runtime/agent.rs": "4e914cfa673f17309807ef95d5bc238c4dceb3ea42a8476bd77adc4e5539df03"
+	},
+	"checks": {
+		"golden_io_software": {
+			"passed": 69,
+			"failed": 0
+		},
+		"mapgyver_software": {
+			"passed": 438,
+			"failed": 0,
+			"ignored": 3,
+			"seconds": 11.95,
+			"native_cancellation_run_separately": true,
+			"other_retained_ignores": ["ten-thousand inactive media scale", "hardware display catalog"]
+		},
+		"strict_clippy": "PASS: golden_io all features/all targets; MapGyver all targets with native-qualification,application-process-fixture,native-video-smoke",
+		"formatters": "Root and golden_core cargo fmt",
+		"generated_contracts": "Unchanged DTOs; equality tests pass in full app library suite",
+		"golden_io_native": {
+			"passed": 13,
+			"failed": 0,
+			"ignored": 1,
+			"seconds": 1.23,
+			"retained_ignore": "WOW64 system-tool retirement; not qualified"
+		},
+		"mapgyver_native_runtime": {
+			"passed": 14,
+			"failed": 0,
+			"ignored": 0,
+			"seconds": 6.58
+		},
+		"native_pre_resume_cancellation": {
+			"passed": 1,
+			"failed": 0,
+			"seconds": 0.01
+		}
+	},
+	"ordinary_app": {
+		"singleton": {
+			"external_pid": 5448,
+			"exit_code": 17,
+			"phase": "Failed",
+			"reason": "owned root exited",
+			"retirement": "Idle",
+			"external_adopted": false,
+			"external_preserved": true
+		},
+		"launcher": {
+			"root": 1416,
+			"child": 8144,
+			"exit_code": 0,
+			"retirement": "Idle"
+		},
+		"breakaway": {
+			"pid": 11616,
+			"error": 5,
+			"retirement": "Idle"
+		},
+		"launch_errors": {
+			"missing.exe": 2,
+			"denied.exe": 5,
+			"invalid.exe": 216,
+			"requireAdministrator": 740
+		},
+		"elevated_target": {
+			"caller_elevated": false,
+			"target_main_executed": false,
+			"elevation_requested": false,
+			"denial_verified": true,
+			"current_elevated_execution_verified": false
+		},
+		"project": {
+			"replaced_pids": [22484, 41436, 31136, 40584],
+			"interim_pid": 14092,
+			"shutdown_pids": [15100, 34144, 32960],
+			"stale_callbacks_rejected": 3,
+			"fresh_callbacks": 2,
+			"admission_recovered": true,
+			"normal_shutdown": true,
+			"external_survived_shutdown": true
+		},
+		"bundled_script": {
+			"pid": 18688,
+			"named_methods": 8,
+			"column_cell_same_pid": true,
+			"callbacks": ["Starting", "Ready", "Stopping", "Idle"],
+			"acknowledged": 4,
+			"fault": null,
+			"typed_and_named_unload": true
+		}
+	},
+	"wow64": {
+		"qualified": false,
+		"experiments": 2,
+		"baseline": "Retirement wait reached its original three-second deadline",
+		"corrective": {
+			"root": "Exited(2)",
+			"active": 0,
+			"pending": 0,
+			"unobserved": 1,
+			"observer_complete": true,
+			"tree_retirement": false
+		},
+		"fixture_confound": "WHERE pattern used a mixed-separator path; it now uses native separators but has not replayed. Exit-2 cause and uncaptured-lifetime origin remain unproven.",
+		"retained_test": "a_wow64_system_tool_preserves_its_ordinary_exit_code (explicitly ignored, not passed)",
+		"return_trigger": "Owning creation/accounting correction or documented evidence changing the mechanism decision; then corrected fixture under original budgets. No third unchanged probe or reset of the two-experiment allowance."
+	},
+	"logs": {
+		"target/m08-observer-software-final.log": "cf167bd2d82328b233b39970025250ad3802813a2f7e640e6371e852cfc69ab4",
+		"target/m08-observer-owned-current.log": "85c8cd97d32ad12798df9d794500eb447883b10bf0ceded04101fc59f9572619",
+		"target/m08-observer-runtime-current.log": "16c5ceb2dc1244f7a6b347370218c85fcbfcb44e1538ad40ac5c9aa8e84b6320",
+		"target/m08-observer-cancellation-current.log": "6895f66c774e5ebd6af66576fe99c0068e1bc915e4b3b0f47f4e8f2cf2ca7509",
+		"target/m08-observer-outcomes-current.log": "eff21194e8905ba40c538ce6425c152cd7f6fb4b0087ea3344baa5d137f0baa6",
+		"target/m08-observer-project-current.log": "577c53bc80291adb6e473dd381519c324c8a4b69b67b071c35495010a7ce628e",
+		"target/m08-observer-script-ui-current.log": "d2ea149a036e47fc3f2a5191d40cd5c94b90fb329189f48d061947898b646f07",
+		"target/m08-observer-wow64.log": "56a3b0a7d9673e0863d2fffdc118ba5bac6099e353042f0a5bb21aa74079b067",
+		"target/m08-observer-owned-final.log": "bed4e3e475db68a6b3ea4c6b8670aa71901843dfb6fd5dbb46f59882a3d527f5"
+	},
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "57/67 (85%)",
+		"completed_phases": "7/12",
+		"remaining": [
+			"WOW64 complete retirement remains unverified",
+			"Fresh elevated owned-target execution is pending; historical unchanged-primitive reuse invalidated"
+		],
+		"M03_growth_budget_mib": 32,
+		"Video_and_final_qualification": "Still gated by M08/4"
+	},
+	"limits": [
+		"Current checkout includes preserved unrelated user changes; this is not release/artifact qualification",
+		"No claim that any unobserved lifetime completed",
+		"No physical/device/global CPU-GPU-memory performance qualification",
+		"User normal app and Spout Demo Sender left untouched"
+	]
+}

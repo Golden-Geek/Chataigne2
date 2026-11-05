@@ -34,15 +34,36 @@ process leaves retirement unverified; false at the deadline is not success. Keep
 in app observations rather than guessing that every target cleaned up. Holding verified handles
 also prevents PID reuse from authorizing actions on another process.
 
+Windows launches with `DEBUG_PROCESS` on a dedicated native event thread. A creation event
+suspends user execution until that thread verifies job membership and duplicates the supplied
+process handle. It continues exit events before checking the duplicated handle for kernel
+completion. It closes image/DLL file handles; Windows owns event process/thread handles.
+The observer must finish successfully before retirement can pass. App callers may move the
+owner between threads; only the private creating thread waits/continues debug events.
+This uses the documented [creation/exit event contract](https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events)
+and [thread-affine wait API](https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-waitfordebugevent).
+
+This is visible debugging, with startup/event overhead: targets can detect a debugger and
+cannot simultaneously use another debugger for the same process. The initial first-chance
+primary-thread [loader breakpoint](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/initial-breakpoint)
+is consumed, with a distinct one-time WOW64 handshake for processes identified by
+`IsWow64Process`; subsequent breakpoints and application
+exceptions are forwarded to Windows. Targets requiring a separate debugging chain, protected
+targets or anti-debug behavior are not silently accommodated. A descendant that explicitly
+starts a [new debugging chain](https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags)
+can leave a job-accounting gap; that remains unverified, never successful retirement. No debug
+privilege is enabled, pre-existing process attached, target memory inspected or code injected.
+
 `request_close` posts nonblocking `WM_CLOSE` only to windows whose observed job identities remain
 pinned. Its count measures requests, not acknowledgements; a headless target may have no windows.
 An app can provide another graceful protocol, wait to its deadline, then call `terminate` for the
-owned job and continue bounded retirement observation. Drop requests kill-on-close without joining
-the worker or claiming cleanup completion.
+owned job and continue bounded retirement observation. Drop explicitly terminates the job without
+joining the event thread or claiming cleanup completion; its retained job handle closes after its
+final event. This also cancels a never-resumed primary thread.
 
 Launch strings and explicit environment blocks admit at most 32,767 UTF-16 units, reject NULs and
-duplicate case-insensitive environment names, and never concatenate shell syntax. Member-list
-queries and retained descendant handles are bounded at 4,096; excess/failed observation remains an
+duplicate case-insensitive environment names, and never concatenate shell syntax. Live debugging
+identities and retained descendant handles are bounded at 4,096; excess/failed observation remains an
 error or an accounting gap. Native creation can block inside Windows, so perform it on a background
 owner and check app cancellation before resume. Non-Windows targets explicitly return Unsupported.
 Sender readiness, singleton handoffs, elevated/launcher/breakaway behavior and app recovery still
@@ -51,3 +72,8 @@ require app-owned outcomes and qualification.
 Run `cargo test --locked -p golden_io --all-features` for the existing IO suites and the finite
 owned executable, hidden-window, descendant and cancellation checks. The `process-fixture` feature
 builds only test fixtures; they do not launch arbitrary applications or display a window.
+The explicitly ignored WOW64 system-tool case retains an unverified job lifetime; consult
+`docs/progress/mapgyver-m08-retirement.md` before replay. Its two attempted runs exhausted the
+current investigation allowance, and the last used a mixed-separator WHERE pattern (exit 2), so it
+does not qualify ordinary 32-bit execution. The corrected pattern has not run. Do not interpret
+the x64 fixture cohort or default passing tests as complete WOW64 qualification.

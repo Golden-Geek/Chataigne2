@@ -1,73 +1,82 @@
-# M08 native retirement barrier and target-access evidence
+# M08 native retirement barrier
 
-Updated: 2026-11-05. **M08/4 is unaccepted and selected Active to fix complete transient-lifetime observation.**
-M11 is now accepted; this reproduced ownership barrier is the critical prerequisite before M10.
+Updated: 2026-11-05. **M08/4 remains Active and unaccepted; M08 is 3/4.**
+Golden IO now captures ordinary debug-chain process births before user execution. The retained
+x64 ordinary-app singleton case reaches Idle with its external singleton preserved. This is a
+delivered ownership correction, not complete Windows retirement qualification.
 
-MapGyver's existing runtime message now explains why retirement is unverified: root state,
-active job count, pending captured handles and unobserved lifetimes, or the actual observation
-error. Messages stay bounded to 512 characters. Ownership, its global slot and the prohibition
-on replacement/restart remain intact until the original complete-retirement barrier passes.
-This corrects an observation gap in the product: previously the earlier root-exit reason hid
-which completion requirement was missing. Golden IO's native ownership code is unchanged.
+## Ownership boundary and correction
 
-## Actual result and remaining requirement
+`golden_io::owned_process` owns explicit suspended creation, atomic job-list assignment, native
+resources and completion observation. MapGyver retains demand/readiness/restart/project policy.
+The creating native thread owns `DEBUG_PROCESS`, event wait and continuation. It verifies job
+membership and duplicates each descendant's creation-event process handle before continuing.
+Exit events are continued before actual duplicated-handle completion is checked. The observer
+must stop successfully; job active/total accounting remains an independent barrier. Drop explicitly
+terminates the job without joining the observer. No pre-existing process is attached or adopted.
 
-The freshly built ordinary app reports the singleton duplicate as:
+Windows owns debug-event process/thread handles; the observer closes image/DLL file handles.
+Its native/WOW64 loader handshakes are one-time and primary-thread/first-chance guarded.
+Application exceptions pass through. Observation errors retain truthful failure and terminate the
+owned job. Runtime messages now also expose `observer_complete`, bounded to 512 characters.
+
+This is visible debugging and can affect target behavior/performance or conflict with another
+debugger. Protected/anti-debug targets and new descendant debugging chains have no fallback.
+The [public primitive documentation](../../crates/golden_core/runtime/io/src/owned_process/README.md)
+records these limits and Microsoft's process-event/thread-affinity/initial-breakpoint contracts.
+Ordinary completion-port notifications remain rejected as best-effort; no active-zero, PID/name,
+longer-timeout or fabricated Idle shortcut has replaced a process-completion barrier.
+
+## Verified capability
+
+The x64 primitive cohort requires actual retirement, removing earlier allowances for missed
+transient lifetimes. It covers a child that exits before caller observation, sixteen sequential
+transient children plus root exit, root-before-descendant exit, pinned root/branch/leaf completion,
+drop before/after resume, graceful hidden-window close, cross-thread public callers, preserved
+application exception exit codes and an untouched same-name external process.
+
+The ordinary isolated MapGyver host passes the previously failing singleton (exit 17, Idle),
+launcher-child retirement, breakaway denial (5), missing image (2), Execute denial (5), invalid
+image (216) and elevation-required denial (740, no target main). Save/New/Load retires known
+trees, rejects stale callbacks, recovers admission and shuts down normally while preserving
+external processes. Bundled script editing executes all eight named methods, shares a Column/Cell
+PID, reports ordered Starting/Ready/Stopping/Idle callbacks and executes typed/named unload.
+The complete 14-test native runtime cohort also passes real Spout sender/first-image readiness,
+crash/backoff, sharing, final-render retention and project cleanup. Native Agent pre-resume
+cancellation passes without executing target code. The [current receipt](evidence/mapgyver-m08-observer-2026-11-05.json)
+pins builds and counts: 69 Golden IO software tests, 438 app tests, strict lint, 13 native IO tests
+(one explicit WOW64 ignore), 14 native runtime tests and one native cancellation check. The two
+other app-library ignores retain separate scale/display-catalog scope; native cancellation ran separately.
+
+## Remaining requirements and bounded return
+
+**WOW64 remains unverified.** A quiet 32-bit Windows WHERE check first exhausted retirement's
+three-second wait. A corrective loader-handshake implementation then returned:
 
 ```text
-Owned tree retirement unverified: root=Exited(17), active=0, pending=0, unobserved=1
+root=Exited(2), active=0, pending=0, unobserved=1, observer_complete=true
 ```
 
-That is a real uncaptured lifetime, not a snapshot error or a still-running captured process.
-The external singleton survives and is never adopted. Root PID absence, job drain and normal
-host exit do **not** close complete retirement. The first baseline reached this same evidence
-but its access-fixture setup/cleanup failed on numeric SID syntax. The corrected final run
-passes all target/access assertions and preserves the combined **partial** result. No third
-native experiment or unchanged rerun is authorized by this batch.
+That second run also used a mixed-separator WHERE pattern containing a forward slash. Its argument
+now uses native separators, but that fixture has not run; the cause of exit 2 is unproven. Neither run
+establishes ordinary 32-bit execution or complete retirement. The uncaptured accounting lifetime
+is real; its origin is unknown. Do not infer that loader handling alone fixes it or that an
+application exit, empty job or stopped debugger proves every job lifetime completed.
 
-The private access-denied fixture produces actual **CreateProcess error 5**, no PID, one stable
-failure and no target-main report. Only Execute permission on that exact temporary copy is
-denied; the added ACE is removed before deleting the fixture. The baseline's private directory
-was also restored and removed. Missing/invalid images remain errors 2/216; breakaway denial,
-launcher-child Idle cleanup and non-elevated requireAdministrator error 740 all pass.
+Both runs exhaust this question's baseline/corrective allowance. The explicitly ignored native
+test preserves the corrected fixture and its open requirement. No third unchanged probe, another
+counter/notification variant or silent budget reset is the next step. Inspect the native
+creation/accounting boundary and establish an owning correction or documented evidence that
+changes the mechanism decision before replaying that fixture under the original budgets.
 
-Historical [actual elevated-target evidence](evidence/mapgyver-m08-elevated-target-2026-11-01.json)
-verified the owned target's elevated token, Ready/Idle, cleanup and external preservation under
-an already-elevated caller, without requesting elevation. Source comparison against its base
-`194d888a` shows **no Golden IO owned-process changes**, and the Native backend methods are
-unchanged. Reuse that platform/primitive evidence with current binding/runtime and denial checks;
-it is not a claim that this current executable ran elevated. The remaining blocker is complete
-singleton/transient retirement, not missing computer access or a missing elevation prompt.
+**Fresh elevated execution is pending.** The current development caller is not elevated and
+truthfully verifies 740 without requesting elevation. The user's prepared Administrator
+PowerShell check is pending. The [historical elevated result](evidence/mapgyver-m08-elevated-target-2026-11-01.json)
+used the old primitive; its former source-equivalence reuse no longer qualifies the new observer.
+An already-elevated invocation must verify the owned target's elevated token, Ready/Idle,
+retirement and external preservation. No security settings or privilege fallback is introduced.
 
-## Rejected shortcut and bounded return action
-
-A private completion port associated before launch was considered. Microsoft documents that
-ordinary job-message delivery is best-effort and PID-bearing messages do not preserve identity
-without an open process handle. It does not establish the required complete handle coverage.
-See [the completion-port contract](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_associate_completion_port).
-No notification-count, zero-active, longer-timeout, process-name or fabricated Idle workaround
-is introduced. Actual [numeric-SID syntax](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls)
-was used to repair the private fixture, with no global security change.
-
-Establish a documented identity-preserving completion mechanism addressing the uncaptured
-lifetime before any new native experiment, or obtain an explicit user revision of the retirement
-contract. Then run the retained exact fixture with the original budgets. Do not repeat unchanged
-historical probes or present the current conservative state as complete cleanup. No ownership
-requirement is optional or waived.
-
-**Execution ordering:** M08's configuration/runtime, picker, commands, scripts/callbacks and
-project/recovery/shutdown paths are functionally verified. M11/1–10 are accepted. M08/4 is now
-the single Active gate under the plan's requirement to fix the reproduced ownership blocker
-before Video. M03's failed private-growth requirement remains in the explicit return queue;
-its budget is unchanged. Selecting this correction accepts no gate and weakens no ownership
-or retirement requirement.
-
-## Checks
-
-398 Rust library tests pass in 12.66 s, 2 separate-scope tests are ignored and native pre-resume
-cancellation is filtered (its prior native acceptance is unchanged). New tests cover each
-missing barrier and bounded access-error reporting without replacement. Strict all-target
-Clippy with native/process features, protocol equality, JS syntax/Prettier, both Cargo formatters
-and the fresh app build pass before native execution. Unchanged Svelte/UI checks are reused.
-The [receipt](evidence/mapgyver-m08-retirement-2026-11-04.json) pins binaries and the final results.
-Counts stay **47/67 gates (70%), 6/12 phases (50%), M08 3/4**.
+The [previous failure receipt](evidence/mapgyver-m08-retirement-2026-11-04.json) retains the original
+x64 singleton gap and access evidence. Current results supersede its unchanged-native-code claim.
+M11 remains complete. M10/M09 remain gated on complete M08/4 acceptance; the M03 32 MiB growth
+failure stays Pending with its original requirement. Overall remains **57/67 (85%), 7/12 phases**.
