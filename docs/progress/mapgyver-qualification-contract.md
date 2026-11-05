@@ -112,6 +112,12 @@ silently omitted from a claimed creation timing.
   independent GPU clock origins. Include endpoint quantization and every frame/dependency.
   A loose upper bound remains inconclusive; correlated context-span sums do not replace the
   original critical-path requirement. Any narrower GPU-work acceptance needs user approval.
+  A complete lower bound may prove failure: each scope starts after its CPU marker submission
+  and finishes before its successful query collection. For scopes i and j, their CPU separation
+  plus their valid local GPU durations bounds the complete elapsed path from below. Subtract
+  endpoint quantization conservatively; never compare separate GPU clock origins or sum
+  overlapping scopes as if they were sequential. Use the entire exact dependency cohort and
+  exact percentile comparisons. A lower bound within budget cannot prove a pass.
 - Record logical texture allocation bytes plus DXGI current usage/budget, process private bytes,
   working set and handle counts after warmup, at peaks and after retirement. Include SDK/driver
   allocations where observable; unknown counters remain unknown. Do not equate shared GPU

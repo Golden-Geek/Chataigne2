@@ -1,0 +1,263 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"source_base": "c047b8add2341f61d463b0a11602b67dacb9b411",
+	"scope": "Offline conservative lower bounds for the original complete app-ingest/renderer/output elapsed GPU path. No runtime, raw capture, workload or numerical budget changes.",
+	"checks": "144 production analyzer tests pass, including overlap/exhaustive feasible placements, exact boundaries, full-cohort p95/p99 ranks and missing/untrusted observations.",
+	"proof": {
+		"scope_i": "GPU start >= CPU submitted S_i; GPU end <= CPU successful query collection C_i",
+		"local_duration_lower": "max(0, end_tick - begin_tick - 1) / local_frequency",
+		"pair_lower_ms": "(S_j - C_i - 2) * 1000 / QPC_frequency + local_duration_lower_i_ms + local_duration_lower_j_ms",
+		"full_path_lower": "maximum of each local duration lower bound and each distinct ordered pair lower bound",
+		"clock_alignment": "none; only local GPU differences and common CPU QPC endpoints are compared",
+		"verdict": "Complete healthy exact dependency cohorts only. Exact rational nearest-rank p95 >12 ms or p99 >16.667 ms proves failure. A low lower bound never proves a pass. Numeric lower bounds round down and upper bounds round up."
+	},
+	"analyzer_sha256": {
+		"tools/mapgyver/production_gpu_path.py": "6d7b1d138ee2511b106855dce2ab705b1eb28353a0972dcf5115ea1e9cc52856",
+		"tools/mapgyver/production_qualification.py": "a14b1ec4da2837abede797d61acd8ecfd3201c03d971de57909c9b23409cf8a3"
+	},
+	"series": [
+		{
+			"directory": "target/m039-timing-current-2026-11-05/Q01",
+			"original_analysis": "target/m039-timing-current-2026-11-05/Q01/analysis-environment.json",
+			"original_sha256": "55373f4cfbc0b79d6ddf1842e526348e829faebd18c69e7825f0c1e5e44034c6",
+			"derived_analysis": "target/m039-timing-current-2026-11-05/Q01/analysis-path-lower.json",
+			"derived_sha256": "20c3cc02191ad6ba947c118ff022c63efa3a64256a60c42c833a81fd6868b438",
+			"status": "FAILED_NATIVE",
+			"prescribed_three_sample_series": true,
+			"samples": [
+				{
+					"sample": "sample-001",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 12.728494,
+						"p95_ms": 14.58537,
+						"p99_ms": 14.939129999999999,
+						"maximum_ms": 15.629066
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "1458537",
+							"denominator": "100000"
+						},
+						"p99": {
+							"numerator": "1493913",
+							"denominator": "100000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "FAILED_NATIVE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.811488,
+						"p95_ms": 1.129248,
+						"p99_ms": 1.28112,
+						"maximum_ms": 2.382816
+					}
+				},
+				{
+					"sample": "sample-002",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 12.427565999999999,
+						"p95_ms": 14.180397999999999,
+						"p99_ms": 14.479114,
+						"maximum_ms": 14.891993999999999
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "7090199",
+							"denominator": "500000"
+						},
+						"p99": {
+							"numerator": "7239557",
+							"denominator": "500000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "FAILED_NATIVE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.812672,
+						"p95_ms": 1.101824,
+						"p99_ms": 1.277568,
+						"maximum_ms": 2.27888
+					}
+				},
+				{
+					"sample": "sample-003",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 8.751169999999998,
+						"p95_ms": 10.555957999999999,
+						"p99_ms": 10.94385,
+						"maximum_ms": 11.546042
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "5277979",
+							"denominator": "500000"
+						},
+						"p99": {
+							"numerator": "218877",
+							"denominator": "20000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "UNAVAILABLE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.805824,
+						"p95_ms": 1.027136,
+						"p99_ms": 1.13488,
+						"maximum_ms": 1.604256
+					}
+				}
+			]
+		},
+		{
+			"directory": "target/m039-q02-anchored-2026-11-05/Q02",
+			"original_analysis": "target/m039-q02-anchored-2026-11-05/Q02/analysis-cohort-bounds-final.json",
+			"original_sha256": "c2b8a8cbc70c5763a7c145ff754478ac5dde98fda060063a9faab48d75ddf6ef",
+			"derived_analysis": "target/m039-q02-anchored-2026-11-05/Q02/analysis-path-lower.json",
+			"derived_sha256": "971f7c1b5edd8f31d8571adce4d13694941fd1bb0429352f072c9a538f546908",
+			"status": "FAILED_NATIVE",
+			"prescribed_three_sample_series": true,
+			"samples": [
+				{
+					"sample": "sample-001",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 10.107266,
+						"p95_ms": 11.929722,
+						"p99_ms": 12.26907,
+						"maximum_ms": 12.70529
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "5964861",
+							"denominator": "500000"
+						},
+						"p99": {
+							"numerator": "1226907",
+							"denominator": "100000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "UNAVAILABLE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.549024,
+						"p95_ms": 0.879936,
+						"p99_ms": 1.016256,
+						"maximum_ms": 1.23344
+					}
+				},
+				{
+					"sample": "sample-002",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 11.026957999999999,
+						"p95_ms": 12.866126,
+						"p99_ms": 17.417198,
+						"maximum_ms": 18.784418
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "6433063",
+							"denominator": "500000"
+						},
+						"p99": {
+							"numerator": "8708599",
+							"denominator": "500000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "FAILED_NATIVE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.5736,
+						"p95_ms": 0.948928,
+						"p99_ms": 1.183168,
+						"maximum_ms": 1.59792
+					}
+				},
+				{
+					"sample": "sample-003",
+					"expected_frames": 7200,
+					"covered_frames": 7200,
+					"coverage_complete": true,
+					"lower_bound_ms": {
+						"samples": 7200,
+						"median_ms": 10.00423,
+						"p95_ms": 11.349198,
+						"p99_ms": 18.130253999999997,
+						"maximum_ms": 19.617078
+					},
+					"lower_percentiles_exact_ms": {
+						"p95": {
+							"numerator": "5674599",
+							"denominator": "500000"
+						},
+						"p99": {
+							"numerator": "9065127",
+							"denominator": "500000"
+						}
+					},
+					"original_gpu_verdict": "UNAVAILABLE",
+					"revised_gpu_verdict": "FAILED_NATIVE",
+					"raw_hashes_identical": true,
+					"deadline_analysis_identical": true,
+					"non_gpu_criterion_statuses_identical": true,
+					"descriptive_context_span_sum_ms": {
+						"samples": 7200,
+						"median_ms": 0.565632,
+						"p95_ms": 0.873216,
+						"p99_ms": 1.036512,
+						"maximum_ms": 1.808736
+					}
+				}
+			]
+		}
+	],
+	"decision": "Four samples have proved elapsed GPU-path failures, two remain inconclusive. New clock correlation cannot override those lower bounds. Retained source age is part of the original metric; do not delay/repeat ingestion to game its starting point.",
+	"pending_proposal": "User approval requested to apply the unchanged 12/16.667 ms budget to an explicitly named sum of the complete source/renderer/output GPU scopes while retaining elapsed-path bounds, 60 FPS, deadline and <=50 ms source-to-output age requirements. Original elapsed-path failures remain binding until explicit approval.",
+	"remaining_requirements": [
+		"Original window deadline failures and pending separate 0.2% proposal; 0.1% still applies",
+		"Original 53.602 MiB lifecycle peak-growth failure against 32 MiB",
+		"Genuine device recovery and physical/app/final qualification",
+		"M08 complete retirement/WOW64 remains unaccepted"
+	]
+}

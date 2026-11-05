@@ -615,7 +615,7 @@ def analyze_capture(directory, environment=None):
         "source_publication_age": criterion(cohort["source_publication_age"]["coverage_complete"] if complete else None, eligible,
             scope="CPU source-publication/receive to output API boundaries; no GPU/presentation queue budget inferred"),
         "gpu_critical_path": criterion(gpu_path["observed_within_target"], eligible, scope=gpu_path["scope"],
-            reason="complete CPU enclosure can prove an upper bound; a loose bound remains unknown"),
+            reason="complete CPU enclosure can prove a pass; separated CPU endpoints plus local GPU durations can prove failure; loose overlapping bounds remain unknown"),
         "logical_texture_charge": criterion(resources["logical_within_target"], eligible),
         "native_allocation_ownership": criterion(resources["native_allocations"]["observed_within_target"], eligible,
             scope=resources["native_allocations"]["scope"]),

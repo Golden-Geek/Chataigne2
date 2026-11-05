@@ -1,5 +1,33 @@
 # Production renderer qualification runner
 
+**Current GPU-path decision (2026-11-05): original elapsed-path targets are demonstrably exceeded.**
+The existing complete captures suffice; no new clock calibration, profiler or native run is
+needed to establish these failures. For a scope with CPU submission S, successful query
+collection C and valid local GPU duration d, its actual GPU start is after S and its end before
+C. Therefore a pair i,j proves a lower bound S_j − C_i + d_i + d_j. The verifier subtracts two
+QPC ticks for the CPU gap and one GPU tick from each local duration, and also retains each
+individual duration as a lower bound. It takes the strongest bound across the exact two source
+dependencies and renderer/output scope. It never subtracts clocks from separate GPU contexts.
+[D3D11 query completion semantics](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_query)
+provide the CPU endpoint witnesses; the bound and full-cohort percentile proof are independent
+of collection delay. Exact rational thresholds and outward numeric rounding preserve boundaries.
+
+Reanalysis of unchanged production sync-0 captures proves Q01 samples 1/2 fail p95 ≥14.585/14.180 ms
+against 12 ms. Q02 sample 2 fails p95 ≥12.866 ms and p99 ≥17.417 ms; sample 3 fails p99 ≥18.130 ms
+against 16.667 ms. The other two samples remain inconclusive, never passed from a low lower bound.
+All six retain 7,200 complete dependencies, identical raw hashes and unchanged non-GPU criteria.
+144 analyzer tests pass, including exhaustive feasible placements, overlap, original p95/p99
+ranks, endpoint quantization, exact threshold rounding and missing/untrusted data.
+
+This exposes retained source-to-renderer time in the original whole elapsed-path target; it
+does not prove expensive GPU execution. The conservative summed context scopes have worst
+p95/p99 1.129/1.281 ms across these captures, but they omit inter-context waiting and remain
+descriptive. **Proposal awaiting user approval:** apply the existing 12/16.667 ms budget to
+that explicitly named sum of complete source/renderer/output GPU scopes, retaining full elapsed
+path bounds, 60 FPS, deadline limits and ≤50 ms source-to-output age as separate requirements.
+Until approved, original elapsed-path failures remain failures. Do not delay ingestion merely
+to make its measured starting point later, or add a clock probe to override a proved lower bound.
+
 **Current decision (2026-11-05): reject sync-1 after original Q01 verification.** The corrected
 cohort/capacity proof justified reassessing the preserved Q02 capture: all three samples verify
 26 criteria, worst misses 6/7,200 (0.0833%), p95 age ≤30.694 ms and capacity two. Deliberate
