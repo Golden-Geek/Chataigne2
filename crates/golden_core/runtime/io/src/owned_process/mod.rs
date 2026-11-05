@@ -63,7 +63,8 @@ pub struct ProcessSnapshot {
     pub root_id: u32,
     pub root: RootProcessState,
     pub active_processes: u32,
-    /// Process lifetimes reported by the job but never captured by an owned process handle.
+    /// Job accounting entries not matched to captured process lifetimes. This is conservative:
+    /// Windows can count failed associations, so a nonzero value does not identify another PID.
     pub unobserved_processes: u32,
     /// Captured descendant handles that have not signalled completion yet.
     pub pending_observed_processes: u32,

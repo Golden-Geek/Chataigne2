@@ -1,0 +1,140 @@
+{
+	"schema": 1,
+	"date": "2026-11-05",
+	"gate": "M08/4",
+	"base_revision": "ab1cb476896625c7bf31525ab03a2e7a564e5632",
+	"status": "NAMED_X64_MATRIX_VERIFIED_WOW64_SCOPE_CLARIFICATION_PENDING",
+	"production": "Original atomic creation-time job-list assignment restored; verified creation-error ownership retained. Remaining source change is documentation of conservative unmatched accounting only.",
+	"ordinary_app": {
+		"executable": "target/debug/MapGyver-codex-m08-access.exe",
+		"singleton": {
+			"external_pid": 30276,
+			"exit_code": 17,
+			"retirement": "Idle",
+			"adopted": false,
+			"external_preserved": true
+		},
+		"launcher": {
+			"root": 19256,
+			"child": 42520,
+			"exit_code": 0,
+			"retirement": "Idle"
+		},
+		"breakaway": {
+			"pid": 30836,
+			"error": 5,
+			"retirement": "Idle"
+		},
+		"errors": {
+			"missing": 2,
+			"execute_denied": 5,
+			"invalid_image": 216,
+			"require_administrator": 740
+		},
+		"standard_caller": {
+			"elevated": false,
+			"require_administrator_target_main_executed": false,
+			"elevation_fallback_requested": false
+		},
+		"projects": {
+			"replaced_pids": [41568, 39984, 2252, 30692],
+			"interim_pid": 38372,
+			"shutdown_pids": [31608, 30680, 32588],
+			"stale_callbacks_rejected": 3,
+			"fresh_callbacks": 2,
+			"admission_recovered": true,
+			"normal_shutdown": true,
+			"external_survived_shutdown": true
+		},
+		"scripts": {
+			"named_methods": 8,
+			"shared_column_cell_pid": 2112,
+			"lifecycle": ["Starting", "Ready", "Stopping", "Idle"],
+			"acknowledged": 4,
+			"pending": 0,
+			"fault": null,
+			"typed_and_named_unload": true
+		},
+		"picker": "Reused unchanged authored UI/host dialog behavior from mapgyver-m08-picker-targets-2026-11-04.json; both actual Column/Cell Open/Cancel and history passed"
+	},
+	"elevated": {
+		"controller_pid": 31916,
+		"started_utc": "2026-11-05T01:07:19.1092099Z",
+		"finished_utc": "2026-11-05T01:07:19.9975812Z",
+		"controller_exit_code": 0,
+		"controller_elevation": "Supported Windows Start-Process -Verb RunAs -WindowStyle Hidden under existing policy; no credentials/consent UI automated",
+		"policy_observed": {
+			"ConsentPromptBehaviorAdmin": 0,
+			"TypeOfAdminApprovalMode": 1,
+			"EnableLUA": 1
+		},
+		"development_token_elevated": false,
+		"account_direct_admin_member": true,
+		"controller_token_elevated": true,
+		"target_pid": 35464,
+		"target_token_elevated": true,
+		"phase": "Ready",
+		"retirement": "Idle",
+		"owned_pid_absent": true,
+		"external_preserved": true,
+		"app_elevation_fallback_requested": false,
+		"controller_elevation_requested": true,
+		"security_settings_changed": false,
+		"manual_question": "Fresh verification completed autonomously; prior manual command no longer required"
+	},
+	"rejected_candidate": {
+		"change": "Assign returned root while primary suspension/uncontinued creation event fence execution; exact rejected-root scope",
+		"software": {
+			"passed": 74,
+			"failed": 0,
+			"native_checks_ignored_for_separate_execution": 2,
+			"strict_io_all_targets": "PASS"
+		},
+		"native_rejected_root_checks": {
+			"passed": 2,
+			"failed": 0,
+			"assigned_and_unassigned_accounting_asserted": true
+		},
+		"native_cohort": {
+			"passed": 13,
+			"failed": 1,
+			"excluded": 0
+		},
+		"wow64": {
+			"root_id": 38664,
+			"root_exit_code": 0,
+			"active": 0,
+			"pending_observed": 0,
+			"unmatched_accounting": 1,
+			"observer_complete": true,
+			"complete_retirement": false
+		},
+		"conclusion": "The corrected 32-bit operation exits zero but the changed admission boundary still leaves an unmatched entry; creation-time-only attribution is rejected, origin remains unproven",
+		"disposition": "Candidate removed from production and preserved in a named stash; do not automatically restore or rerun unchanged",
+		"stash_name": "mapgyver-rejected-fenced-assignment-2026-11-05",
+		"stash_object": "6873844f8043fb644b253329425327ef654bf436",
+		"candidate_binary_sha256": {
+			"golden_io_unit": "24c609a3c1e4810326a1e959c862df341f6693db2d69f12e4c040799badf9ce4",
+			"owned_process_integration": "2a3ff832af9a3c7358ff5c4ff6db381244efe2826f030a343b99f005807963e2"
+		}
+	},
+	"accounting": "Windows TotalProcesses includes failed associations; an unmatched entry is not proof of a distinct extra/live process. No entry is subtracted or treated as completed. Strict retirement remains unverified.",
+	"acceptance": {
+		"closed_gates": [],
+		"M08": "3/4",
+		"overall": "57/67 (85%)",
+		"phases": "7/12",
+		"remaining": "Additional positive WOW64 retirement/scope clarification. All named x64 target/access/project/script cases now have positive current proof; no successful WOW64 cleanup is claimed."
+	},
+	"hashes": {
+		"target/debug/MapGyver-codex-m08-access.exe": "e04f5e9486ae930877339ecefe5a69900584a0a03cdb5874a4d1a6e9478a479e",
+		"target/m08-elevated-owned.log": "8a50a2b67a0c6ed96c2854a6de1081277dd2be6a5b2702db21a1493235ce684e",
+		"target/m08-elevated-result.json": "baa40afed4201646f967eefcf97c04bdecd47f544cde1a7d55629e32ff1bbfe2",
+		"target/m08-elevated-owned.ps1": "b63e669aaa4df6d0223928dbeb1f955c8a390d83448f55cbf78cca6f7d66d5f6",
+		"target/m08-access-target-outcomes.log": "62ba884532f370bc73732ca1abd8036ba87568e8581acc52afc97db029d1eb42",
+		"target/m08-access-projects.log": "3c4f1ce24b2d7d0684e01021fc199d2d29fa3a0d4da3f1b7d505951819b9375f",
+		"target/m08-access-script-ui.log": "5b968d7d417d669e1a7699e5de9b49f528b3358df845f597f3edfe2fb4997511",
+		"target/m08-fenced-owned-processes.log": "2005cdb3d1b9b5ec3078b8f0282aa27a396f927d8e19df55c9da2c61a013fcac",
+		"target/m08-fenced-rejected-roots.log": "7e9b6ed960a478923a084314ae6b6b392a886560e31725a4b4769672d5d17a09"
+	}
+}

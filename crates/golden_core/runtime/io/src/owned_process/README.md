@@ -81,9 +81,10 @@ require app-owned outcomes and qualification.
 Run `cargo test --locked -p golden_io --all-features` for the existing IO suites and the finite
 owned executable, hidden-window, descendant and cancellation checks. The `process-fixture` feature
 builds only test fixtures; they do not launch arbitrary applications or display a window.
-The explicitly ignored WOW64 system-tool case retains an unverified job lifetime; consult
+The explicitly ignored WOW64 system-tool case retains unmatched job accounting; consult
 `docs/progress/mapgyver-m08-retirement.md` before replay. Its two attempted runs exhausted the
-current investigation allowance, and the last used a mixed-separator WHERE pattern (exit 2), so it
-does not qualify ordinary 32-bit execution. The corrected fixture uses a plain filename pattern
-with an explicit System32 working directory and has not run. Do not interpret
-the x64 fixture cohort or default passing tests as complete WOW64 qualification.
+original investigation allowance. A later corrected-filename run under a changed admission
+boundary observed exit 0 but still failed retirement on one unmatched entry. That candidate
+is rejected and preserved in the named stash recorded by the report; atomic job-list creation
+remains the production boundary. Unmatched accounting does not identify a distinct child or
+authorize successful retirement. The default passing cohort does not qualify WOW64 cleanup.

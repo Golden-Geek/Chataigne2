@@ -1,111 +1,85 @@
-# M08 native retirement barrier
+# M08 target and retirement acceptance
 
-Updated: 2026-11-05. **M08/4 remains Active and unaccepted; M08 is 3/4.**
-Golden IO now captures ordinary debug-chain process births before user execution. The retained
-x64 ordinary-app singleton case reaches Idle with its external singleton preserved. This is a
-delivered ownership correction, not complete Windows retirement qualification.
+Updated: 2026-11-05. **M08/4 is Blocked on the retained WOW64 support/scope decision; M08 stays 3/4.**
+All named Windows x64 target/access cases now pass, including fresh actual elevated execution.
+The additional positive WOW64 retirement check remains unverified. No unknown entry is waived.
 
-Creation failures now retain a returned target through `CreateError::into_parts`: its optional
-`OwnedProcess` permits retirement, never resume. MapGyver publishes that PID and keeps the process
-and worker lifetime through Stopping/RetirementUnverified, preventing retry or replacement before
-proof. Pre-creation errors keep their OS code and normal backoff. Ownership mapping/drop tests and
-three fake-time creation/replacement cases pass, as does a native forced post-create verification
-rejection: error 5 retains the real owner, retirement completes and target code never executes.
-This is forced verification rejection, not a claim of a genuine post-create OS access denial.
-The [creation-owner receipt](evidence/mapgyver-m08-create-owner-2026-11-05.json) pins the new
-source/tests: 72 IO software tests, 441 app tests, strict all-target/all-feature lint, 13 IO native
-checks (WOW64 explicitly ignored), all 14 native app runtime tests, native pre-resume cancellation
-and the forced post-create rejection. Root assignment remains atomic in this milestone.
+## Ownership and verified behavior
 
-## Ownership boundary and correction
+Golden IO owns explicit suspended creation, atomic creation-time private-job assignment, native
+handles and completion observation. MapGyver owns demand/readiness/restart/project policy.
+Creation debug events pin descendant handles before continuation. Actual handle completion,
+successful observer shutdown and complete matched job accounting remain required. No process
+name or PID absence authorizes adoption, killing another process or successful retirement.
 
-`golden_io::owned_process` owns explicit suspended creation, atomic job-list assignment, native
-resources and completion observation. MapGyver retains demand/readiness/restart/project policy.
-The creating native thread owns `DEBUG_PROCESS`, event wait and continuation. It verifies job
-membership and duplicates each descendant's creation-event process handle before continuing.
-Exit events are continued before actual duplicated-handle completion is checked. The observer
-must stop successfully; job active/total accounting remains an independent barrier. Drop explicitly
-terminates the job without joining the observer. No pre-existing process is attached or adopted.
+The [creation-owner milestone](evidence/mapgyver-m08-create-owner-2026-11-05.json) retains a created
+target on verification failure as a retirement-only owner. MapGyver publishes its PID, keeps
+Stopping/RetirementUnverified and prevents retry/replacement or lifetime release before proof.
+Its 72 IO software tests, 441 app tests, strict lint and 29 native checks remain valid.
 
-Windows owns debug-event process/thread handles; the observer closes image/DLL file handles.
-Its native/WOW64 loader handshakes are one-time and primary-thread/first-chance guarded.
-Application exceptions pass through. Observation errors retain truthful failure and terminate the
-owned job. Runtime messages now also expose `observer_complete`, bounded to 512 characters.
+[Fresh ordinary-app checks](evidence/mapgyver-m08-target-access-2026-11-05.json) pass:
 
-This is visible debugging and can affect target behavior/performance or conflict with another
-debugger. Protected/anti-debug targets and new descendant debugging chains have no fallback.
-The [public primitive documentation](../../crates/golden_core/runtime/io/src/owned_process/README.md)
-records these limits and Microsoft's process-event/thread-affinity/initial-breakpoint contracts.
-Ordinary completion-port notifications remain rejected as best-effort; no active-zero, PID/name,
-longer-timeout or fabricated Idle shortcut has replaced a process-completion barrier.
+- Singleton duplicate exits 17 and reaches Idle; its external singleton survives without adoption.
+- Launcher root/child retire; breakaway is denied with error 5 and reaches Idle.
+- Missing/Execute-denied/invalid images report 2/5/216; a standard caller reports 740 without
+  executing the elevation-required target or requesting a fallback.
+- Save/New/Load retires known trees, rejects stale callbacks, restores fresh identities,
+  recovers admission and shuts down normally while preserving external processes.
+- The bundled editor executes all eight named methods, shared Column/Cell demand, ordered
+  Starting/Ready/Stopping/Idle callbacks, typed/named unload and authored history.
+- The [native picker receipt](evidence/mapgyver-m08-picker-targets-2026-11-04.json) retains actual
+  Column/Cell Open/Cancel, typed widgets, conditional controls and Undo/Redo. The authored UI
+  and dialog behavior are unchanged by IO ownership work.
 
-## Verified capability
+The [control API](mapgyver-m08-control-api.md), [app integration](mapgyver-m08-app-integration.md),
+[configuration](mapgyver-m08-configuration.md) and [native runtime](mapgyver-m08-runtime.md)
+reports own the complete command/snippet/caller/demand/readiness and final-render contracts.
+Current ordinary-host checks and the complete fourteen-case native runtime cohort retain their
+tested scope; they do not claim release or universal target compatibility.
 
-The x64 primitive cohort requires actual retirement, removing earlier allowances for missed
-transient lifetimes. It covers a child that exits before caller observation, sixteen sequential
-transient children plus root exit, root-before-descendant exit, pinned root/branch/leaf completion,
-drop before/after resume, graceful hidden-window close, cross-thread public callers, preserved
-application exception exit codes and an untouched same-name external process.
+## Fresh elevated execution is verified
 
-The ordinary isolated MapGyver host passes the previously failing singleton (exit 17, Idle),
-launcher-child retirement, breakaway denial (5), missing image (2), Execute denial (5), invalid
-image (216) and elevation-required denial (740, no target main). Save/New/Load retires known
-trees, rejects stale callbacks, recovers admission and shuts down normally while preserving
-external processes. Bundled script editing executes all eight named methods, shares a Column/Cell
-PID, reports ordered Starting/Ready/Stopping/Idle callbacks and executes typed/named unload.
-The complete 14-test native runtime cohort also passes real Spout sender/first-image readiness,
-crash/backoff, sharing, final-render retention and project cleanup. Native Agent pre-resume
-cancellation passes without executing target code. The [current receipt](evidence/mapgyver-m08-observer-2026-11-05.json)
-pins builds and counts: 69 Golden IO software tests, 438 app tests, strict lint, 13 native IO tests
-(one explicit WOW64 ignore), 14 native runtime tests and one native cancellation check. The two
-other app-library ignores retain separate scale/display-catalog scope; native cancellation ran separately.
+The development token is restricted, but the account is a local administrator and the existing
+Windows policy permits elevation without a prompt. A finite, hidden owned harness launched
+through supported Windows RunAs, verified its own elevated token, and ran the current isolated
+app under that caller. No security setting or credential/consent UI was changed or automated.
 
-## Remaining requirements and bounded return
+The owned target reported **PID 35464, elevated=true**, reached Ready, unloaded to Idle and
+retired. The external process survived. Controller PID 31916 and the ordinary host exited zero.
+MapGyver itself still uses explicit CreateProcess with no elevation fallback. The standard-token
+740 case also passes. The [receipt](evidence/mapgyver-m08-target-access-2026-11-05.json) distinguishes
+controller elevation from app policy and pins the executable, harness and logs. The earlier
+manual elevation question is superseded; no user invocation is now needed.
 
-**WOW64 remains unverified.** A quiet 32-bit Windows WHERE check first exhausted retirement's
-three-second wait. A corrective loader-handshake implementation then returned:
+## Retained WOW64 result and rejected correction
+
+A complete corrected-WHERE cohort under a candidate suspended/debug-fenced assignment returned:
 
 ```text
-root=Exited(2), active=0, pending=0, unobserved=1, observer_complete=true
+root=Exited(0), active=0, pending=0, unmatched accounting=1, observer_complete=true
 ```
 
-That second run also used a mixed-separator WHERE pattern containing a forward slash. The fixture
-now uses the [documented plain filename search](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/where)
-(`/q cmd.exe`) with the working directory explicitly set to Windows System32. It has not run;
-the cause of the earlier exit 2 is unproven. Neither run
-establishes ordinary 32-bit execution or complete retirement. The uncaptured accounting lifetime
-is real; its origin is unknown. Do not infer that loader handling alone fixes it or that an
-application exit, empty job or stopped debugger proves every job lifetime completed.
+Thirteen native checks passed; this fourteenth case failed complete retirement. Assigned and
+unassigned rejected-root checks and scope guards passed, but moving assignment after the returned
+root did not close the accounting gap. That creation-time-only hypothesis is rejected. The
+candidate was removed; production retains the verified atomic job-list implementation.
 
-Both runs exhaust this question's baseline/corrective allowance. The explicitly ignored native
-test preserves the corrected fixture and its open requirement. No third unchanged probe, another
-counter/notification variant or silent budget reset is the next step. Inspect the native
-creation/accounting boundary and establish an owning correction or documented evidence that
-changes the mechanism decision before replaying that fixture under the original budgets.
+The candidate is preserved in stash `mapgyver-rejected-fenced-assignment-2026-11-05`, object
+`6873844f8043fb644b253329425327ef654bf436`. Do not restore it automatically. The receipt pins
+the failed cohort and candidate binaries. The original two probes and this changed-mechanism
+qualification remain recorded; no unchanged replay, counter offset or renamed investigation
+resets their limits.
 
-The accounting contract explicitly includes failed associations in `TotalProcesses`; it is not
-an executed-child count. That does not identify the missing lifetime here or authorize subtracting
-it. A candidate owning correction is assignment of the returned root while both primary-thread
-suspension and the uncontinued creation debug event fence user execution, before any resume or
-event continuation. This preserves job-before-execution without enrolling creation-time candidates.
-The typed creation-failure prerequisite is implemented and verified. The current atomic job-list
-launch remains unchanged. Next implement the fenced assignment itself, including a typed rejected
-pre-execution root whose exact handle remains owned even if job assignment fails. Its root-only
-retirement must not pretend that an unassigned root is a job member or resume rejected code.
-Then replay the corrected WOW64 case after software prerequisites; this requires the actual owning
-boundary correction, not a third unchanged probe or a claim about the previous failure's cause.
-See [job accounting](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information),
-[assignment](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)
-and [creation event fencing](https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events).
+[Microsoft's accounting contract](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information)
+includes failed associations. An unmatched entry does not identify an additional PID or prove a
+distinct/live child. Its origin here is unproven. The field's documentation now says so; the
+strict zero-unmatched retirement predicate is unchanged. The corrected fixture remains explicitly
+ignored for positive production qualification. Its exit-zero observation belongs to the rejected
+candidate, not a claim of successful production WOW64 cleanup.
 
-**Fresh elevated execution is pending.** The current development caller is not elevated and
-truthfully verifies 740 without requesting elevation. The user's prepared Administrator
-PowerShell check is pending. The [historical elevated result](evidence/mapgyver-m08-elevated-target-2026-11-01.json)
-used the old primitive; its former source-equivalence reuse no longer qualifies the new observer.
-An already-elevated invocation must verify the owned target's elevated token, Ready/Idle,
-retirement and external preservation. No security settings or privilege fallback is introduced.
-
-The [previous failure receipt](evidence/mapgyver-m08-retirement-2026-11-04.json) retains the original
-x64 singleton gap and access evidence. Current results supersede its unchanged-native-code claim.
-M11 remains complete. M10/M09 remain gated on complete M08/4 acceptance; the M03 32 MiB growth
-failure stays Pending with its original requirement. Overall remains **57/67 (85%), 7/12 phases**.
+The plan targets Windows x64 and explicitly retains unverified-retirement/access-denial cases.
+A scope question asks whether additional positive 32-bit cleanup must block M08/Video or remain
+separate retained qualification while the named x64 matrix closes. No answer is inferred.
+**Return trigger:** an explicit scope decision, or new authoritative identity-preserving evidence/
+an owning correction that proves the missing WOW64 barrier, followed by its required acceptance.
+M08 stays unaccepted meanwhile; M10/M09 remain gated. No ownership requirement is called optional.
