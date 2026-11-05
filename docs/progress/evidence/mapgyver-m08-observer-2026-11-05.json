@@ -135,7 +135,7 @@
 			"observer_complete": true,
 			"tree_retirement": false
 		},
-		"fixture_confound": "WHERE pattern used a mixed-separator path; it now uses native separators but has not replayed. Exit-2 cause and uncaptured-lifetime origin remain unproven.",
+		"fixture_confound": "Earlier WHERE pattern used a mixed-separator path; current ignored fixture uses documented /q cmd.exe with an explicit System32 working directory. It remains unrun; the earlier exit-2 cause and missing-lifetime origin remain unproven.",
 		"retained_test": "a_wow64_system_tool_preserves_its_ordinary_exit_code (explicitly ignored, not passed)",
 		"return_trigger": "Owning creation/accounting correction or documented evidence changing the mechanism decision; then corrected fixture under original budgets. No third unchanged probe or reset of the two-experiment allowance."
 	},
@@ -167,5 +167,21 @@
 		"No claim that any unobserved lifetime completed",
 		"No physical/device/global CPU-GPU-memory performance qualification",
 		"User normal app and Spout Demo Sender left untouched"
-	]
+	],
+	"fixture_followup": {
+		"date": "2026-11-05",
+		"native_executed": false,
+		"strict_io_all_targets": "PASS",
+		"fixture_compilation": "PASS",
+		"compiled_test_binary_sha256": "b4147b485bc6b32a38b303653e84c080fc0f91836803f227df039e9db82503e6",
+		"production_code_changed": false,
+		"prior_binaries": "The binaries table pins the earlier executed cohort; this follow-up recompiles its test executable only.",
+		"next_implementation": "Retain created owners in typed creation failures and MapGyver retirement before changing job assignment to a suspended/debug-event-fenced root.",
+		"contracts": [
+			"https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/where",
+			"https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information",
+			"https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject",
+			"https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events"
+		]
+	}
 }

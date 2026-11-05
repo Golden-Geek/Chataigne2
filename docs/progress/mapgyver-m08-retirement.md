@@ -57,8 +57,10 @@ three-second wait. A corrective loader-handshake implementation then returned:
 root=Exited(2), active=0, pending=0, unobserved=1, observer_complete=true
 ```
 
-That second run also used a mixed-separator WHERE pattern containing a forward slash. Its argument
-now uses native separators, but that fixture has not run; the cause of exit 2 is unproven. Neither run
+That second run also used a mixed-separator WHERE pattern containing a forward slash. The fixture
+now uses the [documented plain filename search](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/where)
+(`/q cmd.exe`) with the working directory explicitly set to Windows System32. It has not run;
+the cause of the earlier exit 2 is unproven. Neither run
 establishes ordinary 32-bit execution or complete retirement. The uncaptured accounting lifetime
 is real; its origin is unknown. Do not infer that loader handling alone fixes it or that an
 application exit, empty job or stopped debugger proves every job lifetime completed.
@@ -68,6 +70,20 @@ test preserves the corrected fixture and its open requirement. No third unchange
 counter/notification variant or silent budget reset is the next step. Inspect the native
 creation/accounting boundary and establish an owning correction or documented evidence that
 changes the mechanism decision before replaying that fixture under the original budgets.
+
+The accounting contract explicitly includes failed associations in `TotalProcesses`; it is not
+an executed-child count. That does not identify the missing lifetime here or authorize subtracting
+it. A candidate owning correction is assignment of the returned root while both primary-thread
+suspension and the uncontinued creation debug event fence user execution, before any resume or
+event continuation. This preserves job-before-execution without enrolling creation-time candidates.
+Before changing that boundary, replace the creation API's bare IO error with a typed failure that
+can retain a created owner, and carry it through MapGyver's existing stop/retirement barrier.
+Otherwise failed assignment could drop the only owner before cleanup is verified. Implement and
+test that failure path first; the current atomic job-list launch remains unchanged. This is an
+implementation prerequisite, not a third native probe or a claim about the failure's cause.
+See [job accounting](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_accounting_information),
+[assignment](https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject)
+and [creation event fencing](https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events).
 
 **Fresh elevated execution is pending.** The current development caller is not elevated and
 truthfully verifies 740 without requesting elevation. The user's prepared Administrator

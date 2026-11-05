@@ -320,7 +320,10 @@ fn a_wow64_system_tool_preserves_its_ordinary_exit_code() {
     // WHERE /Q only tests existence; it neither executes CMD nor writes identifying output.
     let directory = PathBuf::from(std::env::var_os("SystemRoot").unwrap());
     let mut specification = ProcessSpec::new(directory.join("SysWOW64").join("where.exe"));
-    specification.arguments = vec!["/q".into(), directory.join("System32").join("cmd.exe").into_os_string()];
+    // WHERE documents a plain filename searched in its current directory. Keep the Windows
+    // directory out of its pattern grammar (which has a separate Path:Pattern form).
+    specification.directory = Some(directory.join("System32"));
+    specification.arguments = vec!["/q".into(), "cmd.exe".into()];
     let owned = SuspendedProcess::create(&specification).unwrap().resume().unwrap();
     assert!(owned.wait_tree(WAIT).unwrap(), "{:?}", owned.snapshot());
     assert_eq!(owned.snapshot().unwrap().root, RootProcessState::Exited(0));

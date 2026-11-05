@@ -75,5 +75,6 @@ builds only test fixtures; they do not launch arbitrary applications or display 
 The explicitly ignored WOW64 system-tool case retains an unverified job lifetime; consult
 `docs/progress/mapgyver-m08-retirement.md` before replay. Its two attempted runs exhausted the
 current investigation allowance, and the last used a mixed-separator WHERE pattern (exit 2), so it
-does not qualify ordinary 32-bit execution. The corrected pattern has not run. Do not interpret
+does not qualify ordinary 32-bit execution. The corrected fixture uses a plain filename pattern
+with an explicit System32 working directory and has not run. Do not interpret
 the x64 fixture cohort or default passing tests as complete WOW64 qualification.
