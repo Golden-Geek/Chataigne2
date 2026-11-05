@@ -1,0 +1,99 @@
+{
+	"date": "2026-11-05",
+	"owner_gate": "M05/8 prerequisite",
+	"status": "FUNCTIONALLY_VERIFIED_TEARDOWN_FIX",
+	"whole_gate_accepted": false,
+	"source_base": "451c157a6b36c47a6fbba760e0a188ac6777cf6e",
+	"baseline": {
+		"pid": 3860,
+		"executable_sha256": "7be954a4856d0d99eb3f4376e94cb71dc441025a0c56423a8d63e133d070e3fd",
+		"shutdown_exit_code": 3221226505,
+		"shutdown_exit_hex": "0xC0000409",
+		"cause": "Wry 0.55.1 parent_subclass_proc:1256 null controller dereference after normal sentinel shutdown",
+		"stderr_sha256": "0ead1baef6b937036815013d7e8febaddbea7da448cd9c727cca9ef18ca738e8",
+		"physical_capture": "UNVERIFIED: supported Computer Use activation and Raise failed; foreground capture refused; no pixel or input acceptance"
+	},
+	"upstream": {
+		"crate": "wry 0.55.1",
+		"crate_sha256": "186f9871daa55fd9c016578b810d149de58367113db7fb72b462d2323ce19514",
+		"fix": "https://github.com/tauri-apps/wry/pull/1795",
+		"release_commit": "3fbf592",
+		"scope": "Remove parent subclass before releasing controller; no app-level workaround"
+	},
+	"patch": {
+		"root_lock_diff": "only Wry registry source/checksum removed for the local path patch; unrelated resolver changes reverted",
+		"runtime_dependencies_and_features_identical": true,
+		"upstream_runtime_files_changed": [
+			"src/webview2/mod.rs"
+		],
+		"excluded_examples": "Only library sources/build/README/licenses retained; unused example targets/development dependencies omitted",
+		"test_dependencies": "Upstream library test dependencies and Tao feature forwarding retained; tests/Cargo.lock pins standalone tests independently of production",
+		"removal_trigger": "Compatible Tauri/Wry pair including upstream #1795, followed by regression and normal app shutdown checks"
+	},
+	"checks": {
+		"app_software_passed": 441,
+		"golden_video_software_passed": 208,
+		"shared_desktop_host_software_passed": 37,
+		"wry_software_passed": 9,
+		"strict_app_golden_host_clippy": "passed",
+		"strict_wry_library_and_tests_clippy": "passed",
+		"ui_check": "0 errors, 0 warnings; unchanged frontend inputs",
+		"current_app_build": "passed",
+		"formatters": "root and Golden Core plus focused vendor test rustfmt",
+		"native_regression": {
+			"passed": true,
+            "elapsed_seconds": 0.4,
+			"mechanism": "Real WebView2 parent callback; lower subclass synchronously re-enters focus/move/size during detach; callback removal, repeated detach, ordinary WebView and HWND destruction verified",
+			"artifact": "target/debug/deps/wry-3b4f5786f70dac90.exe",
+			"artifact_sha256": "d67d2f8b2e7d42b6560ccda4acac4d6d8c9491e25df25a6af45ca0cee3d3b3b7",
+			"log_sha256": "c51c55f3b363363f79a1196cf8cdc1f9101353ac9f826ec083c10f97957ba78c",
+			"common_controls": "Generated test artifact embeds Windows Common Controls v6, matching Tauri; no OS setting change"
+		}
+	},
+	"patched_app": {
+		"executable_sha256": "0d46f2ca57a02d64f1dc0ecd50e5defb2d7735607a32a75b04517cbd9d1755fe",
+		"scenes": [
+			{
+				"scene": "patched-screen",
+				"pid": 29856,
+				"dpi_scale": 1.25,
+				"normal_exit_code": 0,
+				"native_hit_samples": 16,
+				"correct_native_hits": 14,
+				"raw_sha256": {
+					"ready.json": "fc13c3559d58f9ef2ccdb6e9139c64a4ca77651eadb495ff9938b8685221bb43",
+					"native-hit.json": "93f94ae9c50cbad9903e8d2c799251de6a078cb6f719d747418582cf698a9b4a",
+					"patched-screen-stdout.log": "1246fb082046a02aedd7e6a0e282d6ebd1cbced40c241c18d23ad755c7243229",
+					"patched-screen-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+				}
+			},
+			{
+				"scene": "patched-source",
+				"pid": 24824,
+				"dpi_scale": 1.25,
+				"normal_exit_code": 0,
+				"native_hit_samples": 16,
+				"correct_native_hits": 16,
+				"raw_sha256": {
+					"ready.json": "5c85d05ba4ffdc8d98b71eace0455a8a97c33355bba01680fb241b93952c3c0e",
+					"native-hit.json": "897add85a26fdbc23b7a9fcf44e84d799a4cfaa04b0b1e3b4ff1b8241e450e69",
+					"patched-source-stdout.log": "ba0b5336ff074bfee35b8a31214115465bebbcbdf80460a7adabac176ed5c5d6",
+					"patched-source-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+				}
+			}
+		]
+	},
+	"source_sha256": {
+		"vendor/wry-0.55.1/src/webview2/mod.rs": "bda9f1b33f74d9fdef346142a2c73aa0f2e8a6fe38d61510676e53fd02954d73",
+		"vendor/wry-0.55.1/src/webview2/tests/mod.rs": "1117cbb00743dd42ab747a254a890b8002e5df13ba04706434be9d689e8ba008",
+		"vendor/wry-0.55.1/tests/run-windows.ps1": "0124094f4ab1c60c6fe4c8fac0053a7b6d03987d84cf4538dc7251ef9f334b9d",
+		"vendor/wry-0.55.1/tests/Cargo.lock": "aba2e76d7101fcbf3dcd228260888c6d75e1ec735eb886b695653b42c6ca76bd"
+	},
+	"limits": [
+		"This fixes a reproduced normal-shutdown abort; no whole MapGyver plan gate closes.",
+		"Native moving hit tests are functional scene/geometry and cleanup checks, not physical one-pixel/input-latency acceptance.",
+		"Full M05 DPI/negative-origin/hotplug/capture/latency matrix remains required.",
+		"All M03 performance/lifecycle/device and M08/final gates remain unchanged."
+	],
+	"next_deliverable": "Resume physical native alignment/input with a genuinely foreground owned window; preserve monitor configuration and explicit remaining cases."
+}
