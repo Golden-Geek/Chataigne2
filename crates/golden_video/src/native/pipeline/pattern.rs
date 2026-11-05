@@ -1,6 +1,7 @@
 use crate::plan::canvas::{CANVAS_LABEL_BYTES, MAX_CANVAS_TEXT_BYTES, TextSource};
 use crate::plan::{CanvasPrimitive, CanvasShape, MAX_CANVAS_PRIMITIVES, Pattern};
 pub(super) mod frame;
+mod spatial;
 mod storage;
 use frame::{AsciiLine, FrameText};
 pub(super) use storage::PatternBuffer;
@@ -57,6 +58,7 @@ pub(super) struct PatternParameters {
     colors: [[f32; 4]; 8],
     primitives: [PrimitiveParameters; MAX_CANVAS_PRIMITIVES],
     text: [[u32; 4]; MAX_CANVAS_TEXT_BYTES / 16],
+    spatial: [u32; spatial::CELLS],
 }
 
 impl PatternParameters {
@@ -79,6 +81,7 @@ impl PatternParameters {
                     colors,
                     primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
                     text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
+                    spatial: [0; spatial::CELLS],
                 }
             }
             Pattern::Bars(colors) => Self {
@@ -90,6 +93,7 @@ impl PatternParameters {
                 colors: colors.map(|color| color.components()),
                 primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
                 text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
+                spatial: [0; spatial::CELLS],
             },
             Pattern::Canvas(canvas) => {
                 let mut result = Self {
@@ -101,6 +105,7 @@ impl PatternParameters {
                     colors: [[0.; 4]; 8],
                     primitives: [PrimitiveParameters::default(); MAX_CANVAS_PRIMITIVES],
                     text: [[0; 4]; MAX_CANVAS_TEXT_BYTES / 16],
+                    spatial: [0; spatial::CELLS],
                 };
                 let mut offset = 0;
                 for (target, primitive) in result.primitives.iter_mut().zip(canvas.primitives()) {
@@ -133,6 +138,7 @@ impl PatternParameters {
                         }
                     }
                 }
+                result.spatial = spatial::masks(&result.primitives[..canvas.primitives().len()]);
                 result
             }
         }
@@ -140,7 +146,8 @@ impl PatternParameters {
 }
 
 const _: () = assert!(size_of::<PrimitiveParameters>() == 208);
-const _: () = assert!(size_of::<PatternParameters>() == 15008);
+const _: () = assert!(size_of::<PatternParameters>() == 16032);
 const _: () = assert!(std::mem::offset_of!(PatternParameters, colors) == 32);
 const _: () = assert!(std::mem::offset_of!(PatternParameters, primitives) == 160);
 const _: () = assert!(std::mem::offset_of!(PatternParameters, text) == 6816);
+const _: () = assert!(std::mem::offset_of!(PatternParameters, spatial) == 15008);

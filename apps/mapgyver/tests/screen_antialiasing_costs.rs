@@ -293,6 +293,7 @@ fn screen_raw_smooth_native_costs() {
         .unwrap();
     assert!((1..=120).contains(&seconds));
     let selected = std::env::var("MAPGYVER_SCREEN_COST_GPU").ok();
+    let selected_case = std::env::var("MAPGYVER_SCREEN_COST_CASE").ok();
     let (done, wait) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if matches!(
@@ -319,6 +320,12 @@ fn screen_raw_smooth_native_costs() {
         );
         for (width, height) in [(1920, 1080), (3840, 2160)] {
             for mode in [ScreenAntiAliasing::Raw, ScreenAntiAliasing::Smooth2x] {
+                if selected_case
+                    .as_ref()
+                    .is_some_and(|selected| selected != &format!("{width}-{mode:?}"))
+                {
+                    continue;
+                }
                 capture(
                     &adapter,
                     Extent2D::new(width, height).unwrap(),

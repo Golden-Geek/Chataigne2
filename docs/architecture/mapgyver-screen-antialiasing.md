@@ -34,10 +34,21 @@ history, duplication and persistence. There is no UI-owned setting or output-spe
 Golden's generic procedural payload uses one worker-owned indexed shader buffer. FXC lowered
 constant-buffer aggregate selection into a full 32-entry mask/merge scan inside every pixel's
 primitive loop; even a flat constant array retained that problem. A read-only raw buffer makes
-each required row a direct GPU load. The 15,008-byte packed header/palette/primitive/text layout,
-frame update, single Canvas draw, raster math and fixed storage charge remain unchanged. A view
+each required row a direct GPU load. The 15,008-byte packed header/palette/primitive/text prefix,
+single Canvas draw and raster math remain unchanged. A view
 is created before submission, unbound after each draw, and retained with the render worker through
 GPU retirement. Compile-time offsets and full-capacity native pixel checks guard the byte layout.
+
+Canvas additionally prepares a fixed 16×16 spatial mask on its rendering worker. Each mask
+contains the potentially covering primitive indices; the shader visits set bits in ascending
+authored order. Bounds are conservative for rectangles, text runs, finite lines and ellipse
+outlines, so this skips evaluations without replacing pixel coverage, filtering or blending.
+Dynamic text uses the same render-boundary bytes/geometry as the packed frame. No actor work,
+source producer or per-pixel CPU processing is introduced. The mask adds exactly 1,024 bytes
+to that same raw buffer: 16,032 bytes total payload and 16,272 bytes of fixed Pipeline buffers.
+Native admission charges the complete size, including concurrently retained resources, under
+the existing limits. This implementation does not itself establish the retained timing gate;
+the ledger must record measured acceptance separately.
 
 Microsoft documents that MSAA shares shader results across samples and does not remove surface
 aliasing. That is why this path supersamples shader evaluation as well as warp boundaries:

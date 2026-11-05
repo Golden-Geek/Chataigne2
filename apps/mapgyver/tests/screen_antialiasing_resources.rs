@@ -249,7 +249,7 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     let control = renderer.native_control().unwrap();
     let count = if width == 1920 { 7 } else { 3 };
     let mut scene = Scene::new(count);
-    let baseline = 15248 + 8 * pixels;
+    let baseline = 16272 + 8 * pixels;
     // SDK endpoints report UnknownSdk until their first accepted send. Initialize every
     // bound endpoint sequentially before asserting complete native inventory totals.
     scene.configure(ScreenAntiAliasing::Raw, extent, false);

@@ -1,0 +1,55 @@
+{
+	"date": "2026-11-06",
+	"gate": "M12/8",
+	"decision": "Spatial Canvas evaluation delivered and verified; retained Intel 4K Smooth cost gate remains open",
+	"source_base": "30479a7f83419dbad455812e3a0e65e1779c7aa2",
+	"ownership": "Generic Golden native PatternParameters preparation and shader evaluation, on the render worker; no app-specific policy or actor work",
+	"implementation": "A fixed 16x16 array of 32-bit candidate masks conservatively bounds rectangles, text runs, finite lines and ellipse outlines. Shader iteration visits set bits in original primitive order, retaining existing pixel coverage, filtering, alpha and shared-clock behavior",
+	"storage": {
+		"original_prefix_bytes": 15008,
+		"mask_bytes": 1024,
+		"total_payload_bytes": 16032,
+		"pipeline_fixed_buffer_bytes": 16272,
+		"policy": "Added to the existing worker-owned raw buffer, with compile-time offsets/size guards. Full allocation charge updates automatically; original workload/adapter ceilings unchanged"
+	},
+	"checks": {
+		"software": {
+			"mapgyver_passed": 502,
+			"golden_video_passed": 213,
+			"strict_all_target_clippy": true
+		},
+		"selection_oracle": "513x513 sample coordinates against all 32 slots: 8,421,408 primitive/sample pairs, fractional tiled text, centered/dynamic text, finite lines, ellipse and rectangles; no potentially covered sample omitted and authored bit order preserved",
+		"native_kernels_passed": 8,
+		"native_screen_images": 42,
+		"native_screen_texels": 32256,
+		"quality": "Both GPUs retain complete Screen Raw/Smooth warp/alpha/history/reload images, all 32 Canvas slots, text/bitmap/palette/geometry and source/resource checks under unchanged tolerances",
+		"resources": "Sixteen both-GPU 1080p/4K Raw/Smooth one/two-Surface cases match exact generation and native inventory formulas with the increased baseline. Pressure rejects atomically, valid Smooth recovers; all native owners release",
+		"reserved_peaks_bytes": [232259984, 928989584],
+		"retirement_ms": [36.1221, 92.3915, 33.2803, 47.3791],
+		"original_retirement_limit_ms": 2000
+	},
+	"short_cost_validation": {
+		"scene": "Unchanged two-Surface official calibration plus Solid Color scene, one SDK output; existing five-second unwarmed fixture, eight cases, complete CPU/GPU coverage",
+		"baseline": "mapgyver-m12-screen-costs-2026-11-05.json",
+		"intel_gpu_medians_before_after_ms": {
+			"1080_raw": [2.638229, 2.010052],
+			"1080_smooth": [10.957396, 6.330313],
+			"4k_raw": [12.190208, 7.651875],
+			"4k_smooth": [39.38224, 27.300729]
+		},
+		"intel_4k_smooth_gpu_ms": { "p95": 28.095104, "p99": 28.383646 },
+		"nvidia_4k_smooth_gpu_ms": { "median": 2.091072, "p95": 2.28032, "p99": 2.435424 },
+		"limits": "Useful cost improvement, not production or sustained qualification. Intel 4K Smooth still exceeds p95 12ms / p99 16.667ms and misses software deadlines; no failure is waived"
+	},
+	"binaries_sha256": {
+		"golden_video-8cc5bc5143fc4283.exe": "ad422b7ad7c600d87680cc88a53d7bab7398e73087a7b5deb8d94991ee5cca92",
+		"screen_antialiasing-screen-spatial.exe": "01559a5226706418cbbc89be795440cf22dcaa753755816cde93bd4ca86a807d",
+		"screen_antialiasing_resources-screen-resources-spatial.exe": "29a71a9a89f61b10932da3320c48d4c6669404e3006dc116c8a6302bd4a7139b",
+		"screen_antialiasing_costs-screen-costs-spatial.exe": "bd6c82d9db1cfc7aed51c5c3a0605991e8d8ed7a553d8b40c6833a0f0bf40b2b"
+	},
+	"evidence": "mapgyver-m12-canvas-spatial-2026-11-06/native-results.zip",
+	"fingerprints": "mapgyver-m12-canvas-spatial-2026-11-06/fingerprints.json",
+	"fixture_selection": "An optional exact-case selector now permits the existing required warmed series to run one canonical case per invocation. It changes neither scene, sampling duration, warmup nor budget; no new probe or workload variant",
+	"next": "Run original 30-second warmup and three 120-second samples for the retained Intel 4K Smooth case, using this fixed implementation; then present the verified result and next product decision. Other sustained cohorts remain required for a full pass",
+	"progress": "65/78 (83%), M12 8/11 (73%) unchanged; M12/8 alone remains Active"
+}

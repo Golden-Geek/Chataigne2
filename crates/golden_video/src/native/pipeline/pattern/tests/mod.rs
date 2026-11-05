@@ -4,6 +4,7 @@ use crate::{
     plan::{CanvasPaint, CanvasPattern, UnitRect},
 };
 use std::time::Duration;
+mod spatial;
 
 #[test]
 fn text_packing_preserves_offsets_tiles_and_render_boundary_clock_and_fps() {

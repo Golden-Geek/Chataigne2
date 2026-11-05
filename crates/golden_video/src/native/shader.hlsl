@@ -259,8 +259,12 @@ float4 ps_pattern(Vertex input) : SV_Target {
                 uint stripe = min((uint)floor(uv.x * 8), 7);
                 color = asfloat(pattern_data.Load4(32 + stripe * 16));
             } else {
+                uint2 cell = min((uint2)floor(uv * 16), uint2(15, 15));
+                uint candidates = pattern_data.Load(15008 + (cell.y * 16 + cell.x) * 4);
                 [loop]
-                for (uint index = 0; index < min(pattern_data.Load(20), 32); index++) {
+                while (candidates != 0) {
+                    uint index = firstbitlow(candidates);
+                    candidates &= candidates - 1;
                     float4 top = canvas_primitive(index, uv);
                     color = top + color * (1 - top.a);
                 }
