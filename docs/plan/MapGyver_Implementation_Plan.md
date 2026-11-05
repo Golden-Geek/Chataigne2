@@ -581,6 +581,16 @@ then return to M12/8 with a concrete generic Canvas evaluation change rather tha
 the same probes. Keep its warmed sustained series and all original acceptance open. M10/M09
 still require every M12 gate Accepted. The ledger owns the single Active gate and return queue.
 
+**Execution ordering, 2026-11-06:** M12/9 is Accepted and the generic spatial Canvas change
+improves M12/8's short Intel 4K Smooth median to 27.30 ms. The exact optimized case's original
+30-second warmup / three 120-second samples still fails: GPU p95 28.27–28.35 ms versus 12 ms,
+with complete timing coverage and definite submission misses. Preserve that series and keep
+M12/8 unaccepted. Advance planned M12/10 typography, whose destination-appropriate text path
+changes this calibration workload; return immediately afterward to M12/8 on the qualified
+implementation. This is an ordering change, not evidence that text alone caused the failure.
+All original budgets, other sustained cohorts and all-gates prerequisites remain required.
+Do not repeat unchanged probes or infer a pass from delivered quality/resource behavior.
+
 1. **Recorded glitches, flashes, panel reloads and Media Preview resizing.** Owners: Golden
    docking/Inspector/host/native-preview lifetime and MapGyver panel adapters. Reproduce the
    three supplied interactions on a recorded current build before choosing a fix. Cover Matrix

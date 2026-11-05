@@ -1,0 +1,109 @@
+{
+	"date": "2026-11-06",
+	"gate": "M12/8",
+	"result": "Intel 4K Smooth sustained costs fail the original GPU and cadence budgets; gate remains unaccepted",
+	"product_commit": "9a0cf15aeae1a93d006522b4fa3cae67d5cd4a50",
+	"executable_sha256": "d1e01980b00d7e12be4d0994e1661ee0455f74c707f08591137e8cbb4fe7a1f8",
+	"native_process_id": 11008,
+	"native_exit_code": 0,
+	"scope": {
+		"adapter": "Intel(R) Graphics / dxgi:00000000:00015b69",
+		"extent": "3840x2160",
+		"mode": "Smooth2x",
+		"scene": "Existing official calibration plus Solid Color, two Surfaces, one SDK output; no source worker",
+		"warmup_seconds": 30,
+		"sample_seconds": [120, 120, 120],
+		"sustained_series": true,
+		"limits": "Screen-only renderer-context elapsed costs and API submission cadence; not Q01/Q02, physical delivery, scanout or complete production qualification"
+	},
+	"original_budgets": {
+		"gpu_p95_ms": 12,
+		"gpu_p99_ms": 16.667,
+		"cpu_submission_p95_ms": 4,
+		"cpu_submission_p99_ms": 8,
+		"missed_deadline_fraction": 0.001,
+		"allocation_ceiling_bytes": 1073741824,
+		"retirement_ms": 2000
+	},
+	"samples": [
+		{
+			"frames": 4445,
+			"gpu_median_ms": 27.372916666666665,
+			"gpu_p95_ms": 28.27015625,
+			"gpu_p99_ms": 28.977239583333333,
+			"gpu_max_ms": 30.77515625,
+			"cpu_wall_p95_ms": 0.4685,
+			"cpu_wall_p99_ms": 0.5404,
+			"definite_misses": 2756,
+			"deadline_slots": 7200
+		},
+		{
+			"frames": 4438,
+			"gpu_median_ms": 27.430625,
+			"gpu_p95_ms": 28.331458333333334,
+			"gpu_p99_ms": 28.968697916666667,
+			"gpu_max_ms": 30.669010416666666,
+			"cpu_wall_p95_ms": 0.4654,
+			"cpu_wall_p99_ms": 0.533,
+			"definite_misses": 2762,
+			"deadline_slots": 7200
+		},
+		{
+			"frames": 4438,
+			"gpu_median_ms": 27.41229166666667,
+			"gpu_p95_ms": 28.345416666666665,
+			"gpu_p99_ms": 28.992291666666667,
+			"gpu_max_ms": 31.503385416666667,
+			"cpu_wall_p95_ms": 0.4679,
+			"cpu_wall_p99_ms": 0.5387,
+			"definite_misses": 2761,
+			"deadline_slots": 7200
+		}
+	],
+	"coverage": {
+		"sample_frames": 13321,
+		"complete_cpu_gpu_coverage": true,
+		"complete_stage_partitions": true,
+		"complete_schedule_coverage": true,
+		"missing_thread_accounting": 0,
+		"diagnostic_rows": 66707,
+		"queued_or_dropped_rows": 0,
+		"clock_failures": 0
+	},
+	"resources": {
+		"observations": 390,
+		"peak_reserved_bytes": 366018704,
+		"peak_in_flight": 2,
+		"peak_retiring_generations": 0,
+		"retirement_ms": 36.07,
+		"created_textures": 6,
+		"released_textures": 6,
+		"final_live_textures": 0,
+		"final_owned_texel_bytes": 0,
+		"final_outputs": [],
+		"driver_physical_bytes": null
+	},
+	"provenance": {
+		"execution_input_hashes_equal": 404,
+		"executable_unchanged": true,
+		"paired_read_only_inventory_equal": [
+			"operating_system",
+			"cpu",
+			"memory",
+			"power",
+			"video_controllers",
+			"monitors",
+			"webview2",
+			"native_hardware",
+			"toolchain"
+		],
+		"qpc_observations_bracket_all_phases": true,
+		"limitation": "Paired inventory equality does not establish full production linker/overlay provenance"
+	},
+	"artifacts": "mapgyver-m12-screen-sustained-2026-11-06/intel-4k-smooth.zip",
+	"archive_sha256": "acb42dd64aa65152c00d99fc43b289ec54d0a408128c50a1d7abfb8cf54ba29f",
+	"raw_sha256": "88d16ab8b536c87111ea3189e08e5bbb453c8b0b18a10457bb870b36509884a8",
+	"interpretation": "All samples fail GPU and definite submission cadence limits. CPU upper-bound percentiles, resource admission and retirement pass within this scope. Same-clock render partitions dominate, but do not distinguish active execution from scheduling/waits or prove text alone is the cause",
+	"next": "Deliver planned M12/10 destination-appropriate calibration typography, which changes this scene's text path. Return immediately afterward to M12/8 on that qualified implementation, retaining this failed series, all original budgets and every other required sustained cohort. No further unchanged-case probe or lower acceptance gate",
+	"progress": "65/78 gates (83%), M12 8/11 (73%); no gate accepted in this batch"
+}
