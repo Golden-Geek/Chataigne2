@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-05",
+  "gate": "M12/1",
+  "acceptance": "Partial product fix verified; complete gate remains Active",
+  "delivered": "Matrix Cell preview overlay no longer contributes to the scroll extent it measures. Fractional dock widths settle instead of repeatedly invalidating all native previews in their shared session.",
+  "ownership": {
+    "app": "Matrix VirtualGrid clipped viewport container and sibling absolute CellPreviews overlay",
+    "golden": "Existing native layout/retirement/session contracts unchanged",
+    "document": "No authored settings, protocol, persistence or backend semantics changed"
+  },
+  "cause_evidence": {
+    "baseline": "At fixed Matrix panel widths 701.4 and 746.2 CSS pixels, native Cell viewport dimensions repeatedly alternate by 4–5 pixels without input. Installed flags stay false and retirement masks remain. This occurs with retained DOM identities, rather than a panel remount.",
+    "correction": "Remove the sticky measured-height/negative-margin overlay from the scrolling grid's normal flow. Keep the scroll grid and absolute overlay as siblings inside one clipped container; retain the same measured tile projections.",
+    "candidate": "At those same fixed panel widths, native Cell viewport dimensions remain respectively 477x579 and 522x579 CSS pixels after settling. No repeated alternation appears in the recorded run.",
+    "limits": "This establishes one reproduced sizing defect and its correction. It does not establish that every reported header, compositor or Inspector glitch has the same cause. Immediate window-only screenshots can show older WebView pixels with newer native pixels; they are not a physical-frame oracle."
+  },
+  "baseline": {
+    "binary": "target/debug/MapGyver-codex-m05-arrows-final.exe",
+    "sha256": "f25b4ae22021b5d60ad15a146a6ed600d595a7c9899c928eef694a5820314476",
+    "pid": 27252,
+    "hwnd": 7604384,
+    "trace_samples": 3664,
+    "trusted_event_entries": 22,
+    "removed_observed_dom_nodes": 0,
+    "samples_with_missing_observed_nodes": 0,
+    "trace_overflow": false,
+    "both_installed_samples": 3053,
+    "both_unconfirmed_samples": 611,
+    "samples_with_retirement_masks": 611,
+    "physical_frames": 635,
+    "capture_elapsed_seconds": 63.265,
+    "capture_bounds": [352, 352, 1870, 1362],
+    "client_origin": [361, 353],
+    "retained_first_frame": "assets/mapgyver-m12-panel-layout-2026-11-05/before.png",
+    "first_frame_sha256": "26c84a132c4b5f98c4053ae6ae5fd34f28cefd52b4bbdb4978777d5801887552",
+    "local_trace": "target/m121-bounded-2026-11-05/observations.json",
+    "trace_sha256": "5849e537f0e165efb422281f8b1f9103c55989360aad37bc9616b9555988da9c",
+    "local_movie": "target/m121-bounded-2026-11-05/native-frames.mkv",
+    "movie_sha256": "3740ba76e3217950f93706ee31d8c0944d1f253db695655a0358f334edb184c2"
+  },
+  "candidate": {
+    "binary": "target/debug/MapGyver.exe",
+    "sha256": "b1d3b643281ff5c3f22a8cb0ed5656d2b3174d526d87b39aaed546c59d2db2d9",
+    "pid": 10784,
+    "hwnd": 5704714,
+    "trace_samples": 3252,
+    "trusted_event_entries": 22,
+    "removed_observed_dom_nodes": 0,
+    "samples_with_missing_observed_nodes": 0,
+    "trace_overflow": false,
+    "both_installed_samples": 3233,
+    "both_unconfirmed_samples": 19,
+    "samples_with_retirement_masks": 19,
+    "unconfirmed_scope": "Only resize transitions; no repeated fixed-width oscillation",
+    "physical_frames": 542,
+    "capture_elapsed_seconds": 54.598,
+    "capture_bounds": [288, 288, 1806, 1298],
+    "client_origin": [297, 289],
+    "retained_first_frame": "assets/mapgyver-m12-panel-layout-2026-11-05/after.png",
+    "first_frame_sha256": "9af8f4a93cd5d2b986be4d90c624b2247a444844254c1104ae7b2aa1f282ffdb",
+    "local_trace": "target/m121-overlay-fixed-2026-11-05/observations.json",
+    "trace_sha256": "5ee5e6c8e52d0ec68e44726ec1c1768e63562929f3fc70cadb9783067029ed96",
+    "local_movie": "target/m121-overlay-fixed-2026-11-05/native-frames.mkv",
+    "movie_sha256": "e2c6c809d65df50edb68a282380a6edd415783b30c9ca9290de1f300a9758d0e"
+  },
+  "native_scope": {
+    "adapter_reported_by_runtime": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "dpi": 120,
+    "dpr": 1.25,
+    "window_capture_size": [1518, 1010],
+    "scene": "Fresh private project; red SolidColor Reference in Layer 2 / Column 1 of a default 3x3 Matrix; locked Matrix Final Media Preview",
+    "input": "Supported native CUA input: three divider drags, Column 1 double-click rename to Stability cue and Enter, Layer 3 selection, Column 2 launch and populated Column 1 restore",
+    "runtime": "Approximately 59–60 successful API frame calls per second; this is not display FPS",
+    "identities": "Original Matrix panel, locked preview panel and two native-preview DOM elements remained connected. This does not independently trace every native lease identity.",
+    "capture": "Exact owned PID/HWND foreground desktop RGB capture; physical bounds guarded every frame. FFmpeg lossless RGB, movie rate declares 30 FPS but observed capture is approximately 10 FPS. Per-frame wall timestamps are authoritative; playback duration is not wall duration.",
+    "normal_shutdown": "Both wrapper sessions terminated with exit code 0",
+    "input_latency_verified": false,
+    "full_transient_clipping_acceptance": false
+  },
+  "checks": [
+    "npm run check:mapgyver: 0 errors, 0 warnings",
+    "npm run build:mapgyver: terminal PASS",
+    "cargo build --locked -p MapGyver --bin MapGyver: terminal PASS",
+    "node apps/mapgyver/tests/headless/media.mjs --matrix-viewport-ui --matrix-grid-ui --matrix-drag-ui with rebuilt binary: terminal PASS; fractional idle geometry, 64x64 bounded scrolling, offscreen Inspector/history, structural edits, inline rename, Layer/Group/Column drags and cancellation",
+    "node apps/mapgyver/tests/headless/media.mjs --preview-continuity-ui with rebuilt binary: terminal PASS; eight views, actual transport reconnect, layout reload, closure and New/Load lock recovery in browser; native acceptance separate",
+    "Prettier on touched Svelte/JavaScript, node --check and Python py_compile: PASS",
+    "cargo fmt --all and cargo fmt --manifest-path crates/golden_core/Cargo.toml --all: PASS",
+    "No Rust runtime code changed; unchanged prior strict Rust and behavioral evidence retained"
+  ],
+  "fixture_limits": [
+    "Initial preparation timed out on a 5-second installed wait; no failure cause inferred from that timeout.",
+    "First interactive preparation timed out and lost its DOM trace; its movie ended before resize. It is excluded from the before/after counts above.",
+    "The retained fixture now saves observations in finally and arms physical capture with a separate capture-go marker.",
+    "Two existing Matrix fixtures incorrectly searched for toolbar Add actions inside the grid. Their selectors now target the owning Matrix panel; original action assertions remain. Initial candidate suite failed at that stale selector, then all three flows passed after correction.",
+    "The browser fractional-size test also passes against the old binary; it checks general layout stability, not the native-only failure by itself. Native before/after traces establish the reproduced difference.",
+    "Full trace/movie artifacts stay local under target; two original physical PNGs and this compact receipt are retained in Git."
+  ],
+  "preserved_user_inputs_sha256": {
+    "packages/golden-ui/style/colors.css": "334db7d0f617fda4fe05e0c1df37b2ef592616a2faac24c9d95cc3306d4173e3",
+    "packages/golden-ui/style/golden-core.css": "ec64141b0dd71ea0b24b6935bff3bc2af5d50bd3893b7352cb296ebf074b892f",
+    "apps/mapgyver/Cargo.toml": "3a4672f23e988bcea4efe3328ad15f287e891517a1215f34b2ab70dda2afaa65"
+  },
+  "remaining": [
+    "M12/1 remains the sole Active gate: inspect/close transient compositor clipping and reported header shifts separately from the corrected sustained sizing oscillation.",
+    "Complete native Inspector edits/draft and scroll retention, independent output continuity, close/reopen, reconnect and New/Load real-input frame sequences on both GPUs.",
+    "Retain original M05 physical/latency, M03 performance/memory and M08 retirement requirements. No gate or budget is revised by this fix."
+  ]
+}

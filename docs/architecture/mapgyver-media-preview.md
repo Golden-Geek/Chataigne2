@@ -33,6 +33,12 @@ The shared `NativePreview` retires registration when explicitly hidden or outsid
 and re-registers on return. Its existing retirement covers remain alive until the host confirms
 the replacement frame. Closing one panel does not own or stop another consumer's source lease.
 
+Matrix Cell previews use one measured overlay beside the scrolling grid, inside a shared
+clipped viewport container. The overlay does not participate in the grid's scroll extent.
+Its tile positions project the measured scroll offset; it must not feed those measurements
+back into normal-flow sizing. Otherwise fractional dock bounds can alternate scrollbar
+presence and keep unrelated previews in the shared native session awaiting installation.
+
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
 

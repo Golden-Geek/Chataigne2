@@ -58,7 +58,11 @@ export async function verifyMatrixDragUi({ base, edit }) {
 		const column = (id) => grid.locator(`[data-matrix-drop="Column"][data-column-id="${id}"]`);
 		async function drag(source, target, position, predicate) {
 			await wait(
-				() => grid.getByRole('button', { name: 'Add layer', exact: true }).isEnabled(),
+				() =>
+					page
+						.locator('[data-panel-id="matrix"]')
+						.getByRole('button', { name: 'Add layer', exact: true })
+						.isEnabled(),
 				Boolean
 			);
 			const before = await inspect();

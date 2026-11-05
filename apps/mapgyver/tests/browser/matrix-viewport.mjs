@@ -12,10 +12,8 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		label: 'Viewport Matrix'
 	});
 	const matrix = (operation) => edit({ kind: 'Matrix', media: reference.media, edit: operation });
-	await matrix({ kind: 'AddLayers', parent: null, count: 61 });
-	await matrix({ kind: 'AddColumns', count: 61 });
 	const inspect = async () => (await matrix({ kind: 'Inspect' })).snapshot;
-	const initial = await inspect();
+	let initial;
 	const browser = nativePage ? null : await chromium.launch({ headless: true });
 	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1100 } }));
 	page.setDefaultTimeout(7000);
@@ -46,6 +44,30 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		const tab = page.getByRole('tab').filter({ hasText: /^Matrix(?::|$)/ });
 		await tab.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+		// Fractional dock bounds used to let the measured sticky overlay change its own
+		// scrollbar extent, repeatedly invalidating every native view in the session.
+		for (const width of [701.4, 746.2, 446.2]) {
+			const sizes = await grid.evaluate(async (element, width) => {
+				const original = element.style.cssText;
+				element.style.width = `${width}px`;
+				element.style.height = '635.2px';
+				element.style.flex = 'none';
+				const sizes = [];
+				try {
+					for (let frame = 0; frame < 90; frame++) {
+						await new Promise(requestAnimationFrame);
+						if (frame >= 30) sizes.push([element.clientWidth, element.clientHeight]);
+					}
+				} finally {
+					element.style.cssText = original;
+				}
+				return sizes;
+			}, width);
+			assert.equal(new Set(sizes.map(JSON.stringify)).size, 1, 'idle Matrix scroll bounds settle');
+		}
+		await matrix({ kind: 'AddLayers', parent: null, count: 61 });
+		await matrix({ kind: 'AddColumns', count: 61 });
+		initial = await inspect();
 		await grid.getByTitle('Select Layer 1', { exact: true }).click();
 		await grid.getByTitle('Select Column 1', { exact: true }).click();
 		await parameter('Override transition').locator('input[type=checkbox]').check();

@@ -110,7 +110,10 @@ export async function verifyMatrixGridUi({ base, edit }) {
 		await wait(inspect, (state) => state.items.length === 4);
 		await undo();
 		await wait(inspect, (state) => state.items.length === 3);
-		await grid.getByRole('button', { name: 'Add group', exact: true }).click();
+		await page
+			.locator('[data-panel-id="matrix"]')
+			.getByRole('button', { name: 'Add group', exact: true })
+			.click();
 		const grouped = await wait(inspect, (state) =>
 			state.items.some((row) => row.id.kind === 'Group')
 		);

@@ -18,8 +18,7 @@
 	data-matrix-preview-source-count={groups.length}
 	aria-hidden="true"
 	style:width={`${metrics.width}px`}
-	style:height={`${metrics.height}px`}
-	style:margin-bottom={`-${metrics.height}px`}>
+	style:height={`${metrics.height}px`}>
 	<div class="data-area" style:inset={`${gridSize.header}rem 0 0 ${gridSize.label}rem`}>
 		<div class="source-group">
 			<NativePreview
@@ -35,7 +34,8 @@
 
 <style>
 	.cell-previews {
-		position: sticky;
+		/* The measured overlay must not contribute to the scroll extent it measures. */
+		position: absolute;
 		top: 0;
 		left: 0;
 		pointer-events: none;

@@ -248,204 +248,208 @@
 <div class="matrix-viewport-shell">
 	<CanvasToolbar frame={frameSelection} {home} {canFrame} actions={matrixActions} />
 
-	<div
-		class="viewport"
-		data-local-context-menu
-		bind:this={element}
-		onscroll={measure}
-		onkeydown={navigate}
-		oncontextmenu={context}
-		ondragover={(event) => {
-			const target = dropAt(event);
-			clearDropHint();
-			if (!target) return;
-			event.preventDefault();
-			event.stopPropagation();
-			if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-			highlighted = target.element;
-			highlighted.setAttribute('data-matrix-drop-position', target.position);
-		}}
-		ondragleave={(event) => {
-			if (!(event.relatedTarget instanceof Node) || !element?.contains(event.relatedTarget))
-				clearDropHint();
-		}}
-		ondrop={(event) => {
-			const target = dropAt(event);
-			endDrag();
-			if (!target) return;
-			event.preventDefault();
-			event.stopPropagation();
-			void edit(target.edit);
-		}}
-		role="grid"
-		aria-label="Scrollable Matrix grid"
-		aria-rowcount={snapshot.row_total + 1}
-		aria-colcount={snapshot.column_total + 1}
-		tabindex="0"
-		style:--row={`${gridSize.row}rem`}
-		style:--column={`${gridSize.column}rem`}
-		style:--header={`${gridSize.header}rem`}
-		style:--preview-label-height={`${gridSize.previewLabel}rem`}
-		style:--label={`${gridSize.label}rem`}>
-		<CellPreviews {snapshot} {metrics} />
+	<div class="viewport-container">
 		<div
-			class="canvas"
-			style:height={`${projection.canvasHeight}rem`}
-			style:width={`${projection.canvasWidth}rem`}>
+			class="viewport"
+			data-local-context-menu
+			bind:this={element}
+			onscroll={measure}
+			onkeydown={navigate}
+			oncontextmenu={context}
+			ondragover={(event) => {
+				const target = dropAt(event);
+				clearDropHint();
+				if (!target) return;
+				event.preventDefault();
+				event.stopPropagation();
+				if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+				highlighted = target.element;
+				highlighted.setAttribute('data-matrix-drop-position', target.position);
+			}}
+			ondragleave={(event) => {
+				if (!(event.relatedTarget instanceof Node) || !element?.contains(event.relatedTarget))
+					clearDropHint();
+			}}
+			ondrop={(event) => {
+				const target = dropAt(event);
+				endDrag();
+				if (!target) return;
+				event.preventDefault();
+				event.stopPropagation();
+				void edit(target.edit);
+			}}
+			role="grid"
+			aria-label="Scrollable Matrix grid"
+			aria-rowcount={snapshot.row_total + 1}
+			aria-colcount={snapshot.column_total + 1}
+			tabindex="0"
+			style:--row={`${gridSize.row}rem`}
+			style:--column={`${gridSize.column}rem`}
+			style:--header={`${gridSize.header}rem`}
+			style:--preview-label-height={`${gridSize.previewLabel}rem`}
+			style:--label={`${gridSize.label}rem`}>
 			<div
-				class="corner"
-				data-matrix-drop="Root"
-				title="Drop a row here to move it to Matrix root"
-				role="toolbar"
-				aria-label="Matrix actions"
-				style:top={`${projection.top}rem`}
-				style:left={`${projection.left}rem`}>
-			</div>
-			<div role="row" aria-rowindex="1">
-				{#each snapshot.columns as column, index (column.id)}
-					<div
-						class="heading"
-						data-matrix-drop="Column"
-						draggable={!disabled}
-						ondragstart={(event) => startDrag(event, { kind: 'Column', column: column.id })}
-						role="columnheader"
-						tabindex="0"
-						data-column-id={column.id}
-						aria-colindex={snapshot.column_start + index + 2}
-						class:requested={snapshot.playback.desired_column === column.id}
-						class:installed={observation?.installed?.columns.includes(column.id) === true}
-						class:submitted={observation?.submitted?.columns.includes(column.id) === true}
-						style:top={`${projection.top}rem`}
-						style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
-						<GridLabel
-							label={column.label}
-							selected={selected?.column === column.id}
-							{disabled}
-							select={() => selectColumn(column)}
-							rename={async (label) =>
-								Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
-						<div class="column-state">
-							<IconButton
+				class="canvas"
+				style:height={`${projection.canvasHeight}rem`}
+				style:width={`${projection.canvasWidth}rem`}>
+				<div
+					class="corner"
+					data-matrix-drop="Root"
+					title="Drop a row here to move it to Matrix root"
+					role="toolbar"
+					aria-label="Matrix actions"
+					style:top={`${projection.top}rem`}
+					style:left={`${projection.left}rem`}>
+				</div>
+				<div role="row" aria-rowindex="1">
+					{#each snapshot.columns as column, index (column.id)}
+						<div
+							class="heading"
+							data-matrix-drop="Column"
+							draggable={!disabled}
+							ondragstart={(event) => startDrag(event, { kind: 'Column', column: column.id })}
+							role="columnheader"
+							tabindex="0"
+							data-column-id={column.id}
+							aria-colindex={snapshot.column_start + index + 2}
+							class:requested={snapshot.playback.desired_column === column.id}
+							class:installed={observation?.installed?.columns.includes(column.id) === true}
+							class:submitted={observation?.submitted?.columns.includes(column.id) === true}
+							style:top={`${projection.top}rem`}
+							style:left={`${projection.columnOrigin + (snapshot.column_start + index) * gridSize.column}rem`}>
+							<GridLabel
+								label={column.label}
+								selected={selected?.column === column.id}
 								{disabled}
-								icon={playIcon}
-								label={`Launch ${column.label}`}
-								onclick={() => launch(column.id)} />
-							{#if snapshot.playback.desired_column === column.id}
-								<span
-									class="request-marker"
-									role="img"
-									aria-label="Requested column"
-									title="Requested column"></span>
-							{/if}
-							{#if observation?.submitted?.columns.includes(column.id)}
-								<span
-									class="submit-marker"
-									role="img"
-									aria-label="Renderer submitted this mix"
-									title="Renderer submitted this mix"></span>
-							{/if}
+								select={() => selectColumn(column)}
+								rename={async (label) =>
+									Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
+							<div class="column-state">
+								<IconButton
+									{disabled}
+									icon={playIcon}
+									label={`Launch ${column.label}`}
+									onclick={() => launch(column.id)} />
+								{#if snapshot.playback.desired_column === column.id}
+									<span
+										class="request-marker"
+										role="img"
+										aria-label="Requested column"
+										title="Requested column"></span>
+								{/if}
+								{#if observation?.submitted?.columns.includes(column.id)}
+									<span
+										class="submit-marker"
+										role="img"
+										aria-label="Renderer submitted this mix"
+										title="Renderer submitted this mix"></span>
+								{/if}
+							</div>
 						</div>
+					{/each}
+				</div>
+				{#each snapshot.rows as row, index (row.item.id.id)}
+					<div
+						class="row"
+						class:group={row.item.id.kind === 'Group'}
+						role="row"
+						data-row-id={row.item.id.id}
+						aria-rowindex={snapshot.row_start + index + 2}
+						style:top={`${projection.rowOrigin + (snapshot.row_start + index) * gridSize.row}rem`}>
+						<div
+							class="row-label"
+							data-matrix-drop="Item"
+							data-row-id={row.item.id.id}
+							draggable={!disabled}
+							ondragstart={(event) => startDrag(event, { kind: 'Item', item: row.item.id })}
+							role="rowheader"
+							tabindex="0"
+							style:left={`${projection.left}rem`}
+							style:padding-left={`${0.5 + row.depth * 0.8}rem`}
+							title={row.item.label}>
+							{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" /><small>Group</small
+								>{/if}
+							<GridLabel
+								label={row.item.label}
+								selected={selected?.item?.id === row.item.id.id}
+								{disabled}
+								select={() => selectRow(row)}
+								rename={async (label) =>
+									Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
+						</div>
+						{#each snapshot.columns as column, columnIndex (column.id)}
+							{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
+							<SourceDropZone
+								disabled={disabled || row.item.id.kind !== 'Layer'}
+								addLabel="Set media"
+								replaceOnly={cell?.cell.media ? column.id : null}
+								data-column-id={column.id}
+								style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
+								onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
+								<button
+									class="cell"
+									class:has-preview={cell?.source_preview != null && !cell?.source_missing}
+									class:group-cell={row.item.id.kind === 'Group'}
+									role="gridcell"
+									{disabled}
+									aria-selected={selected?.item?.id === row.item.id.id &&
+										selected?.column === column.id}
+									aria-colindex={snapshot.column_start + columnIndex + 2}
+									class:selected={selected?.item?.id === row.item.id.id &&
+										selected?.column === column.id}
+									onclick={() => select(row, column)}
+									ondblclick={() => {
+										if (row.item.id.kind === 'Layer') trigger(row, column);
+									}}
+									data-requested={(layerRequests.has(row.item.id.id)
+										? layerRequests.get(row.item.id.id)?.column
+										: snapshot.playback.desired_column) === column.id}
+									data-submitted={(
+										submittedLayers.get(row.item.id.id)?.columns ??
+										observation?.submitted?.columns ??
+										[]
+									).includes(column.id)}
+									title={`${row.item.label} / ${column.label}`}>
+									<span class="source-label" title={cell?.source_label ?? undefined}
+										>{row.item.id.kind === 'Group'
+											? ''
+											: cell?.source_missing
+												? 'Missing source'
+												: (cell?.source_label ?? '')}</span>
+								</button>
+								{#if row.item.id.kind === 'Layer'}
+									{#if cell?.cell.media}
+										<span class="remove"
+											><IconButton
+												icon={deleteIcon}
+												label={`Remove media from ${row.item.label} / ${column.label}`}
+												{disabled}
+												onclick={() =>
+													edit({
+														kind: 'SetCells',
+														assignments: [
+															{ layer: row.item.id.id, column: column.id, source: null }
+														]
+													})} /></span>
+									{:else}
+										<span class="add"
+											><IconButton
+												icon={addIcon}
+												label={`Add Media to ${row.item.label} / ${column.label}`}
+												{disabled}
+												onclick={(event) => {
+													select(row, column);
+													menu(event, row, column, true);
+												}} /></span>
+									{/if}
+								{/if}
+							</SourceDropZone>
+						{/each}
 					</div>
 				{/each}
 			</div>
-			{#each snapshot.rows as row, index (row.item.id.id)}
-				<div
-					class="row"
-					class:group={row.item.id.kind === 'Group'}
-					role="row"
-					data-row-id={row.item.id.id}
-					aria-rowindex={snapshot.row_start + index + 2}
-					style:top={`${projection.rowOrigin + (snapshot.row_start + index) * gridSize.row}rem`}>
-					<div
-						class="row-label"
-						data-matrix-drop="Item"
-						data-row-id={row.item.id.id}
-						draggable={!disabled}
-						ondragstart={(event) => startDrag(event, { kind: 'Item', item: row.item.id })}
-						role="rowheader"
-						tabindex="0"
-						style:left={`${projection.left}rem`}
-						style:padding-left={`${0.5 + row.depth * 0.8}rem`}
-						title={row.item.label}>
-						{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" /><small>Group</small
-							>{/if}
-						<GridLabel
-							label={row.item.label}
-							selected={selected?.item?.id === row.item.id.id}
-							{disabled}
-							select={() => selectRow(row)}
-							rename={async (label) =>
-								Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
-					</div>
-					{#each snapshot.columns as column, columnIndex (column.id)}
-						{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
-						<SourceDropZone
-							disabled={disabled || row.item.id.kind !== 'Layer'}
-							addLabel="Set media"
-							replaceOnly={cell?.cell.media ? column.id : null}
-							data-column-id={column.id}
-							style={`position:absolute;top:0;left:${projection.columnOrigin + (snapshot.column_start + columnIndex) * gridSize.column}rem;width:var(--column);height:var(--row)`}
-							onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
-							<button
-								class="cell"
-								class:has-preview={cell?.source_preview != null && !cell?.source_missing}
-								class:group-cell={row.item.id.kind === 'Group'}
-								role="gridcell"
-								{disabled}
-								aria-selected={selected?.item?.id === row.item.id.id &&
-									selected?.column === column.id}
-								aria-colindex={snapshot.column_start + columnIndex + 2}
-								class:selected={selected?.item?.id === row.item.id.id &&
-									selected?.column === column.id}
-								onclick={() => select(row, column)}
-								ondblclick={() => {
-									if (row.item.id.kind === 'Layer') trigger(row, column);
-								}}
-								data-requested={(layerRequests.has(row.item.id.id)
-									? layerRequests.get(row.item.id.id)?.column
-									: snapshot.playback.desired_column) === column.id}
-								data-submitted={(
-									submittedLayers.get(row.item.id.id)?.columns ??
-									observation?.submitted?.columns ??
-									[]
-								).includes(column.id)}
-								title={`${row.item.label} / ${column.label}`}>
-								<span class="source-label" title={cell?.source_label ?? undefined}
-									>{row.item.id.kind === 'Group'
-										? ''
-										: cell?.source_missing
-											? 'Missing source'
-											: (cell?.source_label ?? '')}</span>
-							</button>
-							{#if row.item.id.kind === 'Layer'}
-								{#if cell?.cell.media}
-									<span class="remove"
-										><IconButton
-											icon={deleteIcon}
-											label={`Remove media from ${row.item.label} / ${column.label}`}
-											{disabled}
-											onclick={() =>
-												edit({
-													kind: 'SetCells',
-													assignments: [{ layer: row.item.id.id, column: column.id, source: null }]
-												})} /></span>
-								{:else}
-									<span class="add"
-										><IconButton
-											icon={addIcon}
-											label={`Add Media to ${row.item.label} / ${column.label}`}
-											{disabled}
-											onclick={(event) => {
-												select(row, column);
-												menu(event, row, column, true);
-											}} /></span>
-								{/if}
-							{/if}
-						</SourceDropZone>
-					{/each}
-				</div>
-			{/each}
 		</div>
+		<CellPreviews {snapshot} {metrics} />
 	</div>
 </div>
 
@@ -457,12 +461,16 @@
 		flex: 1;
 		min-height: 0;
 	}
-	.viewport {
+	.viewport-container {
 		flex: 1;
 		margin-block-start: 3rem;
-		height: 100%;
 		min-height: 0;
 		min-width: 0;
+		position: relative;
+		overflow: hidden;
+	}
+	.viewport {
+		height: 100%;
 		overflow: auto;
 		position: relative;
 		background: transparent;
