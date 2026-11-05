@@ -80,6 +80,7 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
                         .iter()
                         .enumerate()
                         .map(|(index, reference)| ResolvedTileGroup {
+                            fit: golden_video::plan::RegionFit::Contain,
                             source: serde_json::to_string(&PreviewSource::Channel { reference: *reference }).unwrap(),
                             capacity: 1,
                             tiles: Arc::from([RegionTile {

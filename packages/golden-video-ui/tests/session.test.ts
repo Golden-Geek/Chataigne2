@@ -225,7 +225,7 @@ describe('window preview session', () => {
 		let tiles = [{ x: 0, y: 0, width: 10, height: 10 }];
 		const view = session.register('shared-channel', () => ({
 			...geometry(),
-			tile_groups: [{ source: 'child-source', tiles, capacity: 4 }]
+			tile_groups: [{ source: 'child-source', tiles, capacity: 4, fit: 'Contain' }]
 		}));
 		await session.connect();
 		await flush();
@@ -242,7 +242,7 @@ describe('window preview session', () => {
 			expect.objectContaining({
 				id: view.id,
 				source: 'shared-channel',
-				tile_groups: [{ source: 'child-source', tiles, capacity: 4 }]
+				tile_groups: [{ source: 'child-source', tiles, capacity: 4, fit: 'Contain' }]
 			})
 		]);
 		view.unregister();

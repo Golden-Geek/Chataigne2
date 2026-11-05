@@ -1,5 +1,5 @@
 //! Checked, fixed-size live blit placement. Geometry changes do not replace GPU resources.
-use super::{MAX_VIEW_OVERLAYS, OverlayPrimitive, UnitRect};
+use super::{MAX_VIEW_OVERLAYS, OverlayPrimitive, RegionFit, UnitRect};
 use crate::runtime::CompletionToken;
 use std::sync::{Arc, Mutex};
 
@@ -43,7 +43,7 @@ struct State {
 
 /// One bounded placement shared by all blits of a view, sampled coherently once per GPU batch.
 #[derive(Clone, Debug)]
-pub struct RegionPlacement(Arc<Mutex<State>>, usize, usize);
+pub struct RegionPlacement(Arc<Mutex<State>>, usize, usize, RegionFit);
 
 impl RegionPlacement {
     /// Reject invalid initial normalized rectangles before publication.
@@ -53,21 +53,27 @@ impl RegionPlacement {
     /// Reserve a fixed bounded decoration capacity before plan admission. Plain image/backing
     /// placements retain zero capacity; later updates cannot silently grow admitted memory.
     pub fn with_overlay_capacity(destination: UnitRect, source_rect: UnitRect, capacity: usize) -> Option<Self> {
-        Self::with_capacities(destination, source_rect, capacity, 0)
+        Self::with_capacities(destination, source_rect, capacity, 0, RegionFit::Stretch)
     }
     /// Reserve repeated-image metadata without increasing source/dependency admission.
     /// A positive capacity selects tiled drawing, including when the current tile set is empty.
-    pub fn with_tile_capacity(destination: UnitRect, source_rect: UnitRect, capacity: usize) -> Option<Self> {
+    pub fn with_tile_capacity(
+        destination: UnitRect,
+        source_rect: UnitRect,
+        capacity: usize,
+        fit: RegionFit,
+    ) -> Option<Self> {
         if capacity == 0 || capacity > MAX_REGION_TILES {
             return None;
         }
-        Self::with_capacities(destination, source_rect, 0, capacity)
+        Self::with_capacities(destination, source_rect, 0, capacity, fit)
     }
     fn with_capacities(
         destination: UnitRect,
         source_rect: UnitRect,
         capacity: usize,
         tile_capacity: usize,
+        fit: RegionFit,
     ) -> Option<Self> {
         (destination.is_valid() && source_rect.is_valid() && capacity <= MAX_VIEW_OVERLAYS).then(|| {
             Self(
@@ -87,6 +93,7 @@ impl RegionPlacement {
                 })),
                 capacity,
                 tile_capacity,
+                fit,
             )
         })
     }
@@ -97,6 +104,10 @@ impl RegionPlacement {
     /// Immutable admitted repetition capacity. Zero retains ordinary single-image drawing.
     pub fn tile_capacity(&self) -> usize {
         self.2
+    }
+    /// Immutable per-tile presentation, resolved against current native texture dimensions.
+    pub fn tile_fit(&self) -> RegionFit {
+        self.3
     }
     /// Atomically publish a bounded repetition set. Failed updates retain the old geometry.
     pub fn update_tiles(&self, tiles: &[RegionTile]) -> bool {

@@ -124,6 +124,7 @@ pub(super) fn resolve(mut view: PreviewView, host: HostViewport) -> Result<Optio
                     source: group.source.into_boxed_str().into_string(),
                     tiles: resolved.into(),
                     capacity: group.capacity as usize,
+                    fit: group.fit,
                 });
             }
             Ok::<Arc<[super::ResolvedTileGroup]>, PreviewRejection>(resolved_groups.into())

@@ -4,7 +4,7 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 /// Current local native-preview negotiation/control schema version.
-pub const PREVIEW_PROTOCOL_VERSION: u32 = 5;
+pub const PREVIEW_PROTOCOL_VERSION: u32 = 6;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Event-driven pointer projection from an output-accepted native frame.
@@ -39,6 +39,8 @@ pub struct PreviewTileGroup {
     pub tiles: Vec<CssRect>,
     /// Fixed admitted repetition capacity for this source binding.
     pub capacity: u32,
+    /// Fit each complete source image before host clipping; does not change source rendering.
+    pub fit: crate::plan::RegionFit,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]

@@ -9,6 +9,7 @@ mod overlay;
 mod pattern;
 mod placement;
 mod region;
+mod region_fit;
 mod weight;
 
 pub use canvas::{
@@ -22,6 +23,7 @@ pub use overlay::{MAX_VIEW_OVERLAYS, OverlayPrimitive, OverlayShape};
 pub use pattern::{GridPattern, LayerSource, Pattern};
 pub use placement::{MAX_REGION_TILES, RegionGeometry, RegionPlacement, RegionTile};
 pub use region::{BlitRegion, UnitRect};
+pub use region_fit::RegionFit;
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
 use serde::{Deserialize, Serialize};

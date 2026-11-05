@@ -65,6 +65,8 @@ pub struct ResolvedTileGroup {
     pub tiles: Arc<[crate::plan::RegionTile]>,
     /// Immutable admitted repetition capacity.
     pub capacity: usize,
+    /// Source-independent image presentation, applied by the native renderer per frame.
+    pub fit: crate::plan::RegionFit,
 }
 
 #[derive(Clone, Debug)]
@@ -319,7 +321,12 @@ impl State {
 fn create_placement(view: &ResolvedView) -> crate::plan::RegionPlacement {
     let placement = if view.tile_groups.is_some() {
         // An empty tiled binding samples parent geometry without painting an opaque aperture.
-        crate::plan::RegionPlacement::with_tile_capacity(view.destination, view.source_rect, 1)
+        crate::plan::RegionPlacement::with_tile_capacity(
+            view.destination,
+            view.source_rect,
+            1,
+            crate::plan::RegionFit::Stretch,
+        )
     } else {
         crate::plan::RegionPlacement::with_overlay_capacity(view.destination, view.source_rect, view.overlay_capacity)
     }

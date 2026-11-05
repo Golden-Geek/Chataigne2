@@ -569,6 +569,13 @@ impl Backend for D3d11Backend {
                                 {
                                     let mut repeated = region.clone();
                                     for tile in placement.sample(token).tiles.iter() {
+                                        let Some(tile) = tile.fitted(
+                                            placement.tile_fit(),
+                                            resources.textures[&region.source].descriptor.extent,
+                                            output.descriptor.extent,
+                                        ) else {
+                                            continue;
+                                        };
                                         repeated.destination = tile.destination;
                                         repeated.source_rect = tile.source_rect;
                                         pipeline.draw_region(

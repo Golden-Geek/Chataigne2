@@ -13,6 +13,7 @@ fn tiled() -> PreviewView {
     definition.clip = definition.rect;
     definition.tile_groups = Some(vec![PreviewTileGroup {
         source: "first-source".into(),
+        fit: crate::plan::RegionFit::Stretch,
         capacity: 2,
         tiles: vec![
             CssRect {
@@ -33,11 +34,41 @@ fn tiled() -> PreviewView {
 }
 
 #[test]
+fn changing_tile_fit_replaces_routing_and_withdraws_old_geometry() {
+    let (control, reader, session) = fixture_with_limit(1);
+    let mut definition = tiled();
+    definition.tile_groups.as_mut().unwrap()[0].fit = crate::plan::RegionFit::Contain;
+    layout(&control, session, 1, vec![definition.clone()]);
+    let first = reader.snapshot();
+    let regions = first.regions(crate::OutputId::new(1).unwrap(), |_| crate::TextureId::new(1));
+    let old = regions[0].placement.as_ref().unwrap();
+    assert_eq!(old.tile_fit(), crate::plan::RegionFit::Contain);
+    definition.tile_groups.as_mut().unwrap()[0].fit = crate::plan::RegionFit::Stretch;
+    layout(&control, session, 2, vec![definition]);
+    let next = reader.snapshot();
+    assert_ne!(next.routing_generation, first.routing_generation);
+    let token = CompletionToken {
+        device: DeviceGeneration::new(Uuid::new_v4(), 1),
+        serial: 1,
+    };
+    assert!(old.sample(token).tiles.is_empty());
+    assert_eq!(
+        next.regions(crate::OutputId::new(1).unwrap(), |_| crate::TextureId::new(1))[0]
+            .placement
+            .as_ref()
+            .unwrap()
+            .tile_fit(),
+        crate::plan::RegionFit::Stretch
+    );
+}
+
+#[test]
 fn groups_share_one_registration_clip_independently_and_sample_all_before_installation() {
     let (control, reader, session) = fixture_with_limit(1);
     let mut definition = tiled();
     definition.tile_groups.as_mut().unwrap().push(PreviewTileGroup {
         source: "second-source".into(),
+        fit: crate::plan::RegionFit::Stretch,
         capacity: 1,
         tiles: vec![CssRect {
             x: 0.,

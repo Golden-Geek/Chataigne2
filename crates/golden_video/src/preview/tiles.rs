@@ -18,7 +18,7 @@ pub(super) fn same_routing(old: &ResolvedView, new: &ResolvedView) -> bool {
                 && old
                     .iter()
                     .zip(new.iter())
-                    .all(|(old, new)| old.source == new.source && old.capacity == new.capacity)
+                    .all(|(old, new)| old.source == new.source && old.capacity == new.capacity && old.fit == new.fit)
         }
         _ => false,
     }
@@ -30,15 +30,14 @@ pub(super) fn update(placements: &mut Placements, views: &[ResolvedView]) {
         for group in view.tile_groups.iter().flat_map(|groups| groups.iter()) {
             let key = (view.id, group.source.clone());
             wanted.insert(key.clone());
-            if placements
-                .get(&key)
-                .is_some_and(|placement| placement.tile_capacity() != group.capacity)
-                && let Some(old) = placements.remove(&key)
+            if placements.get(&key).is_some_and(|placement| {
+                placement.tile_capacity() != group.capacity || placement.tile_fit() != group.fit
+            }) && let Some(old) = placements.remove(&key)
             {
                 assert!(old.update_tiles(&[]));
             }
             let placement = placements.entry(key).or_insert_with(|| {
-                RegionPlacement::with_tile_capacity(view.destination, view.source_rect, group.capacity)
+                RegionPlacement::with_tile_capacity(view.destination, view.source_rect, group.capacity, group.fit)
                     .expect("validated tile group capacity")
             });
             assert!(placement.update_tiles(&group.tiles));

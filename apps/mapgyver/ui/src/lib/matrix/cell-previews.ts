@@ -57,7 +57,7 @@ export function cellPreviewGroups(
 		const source = JSON.stringify({ kind: 'Channel', reference: cell.source_preview });
 		let group = groups.get(source);
 		if (!group) {
-			group = { source, tiles: [], capacity: 1 };
+			group = { source, tiles: [], capacity: 1, fit: 'Contain' };
 			groups.set(source, group);
 		}
 		group.tiles.push(tile);

@@ -1,0 +1,61 @@
+{
+	"date": "2026-11-06",
+	"gate": "M12/9",
+	"decision": "Accepted",
+	"source_base": "fb0fc37d10663c48fe359c3b35ac17999d18984a",
+	"capability": "Matrix thumbnails preserve each current source aspect with centered margins, including live dimensions and partially clipped or reused Cells, without changing authored media Fit, Cell placement or independent outputs",
+	"architecture": "../../architecture/mapgyver-matrix-thumbnails.md",
+	"ownership": "MapGyver requests Contain for visible canonical source groups; generic Golden RegionPlacement/native drawing fits the current texture dimensions before clipping. No UI source-size cache or new decoder/texture producer",
+	"contract": "Rust-owned RegionFit on PreviewTileGroup, generated TypeScript for public preview and qualification consumers, native preview protocol v6. Stretch remains an explicit generic choice; changing fit withdraws old routing",
+	"checks": {
+		"rust": {
+			"mapgyver_passed": 502,
+			"golden_video_passed": 212,
+			"ignored": "3 app / 32 Golden hardware tests"
+		},
+		"strict": "All-target MapGyver/golden_video Clippy with native-qualification, application-process-fixture and qualification features; -D warnings",
+		"ui": "38 Golden Video UI tests, five Matrix preview tests, Svelte check zero errors/warnings, owned fixture syntax and Python compile pass",
+		"generated": "Exact qualification file-set and Rust/TypeScript parity pass; canonical qualification generator owns native fixture constants",
+		"native": {
+			"executable_sha256": "e5dfcdb7a66ebd0b7bcf1c8a70ab8eaa0d4c0900404a79e44f1ea67d5dcf1f4c",
+			"tests_passed": 2,
+			"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+			"complete_images": 56,
+			"texels_checked": 896,
+			"tolerance_bytes": 2,
+			"scope": "Portrait/landscape/square, half-alpha colors and transparent margins, full/partially clipped tiles, 256 shared repetitions, empty/withdrawn geometry, unchanged second output, one image upload and final asset lease release"
+		},
+		"actual_app": {
+			"executable": "target/debug/deps/MapGyver-thumbnail-fit.exe",
+			"sha256": "c47a46c55125aeba140f581f2f836a32f116162c68a3a20f2a9c52ffdbf7c0d1",
+			"build": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-thumbnail-fit",
+			"owned_pids": [17344, 25024],
+			"exact_adapters": ["dxgi:00000000:00015b69", "dxgi:00000000:00016022"],
+			"private_gpu_profiles": true,
+			"phases_per_gpu": 5,
+			"phases": [
+				"portrait-landscape-square",
+				"live-source-dimensions",
+				"partial-scroll",
+				"virtualized-reuse",
+				"resized-viewport"
+			],
+			"desktop_probes": 66,
+			"pixels_per_probe": 9,
+			"tolerance_rgb_bytes": 2,
+			"scope": "Actual composited desktop foreground images, translucent red and black margins, visible Column Group and source labels, three canonical sources on one preview registration, 128 authored Cells across 32 Columns, ten unchanged independent 96x64 SDK images",
+			"input": "Bundled WebView2/public authoring operations; supported Sky selection/activation of each exact returned owned window; read-only desktop pixel helper. No manual activation required",
+			"resize_scope": "Actual DOM viewport width/ResizeObserver response; separate retained M05 window/DPI matrix is unchanged",
+			"page_errors": 0,
+			"owned_exit_codes": [0, 0]
+		},
+		"bounded_scale": "Existing grouping/virtualization is unchanged; software maximum 2,048-tile admission/atomicity and source dependency tests pass, native 256 repetitions share one upload, actual 128 Cells use three sources and one registration. Retain prior M12/5 1000x1000 sparse grid lifetime evidence within unchanged scope"
+	},
+	"evidence": "mapgyver-m12-thumbnail-fit-2026-11-06/native-results.zip",
+	"fixtures": [
+		"../../../apps/mapgyver/tests/browser/native-thumbnail-fit.mjs",
+		"../../../apps/mapgyver/tests/native/thumbnail_fit_pixels.py"
+	],
+	"limits": "No performance, scanout, latency or wider DPI qualification claim. M12/8 costs and all original M03/M05/M08 return gates remain open with unchanged budgets",
+	"progress": "65/78 verified gates = 83%; M12 8/11 = 73%; phases 7/13 unchanged. Denominators unchanged"
+}

@@ -6,6 +6,7 @@ mod envelope;
 mod mapping;
 mod pattern;
 mod placement;
+mod region_fit;
 mod regions;
 mod text;
 mod topology;

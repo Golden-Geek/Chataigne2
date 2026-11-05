@@ -247,7 +247,13 @@ fn hardware_repeated_images_share_one_source_and_clear_retired_tiles_on_each_ada
         eprintln!("repeated-image adapter {:?} {}", adapter.id, adapter.description);
         let image = prepared_image(descriptor(2, 1), &[255, 0, 0, 255, 0, 0, 255, 255]);
         let retirement = image.retirement();
-        let placement = crate::plan::RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, 256).unwrap();
+        let placement = crate::plan::RegionPlacement::with_tile_capacity(
+            UnitRect::FULL,
+            UnitRect::FULL,
+            256,
+            crate::plan::RegionFit::Stretch,
+        )
+        .unwrap();
         let visibility = golden_io::RevisionSource::default();
         let plan = scene_with_placement(
             &image,
@@ -303,6 +309,96 @@ fn hardware_repeated_images_share_one_source_and_clear_retired_tiles_on_each_ada
         drop(plan);
         drop(image);
         assert!(retirement.wait(WAIT));
+    }
+    done.send(()).unwrap();
+}
+
+#[test]
+#[ignore = "explicit both-GPU contained tile aspect, clipping, alpha and independent output pixels"]
+fn hardware_contained_tiles_fit_current_source_dimensions_before_clipping_on_each_adapter() {
+    let (done, finished) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if finished.recv_timeout(Duration::from_secs(60)).is_err() {
+            eprintln!("contained tiles watchdog expired");
+            std::process::exit(1);
+        }
+    });
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        for (width, height, color, box_pixels) in [
+            (2, 1, [128, 0, 0, 128], [0, 1, 4, 3]),
+            (1, 2, [0, 128, 0, 128], [1, 0, 3, 4]),
+            (2, 2, [0, 0, 128, 128], [0, 0, 4, 4]),
+        ] {
+            let pixels = (0..width * height).flat_map(|_| color).collect::<Vec<_>>();
+            let image = prepared_image(descriptor(width, height), &pixels);
+            let retirement = image.retirement();
+            let placement = crate::plan::RegionPlacement::with_tile_capacity(
+                UnitRect::FULL,
+                UnitRect::FULL,
+                256,
+                crate::plan::RegionFit::Contain,
+            )
+            .unwrap();
+            let plan = scene_with_placement(&image, 0, None, None, Some(placement.clone()));
+            let mut renderer = Renderer::new(adapter.id, &plan);
+            for clipped in [false, true] {
+                let tile = crate::plan::RegionTile {
+                    destination: UnitRect {
+                        width: if clipped { 0.5 } else { 1. },
+                        ..UnitRect::FULL
+                    },
+                    source_rect: UnitRect {
+                        x: if clipped { 0.5 } else { 0. },
+                        width: if clipped { 0.5 } else { 1. },
+                        ..UnitRect::FULL
+                    },
+                };
+                assert!(placement.update_tiles(&vec![tile; 256]));
+                let actual = renderer.frame(&plan);
+                let mut expected = [TRANSPARENT; 16];
+                let shift = if clipped { 2 } else { 0 };
+                for y in 0..4 {
+                    for x in 0..4 {
+                        if x + shift >= box_pixels[0]
+                            && x + shift < box_pixels[2]
+                            && y >= box_pixels[1]
+                            && y < box_pixels[3]
+                            && (!clipped || x < 2)
+                        {
+                            expected[y * 4 + x] = color;
+                        }
+                    }
+                }
+                for index in [10, 11, 14, 15] {
+                    expected[index] = GREEN;
+                }
+                expect(&actual[0], &expected);
+                expect(&actual[1], &[GREEN; 16]);
+            }
+            assert!(placement.update_tiles(&[]));
+            let actual = renderer.frame(&plan);
+            let mut expected = [TRANSPARENT; 16];
+            for index in [10, 11, 14, 15] {
+                expected[index] = GREEN;
+            }
+            expect(&actual[0], &expected);
+            expect(&actual[1], &[GREEN; 16]);
+            assert_eq!(renderer.backend.control.snapshot().uploaded_images, 1);
+            eprintln!(
+                "contained tiles adapter {:?} {} source {width}x{height}: alpha, 256 shared tiles, clipping, withdrawal and independent output pass",
+                adapter.id, adapter.description
+            );
+            drop(renderer);
+            drop(plan);
+            drop(image);
+            assert!(retirement.wait(WAIT));
+        }
     }
     done.send(()).unwrap();
 }

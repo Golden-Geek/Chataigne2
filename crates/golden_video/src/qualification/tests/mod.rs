@@ -35,6 +35,7 @@ fn committed_qualification_contracts_match_rust_including_the_exact_file_set() {
         "OverlayShape.ts",
         "PreviewView.ts",
         "PreviewTileGroup.ts",
+        "RegionFit.ts",
         "QualificationAction.ts",
         "QualificationCommand.ts",
         "QualificationLayout.ts",
@@ -49,7 +50,11 @@ fn committed_qualification_contracts_match_rust_including_the_exact_file_set() {
     .collect::<BTreeSet<_>>();
     assert_eq!(generated.keys().cloned().collect::<BTreeSet<_>>(), expected);
     let committed = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/golden-video-ui/tests/native/generated");
-    assert_eq!(generated, files(&committed));
+    let committed = files(&committed);
+    assert_eq!(committed.keys().cloned().collect::<BTreeSet<_>>(), expected);
+    for (name, text) in generated {
+        assert_eq!(Some(&text), committed.get(&name), "generated contract {name}");
+    }
 }
 
 fn layout() -> QualificationLayout {

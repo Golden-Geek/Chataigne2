@@ -7,9 +7,14 @@ fn repeated_images_are_bounded_atomic_and_sampled_once_per_completion() {
         destination: UnitRect::FULL,
         source_rect: UnitRect::FULL,
     };
-    assert!(RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, 0).is_none());
-    assert!(RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES + 1).is_none());
-    let placement = RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES).unwrap();
+    assert!(RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, 0, RegionFit::Stretch).is_none());
+    assert!(
+        RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES + 1, RegionFit::Stretch)
+            .is_none()
+    );
+    let placement =
+        RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES, RegionFit::Stretch)
+            .unwrap();
     assert!(placement.update_tiles(&vec![full; MAX_REGION_TILES]));
     let device = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);
     let first = CompletionToken { device, serial: 1 };
@@ -46,7 +51,9 @@ fn repeated_images_are_bounded_atomic_and_sampled_once_per_completion() {
 
 #[test]
 fn repeated_images_retain_one_source_dependency_and_charge_reserved_metadata() {
-    let placement = RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES).unwrap();
+    let placement =
+        RegionPlacement::with_tile_capacity(UnitRect::FULL, UnitRect::FULL, MAX_REGION_TILES, RegionFit::Stretch)
+            .unwrap();
     let tiles = vec![
         RegionTile {
             destination: UnitRect::FULL,
