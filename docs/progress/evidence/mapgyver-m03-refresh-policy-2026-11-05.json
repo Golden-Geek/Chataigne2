@@ -1,0 +1,456 @@
+{
+	"owner_gate": "M03/9",
+	"date": "2026-11-05",
+	"status": "FAILED_NATIVE",
+	"accepted": false,
+	"decision": "Reject refresh-synchronized presentation for production after original Q01 failure. Runtime files restored exactly to HEAD; retain the native capacity-verifier correction and immutable evidence.",
+	"source_base": "7135d0830af47f09753682ef3621f4eb2f8e1d07",
+	"candidate_stash": "99fbc78cbc5abfdf35ea0db1f07026d209edc8f3",
+	"candidate_equivalence": "The deliberately restored runtime differs from the named candidate only in comments; it was not restored automatically. Q02 was reassessed before this new Q01 verification.",
+	"build_record": "target/m039-refresh-policy-release-2026-11-05/build.json",
+	"build_record_sha256": "e998b1e59bb0d6844ce81064bfaade38d9e7999763c4b67b57df4d01f984d680",
+	"binary_sha256": "ce4fa37ef7d4113c9b8abe301bed169284985d73152867eacfb8ca447522c1b7",
+	"source_set_sha256": "0e903e88399216ae4b2dbbe2eebe09e8bbd3b3c42d7457cd9c0e42ea7b6ad87a",
+	"method": {
+		"samples": 3,
+		"warmup_seconds": 30,
+		"measurement_seconds": 120,
+		"editor_minimized_seconds": 60,
+		"editor_disconnected_seconds": 60,
+		"adapter": {
+			"high": 0,
+			"low": 90146
+		},
+		"present_interval": 1,
+		"present_do_not_wait": true,
+		"maximum_frame_latency": 1,
+		"buffer_count": 2,
+		"numerical_budgets_unchanged": true
+	},
+	"checks": {
+		"production_analyzer_tests": 138,
+		"golden_video_software_tests": 208,
+		"strict_all_target_clippy": "passed",
+		"native_window_pixel_and_charge_tests": 2,
+		"pinned_release_build": "passed",
+		"root_and_golden_core_formatters": "passed",
+		"native_window_tests_adapter": {
+			"high": 0,
+			"low": 88937
+		},
+		"native_window_tests_scope": "first nonsoftware adapter (Intel); fresh Q01 separately pins NVIDIA"
+	},
+	"capacity_proof": "Both exercised modes retain checked two-buffer storage, per-swapchain maximum latency one and a waitable permit before rendering. This bounds app/native publication capacity, not exact instantaneous occupancy, GPU critical path or physical scanout.",
+	"capacity_documentation": [
+		"https://learn.microsoft.com/en-us/windows/uwp/gaming/reduce-latency-with-dxgi-1-3-swap-chains",
+		"https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_3/nf-dxgi1_3-idxgiswapchain2-setmaximumframelatency"
+	],
+	"Q02_reassessment": {
+		"analysis": "target/m039-sync1-2026-11-05/Q02/analysis-reassessed.json",
+		"analysis_sha256": "04c9d8fb5853983b30ebc03572455bffdde9d2a42d3ccb87a3a35fa5abce4cff",
+		"status": "UNAVAILABLE",
+		"prescribed_three_sample_series": true,
+		"samples": [
+			{
+				"sample": "sample-001",
+				"renderer_pid": 22632,
+				"cpu_submission_p99_wall_upper_ms": 0.7617,
+				"accepted_images_by_output": {
+					"1": 7200,
+					"2": 7200,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 0,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 1,
+					"2": 0,
+					"3": 1
+				},
+				"deadline_verdict_by_output": {
+					"1": true,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						16.294,
+						30.6914
+					],
+					"3": [
+						16.2952,
+						30.694000000000003
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T03:12:55.701414+00:00"
+				}
+			},
+			{
+				"sample": "sample-002",
+				"renderer_pid": 13504,
+				"cpu_submission_p99_wall_upper_ms": 0.8016,
+				"accepted_images_by_output": {
+					"1": 7200,
+					"2": 7199,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 0,
+					"2": 1,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 4,
+					"2": 1,
+					"3": 6
+				},
+				"deadline_verdict_by_output": {
+					"1": true,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						24.251900000000003,
+						16.427300000000002
+					],
+					"3": [
+						24.270000000000003,
+						16.6658
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T03:18:06.715611+00:00"
+				}
+			},
+			{
+				"sample": "sample-003",
+				"renderer_pid": 22056,
+				"cpu_submission_p99_wall_upper_ms": 0.6967,
+				"accepted_images_by_output": {
+					"1": 7200,
+					"2": 7199,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 0,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 0,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_verdict_by_output": {
+					"1": true,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						22.3636,
+						16.067600000000002
+					],
+					"3": [
+						22.367900000000002,
+						16.0731
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T03:23:17.568399+00:00"
+				}
+			}
+		],
+		"passing_criteria_in_all_samples": [
+			"functional_completion",
+			"fixed_scene",
+			"telemetry_coverage",
+			"input_identity",
+			"gpu_context_coverage",
+			"cpu_submission",
+			"output_api_cadence",
+			"producer_api_cadence",
+			"submission_deadlines",
+			"deadline_misses",
+			"editor_independence",
+			"source_to_consumer_age",
+			"spout_capture_identity",
+			"spout_capture_age",
+			"source_publication_age",
+			"logical_texture_charge",
+			"native_allocation_ownership",
+			"dxgi_admission",
+			"renderer_private_memory",
+			"completion_retirement",
+			"shutdown",
+			"native_preparation",
+			"plan_publication_age",
+			"window_presentation",
+			"plan_age_and_published_queue",
+			"environment_identity"
+		],
+		"binary_sha256": "797561309798af8379f8ea1ed73176fcf6b08f4f16ba8369babdca61566d2743",
+		"source_set_sha256": "9eeb4f0f8d660d262209272f620f802e082da0e0ff57f87202f7c05ebeb12206",
+		"build_record": "target/m039-sync1-release-2026-11-05/build.json",
+		"unaccepted_criteria_in_all_samples": {
+			"gpu_critical_path": "UNAVAILABLE",
+			"renderer_handle_growth": "UNAVAILABLE",
+			"physical_display_dpi_input": "UNAVAILABLE",
+			"Q05_handles_growth": "UNAVAILABLE"
+		},
+		"environment_identity": {
+			"observed_within_target": true,
+			"display_adapter": {
+				"high": 0,
+				"low": 90146
+			},
+			"renderer_adapter": {
+				"high": 0,
+				"low": 90146
+			},
+			"same_adapter_display": true,
+			"before_evidence_sha256": "6262788c416657e3bb575ed277e3b7b409e102303142c22713d9c114dd96a2a4",
+			"after_evidence_sha256": "ddad530a8a96f4a032c4eb0c5fb8be221118f6d821e09dbb2355fc183aa0106a",
+			"scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+		},
+		"opportunities_per_output": 7200,
+		"raw_hash_scope": "The immutable analysis file SHA binds the full raw SHA-256 map, per-output distributions, exact rational cohort bounds and all criterion details. Identity files are also listed for fresh Q01."
+	},
+	"Q01_fresh": {
+		"analysis": "target/m039-refresh-policy-q01-2026-11-05/Q01/analysis-paired.json",
+		"analysis_sha256": "35f11658e584f2b24fe39ec3629c3a2d05daf61a5dbf74c57da86e6a5af19646",
+		"status": "FAILED_NATIVE",
+		"prescribed_three_sample_series": true,
+		"samples": [
+			{
+				"sample": "sample-001",
+				"renderer_pid": 16460,
+				"cpu_submission_p99_wall_upper_ms": 1.5713,
+				"accepted_images_by_output": {
+					"1": 6994,
+					"2": 7200,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 206,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 486,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_verdict_by_output": {
+					"1": false,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						10.1143,
+						15.590900000000001
+					],
+					"3": [
+						19.6201,
+						25.105800000000002
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T04:40:41.414997+00:00"
+				},
+				"identity_file_sha256": {
+					"inputs.json": "0f738e187b83b9740fcb88821467a55f1752fce54e4427f91c5145e5da6ac157",
+					"launcher.json": "077b0fd35f452b4e6bde4c61a987ccd8471ea21ff9bed205f5c6abd2fef11118",
+					"manifest.json": "edc25701d9b5133280e877b90fabebcedf6dae116d4127e34310be476669b17c",
+					"presentmon.json": "0e4b7ce2119fd9f7b72945bfab6714f10ccf8529e09cad7699cefb5628562ceb",
+					"renderer-summary.json": "87fde945fc15aecd8ddb70b3d7bc67cc368e7b1a4c6d4e3f8f7c7029d61b9244"
+				}
+			},
+			{
+				"sample": "sample-002",
+				"renderer_pid": 30664,
+				"cpu_submission_p99_wall_upper_ms": 0.9549,
+				"accepted_images_by_output": {
+					"1": 7174,
+					"2": 7200,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 26,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 52,
+					"2": 0,
+					"3": 1
+				},
+				"deadline_verdict_by_output": {
+					"1": false,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						22.7454,
+						13.8084
+					],
+					"3": [
+						30.6456,
+						21.500600000000002
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T04:45:52.529658+00:00"
+				},
+				"identity_file_sha256": {
+					"inputs.json": "0f738e187b83b9740fcb88821467a55f1752fce54e4427f91c5145e5da6ac157",
+					"launcher.json": "4a681211f2526e046424d99f810762926e58145a608bebd69d2ee7f8cd033145",
+					"manifest.json": "275e053c0a8685f6844300766bdc039f40dcac1b667f24de0edb63485dedc2e7",
+					"presentmon.json": "8b583ee95b729522f5df2fb4153df636f093448e1cca1077860cb8f72c197b27",
+					"renderer-summary.json": "bc3d33fee8e849f31151fadfb1791beef3d21a1974cc364b956fe43f88f33c6c"
+				}
+			},
+			{
+				"sample": "sample-003",
+				"renderer_pid": 35440,
+				"cpu_submission_p99_wall_upper_ms": 1.2358,
+				"accepted_images_by_output": {
+					"1": 7180,
+					"2": 7200,
+					"3": 7200
+				},
+				"busy_opportunities_by_output": {
+					"1": 20,
+					"2": 0,
+					"3": 0
+				},
+				"deadline_misses_by_output": {
+					"1": 1086,
+					"2": 0,
+					"3": 4
+				},
+				"deadline_verdict_by_output": {
+					"1": false,
+					"2": true,
+					"3": true
+				},
+				"window_p95_age_upper_ms": {
+					"1": [
+						26.4017,
+						29.216700000000003
+					],
+					"3": [
+						20.2772,
+						23.157500000000002
+					]
+				},
+				"capacity_verified": true,
+				"launcher": {
+					"exit_code": 0,
+					"timed_out": false,
+					"forced_cleanup": false,
+					"owned_job_active_before_close": 0,
+					"finished_utc": "2026-11-05T04:51:03.402465+00:00"
+				},
+				"identity_file_sha256": {
+					"inputs.json": "0f738e187b83b9740fcb88821467a55f1752fce54e4427f91c5145e5da6ac157",
+					"launcher.json": "1ad022cf7f39c215422740392aa467c209223afe35c7d8fcd691f2f6e2434e7a",
+					"manifest.json": "3f563aa58f5f1868735d76606fa83a9aa4fba96ec02f836e0995fe5bf9ebdb1b",
+					"presentmon.json": "1233ca69dc3dc858cf799e093b170b1d81903fe7b73bec0895449e3edd4523de",
+					"renderer-summary.json": "4e4d10f6ea144a50bea8dd351ce18754f1eff779bf1a0daaaaf012788d36bc83"
+				}
+			}
+		],
+		"passing_criteria_in_all_samples": [
+			"functional_completion",
+			"fixed_scene",
+			"telemetry_coverage",
+			"input_identity",
+			"gpu_context_coverage",
+			"cpu_submission",
+			"producer_api_cadence",
+			"editor_independence",
+			"source_to_consumer_age",
+			"spout_capture_identity",
+			"spout_capture_age",
+			"source_publication_age",
+			"logical_texture_charge",
+			"native_allocation_ownership",
+			"dxgi_admission",
+			"renderer_private_memory",
+			"completion_retirement",
+			"shutdown",
+			"native_preparation",
+			"plan_publication_age",
+			"window_presentation",
+			"plan_age_and_published_queue",
+			"environment_identity"
+		],
+		"unaccepted_criteria_in_all_samples": {
+			"output_api_cadence": "FAILED_NATIVE",
+			"submission_deadlines": "UNAVAILABLE",
+			"deadline_misses": "FAILED_NATIVE",
+			"gpu_critical_path": "UNAVAILABLE",
+			"renderer_handle_growth": "UNAVAILABLE",
+			"physical_display_dpi_input": "UNAVAILABLE",
+			"Q05_handles_growth": "UNAVAILABLE"
+		},
+		"environment_identity": {
+			"observed_within_target": true,
+			"display_adapter": {
+				"high": 0,
+				"low": 90146
+			},
+			"renderer_adapter": {
+				"high": 0,
+				"low": 90146
+			},
+			"same_adapter_display": true,
+			"before_evidence_sha256": "610b32ff01579a3b48057722c8e772b3ae4067d4abf0d89d0fbb71c82eeafe79",
+			"after_evidence_sha256": "d4f8e1fac7a941f5c2eecbbc36e5ed47927ceeff99e7b94868d0915ec0780f27",
+			"scope": "pinned environment/route identity; no cross-adapter performance guarantee"
+		},
+		"opportunities_per_output": 7200,
+		"raw_hash_scope": "The immutable analysis file SHA binds the full raw SHA-256 map, per-output distributions, exact rational cohort bounds and all criterion details. Identity files are also listed for fresh Q01."
+	},
+	"limits": [
+		"Q02 26 passing criteria per sample do not override Q01 failure.",
+		"Q01 source-age coverage is for accepted images; nonaccepted opportunities remain deadline misses.",
+		"GPU critical path, lifecycle growth, genuine device recovery and physical/app qualification remain open.",
+		"Prior 53.602 MiB lifecycle peak-growth failure against 32 MiB is retained; this candidate was not lifecycle-requalified.",
+		"The target/release qualifier binary remains the rejected candidate; rebuild and pin before another native capture."
+	],
+	"next_action": "Keep M03/9 Active. Inspect retained main-window Busy and late-display records to identify the owning admission/scheduling boundary before choosing a code change. No new policy variant or unchanged probe is authorized by this failed check alone."
+}

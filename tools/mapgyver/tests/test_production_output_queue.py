@@ -45,13 +45,23 @@ class OutputQueueTests(unittest.TestCase):
             self.assertIsNone(ANALYZE(frames, outputs, healthy=True)['observed_within_target'])
         self.assertIsNone(ANALYZE(*fixture(), healthy=False)['observed_within_target'])
 
-    def test_waitable_permit_latency_and_stale_frame_replacement_are_all_required(self):
+    def test_waitable_permit_latency_and_supported_presentation_are_required(self):
         for field, value in [('admission_permit', False), ('maximum_frame_latency', 2),
-                             ('maximum_frame_latency', True), ('sync_interval', 1),
-                             ('sync_interval', False), ('buffer_count', 0)]:
+                             ('maximum_frame_latency', True), ('sync_interval', 2),
+                             ('sync_interval', False), ('buffer_count', 0), ('buffer_count', 1)]:
             frames, outputs = fixture()
             outputs[0]['publication_queue']['Window'][field] = value
             self.assertIsNone(ANALYZE(frames, outputs, healthy=True)['observed_within_target'])
+
+    def test_refresh_synchronization_keeps_the_same_verified_capacity(self):
+        frames, outputs = fixture()
+        for output in outputs:
+            if output['output'] != 2:
+                output['publication_queue']['Window']['sync_interval'] = 1
+        result = ANALYZE(frames, outputs, healthy=True)
+        self.assertTrue(result['coverage_complete'])
+        self.assertIs(result['observed_within_target'], True)
+        self.assertEqual([r['maximum_verified_capacity_frames'] for r in result['outputs']], [2, 1, 2])
 
     def test_shared_image_must_be_the_same_accepted_copy_not_an_old_or_guessed_version(self):
         for replacement in [None, {'shared_handle': 401, 'frame': 1},
@@ -74,7 +84,7 @@ class OutputQueueTests(unittest.TestCase):
 
     def test_window_recreation_fences_layout_even_if_interface_addresses_are_reused(self):
         frames, outputs = fixture()
-        outputs[3]['publication_queue']['Window']['buffer_count'] = 1
+        outputs[3]['publication_queue']['Window']['sync_interval'] = 1
         with self.assertRaisesRegex(ValueError, 'layout changes'):
             ANALYZE(frames, outputs, healthy=True)
         outputs[3]['window_present']['generation'] = 2

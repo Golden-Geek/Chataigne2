@@ -1,5 +1,31 @@
 # Production renderer qualification runner
 
+**Current decision (2026-11-05): reject sync-1 after original Q01 verification.** The corrected
+cohort/capacity proof justified reassessing the preserved Q02 capture: all three samples verify
+26 criteria, worst misses 6/7,200 (0.0833%), p95 age ≤30.694 ms and capacity two. Deliberate
+restoration then passed 138 analyzer/208 Golden Video tests, strict lint, two native window
+tests and a pinned release build. Its fresh original Q01 three-sample series nevertheless
+fails main-window cadence and deadlines: 486, 52 and 1,086 misses per 7,200 opportunities
+(6.75%, 0.72%, 15.08%). The main window returns Busy 206/26/20 times and some accepted images
+display late; Spout remains within budget. Known missing opportunities remain misses.
+
+All three native processes exit normally without forced cleanup and leave empty owned jobs.
+Input/tool identities, paired environment identity, fresh overlay-Off observations, resource
+coverage, accepted-image age and publication capacity pass. This rules out the earlier
+resource-observation gap as an explanation; it does not isolate the cause of Busy/late images.
+[Full source/build identities, distributions, criteria and raw hashes](evidence/mapgyver-m03-refresh-policy-2026-11-05.json).
+Both runtime files are restored exactly to HEAD. The named candidate stash stays unaccepted;
+the release qualifier binary still contains that candidate and must be rebuilt/pinned before
+another native capture. No app capability or whole gate closes. Inspect retained main-window
+admission/late-display records before an owning scheduling change; no new policy-variant probe.
+
+The capacity-verifier correction remains: both exercised intervals have two actual buffers,
+per-swapchain maximum latency one and a permit before drawing, as
+[Microsoft documents](https://learn.microsoft.com/en-us/windows/uwp/gaming/reduce-latency-with-dxgi-1-3-swap-chains).
+Unsupported/invalid metadata remains unverified. This bounds publication storage/readiness,
+not exact occupancy, GPU critical path or physical scanout. No budget or required scope changes;
+the original GPU/lifecycle/physical requirements and prior failures remain open.
+
 **Current cohort correction (2026-11-05):** the original contract allows ≤0.1% missed deadlines
 and requires p95 source age ≤50 ms; it does not add zero dropped images. The offline verifier
 now accounts for trusted known drops and keeps them as unbounded ages in the entire accepted

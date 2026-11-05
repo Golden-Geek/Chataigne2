@@ -56,19 +56,20 @@ def analyze_output_queue(frames, outputs, *, healthy):
                     unknown.append('window bound lacks exact native incarnation')
                     continue
                 if window.get('admission_permit') is not True \
-                        or window.get('sync_interval') != 0 or type(window.get('sync_interval')) is not int \
+                        or window.get('sync_interval') not in (0, 1) or type(window.get('sync_interval')) is not int \
                         or not positive(window.get('buffer_count')) \
+                        or window['buffer_count'] < 2 \
                         or not positive(window.get('maximum_frame_latency')) \
                         or window['maximum_frame_latency'] != 1:
-                    unknown.append('window storage/readiness/coalescing bound unverified')
+                    unknown.append('window storage/readiness/presentation bound unverified')
                     continue
                 incarnation = token[:2], present['generation'], tuple(present['addresses'])
                 layout = window['buffer_count'], window['maximum_frame_latency'], window['sync_interval']
                 if incarnation in incarnations and incarnations[incarnation] != layout:
                     raise ValueError('native window layout changes within one incarnation')
                 incarnations[incarnation] = layout
-                # Conservative capacity, including every back buffer, rather than guessing
-                # instantaneous DWM/GPU consumption from CPU/API or software-display events.
+                # Both exercised intervals keep the same actual storage and per-chain queue
+                # limit. Include every back buffer instead of guessing DWM consumption.
                 bound = window['buffer_count']
             covered += 1
             maximum = bound if maximum is None else max(maximum, bound)
@@ -83,7 +84,7 @@ def analyze_output_queue(frames, outputs, *, healthy):
     return {'coverage_complete': bool(frames) and all(row['coverage_complete'] for row in reports),
             'observed_within_target': True if sufficient else None,
             'required_maximum_frames': 2, 'outputs': reports,
-            'scope': 'verified app/native publication capacity bounds, with stale-image replacement; not exact occupancy, GPU queue time or scanout',
+            'scope': 'verified app/native publication capacity bounds; not exact occupancy, GPU queue time or scanout',
             'limitations': ['larger/unknown capacity does not prove an actual occupancy violation',
                             'external receiver-owned storage is not an app-owned publication queue',
                             'GPU critical path and physical consumption timestamps remain separate requirements']}
