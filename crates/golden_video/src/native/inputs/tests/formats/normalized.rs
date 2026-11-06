@@ -85,6 +85,8 @@ pub(super) fn cases() -> Vec<Case> {
 pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4], opaque: bool) -> [f32; 4] {
     let mut rgba: [f32; 4] = if let Some(rgba) = super::channels::expected(format, bytes, color) {
         rgba
+    } else if let Some(rgba) = super::bridge::expected(format, bytes) {
+        rgba
     } else {
         match format {
             PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => color,

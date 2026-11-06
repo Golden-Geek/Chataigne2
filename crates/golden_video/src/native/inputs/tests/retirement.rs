@@ -15,6 +15,7 @@ fn surface(descriptor: TextureDescriptor) -> Arc<Surface> {
         handle: unsafe { OwnedHandle::from_raw_handle(handle.0) },
         index: 0,
         descriptor,
+        storage_descriptor: descriptor,
     })
 }
 

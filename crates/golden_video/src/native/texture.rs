@@ -229,6 +229,8 @@ fn typeless_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
         PixelFormat::Rg16Float => DXGI_FORMAT_R16G16_TYPELESS,
         PixelFormat::R32Float => DXGI_FORMAT_R32_TYPELESS,
         PixelFormat::Rg11B10Float | PixelFormat::A8Unorm => return None,
+        PixelFormat::Rg32Float => DXGI_FORMAT_R32G32_TYPELESS,
+        PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm => return None,
     })
 }
 
@@ -257,7 +259,10 @@ fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
         | PixelFormat::Rg16Float
         | PixelFormat::R32Float
         | PixelFormat::Rg11B10Float
-        | PixelFormat::A8Unorm => None,
+        | PixelFormat::A8Unorm
+        | PixelFormat::Rg32Float
+        | PixelFormat::Bgr565Unorm
+        | PixelFormat::Bgra5551Unorm => None,
     }
 }
 
@@ -285,6 +290,9 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
         PixelFormat::R32Float => DXGI_FORMAT_R32_FLOAT,
         PixelFormat::Rg11B10Float => DXGI_FORMAT_R11G11B10_FLOAT,
         PixelFormat::A8Unorm => DXGI_FORMAT_A8_UNORM,
+        PixelFormat::Rg32Float => DXGI_FORMAT_R32G32_FLOAT,
+        PixelFormat::Bgr565Unorm => DXGI_FORMAT_B5G6R5_UNORM,
+        PixelFormat::Bgra5551Unorm => DXGI_FORMAT_B5G5R5A1_UNORM,
     }
 }
 
@@ -320,6 +328,9 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
         PixelFormat::R32Float,
         PixelFormat::Rg11B10Float,
         PixelFormat::A8Unorm,
+        PixelFormat::Rg32Float,
+        PixelFormat::Bgr565Unorm,
+        PixelFormat::Bgra5551Unorm,
     ]
     .into_iter()
     .find(|candidate| format(*candidate).0 as u32 == storage)

@@ -12,7 +12,8 @@ cbuffer Parameters : register(b0) {
     uint blend_mode;
     float opacity;
     uint has_previous;
-    uint2 reserved;
+    uint source_storage;
+    uint reserved;
     float4 source_rect;
     float4 inverse_row0;
     float4 inverse_row1;
@@ -46,6 +47,12 @@ Vertex vs_main(uint id : SV_VertexID) {
     return result;
 }
 
+// Preserve stored component values across a device-sharing bridge. Color/alpha policy
+// belongs to the eventual renderer sampling; no filtering or transfer occurs here.
+float4 ps_import(Vertex input) : SV_Target {
+    return source_image.Load(int3(uint2(input.position.xy), 0));
+}
+
 float decode_srgb(float encoded) {
     if (encoded <= 0.04045) {
         return encoded / 12.92;
@@ -71,6 +78,14 @@ float3 encode_rgb(float3 value) {
 float4 load_source(int2 position) {
     position = clamp(position, int2(0, 0), int2(source_extent) - 1);
     float4 stored = source_image.Load(int3(position, 0));
+    // Packed BGR views may expand channels through an eight-bit representation. Recover
+    // the original quantized component before linear decoding/premultiplication/filtering.
+    if (source_storage == 1) {
+        float3 maximum = float3(31, 63, 31);
+        stored.rgb = round(stored.rgb * maximum) / maximum;
+    } else if (source_storage == 2) {
+        stored.rgb = round(stored.rgb * 31) / 31;
+    }
     float coverage = source_alpha == ALPHA_OPAQUE ? 1 : stored.a;
     if (coverage == 0) {
         return 0;

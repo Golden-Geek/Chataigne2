@@ -111,19 +111,23 @@ pub struct D3d11Config {
 pub struct InputLimits {
     /// Maximum overlapping subscriptions/workers, including those still retiring; at most 32.
     pub max_sources: usize,
-    /// Admitted descriptor storage for three bridge slots and one sender alias per input.
+    /// Admitted storage for three bridge slots, a sender alias, and any raw conversion image.
     /// Declared sources reserve their maximum before worker creation; discovered sources reserve
     /// actual layouts before allocation. Physical driver residency is separate.
     pub max_storage_bytes: u64,
 }
 
 impl InputLimits {
-    /// Checked conservative storage for one source: three bridge images plus its sender alias.
+    /// Checked storage for three bridge images, the sender alias and any raw conversion image.
     /// This is a logical admission charge, not a measurement of physical driver residency.
     pub fn source_storage_bytes(descriptor: TextureDescriptor) -> Result<u64, crate::TextureError> {
-        descriptor
+        let bridge = super::inputs::conversion::bridge_descriptor(descriptor);
+        let raw_copies = if bridge == descriptor { 1 } else { 2 };
+        let raw_bytes = descriptor.byte_len()?;
+        bridge
             .byte_len()?
-            .checked_mul(INPUT_BRIDGE_SLOTS as u64 + 1)
+            .checked_mul(INPUT_BRIDGE_SLOTS as u64)
+            .and_then(|bytes| raw_bytes.checked_mul(raw_copies)?.checked_add(bytes))
             .ok_or(crate::TextureError::ByteSizeOverflow {
                 width: descriptor.extent.width(),
                 height: descriptor.extent.height(),

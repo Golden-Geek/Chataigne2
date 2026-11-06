@@ -112,6 +112,7 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
         handle: unsafe { OwnedHandle::from_raw_handle(handle.0) },
         index: 0,
         descriptor,
+        storage_descriptor: descriptor,
     });
     let publication = |sequence| Publication {
         surface: surface.clone(),

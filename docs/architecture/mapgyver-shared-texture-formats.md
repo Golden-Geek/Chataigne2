@@ -20,8 +20,8 @@ where present; BGRX supplies opaque alpha. The generic sampling
 shader premultiplies coverage in linear space. An explicit declared contract keeps its authored
 transfer/alpha interpretation instead. No per-frame CPU image conversion is added.
 
-The source worker reserves the actual format before allocating three bridge slots. Its existing
-conservative charge includes those three images plus the sender alias, and remains held until
+The source worker reserves the actual format before allocating three bridge slots. Its
+charge includes those three images plus the sender alias, and remains held until
 real source/renderer uses retire. Descriptor changes still withdraw the old publication and
 retire imports before allocating replacement storage; failures retain the existing reconnect
 and device recovery strategy. MapGyver's ordinary render/output precision policy is unchanged:
@@ -32,6 +32,46 @@ reserves its full native image size. Its RGBA8 pixel-export API rejects other la
 allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
+
+## GPU bridge for non-NT layouts
+
+RG32 FLOAT, BGR565 and BGRA5551 cannot use the direct NT/keyed bridge on these adapters.
+Golden keeps their original native descriptor and interpretation, receives into one charged
+raw capture, then uses an integer-coordinate GPU Load/draw into RGBA32F sharing storage.
+The renderer imports that bridge and draws back into the caller's original native texture.
+Existing formats retain their direct receive/copy path. This internal transport adds no CPU
+image conversion, authored format setting, transfer operation or filtering. Its shaders and
+rasterizer are prepared once; it allocates no constant buffers or auxiliary image atlas.
+
+`Surface` distinguishes the public source descriptor from its private bridge storage descriptor.
+Only immutable metadata and the retained NT handle cross workers. Source completion covers
+the SDK copy and bridge draw; renderer completion and reader leases cover import and the
+native-target draw. Replacement and shutdown retain the original two-device drain ordering.
+Declared metadata and discovery both retain the native layout; consumers never have to infer
+an RGBA32F source from a two-channel sender.
+
+Admission counts **two raw images** (sender alias and capture) plus **three RGBA32F bridge
+images**: 64 bytes/texel for RG32F and 52 for either packed BGR layout. The public
+`InputLimits::source_storage_bytes` applies this arithmetic to declared and discovered sources,
+including checked overflow. Direct formats keep their existing four-image charge. The probe
+needs no NT bridge and still charges only its native receiving image. These are logical
+storage charges; no physical residency, peak-growth or timing qualification is implied.
+
+Packed BGR sampling may expand five/six-bit channels through an eight-bit representation.
+The private bridge preserves those component codes and the round trip restores native bits.
+The final renderer sampling reconstructs the original normalized five/six-bit values before
+transfer decoding, premultiplication or interpolation. The precision target is unchanged;
+the first cohort's sampler error remains failed evidence rather than a tolerance revision.
+
+The [conversion receipt](../progress/evidence/mapgyver-m13-conversion-input-2026-11-06.json)
+passes 128 cases on Intel/NVIDIA: 24 new cases cover all three layouts with explicit,
+unspecified and Declared metadata, plus the existing 104 regressions. Both BGRA5551 alpha
+states preserve their raw bits and composite over white. Every new native round trip is
+bit-exact and the largest shader error is 2.98023224e-8 against the original 1e-6 target.
+Declared admission rejects a cap one byte below the full conversion charge before spawning
+a worker. Real source/probe readiness and complete logical charge reclamation pass. The
+three converted layouts bring supported native import to 28 formats, including 25 direct
+layouts; the complete M13/2 gate, full app and recovery scope remain open.
 
 ## Native sRGB storage
 
@@ -203,14 +243,15 @@ This is allocation/alias evidence, not typed-view, shader, pixel or complete imp
 The receipt retains every available native value and rejected HRESULT; names come from the
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
-The remaining formats include RG32, XR-bias, unsigned/signed integer, typeless and video-plane
-formats. Native RG32 families15–18
-and packed BGR85/86 cannot use the current NT bridge on either GPU; Intel's BGR4444 format115
-also needs conversion, and NVIDIA rejects its SDK shared allocation. XR-bias89's recorded
+The remaining formats include RG32 integer/typeless, XR-bias, other unsigned/signed integer,
+typeless and video-plane formats. RG32 FLOAT16 and packed BGR85/86 now use the GPU bridge
+described above; they remain distinct from the 25 direct NT layouts. RG32 native15/17/18
+still need typed interpretation. Intel's BGR4444 format115 also needs conversion, and NVIDIA
+rejects its SDK shared allocation. XR-bias89's recorded
 support mask0x111a0020 lacks shader-sample/render-target view support despite allocation
 success. Thus extending only the enum is insufficient: these sources need supported GPU
-interpretation/conversion. Next is the RG32/packed conversion bridge with real source/bridge
-charges, then integer/typeless/video handling and full app/recovery acceptance.
+interpretation/conversion. Next is the remaining packed/XR-bias and integer/typeless/video
+handling with real source/bridge charges, followed by full app/recovery acceptance.
 
 RGB32 FLOAT6 fails the SDK allocator's mandatory shader-resource/render-target shared flags
 on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend

@@ -13,6 +13,7 @@ use super::surface::{Surface, acquire};
 
 pub(super) struct Imported {
     pub texture: Texture,
+    conversion: Option<super::conversion::Converter>,
     mutex: IDXGIKeyedMutex,
     surface: Weak<Surface>,
 }
@@ -24,13 +25,25 @@ impl Imported {
         let texture: ID3D11Texture2D = unsafe { device1.OpenSharedResource1(HANDLE(surface.handle.as_raw_handle()))? };
         Ok(Self {
             mutex: texture.cast()?,
-            texture: Texture::from_native(&device.device, texture, surface.descriptor)?,
+            texture: Texture::from_native(&device.device, texture, surface.storage_descriptor)?,
+            conversion: (surface.storage_descriptor != surface.descriptor)
+                .then(|| super::conversion::Converter::new(&device.device))
+                .transpose()?,
             surface: Arc::downgrade(surface),
         })
     }
 
     pub fn same_surface(&self, surface: &Arc<Surface>) -> bool {
         self.surface.ptr_eq(&Arc::downgrade(surface))
+    }
+
+    pub fn copy_to(&self, device: &Device, target: &Texture) {
+        if let Some(conversion) = &self.conversion {
+            conversion.copy(&device.context, &self.texture, target);
+        } else {
+            // SAFETY: publication descriptor/target equality was checked before acquisition.
+            unsafe { device.context.CopyResource(&target.texture, &self.texture.texture) };
+        }
     }
 }
 

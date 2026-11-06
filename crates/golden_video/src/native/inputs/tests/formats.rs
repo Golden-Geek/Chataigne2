@@ -6,6 +6,7 @@ use crate::plan::{
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 use windows::Win32::Graphics::Dxgi::Common::*;
 
+mod bridge;
 mod channels;
 mod inventory;
 mod legacy;
@@ -48,6 +49,12 @@ fn hardware_extended_formats_preserve_bits_implicit_channels_and_pool_charges() 
     verify_formats(&channels::cases(), false);
 }
 
+#[test]
+#[ignore = "requires explicit hardware D3D11/Spout qualification; no desktop input"]
+fn hardware_conversion_formats_preserve_native_bits_and_exact_bridge_charges() {
+    verify_formats(&bridge::cases(), false);
+}
+
 fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
@@ -60,9 +67,14 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
             } else {
                 raw_format
             };
-            let registrations =
-                std::iter::once(raw_format.0 as u32).chain((!matches!(raw_format.0, 21 | 22)).then_some(0));
-            for registered in registrations {
+            let converted = matches!(
+                format,
+                PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm
+            );
+            let registrations = std::iter::once((raw_format.0 as u32, false))
+                .chain((!matches!(raw_format.0, 21 | 22)).then_some((0, false)))
+                .chain(converted.then_some((raw_format.0 as u32, true)));
+            for (registered, declared) in registrations {
                 let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
                 let sender = Sender::new(adapter.id, &sender_name, native_format, color);
                 if registered != native_format.0 as u32 {
@@ -81,16 +93,23 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                 )
                 .unwrap();
                 assert_eq!(descriptor.format, format);
-                let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm || channels::opaque(format);
+                let opaque = registered == 22
+                    || format == PixelFormat::Bgrx8Unorm
+                    || channels::opaque(format)
+                    || matches!(format, PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm);
                 assert_eq!(
                     descriptor.alpha_mode,
                     if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
                 );
-                let nominal = TextureDescriptor {
-                    format: PixelFormat::Bgra8Unorm,
-                    color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: AlphaMode::Straight,
-                    ..descriptor
+                let nominal = if declared {
+                    descriptor
+                } else {
+                    TextureDescriptor {
+                        format: PixelFormat::Bgra8Unorm,
+                        color_encoding: ColorEncoding::Srgb,
+                        alpha_mode: AlphaMode::Straight,
+                        ..descriptor
+                    }
                 };
                 let id = TextureId::new(1).unwrap();
                 let plan = RenderPlan {
@@ -101,7 +120,11 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                             SpoutSource {
                                 sender: sender_name.clone(),
                                 descriptor: nominal,
-                                metadata: SpoutMetadata::Discover,
+                                metadata: if declared {
+                                    SpoutMetadata::Declared
+                                } else {
+                                    SpoutMetadata::Discover
+                                },
                                 poll_interval: Duration::from_millis(16),
                                 frame_count: SpoutFrameCount::Unversioned,
                             }
@@ -123,6 +146,26 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                 )
                 .unwrap();
                 let bytes = InputLimits::source_storage_bytes(descriptor).unwrap();
+                if declared {
+                    let mut denied = SourcePool::new(
+                        adapter.id,
+                        InputLimits {
+                            max_sources: 1,
+                            max_storage_bytes: bytes - 1,
+                        },
+                        &D3d11Control::default(),
+                        None,
+                        crate::runtime::DeviceGeneration::new(uuid::Uuid::new_v4(), 0),
+                    );
+                    assert!(matches!(
+                        denied.ensure(&plan),
+                        Err(crate::runtime::backend::BackendError::SourceCapacity)
+                    ));
+                    assert!(
+                        denied.inputs.is_empty(),
+                        "insufficient full bridge charge cannot spawn a worker"
+                    );
+                }
                 let mut pool = SourcePool::new(
                     adapter.id,
                     InputLimits {
@@ -148,6 +191,14 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                     budget.claim(1).is_none(),
                     "full native precision must be charged before allocation"
                 );
+                if converted {
+                    let latest = pool.inputs[&id].shared.latest.lock().unwrap();
+                    let surface = &latest.as_ref().unwrap().surface;
+                    assert_eq!(surface.descriptor, descriptor, "retain the caller's native descriptor");
+                    assert_eq!(surface.storage_descriptor.format, PixelFormat::Rgba32Float);
+                    assert_eq!(surface.storage_descriptor.color_encoding, descriptor.color_encoding);
+                    assert_eq!(surface.storage_descriptor.alpha_mode, descriptor.alpha_mode);
+                }
                 let capture = Texture::new_sampled(&device.device, descriptor).unwrap();
                 let mut copied = false;
                 uses.submit(|| {
@@ -174,7 +225,7 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                 )
                 .unwrap();
                 let pipeline = Pipeline::new(&device.device).unwrap();
-                let background = (format == PixelFormat::A8Unorm).then(|| {
+                let background = matches!(format, PixelFormat::A8Unorm | PixelFormat::Bgra5551Unorm).then(|| {
                     let background = Texture::new(&device.device, target.descriptor).unwrap();
                     unsafe {
                         device.context.ClearRenderTargetView(&background.rtv, &[1.; 4]);
@@ -258,6 +309,7 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                         "format":format,
                         "dxgi_format":native_format.0,
                         "registered_format":registered,
+                        "declared":declared,
                         "capture_bytes":raw.len(),
                         "source_charge":bytes,
                         "source_bits_exact":true,
@@ -269,7 +321,9 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                         "probe_reserved_bytes":raw.len(),
                         "byte_pixel_export":byte_export,
                         "retired":true,
-                        "alpha_only_over_white":background.is_some(),
+                        "alpha_only_over_white":format == PixelFormat::A8Unorm,
+                        "composited_over_white":background.is_some(),
+                        "converted_bridge": super::super::conversion::bridge_descriptor(descriptor) != descriptor,
                     })
                 );
             }

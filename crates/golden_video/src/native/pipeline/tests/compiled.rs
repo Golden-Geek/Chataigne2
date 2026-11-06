@@ -10,6 +10,7 @@ fn embedded_programs_match_the_current_shader_source_byte_for_byte() {
         (s!("ps_mapped"), s!("ps_5_0"), shaders::MAPPED_PIXEL),
         (s!("ps_pattern"), s!("ps_5_0"), shaders::PATTERN_PIXEL),
         (s!("ps_overlay"), s!("ps_5_0"), shaders::OVERLAY_PIXEL),
+        (s!("ps_import"), s!("ps_5_0"), shaders::IMPORT_PIXEL),
     ] {
         let mut code = None;
         let mut diagnostics = None;

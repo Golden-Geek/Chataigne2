@@ -24,7 +24,7 @@ use super::texture::Texture;
 #[cfg(test)]
 const SHADER: &str = include_str!(concat!(env!("OUT_DIR"), "/native_shader.hlsl"));
 
-mod shaders {
+pub(super) mod shaders {
     include!(concat!(env!("OUT_DIR"), "/native_shaders.rs"));
 }
 
@@ -61,7 +61,8 @@ struct Parameters {
     blend: u32,
     opacity: f32,
     has_previous: u32,
-    reserved: [u32; 2],
+    source_storage: u32,
+    reserved: u32,
     source_rect: [f32; 4],
     inverse: [[f32; 4]; 3],
 }
@@ -293,7 +294,12 @@ impl Pipeline {
             },
             opacity,
             has_previous: u32::from(previous.is_some()),
-            reserved: [0; 2],
+            source_storage: match source.map(|texture| texture.descriptor.format) {
+                Some(crate::PixelFormat::Bgr565Unorm) => 1,
+                Some(crate::PixelFormat::Bgra5551Unorm) => 2,
+                _ => 0,
+            },
+            reserved: 0,
             source_rect: [source_rect.x, source_rect.y, source_rect.width, source_rect.height],
             inverse: mapping.map_or([[0.0; 4]; 3], ProjectiveMapping::inverse_rows),
         };

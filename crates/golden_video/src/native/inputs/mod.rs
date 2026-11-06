@@ -2,6 +2,7 @@
 //! renderer imports are local and remain leased through matching renderer completion.
 
 mod budget;
+pub(in crate::native) mod conversion;
 mod reader;
 pub(crate) mod receiver;
 mod shared;
@@ -448,12 +449,7 @@ impl SourcePool {
         }
         // Establish/extend the lease before CopyResource, including unwinding submissions.
         let reader = &input.readers[index].as_ref().unwrap().1;
-        // SAFETY: both descriptors were checked and imports belong to this renderer device.
-        unsafe {
-            device
-                .context
-                .CopyResource(&target.texture, &reader.imported.texture.texture);
-        }
+        reader.imported.copy_to(device, target);
         input
             .shared
             .update(|status| status.renderer_copies = status.renderer_copies.saturating_add(1));

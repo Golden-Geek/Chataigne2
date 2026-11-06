@@ -46,6 +46,7 @@ fn compile_native_shaders() {
         ("MAPPED_PIXEL", s!("ps_mapped"), s!("ps_5_0"), "ps_mapped.dxbc"),
         ("PATTERN_PIXEL", s!("ps_pattern"), s!("ps_5_0"), "ps_pattern.dxbc"),
         ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),
+        ("IMPORT_PIXEL", s!("ps_import"), s!("ps_5_0"), "ps_import.dxbc"),
     ] {
         let mut code = None;
         let mut diagnostics = None;
@@ -77,7 +78,7 @@ fn compile_native_shaders() {
         std::fs::write(output.join(file), bytes(&code)).expect("write generated shader bytecode");
         writeln!(
             generated,
-            "pub(super) const {name}: &[u8] = include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{file}\"));"
+            "pub(in crate::native) const {name}: &[u8] = include_bytes!(concat!(env!(\"OUT_DIR\"), \"/{file}\"));"
         )
         .unwrap();
     }

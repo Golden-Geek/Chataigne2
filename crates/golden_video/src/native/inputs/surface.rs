@@ -14,6 +14,7 @@ pub(super) struct Surface {
     pub handle: OwnedHandle,
     pub index: usize,
     pub descriptor: TextureDescriptor,
+    pub storage_descriptor: TextureDescriptor,
 }
 
 pub(super) struct Slot {
@@ -24,6 +25,7 @@ pub(super) struct Slot {
 
 impl Slot {
     pub fn new(device: &Device, descriptor: TextureDescriptor, index: usize) -> Result<Self> {
+        let storage_descriptor = super::conversion::bridge_descriptor(descriptor);
         let mut texture = None;
         // SAFETY: fixed admitted storage, one level/sample, explicit NT/keyed-mutex sharing.
         let (texture, handle) = unsafe {
@@ -33,7 +35,7 @@ impl Slot {
                     Height: descriptor.extent.height(),
                     MipLevels: 1,
                     ArraySize: 1,
-                    Format: format(descriptor.format),
+                    Format: format(storage_descriptor.format),
                     SampleDesc: DXGI_SAMPLE_DESC { Count: 1, Quality: 0 },
                     Usage: D3D11_USAGE_DEFAULT,
                     BindFlags: (D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE).0 as u32,
@@ -53,11 +55,12 @@ impl Slot {
         };
         Ok(Self {
             mutex: texture.cast()?,
-            texture: Texture::from_native(&device.device, texture, descriptor)?,
+            texture: Texture::from_native(&device.device, texture, storage_descriptor)?,
             surface: Arc::new(Surface {
                 handle,
                 index,
                 descriptor,
+                storage_descriptor,
             }),
         })
     }

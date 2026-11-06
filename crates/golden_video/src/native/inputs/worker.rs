@@ -13,6 +13,7 @@ use super::super::timing::{
 };
 use super::super::{AdapterId, completion::FenceCompletion, device::Device};
 use super::SourceState;
+use super::conversion::{Converter, bridge_descriptor};
 use super::receiver::{Received, Receiver};
 use super::shared::{Publication, Shared};
 use super::surface::Slot;
@@ -26,6 +27,8 @@ struct Session {
     receiver: Receiver,
     descriptor: Option<TextureDescriptor>,
     slots: Vec<Slot>,
+    capture: Option<super::super::texture::Texture>,
+    conversion: Option<Converter>,
     completion: FenceCompletion,
     device: Device,
     generation: DeviceGeneration,
@@ -95,6 +98,8 @@ impl Session {
             receiver,
             descriptor: None,
             slots,
+            capture: None,
+            conversion: None,
             completion,
             device,
             generation,
@@ -245,9 +250,9 @@ impl Session {
         self.shared
             .update(|status| status.sdk_calls = status.sdk_calls.saturating_add(1));
         let receive_begin_qpc = recorder.and_then(Recorder::stamp);
-        // This free bridge slot is already write-locked. The SDK's checked caller-owned
-        // destination path copies directly into it, with no private intermediate image.
-        let received = self.receiver.receive(&slot.texture);
+        // Existing layouts receive directly into the acquired slot. Only non-NT layouts
+        // use a charged raw capture followed by a lossless component draw into the bridge.
+        let received = self.receiver.receive(self.capture.as_ref().unwrap_or(&slot.texture));
         let receive_api = recorder.and_then(|recorder| recorder.interval(receive_begin_qpc));
         self.shared.update(|status| match &received {
             Ok(Received::Frame) => {
@@ -259,6 +264,9 @@ impl Session {
         });
         let bridge_begin = recorder.and_then(Recorder::stamp);
         if matches!(&received, Ok(Received::Frame)) && self.shared.active.load(Ordering::Acquire) {
+            if let (Some(capture), Some(conversion)) = (&self.capture, &self.conversion) {
+                conversion.copy(&self.device.context, capture, &slot.texture);
+            }
             unsafe {
                 self.device.context.Flush();
             }
@@ -307,6 +315,8 @@ impl Session {
             self.retire_imports();
         }
         self.slots.clear();
+        self.capture = None;
+        self.conversion = None;
         self.storage = None;
         self.descriptor = None;
         self.shared.update(|status| {
@@ -328,6 +338,11 @@ impl Session {
                     .ok_or_else(|| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?,
             );
         }
+        let converted = bridge_descriptor(descriptor) != descriptor;
+        let capture = converted
+            .then(|| super::super::texture::Texture::new(&self.device.device, descriptor))
+            .transpose()?;
+        let conversion = converted.then(|| Converter::new(&self.device.device)).transpose()?;
         let slots = (0..INPUT_BRIDGE_SLOTS)
             .map(|index| Slot::new(&self.device, descriptor, index))
             .collect::<Result<Vec<_>>>()?;
@@ -341,6 +356,8 @@ impl Session {
             .ok_or_else(|| Error::from_hresult(HRESULT(0x8000_4005_u32 as i32)))?;
         self.descriptor = Some(descriptor);
         self.slots = slots;
+        self.capture = capture;
+        self.conversion = conversion;
         self.shared.update(|status| {
             status.pool_generation = next;
             status.bridge_slots = INPUT_BRIDGE_SLOTS;
@@ -440,6 +457,8 @@ impl Drop for Session {
         }
         // Publish zero only after the committed source-owned bridge objects/handles drop.
         self.slots.clear();
+        self.capture = None;
+        self.conversion = None;
         self.descriptor = None;
         self.shared.update(|status| status.bridge_slots = 0);
     }

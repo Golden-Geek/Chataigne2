@@ -78,6 +78,12 @@ pub enum PixelFormat {
     Rg11B10Float,
     /// Unsigned normalized coverage alpha, one byte per texel; RGB samples as zero.
     A8Unorm,
+    /// IEEE 754 binary32 red/green, eight little-endian bytes per texel.
+    Rg32Float,
+    /// Packed blue/green/red normalized channels (5/6/5 bits), two bytes per texel.
+    Bgr565Unorm,
+    /// Packed blue/green/red/alpha normalized channels (5/5/5/1 bits), two bytes per texel.
+    Bgra5551Unorm,
 }
 
 impl PixelFormat {
@@ -90,6 +96,8 @@ impl PixelFormat {
             Self::R8Unorm | Self::R8Snorm | Self::A8Unorm => 1,
             Self::Rg8Unorm | Self::Rg8Snorm | Self::R16Unorm | Self::R16Snorm | Self::R16Float => 2,
             Self::Rg16Unorm | Self::Rg16Snorm | Self::Rg16Float | Self::R32Float | Self::Rg11B10Float => 4,
+            Self::Rg32Float => 8,
+            Self::Bgr565Unorm | Self::Bgra5551Unorm => 2,
         }
     }
 
@@ -107,6 +115,7 @@ impl PixelFormat {
                 | Self::Rgba16Float
                 | Self::Rgba32Float
                 | Self::A8Unorm
+                | Self::Bgra5551Unorm
         )
     }
 }

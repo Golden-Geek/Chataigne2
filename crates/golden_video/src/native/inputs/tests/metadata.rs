@@ -42,6 +42,9 @@ fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_chan
         (DXGI_FORMAT_R32_FLOAT, PixelFormat::R32Float),
         (DXGI_FORMAT_R11G11B10_FLOAT, PixelFormat::Rg11B10Float),
         (DXGI_FORMAT_A8_UNORM, PixelFormat::A8Unorm),
+        (DXGI_FORMAT_R32G32_FLOAT, PixelFormat::Rg32Float),
+        (DXGI_FORMAT_B5G6R5_UNORM, PixelFormat::Bgr565Unorm),
+        (DXGI_FORMAT_B5G5R5A1_UNORM, PixelFormat::Bgra5551Unorm),
     ] {
         let actual = receiver::layout(&binding, 3840, 2160, storage.0 as u32).unwrap();
         assert_eq!(actual.extent, Extent2D::new(3840, 2160).unwrap());
