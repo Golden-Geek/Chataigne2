@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-06",
 	"gate": "M12/8",
-	"result": "Intel 4K Smooth sustained costs fail the original GPU and cadence budgets; gate remains unaccepted",
+	"result": "Complete eight-case sustained cost matrix: seven cases pass; Intel 4K Smooth fails original GPU/cadence budgets and M12/8 remains unaccepted",
 	"product_commit": "9a0cf15aeae1a93d006522b4fa3cae67d5cd4a50",
 	"executable_sha256": "d1e01980b00d7e12be4d0994e1661ee0455f74c707f08591137e8cbb4fe7a1f8",
 	"native_process_id": 11008,
@@ -234,6 +234,89 @@
 		"archive_sha256": "f1ad983ec6934750930609cf4abe8f41f6650ca2740a6b4f532571d3d77e27ae",
 		"limits": "Same Screen-only scoped workload and unchanged original budgets; no physical delivery, scanout, external-source performance or full production acceptance"
 	},
-	"next": "Run all four remaining canonical NVIDIA sustained series with the same qualified executable and frozen execution inputs. Preserve Intel 4K Smooth failure and pending scope decision; no new profiler variants or relaxed budgets",
+	"nvidia_matrix": {
+		"result": "All four NVIDIA sustained cases pass original scoped CPU/GPU and API submission cadence limits. Complete eight-case matrix: seven pass, Intel 4K Smooth fails; M12/8 remains unaccepted.",
+		"compiled_product_commit": "37a98de2d6cce09e648f4f61d2bdbc2457db76d4",
+		"checkpoint_head": "104808c0e1e82215c2aa7fc4051dc0579205b6f6",
+		"executable_sha256": "02cecb8b24aecedecdb21ca1878b344cb84ca1c4224c3e2413ae0afd03b2c0f0",
+		"native_pid": 27844,
+		"native_exit_code": 0,
+		"wrapper_exit_code": 0,
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU / dxgi:00000000:00016022",
+		"warmup_seconds_per_case": 30,
+		"sample_seconds_per_case": [120, 120, 120],
+		"cases": [
+			{
+				"case": "1920-Raw",
+				"frames": 21600,
+				"gpu_p95_ms": [0.187776, 0.186944, 0.18512],
+				"gpu_p99_ms": [0.19088, 0.189984, 0.194144],
+				"cpu_p95_ms": [0.2874, 0.282, 0.279],
+				"cpu_p99_ms": [0.3308, 0.321, 0.3185],
+				"peak_reserved_bytes": 36422912,
+				"retirement_ms": 15.960599999999998,
+				"balanced_created_released_textures": 5,
+				"diagnostic_rows": 93617,
+				"raw_sha256": "cfa6c1ebb6802ee9cf3f10d7633c3d829225999086ec4288e1b91b56adf81fe6"
+			},
+			{
+				"case": "1920-Smooth2x",
+				"frames": 21600,
+				"gpu_p95_ms": [1.936608, 1.948544, 1.956544],
+				"gpu_p99_ms": [1.966208, 1.97056, 1.989376],
+				"cpu_p95_ms": [0.2874, 0.2947, 0.2943],
+				"cpu_p99_ms": [0.3277, 0.3362, 0.3788],
+				"peak_reserved_bytes": 94483712,
+				"retirement_ms": 15.882,
+				"balanced_created_released_textures": 6,
+				"diagnostic_rows": 93613,
+				"raw_sha256": "4a321088ff504de79fd4c80647a37db3888c1e69c28f9618ed6c787a0ad85c01"
+			},
+			{
+				"case": "3840-Raw",
+				"frames": 21600,
+				"gpu_p95_ms": [3.212448, 3.23616, 2.87168],
+				"gpu_p99_ms": [3.931744, 3.945536, 3.658976],
+				"cpu_p95_ms": [0.3487, 0.3186, 0.3255],
+				"cpu_p99_ms": [0.4243, 0.3976, 0.4149],
+				"peak_reserved_bytes": 142072304,
+				"retirement_ms": 15.9252,
+				"balanced_created_released_textures": 5,
+				"diagnostic_rows": 93613,
+				"raw_sha256": "027426c2b9ab2a148e15f30c4b344b2fcfa13a4fa8b78b7d0f28601e0efa968a"
+			},
+			{
+				"case": "3840-Smooth2x",
+				"frames": 21600,
+				"gpu_p95_ms": [2.326144, 2.325888, 2.423744],
+				"gpu_p99_ms": [2.424544, 2.449184, 2.57552],
+				"cpu_p95_ms": [0.2334, 0.2365, 0.2431],
+				"cpu_p99_ms": [0.2854, 0.2928, 0.3033],
+				"peak_reserved_bytes": 374315504,
+				"retirement_ms": 13.922199999999998,
+				"balanced_created_released_textures": 6,
+				"diagnostic_rows": 93613,
+				"raw_sha256": "f196719cc84b00511674d61f30e29d2d09d1e928c7a165d334f69b191531b823"
+			}
+		],
+		"common_verified_scope": {
+			"complete_cpu_gpu_stage_schedule_coverage": true,
+			"missing_os_thread_accounting": 0,
+			"accepted_on_time_per_sample": 7200,
+			"deadline_slots_per_sample": 7200,
+			"dropped_queued_or_clock_failures": 0,
+			"resource_observations_per_case": 390,
+			"final_live_bytes_and_textures": 0,
+			"final_outputs": [],
+			"paired_inventory_identities_equal": true,
+			"qpc_inventories_bracket_all_phases": true,
+			"execution_input_hashes_unchanged": 412
+		},
+		"artifacts": "mapgyver-m12-screen-sustained-2026-11-06/atlas-nvidia-matrix.zip",
+		"archive_bytes": 17316810,
+		"archive_sha256": "5ddbfb1e9553830afffaaa9bccfdd5f6f3d14ece4ad267c48bf1d3fe0dd6307e",
+		"limits": "Screen-only fixed official calibration + Solid Color, two Surfaces and one SDK output; no external worker, physical delivery, scanout or complete production qualification. Driver physical bytes remain unavailable."
+	},
+	"next": "The original eight-case cost matrix is complete. Keep M12/8 unaccepted for Intel 4K Smooth GPU/cadence failure; return on the pending explicit scope decision or an owning renderer implementation that meets the unchanged limits. Do not repeat measured cases or add profiler variants",
 	"progress": "67/78 gates (86%), M12 10/11 (91%); typography and icons accepted separately, no cost gate accepted"
 }
