@@ -161,6 +161,46 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
 }
 
 #[test]
+fn observed_legacy_xrgb_can_compile_without_admitting_other_discovered_alpha_overrides() {
+    let maximum = TextureDescriptor {
+        extent: Extent2D::new(4, 4).unwrap(),
+        format: PixelFormat::Bgra8Unorm,
+        color_encoding: ColorEncoding::Srgb,
+        alpha_mode: AlphaMode::Straight,
+    };
+    for (format, alpha, accepted) in [
+        (PixelFormat::Bgra8Unorm, AlphaMode::Opaque, true),
+        (PixelFormat::Bgra8Unorm, AlphaMode::Straight, true),
+        (PixelFormat::Bgra8Unorm, AlphaMode::Premultiplied, false),
+        (PixelFormat::Rgba8Unorm, AlphaMode::Opaque, false),
+    ] {
+        let observed = TextureDescriptor {
+            format,
+            alpha_mode: alpha,
+            ..maximum
+        };
+        let plan = RenderPlan {
+            external_textures: vec![ExternalTexture {
+                id: TextureId::new(1).unwrap(),
+                descriptor: observed,
+                source: Some(
+                    crate::plan::SpoutSource {
+                        sender: "Legacy source".into(),
+                        descriptor: maximum,
+                        metadata: crate::plan::SpoutMetadata::Discover,
+                        poll_interval: std::time::Duration::from_millis(16),
+                        frame_count: SpoutFrameCount::Unversioned,
+                    }
+                    .into(),
+                ),
+            }],
+            ..Default::default()
+        };
+        assert_eq!(plan.compile(&limits()).is_ok(), accepted, "{format:?}/{alpha:?}");
+    }
+}
+
+#[test]
 fn discovered_spout_metadata_accepts_both_byte_layouts_with_runtime_bounds() {
     let source = SpoutSource {
         sender: "Exact input".into(),

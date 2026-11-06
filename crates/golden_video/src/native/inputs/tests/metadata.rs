@@ -57,4 +57,20 @@ fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_chan
     ] {
         assert!(receiver::layout(&binding, width, height, storage.0 as u32).is_none());
     }
+    for (registered, alpha) in [(21, AlphaMode::Straight), (22, AlphaMode::Opaque)] {
+        let actual = receiver::layout(&binding, 3840, 2160, registered).unwrap();
+        assert_eq!(actual.format, PixelFormat::Bgra8Unorm);
+        assert_eq!(actual.color_encoding, ColorEncoding::Srgb);
+        assert_eq!(actual.alpha_mode, alpha);
+        assert_eq!(
+            crate::native::spout_layout::native_format(registered),
+            DXGI_FORMAT_B8G8R8A8_UNORM
+        );
+        let mut declared = binding.clone();
+        declared.metadata = SpoutMetadata::Declared;
+        assert_eq!(
+            receiver::layout(&declared, 3840, 2160, registered).unwrap().alpha_mode,
+            AlphaMode::Straight
+        );
+    }
 }

@@ -79,6 +79,18 @@ fn sender_metadata_must_have_supported_bounded_storage_before_graphics_allocatio
     ] {
         assert!(endpoint.descriptor().is_err());
     }
+    for (registered, alpha) in [(21, AlphaMode::Straight), (22, AlphaMode::Opaque)] {
+        let endpoint = Endpoint {
+            format: registered,
+            ..base
+        };
+        let actual = endpoint.descriptor().unwrap();
+        assert_eq!(actual.format, PixelFormat::Bgra8Unorm);
+        assert_eq!(actual.color_encoding, ColorEncoding::Srgb);
+        assert_eq!(actual.alpha_mode, alpha);
+        let exact = PayloadPool::new("legacy-exact", 1, 64).unwrap();
+        assert!(endpoint.reserve(&exact).is_ok());
+    }
 }
 
 #[test]

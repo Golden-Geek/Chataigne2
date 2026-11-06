@@ -6,7 +6,8 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device, ID3D11Texture2D};
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use super::super::texture::{Texture, source_format};
+use super::super::spout_layout;
+use super::super::texture::Texture;
 use crate::plan::{SpoutFrameCount, SpoutSource};
 use crate::{Extent2D, TextureDescriptor};
 
@@ -24,7 +25,8 @@ pub(crate) enum Received {
 /// SRGB). Authenticate and retain both for the entire alias/counter lifetime.
 struct Endpoint {
     handle: usize,
-    storage: u32,
+    registered_storage: u32,
+    native_storage: u32,
     descriptor: TextureDescriptor,
     _alias: ID3D11Texture2D,
 }
@@ -103,7 +105,9 @@ impl Receiver {
             return Ok(Some(Received::Mismatch));
         };
         if self.endpoint.as_ref().is_none_or(|endpoint| {
-            endpoint.handle != handle as usize || endpoint.storage != storage || endpoint.descriptor != descriptor
+            endpoint.handle != handle as usize
+                || endpoint.registered_storage != storage
+                || endpoint.descriptor != descriptor
         }) {
             self.disconnect();
             if !self.validate_alias(handle, storage, descriptor)? {
@@ -126,7 +130,8 @@ impl Receiver {
 
     pub fn receive(&mut self, capture: &Texture) -> Result<Received> {
         let endpoint = self.endpoint.as_ref().ok_or_else(invalid)?;
-        let (expected, expected_storage, expected_handle) = (endpoint.descriptor, endpoint.storage, endpoint.handle);
+        let (expected, expected_storage, expected_handle) =
+            (endpoint.descriptor, endpoint.native_storage, endpoint.handle);
         if capture.descriptor != expected {
             return Err(invalid());
         }
@@ -235,8 +240,8 @@ impl Receiver {
         }
         if desc.Width != descriptor.extent.width()
             || desc.Height != descriptor.extent.height()
-            || desc.Format.0 as u32 != storage
-            || source_format(storage) != Some(descriptor.format)
+            || desc.Format != spout_layout::native_format(storage)
+            || spout_layout::observed(&self.binding, descriptor.extent, storage) != Some(descriptor)
             || desc.MipLevels != 1
             || desc.ArraySize != 1
             || desc.SampleDesc.Count != 1
@@ -246,7 +251,8 @@ impl Receiver {
         }
         self.endpoint = Some(Endpoint {
             handle: handle as usize,
-            storage,
+            registered_storage: storage,
+            native_storage: desc.Format.0 as u32,
             descriptor,
             _alias: alias,
         });
@@ -282,8 +288,7 @@ impl Receiver {
 }
 
 pub(super) fn layout(binding: &SpoutSource, width: u32, height: u32, storage: u32) -> Option<TextureDescriptor> {
-    let pixel_format = super::super::texture::source_format(storage)?;
-    binding.observed_descriptor(Extent2D::new(width, height).ok()?, pixel_format)
+    spout_layout::observed(binding, Extent2D::new(width, height).ok()?, storage)
 }
 
 /// Counter history belongs to one validated sender-handle/descriptor lifetime. Only detailed

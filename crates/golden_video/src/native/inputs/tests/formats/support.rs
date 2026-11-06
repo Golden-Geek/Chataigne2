@@ -22,6 +22,20 @@ pub(super) fn wait(label: &str, mut ready: impl FnMut() -> bool) {
     }
 }
 
+pub(super) fn watchdog(label: &'static str) -> std::sync::mpsc::Sender<()> {
+    let (done, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if matches!(
+            receiver.recv_timeout(Duration::from_secs(90)),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ) {
+            eprintln!("{label} exceeded90seconds; completion is unverified");
+            std::process::exit(1);
+        }
+    });
+    done
+}
+
 /// A failed assertion never releases shared-reader ownership before submitted GPU uses finish.
 pub(super) struct GpuUse<'a> {
     device: &'a Device,
@@ -88,6 +102,13 @@ pub(super) struct Sender {
     token: CompletionToken,
 }
 impl Sender {
+    pub fn set_registered_format(&self, registered: u32) {
+        assert_ne!(
+            unsafe { sdk::spout_dx_set_sender_metadata_format(self.sdk.0.as_ptr(), registered) },
+            0
+        );
+    }
+
     pub fn pixels(&self, pixel_bytes: usize) -> Vec<u8> {
         readback_native(&self.device, &self.texture, pixel_bytes)
     }

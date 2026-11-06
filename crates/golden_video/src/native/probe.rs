@@ -50,10 +50,11 @@ impl Endpoint {
         if self.width > 16384 || self.height > 16384 {
             return Err(invalid());
         }
-        Ok(crate::plan::SpoutSource::discovered_descriptor(
+        super::spout_layout::descriptor(
             Extent2D::new(self.width, self.height).map_err(|_| invalid())?,
-            super::texture::source_format(self.format).ok_or_else(invalid)?,
-        ))
+            self.format,
+        )
+        .ok_or_else(invalid)
     }
     fn reserve(self, budget: &PayloadPool) -> Result<(TextureDescriptor, PayloadReservation)> {
         let descriptor = self.descriptor()?;

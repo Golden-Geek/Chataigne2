@@ -179,6 +179,20 @@ static_assert(static_cast<int>(SpoutDXTransferStatus::Busy) == SPOUT_DX_TRANSFER
 static_assert(static_cast<int>(SpoutDXTransferStatus::Updated) == SPOUT_DX_TRANSFER_UPDATED);
 static_assert(static_cast<int>(SpoutDXTransferStatus::Disconnected) == SPOUT_DX_TRANSFER_DISCONNECTED);
 
+int spout_dx_set_sender_metadata_format(spout_dx_t* h, unsigned int registered_format) {
+    if (!h) return 0;
+    try {
+        auto* instance = as_dx(h);
+        const char* name = instance->GetName();
+        if (!instance->IsInitialized() || !name || !*name ||
+            !instance->GetWidth() || !instance->GetHeight() || !instance->GetSenderHandle()) return 0;
+        return instance->sendernames.UpdateSender(name, instance->GetWidth(), instance->GetHeight(),
+                                                   instance->GetSenderHandle(), registered_format) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
 int spout_dx_send_texture_status(spout_dx_t* h, void* texture, unsigned int access_timeout_ms) {
     if (!h || access_timeout_ms == INFINITE) return SPOUT_DX_TRANSFER_FAILED;
     try {

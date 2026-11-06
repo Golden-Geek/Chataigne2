@@ -1,0 +1,577 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; legacy metadata import verified; remaining backend formats/app/recovery unaccepted",
+  "base_commit": "35e72f91073fad4c68c71ed336dd7ed6c2998a6c",
+  "delivered": "Automatic SDK legacy ARGB/XRGB metadata reception with authenticated native BGRA storage, correct straight/opaque alpha and shared first-frame readiness policy.",
+  "ownership": "Golden native spout_layout, receiving endpoint identity and Spout probe; public sys binding over the SDK's sender-registry update API.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "226 passed,38 ignored; includes compile admission of observed legacy XRGB and rejection of other discovered alpha overrides."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated-contract checks included."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings; cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Both pass before dependent native checks."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::inventory::hardware_spout_backend_format_inventory -- --exact --ignored --nocapture",
+      "result": "Inventory baseline:1 passed,263 filtered,exit0 in0.28seconds. Same SDK allocation flags and actual foreign alias checks on both adapters; no pixel/import acceptance claim."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges -- --exact --ignored --nocapture",
+      "result": "Acceptance cohort:1 passed,263 filtered,exit0 in29.12seconds.28 format cases,18 sRGB replacement phases,6 legacy replacement phases and2 wrong-alias/non-Ready controls pass. Two-cohort batch limit satisfied; no further native cohort."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-legacy-input",
+      "result": "Isolated current app build passes,exit0. No user's running binary replaced."
+    },
+    {
+      "command": "cargo fmt --all -- --check; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
+      "result": "Both pass."
+    },
+    {
+      "command": "cargo clippy --locked --manifest-path vendor/spout2-sys-0.1.1/Cargo.toml --no-default-features --features dx -- -D warnings",
+      "result": "Pass,exit0. Initial workspace -p invocation was rejected because features cannot be specified for a non-workspace package; explicit manifest invocation repairs the command."
+    },
+    {
+      "command": "Validate PATCHES.json hashes against all listed files and documentation",
+      "result": "Pass: every listed file/documentation hash matches PATCHES.json; only the three changed C/Rust bindings and GOLDEN_PATCH.md hashes changed."
+    }
+  ],
+  "native": {
+    "method": "Independent D3D11 BGRA producer, actual SDK owned sender-registry metadata21/22, production SourcePool receiving, renderer/shader and first-frame probe. Exact storage bytes compared with independent producer staging; mathematical RGB/alpha references checked with existing precision targets.",
+    "legacy_cases": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "byte_pixel_export": true,
+        "capture_bytes": 16,
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 87,
+        "first_frame_probe": true,
+        "format": "Bgra8Unorm",
+        "max_shader_error": 0.0002265721559524536,
+        "probe_reserved_bytes": 16,
+        "registered_format": 21,
+        "retired": true,
+        "shader_expected": [
+          0.007250243332237005,
+          0.10835352540016174,
+          0.2615194022655487,
+          0.501960813999176
+        ],
+        "shader_tolerance": 0.007843137718737125,
+        "source_bits_exact": true,
+        "source_charge": 64,
+        "source_pixel_bytes": [
+          191,
+          128,
+          32,
+          128
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "byte_pixel_export": true,
+        "capture_bytes": 16,
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 87,
+        "first_frame_probe": true,
+        "format": "Bgra8Unorm",
+        "max_shader_error": 0.00045137107372283936,
+        "probe_reserved_bytes": 16,
+        "registered_format": 22,
+        "retired": true,
+        "shader_expected": [
+          0.014443843625485897,
+          0.2158605307340622,
+          0.5209956765174866,
+          1
+        ],
+        "shader_tolerance": 0.007843137718737125,
+        "source_bits_exact": true,
+        "source_charge": 64,
+        "source_pixel_bytes": [
+          191,
+          128,
+          32,
+          128
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "byte_pixel_export": true,
+        "capture_bytes": 16,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 87,
+        "first_frame_probe": true,
+        "format": "Bgra8Unorm",
+        "max_shader_error": 0.0007293522357940674,
+        "probe_reserved_bytes": 16,
+        "registered_format": 21,
+        "retired": true,
+        "shader_expected": [
+          0.007193600758910179,
+          0.10569922626018524,
+          0.25947627425193787,
+          0.49803921580314636
+        ],
+        "shader_tolerance": 0.007843137718737125,
+        "source_bits_exact": true,
+        "source_charge": 64,
+        "source_pixel_bytes": [
+          191,
+          127,
+          32,
+          127
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "byte_pixel_export": true,
+        "capture_bytes": 16,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 87,
+        "first_frame_probe": true,
+        "format": "Bgra8Unorm",
+        "max_shader_error": 0.0014644265174865723,
+        "probe_reserved_bytes": 16,
+        "registered_format": 22,
+        "retired": true,
+        "shader_expected": [
+          0.014443843625485897,
+          0.21223072707653046,
+          0.5209956765174866,
+          1
+        ],
+        "shader_tolerance": 0.007843137718737125,
+        "source_bits_exact": true,
+        "source_charge": 64,
+        "source_pixel_bytes": [
+          191,
+          127,
+          32,
+          127
+        ]
+      }
+    ],
+    "regression": {
+      "format_cases": 28,
+      "all_native_bits_exact": true,
+      "all_shader_targets_met": true,
+      "actual_first_frame_ready": true,
+      "byte_export_where_applicable": true,
+      "all_source_probe_storage_reclaimed": true,
+      "existing_srgb_replacement_sequences": 6,
+      "existing_srgb_replacement_phases": 18
+    },
+    "legacy_replacements": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "gpu_completion": true,
+        "invalid_alias_never_ready": true,
+        "native_bits_exact": true,
+        "native_format": 87,
+        "phases": 3,
+        "registered_formats": [
+          21,
+          22,
+          21
+        ],
+        "same_receiver": true,
+        "scope": "Actual SDK legacy metadata over independent D3D11 BGRA storage; no D3D9 producer-device claim.",
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true,
+        "straight_opaque_straight": true,
+        "wrong_native_alias_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "gpu_completion": true,
+        "invalid_alias_never_ready": true,
+        "native_bits_exact": true,
+        "native_format": 87,
+        "phases": 3,
+        "registered_formats": [
+          21,
+          22,
+          21
+        ],
+        "same_receiver": true,
+        "scope": "Actual SDK legacy metadata over independent D3D11 BGRA storage; no D3D9 producer-device claim.",
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true,
+        "straight_opaque_straight": true,
+        "wrong_native_alias_rejected": true
+      }
+    ],
+    "scope": "Actual SDK legacy metadata over independent D3D11 BGRA storage. No actual D3D9 producer-device qualification claim. Both wrong float aliases advertised as ARGB are rejected, never Ready, and release probe storage.",
+    "test_binary": {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "f474d0903c18ebac25bdda4a88f8e51c1feb035447a48e775ee942bce1aeb603"
+    }
+  },
+  "inventory": {
+    "method": "Sweep current pinned Windows DXGI ordinals1..191, including reserved values. Allocate8x8 with the SDK's exact default usage, shader-resource/render-target flags and legacy shared flag; open on a second same-adapter device, authenticate native extent/format, and check NT/keyed bridge allocation. SDK metadata0/21/22 normalization is separate.",
+    "range_encoding": "All [first,last] pairs below are inclusive; single values have first==last.",
+    "limits": "Allocation/foreign-alias evidence only. No typed-view, sample interpretation, conversion, pixel, timing or full-format gate acceptance.",
+    "native_names": {
+      "1": "DXGI_FORMAT_R32G32B32A32_TYPELESS",
+      "2": "DXGI_FORMAT_R32G32B32A32_FLOAT",
+      "3": "DXGI_FORMAT_R32G32B32A32_UINT",
+      "4": "DXGI_FORMAT_R32G32B32A32_SINT",
+      "9": "DXGI_FORMAT_R16G16B16A16_TYPELESS",
+      "10": "DXGI_FORMAT_R16G16B16A16_FLOAT",
+      "11": "DXGI_FORMAT_R16G16B16A16_UNORM",
+      "12": "DXGI_FORMAT_R16G16B16A16_UINT",
+      "13": "DXGI_FORMAT_R16G16B16A16_SNORM",
+      "14": "DXGI_FORMAT_R16G16B16A16_SINT",
+      "15": "DXGI_FORMAT_R32G32_TYPELESS",
+      "16": "DXGI_FORMAT_R32G32_FLOAT",
+      "17": "DXGI_FORMAT_R32G32_UINT",
+      "18": "DXGI_FORMAT_R32G32_SINT",
+      "23": "DXGI_FORMAT_R10G10B10A2_TYPELESS",
+      "24": "DXGI_FORMAT_R10G10B10A2_UNORM",
+      "25": "DXGI_FORMAT_R10G10B10A2_UINT",
+      "26": "DXGI_FORMAT_R11G11B10_FLOAT",
+      "27": "DXGI_FORMAT_R8G8B8A8_TYPELESS",
+      "28": "DXGI_FORMAT_R8G8B8A8_UNORM",
+      "29": "DXGI_FORMAT_R8G8B8A8_UNORM_SRGB",
+      "30": "DXGI_FORMAT_R8G8B8A8_UINT",
+      "31": "DXGI_FORMAT_R8G8B8A8_SNORM",
+      "32": "DXGI_FORMAT_R8G8B8A8_SINT",
+      "33": "DXGI_FORMAT_R16G16_TYPELESS",
+      "34": "DXGI_FORMAT_R16G16_FLOAT",
+      "35": "DXGI_FORMAT_R16G16_UNORM",
+      "36": "DXGI_FORMAT_R16G16_UINT",
+      "37": "DXGI_FORMAT_R16G16_SNORM",
+      "38": "DXGI_FORMAT_R16G16_SINT",
+      "39": "DXGI_FORMAT_R32_TYPELESS",
+      "41": "DXGI_FORMAT_R32_FLOAT",
+      "42": "DXGI_FORMAT_R32_UINT",
+      "43": "DXGI_FORMAT_R32_SINT",
+      "48": "DXGI_FORMAT_R8G8_TYPELESS",
+      "49": "DXGI_FORMAT_R8G8_UNORM",
+      "50": "DXGI_FORMAT_R8G8_UINT",
+      "51": "DXGI_FORMAT_R8G8_SNORM",
+      "52": "DXGI_FORMAT_R8G8_SINT",
+      "53": "DXGI_FORMAT_R16_TYPELESS",
+      "54": "DXGI_FORMAT_R16_FLOAT",
+      "56": "DXGI_FORMAT_R16_UNORM",
+      "57": "DXGI_FORMAT_R16_UINT",
+      "58": "DXGI_FORMAT_R16_SNORM",
+      "59": "DXGI_FORMAT_R16_SINT",
+      "60": "DXGI_FORMAT_R8_TYPELESS",
+      "61": "DXGI_FORMAT_R8_UNORM",
+      "62": "DXGI_FORMAT_R8_UINT",
+      "63": "DXGI_FORMAT_R8_SNORM",
+      "64": "DXGI_FORMAT_R8_SINT",
+      "65": "DXGI_FORMAT_A8_UNORM",
+      "85": "DXGI_FORMAT_B5G6R5_UNORM",
+      "86": "DXGI_FORMAT_B5G5R5A1_UNORM",
+      "87": "DXGI_FORMAT_B8G8R8A8_UNORM",
+      "88": "DXGI_FORMAT_B8G8R8X8_UNORM",
+      "89": "DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM",
+      "90": "DXGI_FORMAT_B8G8R8A8_TYPELESS",
+      "91": "DXGI_FORMAT_B8G8R8A8_UNORM_SRGB",
+      "92": "DXGI_FORMAT_B8G8R8X8_TYPELESS",
+      "93": "DXGI_FORMAT_B8G8R8X8_UNORM_SRGB",
+      "100": "DXGI_FORMAT_AYUV",
+      "101": "DXGI_FORMAT_Y410",
+      "102": "DXGI_FORMAT_Y416",
+      "103": "DXGI_FORMAT_NV12",
+      "104": "DXGI_FORMAT_P010",
+      "105": "DXGI_FORMAT_P016",
+      "107": "DXGI_FORMAT_YUY2",
+      "108": "DXGI_FORMAT_Y210",
+      "109": "DXGI_FORMAT_Y216",
+      "115": "DXGI_FORMAT_B4G4R4A4_UNORM"
+    },
+    "adapters": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "shared_allocations_with_exact_foreign_alias": 70,
+        "available_native_ranges": [
+          [
+            1,
+            4
+          ],
+          [
+            9,
+            18
+          ],
+          [
+            23,
+            39
+          ],
+          [
+            41,
+            43
+          ],
+          [
+            48,
+            54
+          ],
+          [
+            56,
+            65
+          ],
+          [
+            85,
+            93
+          ],
+          [
+            100,
+            105
+          ],
+          [
+            107,
+            109
+          ],
+          [
+            115,
+            115
+          ]
+        ],
+        "current_direct_native_mapping": [
+          2,
+          10,
+          11,
+          13,
+          24,
+          28,
+          29,
+          31,
+          87,
+          88,
+          91,
+          93
+        ],
+        "native_bridge_allocation_failures": [
+          {
+            "native_format": 15,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 16,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 17,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 18,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 85,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 86,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 115,
+            "hresult": -2147024809
+          }
+        ],
+        "rejected_native_ranges_by_hresult": {
+          "-2147024809": [
+            [
+              5,
+              8
+            ],
+            [
+              19,
+              22
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              44,
+              47
+            ],
+            [
+              55,
+              55
+            ],
+            [
+              66,
+              84
+            ],
+            [
+              94,
+              99
+            ],
+            [
+              106,
+              106
+            ],
+            [
+              110,
+              114
+            ],
+            [
+              116,
+              191
+            ]
+          ]
+        }
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "shared_allocations_with_exact_foreign_alias": 68,
+        "available_native_ranges": [
+          [
+            1,
+            4
+          ],
+          [
+            9,
+            18
+          ],
+          [
+            23,
+            39
+          ],
+          [
+            41,
+            43
+          ],
+          [
+            48,
+            54
+          ],
+          [
+            56,
+            65
+          ],
+          [
+            85,
+            93
+          ],
+          [
+            100,
+            104
+          ],
+          [
+            107,
+            109
+          ]
+        ],
+        "current_direct_native_mapping": [
+          2,
+          10,
+          11,
+          13,
+          24,
+          28,
+          29,
+          31,
+          87,
+          88,
+          91,
+          93
+        ],
+        "native_bridge_allocation_failures": [
+          {
+            "native_format": 15,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 16,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 17,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 18,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 85,
+            "hresult": -2147024809
+          },
+          {
+            "native_format": 86,
+            "hresult": -2147024809
+          }
+        ],
+        "rejected_native_ranges_by_hresult": {
+          "-2147024809": [
+            [
+              5,
+              8
+            ],
+            [
+              19,
+              22
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              44,
+              47
+            ],
+            [
+              55,
+              55
+            ],
+            [
+              66,
+              84
+            ],
+            [
+              94,
+              99
+            ],
+            [
+              105,
+              106
+            ],
+            [
+              110,
+              191
+            ]
+          ]
+        }
+      }
+    ],
+    "decision": "The GL list is not the full backend. Shared allocations open for70 Intel/68 NVIDIA native formats, with only12 direct native format mappings presently implemented. RG32 families and packed BGR require a supported conversion bridge; integer/typeless/video-plane formats need typed interpretation/conversion.",
+    "rgb32_limit": {
+      "native_format": 6,
+      "name": "DXGI_FORMAT_R32G32B32_FLOAT",
+      "adapters": "Both",
+      "shared_allocator_hresult": -2147024809,
+      "accepted": false,
+      "return_trigger": "An SDK/backend able to publish a shared RGB32 source, or a justified import/conversion path for an actual producer. No successful subset hides this API limit."
+    }
+  },
+  "app_binary": {
+    "path": "target/debug/deps/MapGyver-m132-legacy-input.exe",
+    "sha256": "341053a54c9a612db42221c33d6ecefa11cc3e58b73b8ed95a6850b65e14db76",
+    "scope": "Current code compiles into isolated actual app; full native app format/recovery integration remains unverified."
+  },
+  "remaining": [
+    "Unspecified registration metadata0 still requires safe native-alias resolution. All remaining available float/normalized/packed, integer, typeless and video-plane formats need import/conversion and pixels. NT bridge failures need conversion, not another repeated capability sweep.",
+    "RGB32 FLOAT allocation limitation remains explicitly unaccepted; actual D3D9 producer-device scope remains unverified.",
+    "Full actual-app preview/output format integration and worker/app live format/size/sender/device recovery remain required.",
+    "No full gate closes: overall70/92 (76%), M13 1/14 (7%)."
+  ],
+  "desktop": "Automation authorized; this batch uses no desktop input."
+}

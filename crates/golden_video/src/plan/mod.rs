@@ -244,12 +244,12 @@ pub struct SpoutSource {
     pub frame_count: SpoutFrameCount,
 }
 
-/// Classic Spout textures carry storage format but no transfer/alpha metadata.
+/// Classic Spout has no explicit RGB transfer or premultiplication metadata.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpoutMetadata {
     /// Require the caller's fixed storage, transfer and alpha contract.
     Declared,
-    /// Discover storage: unsigned byte RGB is sRGB; other RGB is linear. BGRX is opaque;
+    /// Discover storage: unsigned byte RGB is sRGB; other RGB is linear. BGRX/legacy XRGB are opaque;
     /// formats carrying alpha use straight alpha.
     Discover,
 }
@@ -298,7 +298,9 @@ impl SpoutSource {
                 }
                 SpoutMetadata::Discover => {
                     actual.color_encoding == Self::observed_encoding(actual.format)
-                        && actual.alpha_mode == Self::observed_alpha(actual.format)
+                        && (actual.alpha_mode == Self::observed_alpha(actual.format)
+                            // Legacy XRGB shares native BGRA storage but has no authored alpha.
+                            || (actual.format == crate::PixelFormat::Bgra8Unorm && actual.alpha_mode == crate::AlphaMode::Opaque))
                 }
             }
     }

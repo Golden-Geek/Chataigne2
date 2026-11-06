@@ -28,7 +28,7 @@ continue to follow repository layout and size rules. Do not perform unrelated up
 
 ## Extension ownership
 
-The local patch has five responsibilities:
+The local patch has six responsibilities:
 
 - Report the exact result of each DX11 send/receive attempt. A retained legacy new-frame flag
   cannot establish that the current call copied an image. `Copied` follows actual copy/flush;
@@ -44,6 +44,10 @@ The local patch has five responsibilities:
   its timeout. There is no automatic downgrade to CPU-only ownership.
 - Rebuild the native archive when SDK sources or headers change, alongside the original shim
   invalidation rules. Rust's caller-selected CRT and Windows/MSVC build constraints are retained.
+- Expose the SDK's existing sender-registry format-metadata update for initialized, caller-owned
+  senders. This changes shared metadata without changing or converting native storage; unsafe
+  callers must never pass receiver instances or foreign registrations. Golden's owned source
+  fixture uses it to verify legacy ARGB/XRGB interpretation and reject mismatched native aliases.
 
 Counter availability is separate from the runtime's local publication sequence and from GPU
 completion. The SDK's signed counter is bounded; the extension does not invent monotonic wrap
@@ -56,7 +60,13 @@ Golden's owned outputs opt into the SDK's existing keyed-texture allocation path
 standard Spout 32-bit legacy share-handle representation. Peers must support D3D11 keyed shared
 textures; DX9 texture interoperability is outside this route. Ordinary unversioned/legacy
 incoming senders remain supported. Sharing and counter modes are separate instance choices,
-with no registry writes or changes to other applications' settings.
+with no Windows registry writes or changes to other applications' settings.
+
+Incoming legacy registration values21/22 are separate from native DXGI values. Golden validates
+their actual BGRA alias, retains the registered and native formats independently, and applies
+straight ARGB/opaque XRGB alpha. Receiving and readiness share this interpretation. Both-GPU
+native SourcePool, shader, readiness and retirement checks pass for real SDK metadata over
+independent D3D11 storage; this does not claim actual D3D9 producer-device qualification.
 
 The named CPU lock protects counter decrement/restore and copy enqueueing. Keyed transfers
 acquire that metadata lock before GPU ownership and release both after enqueueing. Counter

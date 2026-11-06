@@ -6,6 +6,18 @@ type Case = (PixelFormat, DXGI_FORMAT, [f32; 4], Vec<u8>);
 pub(super) fn cases() -> Vec<Case> {
     vec![
         (
+            PixelFormat::Bgra8Unorm,
+            DXGI_FORMAT(21),
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
+            PixelFormat::Bgra8Unorm,
+            DXGI_FORMAT(22),
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
             PixelFormat::Rgba16Unorm,
             DXGI_FORMAT_R16G16B16A16_UNORM,
             [0.125, 0.5, 0.75, 0.5],
@@ -70,7 +82,7 @@ pub(super) fn cases() -> Vec<Case> {
 
 /// Decode the independent producer's native bytes, without using Golden format/view mappings.
 /// UNORM/SNORM Clear rounding may differ by device; transport must preserve the resulting bits.
-pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4]) -> [f32; 4] {
+pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4], opaque: bool) -> [f32; 4] {
     let mut rgba: [f32; 4] = match format {
         PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => color,
         PixelFormat::Rgba16Unorm => {
@@ -115,6 +127,9 @@ pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4]) -> [f
             ]
         }
     };
+    if opaque {
+        rgba[3] = 1.;
+    }
     assert!(
         rgba[..3].iter().any(|value| value.abs() > 0.01),
         "a black oracle is invalid"

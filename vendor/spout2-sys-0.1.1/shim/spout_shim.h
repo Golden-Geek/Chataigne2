@@ -93,6 +93,9 @@ void* spout_dx_get_context(spout_dx_t* h); /* ID3D11DeviceContext* */
 /* sender */
 int          spout_dx_set_sender_name(spout_dx_t* h, const char* name);
 void         spout_dx_set_sender_format(spout_dx_t* h, unsigned int dxgi_format);
+/* Caller-owned initialized sender only (never a receiver/foreign registration).
+ * Updates registry metadata without converting storage; call on the owner's thread. */
+int          spout_dx_set_sender_metadata_format(spout_dx_t* h, unsigned int registered_format);
 void         spout_dx_release_sender(spout_dx_t* h);
 int          spout_dx_send_texture(spout_dx_t* h, void* texture); /* ID3D11Texture2D* */
 int          spout_dx_send_image(spout_dx_t* h, const unsigned char* data,

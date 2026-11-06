@@ -46,7 +46,23 @@ the same descriptor, and authenticates the actual shared texture against that ex
 Receive checks the caller's canonical descriptor and the SDK's exact raw layout after the call.
 A change withdraws the old endpoint/counter lifetime; existing completion-safe retirement and
 reconnect remain in force. The pinned SDK already uses the compatible D3D11 copy operation;
-its public API and vendored implementation are unchanged.
+its receive API and implementation are unchanged.
+
+## Legacy registry metadata
+
+Spout's registered values21/22 are D3D9 ARGB/XRGB identifiers, not DXGI enum values. The
+native `spout_layout` boundary maps both to authenticated BGRA8 storage. ARGB defaults to
+straight alpha and XRGB to opaque alpha; declared callers retain their explicit interpretation.
+Receiving and first-frame readiness share this policy. The endpoint retains both the registered
+identifier and actual native format, validates the opened alias against the SDK mapping, and
+compares the SDK's post-receive format with native storage. Mislabeled float storage cannot
+satisfy this legacy BGRA contract or become Ready.
+
+The sys crate exposes the SDK's existing sender-registry metadata update API for initialized,
+caller-owned sender registrations. It changes metadata without changing texture storage;
+its unsafe contract forbids receiver instances/foreign registrations. The owned qualification
+producer advertises independent D3D11 BGRA storage through real legacy SDK metadata. These
+results prove the metadata/import boundary; they make no D3D9 producer-device claim.
 
 ## SDK inventory and unfinished acceptance
 
@@ -71,9 +87,9 @@ complete format support is made by the verified subsets.
 | 91 /93 | BGRA8 /BGRX8 UNORM SRGB | Same-family canonical UNORM import; both-GPU bits/color/alpha/readiness/retirement and receiver replacement pass |
 | 31 | RGBA8 SNORM | Typed4-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
 | 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw SRV/shader decode; corrected both-GPU precision/readiness/retirement pass |
-| 6 | RGB32 FLOAT | Additional GL mapping; sharing/required-view capability and implicit alpha remain unverified |
-| 21 /22 | Legacy D3D9 ARGB/XRGB metadata | SDK compatibility mappings exist; exact alias/storage/alpha admission remains unverified |
-| Other DXGI values | DirectX pass-through candidates | Device/backend capability inventory and interpretation remain unverified |
+| 6 | RGB32 FLOAT | Both GPUs reject the pinned SDK's shared allocation flags with E_INVALIDARG; API limitation stays unaccepted |
+| 21 /22 | Legacy D3D9 ARGB/XRGB metadata | Both-GPU native bits/color/alpha/readiness/retirement and sender replacement pass over D3D11 BGRA storage; D3D9 producer-device scope unverified |
+| Other DXGI values | DirectX pass-through candidates |70 Intel/68 NVIDIA shared native allocations open successfully; remaining import/conversion and typed-view/color proof below |
 
 M13/2 remains Active until every required format and explicit hardware/API limitation is
 accounted for, including both-GPU independent native pixels, fractional/float content,
@@ -108,3 +124,32 @@ float/normalized1e-6 targets are unchanged. Six retained-receiver sequences cove
 of sender destruction/reappearance through UNORM→SRGB→UNORM with one capture and unchanged
 logical descriptor. Each observes the new exact bytes after real GPU completion. These
 receiver-level results do not close the remaining worker/app/device recovery requirements.
+
+The [legacy and backend receipt](../progress/evidence/mapgyver-m13-legacy-input-2026-11-06.json)
+adds four legacy adapter/metadata cases to the regression cohort:28 format cases pass in total,
+with real SourcePool/shader/readiness/storage retirement. Two retained legacy receivers pass
+six ARGB→XRGB→ARGB replacement phases, while both reject a float alias advertised as ARGB;
+registration alone never reports first-frame readiness. Earlier sRGB replacement cases pass.
+
+## Remaining backend import work
+
+The allocation inventory sweeps native DXGI ordinals1–191 using the pinned SDK's exact
+8×8 shared texture descriptor, then opens an alias on a second same-adapter device and
+checks NT/keyed bridge allocation. Reserved ordinals return native errors. It finds70 Intel
+and68 NVIDIA allocations with exact foreign aliases, including12 formats already imported.
+This is allocation/alias evidence, not typed-view, shader, pixel or complete import acceptance.
+The receipt retains every available native value and rejected HRESULT; names come from the
+pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
+
+The remaining formats include single/two-channel float and normalized color, R11G11B10 and
+XR-bias, unsigned/signed integer, typeless and video-plane formats. Native RG32 families15–18
+and packed BGR85/86 cannot use the current NT bridge on either GPU; Intel's BGR4444 format115
+also needs conversion, and NVIDIA rejects its SDK shared allocation. Thus extending only the
+format enum is insufficient: these sources need a supported GPU conversion bridge. Next is
+the next missing float/normalized import, with real source/bridge sizes and implicit channels;
+then integer/typeless/video interpretation/conversion and full app/recovery acceptance.
+
+RGB32 FLOAT6 fails the SDK allocator's mandatory shader-resource/render-target shared flags
+on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend
+that can publish such a shared source or a justified import/conversion path for an actual
+producer. No successful subset, allocation result or rejection closes M13/2.

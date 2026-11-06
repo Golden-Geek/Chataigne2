@@ -86,6 +86,10 @@ mod ffi {
 
         pub fn spout_dx_set_sender_name(h: *mut spout_dx_t, name: *const c_char) -> c_int;
         pub fn spout_dx_set_sender_format(h: *mut spout_dx_t, dxgi_format: c_uint);
+        /// Updates an initialized sender's published format metadata through the SDK registry.
+        /// Does not change/convert native storage. The caller must own this sender's registration;
+        /// never pass a receiver instance or a foreign registration. Calls stay on its owner thread.
+        pub fn spout_dx_set_sender_metadata_format(h: *mut spout_dx_t, registered_format: c_uint) -> c_int;
         pub fn spout_dx_release_sender(h: *mut spout_dx_t);
         pub fn spout_dx_send_texture(h: *mut spout_dx_t, texture: *mut c_void) -> c_int;
         pub fn spout_dx_send_image(

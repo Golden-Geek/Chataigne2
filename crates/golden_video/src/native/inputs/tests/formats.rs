@@ -6,6 +6,8 @@ use crate::plan::{
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 use windows::Win32::Graphics::Dxgi::Common::*;
 
+mod inventory;
+mod legacy;
 mod normalized;
 mod srgb;
 mod support;
@@ -14,16 +16,7 @@ use support::{GpuUse, Sender, readback, wait};
 #[test]
 #[ignore = "requires explicit hardware D3D11/Spout qualification; no desktop input"]
 fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges() {
-    let (done, receiver) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        if matches!(
-            receiver.recv_timeout(Duration::from_secs(90)),
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
-        ) {
-            eprintln!("source format qualification exceeded90seconds");
-            std::process::exit(1);
-        }
-    });
+    let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
     let hardware = inventory.iter().filter(|adapter| !adapter.software).collect::<Vec<_>>();
     assert!(!hardware.is_empty());
@@ -51,14 +44,29 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
         cases.extend(normalized::cases());
         for (format, raw_format, color, expected_bytes) in cases {
             let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
-            let sender = Sender::new(adapter.id, &sender_name, raw_format, color);
+            let registered = raw_format.0 as u32;
+            let native_format = if matches!(registered, 21 | 22) {
+                DXGI_FORMAT_B8G8R8A8_UNORM
+            } else {
+                raw_format
+            };
+            let sender = Sender::new(adapter.id, &sender_name, native_format, color);
+            if matches!(registered, 21 | 22) {
+                sender.set_registered_format(registered);
+            }
             let pixel_bytes = format.bytes_per_pixel() as usize;
             let source_bits = sender.pixels(pixel_bytes);
             if !expected_bytes.is_empty() {
                 assert_eq!(source_bits, expected_bytes.repeat(4), "independent float producer bits");
             }
             let device = Device::new(adapter.id).unwrap();
-            let descriptor = SpoutSource::discovered_descriptor(Extent2D::new(2, 2).unwrap(), format);
+            let descriptor = crate::native::spout_layout::descriptor(Extent2D::new(2, 2).unwrap(), registered).unwrap();
+            assert_eq!(descriptor.format, format);
+            let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm;
+            assert_eq!(
+                descriptor.alpha_mode,
+                if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
+            );
             let nominal = TextureDescriptor {
                 format: PixelFormat::Bgra8Unorm,
                 color_encoding: ColorEncoding::Srgb,
@@ -157,7 +165,7 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
                 SampleFilter::Nearest,
             );
             let rendered = readback(&device, &target, 16);
-            let expected = normalized::expected(format, &source_bits[..pixel_bytes], color);
+            let expected = normalized::expected(format, &source_bits[..pixel_bytes], color, opaque);
             let tolerance = normalized::tolerance(format);
             let mut max_shader_error = 0_f32;
             for pixel in rendered.chunks_exact(16) {
@@ -213,13 +221,14 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
             eprintln!(
                 "FORMAT_IMPORT {}",
                 serde_json::json!({"adapter": format!("{:?}", adapter.id), "description":adapter.description,
-                "format":format, "dxgi_format":raw_format.0, "capture_bytes":raw.len(), "source_charge":bytes,
+                "format":format, "dxgi_format":native_format.0, "registered_format":registered, "capture_bytes":raw.len(), "source_charge":bytes,
                 "source_bits_exact":true, "source_bits":source_bits, "shader_expected":expected,
                 "shader_tolerance":tolerance, "max_shader_error":max_shader_error,
                 "first_frame_probe":true, "probe_reserved_bytes":raw.len(), "byte_pixel_export":byte_export, "retired":true})
             );
         }
         srgb::verify_replacements(adapter.id);
+        legacy::verify_replacements(adapter.id);
     }
     done.send(()).unwrap();
 }

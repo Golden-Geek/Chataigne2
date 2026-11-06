@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "baseline": "UPSTREAM.json",
-  "purpose": "Truthful transfer status, explicit local counters, CPU-only metadata hints, opt-in GPU keyed sender ownership and caller-selected finite send waits",
+  "purpose": "Truthful transfer status, explicit local counters, CPU-only metadata hints, opt-in GPU keyed sender ownership and caller-selected finite send waits, and explicit caller-owned sender registry metadata",
   "files": [
     {
       "path": "build.rs",
@@ -16,17 +16,17 @@
     {
       "path": "shim/spout_shim.cpp",
       "baseline_sha256": "612da9fa30c40447c52d5cbd8f3a00fd1df85ebe50ae801ea693d35825718e9e",
-      "patched_sha256": "197b15e895168215f60e5b66b39f453cf877217eedde2a3c42ea364dad448fc9"
+      "patched_sha256": "e271480ce58dcf38c374864ee68181ff95ef62a5b9c081adb1e3b1a3f1acd391"
     },
     {
       "path": "shim/spout_shim.h",
       "baseline_sha256": "615895c561c7bc6cc8dbc41aacba51db97c126d549c48ad2d95bbb3ff41eec29",
-      "patched_sha256": "0ff7302321301d6cc5820e55b7b65731b47391ca452af894711687d00003ea0a"
+      "patched_sha256": "1b28064b774d25baf54283e42ad69ec45b6413f9b5a18fae8f131ffccfc314f2"
     },
     {
       "path": "src/lib.rs",
       "baseline_sha256": "3efa0a646fb5a93080f17504c769ea70f0584727097f3d5ec2c26c8370032fbc",
-      "patched_sha256": "0bebb4d386a580ab4a78b50aee78ed9ea05ea3f97c12fc78d8ae91f1ef3e4df7"
+      "patched_sha256": "f97c6e18f67c8b1c3cc93d5fc6684c239f2ffe0597c0e4672bf49d7746fe23e4"
     },
     {
       "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
@@ -51,6 +51,6 @@
   ],
   "documentation": {
     "UPSTREAM.json": "92eb5e2a8d460009a6196b97de1119a4a2af0aafcfc9b38ecb45a32ff608b5fe",
-    "GOLDEN_PATCH.md": "631190da417ea2eb3bfd78c5f3a805d93a3b1df65009201cb6c839bd90844ef9"
+    "GOLDEN_PATCH.md": "c66796d879784e1928e4e2b881e71c3d9583b4494788c2b6e2015f43ec22c8da"
   }
 }

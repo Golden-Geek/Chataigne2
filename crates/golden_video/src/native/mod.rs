@@ -21,6 +21,7 @@ mod pipeline;
 mod probe;
 mod process;
 mod selection;
+mod spout_layout;
 mod texture;
 pub(crate) mod timing;
 
