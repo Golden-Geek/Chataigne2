@@ -8,6 +8,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { crc32, deflateSync } from 'node:zlib';
 import { openNativeEditor } from './native-editor.mjs';
+import { measureVisibleLatency } from './native-latency.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -298,6 +299,8 @@ try {
 				separationCss: separation
 			})
 		);
+	} else if (process.argv.includes('--latency')) {
+		await measureVisibleLatency({ native, view, directory });
 	} else if (process.argv.includes('--zoom')) {
 		const hwnd = Number(
 			execFileSync(

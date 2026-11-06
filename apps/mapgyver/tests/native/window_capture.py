@@ -13,8 +13,8 @@ from pathlib import Path
 from PIL import Image, ImageGrab
 
 
-def visible_owned_window(hwnd, pid):
-    """Read visible composited pixels only after checking the owned foreground window."""
+def owned_window_bounds(hwnd, pid):
+    """Read physical bounds only for the caller's owned foreground window."""
     user = ctypes.windll.user32
     user.GetForegroundWindow.restype = wintypes.HWND
     user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
@@ -28,10 +28,14 @@ def visible_owned_window(hwnd, pid):
     rect = wintypes.RECT()
     assert user.GetWindowRect(hwnd, ctypes.byref(rect))
     bounds = (rect.left, rect.top, rect.right, rect.bottom)
+    return bounds
+
+
+def visible_owned_window(hwnd, pid):
+    """Read visible composited pixels only after checking the owned foreground window."""
+    bounds = owned_window_bounds(hwnd, pid)
     image = ImageGrab.grab(bbox=bounds, all_screens=True)
-    assert user.GetForegroundWindow() == hwnd, "owned fixture lost foreground during capture"
-    assert user.GetWindowRect(hwnd, ctypes.byref(rect))
-    assert bounds == (rect.left, rect.top, rect.right, rect.bottom), "window moved during capture"
+    assert bounds == owned_window_bounds(hwnd, pid), "window moved during capture"
     return image, bounds
 
 
@@ -46,7 +50,19 @@ def client_geometry(hwnd):
     assert user.ClientToScreen(hwnd, ctypes.byref(origin))
     dpi = user.GetDpiForWindow(hwnd)
     assert dpi > 0, "owned fixture has no valid window DPI"
-    return {"client_desktop_origin": [origin.x, origin.y], "window_dpi": dpi}
+    class MonitorInfo(ctypes.Structure):
+        _fields_ = [("size", wintypes.DWORD), ("monitor", wintypes.RECT),
+                    ("work", wintypes.RECT), ("flags", wintypes.DWORD)]
+    user.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+    user.MonitorFromWindow.restype = wintypes.HANDLE
+    monitor = user.MonitorFromWindow(hwnd, 2)
+    info = MonitorInfo()
+    info.size = ctypes.sizeof(info)
+    user.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MonitorInfo)]
+    assert monitor and user.GetMonitorInfoW(monitor, ctypes.byref(info))
+    return {"client_desktop_origin": [origin.x, origin.y], "window_dpi": dpi,
+            "monitor_bounds": [info.monitor.left, info.monitor.top,
+                               info.monitor.right, info.monitor.bottom]}
 
 
 def summarize(image):
@@ -78,8 +94,19 @@ def main():
     source.add_argument(
         "--image", type=Path, help="Analyze an existing capture without capturing again"
     )
-    parser.add_argument("output", type=Path)
+    parser.add_argument("--geometry-only", action="store_true")
+    parser.add_argument("output", type=Path, nargs="?")
     args = parser.parse_args()
+    if args.geometry_only:
+        if args.hwnd is None or args.pid is None:
+            parser.error("--geometry-only requires --hwnd and --pid")
+        bounds = owned_window_bounds(args.hwnd, args.pid)
+        geometry = client_geometry(args.hwnd)
+        assert bounds == owned_window_bounds(args.hwnd, args.pid)
+        print(json.dumps({"desktop_bounds": bounds, **geometry}))
+        return 0
+    if args.output is None:
+        parser.error("capture requires an output directory")
     if args.visible and (args.hwnd is None or args.pid is None):
         parser.error("--visible requires --hwnd and --pid")
     args.output.mkdir(parents=True, exist_ok=True)

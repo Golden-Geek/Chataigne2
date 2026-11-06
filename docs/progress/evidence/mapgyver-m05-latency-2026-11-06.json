@@ -1,0 +1,71 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Native zoom response upper bound recorded; original latency budget remains unproven",
+	"source_base": "0bbc7202810785a2d0d6db873371337a71908627",
+	"executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"owning_layer": "Existing MapGyver actual bundled WebView2 fixture, read-only owned desktop capture and independent pixel/clock replay; no product runtime change",
+	"result": {
+		"case": "Screen, external monitor, actual DPR 1 / DPI 96",
+		"pid": 21988,
+		"actions": 30,
+		"input": "Alternating documented CDP wheel +/-120; every actual WebView wheel event is trusted and matches its action",
+		"region": { "left": 2955, "top": 414, "width": 128, "height": 8 },
+		"capture_adapter_index": 1,
+		"frames": 1773,
+		"capture_gap_p95_ms": 19.117,
+		"capture_gap_maximum_ms": 22.8206,
+		"p95_response_upper_bound_ms": 78.6444,
+		"maximum_response_upper_bound_ms": 79.2196,
+		"original_budget_ms": 50,
+		"within_budget_proven": false,
+		"actual_latency_failure_proven": false,
+		"capture_exit": 0,
+		"normal_app_exit": 0,
+		"fixture_exit": 1,
+		"fixture_exit_reason": "Deliberate assertion: conservative p95 upper bound exceeds 50 ms; does not establish actual latency exceeds 50 ms"
+	},
+	"method": {
+		"capture": "Installed FFmpeg 9.0.1 Desktop Duplication source in the CLI filter graph, explicit D3D11 adapter, exact owned 128x8 BGRA strip, no cursor and immediate raw packet flushing",
+		"clock": "One Node process.hrtime monotonic clock immediately before CDP dispatch and after the complete response frame arrives. Video PTS is frame-index metadata and never used for response timing",
+		"response": "First captured frame whose native red-image edge and blue-overlay edge both move >=2 physical pixels in the requested direction from a settled baseline",
+		"guards": "Owned PID/HWND foreground, physical bounds, client origin, monitor bounds and DPI checked before and after each action; latest baseline must be <=25ms old and ten recent edge observations settled",
+		"witnesses": "All 30 before and 30 response raw strips retained, independently replayed against the edge metadata, exact monotonic differences, alternating trusted event journal and nearest-rank p95",
+		"scope": "Conservative composited-desktop response upper bound for simple native Screen zoom only. Includes CDP dispatch overhead, capture delay and the two-pixel response threshold. No actual-input timestamp lower bound, physical scanout, pointer/keyboard, complex workload or whole-M05 latency acceptance"
+	},
+	"launches": [
+		{
+			"directory": "screen-100",
+			"result": "Initial baseline stopped before input: lavfi capture did not contain expected image/overlay pixels",
+			"interpretation": "A separate lavfi input graph may not receive the selected CLI hardware context; wrong-adapter explanation remains an inference because that initial launch did not retain raw pixels"
+		},
+		{
+			"directory": "corrected-screen-100",
+			"result": "CLI option validation failed before frames: -r with passthrough fps mode is contradictory",
+			"repair": "Remove conflicting -r, then terminal-success synthetic command preflight verifies exact 4096-byte BGRA output before resuming the same corrected baseline"
+		},
+		{
+			"directory": "fixed-screen-100",
+			"result": "Complete 30-action corrected baseline recorded above; no remaining matrix cases launched after its upper bound failed the proof threshold"
+		}
+	],
+	"capture_api_source": {
+		"url": "https://ffmpeg.org/doxygen/trunk/vsrc__ddagrab_8c_source.html",
+		"fact": "The source uses a supplied D3D11 hw_device_ctx or creates its internal default when absent. Corrected CLI-graph capture contains the owned native image/overlay pixels; no claim that the initial missing-pixel capture proved which adapter was used"
+	},
+	"verification": {
+		"independent_pixel_clock_replay": "30 complete inputs/witness pairs; p95 78.6444ms; no latency pass inferred",
+		"negative_control_tests": "Three replay tests pass: real cohort, changed clock/untrusted event rejection and missing pixels/forged overlay rejection",
+		"existing_landmark_tests": "Three tests pass, including original four captures, mismatched DPI/background and shifted-projection rejection",
+		"software": "Node syntax, Prettier, Python compilation and root/golden_core cargo formatting",
+		"qualified_build_inputs_unchanged": 414,
+		"paired_inventory_identity_fields_equal": 9,
+		"runtime_prerequisites": "Unchanged previously qualified binary/software/strict lint/UI checks; fixture-only changes do not require a renderer rebuild"
+	},
+	"artifacts": "mapgyver-m05-latency-2026-11-06/native-latency.zip",
+	"archive_bytes": 47941,
+	"archive_sha256": "6d240d7b305edc72479fc99b985e9c2c4b54aa91d2f3292c412ef80fe40b6eba",
+	"remaining": "Original <=50ms p95 remains unaccepted; remaining Screen/Source 100%/125% latency cases, pointer/keyboard and all wider DPI/physical/production requirements remain open",
+	"next": "No additional hardware/capture variant in this batch. Correct the source-proven extra animation callback for layouts already measured within a rendering callback, preserving the existing post-render task barrier and native acceptance/mask/lifetime contracts; verify software first, then the unchanged native safety/latency workloads",
+	"progress": "67/78 gates (86%); M05/8 alone Active; no whole gate closed"
+}
