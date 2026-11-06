@@ -19,6 +19,8 @@
 		tileGroups?: PreviewTileGroup[] | null;
 		onpresentationchange?(nativeOverlays: boolean): void;
 		nativeInput?: boolean;
+		/** The containing viewport paints its entire unchanged clip in the native underlay. */
+		nativeBackdrop?: boolean;
 		lifetime?: string | number;
 	};
 	let {
@@ -32,6 +34,7 @@
 		tileGroups = null,
 		onpresentationchange,
 		nativeInput = false,
+		nativeBackdrop = false,
 		lifetime = 0,
 		...attributes
 	}: Props = $props();
@@ -96,6 +99,10 @@
 						overlay_capacity: untrack(() => overlayCapacity),
 						tile_groups: untrack(() => tileGroups)
 					};
+				},
+				{
+					paint: () =>
+						untrack(() => (nativeBackdrop && nativeOverlays ? 'native-backdrop' : 'element'))
 				}
 			);
 			registrationError = false;
@@ -118,6 +125,7 @@
 		overlays;
 		overlayCapacity;
 		tileGroups;
+		nativeBackdrop;
 		registration?.update(source);
 		registration?.invalidate();
 	});

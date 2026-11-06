@@ -30,11 +30,20 @@ export interface PreviewRegistration {
 	unregister(): void;
 	pointer(x: number, y: number): Promise<PreviewPointer | null>;
 }
+export interface PreviewRegistrationOptions {
+	/** DOM paint ownership, independent of the native image rectangle. A native backdrop must
+	 * keep the entire clip transparent and paint the image/frame/controls in the underlay. */
+	paint?(): 'element' | 'native-backdrop';
+}
 export interface PreviewSession {
 	readonly state: PreviewSessionState;
 	connect(): Promise<boolean>;
 	reconnect(): Promise<boolean>;
-	register(source: string, measure: () => PreviewGeometry): PreviewRegistration;
+	register(
+		source: string,
+		measure: () => PreviewGeometry,
+		options?: PreviewRegistrationOptions
+	): PreviewRegistration;
 	invalidate(): void;
 	subscribe(listener: (state: PreviewSessionState) => void): () => void;
 	whenSettled(): Promise<void>;
@@ -45,6 +54,7 @@ interface Registration {
 	id: string;
 	source: string;
 	measure: () => PreviewGeometry;
+	options: PreviewRegistrationOptions;
 }
 const MAX_VIEWS = 64;
 const HEARTBEAT_MS = 1000;
@@ -214,7 +224,17 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		// Presence still matters: NativePreview hides/shows its fallback controls at that boundary.
 		return JSON.stringify([
 			globalThis.devicePixelRatio ?? 1,
-			views.map((view) => ({ ...view, overlays: view.overlays.length > 0 }))
+			views.map((view) => {
+				const paint = registrations.get(view.id)?.options.paint?.() ?? 'element';
+				const nativeBackdrop =
+					paint === 'native-backdrop' && view.tile_groups === null && view.overlays.length > 0;
+				return {
+					...view,
+					paint,
+					rect: nativeBackdrop ? view.clip : view.rect,
+					overlays: view.overlays.length > 0
+				};
+			})
 		]);
 	}
 	function acknowledge(response: Extract<PreviewResponse, { kind: 'Applied' }>) {
@@ -272,13 +292,14 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						// Freeze the exact cohort before yielding; reactive overlay/tile arrays may
 						// change while the browser completes the rendering opportunity.
 						const views = JSON.parse(geometry) as PreviewView[];
-						if (geometry !== lastGeometry) {
+						const paint = paintKey(views);
+						if (geometry !== lastGeometry || paint !== lastPaintKey) {
 							lastGeometry = geometry;
 							update({ installed: false, presentedViews: retainPresentation(views) });
 						}
 						lastViews = views;
 						lastLayoutKey = presentationKey(views);
-						lastPaintKey = paintKey(views);
+						lastPaintKey = paint;
 						stopStatus();
 						statusAttempts = 0;
 						request = { kind: 'Layout', session: state.session, revision: ++revision, views };
@@ -301,7 +322,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				const paintUnchanged =
 					request.kind === 'Layout' &&
 					state.presentedViews.length > 0 &&
-					paintKey(request.views) === presentedPaintKey;
+					lastPaintKey === presentedPaintKey;
 				if (
 					request.kind === 'Layout' &&
 					request.views.some((view) => view.visible) &&
@@ -448,7 +469,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			if (hide) {
 				try {
 					const views = measure();
-					if (JSON.stringify(views) === lastGeometry) {
+					if (JSON.stringify(views) === lastGeometry && paintKey(views) === lastPaintKey) {
 						if (pendingApplied && pendingApplied.revision === revision && !dirty) {
 							const response = pendingApplied;
 							pendingApplied = null;
@@ -552,10 +573,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				listeners.delete(listener);
 			};
 		},
-		register(source, measureGeometry) {
+		register(source, measureGeometry, options = {}) {
 			if (disposed) throw new Error('Native preview session is disposed');
 			if (registrations.size >= maximumViews) throw new Error('Native preview capacity exceeded');
-			const registration = { id: newId(), source, measure: measureGeometry };
+			const registration = { id: newId(), source, measure: measureGeometry, options };
 			registrations.set(registration.id, registration);
 			invalidate();
 			let active = true;

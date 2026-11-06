@@ -4,6 +4,7 @@ export type {
 	PreviewSession,
 	PreviewSessionState,
 	PreviewRegistration,
+	PreviewRegistrationOptions,
 	PreviewGeometry
 } from './session';
 export { createDesktopPreviewTransport } from './transport';

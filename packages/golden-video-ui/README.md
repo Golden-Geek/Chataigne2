@@ -39,9 +39,20 @@ Browser paint fencing follows the installed DOM aperture. Native decoration coor
 hit identities and primitive counts can update in the measurement frame when source, image/clip
 bounds, DPR, capacity and decoration presence stay unchanged. Changing between empty and nonempty
 decorations still waits for paint because `NativePreview` then shows/hides its DOM controls.
-Source, geometry, clipping, scale, capacity and tile-group changes keep the rendering opportunity
-barrier. Delayed-reply retention still compares the complete exact layout, including every
-decoration; this scheduling distinction never certifies native installation or input latency.
+Ordinary preview geometry, clipping, source, scale, capacity and tile-group changes keep the
+rendering opportunity barrier. Delayed-reply retention still compares the complete exact layout,
+including every decoration; this scheduling distinction never certifies native installation or
+input latency.
+
+An editor using `Viewport2D`'s fully native canvas may explicitly set `NativePreview nativeBackdrop`.
+Once native decorations own the installed image/frame/controls, the fixed clipping rectangle is
+the DOM paint boundary; pan/zoom changes only native image placement inside it. The registration's
+local `PreviewRegistrationOptions.paint` callback describes this ownership, without adding a wire
+field or changing host geometry/input authentication. Initial installation and transitions in
+either direction still wait for browser paint, even when wire geometry is unchanged. Ordinary
+previews and tiled grids retain image/tile fencing. Do not enable this option over an opaque DOM
+image frame or moving canvas surround; all paint inside the stationary clip must belong to the
+native underlay. Screen and Surface Source editors meet that contract through `nativeFrame`.
 
 Session-owned retirement masks survive a removed component. Each view unions its old clipped CSS
 areas until the latest native installation is confirmed; a fixed 64-cover ceiling conservatively

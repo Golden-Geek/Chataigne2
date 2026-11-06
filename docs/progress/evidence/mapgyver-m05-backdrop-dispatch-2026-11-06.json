@@ -1,0 +1,51 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Native backdrop dispatch implemented and functionally verified; timing blocked before trials",
+	"whole_gate_accepted": false,
+	"source_base": "880102ba5a51e072acf1bb305ac465862159add5",
+	"executable_sha256": "1bbed5c2e5e4f2c27497672d205e3dc36a7e880cfd4f02db1ca46eb5d83087d9",
+	"delivered": "Screen and Surface Source image pan/zoom can dispatch in the measurement frame through an already painted stationary native canvas, without waiting for a redundant browser rendering opportunity.",
+	"ownership": {
+		"golden_ui": "Existing Viewport2D nativeFrame removes the moving opaque DOM surround; no duplicate viewport implementation added.",
+		"golden_video_ui": "Public local PreviewRegistrationOptions.paint callback explicitly distinguishes element paint from a native-owned backdrop. NativePreview only reports backdrop ownership after native decorations own an installed view. Paint identity uses the stationary clip while wire image placement remains exact. Ownership-only changes force a new paint barrier even when wire geometry is identical.",
+		"mapgyver": "Only ScreenPreview and SurfaceSourcePreview opt into the already native-owned full canvas.",
+		"fences": "Initial install, ownership transitions, clip/DPR/source/capacity/decoration-presence changes and ordinary/tiled geometry retain browser paint fencing. Delayed-reply/lifetime checks still compare the complete exact layout, including actual image geometry and primitives. Renderer installation, input projection, DPI authentication and native retirement are unchanged.",
+		"protocol": "UI presentation hint only; no request/response DTO, generated output, protocol version or persisted product setting added. The hint is not serialized to the native wire."
+	},
+	"verification": {
+		"preview_tests": "68 tests pass across five files. Eleven new backdrop cases cover repeated pan/zoom, first ownership handoff, ownership-only transitions in both directions, clip/scale/source/presence/capacity/ownership fences, ordinary image geometry and tiled geometry inside an unchanged parent rectangle. Payload assertions reject leaking the local paint hint onto the wire.",
+		"types": "Both Golden Video UI and MapGyver Svelte checks report zero errors and zero warnings on final implementation.",
+		"browser": "Final complete preview lifecycle/continuity/input/retirement fixture passes: no page errors, no sampled continuity flashes or edge overlap, source/Escape/capture fences, bounded single input query and themed/overlapping retirement masks. This uses a metadata adapter and is not native pixel evidence.",
+		"build": "MapGyver production UI build and cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-preview-backdrop pass after the ownership-only transition fix. Initial intermediate build was not used for native qualification.",
+		"format": "Touched Svelte/TypeScript passes Prettier; root/golden_core cargo formatting passes. No Rust implementation changed."
+	},
+	"native_functional": [
+		{ "flow": "keyboard", "gpu": "dxgi:00000000:79e2f347", "pid": 36896, "fixture_exit": 0, "normal_app_exit": 0, "page_errors": 0 },
+		{ "flow": "keyboard", "gpu": "dxgi:00000000:00015b69", "pid": 36568, "fixture_exit": 0, "normal_app_exit": 0, "page_errors": 0 },
+		{ "flow": "source", "gpu": "dxgi:00000000:79e2f347", "pid": 33644, "fixture_exit": 0, "normal_app_exit": 0, "page_errors": 0, "unexpected_crop_rejections": 0 },
+		{ "flow": "source", "gpu": "dxgi:00000000:00015b69", "pid": 22572, "fixture_exit": 0, "normal_app_exit": 0, "page_errors": 0, "unexpected_crop_rejections": 0 }
+	],
+	"functional_scope": "Actual bundled WebView2: Screen100-repeat/Shift10-pixel keyboard/history/blur/New-while-held; Surface Source generic Parameters, calibration, crop/origin/clamping/live-before-release/Escape/source loss/history/navigation. Each independently checks the actual runtime GPU against enumerated hardware. These do not establish native pixel or temporal input correspondence.",
+	"timing_attempts": [
+		{
+			"directory": "screen-100", "pid": 25944, "hwnd": 2756818,
+			"physical_preflight": "Exact owned foreground capture passes:75099 native red pixels,3011 blue pixels,96DPI, bounds[2640,80,3627,734].",
+			"result": "Fixture exits1 at first geometry/foreground guard, before capture stream or timing trials, after foreground changed. Finally closes the owned app normally.",
+			"completed_trials": 0
+		},
+		{
+			"directory": "screen-100-controlled", "pid": 41908, "hwnd": 338824882,
+			"physical_preflight": "Refreshed supported desktop input plus exact owned foreground capture passes:75099 native red pixels,3102 blue pixels,96DPI, same physical bounds.",
+			"result": "One bounded controlled retry couples activation/preflight/start. Desktop input guard requires a fresh observation; after refreshing, preflight passes, then the fixture again exits1 at its first foreground guard before timing. Finally closes normally. No further attempt launched.",
+			"completed_trials": 0
+		}
+	],
+	"timing_limit": "No new latency distribution exists. Original78.6444ms conservative upper bound and rejected78.5726ms callback comparison remain intact. Neither these foreground failures nor software scheduling tests establish an actual latency failure or a <=50ms pass. Foreground switched to another app; the cause of that switch is unproven. No foreign screenshot is archived.",
+	"artifacts": "mapgyver-m05-backdrop-dispatch-2026-11-06.zip",
+	"archive_bytes": 176453,
+	"archive_sha256": "ed2103a52115d62d90feb63042a336bd8149b78b58873b445b2bd5535b6d600a",
+	"archive_scope": "Eight entries: two guarded owned preflight images/capture receipts, exact ready metadata and failed first-guard receipts. No temporary app profiles, foreign pixels, source snapshots or fabricated timing samples.",
+	"remaining": "Original p95<=50ms visible response and same-frame moving correspondence remain required. Return when desktop availability/owned foreground stability is established or new authoritative evidence corrects a focus-stealing boundary. Do not restart the unchanged capture/profiler chain or reinterpret preflight success as temporal acceptance. Pending desktop-use question does not block non-interactive acceptance work on the reproduced Intel4K Smooth failure.",
+	"progress": "69/78 verified gates (88%); no whole gate closes."
+}

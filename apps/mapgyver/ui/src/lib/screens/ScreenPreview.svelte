@@ -135,6 +135,7 @@
 		native>
 		<NativePreview
 			nativeInput
+			nativeBackdrop
 			lifetime={documentIdentity}
 			onpresentationchange={presentationChanged}
 			overlayCapacity={MAX_VIEW_OVERLAYS}

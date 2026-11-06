@@ -64,6 +64,7 @@
 		{#if identity}
 			<NativePreview
 				nativeInput
+				nativeBackdrop
 				lifetime={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 				onpresentationchange={presentationChanged}
 				overlayCapacity={16}
