@@ -13,10 +13,18 @@ behavior requires M11 acceptance. This planning update claims no implementation 
 Implementation is active under the user's MapGyver goal. Planning awards no acceptance.
 
 The user's **2026-11-05 feedback**, supplied with recordings/screenshots dated 2026-11-04,
-is incorporated in **M12**. **M12 is the next product priority, ahead of Video (M10) and final
+is incorporated in **M12**. **M12 was prioritized ahead of Video (M10) and final
 qualification (M09)**, and supersedes conflicting M06/M07/M08/M11 presentation and authoring
 contracts. M11's accepted evidence retains its original tested scope; the newly reported
 regressions and changed behavior require M12 acceptance. No implementation is claimed here.
+
+The user's **2026-11-06 feedback** is incorporated in **M13** as fourteen acceptance gates
+covering all 22 bullets. M13 supersedes conflicting source defaults/ownership, Matrix controls,
+transition authoring, picker and presentation contracts in M04–M12. **All M13 gates precede
+Video (M10) and final qualification (M09).** Earlier acceptance retains its tested scope;
+this plan update implements nothing and accepts no gate. Preserve the ledger's current active
+gate and suspended desktop state; select M13/1 at the next product-delivery boundary after
+checkpointing that gate, retaining every unfinished qualification gate and its return trigger.
 
 ## Entry, order and delivery
 
@@ -31,20 +39,22 @@ regressions and changed behavior require M12 acceptance. No implementation is cl
    cumulative limit. Finish or checkpoint the same gate at cutoff rather than expanding scope.
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
-   and M07 Matrix redesign together → M11 feedback corrections → M12 current feedback →
+   and M07 Matrix redesign together → M11 feedback corrections → M12 feedback → M13 feedback →
    M10 Video tiers → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   Current functional delivery is **M12/1–11**, then M10 and M09 after all their prerequisites.
+   Next product delivery is **M13/1–14**, retaining unfinished M12 and qualification gates;
+   then M10 and M09 after all their prerequisites.
    M08/4 retains its [blocked complete-retirement qualification](../progress/mapgyver-m08-retirement.md),
    alongside the named M03/M05 return lanes. M08's functional boundary and ordinary-app integration
    are verified; independent M11 stability/editor work does not depend on unverified external-target
    cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
    A reproduced defect blocking the selected product path still takes precedence. Do not start
-   M10 or M09 while M08/4 or any M11/M12 gate remains unaccepted. The 2026-11-05 user priority
+   M10 or M09 while M08/4 or any M11/M12/M13 gate remains unaccepted. The 2026-11-05 user priority
    moves unfinished M05/8 qualification to Pending with its existing evidence and exact return
-   action; it does not waive that gate or restart its investigation allowance. M12/1 is selected
-   next. Finish or hand off any already-running check before changing work.
+   action; it does not waive that gate or restart its investigation allowance. That historical
+   M12/1 selection is complete; the current ledger and M13 amendment above govern continuation.
+   Finish or hand off any already-running check before changing work.
 5. The unrestricted finite Surface-warp correction is already delivered and manually accepted.
    Preserve it and its evidence; do not restart that correction.
 6. Functional dependencies permit product implementation before unrelated physical/timing
@@ -84,8 +94,8 @@ whole-document snapshots during bulk typed creation. [M08/3 actual runtime accep
 now verifies both native readiness modes, shared owned processes, cancellation, completion-based
 retention and stale-project rejection. [M08 ordinary-app integration](../progress/mapgyver-m08-app-integration.md)
 also verifies picker, commands, scripts/callbacks and project/recovery/shutdown. M08/4 remains
-Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M12/1 is now
-the selected independent product gate. Retained physical/timing qualification and the
+Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M13 now owns
+the next independent product corrections. Retained physical/timing qualification and the
 original Matrix fixture budgets are unchanged.
 
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
@@ -153,11 +163,14 @@ Historical batches, pauses and execution instructions in the
   cancellation, project/device fencing and completion-based final-use retirement.
 - No compatibility layer is planned. Version changed document structures explicitly and reject
   unsupported old records clearly; never reinterpret old records silently.
+- M13 owns the latest feedback contract. Authored/playback controls are real Golden nodes and
+  Parameters, including triggers and optional-Parameter metadata. Interaction feedback must
+  remain smooth at the display refresh rate independently of media/output frame cadence.
 
 ## Milestones and dependencies
 
-IDs remain stable; **M12 executes next, before M10 and M09**. M04–M11 retain their earlier
-evidence within its tested scope; M12 owns acceptance of the latest corrections.
+IDs remain stable; **M13 is the next product milestone, before M10 and M09**. M04–M12 retain
+their earlier evidence within its tested scope; M13 owns acceptance of the latest corrections.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
 | ID  | Outcome                                                       | Functional dependency                                       | Gates |
@@ -172,9 +185,10 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M07 | Child-media Matrix, playback and virtualized grid             | M06; M08 configuration for app controls                     | 4     |
 | M08 | Reusable optional app control and shared runtime demand       | Existing Matrix playback; revised M04 ownership             | 4     |
 | M11 | Feedback: stable rendering, simpler authoring, shared UX      | Existing M04–M08 product contracts; one gate at a time      | 10    |
-| M12 | Current feedback: stable panels, Matrix groups/layout, polish | Existing M04–M11 contracts; one gate at a time              | 11    |
-| M10 | Tiered Video playback                                         | Revised M04–M08 working contracts and all M11/M12 gates     | 4     |
-| M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M12 | 1     |
+| M12 | Feedback: stable panels, Matrix groups/layout, polish         | Existing M04–M11 contracts; one gate at a time              | 11    |
+| M13 | Latest feedback: smooth interaction, Matrix controls, media UX | Existing M04–M12 functional contracts; one gate at a time   | 14    |
+| M10 | Tiered Video playback                                         | Revised working contracts and all M11/M12/M13 gates         | 4     |
+| M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M13 | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -271,6 +285,8 @@ Remove authored Shared Texture format, encoding, alpha and maximum dimensions:
 discover format/encoding at the native boundary, use straight alpha, and retain internal
 allocation limits and recovery. Remove useless `+` actions from declared Parameter folders
 through their container capabilities.
+M13/1–2 extend sender defaults and automatic format handling; M13/9 replaces Picture's
+indirect asset-authoring workflow with self-contained File Parameters.
 
 1. Default Media Manager, detached creation/import, authoritative identity/defaults and complete
    command/function/callback/snippet API under the revised media/variant ownership.
@@ -290,6 +306,9 @@ using target channel identities for synchronization. It owns no source settings,
 decoder. Default drops into Composition/Matrix create Reference children; **Alt+drag** copies
 the entire media subtree with independent identities. Share target rendering; an explicitly
 enabled Reference Resolution adds a shared-source resampling pass.
+M13/7 separately defines existing-Cell drag operations; it does not replace this external-media
+drop contract. M13/14 supersedes conflicting Reference target/channel selection and all-channel
+mirroring assumptions with the media-first, explicit-channel contract.
 
 7. Reference channel add/remove/reorder synchronization, missing/recovered targets, mixed
    Reference/Composition/Matrix cycle rejection, shared rendering/decoder ownership, resampling,
@@ -308,6 +327,9 @@ Retain crop followed by perspective warp, calibration, ordered alpha composition
 physical rectangle/virtual Spout outputs and display identity/recovery. Finite invalid quads
 remain editable with red edges/dim red fill; omit only unrenderable layers and recover when valid.
 Invalid crops reject atomically. Screen/Surface settings stay in generic Inspector.
+M13/5 adds an initial Screen to every fresh project; M13/13 specifies editor backgrounds and
+M13/14 simplifies Surface source targeting. M13/4 extends interaction acceptance to high-refresh
+displays without replacing M05/8's original physical/latency requirements.
 
 Golden's reusable viewport animates zoom toward the requested scale around a stable pointer
 anchor. Screen, Surface Source and Composition share it. Native imagery, overlays and hit testing
@@ -381,6 +403,9 @@ Transition precedence is **Cell override → Column
 override → Layer duration**; retain the **250 ms** default. Disabled Cells leave active layer
 content unchanged. Enabled empty Cells retain transparent-transition policy. Explicit individual
 Cell triggering does not change the current Column anchor; Column launches remain atomic.
+M13/3,6–7,11 supersede conflicting grid order/selection, trigger/stop, Cell-drop and transition
+override contracts below. The 250 ms default and existing precedence remain unless explicitly
+changed there; a separate override boolean is replaced by transition-time Parameter metadata.
 
 1. Revised stable sparse document/derived layer/group/final identities, grouping and actual
    child media; 3×3 defaults, default Reference/Alt-copy, complete typed API/history/project behavior.
@@ -411,6 +436,8 @@ demand. Preserve readiness, timeout, restart/backoff, cancellation, project fenc
 forced stop, tree cleanup and final-render-use retention. Never adopt/kill unrelated processes by name.
 M12/3 changes fresh app-control Window defaults to Normal and verifies repeated zero-pre/post
 entry/exit recovery. M12/4 extends this same configuration/demand boundary to Column Groups.
+M13/10 removes the App Control runtime section from the Inspector while retaining lifecycle
+supervision and truthful runtime outcomes outside ordinary authored settings.
 
 1. Retain the public app-neutral Golden IO primitive: explicit executable/arguments/environment/
    directory, suspended launch/Job Object before resume, cancellation/drop safety, truthful
@@ -562,7 +589,8 @@ workloads; M11 does not waive retained physical, timing, codec or device-removal
 
 ### M12 — Resolve the 2026-11-05 feedback before Video
 
-This is the next priority requested by the user. Sources are the chat's 16 feedback bullets,
+This records the previous feedback priority; M13 owns the latest corrections. Sources are the
+chat's 16 feedback bullets,
 `Recording 2026-11-04 213014.mp4` (1.47 s, 1320×692),
 `Recording 2026-11-04 213223.mp4` (6.13 s, 998×734),
 `Recording 2026-11-04 213304.mp4` (6.50 s, 996×538), and screenshots
@@ -763,12 +791,191 @@ native behavior pass. Update owning architecture docs with implementation. **All
 gates are prerequisites for M10 and M09**; M08/4 and retained physical/performance/device gates
 remain required. The new scope adds eleven gates and one phase without awarding acceptance.
 
+### M13 — Resolve the 2026-11-06 feedback before Video
+
+Source: the user's 22 feedback bullets in this chat. Reported black RGBA Float textures,
+limit-layout scrollbar glitches and roughly 15–20 Hz manipulation on a 240 Hz laptop display
+are defect reports, not diagnosed causes or measured current-build evidence. This milestone
+defines the required corrections; plan incorporation closes none of its fourteen gates.
+
+Default product sequence is **1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14**.
+Use one Active gate and bounded reviewable slices. Preserve current M05/8 software evidence,
+its suspended desktop state, cumulative investigation limits and exact return action when
+selecting M13/1 at the next product boundary. M03/9, M08/4 and M12/8 remain required, with
+their existing blockers; this feedback authorizes no timing-budget reduction or gate split.
+
+Golden owns reusable Parameter/trigger metadata, Inspector controls, manager selection,
+filtered tree/picker capabilities, pending-operation feedback and viewport/native scheduling
+mechanisms. MapGyver owns sender defaults, media/Matrix/Screen policy and backend operations.
+Every authored/playback change includes real typed nodes/Parameters, backend validation and
+intents, generated contracts/consumers, generic Inspector, commands/functions/callbacks and
+app-owned snippets. Verify UI/script/transport/headless parity, atomic rejection, grouped
+Undo/Redo, copy and project roundtrip where relevant. Preserve sparse/virtualized bounds,
+independent selected-object inspection, endpoint recovery and completion-safe resource retirement.
+
+1. **Shared Texture defaults and None label.** Owner: MapGyver source authoring/supervision,
+   using Golden's live sender discovery. Rename Auto mode's **Unconfigured → None**. Fresh
+   Shared Texture media default to **Auto** and select the **first available sender on creation**
+   through the backend creation operation, without a follow-up UI edit. The first entry shown
+   and the backend's selected sender must agree. Use None when no sender is available or it is
+   explicitly chosen; preserve explicit/persisted choices and exact-sender recovery through
+   discovery changes. Verify zero/one/multiple senders, all creation callers, mode changes,
+   loss/reappearance, Undo/Redo and reload without resetting existing authored selections.
+2. **Automatic Shared Texture/Spout format support.** Owners: Golden native texture import,
+   format/conversion boundary and MapGyver source supervision. Automatically handle all
+   available sender texture formats, including the reported **RGBA Float** case; do not require
+   format settings or silently restrict reception to an 8-bit shortlist. Inventory every format
+   exposed by the actual SDK/backend and its import/conversion path. Validate independent
+   native pattern pixels, color/alpha and appropriate precision, including fractional/float
+   content, both GPUs, live format/size changes and sender/device loss/recovery. A black image
+   is a failure, not a Ready result. Explicit hardware/API limitations remain named unaccepted
+   requirements; never hide them behind a fallback or a narrower claim of complete support.
+3. **Stable Matrix layout, selection and front-to-back order.** Owners: MapGyver grid adapters,
+   typed Layer settings/render order and reusable Golden scrolling controls. Reproduce and fix
+   scrollbar glitches around limiting panel sizes, both-axis overflow, exact-fit thresholds,
+   dock resize and grouped headers. Selection works across the **whole Layer and Column UI**,
+   with embedded controls retaining their intended actions. Put Layer labels **top left**.
+   Add compact inline **Opacity** and **Blend Mode** controls editing the same real Parameters
+   as the Inspector. The **front Layer is first/top; the back Layer is last/bottom**, with
+   hierarchy/reorder and backend compositing agreeing for all callers. Verify narrow/large/
+   empty grids, repeated threshold crossings, keyboard input, inline controls, offscreen
+   selection, nested groups, history/reload, native overlapping pixels and sparse 1000×1000
+   lifetime; no oscillating scrollbars, jitter, selection loss or whole-grid materialization.
+4. **Smooth, immediate interaction throughout the app.** Owners: Golden input/viewport,
+   workbench/native-preview scheduling and pending-operation UI; MapGyver editor adapters.
+   Cover Surface Editor, Screen Editor, Composition transforms and Matrix gestures, then
+   shared scrolling, docking and ordinary controls. A **simple populated 3×3 Matrix** is a
+   required regression fixture, alongside empty scenes and other media workloads. Interaction
+   feedback must track the actual display refresh, including the user's **240 Hz** display
+   (about **4.17 ms per refresh**); neither media/output cadence nor engine acknowledgements
+   may impose the reported 15–20 Hz feel or a fixed lower UI cadence. Keep local pointer/
+   viewport feedback prompt while authoritative edits are bounded/coalesced with correct final
+   state, history and cancellation; no per-gesture whole-document rebuilds or recurring
+   millisecond engine/UI polling. Measure real-input presented frame pacing, long stalls and
+   pointer-to-visible p95/p99 on the recorded refresh rate, alongside native/DOM alignment,
+   independent output continuity, both GPUs and larger projects. A 60 fps run or M05's latency
+   bound alone cannot accept 240 Hz smoothness; actual high-refresh interaction must be verified.
+   **Applying changes** appears only when a genuinely outstanding operation exceeds a
+   documented delay, rather than on every edit or merely because a gesture is long. Coalesce
+   overlapping work and stabilize its visible lifetime so corner drags/transforms never flash
+   the notification; delayed work still shows truthful progress and failures remain visible.
+   Verify fast acknowledgements, continuous drags, deliberately slow work, completion/error,
+   reconnect and cancellation. Retain all original physical/performance budgets separately.
+5. **A Screen in every fresh project.** Owner: MapGyver project initialization via the public
+   Golden lifecycle/document API. Opening the app without a loaded project and **New File**
+   each create one actual Screen with backend-owned defaults, ready for normal selection and
+   editing. Construct the initial document atomically, without UI-triggered repair or duplicates.
+   Loading an existing project preserves its authored Screen count, including an intentionally
+   empty project. Verify desktop/headless initialization, repeated New, load/reload, project
+   replacement, default routing and output/resource lifetime.
+6. **Real Matrix play/stop triggers at every scope.** Owner: MapGyver Matrix nodes, playback
+   and app-control demand on Golden's typed Parameter/trigger API. Remove the top-left
+   **Installed** dropdown/label. Put a **Stop All** control there, and Stop controls on **Layers,
+   Columns, Layer Groups, Column Groups and Cells**. Column Play and independent **Cell Play**
+   are actual Golden Trigger Parameter children; all stop controls are actual triggers on their
+   owning nodes as well. Every authored/playback control edits or invokes those real nodes,
+   including generic Inspector, scripts and transport; no UI-only command state or duplicate
+   hidden boolean. Define scope membership and backend stop/transition behavior explicitly:
+   Stop All covers every playing Cell; scoped stops cover their members, including independent
+   Cell launches, without stopping unrelated scopes. Preserve independent-Cell/Column-anchor
+   rules, atomic launches, outgoing final-use retention and aggregate app demand. Verify every
+   scope/caller, rapid play/stop/interruption, empty/disabled Cells, nested groups, visible state,
+   history/project structure and completion-safe native/process retirement.
+7. **Cell swap, move, copy and reference drops.** Owner: MapGyver atomic Matrix structural
+   intents; UI supplies source/destination and the chosen operation. Dragging an existing Cell
+   onto another Cell **swaps** them; dropping into an empty address moves it. **Alt+drag/drop
+   opens a Move / Copy / Reference menu**, rather than immediately copying. Move transfers
+   the Cell and clears its old address; Copy clones its settings and owned media subtree with
+   independent identities; Reference uses linked source media without duplicating its producer.
+   Specify occupied-destination handling before mutation so no content is silently discarded.
+   Preserve relevant Cell settings, app-control demand and playback identity through the
+   backend's atomic operation; reject cycles/invalid destinations without partial edits.
+   This is distinct from dragging an external media into the grid (M04's Reference/Alt-copy).
+   Verify populated/empty/same-address, cross-Layer and supported cross-Matrix drops, scrolling,
+   keyboard/context equivalents, running Cells, cancellation, copy/reference lifetime,
+   single-step Undo/Redo, reload and bounded sparse updates through every caller.
+8. **Honest Medias expanders and selection after manager creation.** Owners: Golden public
+   filtered-manager tree and creation-result/selection contracts; MapGyver tree registration.
+   Leaf media such as Shared Texture have **no disclosure arrow** for hidden Parameters or
+   Channels. Matrix and Composition expose their real child hierarchies, as do folders.
+   Any node created from a Golden manager menu, including media, is **automatically selected**
+   after authoritative creation succeeds, and immediately drives the Inspector. Apply this
+   through the reusable manager contract, including nested/context menus, without UI identity
+   allocation or selection changes on failed creation. Verify folders/leaf/container media,
+   filtered/virtualized trees, all manager menu paths, history/reload and affected Chataigne
+   managers. Script/headless creation must not acquire a dependency on a mounted UI.
+9. **Self-contained Picture media.** Owner: MapGyver Picture Params/authoring and bounded
+   decode resources. Choosing a Picture File edits **that Picture's own File Parameter**
+   (per channel where applicable). It must not create another media, an asset/catalog node or
+   any other authored object, and must not forward editing through another object's Parameter.
+   Remove the implicit asset-import/secondary-authoring workflow for this action, superseding
+   M11/4's forwarded asset File behavior. Internal decode/cache resources remain implementation
+   details, with sharing/retirement bounds preserved. Verify document topology/count unchanged
+   after File select/change/clear/relink, no extra selection, generic Inspector editing,
+   independent copies, all callers, Undo/Redo/reload, missing/replaced files and native pixels.
+10. **Clean App Control Inspector.** Owner: MapGyver app-control Inspector exposure using
+    Golden's public metadata/hooks. Remove the **Runtime section** from the Inspector for
+    every App Control owner, including Columns, Cells and Column Groups. Keep only relevant
+    authored Parameters and conditional settings there; do not replace the section with
+    another runtime prose block. Preserve backend supervision and compact runtime feedback in
+    its existing grid/status locations. Verify every owner, generic/mixed/offscreen selection,
+    clean empty/configured states and unchanged script/headless lifecycle behavior.
+11. **Transition override metadata and Smooth default.** Owners: MapGyver typed transition
+    Parameters/playback and Golden optional-Parameter metadata. Remove the separate boolean
+    **Transition Override** Parameter; override/inherit is metadata of **Transition Time**
+    itself and appears through the generic time control. Preserve **Cell → Column → Layer**
+    precedence and the **250 ms** base default. Rename **Smoothstep → Smooth** and make
+    Smooth the default transition curve, preserving the underlying smoothstep behavior.
+    Change schemas, generation and consumers together, removing obsolete boolean handling.
+    Verify enabled/disabled override metadata, zero/nonzero durations, all relevant owners,
+    curve defaults, interrupted native fades, caller parity and history/copy/project roundtrip.
+12. **Draggable/slidable time floats.** Owner: reusable Golden numeric/time Parameter UI.
+    Float Parameters with time-style presentation support the same drag/slide interaction as
+    ordinary number controls, while retaining formatted time entry, units, constraints, steps,
+    keyboard/accessibility and grouped history. Use the existing real Parameter path across
+    media, Matrix transitions and app-control times; M10 consumes this control for Video.
+    Verify positive/zero/bounded values, fractional precision, unit formatting, cancellation,
+    mixed selection and actual mouse/keyboard interaction in MapGyver and shared consumers.
+13. **Grey editor surroundings, content-only black.** Owners: Golden themed viewport/native
+    clearing/clipping and MapGyver Screen Warping/Surface Source adapters. Match Composition's
+    **grey workbench background outside content bounds** in Screen Warping and Surface Source.
+    Only the actual content rectangle is black or displays its content; do not clear the whole
+    panel to black. Keep bounds, native imagery, overlays and hit testing aligned through
+    pan/zoom/resize, missing sources, alpha, theme/scale, docking and project transitions.
+    Verify real desktop pixels and clipping on both GPUs without changing output pixels.
+14. **Media-first target and Channel dropdown.** Owners: MapGyver Surface/Reference typed
+    targeting and channel resolution; Golden public filtered reference-picker/query controls.
+    Use **one Media target**, followed by a dependent **Channel dropdown**; selecting a media
+    automatically chooses its **first/default channel** through backend policy. Do not require
+    two hierarchy selections or expose channel nodes in the target picker. Apply the same
+    contract to Surface sources and Reference media; the channel chooses the referenced output,
+    superseding conflicting all-channel Reference assumptions in M04/7. Preserve channel
+    identity through rename/reorder, retain a valid explicit choice, and define truthful
+    empty/deleted-channel recovery without silently rerouting an existing explicit binding.
+    Root the picker at **Medias**, showing only its catalog media and organizing folders.
+    Exclude unrelated document nodes and media nested inside Composition, Matrix or other media;
+    the full document hierarchy must never be the browse experience. Keep queries bounded,
+    ancestry/type validation in the backend and generic Inspector editing of the same typed
+    Parameters. Explicit nested references created by Cell operations remain subject to their
+    own backend validity/cycle rules; displaying a current binding must not reopen nested media
+    as picker choices. Verify one/multiple/no channels, folders, exclusions, references,
+    missing/recovered targets, source/Reference chains and cycles, all callers, copy/history/
+    reload, large catalogs and native routing without duplicate rendering/decoding.
+
+Close each gate only after its complete behavioral checks and relevant formatting, Rust tests,
+strict lint, generated-contract/UI checks and named native interaction/pixel validation pass.
+Inspect compile/software results before desktop/hardware work. Update owning architecture
+docs with implementation, including Picture ownership and Reference channel semantics.
+**All fourteen M13 gates are prerequisites for M10 and M09.** This adds fourteen gates and
+one phase, preserving every older unfinished acceptance requirement and numeric budget.
+
 ### M10 — Deliver Video playback in codec tiers
 
-Start only after **M11/1–10 and M12/1–11 are Accepted** and retained M08/4 passes. Video has
+Start only after **M11/1–10, M12/1–11 and M13/1–14 are Accepted** and retained M08/4 passes. Video has
 **one transport per media and one file
 per channel**; References only mirror outputs. Reuse M11's simplified Channels, shared Fit Mode,
-time-style Parameters, icons and stable-preview contracts rather than restoring obsolete controls.
+draggable time-style Parameters, icons and stable-preview contracts, with M13's self-contained
+File ownership and simplified media/channel targeting rather than restoring obsolete controls.
 Use a shared monotonic media timeline and timestamp-based sampling. Defaults: paused at zero,
 rate 1 and looping off. Shorter channels hold their final frame until the shared timeline ends.
 Frame stepping uses the selected channel's timestamps; References never independently reset transport.
@@ -801,8 +1008,8 @@ remain outside this plan.
 
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** after all M11/M12 feedback gates, qualify the complete revised bundled Windows x64 product
-and all retained M03–M12 requirements, not only a static render or native probe. Run exact
+**Gate 1:** after all M11/M12/M13 feedback gates, qualify the complete revised bundled Windows x64 product
+and all retained M03–M13 requirements, not only a static render or native probe. Run exact
 binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
