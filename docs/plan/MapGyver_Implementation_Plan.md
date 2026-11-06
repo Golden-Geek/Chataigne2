@@ -606,6 +606,14 @@ the remaining independent cases changes neither the original gate nor the propos
 Reuse the exact cost executable only after its selected execution-input hashes still match;
 menu-only UI changes are outside that headless fixture's executed path.
 
+After the complete eight-case sustained matrix (2026-11-06), seven cases pass and Intel
+4K Smooth still fails its original GPU/cadence budgets. M12/8 stays unaccepted, with return
+on the pending explicit feature/production scope answer or an owning renderer correction
+meeting those unchanged limits. Do not repeat the measured cases or extend the rejected
+shader investigation. Resume the retained M05/8 native animation/alignment queue while
+that blocker remains; preserve every remaining DPI/input/physical requirement. This changes
+execution order only: M10/M09 still require all M12 gates and retained M08/4 acceptance.
+
 1. **Recorded glitches, flashes, panel reloads and Media Preview resizing.** Owners: Golden
    docking/Inspector/host/native-preview lifetime and MapGyver panel adapters. Reproduce the
    three supplied interactions on a recorded current build before choosing a fix. Cover Matrix

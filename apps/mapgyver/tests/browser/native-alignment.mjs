@@ -218,6 +218,14 @@ try {
 	};
 	await writeFile(path.join(directory, 'ready.json'), JSON.stringify(metadata, null, 2));
 	console.log(JSON.stringify({ ready: metadata }));
+	if (process.argv.includes('--await-capture')) {
+		// Let supported desktop control activate this owned window before visible capture.
+		const deadline = Date.now() + holdSeconds * 1000;
+		while (!(await exists('capture'))) {
+			assert(Date.now() < deadline, 'alignment capture activation timeout');
+			await delay(50);
+		}
+	}
 	if (process.argv.includes('--hit')) {
 		const expectedHit = sourceEditor ? 'crop:0' : `${reference.surface}:0`;
 		const preview = view.locator('.native-preview');

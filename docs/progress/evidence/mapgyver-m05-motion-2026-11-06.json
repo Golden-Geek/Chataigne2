@@ -1,0 +1,97 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Four sampled native zoom-alignment cases pass; whole gate remains unaccepted",
+	"source_base": "8cba060c49697e5c796e3ffe8494ac62bd72123d",
+	"native_executable": "target/debug/deps/MapGyver-menu-icons.exe",
+	"executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"ownership": "Existing MapGyver owned native editor and read-only physical desktop capture fixtures; reusable presentation runtime unchanged",
+	"fixture_change": "Optional bounded --await-capture marker permits supported computer-use activation before starting the existing visible zoom observer. No new production instrumentation, renderer, protocol or input behavior",
+	"prerequisites": {
+		"selected_build_input_hashes_unchanged": 414,
+		"qualified_binary_hash_unchanged": true,
+		"software_reuse": "Unchanged 503 app/215 Golden tests, strict native runtime lint and three zero-error/warning Svelte checks from typography/menu milestones; no execution source changed",
+		"fixture_checks": "Node syntax and Prettier pass; all four bounded activation handoffs complete and owned apps exit normally",
+		"paired_inventory_identity_keys_equal": [
+			"operating_system",
+			"cpu",
+			"memory",
+			"power",
+			"video_controllers",
+			"monitors",
+			"webview2",
+			"native_hardware",
+			"toolchain"
+		],
+		"inventory_scope": "Reuse the immediately preceding NVIDIA-series after-inventory as the read-only before observation; record a fresh after-inventory. This is not full production provenance or a QPC join of motion frames"
+	},
+	"method": {
+		"experiments": "Baseline Screen at 125%, then the remaining three-case matrix after terminal baseline success; no extra probe or repeated case",
+		"window_placement": "Ordinary app saved-window restoration using the retained internal/external owned fixture states; no user window moved",
+		"activation": "Supported @oai/sky returned-window selection and activation, followed by visual inspection and explicit capture-ready marker",
+		"input": "Existing documented WebView2 CDP wheel action; no claim of physical hardware input or input-latency measurement",
+		"pixels": "PIL visible desktop-region capture checks owned foreground PID/HWND and stable window bounds around every capture; native image and blue overlay are both present",
+		"oracle": "Existing red-run/blue-stroke relative edge offsets in horizontal and vertical center lines; each case must capture at least three distinct native widths and maximum offset change <=1 physical pixel",
+		"scale": "Actual bundled WebView DPR is 1 or 1.25 at startup and remains equal in the final settled receipt; saved window states target the available external/internal displays",
+		"visual_review": "Screen 100% largest-offset capture inspected: red image and blue border remain aligned at the intermediate 86% zoom"
+	},
+	"cases": [
+		{
+			"case": "screen-125",
+			"pid": 22944,
+			"normal_exit": 0,
+			"dpr": 1.25,
+			"physical_capture_size": [1536, 1020],
+			"samples": 24,
+			"distinct_red_widths_px": [426, 465, 504],
+			"baseline_offsets_px": [2.5, 2.5, 2.5, 2],
+			"maximum_offset_change_px": 0.5
+		},
+		{
+			"case": "source-125",
+			"pid": 42036,
+			"normal_exit": 0,
+			"dpr": 1.25,
+			"physical_capture_size": [1536, 1020],
+			"samples": 24,
+			"distinct_red_widths_px": [426, 494, 504],
+			"baseline_offsets_px": [2.5, 2.5, 2.5, 2],
+			"maximum_offset_change_px": 0.5
+		},
+		{
+			"case": "screen-100",
+			"pid": 34820,
+			"normal_exit": 0,
+			"dpr": 1,
+			"physical_capture_size": [987, 654],
+			"samples": 24,
+			"distinct_red_widths_px": [266, 276, 316],
+			"baseline_offsets_px": [1.5, 1.5, 2.5, 2.5],
+			"maximum_offset_change_px": 1
+		},
+		{
+			"case": "source-100",
+			"pid": 35968,
+			"normal_exit": 0,
+			"dpr": 1,
+			"physical_capture_size": [987, 654],
+			"samples": 24,
+			"distinct_red_widths_px": [266, 277, 316],
+			"baseline_offsets_px": [1.5, 1.5, 2.5, 2.5],
+			"maximum_offset_change_px": 1
+		}
+	],
+	"artifacts": "mapgyver-m05-motion-2026-11-06/native-motion.zip",
+	"archive_bytes": 1178763,
+	"archive_sha256": "81dbed43f91ddde1bc243c46af39067d41b273797e8ddee23db95821b4c1cdf9",
+	"artifact_contents": "Twelve before/largest-offset/after PNGs, 96 edge observations, DOM zoom samples, startup/final geometry, owned profiles' window states, picture fixtures, three native logs and paired inventory/qualified build/fixture hashes. Baseline normal exit is recorded from its terminal session rather than an additional native log",
+	"limits": [
+		"Sampled relative motion only: not every composited animation frame, full-image equality or absolute landmark/projection acceptance",
+		"Only before/largest-offset/after PNGs are retained; intermediate numeric observations are not independently replayable from a full image sequence",
+		"No input-to-visible latency acceptance: capture intervals are roughly 100–125 ms, inadequate to establish the original p95 <=50 ms requirement",
+		"No genuine mixed-DPI move, 150%/200%, negative origin, resize/dock/tab/scroll or full alpha/color/reference matrix acceptance",
+		"No production performance, scanout, physical hotplug or all-GPU qualification claim"
+	],
+	"next": "Keep M05/8 Active for the original measured input-to-visible latency requirement and remaining complete native display/editor matrix. Do not repeat these passing sampled zoom cases without a changed-code reason",
+	"progress": "67/78 gates (86%), M12 10/11 (91%); no whole gate closed"
+}
