@@ -1,0 +1,73 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Current-frame dispatch candidate did not improve the measured response bound; product code restored, candidate parked unaccepted",
+	"base_commit": "8677f887cd5ffe3f579eda3bd35e133bad27e8be",
+	"candidate": {
+		"change": "Use the current animation callback's following task for an idle native layout pump, preserving immutable cohorts and serialized IPC. Asynchronous continuations still acquire a fresh rendering opportunity",
+		"ownership": "Golden Video UI session/render-opportunity, tests and boundary documentation only; no Rust, protocol, resource or app-domain change",
+		"native_executable": "target/debug/deps/MapGyver-preview-frame.exe",
+		"executable_sha256": "b08836e00286dde77d7df8798411a397019f9d8bf50b9522ebd162fc2f933367",
+		"stash_name": "mapgyver-unaccepted-current-frame-dispatch-2026-11-06",
+		"stash_object": "4fd3d263b57af38b46ce77242d011316e1a5099b",
+		"restoration": "Five candidate paths parked explicitly; shipped tracked runtime/test/docs match HEAD again. No automatic stash restoration. A generated standalone browser-fixture bootstrap was rebuilt for restored source; it alone differs from the old 414-input selection, while all 413 other selected inputs match byte-for-byte",
+		"return_trigger": "Reproduced current-product blocker or a scheduled qualification decision with evidence that changes an owning implementation choice; no unchanged latency probe or automatic restore"
+	},
+	"comparison": {
+		"method": "Unchanged 30 alternating trusted wheel actions, exact external 100% Screen geometry, explicit Desktop Duplication edge strip, same-process dispatch/frame-arrival clock and >=2-pixel image/overlay response",
+		"baseline_p95_upper_bound_ms": 78.6444,
+		"candidate_p95_upper_bound_ms": 78.5726,
+		"candidate_maximum_upper_bound_ms": 80.3103,
+		"candidate_capture_gap_p95_ms": 19.1703,
+		"candidate_frames": 1840,
+		"original_budget_ms": 50,
+		"actions_and_raw_witnesses_complete": true,
+		"independent_replay": "All 30 before/response witness pairs, trusted input events, edge metadata and exact monotonic differences replay; maximum relative image/overlay edge-offset change is one physical pixel",
+		"capture_and_owned_app_exit": 0,
+		"fixture_exit": 1,
+		"interpretation": "Difference is negligible and does not establish useful improvement. Original <=50ms remains unproven. An upper bound above 50ms alone does not prove actual latency exceeds 50ms, identify the remaining cause or justify another speculative runtime change"
+	},
+	"software_checks_on_candidate": {
+		"golden_video_ui_tests": { "files": 4, "passed": 41 },
+		"new_cases": "Current callback still waits for its following task; cancellation leaves no timer; frame context does not leak across serialized IPC or acknowledge stale geometry",
+		"golden_video_ui_check": "0 errors, 0 warnings",
+		"mapgyver_check": "0 errors, 0 warnings",
+		"actual_browser_lifecycle": "Pass: visibility, native absence editing, expiry/reconnect, invalid-layout rejection, masks/retained covers, source swaps, pan/zoom, projected/retargeted input and bounded retirement. No page errors",
+		"native_build": "Isolated locked MapGyver native-qualification/application-process-fixture build exits 0, rebuilt embedded frontend; only then native validation begins",
+		"rust_scope": "Runtime Rust/DTO sources unchanged; prior 503+215 and strict lint remain valid within scope"
+	},
+	"native_safety_on_candidate": {
+		"pinned_adapters": ["dxgi:00000000:00016022", "dxgi:00000000:00015b69"],
+		"owned_native_runs_exit_zero": 6,
+		"continuity": {
+			"nvidia": { "pixel_frames": 9, "regions_per_frame": 5, "dom_samples": 167 },
+			"intel": { "pixel_frames": 9, "regions_per_frame": 5, "dom_samples": 166 },
+			"result": "No changed native region, removed/missing view or unavailable event through transport reconnect; independent SDK output checks pass"
+		},
+		"project_transitions": {
+			"nvidia_frames": 66,
+			"intel_frames": 61,
+			"close_reopen_cycles_per_adapter": 3,
+			"result": "Persistent peer registration/content, retired old-project pixels on New and recovered locked view on Load; zero unexpected sampled native pixels or changed menu witness. Independent output checks pass"
+		},
+		"input_stability": {
+			"nvidia": { "inspector_frames": 44, "matrix_frames": 23 },
+			"intel": { "inspector_frames": 44, "matrix_frames": 24 },
+			"matrix_clicks_per_adapter": 16,
+			"result": "Inspector editing and Matrix selection retain native red/UI witness regions; zero changed regions/UI frames, independent SDK output checks pass"
+		},
+		"scope": "280 foreground/PID-guarded physical captures of defined image/UI regions, not full-image equality, every animation frame, timing, scanout or the wider DPI matrix"
+	},
+	"provenance": {
+		"candidate_executable_and_execution_inputs_unchanged_during_native_checks": 414,
+		"paired_inventory_identity_fields_equal": 9,
+		"source_restored_before_handoff": true,
+		"initial_qualification_reference": "mapgyver-m12-menu-icons-2026-11-06/menu-images.zip"
+	},
+	"artifacts": "mapgyver-m05-frame-dispatch-2026-11-06/native-checks.zip",
+	"archive_bytes": 2655699,
+	"archive_sha256": "e2baa799cd2ffea6cf8e5cd8555a8c02f9a5083fae65c83be4650681000ef506",
+	"artifact_contents": "Unaccepted candidate patch, build log, frozen before/after input/binary hashes, restored input hashes, six native safety receipts/logs/images and independent outputs, changed-build latency clock/pixel witnesses and paired inventory; temporary app profiles excluded",
+	"next": "Keep M05/8 Active for the remaining original physical/DPI/editor matrix. Prioritize the available unverified 150%/200%, real mixed-DPI/window-layout cases, preserving current settings for exact restoration. Latency remains pending; stop unchanged probes and do not infer a pass or actual failure from these upper bounds",
+	"progress": "67/78 gates (86%), M12 10/11 (91%); no acceptance gate closed"
+}
