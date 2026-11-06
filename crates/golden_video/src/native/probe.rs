@@ -7,12 +7,12 @@ use spout2_sys as sdk;
 use windows::Win32::{Foundation::HANDLE, Graphics::Direct3D11::ID3D11Texture2D};
 use windows::core::{Error, HRESULT, Result};
 
+use super::inputs::{capture::Capture, video};
 use super::{
     AdapterId,
     completion::FenceCompletion,
     device::Device,
     inputs::receiver::{Received, Receiver},
-    texture::Texture,
 };
 #[cfg(any(test, feature = "qualification"))]
 use crate::PixelFormat;
@@ -57,13 +57,22 @@ impl Endpoint {
     }
     fn reserve(self, budget: &PayloadPool) -> Result<(TextureDescriptor, PayloadReservation)> {
         let descriptor = self.descriptor()?;
-        let reservation = reserve_image(descriptor, budget)?;
+        let reservation = reserve_image(
+            descriptor,
+            super::spout_layout::native_format(self.format).0 as u32,
+            budget,
+        )?;
         Ok((descriptor, reservation))
     }
 }
 
-fn reserve_image(descriptor: TextureDescriptor, budget: &PayloadPool) -> Result<PayloadReservation> {
-    let bytes = usize::try_from(descriptor.byte_len().map_err(|_| invalid())?).map_err(|_| invalid())?;
+fn reserve_image(descriptor: TextureDescriptor, native: u32, budget: &PayloadPool) -> Result<PayloadReservation> {
+    let bytes = match video::Format::from_native(native) {
+        Some(format) => format.image_bytes(descriptor),
+        None => descriptor.byte_len(),
+    }
+    .map_err(|_| invalid())?;
+    let bytes = usize::try_from(bytes).map_err(|_| invalid())?;
     budget.try_reserve(bytes).map_err(|_| invalid())
 }
 
@@ -175,7 +184,7 @@ struct Session {
     readback: Option<pixels::Readback>,
     endpoint: Endpoint,
     receiver: Receiver,
-    texture: Texture,
+    capture: Capture,
     completion: FenceCompletion,
     device: Device,
     generation: DeviceGeneration,
@@ -209,26 +218,31 @@ impl Session {
                 frame_count: SpoutFrameCount::Unversioned,
             },
         )?;
+        let native = if known.is_some() {
+            super::spout_layout::native_format(endpoint.format).0 as u32
+        } else {
+            if receiver.preflight()? != Some(Received::Waiting) {
+                return Err(invalid());
+            }
+            receiver.native_storage().ok_or_else(invalid)?
+        };
         let (descriptor, reservation) = match known {
             Some(admitted) => admitted,
             None => {
                 // The bound above is only an extent hint. Resolve a real foreign alias before
                 // charging/allocating any image; format0 never selects byte receiving storage.
-                if receiver.preflight()? != Some(Received::Waiting) {
-                    return Err(invalid());
-                }
                 let descriptor = receiver.descriptor().ok_or_else(invalid)?;
-                (descriptor, reserve_image(descriptor, budget)?)
+                (descriptor, reserve_image(descriptor, native, budget)?)
             }
         };
         let completion = FenceCompletion::new(&device)?;
-        let texture = Texture::new(&device.device, descriptor)?;
+        let capture = Capture::new(&device, descriptor, native)?;
         Ok(Self {
             #[cfg(feature = "qualification")]
             readback: None,
             endpoint,
             receiver,
-            texture,
+            capture,
             completion,
             device,
             generation: DeviceGeneration::new(uuid::Uuid::new_v4(), 1),
@@ -271,7 +285,7 @@ impl Session {
                 serial: self.submitted,
             },
         );
-        let received = self.receiver.receive(&self.texture);
+        let received = self.capture.receive(&mut self.receiver);
         drop(guard);
         self.copied = received? == Received::Frame;
         Ok(false)

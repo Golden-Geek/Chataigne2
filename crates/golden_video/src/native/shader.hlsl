@@ -4,6 +4,13 @@ ByteAddressBuffer pattern_data : register(t2);
 Texture2D<uint4> source_uint_image : register(t3);
 Texture2D<int4> source_sint_image : register(t4);
 
+cbuffer VideoParameters : register(b3) {
+    uint video_format;
+    uint video_target_encoding;
+    uint video_target_alpha;
+    uint video_reserved;
+};
+
 cbuffer Parameters : register(b0) {
     uint2 source_extent;
     uint source_encoding;
@@ -101,6 +108,42 @@ float3 decode_rgb(float3 encoded) {
 
 float3 encode_rgb(float3 value) {
     return float3(encode_srgb(value.r), encode_srgb(value.g), encode_srgb(value.b));
+}
+
+float decode_bt709(float value) {
+    if (value < 0.081) return value / 4.5;
+    precise float x = (value + 0.099) / 1.099;
+    // Refine the ninth root before forming x^(20/9). Native pow accuracy on bright
+    // NVIDIA samples exceeded the absolute 1e-6 decoder target without this correction.
+    precise float root = pow(x, 1.0 / 9.0);
+    precise float r2 = root * root;
+    precise float r4 = r2 * r2;
+    precise float r8 = r4 * r4;
+    root -= (root - x / r8) / 9.0;
+    precise float power = x * root;
+    return power * power;
+}
+
+// Packed 4:4:4 defaults: studio-range BT.709. Native metadata contains neither
+// colorimetry nor range; alternate assumptions remain an explicit API limitation.
+float4 ps_video(Vertex input) : SV_Target {
+    uint4 code = source_uint_image.Load(int3(uint2(input.position.xy), 0));
+    float scale = video_format == 100 ? 1.0 : video_format == 101 ? 4.0 : 256.0;
+    float y = video_format == 100 ? code.b : code.g;
+    float u = video_format == 100 ? code.g : code.r;
+    float v = video_format == 100 ? code.r : code.b;
+    y = (y - 16.0 * scale) / (219.0 * scale);
+    u = (u - 128.0 * scale) / (224.0 * scale);
+    v = (v - 128.0 * scale) / (224.0 * scale);
+    float3 encoded = float3(y + 1.5748 * v,
+        y - (0.0722 * 1.8556 / 0.7152) * u - (0.2126 * 1.5748 / 0.7152) * v,
+        y + 1.8556 * u);
+    float3 color = float3(decode_bt709(encoded.r), decode_bt709(encoded.g), decode_bt709(encoded.b));
+    float maximum_alpha = video_format == 100 ? 255.0 : video_format == 101 ? 3.0 : 65535.0;
+    float coverage = video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
+    [branch] if (video_target_encoding == ENCODING_SRGB) color = encode_rgb(color);
+    if (video_target_alpha == ALPHA_PREMULTIPLIED) color *= coverage;
+    return float4(color, coverage);
 }
 
 float4 load_source(int2 position) {

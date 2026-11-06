@@ -50,7 +50,8 @@ impl SpoutProbe {
 
 impl Session {
     fn capture_pixels(&mut self, budget: &PayloadPool) -> Result<Option<ProbePixels>> {
-        let descriptor = self.texture.descriptor;
+        let texture = self.capture.rgb().ok_or_else(invalid)?;
+        let descriptor = texture.descriptor;
         if !matches!(descriptor.format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm) {
             return Err(invalid());
         }
@@ -60,16 +61,16 @@ impl Session {
             let submitted = self.submitted.checked_add(1).ok_or_else(invalid)?;
             let reservation = budget.try_reserve(bytes).map_err(|_| invalid())?;
             let mut layout = D3D11_TEXTURE2D_DESC::default();
-            unsafe { self.texture.texture.GetDesc(&mut layout) };
+            unsafe { texture.texture.GetDesc(&mut layout) };
             layout.Usage = D3D11_USAGE_STAGING;
             layout.BindFlags = 0;
             layout.MiscFlags = 0;
             layout.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
-            let mut texture = None;
+            let mut staging = None;
             // SAFETY: bounded same-device single-image staging layout and initialized output.
-            unsafe { self.device.device.CreateTexture2D(&layout, None, Some(&mut texture))? };
+            unsafe { self.device.device.CreateTexture2D(&layout, None, Some(&mut staging))? };
             self.readback = Some(Readback {
-                texture: texture.ok_or_else(invalid)?,
+                texture: staging.ok_or_else(invalid)?,
                 _reservation: reservation,
             });
             self.submitted = submitted;
@@ -85,7 +86,7 @@ impl Session {
             unsafe {
                 self.device
                     .context
-                    .CopyResource(&self.readback.as_ref().unwrap().texture, &self.texture.texture)
+                    .CopyResource(&self.readback.as_ref().unwrap().texture, &texture.texture)
             };
             return Ok(None);
         }

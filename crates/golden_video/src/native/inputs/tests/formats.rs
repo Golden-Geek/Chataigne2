@@ -14,7 +14,7 @@ mod legacy;
 mod normalized;
 mod packed;
 mod srgb;
-mod support;
+pub(super) mod support;
 mod typeless;
 mod unspecified;
 use support::{GpuUse, Sender, readback, wait};

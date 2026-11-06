@@ -14,7 +14,7 @@ use windows::{
     core::Interface,
 };
 
-pub(super) fn wait(label: &str, mut ready: impl FnMut() -> bool) {
+pub(in crate::native::inputs::tests) fn wait(label: &str, mut ready: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(6);
     while !ready() {
         assert!(Instant::now() < deadline, "{label}");
@@ -22,7 +22,7 @@ pub(super) fn wait(label: &str, mut ready: impl FnMut() -> bool) {
     }
 }
 
-pub(super) fn watchdog(label: &'static str) -> std::sync::mpsc::Sender<()> {
+pub(in crate::native::inputs::tests) fn watchdog(label: &'static str) -> std::sync::mpsc::Sender<()> {
     let (done, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if matches!(
@@ -37,7 +37,7 @@ pub(super) fn watchdog(label: &'static str) -> std::sync::mpsc::Sender<()> {
 }
 
 /// A failed assertion never releases shared-reader ownership before submitted GPU uses finish.
-pub(super) struct GpuUse<'a> {
+pub(in crate::native::inputs::tests) struct GpuUse<'a> {
     device: &'a Device,
     completion: EventCompletion,
     token: CompletionToken,
@@ -94,7 +94,7 @@ impl Drop for Sdk {
 }
 
 /// Independent D3D11 Clear + SDK SendTexture; no Golden render/format conversion generates the oracle.
-pub(super) struct Sender {
+pub(in crate::native::inputs::tests) struct Sender {
     sdk: Sdk,
     texture: ID3D11Texture2D,
     device: Device,
@@ -191,11 +191,13 @@ impl Sender {
                 Texture2D: D3D11_TEX2D_RTV { MipSlice: 0 },
             },
         });
-        unsafe {
-            device
-                .device
-                .CreateRenderTargetView(&paint, paint_view.as_ref().map(std::ptr::from_ref), Some(&mut rtv))
-                .unwrap()
+        if !matches!(format.0, 100..=102) {
+            unsafe {
+                device
+                    .device
+                    .CreateRenderTargetView(&paint, paint_view.as_ref().map(std::ptr::from_ref), Some(&mut rtv))
+                    .unwrap()
+            }
         };
         let sdk = Sdk(NonNull::new(unsafe { sdk::spout_dx_create() }).unwrap());
         let name = CString::new(name).unwrap();
@@ -269,7 +271,7 @@ impl Drop for Sender {
     }
 }
 
-pub(super) fn readback(device: &Device, texture: &Texture, pixel_bytes: usize) -> Vec<u8> {
+pub(in crate::native::inputs::tests) fn readback(device: &Device, texture: &Texture, pixel_bytes: usize) -> Vec<u8> {
     readback_native(device, &texture.texture, pixel_bytes)
 }
 

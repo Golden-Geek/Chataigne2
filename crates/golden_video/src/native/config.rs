@@ -118,6 +118,17 @@ pub struct InputLimits {
 }
 
 impl InputLimits {
+    /// Actual admitted source layout, including native video capture/decoding where needed.
+    /// Supply the authenticated native format, not unspecified registry metadata zero.
+    pub fn source_storage_bytes_for_native(
+        descriptor: TextureDescriptor,
+        native: u32,
+    ) -> Result<u64, crate::TextureError> {
+        match super::inputs::video::Format::from_native(native) {
+            Some(format) => format.source_bytes(descriptor),
+            None => Self::source_storage_bytes(descriptor),
+        }
+    }
     /// Checked storage for three bridge images, the sender alias and any raw conversion image.
     /// This is a logical admission charge, not a measurement of physical driver residency.
     pub fn source_storage_bytes(descriptor: TextureDescriptor) -> Result<u64, crate::TextureError> {

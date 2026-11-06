@@ -3,7 +3,9 @@ use std::ptr::NonNull;
 
 use spout2_sys as sdk;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device, ID3D11Texture2D};
+use windows::Win32::Graphics::Direct3D11::{
+    D3D11_TEXTURE2D_DESC, ID3D11Device, ID3D11RenderTargetView, ID3D11Texture2D,
+};
 use windows::core::{Error, HRESULT, Interface, Result};
 
 use super::super::spout_layout;
@@ -136,22 +138,54 @@ impl Receiver {
     }
 
     pub fn receive(&mut self, capture: &Texture) -> Result<Received> {
+        self.receive_resource(&capture.texture, capture.descriptor, Some(&capture.rtv))
+    }
+
+    /// Non-renderable video captures are initialized only by a successful full SDK copy.
+    /// Validate their real storage independently of the canonical sampled RGB contract.
+    pub(in crate::native) fn receive_resource(
+        &mut self,
+        capture: &ID3D11Texture2D,
+        descriptor: TextureDescriptor,
+        clear: Option<&ID3D11RenderTargetView>,
+    ) -> Result<Received> {
         let endpoint = self.endpoint.as_ref().ok_or_else(invalid)?;
         let (expected, expected_storage, expected_handle) =
             (endpoint.descriptor, endpoint.native_storage, endpoint.handle);
-        if capture.descriptor != expected {
+        let mut storage = D3D11_TEXTURE2D_DESC::default();
+        unsafe {
+            capture.GetDesc(&mut storage);
+        }
+        let format_matches = if super::video::Format::from_native(expected_storage).is_some() {
+            storage.Format.0 as u32 == expected_storage
+        } else {
+            storage.Format == super::super::texture::format(expected.format)
+                || super::super::texture::typeless_accepts(storage.Format, expected.format)
+        };
+        if descriptor != expected
+            || !format_matches
+            || storage.Width != expected.extent.width()
+            || storage.Height != expected.extent.height()
+            || storage.MipLevels != 1
+            || storage.ArraySize != 1
+            || storage.SampleDesc.Count != 1
+            || storage.SampleDesc.Quality != 0
+            || unsafe { capture.GetDevice()? }.as_raw() != self.device.as_raw()
+        {
             return Err(invalid());
         }
         if self.clear_capture {
             // SAFETY: no source bytes become observable before a successful detailed copy.
-            unsafe {
-                self.device
-                    .GetImmediateContext()?
-                    .ClearRenderTargetView(&capture.rtv, &[0.0; 4]);
+            if let Some(view) = clear {
+                unsafe {
+                    self.device
+                        .GetImmediateContext()?
+                        .ClearRenderTargetView(view, &[0.0; 4]);
+                }
             }
             self.clear_capture = false;
         }
-        let mut texture = capture.texture.as_raw();
+        let mut texture = capture.as_raw();
         let mut frame = 0;
         let mut counter_available = 0;
         // SAFETY: a fixed canonical receiver texture in the authenticated native format's
@@ -170,8 +204,7 @@ impl Receiver {
             self.device.GetDeviceRemovedReason()?;
         }
         let received = classify(status)?;
-        if texture != capture.texture.as_raw()
-            || unsafe { sdk::spout_dx_get_device(self.raw.as_ptr()) } != self.device.as_raw()
+        if texture != capture.as_raw() || unsafe { sdk::spout_dx_get_device(self.raw.as_ptr()) } != self.device.as_raw()
         {
             return Err(invalid());
         }
@@ -267,6 +300,10 @@ impl Receiver {
 
     pub fn descriptor(&self) -> Option<TextureDescriptor> {
         self.endpoint.as_ref().map(|endpoint| endpoint.descriptor)
+    }
+
+    pub fn native_storage(&self) -> Option<u32> {
+        self.endpoint.as_ref().map(|endpoint| endpoint.native_storage)
     }
 
     pub fn last_copied_frame(&self) -> Option<i32> {

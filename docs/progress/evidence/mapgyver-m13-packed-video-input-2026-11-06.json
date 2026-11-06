@@ -1,0 +1,1096 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; packed AYUV/Y410/Y416 input verified within stated BT.709 scope; full gate unaccepted",
+  "base_commit": "19b43dc55a7ad5442c7a103de5620c1a36085fed",
+  "delivered": "GPU-only native packed 4:4:4 video capture and decoding to canonical RGBA32F; exact native code transport, default limited-range BT.709, native coverage and compatible declared sampled RGB interpretation.",
+  "ownership": "Golden native inputs/video, authenticated receiver/capture, source-worker admission and existing probe/renderer retirement authorities. MapGyver supplies no format selector.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "236 passed,46 ignored; final shader/fixture source."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before final native comparison."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before final native comparison."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-packed-video",
+      "result": "Isolated current app builds,exit0 in15.03seconds after shader correction. This is build evidence, not an actual-app video pixel claim."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::video::hardware_packed_video_ -- --ignored --nocapture --test-threads=1",
+      "result": "Corrected comparison:1 passed,281 filtered,exit0 in44.85seconds;72 complete records."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "8 passed,274 filtered,exit0 in241.59seconds;365 complete unchanged regression records, no tool truncation."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "51992b4b2f4855b55575a8ce0d2b5503b38c46d939b6dfd863bd63099cd17c44"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-packed-video.exe",
+      "sha256": "e63b65c550aa6d6ddd8b9c34a27071b73d445bfa9763853ae1d9007c98ac998b"
+    }
+  ],
+  "native": {
+    "cohorts": 2,
+    "baseline": {
+      "result": "Failed,exit1;23.51seconds. Intel27 and NVIDIA15 complete cases precede the failed NVIDIA Y410 headroom decoded-color assertion.",
+      "failure": "Stored2.636124 versus f64-derived reference rounded to f32 2.6361225; absolute error exceeds unchanged1e-6 target.",
+      "observation_limit": "Initial exec output truncated3225 original tokens to2500.35 of42 completed record rows retained;7 omitted. No passing result is inferred for the failing case.",
+      "implementation_decision": "Refine pow(x,1/9) with one Newton step, then form (x*root)^2 = x^(20/9). Precise intermediates retain the intended operation order. No tolerance/budget change; no CPU conversion."
+    },
+    "comparison": {
+      "result": "Pass",
+      "cases": 72,
+      "derivation": "3 formats *4 literal patterns *3 sampled contracts *2 hardware adapters. The added fourth pattern verifies below-black negative RGB; original baseline vectors remain unchanged.",
+      "contracts": {
+        "0": "Known native metadata, automatic Linear/Straight sampled descriptor",
+        "1": "Unspecified registry0, authenticated actual native format before allocation",
+        "2": "Declared canonical RGBA32F sampled sRGB/Premultiplied contract"
+      },
+      "patterns": [
+        "Neutral opaque",
+        "Chromatic fractional alpha; Y416 includes nonzero lower eight bits in Y/U/V",
+        "Bright headroom with zero coverage",
+        "Neutral below-black with full coverage"
+      ],
+      "absolute_tolerance": 0.000001,
+      "max_decoded_error": 9.5367431640625e-7,
+      "max_composited_error": 1.7881393432617188e-7,
+      "complete_records_retained": 72,
+      "tool_truncation": false,
+      "assertions": [
+        "Independent literal native source bits match before SDK transport",
+        "Real source worker publishes a decoded RGBA32F frame; every captured component matches the independent f64 BT.709 reference",
+        "Production sampling/compositing over white matches linear premultiplied reference",
+        "Exact source/probe capacity rejects one additional byte",
+        "Real GPU completion precedes reader release and full source/probe charge reclamation",
+        "Probe first-frame readiness requires an SDK copy; video byte export rejects before staging allocation"
+      ],
+      "groups": [
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "description": "Intel(R) Graphics",
+          "native_format": 100,
+          "cases": 12,
+          "actual_source_storage": 240,
+          "probe_storage": 16,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                128,
+                128,
+                126,
+                255
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 1.1920928955078125e-7,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                180,
+                96,
+                100,
+                128
+              ],
+              "linear_reference": [
+                0.5622549057006836,
+                0.10620652884244919,
+                0.02731960639357567,
+                0.501960813999176
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.3890003263950348,
+                0.18043458461761475,
+                0.09054747223854065,
+                0.501960813999176
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 1.1920928955078125e-7,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                200,
+                32,
+                255,
+                0
+              ],
+              "linear_reference": [
+                2.624335527420044,
+                1.0432440042495728,
+                0.10294540226459503,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                128,
+                128,
+                0,
+                255
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 5.774199962615967e-8,
+              "ready_and_retired": true
+            }
+          ]
+        },
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "description": "Intel(R) Graphics",
+          "native_format": 101,
+          "cases": 12,
+          "actual_source_storage": 240,
+          "probe_storage": 16,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                0,
+                226,
+                7,
+                224
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 8.940696716308594e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                128,
+                65,
+                6,
+                173
+              ],
+              "linear_reference": [
+                0.5622549057006836,
+                0.10620652884244919,
+                0.02731960639357567,
+                0.6666666865348816
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5166410207748413,
+                0.23963966965675354,
+                0.12025835365056992,
+                0.6666666865348816
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 1.7881393432617188e-7,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                128,
+                252,
+                15,
+                50
+              ],
+              "linear_reference": [
+                2.636122465133667,
+                1.0503451824188232,
+                0.10493899136781693,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 4.76837158203125e-7,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                0,
+                2,
+                0,
+                224
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 2.9802322387695312e-8,
+              "max_composited_error": 3.725290298461914e-9,
+              "ready_and_retired": true
+            }
+          ]
+        },
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "description": "Intel(R) Graphics",
+          "native_format": 102,
+          "cases": 12,
+          "actual_source_storage": 272,
+          "probe_storage": 32,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                0,
+                128,
+                0,
+                126,
+                0,
+                128,
+                255,
+                255
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 8.940696716308594e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                123,
+                96,
+                13,
+                100,
+                47,
+                180,
+                0,
+                128
+              ],
+              "linear_reference": [
+                0.5645004510879517,
+                0.10588068515062332,
+                0.02850937284529209,
+                0.5000076293945312
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.38817647099494934,
+                0.1794673502445221,
+                0.09230431169271469,
+                0.5000076293945312
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 5.960464477539063e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                0,
+                32,
+                255,
+                255,
+                0,
+                200,
+                0,
+                0
+              ],
+              "linear_reference": [
+                2.6399965286254883,
+                1.0526809692382812,
+                0.10559772700071335,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 4.76837158203125e-7,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                0,
+                128,
+                0,
+                0,
+                0,
+                128,
+                255,
+                255
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 2.9802322387695312e-8,
+              "max_composited_error": 3.725290298461914e-9,
+              "ready_and_retired": true
+            }
+          ]
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "native_format": 100,
+          "cases": 12,
+          "actual_source_storage": 240,
+          "probe_storage": 16,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                128,
+                128,
+                126,
+                255
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 8.940696716308594e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                180,
+                96,
+                100,
+                128
+              ],
+              "linear_reference": [
+                0.5622549057006836,
+                0.10620652884244919,
+                0.02731960639357567,
+                0.501960813999176
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.3890003263950348,
+                0.18043458461761475,
+                0.09054747223854065,
+                0.501960813999176
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 1.1920928955078125e-7,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                200,
+                32,
+                255,
+                0
+              ],
+              "linear_reference": [
+                2.624335527420044,
+                1.0432440042495728,
+                0.10294540226459503,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 4.76837158203125e-7,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                128,
+                128,
+                0,
+                255
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 5.774199962615967e-8,
+              "ready_and_retired": true
+            }
+          ]
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "native_format": 101,
+          "cases": 12,
+          "actual_source_storage": 240,
+          "probe_storage": 16,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                0,
+                226,
+                7,
+                224
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 5.960464477539063e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                128,
+                65,
+                6,
+                173
+              ],
+              "linear_reference": [
+                0.5622549057006836,
+                0.10620652884244919,
+                0.02731960639357567,
+                0.6666666865348816
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5166410207748413,
+                0.23963966965675354,
+                0.12025835365056992,
+                0.6666666865348816
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 7.450580596923828e-8,
+              "max_composited_error": 5.960464477539063e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                128,
+                252,
+                15,
+                50
+              ],
+              "linear_reference": [
+                2.636122465133667,
+                1.0503451824188232,
+                0.10493899136781693,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 9.5367431640625e-7,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                0,
+                2,
+                0,
+                224
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                240,
+                240,
+                256
+              ],
+              "max_decoded_error": 2.9802322387695312e-8,
+              "max_composited_error": 3.725290298461914e-9,
+              "ready_and_retired": true
+            }
+          ]
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "native_format": 102,
+          "cases": 12,
+          "actual_source_storage": 272,
+          "probe_storage": 32,
+          "patterns": [
+            {
+              "pattern": 0,
+              "source_pixel": [
+                0,
+                128,
+                0,
+                126,
+                0,
+                128,
+                255,
+                255
+              ],
+              "linear_reference": [
+                0.26179325580596924,
+                0.26179325580596924,
+                0.26179325580596924,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.5485804080963135,
+                0.5485804080963135,
+                0.5485804080963135,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 5.960464477539063e-8,
+              "max_composited_error": 5.960464477539063e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 1,
+              "source_pixel": [
+                123,
+                96,
+                13,
+                100,
+                47,
+                180,
+                0,
+                128
+              ],
+              "linear_reference": [
+                0.5645004510879517,
+                0.10588068515062332,
+                0.02850937284529209,
+                0.5000076293945312
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0.38817647099494934,
+                0.1794673502445221,
+                0.09230431169271469,
+                0.5000076293945312
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 2.9802322387695312e-8,
+              "max_composited_error": 5.960464477539063e-8,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 2,
+              "source_pixel": [
+                0,
+                32,
+                255,
+                255,
+                0,
+                200,
+                0,
+                0
+              ],
+              "linear_reference": [
+                2.6399965286254883,
+                1.0526809692382812,
+                0.10559772700071335,
+                0
+              ],
+              "declared_srgb_premultiplied_reference": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 4.76837158203125e-7,
+              "max_composited_error": 0,
+              "ready_and_retired": true
+            },
+            {
+              "pattern": 3,
+              "source_pixel": [
+                0,
+                128,
+                0,
+                0,
+                0,
+                128,
+                255,
+                255
+              ],
+              "linear_reference": [
+                -0.016235413029789925,
+                -0.016235413029789925,
+                -0.016235413029789925,
+                1
+              ],
+              "declared_srgb_premultiplied_reference": [
+                -0.20976153016090393,
+                -0.20976153016090393,
+                -0.20976153016090393,
+                1
+              ],
+              "contracts": [
+                0,
+                1,
+                2
+              ],
+              "source_charges": [
+                272,
+                272,
+                272
+              ],
+              "max_decoded_error": 2.9802322387695312e-8,
+              "max_composited_error": 3.725290298461914e-9,
+              "ready_and_retired": true
+            }
+          ]
+        }
+      ]
+    },
+    "native_path_counts": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "recorded_paths": 64,
+        "inventory_allocations": 70,
+        "remaining_native_formats": [
+          103,
+          104,
+          105,
+          107,
+          108,
+          109
+        ]
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "recorded_paths": 63,
+        "inventory_allocations": 68,
+        "remaining_native_formats": [
+          103,
+          104,
+          107,
+          108,
+          109
+        ]
+      }
+    ],
+    "regression": {
+      "cases": 365,
+      "fixtures": 8,
+      "complete_records_retained": 365,
+      "tool_truncation": false,
+      "result": "Pass; unchanged normalized, float, narrow, packed, integer and typeless source matrices, native bits/color/alpha/readiness/retirement. NVIDIA BGRA4444 SDK allocation remains unavailable.",
+      "unavailable": [
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "dxgi_format": 115,
+          "format": "Bgra4444Unorm",
+          "hresult": -2147024809,
+          "scope": "SDK shared allocation unavailable; native reception remains unaccepted on this adapter"
+        }
+      ]
+    }
+  },
+  "architecture": {
+    "native_formats": [
+      100,
+      101,
+      102
+    ],
+    "sampled_format": "Rgba32Float",
+    "raw_view_formats": [
+      30,
+      25,
+      12
+    ],
+    "source_storage": "2 raw images +3 decoded RGBA32F images +16-byte immutable decoder buffer; charged before allocation. Existing declared reservation retained; additional excess charged.",
+    "source_bytes_2x2": {
+      "AYUV": 240,
+      "Y410": 240,
+      "Y416": 272
+    },
+    "declared_source_bytes_2x2": {
+      "AYUV": 256,
+      "Y410": 256,
+      "Y416": 272
+    },
+    "probe_bytes_2x2": {
+      "AYUV": 16,
+      "Y410": 16,
+      "Y416": 32
+    },
+    "rebuild_key": "Authenticated native layout plus full sampled descriptor; dynamic replacement acceptance remains pending.",
+    "completion": "Existing worker fence, renderer reader leases, import withdrawal and retirement; no CPU image conversion, budget increase, fallback adapter or timing-limit change."
+  },
+  "remaining": [
+    "NV12/P010/P016 planar and YUY2/Y210/Y216 packed4:2:2 paths; NVIDIA P016 rejected allocation stays unaccepted",
+    "Alternate matrix/range/transfer and HDR need an authoritative producer contract and typed interpretation boundary",
+    "Actual MapGyver preview/output pixels, continuous-producer format/size changes and sender/device recovery",
+    "Actual D3D9 producer-device scope; prior21/22 metadata tests use D3D11 storage",
+    "Arbitrary typeless producer-view inference, native RGB32 SDK allocation limits and NVIDIA BGRA4444 rejection; retain recorded return triggers",
+    "Native format counts are path coverage only; no accepted gate, physical latency/cadence, full feature or release qualification is inferred"
+  ],
+  "acceptance": {
+    "gate_closed": false,
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "overall_percent": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "m13_percent": 7,
+    "complete_phases": 7,
+    "total_phases": 14
+  },
+  "date_basis": "UTC test date; local Europe/Paris delivery is2026-11-07"
+}

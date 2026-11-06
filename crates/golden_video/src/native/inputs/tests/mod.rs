@@ -18,6 +18,7 @@ mod hardware_freshness;
 mod live_cadence;
 mod metadata;
 mod retirement;
+mod video;
 
 #[test]
 fn keyed_mutex_positive_timeout_and_abandoned_codes_are_not_success() {

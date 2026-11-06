@@ -2,11 +2,13 @@
 //! renderer imports are local and remain leased through matching renderer completion.
 
 mod budget;
+pub(in crate::native) mod capture;
 pub(in crate::native) mod conversion;
 mod reader;
 pub(crate) mod receiver;
 mod shared;
 mod surface;
+pub(in crate::native) mod video;
 mod worker;
 
 use std::collections::BTreeMap;

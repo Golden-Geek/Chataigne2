@@ -47,6 +47,7 @@ fn compile_native_shaders() {
         ("PATTERN_PIXEL", s!("ps_pattern"), s!("ps_5_0"), "ps_pattern.dxbc"),
         ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),
         ("IMPORT_PIXEL", s!("ps_import"), s!("ps_5_0"), "ps_import.dxbc"),
+        ("VIDEO_PIXEL", s!("ps_video"), s!("ps_5_0"), "ps_video.dxbc"),
         (
             "IMPORT_UINT_PIXEL",
             s!("ps_import_uint"),

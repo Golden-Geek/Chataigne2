@@ -35,6 +35,42 @@ allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
 
+## Packed video capture and decoding
+
+Golden's `native/inputs/video` owns AYUV (100), Y410 (101) and Y416 (102) decoding.
+Their native storage is separate from the canonical RGBA32F sampled descriptor. A read-only
+native capture receives the SDK copy, and one GPU draw decodes it into the acquired bridge
+slot. Y410/Y416 do not require an unsupported render-target view. Integer SRVs preserve the
+original8/10/16-bit component codes and native alpha before conversion; no CPU image conversion
+or eight-bit intermediate is used. The worker rebuild key includes the authenticated native
+layout as well as the sampled descriptor, so RGB/video changes cannot reuse the wrong capture.
+
+Spout does not supply matrix/range/transfer tags. The explicit automatic default is limited-range
+BT.709 with inverse BT.709 transfer, preserving footroom/headroom in RGBA32F. Alpha is linear
+coverage normalized by its native maximum. A declared sampled RGB contract may request sRGB
+encoding and/or premultiplication after decoding; it does not describe different YUV colorimetry.
+BT.601/BT.2020, full-range and HDR interpretations remain unaccepted pending an authoritative
+producer contract and an explicit typed input-colorimetry boundary. No arbitrary inference is claimed.
+Storage/view layouts follow Microsoft's [DXGI format reference](https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format),
+[YUV precision/alpha rules](https://learn.microsoft.com/en-us/windows/win32/medfound/10-bit-and-16-bit-yuv-video-formats),
+[BT.709 matrix](https://learn.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering)
+and [inverse transfer](https://learn.microsoft.com/en-us/windows/win32/api/dxva2api/ne-dxva2api-dxva2_videotransferfunction).
+
+The [packed-video receipt](../progress/evidence/mapgyver-m13-packed-video-input-2026-11-06.json)
+passes72 both-GPU cases with independent literal source codes and f64-derived references,
+covering fractional alpha, bright headroom, below-black and three sampled contracts. One
+failed NVIDIA power-precision baseline is retained. A ninth-root Newton refinement before
+forming the BT.70920/9 power meets the unchanged1e-6 absolute target. The365 existing source
+regression cases also pass; these results do not establish full app or live-change acceptance.
+
+`InputLimits::source_storage_bytes_for_native` charges two raw images (sender alias and capture),
+three decoded RGBA32F bridge images and one16-byte immutable decoder buffer before allocation.
+Existing declared source reservations remain held; any native-layout excess is admitted separately.
+At2×2, actual AYUV/Y410 storage costs240bytes and Y416 costs272bytes. A declared RGBA32F
+reservation conservatively holds256bytes, so Y416 needs16 additional bytes. Existing source and
+renderer completion authorities retain every image until actual uses retire. Probe readiness
+charges only its raw16/32-byte capture and rejects byte export before allocating staging storage.
+
 ## Typeless defaults and declared views
 
 Typeless registrations identify storage families, not the producer's typed view. Golden uses
@@ -376,11 +412,12 @@ The receipt retains every available native value and rejected HRESULT; names com
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
 All19 available RGB integer layouts and twelve typeless default/view paths now pass on both
-GPUs. Reusing that original inventory, remaining native allocations are nine Intel/eight
-NVIDIA video layouts (`100–105,107–109`; NVIDIA excludes105/P016).
+GPUs. AYUV/Y410/Y416 now pass through native read-only capture and GPU decoding. Reusing
+that original inventory, remaining native allocations are six Intel/five NVIDIA video layouts
+(`103–105,107–109`; NVIDIA excludes105/P016).
 RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-bias raw
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
-stays unaccepted. Recorded paths cover61 Intel/60 NVIDIA native layouts, with54 direct layouts;
+stays unaccepted. Recorded paths cover64 Intel/63 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
 Next is full video-plane precision/color handling and complete
 actual-app/continuous-producer/device recovery acceptance.

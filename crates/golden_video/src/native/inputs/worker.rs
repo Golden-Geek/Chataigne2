@@ -13,6 +13,7 @@ use super::super::timing::{
 };
 use super::super::{AdapterId, completion::FenceCompletion, device::Device};
 use super::SourceState;
+use super::capture::Capture;
 use super::conversion::{Converter, bridge_descriptor};
 use super::receiver::{Received, Receiver};
 use super::shared::{Publication, Shared};
@@ -25,10 +26,11 @@ struct Session {
     timing: Option<GpuTiming>,
     diagnostic_context: DiagnosticContext,
     receiver: Receiver,
-    descriptor: Option<TextureDescriptor>,
+    descriptor: Option<(TextureDescriptor, u32)>,
     slots: Vec<Slot>,
-    capture: Option<super::super::texture::Texture>,
+    capture: Option<Capture>,
     conversion: Option<Converter>,
+    video: Option<super::video::Decoder>,
     completion: FenceCompletion,
     device: Device,
     generation: DeviceGeneration,
@@ -100,6 +102,7 @@ impl Session {
             slots,
             capture: None,
             conversion: None,
+            video: None,
             completion,
             device,
             generation,
@@ -207,7 +210,8 @@ impl Session {
             return Ok(outcome);
         }
         let descriptor = self.receiver.descriptor().expect("validated receiver layout");
-        if self.descriptor != Some(descriptor) && !self.rebuild(descriptor)? {
+        let native = self.receiver.native_storage().expect("authenticated native storage");
+        if self.descriptor != Some((descriptor, native)) && !self.rebuild(descriptor, native)? {
             return Ok(Received::Waiting);
         }
         if !self.shared.active.load(Ordering::Acquire) {
@@ -250,9 +254,12 @@ impl Session {
         self.shared
             .update(|status| status.sdk_calls = status.sdk_calls.saturating_add(1));
         let receive_begin_qpc = recorder.and_then(Recorder::stamp);
-        // Existing layouts receive directly into the acquired slot. Only non-NT layouts
-        // use a charged raw capture followed by a lossless component draw into the bridge.
-        let received = self.receiver.receive(self.capture.as_ref().unwrap_or(&slot.texture));
+        // Direct RGB layouts receive into the slot. Non-NT RGB and native video use
+        // a charged capture followed by component conversion or video decoding.
+        let received = match &self.capture {
+            Some(capture) => capture.receive(&mut self.receiver),
+            None => self.receiver.receive(&slot.texture),
+        };
         let receive_api = recorder.and_then(|recorder| recorder.interval(receive_begin_qpc));
         self.shared.update(|status| match &received {
             Ok(Received::Frame) => {
@@ -264,8 +271,11 @@ impl Session {
         });
         let bridge_begin = recorder.and_then(Recorder::stamp);
         if matches!(&received, Ok(Received::Frame)) && self.shared.active.load(Ordering::Acquire) {
-            if let (Some(capture), Some(conversion)) = (&self.capture, &self.conversion) {
+            if let (Some(Capture::Rgb(capture)), Some(conversion)) = (&self.capture, &self.conversion) {
                 conversion.copy(&self.device.context, capture, &slot.texture);
+            }
+            if let (Some(Capture::Video(capture)), Some(video)) = (&self.capture, &self.video) {
+                video.draw(&self.device.context, capture, &slot.texture);
             }
             unsafe {
                 self.device.context.Flush();
@@ -308,7 +318,7 @@ impl Session {
         received
     }
 
-    fn rebuild(&mut self, descriptor: TextureDescriptor) -> Result<bool> {
+    fn rebuild(&mut self, descriptor: TextureDescriptor, native: u32) -> Result<bool> {
         // Called only after the previous source query completed, before any new commands.
         // Renderer aliases/leases must retire before a replacement pool can consume its charge.
         if !self.slots.is_empty() {
@@ -317,6 +327,7 @@ impl Session {
         self.slots.clear();
         self.capture = None;
         self.conversion = None;
+        self.video = None;
         self.storage = None;
         self.descriptor = None;
         self.shared.update(|status| {
@@ -327,20 +338,26 @@ impl Session {
             self.shared.retiring.store(false, Ordering::Release);
             return Ok(false);
         }
-        if self.shared.declared_storage.is_none() {
+        let bytes = super::super::InputLimits::source_storage_bytes_for_native(descriptor, native)
+            .map_err(|_| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?;
+        let reserved = self
+            .shared
+            .declared_storage
+            .as_ref()
+            .map_or(0, super::budget::Lease::bytes);
+        let additional = bytes.saturating_sub(reserved);
+        if additional > 0 {
             self.storage = Some(
                 self.shared
                     .storage_budget
-                    .claim(
-                        super::super::InputLimits::source_storage_bytes(descriptor)
-                            .map_err(|_| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?,
-                    )
+                    .claim(additional)
                     .ok_or_else(|| Error::from_hresult(HRESULT(0x8007_000e_u32 as i32)))?,
             );
         }
         let converted = bridge_descriptor(descriptor) != descriptor;
-        let capture = converted
-            .then(|| super::super::texture::Texture::new(&self.device.device, descriptor))
+        let video_format = super::video::Format::from_native(native);
+        let capture = (converted || video_format.is_some())
+            .then(|| Capture::new(&self.device, descriptor, native))
             .transpose()?;
         let conversion = converted
             .then(|| Converter::new(&self.device.device, descriptor.format))
@@ -356,10 +373,13 @@ impl Session {
             .pool_generation
             .checked_add(1)
             .ok_or_else(|| Error::from_hresult(HRESULT(0x8000_4005_u32 as i32)))?;
-        self.descriptor = Some(descriptor);
+        self.descriptor = Some((descriptor, native));
         self.slots = slots;
         self.capture = capture;
         self.conversion = conversion;
+        self.video = video_format
+            .map(|format| super::video::Decoder::new(&self.device.device, format, descriptor))
+            .transpose()?;
         self.shared.update(|status| {
             status.pool_generation = next;
             status.bridge_slots = INPUT_BRIDGE_SLOTS;
@@ -461,6 +481,7 @@ impl Drop for Session {
         self.slots.clear();
         self.capture = None;
         self.conversion = None;
+        self.video = None;
         self.descriptor = None;
         self.shared.update(|status| status.bridge_slots = 0);
     }

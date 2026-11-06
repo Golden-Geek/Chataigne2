@@ -125,9 +125,9 @@ fn resolved_float_probe_reservation_never_uses_the_unknown_registration_byte_hin
     )
     .unwrap();
     let byte_sized = PayloadPool::new("unresolved-byte-hint", 1, 64).unwrap();
-    assert!(reserve_image(descriptor, &byte_sized).is_err());
+    assert!(reserve_image(descriptor, 2, &byte_sized).is_err());
     let exact = PayloadPool::new("resolved-float", 1, 256).unwrap();
-    let lease = reserve_image(descriptor, &exact).unwrap();
+    let lease = reserve_image(descriptor, 2, &exact).unwrap();
     assert!(exact.try_reserve(1).is_err());
     drop(lease);
     assert!(exact.try_reserve(256).is_ok());

@@ -38,5 +38,11 @@ impl Drop for Lease {
     }
 }
 
+impl Lease {
+    pub fn bytes(&self) -> u64 {
+        self.bytes
+    }
+}
+
 #[cfg(test)]
 mod tests;
