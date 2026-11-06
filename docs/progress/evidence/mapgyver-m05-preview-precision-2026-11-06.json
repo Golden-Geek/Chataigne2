@@ -1,0 +1,85 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Original fixed color/alpha/reference cohort passes on both GPUs with higher-precision preview storage; whole physical matrix remains Active",
+	"whole_gate_accepted": false,
+	"source_base": "264498e34d97e707bcf170d522d85a756e623f7c",
+	"executable_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+	"delivered": "Selected dark-gray Screen and Surface Source previews now meet the original RGB 2 color limit on Intel and NVIDIA; the prior Intel RGB 4 failure is resolved for the fixed native fixture",
+	"ownership": {
+		"golden_video": "Reusable explicit Rgba16Float format, descriptor/payload accounting, immutable upload pitch, typed D3D11 views and eight-bit shared-endpoint validation",
+		"mapgyver": "Select linear premultiplied RGBA16Float only for internal preview passes; authored media and final Spout/window output contracts stay unchanged",
+		"wire": "PixelFormat/TextureDescriptor are not exported by current UI DTO generators; no UI request/response shape, protocol version or hand-maintained TS declaration changes. Existing generated preview-contract check passes"
+	},
+	"storage_and_admission": {
+		"format": "IEEE 754 binary16 RGBA, eight little-endian bytes per texel",
+		"native": "DXGI R16G16B16A16_FLOAT resource/SRV/RTV; no sRGB hardware view is invented for floating storage. Sampling retains explicit transfer/alpha semantics",
+		"upload": "ImageData validates descriptor-sized payloads; native upload row pitch uses format byte size with checked multiplication",
+		"external": "Spout input discovery and output validation reject the new internal format; final window and shared outputs retain existing eight-bit SDR storage",
+		"memory": "Four to eight bytes per internal preview texel, including scratch/retained generations through existing accounting. No memory, texture-count, source-count or timing limit enlarged; insufficient admission keeps the existing explicit failure/recovery path",
+		"checks": "Exact 1080p/4K and maximal-dimension overflow accounting; 32-byte plan accepts exactly 32 and rejects 31; native resource estimate charges eight-byte intermediate plus four-byte conversion; immutable two-texel image requires 16 bytes"
+	},
+	"physical_method": {
+		"oracle": "Unchanged independent 16-tile straight-alpha sRGB picture, standard linear-light alpha/overlay arithmetic and independently solved crop/projective points. Sixteen 3x3 physical patches per capture; original RGB <=2 limit unchanged",
+		"cases_per_gpu": "Direct, two-link Reference and cropped-perspective routing, each with selected Screen, unselected Screen and full Surface Source",
+		"guards": "Exact public runtime GPU LUID, owned foreground PID/HWND, stable OS client placement/DPI, equal DOM projection around capture, and normal owned app exit",
+		"scope": "Flat tile interiors verify color and sampled crop/warp placement, not one-pixel edge alignment, every motion frame or input latency",
+		"desktop": "Supported owned-window activation/header pointer parking. No display scale, positions, topology, HDR, GPU selection outside the private app profile, or user's running sender changed"
+	},
+	"cohorts": [
+		{
+			"directory": "nvidia-100",
+			"pid": 42660,
+			"hwnd": 8916874,
+			"gpu": "dxgi:00000000:00016022",
+			"dpi": 96,
+			"dpr": 1,
+			"captures_passed": 9,
+			"captures_total": 9,
+			"maximum_rgb_error": 2,
+			"selected_maximum_rgb_error": 1,
+			"fixture_exit": 0,
+			"app_normal_exit": 0
+		},
+		{
+			"directory": "intel-125",
+			"pid": 27268,
+			"hwnd": 27659376,
+			"gpu": "dxgi:00000000:00015b69",
+			"dpi": 120,
+			"dpr": 1.25,
+			"captures_passed": 9,
+			"captures_total": 9,
+			"maximum_rgb_error": 2,
+			"selected_maximum_rgb_error": 1,
+			"fixture_exit": 0,
+			"app_normal_exit": 0
+		}
+	],
+	"verification": {
+		"golden": "218 Golden Video library tests pass, 34 ignored, plus passing generated preview TypeScript integration check",
+		"app": "503 app library tests pass, two ignored; regression also constructs floating preview targets",
+		"strict": "Both packages pass all-target Clippy with qualification/native/application-process features and -D warnings; final Golden lint rerun includes the two-row floating upload test",
+		"native_format": "One explicit hardware test loops both enumerated hardware adapters. Each produces exact [49,64,90,255] for the dark-gray overlay, exact blue for a two-row floating image upload, eight tracked bytes while live and zero bytes with balanced create/release after completed readback",
+		"native_app": "Eighteen complete physical captures, 2592 sampled pixels, all RGB <=2; all selected captures <=1. Both fixture and app exits 0",
+		"replay": "Eleven Python checks pass across preflight, historical failure and new precision captures. New replay rejects swapped channels on all eighteen images, ignored alpha on fourteen applicable cases, and mismatched real DPI. Historical six failed Intel selected images remain failed in their owning archive",
+		"provenance": "Exact executable and all 419 selected input hashes match before/after native checks. Adds owning preview host worker to the prior 418-input scope",
+		"environment": "Eight paired read-only OS/CPU/video/monitor/WebView/toolchain/native-hardware/locked-package groups equal",
+		"format": "Root and golden_core cargo fmt, Python compilation and targeted JSON formatting"
+	},
+	"artifacts": "mapgyver-m05-preview-precision-2026-11-06/precision-captures.zip",
+	"archive_bytes": 1982449,
+	"archive_sha256": "2f4d7721cbcc288979c08c440f409351ccd3716640da248ec2f2cc0c60938c6d",
+	"artifact_contents": "18 physical PNGs, two authored RGBA fixtures, complete independent per-stage expectations/results/projection/OS geometry, exact adapter and normal-exit receipts, software/strict/native/build logs, before/after hashes and paired inventories. Private app-data profiles excluded",
+	"prior_failure": "mapgyver-m05-preview-alpha-2026-11-06.json retains the six selected Intel RGB 4 failures and original duplicate-fill evidence; neither is overwritten or retroactively accepted",
+	"remaining": [
+		"Full original color/alpha/reference and overlay/capture combinations beyond this fixed picture cohort",
+		"Retained one-pixel edge geometry and transition/retirement matrix under the updated storage",
+		"Genuine same-window mixed-monitor DPI movement and actual negative monitor origins",
+		"Additional docking/native-content scrolling and complete in-motion image/overlay/hit coverage",
+		"Original <=50ms p95 input-to-visible latency, still unproven",
+		"Physical hotplug/device recovery, original GPU/cadence/lifecycle/memory limits and final qualification; higher precision does not accept performance or resource-peak gates"
+	],
+	"next": "Keep M05/8 alone Active; verify retained native geometry/capture/retirement combinations under the updated storage before completing genuine mixed-monitor and remaining physical scope",
+	"progress": "67/78 gates (86%), unchanged scope/denominator; fixed precision requirement closed, no whole acceptance gate closed"
+}

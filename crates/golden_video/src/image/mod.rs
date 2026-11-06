@@ -8,7 +8,7 @@ mod font;
 pub use atlas::ImageAtlas;
 pub use font::FontAtlas;
 
-/// A tightly packed, immutable RGBA8/BGRA8 image. Source storage/color/alpha is explicit;
+/// A tightly packed, immutable image. Source storage/color/alpha is explicit;
 /// conversion into the renderer's linear premultiplied targets happens while sampling.
 #[derive(Debug)]
 pub struct ImageData {
@@ -25,7 +25,7 @@ pub enum ImageError {
     /// The source byte count cannot be represented in this process.
     #[error("image storage size is not representable")]
     SizeOverflow,
-    /// Tight four-byte texels do not match the declared image extent.
+    /// Tight format-sized texels do not match the declared image extent.
     #[error("image pixels do not match their tightly packed descriptor")]
     Layout,
 }

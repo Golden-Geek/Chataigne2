@@ -61,6 +61,13 @@ canvas backdrops already cover their active images; adding decorated image regio
 black pass would paint fills twice through transparent pixels. Passive tiled views alone need
 additional per-image black apertures, and their protocol excludes decorations.
 
+Golden Video's `Rgba16Float` provides eight-byte, linear premultiplied intermediate storage
+for MapGyver's preview passes. Native texture views and immutable upload pitch follow the
+declared format; descriptor size, plan admission and native ownership charge every byte.
+Spout and window outputs retain their eight-bit SDR contracts, and existing memory caps stay
+unchanged. Unsupported formats or insufficient memory follow the existing explicit failure
+and recovery path, without falling back to lower precision.
+
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
 

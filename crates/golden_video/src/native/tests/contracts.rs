@@ -72,7 +72,7 @@ fn clear_plan(output: u64) -> RenderPlan {
 }
 
 #[test]
-fn counted_output_name_limit_is_rejected_before_native_startup() {
+fn native_output_contracts_are_rejected_before_startup() {
     use crate::runtime::{ResourceLimits, RuntimeConfig};
     use std::num::NonZeroUsize;
     use std::time::Duration;
@@ -92,7 +92,11 @@ fn counted_output_name_limit_is_rejected_before_native_startup() {
         max_recovery_delay: Duration::from_millis(100),
         notifier: None,
     };
-    for (length, accepted) in [(239, true), (240, false)] {
+    for (length, format, accepted) in [
+        (239, PixelFormat::Rgba8Unorm, true),
+        (240, PixelFormat::Rgba8Unorm, false),
+        (20, PixelFormat::Rgba16Float, false),
+    ] {
         let config = D3d11Config {
             diagnostics: None,
             adapter: AdapterId { low: 0, high: 0 },
@@ -100,7 +104,7 @@ fn counted_output_name_limit_is_rejected_before_native_startup() {
             outputs: vec![OutputBinding::Spout {
                 id: OutputId::new(1).unwrap(),
                 name: "x".repeat(length),
-                descriptor: descriptor(),
+                descriptor: TextureDescriptor { format, ..descriptor() },
             }],
         };
         assert_eq!(
@@ -121,6 +125,12 @@ fn native_resource_charges_include_persistent_sdk_storage_and_generation_convers
             .resource_bytes(&clear_plan(1).compile(&limits()).unwrap())
             .unwrap(),
         8
+    );
+    let mut floating = clear_plan(1);
+    floating.passes[0].descriptor.format = PixelFormat::Rgba16Float;
+    assert_eq!(
+        backend.resource_bytes(&floating.compile(&limits()).unwrap()).unwrap(),
+        12
     );
     assert!(!control.snapshot().initialized);
     assert!(control.snapshot().adapter.is_none());

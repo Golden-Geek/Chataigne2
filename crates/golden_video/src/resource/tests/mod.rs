@@ -2,6 +2,23 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, 
 
 const FORMATS: [PixelFormat; 2] = [PixelFormat::Rgba8Unorm, PixelFormat::Bgra8Unorm];
 
+#[test]
+fn floating_compositing_storage_is_charged_at_eight_bytes_without_overflow() {
+    let format = PixelFormat::Rgba16Float;
+    assert_eq!(descriptor(1, 1, format).byte_len(), Ok(8));
+    assert_eq!(descriptor(1920, 1080, format).byte_len(), Ok(16_588_800));
+    assert_eq!(descriptor(3840, 2160, format).byte_len(), Ok(66_355_200));
+    let largest_height = 1_u32 << 29;
+    assert_eq!(
+        descriptor(u32::MAX, largest_height, format).byte_len(),
+        Ok(u64::MAX - u64::from(u32::MAX))
+    );
+    assert!(matches!(
+        descriptor(u32::MAX, largest_height + 1, format).byte_len(),
+        Err(TextureError::ByteSizeOverflow { .. })
+    ));
+}
+
 fn descriptor(width: u32, height: u32, format: PixelFormat) -> TextureDescriptor {
     TextureDescriptor {
         extent: Extent2D::new(width, height).unwrap(),

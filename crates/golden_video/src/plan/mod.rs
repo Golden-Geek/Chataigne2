@@ -283,7 +283,8 @@ impl SpoutSource {
 
     pub(crate) fn accepts(&self, actual: TextureDescriptor) -> bool {
         let maximum = self.descriptor;
-        actual.extent.width() <= maximum.extent.width()
+        actual.format != crate::PixelFormat::Rgba16Float
+            && actual.extent.width() <= maximum.extent.width()
             && actual.extent.height() <= maximum.extent.height()
             && match self.metadata {
                 SpoutMetadata::Declared => {

@@ -5,12 +5,11 @@ use std::rc::Rc;
 
 use spout2_sys as sdk;
 use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device};
-use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM};
 use windows::core::{Error, HRESULT, Interface, Result};
 
 use crate::{PixelFormat, TextureDescriptor};
 
-use super::super::texture::Texture;
+use super::super::texture::{Texture, format};
 use super::super::timing::{CpuInterval, Recorder, SpoutImageVersion};
 use super::Delivery;
 
@@ -45,6 +44,12 @@ impl SpoutOutput {
     }
 
     fn configured(device: &ID3D11Device, name: String, descriptor: TextureDescriptor, keyed: bool) -> Result<Self> {
+        if descriptor.format == PixelFormat::Rgba16Float {
+            return Err(Error::new(
+                INVALID_ARGUMENT,
+                "Spout outputs require eight-bit RGBA or BGRA storage",
+            ));
+        }
         if !crate::plan::SpoutFrameCount::VersionedV1.accepts_sender_name(&name) {
             return Err(Error::new(
                 INVALID_ARGUMENT,
@@ -232,12 +237,5 @@ impl Drop for SpoutOutput {
         // while device still retains the borrowed COM pointer. The SDK releases its sender
         // texture and immediate context before Rust drops our device AddRef.
         unsafe { sdk::spout_dx_destroy(self.raw.as_ptr()) };
-    }
-}
-
-fn format(format: PixelFormat) -> DXGI_FORMAT {
-    match format {
-        PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_UNORM,
-        PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_UNORM,
     }
 }

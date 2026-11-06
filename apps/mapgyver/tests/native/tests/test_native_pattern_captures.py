@@ -80,5 +80,67 @@ class NativePatternCaptures(unittest.TestCase):
             self.assertTrue(all(abs(a - b) <= 2 for a, b in zip(actual, doubled)))
 
 
+class FloatingNativePatternCaptures(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.samples = []
+        archive = ROOT / "docs/progress/evidence/mapgyver-m05-preview-precision-2026-11-06/precision-captures.zip"
+        with zipfile.ZipFile(archive) as source:
+            for case in ("nvidia-100", "intel-125"):
+                result = json.loads(source.read(case + "/pattern-result.json"))
+                assert result["result"] == "pass"
+                for stage in result["stages"]:
+                    name = case + "/" + stage["stage"]
+                    cls.samples.append((name,
+                        json.loads(source.read(name + "/projection.json")),
+                        json.loads(source.read(name + "/capture.json")),
+                        source.read(name + "/owned-window.png")))
+
+    def test_all_original_color_cases_pass_without_relaxing_the_oracle(self):
+        self.assertEqual(len(self.samples), 18)
+        pixels = 0
+        for name, metadata, capture, raw in self.samples:
+            with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
+                result = MODULE.analyze(image, metadata, capture)
+                self.assertTrue(result["passed"])
+                self.assertEqual(result["tolerance"], 2)
+                self.assertLessEqual(result["maximum_rgb_error"], 1 if metadata["selected"] else 2)
+                pixels += result["pixel_count"]
+                mismatched = copy.deepcopy(capture)
+                mismatched["window_dpi"] += 24
+                with self.assertRaises(AssertionError):
+                    MODULE.analyze(image, metadata, mismatched)
+        self.assertEqual(pixels, 2592)
+
+    def test_the_previous_intel_dark_gray_failure_is_now_correct_on_both_gpus(self):
+        count = 0
+        for name, metadata, capture, raw in self.samples:
+            if not name.endswith("direct-source-selected"):
+                continue
+            with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
+                probe = next(probe for probe in MODULE.analyze(image, metadata, capture)["probes"]
+                             if probe["rgba"] == [32, 32, 32, 255])
+                self.assertEqual(probe["expected"], [49, 64, 90])
+                self.assertLessEqual(probe["maximum_error"], 1)
+                count += 1
+        self.assertEqual(count, 2)
+
+    def test_channel_and_alpha_negative_controls_still_reject_the_fixed_images(self):
+        alpha_cases = 0
+        for name, metadata, capture, raw in self.samples:
+            with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
+                swapped = copy.deepcopy(metadata)
+                for rgba in swapped["pattern"]["rgba"]:
+                    rgba[0], rgba[2] = rgba[2], rgba[0]
+                self.assertFalse(MODULE.analyze(image, swapped, capture)["passed"])
+                if any(probe["rgba"][3] < 255 for probe in MODULE.analyze(image, metadata, capture)["probes"]):
+                    ignored_alpha = copy.deepcopy(metadata)
+                    for rgba in ignored_alpha["pattern"]["rgba"]:
+                        rgba[3] = 255
+                    self.assertFalse(MODULE.analyze(image, ignored_alpha, capture)["passed"])
+                    alpha_cases += 1
+        self.assertEqual(alpha_cases, 14)
+
+
 if __name__ == "__main__":
     unittest.main()

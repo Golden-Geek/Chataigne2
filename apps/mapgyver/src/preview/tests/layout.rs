@@ -36,7 +36,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
     let reader = revision.reader();
     let descriptor = TextureDescriptor {
         extent: Extent2D::new(128, 64).unwrap(),
-        format: PixelFormat::Rgba8Unorm,
+        format: PixelFormat::Rgba16Float,
         color_encoding: ColorEncoding::Linear,
         alpha_mode: AlphaMode::Premultiplied,
     };

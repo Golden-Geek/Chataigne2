@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn floating_targets_charge_the_full_payload_before_admission() {
+    let mut pass = clear(1, 1);
+    pass.descriptor.format = PixelFormat::Rgba16Float;
+    let plan = RenderPlan {
+        passes: vec![pass],
+        outputs: vec![output(1, 1)],
+        ..Default::default()
+    };
+    let exact = PlanLimits {
+        max_texture_bytes: 32,
+        ..limits()
+    };
+    assert_eq!(
+        plan.clone().compile(&exact).unwrap().footprint().target_texture_bytes,
+        32
+    );
+    assert!(matches!(
+        plan.compile(&PlanLimits {
+            max_texture_bytes: 31,
+            ..exact
+        }),
+        Err(PlanError::TextureBudgetExceeded { actual: 32, limit: 31 })
+    ));
+}
+
+#[test]
 fn source_only_demand_is_explicit_bounded_and_does_not_require_a_presentation() {
     let plan = RenderPlan {
         external_textures: vec![external(1)],
@@ -48,6 +74,13 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         ..Default::default()
     };
     assert!(make(valid.clone()).compile(&limits()).is_ok());
+    let mut discovered = valid.clone();
+    discovered.metadata = crate::plan::SpoutMetadata::Discover;
+    assert!(
+        discovered
+            .observed_descriptor(valid.descriptor.extent, PixelFormat::Rgba16Float)
+            .is_none()
+    );
     for (frame_count, length, accepted) in [
         (SpoutFrameCount::VersionedV1, 239, true),
         (SpoutFrameCount::VersionedV1, 240, false),
@@ -68,6 +101,13 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         );
     }
     let mut invalid = Vec::new();
+    invalid.push(SpoutSource {
+        descriptor: TextureDescriptor {
+            format: PixelFormat::Rgba16Float,
+            ..valid.descriptor
+        },
+        ..valid.clone()
+    });
     for sender in [String::new(), "x".repeat(256), "bad\0source".into()] {
         invalid.push(SpoutSource {
             metadata: crate::plan::SpoutMetadata::Declared,

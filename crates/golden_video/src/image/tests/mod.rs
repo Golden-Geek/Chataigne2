@@ -173,3 +173,17 @@ fn immutable_image_validates_tight_storage_and_does_not_retain_spare_capacity() 
         Err(ImageError::Dimension)
     ));
 }
+
+#[test]
+fn floating_image_storage_requires_eight_bytes_per_texel() {
+    let descriptor = TextureDescriptor {
+        format: PixelFormat::Rgba16Float,
+        ..descriptor(2, 1)
+    };
+    assert!(matches!(
+        ImageData::new(descriptor, vec![0; 8]),
+        Err(ImageError::Layout)
+    ));
+    let image = ImageData::new(descriptor, vec![0; 16]).unwrap();
+    assert_eq!(image.retained_bytes(), size_of::<ImageData>() + 16);
+}

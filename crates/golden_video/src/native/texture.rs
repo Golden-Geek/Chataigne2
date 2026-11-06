@@ -5,7 +5,8 @@ use windows::Win32::Graphics::Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D;
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_TYPELESS, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
-    DXGI_FORMAT_R8G8B8A8_TYPELESS, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_SAMPLE_DESC,
+    DXGI_FORMAT_R8G8B8A8_TYPELESS, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+    DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_TYPELESS, DXGI_SAMPLE_DESC,
 };
 use windows::core::{Error, HRESULT, Interface, Result};
 
@@ -55,7 +56,11 @@ impl Texture {
         let descriptor = image.descriptor();
         let data = D3D11_SUBRESOURCE_DATA {
             pSysMem: image.pixels().as_ptr().cast(),
-            SysMemPitch: descriptor.extent.width() * 4,
+            SysMemPitch: descriptor
+                .extent
+                .width()
+                .checked_mul(descriptor.format.bytes_per_pixel() as u32)
+                .ok_or_else(|| Error::from_hresult(HRESULT(0x8007_0057_u32 as i32)))?,
             SysMemSlicePitch: 0,
         };
         Self::allocate(device, descriptor, true, Some(&data))
@@ -93,7 +98,7 @@ impl Texture {
         };
         let mut texture = None;
         // SAFETY: complete single-level descriptor and initialized output. Optional ImageData
-        // validates tight four-byte storage and stays alive throughout this creation call.
+        // validates tightly packed format-sized storage and stays alive throughout creation.
         unsafe { device.CreateTexture2D(&desc, data.map(std::ptr::from_ref), Some(&mut texture))? };
         Self::from_native(device, texture.ok_or_else(missing_output)?, descriptor)
     }
@@ -157,7 +162,7 @@ impl Texture {
             if desc.Format == typeless_format(descriptor.format) {
                 device.CreateShaderResourceView(
                     &texture,
-                    Some(&srv_desc(srgb_format(descriptor.format))),
+                    Some(&srv_desc(srgb_format(descriptor.format).ok_or_else(missing_output)?)),
                     Some(&mut decoded_srv),
                 )?;
                 if decoded_srv.is_none() {
@@ -200,20 +205,24 @@ impl Texture {
 
 fn hardware_decode(descriptor: TextureDescriptor) -> bool {
     // Encoded-premultiplied storage must be unpremultiplied before decoding, in the shader.
-    descriptor.color_encoding == ColorEncoding::Srgb && descriptor.alpha_mode != AlphaMode::Premultiplied
+    descriptor.color_encoding == ColorEncoding::Srgb
+        && descriptor.alpha_mode != AlphaMode::Premultiplied
+        && srgb_format(descriptor.format).is_some()
 }
 
 fn typeless_format(format: PixelFormat) -> DXGI_FORMAT {
     match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_TYPELESS,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_TYPELESS,
+        PixelFormat::Rgba16Float => DXGI_FORMAT_R16G16B16A16_TYPELESS,
     }
 }
 
-fn srgb_format(format: PixelFormat) -> DXGI_FORMAT {
+fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
     match format {
-        PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-        PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+        PixelFormat::Rgba8Unorm => Some(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB),
+        PixelFormat::Bgra8Unorm => Some(DXGI_FORMAT_B8G8R8A8_UNORM_SRGB),
+        PixelFormat::Rgba16Float => None,
     }
 }
 
@@ -221,6 +230,7 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
     match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_UNORM,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_UNORM,
+        PixelFormat::Rgba16Float => DXGI_FORMAT_R16G16B16A16_FLOAT,
     }
 }
 

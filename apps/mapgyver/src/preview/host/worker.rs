@@ -408,7 +408,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     output: OutputId::new(1).unwrap(),
                     descriptor: TextureDescriptor {
                         extent,
-                        format: PixelFormat::Rgba8Unorm,
+                        format: PixelFormat::Rgba16Float,
                         color_encoding: ColorEncoding::Linear,
                         alpha_mode: AlphaMode::Premultiplied,
                     },

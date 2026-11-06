@@ -364,6 +364,90 @@ struct Fixture {
     pipeline: Pipeline,
 }
 
+#[test]
+#[ignore = "requires explicitly available Windows hardware D3D11 adapters"]
+fn hardware_floating_preview_preserves_dark_overlay_colors_and_exact_storage() {
+    use crate::plan::{OverlayPrimitive, OverlayShape, RegionGeometry, UnitRect};
+    let hardware = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let gpu = Device::new(adapter.id).unwrap();
+        let pipeline = Pipeline::new(&gpu.device).unwrap();
+        let fixture = Fixture { gpu, pipeline };
+        let source = fixture.upload(
+            descriptor(1, PixelFormat::Rgba8Unorm, ColorEncoding::Srgb, AlphaMode::Opaque),
+            &[[32, 32, 32, 255]],
+        );
+        let allocations = super::super::allocations::TextureAllocations::default();
+        let mut floating = fixture.target(internal(PixelFormat::Rgba16Float));
+        floating.track(&allocations).unwrap();
+        assert_eq!(allocations.snapshot().texel_bytes, 8);
+        fixture.draw(&source, None, &floating, 1., BlendMode::Normal, SampleFilter::Nearest);
+        fixture.pipeline.draw_overlays(
+            &fixture.gpu.context,
+            &floating,
+            &RegionGeometry {
+                destination: UnitRect::FULL,
+                source_rect: UnitRect::FULL,
+                overlay_clip: UnitRect::FULL,
+                overlay_scale: 1.,
+                tiles: std::sync::Arc::from([]),
+                overlays: std::sync::Arc::from([OverlayPrimitive {
+                    hit: None,
+                    shape: OverlayShape::Quad {
+                        corners: [[0., 0.], [1., 0.], [1., 1.], [0., 1.]],
+                    },
+                    fill: [120. / 255., 170. / 255., 250. / 255., 24. / 255.],
+                    stroke: [0.; 4],
+                    width: 0.001,
+                    dash: None,
+                }]),
+            },
+        );
+        let output = fixture.target(descriptor(
+            1,
+            PixelFormat::Bgra8Unorm,
+            ColorEncoding::Srgb,
+            AlphaMode::Opaque,
+        ));
+        fixture.draw(&floating, None, &output, 1., BlendMode::Normal, SampleFilter::Nearest);
+        fixture.check(
+            &output,
+            [49. / 255., 64. / 255., 90. / 255., 1.],
+            "floating dark-gray overlay to SDR output",
+        );
+        // Two rows expose a four-byte upload-pitch regression independently of render targets.
+        let words: [u16; 16] = [
+            0x3c00, 0, 0, 0x3c00, 0, 0x3c00, 0, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0, 0, 0x3c00, 0x3c00,
+        ];
+        let image = crate::image::ImageData::new(
+            TextureDescriptor {
+                extent: Extent2D::new(2, 2).unwrap(),
+                ..internal(PixelFormat::Rgba16Float)
+            },
+            words.into_iter().flat_map(u16::to_le_bytes).collect(),
+        )
+        .unwrap();
+        let uploaded = Texture::from_image(&fixture.gpu.device, &image).unwrap();
+        fixture.draw(&uploaded, None, &output, 1., BlendMode::Normal, SampleFilter::Nearest);
+        fixture.check(
+            &output,
+            [0., 0., 1., 1.],
+            "floating image upload preserves its second row",
+        );
+        drop(floating);
+        assert_eq!(allocations.snapshot().texel_bytes, 0);
+        assert_eq!(
+            (allocations.snapshot().created, allocations.snapshot().released),
+            (1, 1)
+        );
+    }
+}
+
 impl Fixture {
     fn new() -> Self {
         let adapter = adapters()
@@ -591,6 +675,7 @@ fn storage_order(rgba: [u8; 4], format: PixelFormat) -> [u8; 4] {
     match format {
         PixelFormat::Rgba8Unorm => rgba,
         PixelFormat::Bgra8Unorm => [rgba[2], rgba[1], rgba[0], rgba[3]],
+        PixelFormat::Rgba16Float => panic!("byte pixel fixtures require an eight-bit format"),
     }
 }
 
