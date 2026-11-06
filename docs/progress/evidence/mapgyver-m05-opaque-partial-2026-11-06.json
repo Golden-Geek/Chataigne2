@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Partial native two-region controls; opaque dialog and full gate unverified",
+  "source_base": "1cafa0dfdf37353ea9724dc71af2bb469dea81d8",
+  "accepted_gate_change": 0,
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "verified": {
+    "adapter": "dxgi:00000000:00016022",
+    "pid": 33004,
+    "hwnd": 33033164,
+    "dpi": 120,
+    "screen_css_size": [678, 508.5],
+    "source_css_size": [196, 110.25],
+    "screen_red_blue_witness_pixels": 190756,
+    "source_red_blue_witness_pixels": 32176,
+    "source": "nv-run/partial-result.json",
+    "same_physical_geometry": true,
+    "save_file_absent": true,
+    "fixture_tests_passed": 7
+  },
+  "unverified": [
+    "Four foreground-owned dialog captures and independent opaque-layer replay",
+    "Intel two-region case",
+    "Independent output and normal retirement for these cases",
+    "All remaining original M05/8 acceptance, including latency"
+  ],
+  "limits": "Baseline and both subsequent fixture runs reached bounded capture activation timeouts. Processes are absent after timeout; no normal-exit acceptance is inferred. The real Save dialog appeared in the main window accessibility tree although omitted from the top-level computer-use inventory. No dialog pixel acceptance is claimed.",
+  "next_action": "Use a separate empty owned save directory; identify the observed same-PID #32770 dialog HWND by read-only window enumeration, prepare a bounded foreground capture before activation, then capture red/red/blue/red controls and Cancel. Do not repeat menu or latency investigations.",
+  "archive": {
+    "path": "mapgyver-m05-opaque-partial-2026-11-06.zip",
+    "bytes": 181040,
+    "sha256": "73c308f7b5d339dc60cc818e68dfee171992476c9273008d1e773df432674488"
+  }
+}

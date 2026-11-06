@@ -13,7 +13,20 @@ from pathlib import Path
 from PIL import Image, ImageGrab
 
 
-def owned_window_bounds(hwnd, pid):
+def validate_foreground(user, hwnd, pid, foreground_hwnd=None):
+    """An explicit auxiliary capture is limited to an observed dialog in this fixture process."""
+    expected = hwnd if foreground_hwnd is None else foreground_hwnd
+    assert user.GetForegroundWindow() == expected, "owned fixture must be the foreground window"
+    if expected != hwnd:
+        owner = wintypes.DWORD()
+        user.GetWindowThreadProcessId(expected, ctypes.byref(owner))
+        assert owner.value == pid, "foreground dialog does not belong to the fixture PID"
+        class_name = ctypes.create_unicode_buffer(256)
+        assert user.GetClassNameW(expected, class_name, len(class_name))
+        assert class_name.value == "#32770", "foreground auxiliary must be an owned native dialog"
+
+
+def owned_window_bounds(hwnd, pid, foreground_hwnd=None):
     """Read physical bounds only for the caller's owned foreground window."""
     user = ctypes.windll.user32
     user.GetForegroundWindow.restype = wintypes.HWND
@@ -21,7 +34,8 @@ def owned_window_bounds(hwnd, pid):
     owner = wintypes.DWORD()
     user.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
     assert owner.value == pid, "capture HWND does not belong to the supplied fixture PID"
-    assert user.GetForegroundWindow() == hwnd, "owned fixture must be the foreground window"
+    user.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    validate_foreground(user, hwnd, pid, foreground_hwnd)
     user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
     user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
     user.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
@@ -31,11 +45,11 @@ def owned_window_bounds(hwnd, pid):
     return bounds
 
 
-def visible_owned_window(hwnd, pid):
+def visible_owned_window(hwnd, pid, foreground_hwnd=None):
     """Read visible composited pixels only after checking the owned foreground window."""
-    bounds = owned_window_bounds(hwnd, pid)
+    bounds = owned_window_bounds(hwnd, pid, foreground_hwnd)
     image = ImageGrab.grab(bbox=bounds, all_screens=True)
-    assert bounds == owned_window_bounds(hwnd, pid), "window moved during capture"
+    assert bounds == owned_window_bounds(hwnd, pid, foreground_hwnd), "window moved during capture"
     return image, bounds
 
 
@@ -94,12 +108,15 @@ def main():
     source.add_argument("--hwnd", type=int, help="HWND of the caller's owned fixture process")
     parser.add_argument("--visible", action="store_true", help="Capture its visible desktop region, not PrintWindow")
     parser.add_argument("--pid", type=int, help="Required owned fixture PID for --visible")
+    parser.add_argument("--foreground-hwnd", type=int, help="Exact observed owned native dialog covering the fixture")
     source.add_argument(
         "--image", type=Path, help="Analyze an existing capture without capturing again"
     )
     parser.add_argument("--geometry-only", action="store_true")
     parser.add_argument("output", type=Path, nargs="?")
     args = parser.parse_args()
+    if args.foreground_hwnd is not None and not args.visible:
+        parser.error("--foreground-hwnd requires --visible")
     if args.geometry_only:
         if args.hwnd is None or args.pid is None:
             parser.error("--geometry-only requires --hwnd and --pid")
@@ -118,7 +135,7 @@ def main():
         if args.visible:
             assert args.pid and args.pid > 0, "--visible requires the fixture PID"
             geometry = client_geometry(args.hwnd)
-            image, bounds = visible_owned_window(args.hwnd, args.pid)
+            image, bounds = visible_owned_window(args.hwnd, args.pid, args.foreground_hwnd)
             assert geometry == client_geometry(args.hwnd), "client placement/DPI changed during capture"
         else:
             image = ImageGrab.grab(window=args.hwnd)
@@ -128,6 +145,9 @@ def main():
     result = summarize(image)
     if args.visible:
         result.update(capture_mode="visible owned foreground window", desktop_bounds=list(bounds), **geometry)
+        if args.foreground_hwnd is not None:
+            result.update(capture_mode="visible owned fixture with exact owned foreground dialog", foreground_dialog=args.foreground_hwnd)
+            result["foreground_dialog_bounds"] = list(owned_window_bounds(args.foreground_hwnd, args.pid))
     (args.output / "capture.json").write_text(
         json.dumps(result, indent=2) + "\n", encoding="utf-8"
     )
