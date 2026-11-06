@@ -164,6 +164,76 @@
 		"static_shader_review": "The exact embedded DXBC (SHA-256 0d84e63791e84b41cfea48e63c8b5fbff77dd3fb3cbb0936edbe63dea4a03149) has a declared immediate font table, no indexable temporary or per-pixel initializer instructions, and the old bitmap lookup inside its branch. Unconditional initialization hypothesis is unsupported; no product change or new GPU probe follows"
 	},
 	"proposal_unapproved": "Complete the remaining M12/8 measured-cost matrix as functional feature evidence, while retaining the unchanged 60Hz/GPU budget as unaccepted M03/9 and M09 production qualification. Accepting this split requires the user's explicit scope decision; no current gate or budget is revised",
-	"next": "Keep M12/8 unaccepted. Deliver independent M12/11 menu icons while the precise feature-versus-production gate decision is pending; return on that answer or an owning renderer redesign justified against the reproduced failure. Other sustained cohorts and all original budgets remain required",
-	"progress": "66/78 gates (85%), M12 9/11 (82%); M12/10 accepted separately, no cost gate accepted"
+	"remaining_intel_matrix": {
+		"result": "All three remaining Intel cases pass scoped CPU/GPU and API submission cadence limits; Intel 4K Smooth still fails and M12/8 remains unaccepted",
+		"compiled_product_commit": "37a98de2d6cce09e648f4f61d2bdbc2457db76d4",
+		"checkpoint_head": "540274deb1b5e9fc5cb8b4160e5547612fd7c926",
+		"reuse_scope": "Menu-only changes do not enter this headless fixture; all 412 selected execution input hashes and the exact executable still match",
+		"executable_sha256": "02cecb8b24aecedecdb21ca1878b344cb84ca1c4224c3e2413ae0afd03b2c0f0",
+		"native_exit_codes": [0, 0, 0],
+		"wrapper_exit_code": 0,
+		"warmup_seconds_per_case": 30,
+		"sample_seconds_per_case": [120, 120, 120],
+		"cases": [
+			{
+				"case": "1920-Raw",
+				"pid": 16964,
+				"frames": 21600,
+				"gpu_p95_ms": [2.19265625, 2.146614583333333, 2.1484375],
+				"gpu_p99_ms": [2.3705729166666667, 2.3139583333333333, 2.303125],
+				"cpu_p95_ms": [0.386, 0.3886, 0.4102],
+				"cpu_p99_ms": [0.4824, 0.4873, 0.5041],
+				"peak_reserved_bytes": 36422912,
+				"retirement_ms": 12.8569,
+				"balanced_created_released_textures": 5,
+				"raw_sha256": "df59285cd3a13128ec3200e01cede09493360e6a89820d260cdceed2eb451bbc"
+			},
+			{
+				"case": "1920-Smooth2x",
+				"pid": 38140,
+				"frames": 21600,
+				"gpu_p95_ms": [7.362239583333333, 7.295572916666667, 7.228020833333333],
+				"gpu_p99_ms": [7.8603125, 7.761302083333334, 7.611822916666667],
+				"cpu_p95_ms": [0.4464, 0.434, 0.43],
+				"cpu_p99_ms": [0.5226, 0.4884, 0.5321],
+				"peak_reserved_bytes": 94483712,
+				"retirement_ms": 12.9215,
+				"balanced_created_released_textures": 6,
+				"raw_sha256": "8187ee4077e6f64b3214e05cf38570c7b9873062c8e14e6ac6f39fe7aed50540"
+			},
+			{
+				"case": "3840-Raw",
+				"pid": 33276,
+				"frames": 21600,
+				"gpu_p95_ms": [9.119791666666666, 9.06109375, 8.989791666666667],
+				"gpu_p99_ms": [9.637447916666666, 9.633489583333333, 9.59421875],
+				"cpu_p95_ms": [0.4311, 0.4221, 0.4135],
+				"cpu_p99_ms": [0.4966, 0.4697, 0.4631],
+				"peak_reserved_bytes": 142072304,
+				"retirement_ms": 13.8421,
+				"balanced_created_released_textures": 5,
+				"raw_sha256": "ad82890971e899dbb992cafc9b7a0f392e236e92d8333178acbb494d83f6e055"
+			}
+		],
+		"common_verified_scope": {
+			"complete_cpu_gpu_stage_schedule_coverage": true,
+			"missing_os_thread_accounting": 0,
+			"accepted_on_time_per_sample": 7200,
+			"deadline_slots_per_sample": 7200,
+			"diagnostic_rows_per_case": 93613,
+			"dropped_queued_or_clock_failures": 0,
+			"resource_observations_per_case": 390,
+			"final_live_bytes_and_textures": 0,
+			"final_outputs": [],
+			"paired_inventory_identities_equal": true,
+			"qpc_inventories_bracket_all_phases": true,
+			"execution_input_hashes_unchanged": 412
+		},
+		"artifacts": "mapgyver-m12-screen-sustained-2026-11-06/atlas-intel-remaining.zip",
+		"archive_bytes": 12746256,
+		"archive_sha256": "f1ad983ec6934750930609cf4abe8f41f6650ca2740a6b4f532571d3d77e27ae",
+		"limits": "Same Screen-only scoped workload and unchanged original budgets; no physical delivery, scanout, external-source performance or full production acceptance"
+	},
+	"next": "Run all four remaining canonical NVIDIA sustained series with the same qualified executable and frozen execution inputs. Preserve Intel 4K Smooth failure and pending scope decision; no new profiler variants or relaxed budgets",
+	"progress": "67/78 gates (86%), M12 10/11 (91%); typography and icons accepted separately, no cost gate accepted"
 }
