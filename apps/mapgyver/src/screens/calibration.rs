@@ -70,7 +70,7 @@ pub(super) fn work_count(mode: Calibration, extent: Extent2D) -> usize {
     10 + usize::from(layout.brightness.is_some()) + usize::from(layout.colors.is_some())
 }
 
-fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>) -> Pattern {
+fn grid(extent: Extent2D, atlas: assets::CalibrationAtlas) -> Pattern {
     let layout = layout(extent);
     let [width, height] = [extent.width() as f32, extent.height() as f32];
     let line_pixels = (layout.cell_pixels / 160.).clamp(0.5, 1.5);
@@ -97,7 +97,7 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
     if let Some(bounds) = layout.colors {
         primitives.push(CanvasPrimitive::bars(bounds, palette()).unwrap());
     }
-    primitives.push(cell_labels(&layout, width, height));
+    primitives.push(cell_labels(&layout, width, height, &atlas.layout));
     let stroke = CanvasPaint::solid(color(0.65, 0.65, 0.65));
     primitives.push(
         CanvasPrimitive::ellipse(layout.circle, (2. * line_pixels / width.min(height)).min(0.25), stroke).unwrap(),
@@ -125,10 +125,13 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
         )
         .unwrap(),
     );
-    primitives.push(CanvasPrimitive::image(layout.logo, Opacity::OPAQUE).expect("checked logo placement"));
+    primitives.push(
+        CanvasPrimitive::image_region(layout.logo, atlas.layout.logo, Opacity::OPAQUE).expect("checked logo placement"),
+    );
     let diameter = width.min(height);
-    let text_width = diameter * 0.6;
-    let text_height = diameter * 0.035;
+    let text_width = diameter * 0.85;
+    let text_height = (atlas.layout.readout_cell[1] as f32 * 0.5).min(diameter * 0.06);
+    let advance = text_height * atlas.layout.readout_cell[0] as f32 / atlas.layout.readout_cell[1] as f32;
     let label = |y: f32, text: CanvasText| {
         let bounds = UnitRect {
             x: (width - text_width) / (2. * width),
@@ -136,21 +139,22 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
             width: text_width / width,
             height: text_height / height,
         };
-        CanvasPrimitive::text(
+        CanvasPrimitive::atlas_text(
             bounds,
             text,
             CanvasTextStyle {
                 cells: [1.; 2],
-                glyph: [diameter * 0.02 * 9. / 8. / text_width, diameter * 0.02 / text_height],
+                glyph: [advance / text_width, 1.],
                 inset: [0., 0.],
                 centered: true,
             },
+            atlas.layout.readout,
             CanvasPaint::solid(color(0.95, 0.95, 0.95)),
         )
         .expect("bounded centered calibration text")
     };
     primitives.push(label(
-        layout.logo.y * height - diameter * 0.05,
+        layout.logo.y * height - text_height - diameter * 0.02,
         CanvasText::local_time(),
     ));
     let below = (layout.logo.y + layout.logo.height) * height + diameter * 0.025;
@@ -158,26 +162,30 @@ fn grid(extent: Extent2D, image: std::sync::Arc<golden_video::image::ImageData>)
         below,
         CanvasText::literal(&format!("{} x {}", extent.width(), extent.height())).unwrap(),
     ));
-    primitives.push(label(below + text_height, CanvasText::frame_rate()));
-    Pattern::Canvas(CanvasPattern::with_image(primitives, image).expect("bounded calibration geometry/bitmap"))
+    primitives.push(label(below + text_height + diameter * 0.008, CanvasText::frame_rate()));
+    Pattern::Canvas(CanvasPattern::with_image(primitives, atlas.image).expect("bounded calibration geometry/bitmap"))
 }
 
-fn cell_labels(layout: &CalibrationLayout, width: f32, height: f32) -> CanvasPrimitive {
+fn cell_labels(layout: &CalibrationLayout, width: f32, height: f32, atlas: &assets::AtlasLayout) -> CanvasPrimitive {
     let labels = cell_names(layout.cells);
     let refs: Vec<&str> = labels.iter().map(String::as_str).collect();
     let glyph_height = (layout.cell_pixels * 0.12).min(width.min(height) * 0.05);
-    CanvasPrimitive::text(
+    CanvasPrimitive::atlas_text(
         UnitRect::FULL,
         CanvasText::tiles(&refs).expect("at most 32 by 32 labels"),
         CanvasTextStyle {
             cells: layout.cells,
-            glyph: [glyph_height * 9. / 8. / width, glyph_height / height],
+            glyph: [
+                glyph_height * atlas.label_cell[0] as f32 / atlas.label_cell[1] as f32 / width,
+                glyph_height / height,
+            ],
             inset: [
                 (layout.cell_pixels * 0.06 / width).min(1.),
                 (layout.cell_pixels * 0.06 / height).min(1.),
             ],
             centered: false,
         },
+        atlas.labels,
         CanvasPaint::solid(LinearColor::from_straight(0.5, 0.5, 0.5, 0.55).unwrap()),
     )
     .expect("bounded cell label geometry")
@@ -221,7 +229,7 @@ pub(super) fn pattern(
 ) -> Result<Option<Pattern>, String> {
     Ok(match mode {
         Calibration::Off => None,
-        Calibration::Grid => Some(grid(extent, assets.logo()?)),
+        Calibration::Grid => Some(grid(extent, assets.atlas(extent)?)),
         Calibration::ColorBars => Some(Pattern::Bars(palette())),
     })
 }

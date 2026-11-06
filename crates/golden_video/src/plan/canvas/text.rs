@@ -79,7 +79,8 @@ fn printable(text: &str) -> bool {
 pub struct CanvasTextStyle {
     /// Fractional tile counts preserve partial cells at the canvas edges.
     pub cells: [f32; 2],
-    /// Character advance and height in local rectangle fractions (a 9 by 8 font cell).
+    /// Character cell advance and height in local rectangle fractions. Built-in text uses
+    /// a 9 by 8 pixel cell; atlas text uses its prepared font's common guarded cell.
     pub glyph: [f32; 2],
     /// Text origin relative to each tile's top-left, in local rectangle fractions.
     pub inset: [f32; 2],

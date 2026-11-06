@@ -3,6 +3,10 @@
 use thiserror::Error;
 
 use crate::TextureDescriptor;
+mod atlas;
+mod font;
+pub use atlas::ImageAtlas;
+pub use font::FontAtlas;
 
 /// A tightly packed, immutable RGBA8/BGRA8 image. Source storage/color/alpha is explicit;
 /// conversion into the renderer's linear premultiplied targets happens while sampling.

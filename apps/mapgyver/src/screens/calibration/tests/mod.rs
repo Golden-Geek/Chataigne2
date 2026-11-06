@@ -61,10 +61,7 @@ fn geometry_preserves_square_cells_circle_and_second_palette_rows_across_aspects
             panic!()
         };
         assert_eq!(canvas.primitives().len(), 12);
-        assert_eq!(
-            canvas.image().unwrap().descriptor().extent,
-            Extent2D::new(512, 512).unwrap()
-        );
+        assert!(canvas.image().unwrap().pixels().len() <= 16 * 1024 * 1024);
         assert_eq!(
             canvas
                 .primitives()
@@ -105,6 +102,73 @@ fn logo_cache_shares_live_pixels_without_retaining_the_last_plan_or_native_owner
         "weak memoization cannot keep closed image storage alive"
     );
     assert_eq!(assets.logo().unwrap().pixels().len(), 512 * 512 * 4);
+}
+
+#[test]
+fn scalable_glyphs_are_guarded_destination_sized_shared_and_retire_with_the_last_plan() {
+    use golden_video::image::FontAtlas;
+    let font = include_bytes!("../../../../assets/fonts/NotoSansMono-Regular.ttf");
+    for size in [8, 20, 21, 22, 44, 67, 71, 141, 192] {
+        let atlas = FontAtlas::rasterize(font, size).unwrap();
+        let [width, height] = atlas.cell();
+        assert!(height > 8 && width > 2);
+        assert_eq!(
+            atlas.image().descriptor().extent,
+            Extent2D::new(width * 16, height * 6).unwrap()
+        );
+        for slot in 0..95 {
+            let alpha = |x: u32, y: u32| {
+                atlas.image().pixels()
+                    [(((slot / 16 * height + y) * width * 16 + slot % 16 * width + x) * 4 + 3) as usize]
+            };
+            for x in 0..width {
+                assert_eq!(alpha(x, 0), 0);
+                assert_eq!(alpha(x, height - 1), 0);
+            }
+            for y in 0..height {
+                assert_eq!(alpha(0, y), 0);
+                assert_eq!(alpha(width - 1, y), 0);
+            }
+            let ink: Vec<_> = (0..height).flat_map(|y| (0..width).map(move |x| alpha(x, y))).collect();
+            if slot == 0 {
+                assert!(ink.iter().all(|a| *a == 0));
+            } else {
+                assert!(ink.iter().any(|a| *a > 0), "printable glyph {} at {size}", slot + 32);
+            }
+        }
+        assert!(
+            atlas
+                .image()
+                .pixels()
+                .chunks_exact(4)
+                .any(|pixel| pixel[3] > 0 && pixel[3] < 255)
+        );
+        if let Some(directory) = std::env::var_os("MAPGYVER_TYPOGRAPHY_REFERENCES") {
+            let directory = std::path::PathBuf::from(directory);
+            std::fs::create_dir_all(&directory).unwrap();
+            let file = std::fs::File::create(directory.join(format!("font-{size}.png"))).unwrap();
+            let extent = atlas.image().descriptor().extent;
+            let mut encoder = png::Encoder::new(file, extent.width(), extent.height());
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .write_header()
+                .unwrap()
+                .write_image_data(atlas.image().pixels())
+                .unwrap();
+        }
+    }
+    let mut assets = CalibrationAssets::default();
+    let extent = Extent2D::new(3840, 2160).unwrap();
+    let first = assets.atlas(extent).unwrap();
+    let second = assets.atlas(extent).unwrap();
+    assert!(std::sync::Arc::ptr_eq(&first.image, &second.image));
+    assert!(first.layout.readout_cell[1] as f32 * 0.5 > 2160. * 0.02 * 1.5);
+    let weak = std::sync::Arc::downgrade(&first.image);
+    drop(first);
+    drop(second);
+    assert!(weak.upgrade().is_none());
+    assert!(assets.atlas(extent).unwrap().image.pixels().len() <= 16 * 1024 * 1024);
 }
 
 #[test]

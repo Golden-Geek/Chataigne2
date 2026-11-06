@@ -12,6 +12,7 @@ d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue"]
 qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc"]
 
 [dependencies]
+fontdue = "=0.9.4"
 golden_assets.workspace = true
 golden_io.workspace = true
 golden_time.workspace = true

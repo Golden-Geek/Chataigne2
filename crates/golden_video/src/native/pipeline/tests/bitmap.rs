@@ -39,6 +39,87 @@ fn close(actual: [u8; 4], expected: [u8; 4]) {
 }
 
 #[test]
+#[ignore = "explicit both-adapter complete atlas glyph coverage/color/alpha check"]
+fn hardware_atlas_text_uses_linear_alpha_and_paint_without_bitmap_color_or_halos() {
+    use crate::plan::{CanvasText, CanvasTextStyle};
+    let hardware: Vec<_> = adapters().unwrap().into_iter().filter(|a| !a.software).collect();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let gpu = Device::new(adapter.id).unwrap();
+        let pipeline = Pipeline::new(&gpu.device).unwrap();
+        let target = Texture::new(
+            &gpu.device,
+            TextureDescriptor {
+                extent: Extent2D::new(8, 8).unwrap(),
+                format: PixelFormat::Rgba8Unorm,
+                color_encoding: ColorEncoding::Linear,
+                alpha_mode: AlphaMode::Premultiplied,
+            },
+        )
+        .unwrap();
+        let mut pixels = vec![0; 128 * 48 * 4];
+        let mut expected = Vec::new();
+        for y in 0..8 {
+            for x in 0..8 {
+                let alpha = if x == 0 || y == 0 || x == 7 || y == 7 {
+                    0
+                } else {
+                    (x + y * 8) * 4
+                };
+                let at = ((16 + y) * 128 + 8 + x) * 4; // ASCII A, slot 33.
+                pixels[at..at + 4].copy_from_slice(&[0, 255, 0, alpha as u8]);
+                let red = (alpha as f32 * 0.5).round() as u8;
+                expected.push([red, 0, 255 - red, 255]);
+            }
+        }
+        let image = Arc::new(
+            ImageData::new(
+                TextureDescriptor {
+                    extent: Extent2D::new(128, 48).unwrap(),
+                    format: PixelFormat::Rgba8Unorm,
+                    color_encoding: ColorEncoding::Srgb,
+                    alpha_mode: AlphaMode::Straight,
+                },
+                pixels,
+            )
+            .unwrap(),
+        );
+        let canvas = CanvasPattern::with_image(
+            vec![
+                CanvasPrimitive::rectangle(
+                    UnitRect::FULL,
+                    CanvasPaint::solid(LinearColor::from_straight(0., 0., 1., 1.).unwrap()),
+                )
+                .unwrap(),
+                CanvasPrimitive::atlas_text(
+                    UnitRect::FULL,
+                    CanvasText::literal("A").unwrap(),
+                    CanvasTextStyle {
+                        cells: [1.; 2],
+                        glyph: [1.; 2],
+                        inset: [0.; 2],
+                        centered: false,
+                    },
+                    UnitRect::FULL,
+                    CanvasPaint::solid(LinearColor::from_straight(1., 0., 0., 0.5).unwrap()),
+                )
+                .unwrap(),
+            ],
+            image,
+        )
+        .unwrap();
+        let actual = render(&gpu, &pipeline, &target, canvas, SampleFilter::Linear, None);
+        for (actual, expected) in actual.into_iter().zip(expected) {
+            close(actual, expected);
+        }
+        eprintln!(
+            "atlas glyph {}: all 64 pixels preserve linear coverage, paint and transparent guards",
+            adapter.description
+        );
+    }
+}
+
+#[test]
 #[ignore = "requires explicitly available hardware D3D11 adapters"]
 fn hardware_canvas_bitmaps_preserve_alpha_color_filtering_opacity_and_mapping() {
     let adapters = adapters()

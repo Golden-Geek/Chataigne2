@@ -1,4 +1,5 @@
 use super::*;
+mod atlas;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 use golden_assets::{
     AssetBinding, AssetDecoder, AssetId, AssetInput, AssetLocator, AssetPreparer, AssetRecord, AssetRetirement,

@@ -64,6 +64,7 @@ pub struct CanvasPrimitive {
     pub(crate) paint: CanvasPaint,
     pub(crate) colors: [LinearColor; 8],
     pub(crate) text: Option<CanvasText>,
+    pub(crate) image_rect: Option<UnitRect>,
 }
 impl CanvasPrimitive {
     fn new(shape: CanvasShape, bounds: UnitRect, paint: CanvasPaint) -> Option<Self> {
@@ -74,6 +75,7 @@ impl CanvasPrimitive {
             paint,
             colors: [LinearColor::TRANSPARENT; 8],
             text: None,
+            image_rect: None,
         })
     }
     /// A filled rectangle.
@@ -156,11 +158,20 @@ impl CanvasPrimitive {
     }
     /// Place the canvas's bound bitmap, preserving its declared color/alpha sampling contract.
     pub fn image(bounds: UnitRect, opacity: Opacity) -> Option<Self> {
-        Self::new(
+        Self::image_region(bounds, UnitRect::FULL, opacity)
+    }
+    /// Place one source rectangle of the bound bitmap (for a shared image atlas).
+    pub fn image_region(bounds: UnitRect, source: UnitRect, opacity: Opacity) -> Option<Self> {
+        if !source.is_valid() {
+            return None;
+        }
+        let mut result = Self::new(
             CanvasShape::Image,
             bounds,
             CanvasPaint::solid(LinearColor::from_straight(1., 1., 1., opacity.get()).expect("checked opacity")),
-        )
+        )?;
+        result.image_rect = Some(source);
+        Some(result)
     }
     /// A bounded text run or tiled label field, evaluated in the same draw as other shapes.
     pub fn text(bounds: UnitRect, text: CanvasText, style: CanvasTextStyle, paint: CanvasPaint) -> Option<Self> {
@@ -173,6 +184,23 @@ impl CanvasPrimitive {
             [style.inset[0], style.inset[1], u8::from(style.centered) as f32, 0.],
         ];
         result.text = Some(text);
+        Some(result)
+    }
+    /// Printable ASCII coverage from a 16-column/six-row atlas region (codes 32..=126).
+    /// The same bound image can also contain ordinary image primitives. Coverage is linear
+    /// alpha; RGB comes from the paint, so transparent atlas texels cannot produce halos.
+    pub fn atlas_text(
+        bounds: UnitRect,
+        text: CanvasText,
+        style: CanvasTextStyle,
+        glyphs: UnitRect,
+        paint: CanvasPaint,
+    ) -> Option<Self> {
+        if !glyphs.is_valid() {
+            return None;
+        }
+        let mut result = Self::text(bounds, text, style, paint)?;
+        result.image_rect = Some(glyphs);
         Some(result)
     }
     /// The admitted normalized placement.
@@ -220,7 +248,16 @@ impl CanvasPattern {
         {
             return None;
         }
-        let needs_image = primitives.iter().any(|primitive| primitive.shape == CanvasShape::Image);
+        let needs_image = primitives.iter().any(|primitive| primitive.image_rect.is_some());
+        if primitives
+            .iter()
+            .any(|p| p.shape == CanvasShape::Text && p.image_rect.is_some())
+            && image
+                .as_ref()
+                .is_some_and(|i| i.descriptor().alpha_mode == crate::AlphaMode::Opaque)
+        {
+            return None;
+        }
         (needs_image == image.is_some()).then(|| Self {
             primitives: primitives.into(),
             image,

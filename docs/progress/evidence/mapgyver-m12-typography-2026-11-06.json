@@ -1,0 +1,91 @@
+{
+	"date": "2026-11-06",
+	"gate": "M12/10",
+	"state": "Accepted",
+	"source_base": "d68631a73a1daf0054a20f8f74bc73b93835b7e2",
+	"capability": "Larger, crisp calibration clock/resolution/FPS and subordinate cell labels from an embedded redistributable outline font; Raw does not upscale the old 8x8 glyphs",
+	"ownership": {
+		"mapgyver": "Noto Sans Mono asset/license, calibration typography/layout and bounded weak density memoization on the existing channel preparation owner",
+		"golden": "Finite FontAtlas rasterization via fontdue 0.9.4, guarded ImageAtlas packing, checked image/atlas-text source rectangles, linear alpha coverage and existing image admission/sharing/retirement",
+		"frame_values": "Existing render-worker local time and measured submission FPS; values select static glyphs without rasterization, another clock or another producer"
+	},
+	"font": {
+		"source": "https://github.com/notofonts/noto-fonts/tree/ffebf8c1ee449e544955a7e813c54f9b73848eac",
+		"file_sha256": "d9e2b23d19f8230be7146f409a52b1d23117e635e28f2e2892cf91b7382f325b",
+		"license_sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+		"license": "Unmodified Noto Sans Mono Regular, SIL Open Font License 1.1; embedded in executable, notice mapped into bundle resources at licenses/NotoSansMono-OFL.txt",
+		"readout_cell_height_pixels": { "1080p": 37.5, "4k": 73 },
+		"raster_cell_height_pixels": { "1080p": 75, "4k": 146 },
+		"previous_displayed_glyph_height_pixels": { "1080p": 21.6, "4k": 43.2 }
+	},
+	"bounds": {
+		"font_input_bytes": 4194304,
+		"generic_raster_pixels_per_em": [2, 256],
+		"generic_font_or_packed_atlas_bytes": 16777216,
+		"app_density_caps_pixels_per_em": [192, 64],
+		"weak_lookup_entries": 8,
+		"atlas_bytes": { "1080p": 3228784, "4k": 9345376 },
+		"draw_contract": "Same 12 Canvas primitives, one drawing-asset image, no source/receiver, extra draw, per-frame image upload or fixed native buffer growth",
+		"accounting": "Actual combined image pixels participate in existing CPU input and live/retiring native texture admission, with shared identity counted once. Raster/parser/packing temporaries run on preparation; no production private-growth or performance acceptance is inferred"
+	},
+	"checks": {
+		"rust_mapgyver_passed": 503,
+		"rust_golden_video_passed": 215,
+		"strict_all_target_clippy": true,
+		"root_and_golden_core_fmt": true,
+		"glyph_raster_sizes_checked": 9,
+		"printable_glyph_cells_checked": 855,
+		"software_scope": "All printable glyphs have coverage, every cell has transparent guards, raster/packing/storage bounds and atlas dependencies reject invalid input, weak leases release, ordinary pattern geometry/layout remain bounded",
+		"native_kernel_tests_passed": 7,
+		"native_asset_lifetime_tests_passed": 1,
+		"native_kernel_scope": "Both adapters: all 64 custom alpha/paint pixels, unchanged bitmap/filter/warp, full 32-slot addressing and procedural geometry. Shared assets upload once across two native generations and release after last use",
+		"oracle_storage_unit_tests_passed": 3,
+		"protocol_ui": "No DTO, generated protocol, ordinary Inspector or authored setting change. Actual app build includes its successful frontend bundle build and accepts the Tauri resource configuration"
+	},
+	"actual_app": {
+		"executable_sha256": "884a58bc0c06603f113e790203c6975351c14e78faf910b9092b13cd7b2c17ec",
+		"golden_test_executable_sha256": "5a613502a2c3019364e4d6b9f88e634c8a127823968d46496b0a11b8787619be",
+		"cohorts": [
+			{ "gpu": "Intel / 00015b69", "mode": "Raw", "pid": 31896, "normal_exit": 0 },
+			{ "gpu": "Intel / 00015b69", "mode": "Smooth2x", "pid": 39760, "normal_exit": 0 },
+			{ "gpu": "NVIDIA / 00016022", "mode": "Raw", "pid": 30268, "normal_exit": 0 },
+			{ "gpu": "NVIDIA / 00016022", "mode": "Smooth2x", "pid": 21792, "normal_exit": 0 }
+		],
+		"complete_images": 40,
+		"captured_pixels": 103715108,
+		"cases_per_cohort": [
+			"1920x1080 landscape",
+			"1080x1920 portrait",
+			"1024x1024 square",
+			"3840x2160",
+			"1919x1079 resize",
+			"live-a",
+			"live-b",
+			"perspective warp",
+			"assigned-source calibration",
+			"Off restores retained source/crop"
+		],
+		"readout_coverage_pixels": 274634,
+		"readout_fractional_edge_pixels": 20763,
+		"maximum_readout_rgb_error": 2,
+		"minor_label_coverage_pixels": 10878,
+		"minor_fractional_pixels": 2602,
+		"live_values": "Clock including milliseconds decodes within capture wall-time bounds and changes across live frames; displayed measured FPS decodes and agrees with runtime observations when sampled, with truthful initial unavailable values",
+		"visual": "Intel Raw landscape inspected at native 1920x1080: crisp larger readouts, subordinate labels and intact logo/geometry/palette",
+		"lifetime": "All four owned app processes exit normally; each disabled Screen retires its output session and sender. Independent Media Preview lifetime is preserved; no manual desktop activation needed"
+	},
+	"storage_oracle": {
+		"initial_failure": "Added ideal-rounding cell-label oracle expected sRGB 99 at NVIDIA Smooth pixel (130,375), observed 96. Initial failure log retained; no runtime change or new native capture used to resolve the oracle",
+		"specification": "https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm",
+		"correction": "D3D11.3 section 3.2.3.6 permits 0.6 integer ULP for each FLOAT-to-UNORM store. Propagate legal discrete choices through the actual intermediate and resolve targets; that pixel permits sRGB 96..99. Three independent unit cases guard the conversion and composition",
+		"maximum_minor_error_against_ideal_rounding": 3,
+		"maximum_minor_error_outside_legal_storage_interval": 1,
+		"residual_rgb_tolerance": 2,
+		"limits": "Main readout pixels still satisfy the original ideal-rounding 2-code check. Minor labels report both ideal and legal-storage results; no production timing/allocation budget changes"
+	},
+	"artifacts": "mapgyver-m12-typography-2026-11-06/native-images.zip",
+	"archive_sha256": "c9b676ea0cb52d1c77a2be1bca9f414c8cd89630619860f5bce5cb7182e430de",
+	"artifact_contents": "Forty complete SDK PNG images, four actual-app results/observations/logs, checked glyph references, source/executable fingerprints, software/lint/build/native logs and preserved nominal-oracle failure",
+	"next": "Return immediately to M12/8's original sustained cost acceptance on this changed implementation. Preserve the earlier failed Intel series and all remaining required cohorts; M12/11 remains Pending",
+	"progress": "66/78 gates (85%), M12 9/11 (82%), phases 7/13 (54%)"
+}

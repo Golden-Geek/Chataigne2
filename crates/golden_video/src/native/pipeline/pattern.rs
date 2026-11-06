@@ -44,6 +44,18 @@ impl PrimitiveParameters {
                 primitive.paint.color.components()[3],
             ];
         }
+        if primitive.shape == CanvasShape::Text {
+            result.metadata[1] = 0;
+        }
+        if let Some(region) = primitive.image_rect {
+            let rect = [region.x, region.y, region.width, region.height];
+            if primitive.shape == CanvasShape::Image {
+                result.geometry[0] = rect;
+            } else {
+                result.metadata[1] = 1;
+                result.colors[1] = rect;
+            }
+        }
         result
     }
 }

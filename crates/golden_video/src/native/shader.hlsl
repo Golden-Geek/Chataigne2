@@ -193,6 +193,22 @@ float4 canvas_glyph(uint index, float2 p) {
     if (offset >= 8192) return 0;
     uint word = pattern_data.Load(6816 + (offset / 4) * 4);
     uint code = (word >> ((offset % 4) * 8)) & 127;
+    if (metadata.y != 0) {
+        if (code < 32 || code > 126) return 0;
+        uint slot = code - 32;
+        float4 atlas = canvas_color(index, 1);
+        float2 within = float2(frac(local.x / geometry0.z), local.y / geometry0.w);
+        float2 uv = atlas.xy + (float2(slot % 16, slot / 16) + within) / float2(16, 6) * atlas.zw;
+        float2 texel = uv * source_extent - 0.5;
+        int2 first = (int2)floor(texel);
+        float2 weight = frac(texel);
+        int2 limit = int2(source_extent) - 1;
+        float top = lerp(source_image.Load(int3(clamp(first, 0, limit), 0)).a,
+            source_image.Load(int3(clamp(first + int2(1, 0), 0, limit), 0)).a, weight.x);
+        float bottom = lerp(source_image.Load(int3(clamp(first + int2(0, 1), 0, limit), 0)).a,
+            source_image.Load(int3(clamp(first + int2(1, 1), 0, limit), 0)).a, weight.x);
+        return canvas_color(index, 0) * lerp(top, bottom, weight.y);
+    }
     uint2 pixel = (uint2)floor(float2(frac(local.x / geometry0.z) * 9, local.y / geometry0.w * 8));
     if (pixel.x >= 8 || pixel.y >= 8) return 0;
     uint2 glyph = canvas_font[code];
@@ -206,7 +222,10 @@ float4 canvas_primitive(uint index, float2 uv) {
     if (any(p < 0) || any(p > 1)) return 0;
     uint4 metadata = pattern_data.Load4(160 + index * 208);
     uint kind = metadata.x;
-    if (kind == 6) return sample_source(p) * canvas_color(index, 0).a;
+    if (kind == 6) {
+        float4 image = canvas_row(index, 2);
+        return sample_source(image.xy + p * image.zw) * canvas_color(index, 0).a;
+    }
     if (kind == 7) return canvas_glyph(index, p);
     float4 geometry0 = canvas_row(index, 2);
     if (kind == 1) {
