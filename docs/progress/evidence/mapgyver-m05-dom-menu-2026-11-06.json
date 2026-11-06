@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Actual translucent Source panel-add menu compositing verified on both GPUs; broader reference/timing acceptance remains open",
+  "accepted_gate_change": 0,
+  "source_base": "d8fb3d093333ec6a6df229be592c2249a8eb240a",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "cases": [
+    {"gpu": "NVIDIA", "adapter": "dxgi:00000000:79e2f347", "pid": 28388, "stable_menu_pixels": 4750, "red_max_rgb_error": 1, "blue_max_rgb_error": 1},
+    {"gpu": "Intel", "adapter": "dxgi:00000000:00015b69", "pid": 21428, "stable_menu_pixels": 4750, "red_max_rgb_error": 1, "blue_max_rgb_error": 1}
+  ],
+  "capture": {
+    "physical_window_images": 12,
+    "independent_webview_rgba_images": 4,
+    "window_extent": [1536, 1020],
+    "desktop_bounds": [80, 80, 1616, 1100],
+    "client_desktop_origin": [89, 81],
+    "dpi": 120,
+    "scale": 1.25,
+    "method": "User activates each exact owned fixture and keeps it foreground. Window capture asserts owned PID/HWND, foreground and unchanged client/monitor geometry before/after physical desktop capture. Transparent WebView screenshots supply UI layers only, never native pixel evidence."
+  },
+  "reference": "Capture native red/blue clear controls and actual menu red/red/blue/red physical frames. Capture both clear and menu WebView RGBA layers. Analytically remove the clear UI contribution before applying the full menu layer, so selection tint is not composed twice. Use encoded source-over without fitted colors or held-out-blue calibration; original maximum2RGB tolerance is unchanged.",
+  "mask": "Take native red/blue witnesses independently in both regions, then intersect with the actual menu interior inset12 physical pixels. Exclude opaque UI, text, edges and nonflat layer neighborhoods.4750 selected menu pixels per GPU are all stable across the three red controls. All red and blue reference errors are1 or less.",
+  "scope_per_case": {
+    "screen_native_colour_witnesses": 190756,
+    "source_native_colour_witnesses": 25194,
+    "source_witnesses_inside_menu_interior": 5922,
+    "changing_uncovered_native_pixels": 206662,
+    "covered_view": "Surface Source preview",
+    "control_view": "Screen Warping preview remains uncovered and updates red/blue/red"
+  },
+  "menu": "Real twelve-entry Golden workbench Add panel in this group menu, default theme/opacity and blur(4.8px); no injected visual overlay, theme edit or synthetic menu. Geometry/style/labels and all raw owned-window pixels remain in the archive.",
+  "retirement": "Both actual menus are dismissed normally. Both app/parent fixtures exit0, asserting normal native.close; neither owned process remains. Authored Surface geometry and physical capture geometry remain fixed. No forced cleanup or OS display change.",
+  "retained_failures": "Earlier setup lost foreground or changed scene/geometry and accepted no gate. The resumed PID41024 foreground wait fails before capture and closes0. In this matrix the first NVIDIA60-second foreground wait also fails before capture; the same still-live fixture is measured successfully only after the user's explicit foreground activation. No app restart or duplicate matrix variant was used to turn an expired observation into a pass.",
+  "automation_limit": "Supported desktop-control cursor input reports desktop composition disabled after the authorized driver reset; its supported activation API does not establish actual owned foreground. Manual activation changes that prerequisite and enables guarded physical capture. No unrelated desktop image is archived.",
+  "checks": "Sixteen image/capture/oracle tests pass, including leaked/stale/opaque-layer rejection and an independent selection-tint double-composition negative control. Both full retained matrix replays, Node syntax/Prettier and Python compilation pass. Root and Golden Core cargo fmt completed. Qualified binary and239 runtime inputs are unchanged; retained terminal compile/software prerequisites apply. No product or generated protocol changed.",
+  "remaining": "This verifies uniform-color, settled125% translucent Source-menu interiors, with a simultaneous independent Screen control. It does not certify every menu/text/blur-edge raster, all viewport reference pixels, all scaling/animation cases or temporal input/presentation identity. Original p95<=50ms latency and broader M05/8 reference/compositing requirements remain required; no timing investigation or budget is reset.",
+  "execution_order": "User explicitly keeps the current acceptance-first order; M08/4 and all M12 acceptance prerequisites still gate M10. No execution-order relaxation is applied.",
+  "archive": {
+    "path": "mapgyver-m05-dom-menu-2026-11-06.zip",
+    "bytes": 1854473,
+    "sha256": "7022ceb87bec559b61d6a9d64024ed3992e5a341994b66eaa2c83789d7187644"
+  }
+}

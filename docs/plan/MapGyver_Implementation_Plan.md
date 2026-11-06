@@ -219,9 +219,10 @@ Retain the [shell evidence](../progress/mapgyver-m02-shell.md); native quality i
 
 **Manual qualification priority (2026-11-06):** while the user is present, finish physical
 acceptance before returning to autonomous capture work. M05/5 hotplug/live arrangement is
-accepted. The user has left; M03/4 device recovery returns on their availability and M05/8
-continues autonomously. All original
-requirements and M12/M08 prerequisites for Video/final qualification remain unchanged.
+accepted. Genuine M03/4 driver-reset recovery is now verified on both GPUs; actual stuck-call
+retirement remains open. The user is available for M05/8 foreground/menu checks and explicitly
+reconfirms the acceptance-first order. All original requirements and M12/M08 prerequisites for
+Video/final qualification remain unchanged.
 
 Golden Video owns app-neutral immutable render plans, scheduling, opaque resources and native
 execution. MapGyver projects its authored media into guarded plans. Reuse Golden Time and Assets.
