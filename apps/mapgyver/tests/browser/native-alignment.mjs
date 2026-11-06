@@ -2,14 +2,16 @@
 // never Playwright screenshots (which omit the underlay). No production instrumentation.
 // Use a fresh output directory; write its `finish` marker after capture to stop normally.
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { crc32, deflateSync } from 'node:zlib';
+import { promisify } from 'node:util';
 import { openNativeEditor } from './native-editor.mjs';
 import { measureVisibleLatency } from './native-latency.mjs';
 import { verifyNativeWindowLayout } from './native-window-layout.mjs';
+import { observeNativeAdapter } from './native-adapter.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -35,7 +37,35 @@ const windowState = windowStateArgument
 			await readFile(path.resolve(windowStateArgument.slice('--window-state='.length)), 'utf8')
 		)
 	: undefined;
-const native = await openNativeEditor({ windowState });
+const gpu = process.argv.find((value) => value.startsWith('--gpu='))?.slice('--gpu='.length);
+assert(!gpu || /^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(gpu), 'Exact GPU LUID required');
+const observer = path.resolve('target/debug/native_qualification-m1110.exe');
+const hardware = gpu
+	? JSON.parse(
+			execFileSync(observer, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })
+		)
+	: undefined;
+const native = await openNativeEditor({
+	windowState,
+	prepareProfile: gpu
+		? async (root) => {
+				const preferences = path.join(root, 'MapGyver');
+				await mkdir(preferences, { recursive: true });
+				execFileSync(
+					observer,
+					[
+						'--role',
+						'gpu-preferences',
+						'--file',
+						path.join(preferences, 'preferences.json'),
+						'--selected',
+						gpu
+					],
+					{ windowsHide: true }
+				);
+			}
+		: undefined
+});
 let token;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {
@@ -212,6 +242,7 @@ try {
 		base: native.base,
 		cdp: native.cdp,
 		reference,
+		adapter: hardware ? await observeNativeAdapter(page, hardware) : undefined,
 		viewport: await page.evaluate(() => ({
 			width: innerWidth,
 			height: innerHeight,
@@ -219,6 +250,7 @@ try {
 		})),
 		active: bounds
 	};
+	if (gpu) assert.equal(metadata.adapter.key, gpu);
 	await writeFile(path.join(directory, 'ready.json'), JSON.stringify(metadata, null, 2));
 	console.log(JSON.stringify({ ready: metadata }));
 	if (process.argv.includes('--await-capture')) {
@@ -301,8 +333,18 @@ try {
 				separationCss: separation
 			})
 		);
-	} else if (process.argv.includes('--window-layout')) {
-		await verifyNativeWindowLayout({ native, directory });
+	} else if (process.argv.includes('--window-layout') || process.argv.includes('--editor-layout')) {
+		const editorLayout = process.argv.includes('--editor-layout');
+		if (process.argv.includes('--window-layout'))
+			await verifyNativeWindowLayout({ native, directory, prefix: editorLayout ? 'window-' : '' });
+		if (editorLayout) {
+			const result = await promisify(execFile)(
+				process.execPath,
+				['apps/mapgyver/tests/browser/native-editor-layout.mjs', directory],
+				{ windowsHide: true, timeout: 120000, maxBuffer: 1024 * 1024 }
+			);
+			console.log(result.stdout.trim());
+		}
 	} else if (process.argv.includes('--latency')) {
 		await measureVisibleLatency({ native, view, directory });
 	} else if (process.argv.includes('--zoom')) {

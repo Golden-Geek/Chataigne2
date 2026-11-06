@@ -4,7 +4,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { captureAlignment, ownedWindowGeometry, ownedWindowHandle } from './capture-alignment.mjs';
 
-export async function verifyNativeWindowLayout({ native, directory }) {
+export async function verifyNativeWindowLayout({ native, directory, prefix = '' }) {
 	const page = native.page;
 	const hwnd = ownedWindowHandle(native.app.pid);
 	const geometry = () => ownedWindowGeometry(native.app.pid, hwnd);
@@ -17,7 +17,7 @@ export async function verifyNativeWindowLayout({ native, directory }) {
 	});
 	const stages = [];
 	async function capture(stage, maximized) {
-		const result = await captureAlignment({ directory, stage, maximized, page });
+		const result = await captureAlignment({ directory, stage: prefix + stage, maximized, page });
 		assert.equal(
 			result.hwnd,
 			Number(hwnd),

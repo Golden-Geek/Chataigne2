@@ -24,28 +24,35 @@ class WindowLayoutAlignment(unittest.TestCase):
         cls.hidden = []
         archives = (
             ("mapgyver-m05-window-layout-2026-11-06/native-layout.zip",
-             ("auto-screen-100", "auto-screen-125", "auto-source-100", "auto-source-125")),
+             ("auto-screen-100", "auto-screen-125", "auto-source-100", "auto-source-125"),
+             ("window-layout.json",)),
             ("mapgyver-m05-dpi-2026-11-06/native-dpi.zip",
-             ("screen-150", "source-150", "screen-200", "source-200")),
+             ("screen-150", "source-150", "screen-200", "source-200"),
+             ("window-layout.json",)),
             ("mapgyver-m05-editor-layout-2026-11-06/editor-layout.zip",
-             ("screen-100-corrected", "source-100", "screen-125", "source-125")),
+             ("screen-100-corrected", "source-100", "screen-125", "source-125"),
+             ("editor-layout.json",)),
+            ("mapgyver-m05-float-layout-2026-11-06/float-layout.zip",
+             ("nv-screen-100", "nv-source-100", "nv-screen-125-calibrated", "nv-source-125",
+              "intel-screen-100", "intel-source-100", "intel-screen-125", "intel-source-125"),
+             ("window-layout.json", "editor-layout.json")),
         )
-        for name, cases in archives:
+        for name, cases, layouts in archives:
             with zipfile.ZipFile(ROOT / "docs/progress/evidence" / name) as source:
                 for case in cases:
-                    layout = "editor-layout.json" if "editor-layout.zip" in name else "window-layout.json"
-                    result = json.loads(source.read(case + "/" + layout))
-                    if "hidden" in result:
-                        cls.hidden.append((case, result["hidden"],
-                            source.read(case + "/editor-hidden/baseline.png"),
-                            source.read(case + "/initial/baseline.png")))
-                    for stage in result["stages"]:
-                        cls.samples.append((case + "/" + stage["stage"],
-                            "screen" if "screen" in case else "source", stage,
-                            source.read(case + "/" + stage["stage"] + "/baseline.png")))
+                    for layout in layouts:
+                        result = json.loads(source.read(case + "/" + layout))
+                        if "hidden" in result:
+                            cls.hidden.append((case, result["hidden"],
+                                source.read(case + "/editor-hidden/baseline.png"),
+                                source.read(case + "/initial/baseline.png")))
+                        for stage in result["stages"]:
+                            cls.samples.append((case + "/" + stage["stage"],
+                                "screen" if "screen" in case else "source", stage,
+                                source.read(case + "/" + stage["stage"] + "/baseline.png")))
 
-    def test_all_forty_eight_real_editor_states_have_independent_pixel_alignment(self):
-        self.assertEqual(len(self.samples), 48)
+    def test_all_120_real_editor_states_have_independent_pixel_alignment(self):
+        self.assertEqual(len(self.samples), 120)
         for name, editor, stage, raw in self.samples:
             with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
                 result = MODULE.independent_landmark_alignment(
@@ -70,7 +77,7 @@ class WindowLayoutAlignment(unittest.TestCase):
                     MODULE.independent_landmark_alignment(image, stage["geometry"], capture, editor)
 
     def test_hidden_editor_retires_pixels_that_exist_in_the_visible_control(self):
-        self.assertEqual(len(self.hidden), 4)
+        self.assertEqual(len(self.hidden), 12)
         for name, result, hidden, visible in self.hidden:
             with self.subTest(name=name):
                 self.assertGreater(result["pixels"], 10000)

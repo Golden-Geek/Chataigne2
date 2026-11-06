@@ -1,0 +1,183 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Both-GPU floating-storage layout regression passes; whole matrix remains Active",
+	"source_base": "50cdf300c429b09bba23441a2a4a5649e49736d5",
+	"executable_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+	"capability_verified": "Screen/Surface Source preserve settled native image/overlay/projection alignment through maximize/restore, dock resize, Inspector scroll and tab hide/show on both explicit GPUs at actual 100%/125% DPI under the pushed RGBA16Float preview build",
+	"cohorts": [
+		{
+			"directory": "nv-screen-100",
+			"pid": 36592,
+			"hwnd": 22022898,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.5515039234079495,
+			"visible_captures": 9,
+			"hidden_region_pixels": 45448,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source-100",
+			"pid": 8552,
+			"hwnd": 13569172,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.4571827127750794,
+			"visible_captures": 9,
+			"hidden_region_pixels": 130416,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-screen-125-calibrated",
+			"pid": 15876,
+			"hwnd": 27266614,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.5091372003637389,
+			"visible_captures": 9,
+			"hidden_region_pixels": 117512,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source-125",
+			"pid": 35356,
+			"hwnd": 245632710,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.2563272131511667,
+			"visible_captures": 9,
+			"hidden_region_pixels": 334500,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen-100",
+			"pid": 2956,
+			"hwnd": 74779038,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.5515039234079495,
+			"visible_captures": 9,
+			"hidden_region_pixels": 45201,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source-100",
+			"pid": 37520,
+			"hwnd": 4721166,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.4571827127750794,
+			"visible_captures": 9,
+			"hidden_region_pixels": 129270,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen-125",
+			"pid": 29396,
+			"hwnd": 3211916,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.5091372003637389,
+			"visible_captures": 9,
+			"hidden_region_pixels": 117512,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source-125",
+			"pid": 32404,
+			"hwnd": 245894854,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.254572459894689,
+			"visible_captures": 9,
+			"hidden_region_pixels": 334500,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"owner": "Existing native acceptance fixtures; product/runtime unchanged",
+		"adapter": "Existing SDK helper writes only the owned temporary profile; actual runtime LUID must match the requested GPU",
+		"alignment": "All three original metrics must remain <=1 physical pixel: image/projection, overlay/projection and image/overlay. Red edges use local linear-light 50% transitions at pixel centers; blue edges retain pixel-center measurement",
+		"input": "16 trusted maximize/restore clicks and 136 trusted editor events; actual sash dimensions and Inspector scroll offsets verified",
+		"capture_guards": "Owned foreground PID/HWND, actual DPI/client/desktop projection, installed preview, equal pre/post DOM projection, OS maximized state and exact restored bounds",
+		"hidden": "Eight former-landmark regions total 1254359 pixels with zero red residue; visible controls each contain >10000 red pixels. Settled retirement only",
+		"lifetime": "Eight accepted fixture terminal exits 0 and normal owned app shutdown"
+	},
+	"measurement_correction": {
+		"rejected_case": "nv-screen-125 first maximized legacy inference fails at 1.125 px; direct image/projection 0.750008 and overlay/projection 0.249992. Terminal 1 and raw failure retained; incomplete lifecycle not accepted",
+		"diagnosis": "Encoded R>160 integer run endpoints amplify sample quantization when extrapolated from the internal red landmark to the independent blue quad",
+		"proof": "After the native baseline, one offline calibration reproduces the false rejection in a perfectly aligned analytic image with a symmetric three-pixel filter. Linear-light midpoint edges recover the declared boundary within 0.02 px. A real two-pixel image displacement still rejects. Product and <=1px tolerance unchanged",
+		"corrected_original_capture": "image/projection 0.215489, overlay/projection 0.249992, image/overlay 0.509137 px; legacy 1.125 retained. Replacement complete Screen 125% case passes before Intel",
+		"provenance": "First two NVIDIA 100% cases ran the legacy native oracle; all raw captures replay successfully with current calibration. Both fixture hash versions and per-image legacy errors retained"
+	},
+	"verification": {
+		"native": "8 complete cases, 72 visible and 8 hidden PNGs, zero page errors, 8 normal exits; maximum error 0.551504 px",
+		"replay": "9 passing tests: 120 real current/historical images, +3px projection rejection and actual DPI mismatch rejection for every image, 12 hidden/visible pairs, 3 earlier landmark guards and 2 analytic calibration/displacement controls",
+		"software": "Node syntax, targeted Prettier, Python compilation/replay, root and golden_core cargo fmt",
+		"prerequisites": "Unchanged pushed precision build: 218 Golden tests, 503 app tests, strict all-target Clippy, generated contract and both-GPU float upload/compositing/resource checks reused",
+		"provenance": "Qualified executable, 419 runtime inputs and 9 selected fixture inputs match frozen hashes; current fixture sources archived",
+		"environment": "8 paired identity groups match: OS, CPU, drivers/controllers, monitors, WebView2, toolchain, native hardware, locked host packages. No display scale/topology or system setting changes"
+	},
+	"artifacts": "mapgyver-m05-float-layout-2026-11-06/float-layout.zip",
+	"archive_bytes": 8460967,
+	"archive_sha256": "6eb709f7ee6c82ee6674d0871259458cf4a998a36a7d99fc2a52253de3ab7dd7",
+	"artifact_contents": "Accepted/rejected raw captures, geometry/input/lifecycle receipts, calibration, current fixtures, hashes and paired inventories; no temporary private profiles",
+	"remaining": [
+		"Updated-storage actual 150%/200% settled geometry; earlier byte-storage evidence remains historical",
+		"Genuine same-window mixed-monitor DPI moves and actual negative monitor origins",
+		"Full capture/overlay/alpha/color/Reference/overlap combinations, further docking and scrolling native content; Inspector scroll is the only verified scroll scope here",
+		"Complete in-motion image/overlay/hit alignment and original <=50ms p95 input-to-visible latency; no new latency probe or unaccepted candidate restore",
+		"Physical identity/hotplug/device removal, original performance/memory budgets and final qualification"
+	],
+	"next": "Retain M05/8 alone Active. Requalify updated storage at actual 150%/200% with explicit settings restoration, then genuine monitor movement/negative origins. Do not repeat passing 100%/125% cases without changed-code evidence",
+	"progress": "67/78 verified gates (86%), 7/13 phases (54%); denominator unchanged; no whole gate closed"
+}

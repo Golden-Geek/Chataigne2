@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from PIL import ImageChops
 from window_capture import summarize, visible_owned_window
+from landmark_edges import linear_red_edges
 
 
 def red(pixel):
@@ -59,16 +60,23 @@ def independent_landmark_alignment(image, geometry, capture, editor):
 
     frame = project([0, 1])
     roi = tuple(round(frame[i]) for i in (0, 2, 1, 3))
-    _, edges = positions(image.convert("RGB"), roi)
-    # Red run boundaries bracket sampled pixels; blue runs use pixel centers.
-    red_edges = [edges[0], edges[1] + 1, edges[4], edges[5] + 1]
+    image = image.convert("RGB")
+    _, edges = positions(image, roi)
+    # Binary encoded-R thresholds identify a local transition, but their integer run
+    # boundaries amplify sampling error when extrapolated to the independent overlay.
+    threshold_edges = [edges[0], edges[1] + 1, edges[4], edges[5] + 1]
+    red_edges = linear_red_edges(image, roi, threshold_edges)
     blue_centers = [edges[i] + 0.5 for i in (2, 3, 6, 7)]
     red_fractions = [0.26, 0.74] if editor == "screen" else [0.1, 0.9]
     blue_fractions = [0.2, 0.8]
-    inferred = []
-    for start, end in ((red_edges[0], red_edges[1]), (red_edges[2], red_edges[3])):
-        slope = (end - start) / (red_fractions[1] - red_fractions[0])
-        inferred.extend(start + (v - red_fractions[0]) * slope for v in blue_fractions)
+    def infer(measured):
+        inferred = []
+        for start, end in ((measured[0], measured[1]), (measured[2], measured[3])):
+            slope = (end - start) / (red_fractions[1] - red_fractions[0])
+            inferred.extend(start + (v - red_fractions[0]) * slope for v in blue_fractions)
+        return inferred
+
+    inferred = infer(red_edges)
 
     def error(a, b):
         return max(abs(x - y) for x, y in zip(a, b))
@@ -81,6 +89,13 @@ def independent_landmark_alignment(image, geometry, capture, editor):
     }
     return {
         "red_edges": red_edges, "blue_centers": blue_centers,
+        "edge_measurement": "local linear-light 50% transition at physical pixel centers",
+        "threshold_red_edges": threshold_edges,
+        "legacy_threshold_errors": {
+            "image_to_projection_max_px": error(threshold_edges, red_expected),
+            "overlay_to_projection_max_px": error(blue_centers, blue_expected),
+            "image_to_overlay_max_px": error(infer(threshold_edges), blue_centers),
+        },
         "red_expected": red_expected, "blue_expected": blue_expected,
         "inferred_overlay_edges": inferred, **errors,
         "settled_alignment_verified": all(value <= 1 for value in errors.values()),

@@ -20,11 +20,12 @@ async function listener() {
 	return socket;
 }
 
-export async function openNativeEditor({ appDataDirectory, windowState } = {}) {
+export async function openNativeEditor({ appDataDirectory, windowState, prepareProfile } = {}) {
 	assert(
 		!windowState || !appDataDirectory,
 		'Seed window state only in the owned temporary app profile'
 	);
+	assert(!prepareProfile || !appDataDirectory, 'Prepare only the owned temporary app profile');
 	const directory = await mkdtemp(path.join(tmpdir(), 'mapgyver-native-editor-'));
 	if (windowState) {
 		// Exercise the host's ordinary saved-window restore; never reposition another app/window.
@@ -32,6 +33,7 @@ export async function openNativeEditor({ appDataDirectory, windowState } = {}) {
 		await mkdir(appData, { recursive: true });
 		await writeFile(path.join(appData, 'window-state.json'), JSON.stringify(windowState));
 	}
+	if (prepareProfile) await prepareProfile(path.join(directory, 'data'));
 	const hostSocket = await listener();
 	const cdpSocket = await listener();
 	const hostPort = hostSocket.address().port;
