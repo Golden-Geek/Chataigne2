@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Sampled independent motion/image/overlay and accepted-control spatial correspondence verified; whole gate remains Active",
+  "accepted_gate_change": 0,
+  "source_base": "65ec4e2937d7a6b957cdbb67e404ab35b1542ee9",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "matrix": [
+    { "case": "intel-screen-100", "pid": 39344, "image_overlay_max_px": 0.5645497350625419, "native_control_spatial_max_px": 0.5468813180923462 },
+    { "case": "intel-screen-125", "pid": 26596, "image_overlay_max_px": 0.30895267897744816, "native_control_spatial_max_px": 0.2937701344490051 },
+    { "case": "intel-source-100", "pid": 22876, "image_overlay_max_px": 0.6242336744772388, "native_control_spatial_max_px": 0.4218806385994185 },
+    { "case": "intel-source-125", "pid": 12276, "image_overlay_max_px": 0.254572459894689, "native_control_spatial_max_px": 0.4421738386154175 },
+    { "case": "nv-screen-100", "data_directory": "nv-screen-100-joined", "pid": 26264, "image_overlay_max_px": 0.5629503995530172, "native_control_spatial_max_px": 0.3796773791312944 },
+    { "case": "nv-screen-125", "pid": 5152, "image_overlay_max_px": 0.2913206646639992, "native_control_spatial_max_px": 0.32030588388442993 },
+    { "case": "nv-source-100", "pid": 20220, "image_overlay_max_px": 0.36877157580380526, "native_control_spatial_max_px": 0.41249268054963295 },
+    { "case": "nv-source-125", "pid": 24168, "image_overlay_max_px": 0.2560520091426497, "native_control_spatial_max_px": 0.2781521201133046 }
+  ],
+  "verified": {
+    "accepted_matrix_motion_images": 192,
+    "retained_motion_images_including_comparison": 216,
+    "additional_initial_settled_images": 9,
+    "samples_per_case": 24,
+    "minimum_distinct_actual_widths_per_case": 3,
+    "maximum_image_overlay_error_px": 0.6242336744772388,
+    "maximum_accepted_control_spatial_error_px": 0.5468813180923462,
+    "native_query_samples_in_accepted_matrix": 240,
+    "corner_query_hits": 238,
+    "all_nine_owned_apps_and_parent_fixtures_exit_zero": true
+  },
+  "method": "Retain every sampled whole-window PNG with owned PID/HWND foreground and placement guards. Independent red landmark edges at10-90% are distinct from crop/quad strokes; linear-light transitions infer expected overlay positions. Concurrent public Pointer queries retain output-accepted rectangles, points, hit IDs and hidden DOM proxy positions. Spatial replay compares each painted control boundary to a recorded accepted rectangle projected through authenticated client origin/DPR. This matches geometry without claiming temporal frame identity.",
+  "single_comparison": "The original NVIDIA Screen100% run passes image/overlay measurements but only23/24 control samples find an accepted-rectangle match within1px; its maximum1.393731px coverage gap remains preserved. Its16-query sampler missed poses or ended too early. One repeat keeps metadata collection active through capture completion, bounded to128 samples, and retains initial rectangles. All24 control samples then spatially match within0.379678px. Original and comparison records plus the fixed16 helper snapshot are retained; no further native probe was run.",
+  "hit_and_dom_limits": "Two Source125% queries requested a point computed from an older rectangle and returned null: their point in the returned frame is about0.178/0.186 rather than the current0.2 corner. Raw query data is retained, not called 240 successful corner hits. Hidden DOM proxy/query-point separation reaches19.563 CSS px during animation; these are different snapshots, not a passing same-frame DOM comparison. Temporal pixel/input correspondence and the original p95<=50ms latency remain unverified.",
+  "remaining": "Full-raster reference/compositing scope, actual translucent DOM menu blending and original timing requirements. Sampled100/125% zoom is not every scanout frame or in-motion150/200%/mixed-DPI qualification; retained fixed-scale/mixed/negative-origin evidence keeps its stated scope. Do not relax a budget or count the whole gate from this receipt.",
+  "checks": "Thirteen image/capture/ownership negative-control tests, syntax, Prettier, Python compile, replay of every retained matrix PNG and spatial correspondence checks pass. The original coverage gap remains a deliberate negative result. Root and Core Cargo formatting completed; unchanged qualified runtime retains its terminal compile/software prerequisites. All owned PIDs are absent; OS display settings unchanged.",
+  "archive": {
+    "path": "mapgyver-m05-motion-frames-2026-11-06.zip",
+    "bytes": 21136139,
+    "sha256": "5228280e501cb393a1bd9d46e3cbc9ad01c0b5b4ee596fa8d89ffe7d776a3497"
+  }
+}

@@ -12,6 +12,7 @@ import { openNativeEditor } from './native-editor.mjs';
 import { measureVisibleLatency } from './native-latency.mjs';
 import { verifyNativeWindowLayout } from './native-window-layout.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
+import { verifyNativeMotion } from './native-motion.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -261,7 +262,16 @@ try {
 			await delay(50);
 		}
 	}
-	if (process.argv.includes('--hit')) {
+	if (process.argv.includes('--motion')) {
+		assert(independentLandmark, 'Motion images require the independent landmark fixture');
+		await verifyNativeMotion({
+			native,
+			view,
+			directory,
+			editor: sourceEditor ? 'source' : 'screen',
+			expectedHit: sourceEditor ? 'crop:0' : `${reference.surface}:0`
+		});
+	} else if (process.argv.includes('--hit')) {
 		const expectedHit = sourceEditor ? 'crop:0' : `${reference.surface}:0`;
 		const preview = view.locator('.native-preview');
 		const identity = await preview.evaluate((element) => ({
