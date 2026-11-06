@@ -1,0 +1,51 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "ResizeObserver dispatch comparison rejected; presented-control fixture readiness retained",
+	"whole_gate_accepted": false,
+	"source_base": "627860064c1a2766cb67dad9ac39df5c9eee1e13",
+	"candidate_executable_sha256": "be41bc6295cadc3bb13468700a5286dcd8c508488936311af48ae25b244b675e",
+	"retained_executable_sha256": "1bbed5c2e5e4f2c27497672d205e3dc36a7e880cfd4f02db1ca46eb5d83087d9",
+	"hypothesis": "ResizeObserver already reports layout, so measuring immediately rather than scheduling a later animation frame could improve native-only zoom response without dropping changed-paint barriers.",
+	"candidate_verification": {
+		"software": "74 tests pass, including immediate layout measurement/callback cancellation, changed clip/source/DPR paint fences, coalescing behind one pending native request and exact delayed-cohort withdrawal. Both Svelte checks0 errors/0 warnings, full browser lifecycle/input/retirement fixture, production UI build, native bundled build, Prettier and root/Core formatting pass.",
+		"native_initial": "NVIDIA keyboard44156, Intel keyboard16728 and NVIDIA Source12680 pass and exit0. Intel Source11472 fails before beginning a crop-edge drag; original failure retained, no passing credit.",
+		"fixture_issue": "The input preflight waited for actor/DOM history and enabled hidden proxy controls, without requiring the matching native handle to be presented. Added a bounded read-only public Pointer query and exact installed-view check before the existing click. Original gestures, clamping, history and error assertions are unchanged. This resolves the observed readiness failure in reruns; it does not prove the failed candidate interaction was a production scheduling defect.",
+		"native_with_presented_control_preflight": "Intel Source29008 and NVIDIA Source29264 pass and exit0, no page errors or unexpected crop rejections. Runtime adapter keys are independently checked. Keyboard and Source input/domain/installation checks do not establish pixel alignment or visible latency."
+	},
+	"comparison": {
+		"pid": 39228,
+		"hwnd": 7277284,
+		"gpu": "dxgi:00000000:79e2f347",
+		"dpi": 96,
+		"actions": 30,
+		"trusted_matching_events": 30,
+		"frames": 1848,
+		"capture_gap_p95_ms": 19.6262,
+		"capture_gap_maximum_ms": 26.6553,
+		"p95_response_upper_bound_ms": 75.8513,
+		"maximum_response_upper_bound_ms": 85.5842,
+		"previous_fixed_build_p95_upper_bound_ms": 73.2444,
+		"within_original_50ms_budget_proven": false,
+		"actual_latency_failure_proven": false,
+		"capture_exit": 0,
+		"fixture_exit": 1,
+		"fixture_exit_reason": "Unchanged deliberate50ms assertion after the complete cohort",
+		"normal_app_exit": 0,
+		"method": "Same128x8 Desktop Duplication strip, Node monotonic dispatch-to-complete-frame-arrival clock, alternating documented trusted wheel+/-120, >=2px response from both native image and overlay, original per-action foreground/PID/DPI/window guards. Independent raw pixel/clock audit passes all30 pairs.",
+		"preparation": "Same live fixture retained through observation/input-guard interruptions. Before starting, the view's zoom and selection were observed changed; Home100% and Surface selection were restored through supported observed accessibility controls. No attribution for the prior change or causal speed comparison is made. No foreign screenshot is archived."
+	},
+	"decision": "No measured improvement or50ms proof; remove the additional public immediate-layout API, observer scheduling and candidate tests/docs. Entire candidate preserved in named stash54af87c4fdddb22ebc55f2ab7ec5c9db96370298 and owning archive; never restore automatically. Golden preview files and native shader/pixel test files match committed HEAD after removal. No additional timing/capture/clock/profiler variant in this investigation.",
+	"retained_fixture_validation": {
+		"change": "Surface Source input fixture waits for the actual accepted native control hit before clicking a settled DOM proxy. Test-only; no product setting, renderer, protocol schema or input semantics changed.",
+		"nvidia": { "pid": 18060, "gpu": "dxgi:00000000:79e2f347", "fixture_exit": 0, "normal_app_exit": 0 },
+		"intel": { "pid": 32308, "gpu": "dxgi:00000000:00015b69", "fixture_exit": 0, "normal_app_exit": 0 },
+		"scope": "Retained stationary-backdrop product binary, full original generic Surface Parameters/calibration/crop/origin/clamping/live-before-release/Escape/source-loss/history/navigation flow, zero page errors and unexpected crop rejections. No native pixel/alignment/latency acceptance inferred."
+	},
+	"artifacts": "mapgyver-m05-layout-dispatch-2026-11-06.zip",
+	"archive_bytes": 19666,
+	"archive_sha256": "5721ac7476ff86637f30f9b4d79ef18a2ce234690eda5de206e0244ab82f1248",
+	"artifact_scope": "Rejected implementation patch/tests, all candidate functional logs including the original failure, two retained-product fixture logs and complete guarded comparison clock/pixel witnesses. No private profiles or foreign screenshots.",
+	"remaining": "Original p95<=50ms visible response and full same-frame input correspondence remain required. The completed73.2444/75.8513ms conservative bounds cannot distinguish an actual latency failure from arrival/capture delay. Next action is a bounded review of authoritative same-frame input/compositor timestamps before proposing any new capture implementation; do not repeat these arrival-clock variants or reset cumulative investigation effort. All original gates/budgets and acceptance-first order remain intact.",
+	"progress": "69/78 verified gates (88%), M05/8 Active; no whole gate closes."
+}

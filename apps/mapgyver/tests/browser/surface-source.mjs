@@ -275,6 +275,39 @@ export async function verifySurfaceSourceUi({
 					`Crop handle must receive pointer input: ${target}`
 				);
 			}
+			if (nativePage) {
+				// DOM history can settle before the matching native handle is presented. Click
+				// the visible accepted control, rather than a newer hidden DOM proxy location.
+				const x = handle ? handle.x + handle.width / 2 : box.x + point.x * box.width;
+				const y = handle ? handle.y + handle.height / 2 : box.y + point.y * box.height;
+				await wait(
+					() =>
+						panel.locator('.native-preview').evaluate(
+							async (element, { x, y, index }) => {
+								if (
+									element.dataset.previewInstalled !== 'true' ||
+									element.dataset.previewState !== 'available'
+								)
+									return false;
+								const request = {
+									kind: 'Pointer',
+									session: element.dataset.previewSession,
+									view: element.dataset.previewView,
+									source: element.dataset.previewSource,
+									point: [x, y]
+								};
+								const response = JSON.parse(
+									await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+										request: JSON.stringify(request)
+									})
+								);
+								return response.sample?.hit === (index === null ? 'crop' : `crop:${index}`);
+							},
+							{ x, y, index }
+						),
+					Boolean
+				);
+			}
 			await page.mouse.move(
 				handle ? handle.x + handle.width / 2 : box.x + point.x * box.width,
 				handle ? handle.y + handle.height / 2 : box.y + point.y * box.height
