@@ -201,6 +201,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
         crate::applications::runtime::ApplicationCallbackSubscription,
     )> = None;
     while !input.stop.is_requested() {
+        input.receiver.set_host_suspended(input.stop.is_ui_suspended());
         adapter.service(&input.runtime);
         sender_catalog.service(&input.runtime);
         if let Some(owner) = &owner {

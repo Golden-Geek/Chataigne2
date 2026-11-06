@@ -52,6 +52,23 @@ see the [HTML rendering order](https://html.spec.whatwg.org/multipage/webappapis
 This is a rendering opportunity, not a compositor-present receipt. Stale source/session work
 is cancelled before dispatch; disposal and empty-layout withdrawal bypass the rendering wait.
 A suppressed frame has a bounded timeout and uses the existing unavailable/reconnect path.
+The native host separately reports when its own retained HWND owns a Windows menu loop:
+WebView rendering opportunities, IPC and debugging can stall during that loop. The worker pauses
+only the preview lease clock for this host-authenticated suspension, then restores its exact
+remaining duration on exit. It does not revive expired sessions or bypass explicit disconnect,
+window retirement, geometry/source fences or installation checks. Failed OS observations and
+menus belonging to other windows never suspend the lease. No frontend claim controls this state.
+An unchanged heartbeat Layout reuses its already rendered installed cohort; new or changed
+geometry and browser scale always keep the rendering-opportunity fence. Browser scale is only
+a cohort comparison hint, never an authoritative native scale. Its reply can still be delayed
+in the serialized control slot. At its response deadline the UI withholds control capability
+and latest installation confirmation,
+while retaining only an exact match to the previously installed cohort. It neither submits
+another IPC nor acknowledges a new frame. Current geometry/source/lifetime changes, disposal,
+actual rejection or failure withdraw that aperture; periodic measurement remains active during
+the delay. A matching eventual reply restores ordinary control. Native ownership still bounds
+pixels when the frontend or host dies; browser covers protect geometry retirement independently
+of temporary control availability.
 Historical retirement paint uses Golden's background token, remaining opaque while matching
 the host's surrounding backdrop instead of introducing black rectangles outside live apertures.
 

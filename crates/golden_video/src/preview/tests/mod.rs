@@ -4,6 +4,7 @@ mod continuity;
 mod groups;
 mod overlays;
 mod pointer;
+mod suspension;
 
 fn host() -> HostViewport {
     HostViewport {

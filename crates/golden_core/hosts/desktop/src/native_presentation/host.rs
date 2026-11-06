@@ -74,7 +74,11 @@ impl PresentationHost {
         self.control.lock().unwrap().attach(window.label(), control);
         let state = self.clone();
         let app = window.app_handle().clone();
-        let worker = PresentationWorker::spawn(task, move |succeeded| {
+        #[cfg(windows)]
+        let hwnd = Some(window.hwnd().map_err(io::Error::other)?.0 as isize);
+        #[cfg(not(windows))]
+        let hwnd = None;
+        let worker = PresentationWorker::spawn(hwnd, task, move |succeeded| {
             state.control.lock().unwrap().close();
             // Task locals and captures have retired on their worker before this signal.
             // AppHandle queues exit onto Tauri's event loop; no COM/window work runs here.

@@ -80,7 +80,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	let lastGeometry = '';
 	let lastViews: PreviewView[] = [];
 	let presentedLayout: PreviewView[] = [];
+	let presentedKey = '';
+	let lastLayoutKey = '';
 	let pendingApplied: Extract<PreviewResponse, { kind: 'Applied' }> | null = null;
+	let delayedPresentation: string | null = null;
 	let maximumViews = MAX_VIEWS;
 	const registrations = new Map<string, Registration>();
 	const rendering = new RenderOpportunity();
@@ -106,10 +109,11 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	}
 	function startHeartbeat() {
 		stopHeartbeat();
-		if (disposed || state.availability !== 'available') return;
+		if (disposed || (state.availability !== 'available' && delayedPresentation === null)) return;
 		heartbeat = setTimeout(() => {
 			heartbeat = null;
-			schedule(false);
+			if (delayedPresentation !== null) invalidate();
+			else schedule(false);
 			startHeartbeat();
 		}, HEARTBEAT_MS);
 	}
@@ -155,6 +159,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		idleWaiters.clear();
 	}
 	function fail(error: string) {
+		delayedPresentation = null;
 		pendingApplied = null;
 		presentedLayout = [];
 		if (closing) {
@@ -197,12 +202,19 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			...registration.measure()
 		}));
 	}
+	function presentationKey(views: PreviewView[]) {
+		// A browser scale change is a new rendering cohort even with identical CSS bounds.
+		// This is only a fence hint; native geometry still uses authenticated host metrics.
+		return JSON.stringify([globalThis.devicePixelRatio ?? 1, views]);
+	}
 	function acknowledge(response: Extract<PreviewResponse, { kind: 'Applied' }>) {
 		// Host clipping can resolve fewer views than the browser measured. The aggregate reply
 		// cannot identify that subset, so retain presentation only when every visible view agrees.
-		if (response.installed)
+		if (response.installed) {
 			presentedLayout =
 				response.visible_views === lastViews.filter((view) => view.visible).length ? lastViews : [];
+			presentedKey = presentedLayout.length ? lastLayoutKey : '';
+		}
 		update({
 			acknowledgedRevision: response.revision,
 			visibleViews: response.visible_views,
@@ -254,6 +266,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 							update({ installed: false, presentedViews: retainPresentation(views) });
 						}
 						lastViews = views;
+						lastLayoutKey = presentationKey(views);
 						stopStatus();
 						statusAttempts = 0;
 						request = { kind: 'Layout', session: state.session, revision: ++revision, views };
@@ -273,7 +286,15 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 					if (closing && statusTimer === null) fail('Native preview clear could not be confirmed');
 					break;
 				}
-				if (request.kind === 'Layout' && request.views.some((view) => view.visible)) {
+				const alreadyPresented =
+					request.kind === 'Layout' &&
+					state.presentedViews.length > 0 &&
+					presentationKey(request.views) === presentedKey;
+				if (
+					request.kind === 'Layout' &&
+					request.views.some((view) => view.visible) &&
+					!alreadyPresented
+				) {
 					const ready = await rendering.wait();
 					if (turn !== generation || (disposed && !closing)) continue;
 					if (request.views.some((view) => registrations.get(view.id)?.source !== view.source)) {
@@ -290,6 +311,25 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				// actual promise settles. Restarting parallel calls would defeat boundedness.
 				const timeout = setTimeout(() => {
 					if (turn === generation && (!disposed || closing)) {
+						// A delayed control reply cannot revoke an already installed, unchanged
+						// cohort. Withhold control capability while the same serialized IPC stays
+						// pending; the native owner still enforces its lease and lifetime fences.
+						try {
+							if (request.kind === 'Layout' && state.presentedViews.length > 0) {
+								const cohort = presentationKey(request.views);
+								if (cohort === presentedKey && cohort === presentationKey(measure())) {
+									delayedPresentation = cohort;
+									update({
+										availability: 'unavailable',
+										installed: false,
+										error: 'Native preview control reply is delayed'
+									});
+									return;
+								}
+							}
+						} catch {
+							/* Invalid measurement follows ordinary fail-closed retirement. */
+						}
 						generation++;
 						fail('Native preview response timed out');
 					}
@@ -358,6 +398,11 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 					typeof response.installed === 'boolean'
 				) {
 					const current = request.revision === revision && !dirty;
+					if (delayedPresentation !== null) {
+						delayedPresentation = null;
+						update({ availability: 'available', error: null });
+						startHeartbeat();
+					}
 					if (current && frame === null) acknowledge(response);
 					else {
 						// A queued DOM measurement may be unrelated. Keep the reply withheld until
@@ -424,6 +469,17 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				: setTimeout(callback, 0);
 	}
 	function invalidate() {
+		if (delayedPresentation !== null) {
+			try {
+				if (presentationKey(measure()) === delayedPresentation) return;
+			} catch {
+				/* Withdraw the retained aperture if its geometry cannot be established. */
+			}
+			generation++;
+			fail('Native preview layout changed while control is delayed');
+			void pump();
+			return;
+		}
 		schedule(true);
 	}
 	function connect(force: boolean): Promise<boolean> {
@@ -432,6 +488,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			return connection;
 		resolveConnection?.(false);
 		generation++;
+		delayedPresentation = null;
 		rendering.cancel();
 		pendingApplied = null;
 		if (state.session) cleanupSessions.add(state.session);
@@ -547,6 +604,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 				disposed = true;
 				closing = Boolean(state.session) || running;
 				generation++;
+				delayedPresentation = null;
 				rendering.cancel();
 				pendingApplied = null;
 				connectWanted = false;

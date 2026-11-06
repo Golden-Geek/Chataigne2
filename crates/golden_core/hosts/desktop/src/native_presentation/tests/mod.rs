@@ -11,6 +11,7 @@ fn repeated_stop_requests_wake_a_waiting_worker() {
     let (started_tx, started_rx) = mpsc::channel();
     let (finished_tx, finished_rx) = mpsc::channel();
     let worker = PresentationWorker::spawn(
+        None,
         NativePresentationTask::new(move |stop| {
             started_tx.send(()).unwrap();
             assert!(stop.wait_timeout(DEADLINE));
@@ -33,6 +34,7 @@ fn repeated_stop_requests_wake_a_waiting_worker() {
 fn spontaneous_completion_does_not_require_cancellation() {
     let (finished_tx, finished_rx) = mpsc::channel();
     let worker = PresentationWorker::spawn(
+        None,
         NativePresentationTask::new(|stop| {
             assert!(!stop.is_requested());
             assert!(!stop.wait_timeout(Duration::ZERO));
@@ -50,6 +52,7 @@ fn spontaneous_completion_does_not_require_cancellation() {
 fn task_error_is_retained_and_reported_once() {
     let (finished_tx, finished_rx) = mpsc::channel();
     let worker = PresentationWorker::spawn(
+        None,
         NativePresentationTask::new(|_| Err(io::Error::new(io::ErrorKind::InvalidData, "invalid native target"))),
         move |success| finished_tx.send(success).unwrap(),
     )
@@ -65,6 +68,7 @@ fn task_error_is_retained_and_reported_once() {
 fn task_panic_becomes_an_error_and_reports_completion_once() {
     let (finished_tx, finished_rx) = mpsc::channel();
     let worker = PresentationWorker::spawn(
+        None,
         NativePresentationTask::new(|_| panic!("native test panic")),
         move |success| finished_tx.send(success).unwrap(),
     )
@@ -100,6 +104,7 @@ fn task_captures_drop_on_the_worker_before_completion_for_every_outcome() {
         let (finished_tx, finished_rx) = mpsc::channel();
         let capture = DropReport(drop_tx);
         let worker = PresentationWorker::spawn(
+            None,
             NativePresentationTask::new(move |_| {
                 let _capture = capture;
                 thread_tx.send(thread::current().id()).unwrap();
@@ -127,6 +132,7 @@ fn dropping_the_worker_requests_stop_without_waiting_for_retirement() {
     let (release_tx, release_rx) = mpsc::channel();
     let (finished_tx, finished_rx) = mpsc::channel();
     let worker = PresentationWorker::spawn(
+        None,
         NativePresentationTask::new(move |stop| {
             stop_tx.send(stop).unwrap();
             release_rx.recv().unwrap();

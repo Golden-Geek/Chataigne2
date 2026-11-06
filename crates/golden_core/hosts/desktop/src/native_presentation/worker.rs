@@ -43,18 +43,50 @@ struct StopState {
 #[derive(Clone)]
 pub struct NativePresentationStop {
     state: Arc<StopState>,
+    window: Option<isize>,
 }
 
 impl NativePresentationStop {
-    fn new() -> Self {
+    fn new(window: Option<isize>) -> Self {
         Self {
             state: Arc::new(StopState::default()),
+            window,
         }
     }
 
     /// Returns whether the host has requested cancellation; once true, it remains true.
     pub fn is_requested(&self) -> bool {
         self.state.requested.load(Ordering::Acquire)
+    }
+
+    /// Whether this retained host window owns a native menu loop that suspends its WebView.
+    /// This is a worker-safe OS observation, never a frontend claim or a UI-thread callback.
+    pub fn is_ui_suspended(&self) -> bool {
+        if self.is_requested() || self.window.is_none() {
+            return false;
+        }
+        #[cfg(windows)]
+        if let Some(window) = self.window {
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::WindowsAndMessaging::{
+                GUI_INMENUMODE, GUITHREADINFO, GetGUIThreadInfo, GetWindowThreadProcessId,
+            };
+            let hwnd = HWND(window as *mut _);
+            let mut info = GUITHREADINFO {
+                cbSize: std::mem::size_of::<GUITHREADINFO>() as u32,
+                ..Default::default()
+            };
+            // SAFETY: the host retains this HWND until this worker retires. No COM objects,
+            // window mutations or cross-thread waits are involved; failure never pauses a lease.
+            unsafe {
+                let thread = GetWindowThreadProcessId(hwnd, None);
+                return thread != 0
+                    && GetGUIThreadInfo(thread, &mut info).is_ok()
+                    && info.hwndMenuOwner == hwnd
+                    && info.flags.0 & GUI_INMENUMODE.0 != 0;
+            }
+        }
+        false
     }
 
     /// Waits for cancellation or the supplied timeout, returning whether it was requested.
@@ -96,10 +128,11 @@ pub(crate) struct PresentationWorker {
 
 impl PresentationWorker {
     pub(crate) fn spawn(
+        window: Option<isize>,
         task: NativePresentationTask,
         on_finished: impl FnOnce(bool) + Send + 'static,
     ) -> io::Result<Self> {
-        let stop = NativePresentationStop::new();
+        let stop = NativePresentationStop::new(window);
         let task_stop = stop.clone();
         let thread = thread::Builder::new()
             .name("golden-native-presentation".into())

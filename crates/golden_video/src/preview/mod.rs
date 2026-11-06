@@ -203,6 +203,7 @@ struct Session {
 }
 struct State {
     closed: bool,
+    suspended_at: Option<Instant>,
     session: Option<Session>,
     views: Vec<ResolvedView>,
     viewport: Option<HostViewport>,
@@ -215,6 +216,20 @@ struct State {
     installed: Option<u64>,
 }
 impl State {
+    fn set_host_suspended(&mut self, suspended: bool, now: Instant) -> bool {
+        let expired = self.expire(now);
+        match (self.suspended_at, suspended) {
+            (None, true) => self.suspended_at = Some(now),
+            (Some(start), false) => {
+                if let Some(session) = &mut self.session {
+                    session.deadline += now.saturating_duration_since(start);
+                }
+                self.suspended_at = None;
+            }
+            _ => {}
+        }
+        expired
+    }
     fn invalidate(&mut self) {
         self.views.clear();
         self.view_revisions.clear();
@@ -308,6 +323,9 @@ impl State {
         self.installed = None;
     }
     fn expire(&mut self, now: Instant) -> bool {
+        if self.suspended_at.is_some() {
+            return false;
+        }
         if self.session.as_ref().is_some_and(|session| session.deadline <= now) {
             self.session = None;
             self.invalidate();
@@ -386,6 +404,7 @@ impl PreviewController {
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
                 closed: false,
+                suspended_at: None,
                 session: None,
                 views: Vec::new(),
                 viewport: None,
@@ -477,6 +496,9 @@ impl PreviewController {
                                 revision: None,
                                 deadline: now + self.0.limits.lease,
                             });
+                            if state.suspended_at.is_some() {
+                                state.suspended_at = Some(now);
+                            }
                             changed = true;
                         }
                         PreviewResponse::Connected {
@@ -581,6 +603,9 @@ impl PreviewController {
                                 let current = state.session.as_mut().unwrap();
                                 current.revision = Some(revision);
                                 current.deadline = now + self.0.limits.lease;
+                                if state.suspended_at.is_some() {
+                                    state.suspended_at = Some(now);
+                                }
                                 PreviewResponse::Applied {
                                     revision,
                                     visible_views: state.views.len() as u32,
@@ -617,6 +642,18 @@ impl PreviewController {
 }
 
 impl PreviewReceiver {
+    /// Pauses only the liveness clock while the trusted native host reports its owned UI is
+    /// suspended. Geometry/owner fences and explicit close remain active. On resume the exact
+    /// remaining lease is restored; expired sessions cannot be revived by entering suspension.
+    pub fn set_host_suspended(&self, suspended: bool) {
+        let mut state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
+        let changed = state.set_host_suspended(suspended, Instant::now());
+        drop(state);
+        if changed {
+            self.0.notify();
+        }
+    }
+
     /// Confirm live geometry only after both its resource plan and sampled frame were accepted.
     /// The returned full layout generation may advance without replacing resource routing.
     pub fn mark_frame_installed(&self, routing: u64, accepted: crate::runtime::CompletionToken) -> Option<u64> {
@@ -685,13 +722,12 @@ impl PreviewReceiver {
     }
     /// Next session expiry to service on the preparation worker when no earlier notification fires.
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.0
-            .state
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .session
-            .as_ref()
-            .map(|session| session.deadline)
+        let state = self.0.state.lock().unwrap_or_else(|error| error.into_inner());
+        if state.suspended_at.is_some() {
+            None
+        } else {
+            state.session.as_ref().map(|session| session.deadline)
+        }
     }
 }
 

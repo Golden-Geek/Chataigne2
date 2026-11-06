@@ -12,10 +12,12 @@ const geometry = (x = 0) => ({
 });
 function deferred<T>() {
 	let resolve!: (value: T) => void;
-	const promise = new Promise<T>((done) => {
+	let reject!: (error: Error) => void;
+	const promise = new Promise<T>((done, fail) => {
 		resolve = done;
+		reject = fail;
 	});
-	return { promise, resolve };
+	return { promise, resolve, reject };
 }
 function transport(override?: (request: PreviewRequest) => Promise<PreviewResponse> | undefined) {
 	const requests: PreviewRequest[] = [];
@@ -414,6 +416,147 @@ describe('window preview session', () => {
 		expect(presentations.every((ids) => ids.includes(view.id))).toBe(true);
 		unsubscribe();
 	});
+
+	it('renews an already rendered installed cohort without requiring a second animation frame', async () => {
+		vi.stubGlobal('devicePixelRatio', 1.25);
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		session.register('screen', () => geometry());
+		await session.connect();
+		await flush();
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+			frames.push(callback)
+		);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(frames).toHaveLength(1);
+		frames.shift()!(1000);
+		await flush();
+		expect(endpoint.requests).toHaveLength(3);
+		expect(session.state.installed).toBe(true);
+		expect(frames).toHaveLength(0);
+	});
+
+	it('retains only the installed cohort during a delayed unchanged reply without admitting parallel controls', async () => {
+		const reply = deferred<PreviewResponse>();
+		let blocked = false;
+		let pendingRevision = 0;
+		const endpoint = transport((request) => {
+			if (blocked && request.kind === 'Layout') {
+				pendingRevision = request.revision;
+				return reply.promise;
+			}
+		});
+		const session = own(endpoint.value);
+		const view = session.register('screen', () => geometry());
+		await session.connect();
+		await flush();
+		const acknowledged = session.state.acknowledgedRevision;
+		blocked = true;
+		await vi.advanceTimersByTimeAsync(5501);
+		expect(session.state.availability).toBe('unavailable');
+		expect(session.state.installed).toBe(false);
+		expect(session.state.acknowledgedRevision).toBe(acknowledged);
+		expect(session.state.presentedViews).toEqual([view.id]);
+		expect(endpoint.requests).toHaveLength(3);
+		expect(await view.pointer(1, 1)).toBeNull();
+		expect(endpoint.requests).toHaveLength(3);
+		blocked = false;
+		reply.resolve({
+			kind: 'Applied',
+			revision: pendingRevision,
+			visible_views: 1,
+			installed: true
+		});
+		await flush();
+		expect(session.state.availability).toBe('available');
+		expect(session.state.installed).toBe(true);
+	});
+
+	it('requires a fresh rendering opportunity after a browser scale change even with unchanged CSS bounds', async () => {
+		vi.stubGlobal('devicePixelRatio', 1.25);
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		session.register('screen', () => geometry());
+		await session.connect();
+		await flush();
+		vi.stubGlobal('devicePixelRatio', 1.5);
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+			frames.push(callback)
+		);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		await vi.advanceTimersByTimeAsync(1000);
+		frames.shift()!(1000);
+		await flush();
+		expect(endpoint.requests).toHaveLength(2);
+		expect(frames).toHaveLength(1);
+		frames.shift()!(1001);
+		await flush();
+		expect(endpoint.requests).toHaveLength(3);
+	});
+
+	it.each([
+		'geometry',
+		'scale',
+		'hide',
+		'source',
+		'unregister',
+		'dispose',
+		'rejection',
+		'failure'
+	] as const)(
+		'withdraws a delayed retained cohort immediately on %s and fences its late reply',
+		async (change) => {
+			const reply = deferred<PreviewResponse>();
+			let blocked = false;
+			let pendingRevision = 0;
+			const endpoint = transport((request) => {
+				if (blocked && request.kind === 'Layout') {
+					pendingRevision = request.revision;
+					return reply.promise;
+				}
+			});
+			const session = own(endpoint.value);
+			let current = geometry();
+			const view = session.register('screen', () => current);
+			await session.connect();
+			await flush();
+			blocked = true;
+			await vi.advanceTimersByTimeAsync(2501);
+			expect(session.state.presentedViews).toEqual([view.id]);
+			if (change === 'geometry') {
+				current = geometry(5);
+				view.invalidate();
+			} else if (change === 'scale') {
+				vi.stubGlobal('devicePixelRatio', 1.5);
+				view.invalidate();
+			} else if (change === 'hide') {
+				current = { ...geometry(), visible: false };
+				view.invalidate();
+			} else if (change === 'source') view.update('replacement');
+			else if (change === 'unregister') view.unregister();
+			else if (change === 'dispose') void session.dispose();
+			else if (change === 'failure') {
+				reply.reject(new Error('host retired'));
+				await flush();
+			} else {
+				reply.resolve({ kind: 'Rejected', code: 'Session' });
+				await flush();
+			}
+			expect(session.state.presentedViews).toEqual([]);
+			blocked = false;
+			reply.resolve({
+				kind: 'Applied',
+				revision: pendingRevision,
+				visible_views: 1,
+				installed: true
+			});
+			await flush();
+			expect(session.state.presentedViews).toEqual([]);
+		}
+	);
 
 	it.each(['hide', 'disconnect'] as const)(
 		'withdraws retained presentation on %s until it is valid again',

@@ -48,10 +48,7 @@
 	// A parent DTO can refresh its prop getter without changing the lease's lifetime value.
 	const registrationLifetime = $derived(lifetime);
 	const nativeOverlays = $derived(
-		overlays.length > 0 &&
-			registration !== null &&
-			availability === 'available' &&
-			presentedViews.includes(registration.id)
+		overlays.length > 0 && registration !== null && presentedViews.includes(registration.id)
 	);
 	$effect(() => {
 		onpresentationchange?.(nativeOverlays);
@@ -138,7 +135,7 @@
 	data-native-overlays={nativeOverlays}
 	aria-label={label}
 >
-	{#if visible && (availability !== 'available' || !registration || !presentedViews.includes(registration.id) || registrationError)}
+	{#if visible && (!registration || !presentedViews.includes(registration.id) || registrationError)}
 		{#if tileGroups !== null}
 			{#each tileGroups as group (group.source)}
 				{#each group.tiles as tile}

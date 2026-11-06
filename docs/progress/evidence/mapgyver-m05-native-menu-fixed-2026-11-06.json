@@ -1,0 +1,73 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Owned native-menu preview continuity defect resolved and verified on both GPUs/editors; broader gate remains Active",
+	"source_base": "a999ac5b7de5baaa249afa66242a138b49f37666",
+	"accepted_gate_change": 0,
+	"capability_verified": "Screen and Surface Source images remain visible/aligned during an owned Windows System menu and recover ordinary control afterward, with independent Spout pixels unchanged",
+	"binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+	"cases": [
+		{
+			"directory": "final-nv-screen",
+			"pid": 3212,
+			"hwnd": 112592948,
+			"adapter": "dxgi:00000000:00016022",
+			"maximum_error_px": 0.2913206646639992,
+			"red_pixels_before_menu_recovered": [124135, 124091, 124091],
+			"normal_exit": 0
+		},
+		{
+			"directory": "final-nv-source",
+			"pid": 35736,
+			"hwnd": 403114882,
+			"adapter": "dxgi:00000000:00016022",
+			"maximum_error_px": 0.2560520091426497,
+			"red_pixels_before_menu_recovered": [339014, 339014, 339014],
+			"normal_exit": 0
+		},
+		{
+			"directory": "final-intel-screen",
+			"pid": 41332,
+			"hwnd": 179046710,
+			"adapter": "dxgi:00000000:00015b69",
+			"maximum_error_px": 0.2913206646639992,
+			"red_pixels_before_menu_recovered": [124135, 124135, 124135],
+			"normal_exit": 0
+		},
+		{
+			"directory": "final-intel-source",
+			"pid": 12760,
+			"hwnd": 20384824,
+			"adapter": "dxgi:00000000:00015b69",
+			"maximum_error_px": 0.254572459894689,
+			"red_pixels_before_menu_recovered": [339014, 339014, 339014],
+			"normal_exit": 0
+		}
+	],
+	"implementation": {
+		"native_host": "NativePresentationStop observes GetGUIThreadInfo only for its retained HWND's thread and exact menu owner, outside UI/engine work. Failure, another menu owner, absent window or cancellation never reports suspension",
+		"lease": "Trusted worker pauses only the preview session liveness clock during the owned native menu, then restores the exact remaining duration. Expired owners cannot revive; explicit disconnect/close and geometry/source guards stay active. The ordinary 2500ms lease is unchanged",
+		"browser": "A delayed unchanged Layout no longer revokes its already installed cohort. Latest installation confirmation/control capability are withheld while one serialized IPC remains pending. Geometry, browser scale, source/lifetime changes, disposal, actual rejection and transport failure withdraw retention and fence late replies. Measurement continues during delay",
+		"rendering_fence": "Only an exact already rendered cohort with unchanged browser scale skips another rendering opportunity. New geometry and changed browser scale retain the original animation-frame/task fence. Browser scale is a comparison hint; native metrics remain host-authenticated",
+		"component": "NativePreview treats retained presentation independently from control availability, so the unavailable-control state does not paint an opaque cover over a still-owned exact native frame",
+		"protocol": "No Rust/TypeScript wire declarations, generated protocol outputs, admission caps, renderer formats or performance budgets changed"
+	},
+	"method": {
+		"physical": "Twelve guarded physical desktop images: before/menu-open/recovered for each same owned foreground PID/HWND. Laptop DPI120/DPR1.25 and OS bounds/client origin/monitor remain identical. Menu is visibly open for more than the ordinary lease before capture, opened using F10/Space and closed with Escape",
+		"projection_limit": "Before/recovered stages use fresh installed DOM projection and pre/post capture stability. During the native menu, fresh WebView debug access stalls: the physical image/overlay are measured against the prior settled projection reference with identical OS geometry. No fresh DOM measurement during the menu is claimed",
+		"output": "Existing independent SDK calibration-pixels observer retires at 800x600 in all twelve stages. Pixels are byte-identical within each case. Screen PNG SHA256 5819e0405ed156c7f2e7f00a772efc5a3bd7f0fb9dedea33c45131f965ea2350; cropped Source-output PNG SHA256 f3da02acab3b5a3ee3b1e9e8df68da245d3ea0d55b27466161605ec2ad3ad959",
+		"lifetime": "Four final and four preliminary owned processes terminate normally with exit0; no user app/sender is closed. No display arrangement/scaling changes",
+		"software": "503 MapGyver, 221 Golden Video and 37 desktop-host tests pass; strict all-target lint passes. Final 49 UI tests and both Svelte checks pass. Browser lifecycle proves retirement/overlap/source swap/pan/zoom, rejected-layout recovery, themed covers and bounded input, with zero page errors. Final embedded app build succeeds",
+		"prerequisites": "Returned compile/software results inspected before acceptance. A preliminary four-case pass was repeated against the exact final executable after adding the browser-scale fence check; preliminary results are retained separately",
+		"provenance": "Final executable remains unchanged. 420 of 421 recorded inputs remain identical; the sole declared difference is separately generated packages/golden-video-ui/tests/native-dist/index.html from the browser smoke build. It belongs to native_preview_smoke, not the MapGyver main frontend asset set. Before/after hashes and the exact distinction are recorded in fingerprints-final-after.json"
+	},
+	"rejected_setup": "Preliminary baseline with a pointer tooltip obscuring a landmark correctly fails its edge oracle; capture/log retained, pointer moved to neutral header and guard rerun. Final first baseline correctly rejects lost foreground ownership; retained log, successful supported activation and guarded replacement. No oracle/tolerance change",
+	"prior_failures": "mapgyver-m05-native-menu-2026-11-06.json preserves the baseline and two insufficient isolated candidates. Only host suspension/lease logic is intentionally reused in this combined fix; no background-control or generated Heartbeat candidate is restored",
+	"limits": "This closes the reproduced native-menu defect, not the whole M05/8 acceptance gate. Footer/control may report recovering while OS modal delivery is suspended; control resumes on exit. No cadence, scanout, input latency, live hotplug, broader DPI/motion/pattern matrix or release readiness is inferred. Original <=50ms latency and all retained gates remain required",
+	"next_deliverable": "Complete the remaining M05/8 native capture/overlap/reference/motion/hit requirements using existing fixtures and retained source-specific evidence; keep original latency return action and budgets explicit",
+	"artifact": {
+		"path": "mapgyver-m05-native-menu-fixed-2026-11-06.zip",
+    "size_bytes": 3178269,
+    "sha256": "9fe93b3e32320bd70d47df961162bc1369ffd0231085ddcee082893f618592fc"
+	}
+}
