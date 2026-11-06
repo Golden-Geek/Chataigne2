@@ -1,0 +1,70 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Reproduced native-menu preview disappearance; two candidate fixes rejected; gate remains Active",
+	"source_base": "0c69b4da5bb79f76b843d6740f6420380c59f3a2",
+	"accepted_gate_change": 0,
+	"product_changes_delivered": false,
+	"cases": [
+		{
+			"directory": "baseline-nv-screen",
+			"pid": 6280,
+			"hwnd": 39652208,
+			"binary_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+			"red_pixels_before_open_recovered": [118173, 0, 124135],
+			"normal_exit": 0
+		},
+		{
+			"directory": "fixed-nv-screen",
+			"pid": 15688,
+			"hwnd": 32246388,
+			"binary_sha256": "da7063d170bc1a6705c2626e739e0a650aef01ffe06fc33b58dda66624f3be28",
+			"red_pixels_before_open_recovered": [118173, 0, 124135],
+			"normal_exit": 0
+		},
+		{
+			"directory": "modal-nv-screen",
+			"pid": 19136,
+			"hwnd": 460616,
+			"binary_sha256": "c37b92f164d259de937e715888185e2ef7f7448aae9f07881135695a7132eaf3",
+			"red_pixels_before_open_recovered": [118173, 0, 124135],
+			"normal_exit": 0
+		}
+	],
+	"observations": {
+		"adapter": "dxgi:00000000:00016022 / NVIDIA GeForce RTX 5080 Laptop GPU",
+		"environment": "Screen editor, laptop DPI120/DPR1.25, same owned foreground HWND and unchanged OS bounds/client origin/monitor through each sequence. System menu opened with supported F10/Space and closed with Escape; no global display setting changes",
+		"physical": "All three implementations lose the native red image while blue overlays remain during the native menu loop, then recover. Window-only screenshots are not used as physical acceptance evidence",
+		"output": "Independent existing Spout SDK calibration-pixels reader retires normally at 800x600. All nine before/menu/recovered output PNGs are byte-identical, SHA256 5819e0405ed156c7f2e7f00a772efc5a3bd7f0fb9dedea33c45131f965ea2350",
+		"webview": "Accessibility and fresh CDP connection stall during the menu; footer shows recovering. This proves a suspended control/debug path, not the exact cause of native image disappearance",
+		"host_menu": "Second candidate correctly detects GetGUIThreadInfo flags12 and hwndMenuOwner460616 for its HWND460616, but its physical image still disappears. Host lease pause alone is insufficient; browser coverage versus native withdrawal remains unresolved"
+	},
+	"rejected_candidates": [
+		{
+			"stash": "mapgyver-unaccepted-background-preview-control-2026-11-06",
+			"object": "abbc8aea2d35229659f6bffd1f6505da2ff236b2",
+			"change": "Typed background metadata replies plus explicit generated exact-revision heartbeat; real geometry keeps its rendering/viewport fence",
+			"checks": "503 MapGyver, 220 Golden Video and 38 desktop-host tests pass; 39 UI tests pass; strict all-target lint, generated-contract test, UI checks/build and owned app compilation pass",
+			"reason_rejected": "Physical menu-open image remains absent. Entire candidate, protocol output and consumers removed from working tree"
+		},
+		{
+			"stash": "mapgyver-unaccepted-host-menu-lease-pause-2026-11-06",
+			"object": "5cc291aa4a22cc1687ff865b9901461a63995532",
+			"change": "Host-authenticated owned Windows menu detection and exact remaining preview-lease pause",
+			"checks": "503 MapGyver, 218 Golden Video and 37 desktop-host baseline tests pass; three new deterministic suspension/expiry/disconnect regressions pass; strict all-target lint and owned app compilation pass",
+			"reason_rejected": "Correct owned menu detection does not preserve physical preview. Candidate and its architecture paragraph removed from working tree; no lease policy revision accepted"
+		}
+	],
+	"rejected_setup": [
+		"Initial 4MiB SDK pixels role cannot admit three 800x600 buffers; retained failure replaced by existing 128MiB calibration-pixels role and required owned sender prefix, with no product budget change",
+		"First second-candidate baseline capture correctly refuses non-foreground HWND; retained error, then supported Raise and successful guarded capture"
+	],
+	"limits": "No new usable capability or whole acceptance gate closed. Neither candidate is a performance, alignment, liveness or release pass. No assertion of Intel/Source menu coverage, live hotplug recovery, original <=50ms latency or retained production gates. Do not restore either stash automatically. Investigation diagnostic allowance exhausted; no more native variants without a concrete implementation decision from retained evidence",
+	"next_action": "Review existing UI cover/rendering-timeout and host/native visibility ownership against retained cases, then implement one justified fix with regression checks before any further native acceptance. Keep M05/8 Active and every original remaining requirement in its return queue",
+	"provenance": "Candidate source/fixture fingerprints, software logs, exact failed patches, physical images, SDK images, OS metadata and recovered alignment evidence are in the archive. Second candidate's 421 runtime inputs remain unchanged across its native validation",
+	"artifact": {
+		"path": "mapgyver-m05-native-menu-2026-11-06.zip",
+		"size_bytes": 1399779,
+		"sha256": "25ed40eba15a72cb892ddc01a9172d563cc9246cedd92f5ee67ec24c68681dea"
+	}
+}
