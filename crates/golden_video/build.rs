@@ -47,6 +47,18 @@ fn compile_native_shaders() {
         ("PATTERN_PIXEL", s!("ps_pattern"), s!("ps_5_0"), "ps_pattern.dxbc"),
         ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),
         ("IMPORT_PIXEL", s!("ps_import"), s!("ps_5_0"), "ps_import.dxbc"),
+        (
+            "IMPORT_UINT_PIXEL",
+            s!("ps_import_uint"),
+            s!("ps_5_0"),
+            "ps_import_uint.dxbc",
+        ),
+        (
+            "IMPORT_SINT_PIXEL",
+            s!("ps_import_sint"),
+            s!("ps_5_0"),
+            "ps_import_sint.dxbc",
+        ),
     ] {
         let mut code = None;
         let mut diagnostics = None;

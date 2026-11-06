@@ -8,6 +8,7 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 
 mod bridge;
 mod channels;
+mod integers;
 mod inventory;
 mod legacy;
 mod normalized;
@@ -62,6 +63,18 @@ fn hardware_packed_formats_preserve_xr_bias_precision_and_bgra4444_storage() {
     verify_formats(&packed::cases(), false);
 }
 
+#[test]
+#[ignore = "requires explicit native integer color/bit/storage qualification on every hardware adapter"]
+fn hardware_integer_narrow_formats_preserve_bits_color_alpha_and_charges() {
+    verify_formats(&integers::narrow_cases(), false);
+}
+
+#[test]
+#[ignore = "requires explicit native 32-bit integer transport/color qualification; no float alias"]
+fn hardware_integer_wide_formats_preserve_bits_color_alpha_and_charges() {
+    verify_formats(&integers::wide_cases(), false);
+}
+
 fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
@@ -101,23 +114,36 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                     | PixelFormat::Bgr565Unorm
                     | PixelFormat::Bgra5551Unorm
                     | PixelFormat::Bgra4444Unorm
+                    | PixelFormat::Rg32Uint
+                    | PixelFormat::Rg32Sint
             );
             let registrations = std::iter::once((raw_format.0 as u32, false))
                 .chain((!matches!(raw_format.0, 21 | 22)).then_some((0, false)))
-                .chain((converted || format == PixelFormat::Rgb10XrA2Unorm).then_some((raw_format.0 as u32, true)));
+                .chain(
+                    (converted || format == PixelFormat::Rgb10XrA2Unorm || integers::layout(format).is_some())
+                        .then_some((raw_format.0 as u32, true)),
+                );
             for (registered, declared) in registrations {
                 let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
-                let sender = Sender::new(adapter.id, &sender_name, native_format, color);
+                let sender = if integers::layout(format).is_some() {
+                    Sender::from_bytes(adapter.id, &sender_name, native_format, &expected_bytes)
+                } else {
+                    Sender::new(adapter.id, &sender_name, native_format, color)
+                };
                 if registered != native_format.0 as u32 {
                     sender.set_registered_format(registered);
                 }
                 let pixel_bytes = format.bytes_per_pixel() as usize;
                 let source_bits = sender.pixels(pixel_bytes);
                 if !expected_bytes.is_empty() {
-                    assert_eq!(source_bits, expected_bytes.repeat(4), "independent float producer bits");
+                    assert_eq!(
+                        source_bits,
+                        expected_bytes.repeat(4),
+                        "independent producer storage bits"
+                    );
                 }
                 let device = Device::new(adapter.id).unwrap();
-                let descriptor = crate::native::spout_layout::descriptor_from_alias(
+                let mut descriptor = crate::native::spout_layout::descriptor_from_alias(
                     Extent2D::new(2, 2).unwrap(),
                     registered,
                     native_format,
@@ -127,11 +153,15 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                 let opaque = registered == 22
                     || format == PixelFormat::Bgrx8Unorm
                     || channels::opaque(format)
+                    || integers::layout(format).is_some_and(|(_, channels, _)| channels < 4)
                     || matches!(format, PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm);
                 assert_eq!(
                     descriptor.alpha_mode,
                     if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
                 );
+                if declared && integers::layout(format).is_some_and(|(_, channels, _)| channels < 4) {
+                    descriptor.alpha_mode = AlphaMode::Straight;
+                }
                 let nominal = if declared {
                     descriptor
                 } else {
@@ -226,7 +256,12 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                     let latest = pool.inputs[&id].shared.latest.lock().unwrap();
                     let surface = &latest.as_ref().unwrap().surface;
                     assert_eq!(surface.descriptor, descriptor, "retain the caller's native descriptor");
-                    assert_eq!(surface.storage_descriptor.format, PixelFormat::Rgba32Float);
+                    let bridge = match format {
+                        PixelFormat::Rg32Uint => PixelFormat::Rgba32Uint,
+                        PixelFormat::Rg32Sint => PixelFormat::Rgba32Sint,
+                        _ => PixelFormat::Rgba32Float,
+                    };
+                    assert_eq!(surface.storage_descriptor.format, bridge);
                     assert_eq!(surface.storage_descriptor.color_encoding, descriptor.color_encoding);
                     assert_eq!(surface.storage_descriptor.alpha_mode, descriptor.alpha_mode);
                 }
@@ -256,7 +291,9 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                 )
                 .unwrap();
                 let pipeline = Pipeline::new(&device.device).unwrap();
-                let background = matches!(format, PixelFormat::A8Unorm | PixelFormat::Bgra5551Unorm).then(|| {
+                let background = (matches!(format, PixelFormat::A8Unorm | PixelFormat::Bgra5551Unorm)
+                    || integers::layout(format).is_some_and(|(_, channels, _)| channels == 4))
+                .then(|| {
                     let background = Texture::new(&device.device, target.descriptor).unwrap();
                     unsafe {
                         device.context.ClearRenderTargetView(&background.rtv, &[1.; 4]);
@@ -341,6 +378,7 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                         "dxgi_format":native_format.0,
                         "registered_format":registered,
                         "declared":declared,
+                        "alpha_mode":descriptor.alpha_mode,
                         "capture_bytes":raw.len(),
                         "source_charge":bytes,
                         "source_bits_exact":true,

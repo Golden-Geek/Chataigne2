@@ -35,6 +35,56 @@ allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
 
+## Integer color interpretation and transport
+
+Golden admits every available typed integer color layout in the recorded backend inventory:
+unsigned/signed R, RG and RGBA at8/16/32 bits per channel, plus unsigned RGB10/A2. These
+remain distinct native formats and distinct logical `PixelFormat` values. Native metadata
+and foreign aliases still require an exact match; integer bits are never treated as float bits.
+
+For automatic visual sampling, unsigned channels use their full range as normalized color;
+signed channels use the corresponding signed normalized range, clamping the minimum code
+to−1. Signed alpha is clamped to coverage `[0,1]`. Packed RGB10/A2 uses1023 for color and3
+for alpha. The default transfer is linear; declared callers retain their transfer/alpha policy.
+Physical storage without alpha supplies coverage one even if a declared caller chooses
+Straight or Premultiplied interpretation. A missing source still remains transparent.
+Transfer decoding, unpremultiplication and interpolation occur after integer normalization.
+
+| Native integer family | Transport and sampling |
+| --- | --- |
+| R/RG/RGBA8 and16 UINT/SINT | Direct typed NT/keyed images; typed integer Load, then normalized color |
+| R32 and RGBA32 UINT/SINT | Same direct typed path; preserve all source bits, including codes beyond f32 integer precision |
+| RG32 UINT/SINT | Raw capture and three matching RGBA32 UINT/SINT bridge images; typed integer pixel shaders in both directions |
+| RGB10/A2 UINT | Direct native packed images; typed Load and independent RGB/alpha normalization |
+
+`texture::sample_storage` and `integer_slot` select fixed shader tags/views. The generic
+render pipeline binds float, unsigned and signed resources to their separate typed slots,
+and unbinds each used view before returning. New import entry points return `uint4`/`int4`,
+so the RG32 bridge preserves complete32-bit values rather than passing them through float
+storage. Conversion shaders/state are prepared once and allocate no per-frame CPU image,
+constant buffer or auxiliary image atlas. Existing source/renderer completion and reader
+leases retain all storage through its real GPU uses.
+
+Direct integer sources retain the four-native-image logical admission. RG32 integer sources
+charge two raw eight-byte images and three sixteen-byte bridge images:64 bytes per texel.
+No source count, storage ceiling or timing limit changes. Integer normalization converts to
+the renderer's visual float precision only when sampling; downstream render/output precision
+is unchanged and is separate from exact integer transport.
+
+Qualification uses independent literal byte producers rather than float Clear values. It
+authenticates native staging bits, round trips every bit, and compares a separate f64-decoded
+reference with the production shader.32-bit cases include odd values above2^24, float-NaN
+bit patterns interpreted as integers, extrema, fractional alpha and negative signed alpha.
+Declared one/two-channel cases deliberately choose Straight alpha to verify implicit opaque
+coverage. Wider matrices are separate finite fixtures with the original90-second guard.
+The [integer receipt](../progress/evidence/mapgyver-m13-integer-input-2026-11-06.json) owns
+results and scope; this does not close full backend/app/recovery acceptance.
+Its first native cohort passes269 pixel cases:126 integer cases across42 independent
+adapter/pattern combinations, each with all three metadata contracts, plus143 regressions.
+All captured integer bits survive and the largest new shader error is5.96e-8 against the
+unchanged1e-6 target.24 declared one/two-channel cases retain opaque physical coverage.
+Native import now covers49 formats on Intel and48 on NVIDIA, including43 direct layouts.
+
 ## Packed BGR4444 and XR-bias
 
 BGR4444 (native115) uses two-byte storage, linear color and straight alpha, with the same
@@ -279,17 +329,17 @@ This is allocation/alias evidence, not typed-view, shader, pixel or complete imp
 The receipt retains every available native value and rejected HRESULT; names come from the
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
-The remaining formats include RG32 integer/typeless, other unsigned/signed integer,
-typeless and video-plane formats. RG32 FLOAT16 and packed BGR85/86 now use the GPU bridge
-described above; they remain distinct from the 25 direct NT layouts. RG32 native15/17/18
-still need typed interpretation. BGR4444 now uses the float bridge on Intel; NVIDIA's SDK
-shared-allocation rejection remains unaccepted. XR-bias89 uses compatible UNORM storage and
-explicit shader bias instead of requiring unsupported native shader/RTV operations. Native
-import now covers30 layouts on Intel and29 on NVIDIA, including26 direct layouts; this does
-not change the allocation counts or award a complete gate. Next is integer/typeless/video
-handling with real source/bridge charges, followed by full app/recovery acceptance.
+All19 available RGB integer layouts now pass on both GPUs. Reusing that original inventory,
+the remaining native allocations are twelve typeless layouts (`1,9,15,23,27,33,39,48,53,60,90,92`)
+and nine Intel/eight NVIDIA video layouts (`100–105,107–109`; NVIDIA excludes105/P016).
+RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-bias raw
+compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
+stays unaccepted. Counts are49 Intel/48 NVIDIA imported native layouts, with43 direct layouts;
+the original70/68 allocation counts are unchanged and are never accepted-gate counts.
+Next is typeless interpretation, then full video-plane precision/color handling and complete
+actual-app/continuous-producer/device recovery acceptance.
 
-RGB32 FLOAT6 fails the SDK allocator's mandatory shader-resource/render-target shared flags
+RGB32 native5–8 (typeless/FLOAT/UINT/SINT) fail the SDK allocator's mandatory shader-resource/render-target shared flags
 on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend
 that can publish such a shared source or a justified import/conversion path for an actual
 producer. No successful subset, allocation result or rejection closes M13/2.

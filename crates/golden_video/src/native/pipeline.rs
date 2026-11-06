@@ -62,7 +62,7 @@ struct Parameters {
     opacity: f32,
     has_previous: u32,
     source_storage: u32,
-    reserved: u32,
+    source_has_alpha: u32,
     source_rect: [f32; 4],
     inverse: [[f32; 4]; 3],
 }
@@ -277,6 +277,7 @@ impl Pipeline {
                 (Some(view), encoding)
             })
             .unwrap_or((None, ColorEncoding::Linear));
+        let integer_slot = source.and_then(|source| super::texture::integer_slot(source.descriptor.format));
         let parameters = Parameters {
             source_extent: source.map_or([1, 1], |source| {
                 [source.descriptor.extent.width(), source.descriptor.extent.height()]
@@ -294,13 +295,10 @@ impl Pipeline {
             },
             opacity,
             has_previous: u32::from(previous.is_some()),
-            source_storage: match source.map(|texture| texture.descriptor.format) {
-                Some(crate::PixelFormat::Bgr565Unorm) => 1,
-                Some(crate::PixelFormat::Bgra5551Unorm) => 2,
-                Some(crate::PixelFormat::Rgb10XrA2Unorm) => 3,
-                _ => 0,
-            },
-            reserved: 0,
+            source_storage: source.map_or(0, |source| super::texture::sample_storage(source.descriptor.format)),
+            // A missing source remains transparent. Real storage without alpha is opaque,
+            // independently of a declared transfer/premultiplication interpretation.
+            source_has_alpha: u32::from(source.is_none_or(|source| source.descriptor.format.has_alpha())),
             source_rect: [source_rect.x, source_rect.y, source_rect.width, source_rect.height],
             inverse: mapping.map_or([[0.0; 4]; 3], ProjectiveMapping::inverse_rows),
         };
@@ -342,8 +340,14 @@ impl Pipeline {
             context.PSSetConstantBuffers(0, Some(&[Some(self.constants.clone())]));
             context.PSSetShaderResources(
                 0,
-                Some(&[source_view.cloned(), previous.map(|texture| texture.srv.clone())]),
+                Some(&[
+                    source_view.filter(|_| integer_slot.is_none()).cloned(),
+                    previous.map(|texture| texture.srv.clone()),
+                ]),
             );
+            if let Some(slot) = integer_slot {
+                context.PSSetShaderResources(slot, Some(&[source_view.cloned()]));
+            }
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
             context.OMSetRenderTargets(Some(&[Some(target.view.clone())]), None);
@@ -364,6 +368,9 @@ impl Pipeline {
             }]));
             context.Draw(3, 0);
             context.PSSetShaderResources(0, Some(&[None, None, None]));
+            if let Some(slot) = integer_slot {
+                context.PSSetShaderResources(slot, Some(&[None]));
+            }
             context.OMSetRenderTargets(None, None);
         }
     }

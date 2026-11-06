@@ -1,0 +1,904 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active;19 typed integer layouts verified on both GPUs; complete backend/app/recovery acceptance remains open",
+  "base_commit": "fffde29b20d1503cdb34e57bdc907bc094381307",
+  "delivered": "Automatic R/RG/RGBA8/16/32 UINT/SINT and RGB10/A2 UINT reception, normalized visual sampling, physical implicit alpha and bit-exact typed RG32 integer bridges.",
+  "ownership": "Golden PixelFormat/native mappings, fixed shader/view selection, source worker and renderer imports. No app-specific format setting, CPU image conversion, source-count increase or storage-budget increase.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "234 passed,43 ignored; exact format/alpha/charge/overflow, independent integer reference and all eight compiled shader programs included."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before native cohort."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before native cohort."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "6 passed,271 filtered,exit0 in167.83seconds;269 pixel cases.126 new integer cases in two finite matrices plus143 regressions. Each fixture retains its original90-second guard; no product timing budget is changed."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-integer-input",
+      "result": "Isolated current app builds,exit0 in36.35seconds; running user's executable is not replaced."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "5cc9e65f0cafb88d7fec187c3ac2a6162bb6407a92dbed9ec1e958cd6e839a27"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-integer-input.exe",
+      "sha256": "83aede48a87b164171b2b6dbf572282a38260cbba3fb8309b581b70f3b61b953"
+    }
+  ],
+  "interpretation": {
+    "unsigned": "Normalize by channel maximum; packed RGB10 uses1023 and alpha uses3.",
+    "signed": "Normalize by positive channel maximum, clamp minimum code to-1; clamp alpha to coverage[0,1].",
+    "transfer": "Default linear. Declared transfer/premultiplication remains explicit and follows normalization.",
+    "implicit": "Missing RGB components are zero, missing physical alpha is one regardless of declared alpha interpretation. A missing source stays transparent.",
+    "transport": "Preserve raw integer bits. RG32 uses corresponding RGBA32 UINT/SINT NT/keyed images and typed uint4/int4 import programs; never a float alias.",
+    "precision": "Visual sampling uses renderer float precision; exact storage-bit identity is a separate assertion. Downstream render/output precision is unchanged."
+  },
+  "native": {
+    "total_pixel_cases": 269,
+    "new_integer_cases": 126,
+    "regression_cases": 143,
+    "native_cohorts": 1,
+    "native_formats": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "formats": 49
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "formats": 48
+      }
+    ],
+    "direct_native_layouts": 43,
+    "new_typed_integer_layouts": 19,
+    "patterns": 42,
+    "method": "Independent literal byte producers use native UpdateSubresource and actual SDK SendTexture, avoiding lossy float Clear for 32-bit codes. Producer staging authenticates literal bits. Production SourcePool imports/captures every native bit, then production Pipeline renders into RGBA32F against an independent f64-decoded reference.",
+    "contracts_per_pattern": [
+      "Discover with exact native registration",
+      "Discover with unspecified registration0 resolved from alias",
+      "Declared exact format; one/two-channel cases deliberately use Straight alpha"
+    ],
+    "contract_assertion": "Every pattern below executes all three contracts; parser requires all three, identical reference/pixel pattern, and full emitted record count126.",
+    "declared_no_physical_alpha_cases": 24,
+    "assertions": {
+      "source_bits_exact": true,
+      "shader_color_alpha_precision": true,
+      "above_f32_integer_precision_codes": true,
+      "float_nan_bit_patterns_preserved_as_integer_codes": true,
+      "signed_extrema_and_negative_alpha": true,
+      "implicit_channels_and_declared_straight_coverage": true,
+      "actual_first_frame_ready": true,
+      "source_probe_logical_storage_retired": true,
+      "declared_charge_one_byte_short_rejected_before_worker": true,
+      "nonbyte_export_rejected_before_staging": true,
+      "previous_worker_probe_recovery_and_alias_mismatch_controls_pass": true
+    },
+    "precision": {
+      "new_target": 0.000001,
+      "max_new_error": 5.960464477539063e-8,
+      "tolerance_changed": false
+    },
+    "storage": {
+      "direct": "Four native images, including sender alias.",
+      "rg32_integer": "Two raw eight-byte images plus three sixteen-byte typed integer bridge images;64 bytes/texel.",
+      "fixed_uniform": "112-byte existing uniform layout; reserved word now carries physical alpha presence.",
+      "budgets": "Unchanged logical admission limits. No physical memory growth, cadence, latency or final app qualification implied."
+    },
+    "formats": [
+      {
+        "format": "Rgba8Uint",
+        "native_format": 30,
+        "bits_per_channel": 8,
+        "channels": 4,
+        "signed": false
+      },
+      {
+        "format": "Rgba8Sint",
+        "native_format": 32,
+        "bits_per_channel": 8,
+        "channels": 4,
+        "signed": true
+      },
+      {
+        "format": "Rgba16Uint",
+        "native_format": 12,
+        "bits_per_channel": 16,
+        "channels": 4,
+        "signed": false
+      },
+      {
+        "format": "Rgba16Sint",
+        "native_format": 14,
+        "bits_per_channel": 16,
+        "channels": 4,
+        "signed": true
+      },
+      {
+        "format": "Rgba32Uint",
+        "native_format": 3,
+        "bits_per_channel": 32,
+        "channels": 4,
+        "signed": false
+      },
+      {
+        "format": "Rgba32Sint",
+        "native_format": 4,
+        "bits_per_channel": 32,
+        "channels": 4,
+        "signed": true
+      },
+      {
+        "format": "Rg8Uint",
+        "native_format": 50,
+        "bits_per_channel": 8,
+        "channels": 2,
+        "signed": false
+      },
+      {
+        "format": "Rg8Sint",
+        "native_format": 52,
+        "bits_per_channel": 8,
+        "channels": 2,
+        "signed": true
+      },
+      {
+        "format": "Rg16Uint",
+        "native_format": 36,
+        "bits_per_channel": 16,
+        "channels": 2,
+        "signed": false
+      },
+      {
+        "format": "Rg16Sint",
+        "native_format": 38,
+        "bits_per_channel": 16,
+        "channels": 2,
+        "signed": true
+      },
+      {
+        "format": "Rg32Uint",
+        "native_format": 17,
+        "bits_per_channel": 32,
+        "channels": 2,
+        "signed": false
+      },
+      {
+        "format": "Rg32Sint",
+        "native_format": 18,
+        "bits_per_channel": 32,
+        "channels": 2,
+        "signed": true
+      },
+      {
+        "format": "R8Uint",
+        "native_format": 62,
+        "bits_per_channel": 8,
+        "channels": 1,
+        "signed": false
+      },
+      {
+        "format": "R8Sint",
+        "native_format": 64,
+        "bits_per_channel": 8,
+        "channels": 1,
+        "signed": true
+      },
+      {
+        "format": "R16Uint",
+        "native_format": 57,
+        "bits_per_channel": 16,
+        "channels": 1,
+        "signed": false
+      },
+      {
+        "format": "R16Sint",
+        "native_format": 59,
+        "bits_per_channel": 16,
+        "channels": 1,
+        "signed": true
+      },
+      {
+        "format": "R32Uint",
+        "native_format": 42,
+        "bits_per_channel": 32,
+        "channels": 1,
+        "signed": false
+      },
+      {
+        "format": "R32Sint",
+        "native_format": 43,
+        "bits_per_channel": 32,
+        "channels": 1,
+        "signed": true
+      },
+      {
+        "format": "Rgb10A2Uint",
+        "native_format": 25,
+        "bits_per_channel": 10,
+        "channels": 4,
+        "signed": false
+      }
+    ],
+    "pattern_results": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba8Uint",
+        "native_format": 30,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.33514800667762756, 0.6260207891464233, 0.958446741104126, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f81f1c1"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba8Sint",
+        "native_format": 32,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.3632587194442749, 0.742079496383667, -0.02362203598022461, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e13f8041"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba16Uint",
+        "native_format": 12,
+        "source_charge": 128,
+        "probe_charge": 32,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.5941677093505859, 0.9144387245178223, 0.9999923706054688, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "393031d4feff0180"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba16Sint",
+        "native_format": 14,
+        "source_charge": 128,
+        "probe_charge": 32,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.3115614652633667, 0.8579081296920776, -0.000091552734375, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cfa05b00800140"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg8Uint",
+        "native_format": 50,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.12156862765550613, 0.5058823823928833, 0, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f81"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg8Sint",
+        "native_format": 52,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.24409449100494385, 0.4960629940032959, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e13f"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg16Uint",
+        "native_format": 36,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.1883726269006729, 0.8288853168487549, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "393031d4"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg16Sint",
+        "native_format": 38,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.37675100564956665, 0.7158421874046326, 0, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cfa05b"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R8Uint",
+        "native_format": 62,
+        "source_charge": 16,
+        "probe_charge": 4,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.12156862765550613, 0, 0, 1],
+        "max_shader_error": 7.450580596923828e-9,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R8Sint",
+        "native_format": 64,
+        "source_charge": 16,
+        "probe_charge": 4,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.24409449100494385, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e1"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R16Uint",
+        "native_format": 57,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.1883726269006729, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "3930"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R16Sint",
+        "native_format": 59,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.37675100564956665, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cf"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10A2Uint",
+        "native_format": 25,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.4134896993637085, 0.6304985284805298, 0.8475072979927063, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "7b2057b1"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba8Uint",
+        "native_format": 30,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.33514800667762756, 0.6260207891464233, 0.958446741104126, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f81f1c1"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba8Sint",
+        "native_format": 32,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.3632587194442749, 0.742079496383667, -0.02362203598022461, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e13f8041"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba16Uint",
+        "native_format": 12,
+        "source_charge": 128,
+        "probe_charge": 32,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.5941677093505859, 0.9144387245178223, 0.9999923706054688, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "393031d4feff0180"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba16Sint",
+        "native_format": 14,
+        "source_charge": 128,
+        "probe_charge": 32,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.3115614652633667, 0.8579081296920776, -0.000091552734375, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cfa05b00800140"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg8Uint",
+        "native_format": 50,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.12156862765550613, 0.5058823823928833, 0, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f81"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg8Sint",
+        "native_format": 52,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.24409449100494385, 0.4960629940032959, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e13f"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg16Uint",
+        "native_format": 36,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.1883726269006729, 0.8288853168487549, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "393031d4"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg16Sint",
+        "native_format": 38,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.37675100564956665, 0.7158421874046326, 0, 1],
+        "max_shader_error": 5.960464477539063e-8,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cfa05b"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R8Uint",
+        "native_format": 62,
+        "source_charge": 16,
+        "probe_charge": 4,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.12156862765550613, 0, 0, 1],
+        "max_shader_error": 7.450580596923828e-9,
+        "typed_bridge": false,
+        "source_pixel_hex": "1f"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R8Sint",
+        "native_format": 64,
+        "source_charge": 16,
+        "probe_charge": 4,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.24409449100494385, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "e1"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R16Uint",
+        "native_format": 57,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.1883726269006729, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "3930"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R16Sint",
+        "native_format": 59,
+        "source_charge": 32,
+        "probe_charge": 8,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.37675100564956665, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "c7cf"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10A2Uint",
+        "native_format": 25,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.4134896993637085, 0.6304985284805298, 0.8475072979927063, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "7b2057b1"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba32Uint",
+        "native_format": 3,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.5355555415153503, 0.9990234375, 0.74951171875, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "79563412010080ff0100c07f01000080"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba32Sint",
+        "native_format": 4,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.47125548124313354, 1, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "eb32a4f8ffffff7f00000080ffffff3f"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg32Uint",
+        "native_format": 17,
+        "source_charge": 256,
+        "probe_charge": 32,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.07111111283302307, 0.998046875, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": true,
+        "source_pixel_hex": "79563412010080ff"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rg32Sint",
+        "native_format": 18,
+        "source_charge": 256,
+        "probe_charge": 32,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.057489048689603806, 1, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": true,
+        "source_pixel_hex": "eb32a4f8ffffff7f"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R32Uint",
+        "native_format": 42,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.07111111283302307, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "79563412"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "R32Sint",
+        "native_format": 43,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.057489048689603806, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "eb32a4f8"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba32Uint",
+        "native_format": 3,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0, 1, 0.5, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "00000000ffffffff01000080ffffffff"
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgba32Sint",
+        "native_format": 4,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [1, 1, 1, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "2143658715cd5b07ffffff7f00000080"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba32Uint",
+        "native_format": 3,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.5355555415153503, 0.9990234375, 0.74951171875, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "79563412010080ff0100c07f01000080"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba32Sint",
+        "native_format": 4,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.47125548124313354, 1, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "eb32a4f8ffffff7f00000080ffffff3f"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg32Uint",
+        "native_format": 17,
+        "source_charge": 256,
+        "probe_charge": 32,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.07111111283302307, 0.998046875, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": true,
+        "source_pixel_hex": "79563412010080ff"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rg32Sint",
+        "native_format": 18,
+        "source_charge": 256,
+        "probe_charge": 32,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.057489048689603806, 1, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": true,
+        "source_pixel_hex": "eb32a4f8ffffff7f"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R32Uint",
+        "native_format": 42,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [0.07111111283302307, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "79563412"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "R32Sint",
+        "native_format": 43,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "discovered_alpha": "Opaque",
+        "declared_alpha": "Straight",
+        "shader_expected": [-0.057489048689603806, 0, 0, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "eb32a4f8"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba32Uint",
+        "native_format": 3,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [0, 1, 0.5, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "00000000ffffffff01000080ffffffff"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgba32Sint",
+        "native_format": 4,
+        "source_charge": 256,
+        "probe_charge": 64,
+        "discovered_alpha": "Straight",
+        "declared_alpha": "Straight",
+        "shader_expected": [1, 1, 1, 1],
+        "max_shader_error": 0,
+        "typed_bridge": false,
+        "source_pixel_hex": "2143658715cd5b07ffffff7f00000080"
+      }
+    ],
+    "retained_unavailable": [
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 115,
+        "format": "Bgra4444Unorm",
+        "hresult": -2147024809,
+        "scope": "SDK shared allocation unavailable; native reception remains unaccepted on this adapter"
+      }
+    ]
+  },
+  "remaining_inventory": [
+    {
+      "adapter": "AdapterId { low: 88937, high: 0 }",
+      "formats": [
+        1,
+        9,
+        15,
+        23,
+        27,
+        33,
+        39,
+        48,
+        53,
+        60,
+        90,
+        92,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        107,
+        108,
+        109
+      ]
+    },
+    {
+      "adapter": "AdapterId { low: 2044916551, high: 0 }",
+      "formats": [
+        1,
+        9,
+        15,
+        23,
+        27,
+        33,
+        39,
+        48,
+        53,
+        60,
+        90,
+        92,
+        100,
+        101,
+        102,
+        103,
+        104,
+        107,
+        108,
+        109
+      ]
+    }
+  ],
+  "limits": [
+    "M13/2 stays Active; native typeless and video-plane formats remain required, along with full app preview/output, continuous-producer live reformat/resize and complete sender/device recovery.",
+    "RGB32 native5..8 SDK allocation and NVIDIA BGR4444 remain named unaccepted API requirements; no unchanged capability sweep was repeated.",
+    "Actual D3D9 producer-device scope remains unaccepted.",
+    "Declared native integer cases use default linear transfer. Physical one/two-channel coverage with explicit Straight alpha is verified; no full-app/custom-transfer qualification is inferred.",
+    "Patterns are2x2; production cadence, physical latency, peak growth and final release qualification remain required.",
+    "No complete acceptance gate closes:70/92 (76%),M13 1/14 (7%),7/14 phases (50%)."
+  ]
+}

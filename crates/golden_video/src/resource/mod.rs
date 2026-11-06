@@ -89,6 +89,44 @@ pub enum PixelFormat {
     /// Packed XR-biased ten-bit RGB and two-bit alpha, four bytes per texel.
     /// RGB code values decode as (code - 384) / 510; alpha remains normalized.
     Rgb10XrA2Unorm,
+    /// Unsigned integer RGBA storage, 8 bits per channel.
+    Rgba8Uint,
+    /// Signed integer RGBA storage, 8 bits per channel.
+    Rgba8Sint,
+    /// Unsigned integer RGBA storage, 16 bits per channel.
+    Rgba16Uint,
+    /// Signed integer RGBA storage, 16 bits per channel.
+    Rgba16Sint,
+    /// Unsigned integer RGBA storage, 32 bits per channel.
+    Rgba32Uint,
+    /// Signed integer RGBA storage, 32 bits per channel.
+    Rgba32Sint,
+    /// Unsigned integer red/green storage, 8 bits per channel.
+    Rg8Uint,
+    /// Signed integer red/green storage, 8 bits per channel.
+    Rg8Sint,
+    /// Unsigned integer red/green storage, 16 bits per channel.
+    Rg16Uint,
+    /// Signed integer red/green storage, 16 bits per channel.
+    Rg16Sint,
+    /// Unsigned integer red/green storage, 32 bits per channel.
+    Rg32Uint,
+    /// Signed integer red/green storage, 32 bits per channel.
+    Rg32Sint,
+    /// Unsigned integer red storage, 8 bits per channel.
+    R8Uint,
+    /// Signed integer red storage, 8 bits per channel.
+    R8Sint,
+    /// Unsigned integer red storage, 16 bits per channel.
+    R16Uint,
+    /// Signed integer red storage, 16 bits per channel.
+    R16Sint,
+    /// Unsigned integer red storage, 32 bits per channel.
+    R32Uint,
+    /// Signed integer red storage, 32 bits per channel.
+    R32Sint,
+    /// Unsigned integer RGBA storage, packed ten-bit RGB/two-bit alpha.
+    Rgb10A2Uint,
 }
 
 impl PixelFormat {
@@ -104,6 +142,17 @@ impl PixelFormat {
             Self::Rg32Float => 8,
             Self::Bgr565Unorm | Self::Bgra5551Unorm | Self::Bgra4444Unorm => 2,
             Self::Rgb10XrA2Unorm => 4,
+            Self::R8Uint | Self::R8Sint => 1,
+            Self::Rg8Uint | Self::Rg8Sint | Self::R16Uint | Self::R16Sint => 2,
+            Self::Rgba8Uint
+            | Self::Rgba8Sint
+            | Self::Rg16Uint
+            | Self::Rg16Sint
+            | Self::R32Uint
+            | Self::R32Sint
+            | Self::Rgb10A2Uint => 4,
+            Self::Rgba16Uint | Self::Rgba16Sint | Self::Rg32Uint | Self::Rg32Sint => 8,
+            Self::Rgba32Uint | Self::Rgba32Sint => 16,
         }
     }
 
@@ -124,6 +173,13 @@ impl PixelFormat {
                 | Self::Bgra5551Unorm
                 | Self::Bgra4444Unorm
                 | Self::Rgb10XrA2Unorm
+                | Self::Rgba8Uint
+                | Self::Rgba8Sint
+                | Self::Rgba16Uint
+                | Self::Rgba16Sint
+                | Self::Rgba32Uint
+                | Self::Rgba32Sint
+                | Self::Rgb10A2Uint
         )
     }
 }

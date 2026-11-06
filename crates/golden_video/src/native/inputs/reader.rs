@@ -27,7 +27,7 @@ impl Imported {
             mutex: texture.cast()?,
             texture: Texture::from_native(&device.device, texture, surface.storage_descriptor)?,
             conversion: (surface.storage_descriptor != surface.descriptor)
-                .then(|| super::conversion::Converter::new(&device.device))
+                .then(|| super::conversion::Converter::new(&device.device, surface.descriptor.format))
                 .transpose()?,
             surface: Arc::downgrade(surface),
         })

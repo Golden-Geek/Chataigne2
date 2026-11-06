@@ -89,6 +89,8 @@ pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4], opaqu
         rgba
     } else if let Some(rgba) = super::packed::expected(format, bytes) {
         rgba
+    } else if let Some(rgba) = super::integers::expected(format, bytes) {
+        rgba
     } else {
         match format {
             PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => color,

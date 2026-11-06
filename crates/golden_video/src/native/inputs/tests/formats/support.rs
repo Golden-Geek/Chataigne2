@@ -124,6 +124,28 @@ impl Sender {
         color: [f32; 4],
         extent: crate::Extent2D,
     ) -> Self {
+        Self::initialized(adapter, name, format, color, extent, None)
+    }
+
+    pub fn from_bytes(adapter: AdapterId, name: &str, format: DXGI_FORMAT, pixel: &[u8]) -> Self {
+        Self::initialized(
+            adapter,
+            name,
+            format,
+            [0.; 4],
+            crate::Extent2D::new(2, 2).unwrap(),
+            Some(pixel),
+        )
+    }
+
+    fn initialized(
+        adapter: AdapterId,
+        name: &str,
+        format: DXGI_FORMAT,
+        color: [f32; 4],
+        extent: crate::Extent2D,
+        pixel: Option<&[u8]>,
+    ) -> Self {
         let device = Device::new(adapter).unwrap();
         let mut texture = None;
         let mut rtv = None;
@@ -193,7 +215,20 @@ impl Sender {
         {
             let _submission = sender.completion.begin(&sender.device, token);
             unsafe {
-                sender.device.context.ClearRenderTargetView(&rtv.unwrap(), &color);
+                if let Some(pixel) = pixel {
+                    let bytes = pixel.repeat((extent.width() * extent.height()) as usize);
+                    // Exact independent integer codes, including values no f32 Clear can represent.
+                    sender.device.context.UpdateSubresource(
+                        &paint,
+                        0,
+                        None,
+                        bytes.as_ptr().cast(),
+                        extent.width() * pixel.len() as u32,
+                        0,
+                    );
+                } else {
+                    sender.device.context.ClearRenderTargetView(&rtv.unwrap(), &color);
+                }
                 if paint.as_raw() != sender.texture.as_raw() {
                     sender.device.context.CopyResource(&sender.texture, &paint);
                 }

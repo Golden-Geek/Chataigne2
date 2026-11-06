@@ -1,6 +1,8 @@
 Texture2D<float4> source_image : register(t0);
 Texture2D<float4> previous_image : register(t1);
 ByteAddressBuffer pattern_data : register(t2);
+Texture2D<uint4> source_uint_image : register(t3);
+Texture2D<int4> source_sint_image : register(t4);
 
 cbuffer Parameters : register(b0) {
     uint2 source_extent;
@@ -13,7 +15,7 @@ cbuffer Parameters : register(b0) {
     float opacity;
     uint has_previous;
     uint source_storage;
-    uint reserved;
+    uint source_has_alpha;
     float4 source_rect;
     float4 inverse_row0;
     float4 inverse_row1;
@@ -53,6 +55,32 @@ float4 ps_import(Vertex input) : SV_Target {
     return source_image.Load(int3(uint2(input.position.xy), 0));
 }
 
+uint4 ps_import_uint(Vertex input) : SV_Target {
+    return source_uint_image.Load(int3(uint2(input.position.xy), 0));
+}
+
+int4 ps_import_sint(Vertex input) : SV_Target {
+    return source_sint_image.Load(int3(uint2(input.position.xy), 0));
+}
+
+float4 load_stored(int2 position) {
+    // Uniform branches keep float draws on their existing view and integer transport typed.
+    [branch] if ((source_storage >= 4 && source_storage <= 6) || source_storage == 10) {
+        uint4 codes = source_uint_image.Load(int3(position, 0));
+        if (source_storage == 10) return float4(codes) / float4(1023, 1023, 1023, 3);
+        float maximum = source_storage == 4 ? 255.0 : source_storage == 5 ? 65535.0 : 4294967295.0;
+        return float4(codes) / maximum;
+    }
+    [branch] if (source_storage >= 7 && source_storage <= 9) {
+        int4 codes = source_sint_image.Load(int3(position, 0));
+        float maximum = source_storage == 7 ? 127.0 : source_storage == 8 ? 32767.0 : 2147483647.0;
+        float4 value = max(float4(codes) / maximum, -1.0);
+        value.a = saturate(value.a);
+        return value;
+    }
+    return source_image.Load(int3(position, 0));
+}
+
 float decode_srgb(float encoded) {
     if (encoded <= 0.04045) {
         return encoded / 12.92;
@@ -77,7 +105,7 @@ float3 encode_rgb(float3 value) {
 
 float4 load_source(int2 position) {
     position = clamp(position, int2(0, 0), int2(source_extent) - 1);
-    float4 stored = source_image.Load(int3(position, 0));
+    float4 stored = load_stored(position);
     // Packed BGR views may expand channels through an eight-bit representation. Recover
     // the original quantized component before linear decoding/premultiplication/filtering.
     if (source_storage == 1) {
@@ -90,7 +118,7 @@ float4 load_source(int2 position) {
         // Recover each stored code before applying the documented scale/offset.
         stored.rgb = (round(stored.rgb * 1023) - 384) / 510;
     }
-    float coverage = source_alpha == ALPHA_OPAQUE ? 1 : stored.a;
+    float coverage = source_has_alpha == 0 || source_alpha == ALPHA_OPAQUE ? 1 : stored.a;
     if (coverage == 0) {
         return 0;
     }

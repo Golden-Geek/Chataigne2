@@ -231,6 +231,16 @@ fn typeless_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
         PixelFormat::Rg11B10Float | PixelFormat::A8Unorm => return None,
         PixelFormat::Rg32Float => DXGI_FORMAT_R32G32_TYPELESS,
         PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm | PixelFormat::Bgra4444Unorm => return None,
+        PixelFormat::Rgba8Uint | PixelFormat::Rgba8Sint => DXGI_FORMAT_R8G8B8A8_TYPELESS,
+        PixelFormat::Rgba16Uint | PixelFormat::Rgba16Sint => DXGI_FORMAT_R16G16B16A16_TYPELESS,
+        PixelFormat::Rgba32Uint | PixelFormat::Rgba32Sint => DXGI_FORMAT_R32G32B32A32_TYPELESS,
+        PixelFormat::Rg8Uint | PixelFormat::Rg8Sint => DXGI_FORMAT_R8G8_TYPELESS,
+        PixelFormat::Rg16Uint | PixelFormat::Rg16Sint => DXGI_FORMAT_R16G16_TYPELESS,
+        PixelFormat::Rg32Uint | PixelFormat::Rg32Sint => DXGI_FORMAT_R32G32_TYPELESS,
+        PixelFormat::R8Uint | PixelFormat::R8Sint => DXGI_FORMAT_R8_TYPELESS,
+        PixelFormat::R16Uint | PixelFormat::R16Sint => DXGI_FORMAT_R16_TYPELESS,
+        PixelFormat::R32Uint | PixelFormat::R32Sint => DXGI_FORMAT_R32_TYPELESS,
+        PixelFormat::Rgb10A2Uint => DXGI_FORMAT_R10G10B10A2_TYPELESS,
     })
 }
 
@@ -264,7 +274,26 @@ fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
         | PixelFormat::Bgr565Unorm
         | PixelFormat::Bgra5551Unorm
         | PixelFormat::Bgra4444Unorm
-        | PixelFormat::Rgb10XrA2Unorm => None,
+        | PixelFormat::Rgb10XrA2Unorm
+        | PixelFormat::Rgba8Uint
+        | PixelFormat::Rgba8Sint
+        | PixelFormat::Rgba16Uint
+        | PixelFormat::Rgba16Sint
+        | PixelFormat::Rgba32Uint
+        | PixelFormat::Rgba32Sint
+        | PixelFormat::Rg8Uint
+        | PixelFormat::Rg8Sint
+        | PixelFormat::Rg16Uint
+        | PixelFormat::Rg16Sint
+        | PixelFormat::Rg32Uint
+        | PixelFormat::Rg32Sint
+        | PixelFormat::R8Uint
+        | PixelFormat::R8Sint
+        | PixelFormat::R16Uint
+        | PixelFormat::R16Sint
+        | PixelFormat::R32Uint
+        | PixelFormat::R32Sint
+        | PixelFormat::Rgb10A2Uint => None,
     }
 }
 
@@ -298,6 +327,25 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
         PixelFormat::Bgr565Unorm => DXGI_FORMAT_B5G6R5_UNORM,
         PixelFormat::Bgra5551Unorm => DXGI_FORMAT_B5G5R5A1_UNORM,
         PixelFormat::Bgra4444Unorm => DXGI_FORMAT_B4G4R4A4_UNORM,
+        PixelFormat::Rgba8Uint => DXGI_FORMAT_R8G8B8A8_UINT,
+        PixelFormat::Rgba8Sint => DXGI_FORMAT_R8G8B8A8_SINT,
+        PixelFormat::Rgba16Uint => DXGI_FORMAT_R16G16B16A16_UINT,
+        PixelFormat::Rgba16Sint => DXGI_FORMAT_R16G16B16A16_SINT,
+        PixelFormat::Rgba32Uint => DXGI_FORMAT_R32G32B32A32_UINT,
+        PixelFormat::Rgba32Sint => DXGI_FORMAT_R32G32B32A32_SINT,
+        PixelFormat::Rg8Uint => DXGI_FORMAT_R8G8_UINT,
+        PixelFormat::Rg8Sint => DXGI_FORMAT_R8G8_SINT,
+        PixelFormat::Rg16Uint => DXGI_FORMAT_R16G16_UINT,
+        PixelFormat::Rg16Sint => DXGI_FORMAT_R16G16_SINT,
+        PixelFormat::Rg32Uint => DXGI_FORMAT_R32G32_UINT,
+        PixelFormat::Rg32Sint => DXGI_FORMAT_R32G32_SINT,
+        PixelFormat::R8Uint => DXGI_FORMAT_R8_UINT,
+        PixelFormat::R8Sint => DXGI_FORMAT_R8_SINT,
+        PixelFormat::R16Uint => DXGI_FORMAT_R16_UINT,
+        PixelFormat::R16Sint => DXGI_FORMAT_R16_SINT,
+        PixelFormat::R32Uint => DXGI_FORMAT_R32_UINT,
+        PixelFormat::R32Sint => DXGI_FORMAT_R32_SINT,
+        PixelFormat::Rgb10A2Uint => DXGI_FORMAT_R10G10B10A2_UINT,
     }
 }
 
@@ -338,9 +386,53 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
         PixelFormat::Bgr565Unorm,
         PixelFormat::Bgra5551Unorm,
         PixelFormat::Bgra4444Unorm,
+        PixelFormat::Rgba8Uint,
+        PixelFormat::Rgba8Sint,
+        PixelFormat::Rgba16Uint,
+        PixelFormat::Rgba16Sint,
+        PixelFormat::Rgba32Uint,
+        PixelFormat::Rgba32Sint,
+        PixelFormat::Rg8Uint,
+        PixelFormat::Rg8Sint,
+        PixelFormat::Rg16Uint,
+        PixelFormat::Rg16Sint,
+        PixelFormat::Rg32Uint,
+        PixelFormat::Rg32Sint,
+        PixelFormat::R8Uint,
+        PixelFormat::R8Sint,
+        PixelFormat::R16Uint,
+        PixelFormat::R16Sint,
+        PixelFormat::R32Uint,
+        PixelFormat::R32Sint,
+        PixelFormat::Rgb10A2Uint,
     ]
     .into_iter()
     .find(|candidate| format(*candidate).0 as u32 == storage)
+}
+
+/// Stable fixed-shader storage tags, not a user setting or transport protocol.
+pub(super) fn sample_storage(format: PixelFormat) -> u32 {
+    match format {
+        PixelFormat::Bgr565Unorm => 1,
+        PixelFormat::Bgra5551Unorm => 2,
+        PixelFormat::Rgb10XrA2Unorm => 3,
+        PixelFormat::Rgba8Uint | PixelFormat::Rg8Uint | PixelFormat::R8Uint => 4,
+        PixelFormat::Rgba16Uint | PixelFormat::Rg16Uint | PixelFormat::R16Uint => 5,
+        PixelFormat::Rgba32Uint | PixelFormat::Rg32Uint | PixelFormat::R32Uint => 6,
+        PixelFormat::Rgba8Sint | PixelFormat::Rg8Sint | PixelFormat::R8Sint => 7,
+        PixelFormat::Rgba16Sint | PixelFormat::Rg16Sint | PixelFormat::R16Sint => 8,
+        PixelFormat::Rgba32Sint | PixelFormat::Rg32Sint | PixelFormat::R32Sint => 9,
+        PixelFormat::Rgb10A2Uint => 10,
+        _ => 0,
+    }
+}
+
+pub(super) fn integer_slot(format: PixelFormat) -> Option<u32> {
+    match sample_storage(format) {
+        4..=6 | 10 => Some(3),
+        7..=9 => Some(4),
+        _ => None,
+    }
 }
 
 fn missing_output() -> Error {

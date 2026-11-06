@@ -11,6 +11,8 @@ fn embedded_programs_match_the_current_shader_source_byte_for_byte() {
         (s!("ps_pattern"), s!("ps_5_0"), shaders::PATTERN_PIXEL),
         (s!("ps_overlay"), s!("ps_5_0"), shaders::OVERLAY_PIXEL),
         (s!("ps_import"), s!("ps_5_0"), shaders::IMPORT_PIXEL),
+        (s!("ps_import_uint"), s!("ps_5_0"), shaders::IMPORT_UINT_PIXEL),
+        (s!("ps_import_sint"), s!("ps_5_0"), shaders::IMPORT_SINT_PIXEL),
     ] {
         let mut code = None;
         let mut diagnostics = None;

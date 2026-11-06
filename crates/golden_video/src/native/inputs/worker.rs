@@ -342,7 +342,9 @@ impl Session {
         let capture = converted
             .then(|| super::super::texture::Texture::new(&self.device.device, descriptor))
             .transpose()?;
-        let conversion = converted.then(|| Converter::new(&self.device.device)).transpose()?;
+        let conversion = converted
+            .then(|| Converter::new(&self.device.device, descriptor.format))
+            .transpose()?;
         let slots = (0..INPUT_BRIDGE_SLOTS)
             .map(|index| Slot::new(&self.device, descriptor, index))
             .collect::<Result<Vec<_>>>()?;

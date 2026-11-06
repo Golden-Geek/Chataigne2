@@ -4,21 +4,22 @@ use windows::Win32::Graphics::Direct3D::D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::core::{Error, HRESULT, Result};
 
-use super::super::{pipeline::shaders, texture::Texture};
+use super::super::{
+    pipeline::shaders,
+    texture::{Texture, integer_slot},
+};
 use crate::{PixelFormat, TextureDescriptor};
 
 pub(in crate::native) fn bridge_descriptor(source: TextureDescriptor) -> TextureDescriptor {
-    if matches!(
-        source.format,
-        PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm | PixelFormat::Bgra4444Unorm
-    ) {
-        TextureDescriptor {
-            format: PixelFormat::Rgba32Float,
-            ..source
+    let format = match source.format {
+        PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm | PixelFormat::Bgra4444Unorm => {
+            PixelFormat::Rgba32Float
         }
-    } else {
-        source
-    }
+        PixelFormat::Rg32Uint => PixelFormat::Rgba32Uint,
+        PixelFormat::Rg32Sint => PixelFormat::Rgba32Sint,
+        other => other,
+    };
+    TextureDescriptor { format, ..source }
 }
 
 /// Fixed shader/state objects only; all image storage is separately charged before creation.
@@ -27,17 +28,24 @@ pub(super) struct Converter {
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
     rasterizer: ID3D11RasterizerState,
+    source_slot: u32,
 }
 
 impl Converter {
-    pub fn new(device: &ID3D11Device) -> Result<Self> {
+    pub fn new(device: &ID3D11Device, format: PixelFormat) -> Result<Self> {
+        let source_slot = integer_slot(format).unwrap_or(0);
+        let program = match source_slot {
+            3 => shaders::IMPORT_UINT_PIXEL,
+            4 => shaders::IMPORT_SINT_PIXEL,
+            _ => shaders::IMPORT_PIXEL,
+        };
         let mut vertex = None;
         let mut pixel = None;
         let mut rasterizer = None;
         // SAFETY: fixed build-compiled bytecode and complete immutable rasterizer state.
         unsafe {
             device.CreateVertexShader(shaders::VERTEX, None, Some(&mut vertex))?;
-            device.CreatePixelShader(shaders::IMPORT_PIXEL, None, Some(&mut pixel))?;
+            device.CreatePixelShader(program, None, Some(&mut pixel))?;
             device.CreateRasterizerState(
                 &D3D11_RASTERIZER_DESC {
                     FillMode: D3D11_FILL_SOLID,
@@ -53,6 +61,7 @@ impl Converter {
             vertex: vertex.ok_or_else(missing)?,
             pixel: pixel.ok_or_else(missing)?,
             rasterizer: rasterizer.ok_or_else(missing)?,
+            source_slot,
         })
     }
 
@@ -70,7 +79,7 @@ impl Converter {
             context.HSSetShader(None, None);
             context.DSSetShader(None, None);
             context.PSSetShader(&self.pixel, None);
-            context.PSSetShaderResources(0, Some(&[Some(source.srv.clone())]));
+            context.PSSetShaderResources(self.source_slot, Some(&[Some(source.srv.clone())]));
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
             context.OMSetRenderTargets(Some(&[Some(target.rtv.clone())]), None);
@@ -83,7 +92,7 @@ impl Converter {
                 ..Default::default()
             }]));
             context.Draw(3, 0);
-            context.PSSetShaderResources(0, Some(&[None]));
+            context.PSSetShaderResources(self.source_slot, Some(&[None]));
             context.OMSetRenderTargets(None, None);
         }
     }

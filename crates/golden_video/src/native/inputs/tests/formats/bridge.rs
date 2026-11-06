@@ -69,6 +69,10 @@ fn conversion_admission_counts_raw_alias_capture_and_three_float_bridge_images()
         (PixelFormat::Bgra5551Unorm, 52),
         (PixelFormat::Bgra4444Unorm, 52),
         (PixelFormat::Rgb10XrA2Unorm, 16),
+        (PixelFormat::Rg32Uint, 64),
+        (PixelFormat::Rg32Sint, 64),
+        (PixelFormat::Rgba32Uint, 64),
+        (PixelFormat::Rgba32Sint, 64),
         (PixelFormat::Rgba32Float, 64),
         (PixelFormat::Rgba8Unorm, 16),
     ] {
