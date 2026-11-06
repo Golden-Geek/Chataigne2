@@ -47,7 +47,7 @@ def expected_color(rgba, overlay_alpha=0):
             for color, cover in zip(base, fill)]
 
 
-def project(quad, u, v):
+def homography(quad):
     # Solve the independent four-point projective correspondence, without renderer helpers.
     rows, values = [], []
     for (x, y), (a, b) in zip(((0, 0), (1, 0), (1, 1), (0, 1)), quad):
@@ -55,6 +55,11 @@ def project(quad, u, v):
                      [0, 0, 0, x, y, 1, -b * x, -b * y]))
         values.extend((a, b))
     h = np.linalg.solve(np.array(rows), np.array(values))
+    return np.append(h, 1).reshape(3, 3)
+
+
+def project(quad, u, v):
+    h = homography(quad).reshape(-1)
     denominator = h[6] * u + h[7] * v + 1
     return [(h[0] * u + h[1] * v + h[2]) / denominator,
             (h[3] * u + h[4] * v + h[5]) / denominator]
