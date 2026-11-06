@@ -114,6 +114,16 @@ impl Sender {
     }
 
     pub fn new(adapter: AdapterId, name: &str, format: DXGI_FORMAT, color: [f32; 4]) -> Self {
+        Self::new_sized(adapter, name, format, color, crate::Extent2D::new(2, 2).unwrap())
+    }
+
+    pub fn new_sized(
+        adapter: AdapterId,
+        name: &str,
+        format: DXGI_FORMAT,
+        color: [f32; 4],
+        extent: crate::Extent2D,
+    ) -> Self {
         let device = Device::new(adapter).unwrap();
         let mut texture = None;
         let mut rtv = None;
@@ -122,8 +132,8 @@ impl Sender {
                 .device
                 .CreateTexture2D(
                     &D3D11_TEXTURE2D_DESC {
-                        Width: 2,
-                        Height: 2,
+                        Width: extent.width(),
+                        Height: extent.height(),
                         MipLevels: 1,
                         ArraySize: 1,
                         Format: format,

@@ -100,17 +100,24 @@ impl Receiver {
             self.disconnect();
             return Ok(Some(Received::Absent));
         }
-        let Some(descriptor) = layout(&self.binding, width, height, storage) else {
+        let Some(extent) = Extent2D::new(width, height).ok().filter(|extent| {
+            extent.width() <= self.binding.descriptor.extent.width()
+                && extent.height() <= self.binding.descriptor.extent.height()
+        }) else {
             self.disconnect();
             return Ok(Some(Received::Mismatch));
         };
+        if storage != 0 && layout(&self.binding, width, height, storage).is_none() {
+            self.disconnect();
+            return Ok(Some(Received::Mismatch));
+        }
         if self.endpoint.as_ref().is_none_or(|endpoint| {
             endpoint.handle != handle as usize
                 || endpoint.registered_storage != storage
-                || endpoint.descriptor != descriptor
+                || endpoint.descriptor.extent != extent
         }) {
             self.disconnect();
-            if !self.validate_alias(handle, storage, descriptor)? {
+            if !self.validate_alias(handle, storage, extent)? {
                 return Ok(Some(Received::Mismatch));
             }
             // Withdraw the old endpoint's publication before a replacement can be Busy.
@@ -176,18 +183,8 @@ impl Receiver {
         let actual = unsafe { sdk::spout_dx_get_sender_handle(self.raw.as_ptr()) };
         if !actual.is_null() && actual as usize != expected_handle {
             // A metadata-to-receive race sets IsUpdated before CopyResource in the pinned SDK.
-            // Validate the new foreign alias and skip this call; fixed owned pools never resize.
-            let width = unsafe { sdk::spout_dx_get_sender_width(self.raw.as_ptr()) };
-            let height = unsafe { sdk::spout_dx_get_sender_height(self.raw.as_ptr()) };
-            let storage = unsafe { sdk::spout_dx_get_sender_format(self.raw.as_ptr()) };
-            let Some(descriptor) = layout(&self.binding, width, height, storage) else {
-                self.disconnect();
-                return Ok(Received::Mismatch);
-            };
-            if !self.validate_alias(actual, storage, descriptor)? {
-                self.disconnect();
-                return Ok(Received::Mismatch);
-            }
+            // Withdraw this attempt. After the caller fences it, common preflight validates
+            // the fresh registration/alias pair; SDK native format is not registered metadata.
             self.freshness.reset();
             self.clear_capture = true;
             return Ok(Received::Waiting);
@@ -220,12 +217,7 @@ impl Receiver {
         Ok(received)
     }
 
-    fn validate_alias(
-        &mut self,
-        handle: *mut std::ffi::c_void,
-        storage: u32,
-        descriptor: TextureDescriptor,
-    ) -> Result<bool> {
+    fn validate_alias(&mut self, handle: *mut std::ffi::c_void, storage: u32, extent: Extent2D) -> Result<bool> {
         // SAFETY: legacy Spout share handle, opened only on the explicitly selected adapter.
         // This is an alias of sender-owned storage, not an allocation of receiving storage.
         let mut alias = None;
@@ -238,10 +230,11 @@ impl Receiver {
         unsafe {
             alias.GetDesc(&mut desc);
         }
-        if desc.Width != descriptor.extent.width()
-            || desc.Height != descriptor.extent.height()
-            || desc.Format != spout_layout::native_format(storage)
-            || spout_layout::observed(&self.binding, descriptor.extent, storage) != Some(descriptor)
+        let Some(descriptor) = spout_layout::observed_alias(&self.binding, extent, storage, desc.Format) else {
+            return Ok(false);
+        };
+        if desc.Width != extent.width()
+            || desc.Height != extent.height()
             || desc.MipLevels != 1
             || desc.ArraySize != 1
             || desc.SampleDesc.Count != 1

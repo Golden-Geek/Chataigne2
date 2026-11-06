@@ -130,6 +130,13 @@ pub(super) fn renderer() -> ChannelRenderer {
     renderer
 }
 pub(super) fn installed(renderer: &ChannelRenderer, request: RequestId) {
+    installed_generation(renderer, request);
+}
+pub(super) fn installed_generation(
+    renderer: &ChannelRenderer,
+    request: RequestId,
+) -> golden_video::runtime::GenerationInfo {
+    let mut generation = None;
     wait(|| {
         let mut outcomes = Vec::new();
         renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
@@ -137,13 +144,17 @@ pub(super) fn installed(renderer: &ChannelRenderer, request: RequestId) {
             if outcome.request != request {
                 return false;
             }
-            assert!(
-                matches!(outcome.result, golden_video::runtime::OutcomeKind::Installed { .. }),
-                "{outcome:?}"
-            );
+            let golden_video::runtime::OutcomeKind::Installed {
+                generation: installed, ..
+            } = &outcome.result
+            else {
+                panic!("{outcome:?}");
+            };
+            generation = Some(*installed);
             true
         })
     });
+    generation.unwrap()
 }
 pub(super) fn close(mut renderer: ChannelRenderer) {
     let retirement = renderer.retirement();

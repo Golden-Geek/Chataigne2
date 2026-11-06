@@ -79,7 +79,19 @@ fn product_configuration_admits_eight_4k_sources_and_recovers_from_retained_gene
     let recovery = renderer
         .publish(capture_channels(&engine, &references, 8).unwrap(), routes)
         .unwrap();
-    installed(&renderer, recovery);
+    let recovered = installed_generation(&renderer, recovery);
+    // Installation replaces the live plan before the previous generation's final use retires.
+    // Assert steady capacity only after the runtime reports actual retirement, within wait's bound.
+    wait(|| {
+        renderer.snapshot().resources.is_some_and(|resources| {
+            resources
+                .active
+                .is_some_and(|active| active.generation == recovered.generation)
+                && resources.retiring_generations == 0
+                && resources.prepared_generations == 0
+                && resources.bytes_used == 512 * 1024 * 1024
+        })
+    });
     assert_eq!(renderer.snapshot().resources.unwrap().bytes_used, 512 * 1024 * 1024);
     assert!(renderer.snapshot().resources.unwrap().peak_bytes <= 1024 * 1024 * 1024);
     close(renderer);

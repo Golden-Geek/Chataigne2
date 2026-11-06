@@ -64,6 +64,33 @@ its unsafe contract forbids receiver instances/foreign registrations. The owned 
 producer advertises independent D3D11 BGRA storage through real legacy SDK metadata. These
 results prove the metadata/import boundary; they make no D3D9 producer-device claim.
 
+## Unspecified registration format
+
+Registered format0 means unspecified storage. Golden opens the exact sender alias on its
+selected adapter and authenticates its actual format, extent, mip/array and sampling layout
+before choosing a descriptor. It does not treat native DXGI values21/22 as legacy identifiers
+when resolving an unspecified alias. Nonzero registrations keep their exact native contract;
+mislabeled known/legacy aliases remain rejected. Unchanged endpoints reuse the validated
+alias, with no extra per-frame open. Mid-receive replacement waits for the caller's GPU fence
+and returns through the same registered-metadata preflight instead of reinterpreting the
+SDK's native format as registry metadata.
+
+The first-frame probe resolves unknown storage before reserving or allocating a receiving
+image. Its initial descriptor carries only the registered extent bound; it never allocates
+that byte-format hint. Full native byte accounting then applies, including float images.
+A cap sized for an8-bit image rejects a larger float image, releases the failed reservation
+and cannot report Ready. Known-format probes retain admission before graphics initialization.
+
+The [unspecified-format receipt](../progress/evidence/mapgyver-m13-unspecified-input-2026-11-06.json)
+passes52 cases on both GPUs: the earlier28 known/legacy cases and24 unspecified registrations
+covering all12 currently admitted native layouts. Bit identity, color/alpha, first-frame
+readiness and source/probe retirement pass. Two retained source workers/probes also pass six
+phases through RGBA32F2×2 → BGRA8 1×1 → RGBA16F2×1, with real sender loss/reappearance,
+new pool generations, exact source pixels and full changing reservations/reclamation.
+The owned producer is destroyed/recreated between phases; continuous-producer reformat/resize
+remains separately required. Unsupported native layouts stay unaccepted; unspecified metadata
+adds no fallback.
+
 ## SDK inventory and unfinished acceptance
 
 The pinned SDK's [SpoutGL implementation](../../vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp)

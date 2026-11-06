@@ -115,3 +115,20 @@ fn probe_storage_is_reserved_before_allocation_and_shared_until_retirement() {
         .is_err()
     );
 }
+
+#[test]
+fn resolved_float_probe_reservation_never_uses_the_unknown_registration_byte_hint() {
+    let descriptor = super::super::spout_layout::descriptor_from_alias(
+        Extent2D::new(4, 4).unwrap(),
+        0,
+        windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_R32G32B32A32_FLOAT,
+    )
+    .unwrap();
+    let byte_sized = PayloadPool::new("unresolved-byte-hint", 1, 64).unwrap();
+    assert!(reserve_image(descriptor, &byte_sized).is_err());
+    let exact = PayloadPool::new("resolved-float", 1, 256).unwrap();
+    let lease = reserve_image(descriptor, &exact).unwrap();
+    assert!(exact.try_reserve(1).is_err());
+    drop(lease);
+    assert!(exact.try_reserve(256).is_ok());
+}

@@ -46,22 +46,25 @@ struct Endpoint {
     format: u32,
 }
 impl Endpoint {
-    fn descriptor(self) -> Result<TextureDescriptor> {
+    fn extent(self) -> Result<Extent2D> {
         if self.width > 16384 || self.height > 16384 {
             return Err(invalid());
         }
-        super::spout_layout::descriptor(
-            Extent2D::new(self.width, self.height).map_err(|_| invalid())?,
-            self.format,
-        )
-        .ok_or_else(invalid)
+        Extent2D::new(self.width, self.height).map_err(|_| invalid())
+    }
+    fn descriptor(self) -> Result<TextureDescriptor> {
+        super::spout_layout::descriptor(self.extent()?, self.format).ok_or_else(invalid)
     }
     fn reserve(self, budget: &PayloadPool) -> Result<(TextureDescriptor, PayloadReservation)> {
         let descriptor = self.descriptor()?;
-        let bytes = usize::try_from(descriptor.byte_len().map_err(|_| invalid())?).map_err(|_| invalid())?;
-        let reservation = budget.try_reserve(bytes).map_err(|_| invalid())?;
+        let reservation = reserve_image(descriptor, budget)?;
         Ok((descriptor, reservation))
     }
+}
+
+fn reserve_image(descriptor: TextureDescriptor, budget: &PayloadPool) -> Result<PayloadReservation> {
+    let bytes = usize::try_from(descriptor.byte_len().map_err(|_| invalid())?).map_err(|_| invalid())?;
+    budget.try_reserve(bytes).map_err(|_| invalid())
 }
 
 /// Worker-local one-shot receive. No window, renderer, CPU pixels or process policy is involved.
@@ -183,21 +186,41 @@ struct Session {
 }
 impl Session {
     fn new(endpoint: Endpoint, name: &CString, adapter: Option<AdapterId>, budget: &PayloadPool) -> Result<Self> {
-        let (descriptor, reservation) = endpoint.reserve(budget)?;
+        let extent = endpoint.extent()?;
+        let known = (endpoint.format != 0).then(|| endpoint.reserve(budget)).transpose()?;
+        let (bound, metadata) = known
+            .as_ref()
+            .map(|(descriptor, _)| (*descriptor, crate::plan::SpoutMetadata::Declared))
+            .unwrap_or((
+                crate::plan::SpoutSource::discovered_descriptor(extent, crate::PixelFormat::Bgra8Unorm),
+                crate::plan::SpoutMetadata::Discover,
+            ));
         let device = match adapter {
             Some(adapter) => Device::new(adapter)?,
             None => sender_device(endpoint)?,
         };
-        let receiver = Receiver::new(
+        let mut receiver = Receiver::new(
             &device.device,
             &crate::plan::SpoutSource {
                 sender: name.to_str().map_err(|_| invalid())?.into(),
-                descriptor,
-                metadata: crate::plan::SpoutMetadata::Declared,
+                descriptor: bound,
+                metadata,
                 poll_interval: Duration::from_millis(16),
                 frame_count: SpoutFrameCount::Unversioned,
             },
         )?;
+        let (descriptor, reservation) = match known {
+            Some(admitted) => admitted,
+            None => {
+                // The bound above is only an extent hint. Resolve a real foreign alias before
+                // charging/allocating any image; format0 never selects byte receiving storage.
+                if receiver.preflight()? != Some(Received::Waiting) {
+                    return Err(invalid());
+                }
+                let descriptor = receiver.descriptor().ok_or_else(invalid)?;
+                (descriptor, reserve_image(descriptor, budget)?)
+            }
+        };
         let completion = FenceCompletion::new(&device)?;
         let texture = Texture::new(&device.device, descriptor)?;
         Ok(Self {

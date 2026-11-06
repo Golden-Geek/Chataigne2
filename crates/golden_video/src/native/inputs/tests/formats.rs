@@ -11,6 +11,7 @@ mod legacy;
 mod normalized;
 mod srgb;
 mod support;
+mod unspecified;
 use support::{GpuUse, Sender, readback, wait};
 
 #[test]
@@ -43,192 +44,214 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
         ];
         cases.extend(normalized::cases());
         for (format, raw_format, color, expected_bytes) in cases {
-            let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
-            let registered = raw_format.0 as u32;
-            let native_format = if matches!(registered, 21 | 22) {
+            let native_format = if matches!(raw_format.0, 21 | 22) {
                 DXGI_FORMAT_B8G8R8A8_UNORM
             } else {
                 raw_format
             };
-            let sender = Sender::new(adapter.id, &sender_name, native_format, color);
-            if matches!(registered, 21 | 22) {
-                sender.set_registered_format(registered);
-            }
-            let pixel_bytes = format.bytes_per_pixel() as usize;
-            let source_bits = sender.pixels(pixel_bytes);
-            if !expected_bytes.is_empty() {
-                assert_eq!(source_bits, expected_bytes.repeat(4), "independent float producer bits");
-            }
-            let device = Device::new(adapter.id).unwrap();
-            let descriptor = crate::native::spout_layout::descriptor(Extent2D::new(2, 2).unwrap(), registered).unwrap();
-            assert_eq!(descriptor.format, format);
-            let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm;
-            assert_eq!(
-                descriptor.alpha_mode,
-                if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
-            );
-            let nominal = TextureDescriptor {
-                format: PixelFormat::Bgra8Unorm,
-                color_encoding: ColorEncoding::Srgb,
-                alpha_mode: AlphaMode::Straight,
-                ..descriptor
-            };
-            let id = TextureId::new(1).unwrap();
-            let plan = RenderPlan {
-                external_textures: vec![ExternalTexture {
-                    id,
-                    descriptor: nominal,
-                    source: Some(
-                        SpoutSource {
-                            sender: sender_name.clone(),
-                            descriptor: nominal,
-                            metadata: SpoutMetadata::Discover,
-                            poll_interval: Duration::from_millis(16),
-                            frame_count: SpoutFrameCount::Unversioned,
-                        }
-                        .into(),
-                    ),
-                }],
-                ..Default::default()
-            }
-            .compile_with_source_demands(
-                &PlanLimits {
-                    max_passes: 0,
-                    max_external_textures: 1,
-                    max_outputs: 0,
-                    max_dependencies: 0,
-                    max_texture_dimension: 8,
-                    max_texture_bytes: 4096,
-                },
-                &[id],
-            )
-            .unwrap();
-            let bytes = InputLimits::source_storage_bytes(descriptor).unwrap();
-            let mut pool = SourcePool::new(
-                adapter.id,
-                InputLimits {
-                    max_sources: 1,
-                    max_storage_bytes: bytes,
-                },
-                &D3d11Control::default(),
-                None,
-                crate::runtime::DeviceGeneration::new(uuid::Uuid::new_v4(), 0),
-            );
-            let budget = pool.storage_budget.clone();
-            pool.ensure(&plan).unwrap();
-            let demand = pool.demands(&plan);
-            let mut uses = GpuUse::new(&device);
-            wait(
-                "automatic source format must stream with its exact observed descriptor",
-                || {
-                    let snapshot = *pool.inputs[&id].shared.status.lock().unwrap();
-                    snapshot.state == SourceState::Streaming && snapshot.observed_descriptor == Some(descriptor)
-                },
-            );
-            assert!(
-                budget.claim(1).is_none(),
-                "full native precision must be charged before allocation"
-            );
-            let capture = Texture::new_sampled(&device.device, descriptor).unwrap();
-            let mut copied = false;
-            uses.submit(|| {
-                wait("source format import must copy", || {
-                    copied = pool
-                        .copy(id, &device, &capture, 1, CopyFrame::default())
-                        .unwrap()
-                        .is_some_and(|copy| copy.sequence > 0);
-                    copied
-                });
-            });
-            uses.wait();
-            assert!(copied);
-            let raw = readback(&device, &capture, pixel_bytes);
-            assert_eq!(raw, source_bits, "native capture must preserve every source bit");
-            let target = Texture::new(
-                &device.device,
-                TextureDescriptor {
-                    format: PixelFormat::Rgba32Float,
-                    color_encoding: ColorEncoding::Linear,
-                    alpha_mode: AlphaMode::Premultiplied,
+            let registrations =
+                std::iter::once(raw_format.0 as u32).chain((!matches!(raw_format.0, 21 | 22)).then_some(0));
+            for registered in registrations {
+                let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
+                let sender = Sender::new(adapter.id, &sender_name, native_format, color);
+                if registered != native_format.0 as u32 {
+                    sender.set_registered_format(registered);
+                }
+                let pixel_bytes = format.bytes_per_pixel() as usize;
+                let source_bits = sender.pixels(pixel_bytes);
+                if !expected_bytes.is_empty() {
+                    assert_eq!(source_bits, expected_bytes.repeat(4), "independent float producer bits");
+                }
+                let device = Device::new(adapter.id).unwrap();
+                let descriptor = crate::native::spout_layout::descriptor_from_alias(
+                    Extent2D::new(2, 2).unwrap(),
+                    registered,
+                    native_format,
+                )
+                .unwrap();
+                assert_eq!(descriptor.format, format);
+                let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm;
+                assert_eq!(
+                    descriptor.alpha_mode,
+                    if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
+                );
+                let nominal = TextureDescriptor {
+                    format: PixelFormat::Bgra8Unorm,
+                    color_encoding: ColorEncoding::Srgb,
+                    alpha_mode: AlphaMode::Straight,
                     ..descriptor
-                },
-            )
-            .unwrap();
-            let pipeline = Pipeline::new(&device.device).unwrap();
-            pipeline.draw(
-                &device.context,
-                &capture,
-                None,
-                (&target).into(),
-                1.,
-                BlendMode::Normal,
-                SampleFilter::Nearest,
-            );
-            let rendered = readback(&device, &target, 16);
-            let expected = normalized::expected(format, &source_bits[..pixel_bytes], color, opaque);
-            let tolerance = normalized::tolerance(format);
-            let mut max_shader_error = 0_f32;
-            for pixel in rendered.chunks_exact(16) {
-                for (component, expected) in pixel.chunks_exact(4).zip(expected) {
-                    let actual = f32::from_le_bytes(component.try_into().unwrap());
-                    max_shader_error = max_shader_error.max((actual - expected).abs());
+                };
+                let id = TextureId::new(1).unwrap();
+                let plan = RenderPlan {
+                    external_textures: vec![ExternalTexture {
+                        id,
+                        descriptor: nominal,
+                        source: Some(
+                            SpoutSource {
+                                sender: sender_name.clone(),
+                                descriptor: nominal,
+                                metadata: SpoutMetadata::Discover,
+                                poll_interval: Duration::from_millis(16),
+                                frame_count: SpoutFrameCount::Unversioned,
+                            }
+                            .into(),
+                        ),
+                    }],
+                    ..Default::default()
+                }
+                .compile_with_source_demands(
+                    &PlanLimits {
+                        max_passes: 0,
+                        max_external_textures: 1,
+                        max_outputs: 0,
+                        max_dependencies: 0,
+                        max_texture_dimension: 8,
+                        max_texture_bytes: 4096,
+                    },
+                    &[id],
+                )
+                .unwrap();
+                let bytes = InputLimits::source_storage_bytes(descriptor).unwrap();
+                let mut pool = SourcePool::new(
+                    adapter.id,
+                    InputLimits {
+                        max_sources: 1,
+                        max_storage_bytes: bytes,
+                    },
+                    &D3d11Control::default(),
+                    None,
+                    crate::runtime::DeviceGeneration::new(uuid::Uuid::new_v4(), 0),
+                );
+                let budget = pool.storage_budget.clone();
+                pool.ensure(&plan).unwrap();
+                let demand = pool.demands(&plan);
+                let mut uses = GpuUse::new(&device);
+                wait(
+                    "automatic source format must stream with its exact observed descriptor",
+                    || {
+                        let snapshot = *pool.inputs[&id].shared.status.lock().unwrap();
+                        snapshot.state == SourceState::Streaming && snapshot.observed_descriptor == Some(descriptor)
+                    },
+                );
+                assert!(
+                    budget.claim(1).is_none(),
+                    "full native precision must be charged before allocation"
+                );
+                let capture = Texture::new_sampled(&device.device, descriptor).unwrap();
+                let mut copied = false;
+                uses.submit(|| {
+                    wait("source format import must copy", || {
+                        copied = pool
+                            .copy(id, &device, &capture, 1, CopyFrame::default())
+                            .unwrap()
+                            .is_some_and(|copy| copy.sequence > 0);
+                        copied
+                    });
+                });
+                uses.wait();
+                assert!(copied);
+                let raw = readback(&device, &capture, pixel_bytes);
+                assert_eq!(raw, source_bits, "native capture must preserve every source bit");
+                let target = Texture::new(
+                    &device.device,
+                    TextureDescriptor {
+                        format: PixelFormat::Rgba32Float,
+                        color_encoding: ColorEncoding::Linear,
+                        alpha_mode: AlphaMode::Premultiplied,
+                        ..descriptor
+                    },
+                )
+                .unwrap();
+                let pipeline = Pipeline::new(&device.device).unwrap();
+                pipeline.draw(
+                    &device.context,
+                    &capture,
+                    None,
+                    (&target).into(),
+                    1.,
+                    BlendMode::Normal,
+                    SampleFilter::Nearest,
+                );
+                let rendered = readback(&device, &target, 16);
+                let expected = normalized::expected(format, &source_bits[..pixel_bytes], color, opaque);
+                let tolerance = normalized::tolerance(format);
+                let mut max_shader_error = 0_f32;
+                for pixel in rendered.chunks_exact(16) {
+                    for (component, expected) in pixel.chunks_exact(4).zip(expected) {
+                        let actual = f32::from_le_bytes(component.try_into().unwrap());
+                        max_shader_error = max_shader_error.max((actual - expected).abs());
+                        assert!(
+                            (actual - expected).abs() <= tolerance,
+                            "linear/HDR/straight alpha: {actual} versus {expected}"
+                        );
+                    }
+                }
+                let probe_budget = golden_io::PayloadPool::new("format-readiness", 4, raw.len() * 3).unwrap();
+                let mut probe = crate::native::SpoutProbe::new_for_sender(&sender_name, probe_budget.clone()).unwrap();
+                wait("native first-frame readiness must receive a real image", || {
+                    probe.poll(true).unwrap().first_frame
+                });
+                let remaining = probe_budget.try_reserve(raw.len() * 2).unwrap();
+                assert!(probe_budget.try_reserve(1).is_err());
+                drop(remaining);
+                let byte_export = matches!(format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm);
+                if byte_export {
+                    wait("byte probe export must preserve the received raw RGBA pixels", || {
+                        let Some(pixels) = probe.capture_pixels().unwrap() else {
+                            return false;
+                        };
+                        for (actual, raw) in pixels.pixels().iter().zip(source_bits.chunks_exact(4)) {
+                            let expected = if format == PixelFormat::Bgra8Unorm {
+                                [raw[2], raw[1], raw[0], raw[3]]
+                            } else {
+                                raw.try_into().unwrap()
+                            };
+                            assert_eq!(*actual, expected);
+                        }
+                        assert_eq!(pixels.pixels().len(), 4);
+                        true
+                    });
+                } else {
                     assert!(
-                        (actual - expected).abs() <= tolerance,
-                        "linear/HDR/straight alpha: {actual} versus {expected}"
+                        probe.capture_pixels().is_err(),
+                        "byte-only export must reject before staging"
                     );
                 }
-            }
-            let probe_budget = golden_io::PayloadPool::new("format-readiness", 4, raw.len() * 3).unwrap();
-            let mut probe = crate::native::SpoutProbe::new_for_sender(&sender_name, probe_budget.clone()).unwrap();
-            wait("native first-frame readiness must receive a real image", || {
-                probe.poll(true).unwrap().first_frame
-            });
-            let remaining = probe_budget.try_reserve(raw.len() * 2).unwrap();
-            assert!(probe_budget.try_reserve(1).is_err());
-            drop(remaining);
-            let byte_export = matches!(format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm);
-            if byte_export {
-                wait("byte probe export must preserve the received raw RGBA pixels", || {
-                    let Some(pixels) = probe.capture_pixels().unwrap() else {
-                        return false;
-                    };
-                    for (actual, raw) in pixels.pixels().iter().zip(source_bits.chunks_exact(4)) {
-                        let expected = if format == PixelFormat::Bgra8Unorm {
-                            [raw[2], raw[1], raw[0], raw[3]]
-                        } else {
-                            raw.try_into().unwrap()
-                        };
-                        assert_eq!(*actual, expected);
-                    }
-                    assert_eq!(pixels.pixels().len(), 4);
-                    true
-                });
-            } else {
+                drop(probe);
                 assert!(
-                    probe.capture_pixels().is_err(),
-                    "byte-only export must reject before staging"
+                    probe_budget.try_reserve(raw.len() * 3).is_ok(),
+                    "readiness storage must retire"
+                );
+                pool.retire(1);
+                drop(demand);
+                drop(pool);
+                assert!(budget.claim(bytes).is_some(), "source format storage must fully retire");
+                eprintln!(
+                    "FORMAT_IMPORT {}",
+                    serde_json::json!({
+                        "adapter": format!("{:?}", adapter.id),
+                        "description":adapter.description,
+                        "format":format,
+                        "dxgi_format":native_format.0,
+                        "registered_format":registered,
+                        "capture_bytes":raw.len(),
+                        "source_charge":bytes,
+                        "source_bits_exact":true,
+                        "source_bits":source_bits,
+                        "shader_expected":expected,
+                        "shader_tolerance":tolerance,
+                        "max_shader_error":max_shader_error,
+                        "first_frame_probe":true,
+                        "probe_reserved_bytes":raw.len(),
+                        "byte_pixel_export":byte_export,
+                        "retired":true,
+                    })
                 );
             }
-            drop(probe);
-            assert!(
-                probe_budget.try_reserve(raw.len() * 3).is_ok(),
-                "readiness storage must retire"
-            );
-            pool.retire(1);
-            drop(demand);
-            drop(pool);
-            assert!(budget.claim(bytes).is_some(), "source format storage must fully retire");
-            eprintln!(
-                "FORMAT_IMPORT {}",
-                serde_json::json!({"adapter": format!("{:?}", adapter.id), "description":adapter.description,
-                "format":format, "dxgi_format":native_format.0, "registered_format":registered, "capture_bytes":raw.len(), "source_charge":bytes,
-                "source_bits_exact":true, "source_bits":source_bits, "shader_expected":expected,
-                "shader_tolerance":tolerance, "max_shader_error":max_shader_error,
-                "first_frame_probe":true, "probe_reserved_bytes":raw.len(), "byte_pixel_export":byte_export, "retired":true})
-            );
         }
         srgb::verify_replacements(adapter.id);
         legacy::verify_replacements(adapter.id);
+        unspecified::verify_replacements(adapter.id);
     }
     done.send(()).unwrap();
 }
