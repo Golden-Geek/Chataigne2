@@ -350,6 +350,9 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
 }
 
 pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
+    if let Some(format) = typeless_default(DXGI_FORMAT(storage as i32)) {
+        return Some(format);
+    }
     // CopyResource preserves bits within a typeless family. Receive into the raw UNORM
     // member so transfer/alpha interpretation remains explicit, including premultiplied sRGB.
     match DXGI_FORMAT(storage as i32) {
@@ -408,6 +411,30 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
     ]
     .into_iter()
     .find(|candidate| format(*candidate).0 as u32 == storage)
+}
+
+/// Typeless registrations carry no view interpretation. Keep deterministic visual defaults;
+/// a declared caller may choose another supported member of the authenticated family.
+pub(super) fn typeless_default(storage: DXGI_FORMAT) -> Option<PixelFormat> {
+    Some(match storage {
+        DXGI_FORMAT_R32G32B32A32_TYPELESS => PixelFormat::Rgba32Float,
+        DXGI_FORMAT_R16G16B16A16_TYPELESS => PixelFormat::Rgba16Float,
+        DXGI_FORMAT_R32G32_TYPELESS => PixelFormat::Rg32Float,
+        DXGI_FORMAT_R10G10B10A2_TYPELESS => PixelFormat::Rgb10A2Unorm,
+        DXGI_FORMAT_R8G8B8A8_TYPELESS => PixelFormat::Rgba8Unorm,
+        DXGI_FORMAT_R16G16_TYPELESS => PixelFormat::Rg16Float,
+        DXGI_FORMAT_R32_TYPELESS => PixelFormat::R32Float,
+        DXGI_FORMAT_R8G8_TYPELESS => PixelFormat::Rg8Unorm,
+        DXGI_FORMAT_R16_TYPELESS => PixelFormat::R16Float,
+        DXGI_FORMAT_R8_TYPELESS => PixelFormat::R8Unorm,
+        DXGI_FORMAT_B8G8R8A8_TYPELESS => PixelFormat::Bgra8Unorm,
+        DXGI_FORMAT_B8G8R8X8_TYPELESS => PixelFormat::Bgrx8Unorm,
+        _ => return None,
+    })
+}
+
+pub(super) fn typeless_accepts(storage: DXGI_FORMAT, interpretation: PixelFormat) -> bool {
+    typeless_default(storage).is_some() && typeless_format(interpretation) == Some(storage)
 }
 
 /// Stable fixed-shader storage tags, not a user setting or transport protocol.

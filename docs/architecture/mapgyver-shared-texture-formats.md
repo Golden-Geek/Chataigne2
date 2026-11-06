@@ -35,6 +35,52 @@ allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
 
+## Typeless defaults and declared views
+
+Typeless registrations identify storage families, not the producer's typed view. Golden uses
+the following deterministic visual defaults for the twelve available native layouts:
+
+| Native storage | Automatic interpretation |
+| --- | --- |
+| RGBA32 /RGBA16 typeless (1 /9) | RGBA32F /RGBA16F, linear /straight |
+| RG32 /RG16 typeless (15 /33) | RG32F /RG16F, linear /opaque |
+| R32 /R16 typeless (39 /53) | R32F /R16F, linear /opaque |
+| RGBA8 typeless (27) | RGBA8 UNORM, existing sRGB /straight policy |
+| RGB10/A2 typeless (23) | RGB10/A2 UNORM, linear /straight |
+| RG8 /R8 typeless (48 /60) | RG8 /R8 UNORM, linear /opaque |
+| BGRA8 /BGRX8 typeless (90 /92) | Existing BGRA8 /BGRX8 sRGB and physical-alpha policy |
+
+`texture::typeless_default` owns those choices. Existing declared Core source contracts may
+choose another supported member of the same native family, including UINT/SINT and XR-bias
+interpretations. `spout_layout` validates that family while retaining the declared transfer,
+alpha and extent bounds. The default and declared routes share the existing native-sized
+storage/bridge admission, probe readiness and completion-safe retirement. No UI format
+setting, CPU image conversion or extra image for typeless storage is introduced.
+
+Exact registration/alias authentication is unchanged: known native metadata must still equal
+the opened resource's actual format. A typed resource mislabeled as typeless, or the reverse,
+is rejected even when their bits are copy-compatible. Unspecified0 resolves the native family
+from an opened alias before choosing any receiving image. Compatible declared views apply
+only after that authentication; they cannot authorize another family or exceed extent bounds.
+
+Native producers use explicit compatible render views over actual typeless resources. Staging
+uses a compatible typed member and compares raw bytes, independently of Golden's default
+mapping. Declared integer cases upload literal32-bit values and preserve every bit through
+typed integer bridges, including NaN-like bit patterns and values beyond float integer precision.
+
+**Retained API limitation:** typeless metadata alone cannot identify an arbitrary producer
+view or distinguish the same bits intended as FLOAT, UINT or another family member. Defaults
+and compatible declared contracts are implemented and verified within that scope; arbitrary
+automatic view inference remains named unaccepted. Return when a producer supplies a fully
+typed format/contract or the backend exposes authoritative view metadata, rather than adding
+a guessing heuristic or a manual UI format control. See the
+[typeless receipt](../progress/evidence/mapgyver-m13-typeless-input-2026-11-06.json).
+The first cohort passes all eight fixtures:72 default cases and24 declared integer override
+cases on both GPUs, plus the unchanged269-case regression matrices. All96 new records retain
+exact storage bits, ready-state and charge reclamation. Nonbyte references match exactly;
+byte sRGB comparisons retain their original targets. Native defaults/view paths now cover61
+Intel/60 NVIDIA layouts, with the arbitrary-view API limit and full gate still open.
+
 ## Integer color interpretation and transport
 
 Golden admits every available typed integer color layout in the recorded backend inventory:
@@ -329,14 +375,14 @@ This is allocation/alias evidence, not typed-view, shader, pixel or complete imp
 The receipt retains every available native value and rejected HRESULT; names come from the
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
-All19 available RGB integer layouts now pass on both GPUs. Reusing that original inventory,
-the remaining native allocations are twelve typeless layouts (`1,9,15,23,27,33,39,48,53,60,90,92`)
-and nine Intel/eight NVIDIA video layouts (`100–105,107–109`; NVIDIA excludes105/P016).
+All19 available RGB integer layouts and twelve typeless default/view paths now pass on both
+GPUs. Reusing that original inventory, remaining native allocations are nine Intel/eight
+NVIDIA video layouts (`100–105,107–109`; NVIDIA excludes105/P016).
 RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-bias raw
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
-stays unaccepted. Counts are49 Intel/48 NVIDIA imported native layouts, with43 direct layouts;
+stays unaccepted. Recorded paths cover61 Intel/60 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
-Next is typeless interpretation, then full video-plane precision/color handling and complete
+Next is full video-plane precision/color handling and complete
 actual-app/continuous-producer/device recovery acceptance.
 
 RGB32 native5–8 (typeless/FLOAT/UINT/SINT) fail the SDK allocator's mandatory shader-resource/render-target shared flags

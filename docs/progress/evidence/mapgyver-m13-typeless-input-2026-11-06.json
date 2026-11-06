@@ -1,0 +1,714 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; twelve typeless defaults and compatible declared views verified; arbitrary view inference remains an API limitation",
+  "base_commit": "af6639871839b160c51f83044df33dbdb21cf57c",
+  "delivered": "Automatic defaults for all twelve available native typeless layouts, plus authenticated compatible declared family views; preserve raw bits, interpretation and bounded ownership without a UI format setting.",
+  "ownership": "Golden native texture/default policy and Spout layout interpretation; existing source/probe/renderer lifecycle and admission.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "235 passed,45 ignored; includes all default mappings, exact native/registration rejection, compatible declared views, authored transfer/alpha and extent bounds."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before native cohort."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before native cohort."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "8 passed,272 filtered,exit0 in222.79seconds.96 new typeless cases plus the unchanged269-case regression matrices. Each finite fixture retains its90-second guard; no product timing limit changes."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-typeless-input",
+      "result": "Isolated current app builds,exit0 in13.16seconds; running user's executable is not replaced."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "beae0de2c6d283fabfd7abfcbbc4ac55c6e87bd45173b40776611b89f8a81493"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-typeless-input.exe",
+      "sha256": "70e1dfc6834f8791ccc6dc0a3cabdf42eb65cf0e02e0afe91f7318623ca9bdf9"
+    }
+  ],
+  "native": {
+    "cohorts": 1,
+    "total_matrix_cases": 365,
+    "new_cases": 96,
+    "default_cases": 72,
+    "declared_override_cases": 24,
+    "pattern_groups": 36,
+    "case_count_derivation": "Existing six regression matrices are unchanged from the269-record integer receipt. Two added matrices execute12 defaults *3 contracts *2 adapters =72 and6 integer patterns *2 declared registration contracts *2 adapters =24. Terminal eight-fixture success proves their assertions.",
+    "observation_limit": {
+      "retained_format_records": 271,
+      "new_records_retained": 96,
+      "regression_records_omitted_by_tool_limit": 94,
+      "detail": "A write_stdin response reported44590 original tokens and truncated16590. All96 new records are retained. Do not claim a complete raw regression log; reuse the committed integer receipt for unchanged pattern details, with current terminal regression success. No passing native cohort was rerun for logging."
+    },
+    "native_path_counts": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "layouts": 61
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "layouts": 60
+      }
+    ],
+    "count_scope": "49/48 previously verified native paths plus twelve default/view paths. Counts describe recorded interpretations, not arbitrary producer-view inference or complete gate acceptance.",
+    "method": "Independent producer creates actual native typeless resources, clears through explicit compatible typed views or uploads literal integer bytes, and publishes through the real SDK. Compatible typed staging authenticates raw source bytes. Production SourcePool/native capture must preserve every bit; production Pipeline RGBA32F output must match independent format-specific references.",
+    "assertions": {
+      "all_new_source_bits_exact": true,
+      "all_new_shader_references_within_existing_target": true,
+      "known_unspecified_and_declared_defaults": true,
+      "known_and_unspecified_declared_integer_overrides": true,
+      "float_fractional_hdr_and_negative_content": true,
+      "integer_above_f32_precision_and_nan_like_bit_patterns": true,
+      "physical_alpha_and_signed_coverage": true,
+      "actual_source_probe_first_frame_ready": true,
+      "source_probe_charges_retired": true,
+      "declared_one_byte_short_rejected_before_worker": true,
+      "previous_regression_fixtures_terminal_success": true
+    },
+    "precision": {
+      "existing_targets": "RGBA8/BGRA8:2/255; BGRX8:1/4096; all other new default/override cases:1e-6.",
+      "max_new_error": 0.0007293522357940674,
+      "max_nonbyte_error": 0,
+      "tolerance_changed": false
+    },
+    "storage": "Native-sized canonical capture/view members in the authenticated family. RG32 uses existing float or typed integer NT bridge. Charges, source count, shader fixed buffers and timing ceilings stay unchanged. No new CPU image conversion or extra typeless image.",
+    "pattern_results": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "79563412010080ff0100c07f01000080",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.5355555415153503,0.9990234375,0.74951171875,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "eb32a4f8ffffff7f00000080ffffff3f",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.47125548124313354,1,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":15,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "79563412010080ff",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [0.07111111283302307,0.998046875,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":15,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "eb32a4f8ffffff7f",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [-0.057489048689603806,1,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "00000000ffffffff01000080ffffffff",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0,1,0.5,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "2143658715cd5b07ffffff7f00000080",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [1,1,1,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "79563412010080ff0100c07f01000080",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.5355555415153503,0.9990234375,0.74951171875,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "eb32a4f8ffffff7f00000080ffffff3f",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.47125548124313354,1,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":15,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "79563412010080ff",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [0.07111111283302307,0.998046875,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":15,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "eb32a4f8ffffff7f",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [-0.057489048689603806,1,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Uint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "00000000ffffffff01000080ffffffff",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0,1,0.5,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Sint",
+        "declared_override": true,
+        "contracts": [{"registered":1,"declared":true,"alpha":"Straight"},{"registered":0,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "2143658715cd5b07ffffff7f00000080",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [1,1,1,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Float",
+        "declared_override": false,
+        "contracts": [{"registered":1,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":1,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "ded6fc3d0000a03f000080be0000003f",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.061728350818157196,0.625,-0.125,0.5],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 9,
+        "interpretation": "Rgba16Float",
+        "declared_override": false,
+        "contracts": [{"registered":9,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":9,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "0030003d00b40038",
+        "source_charge": 128,
+        "probe_charge": 32,
+        "shader_expected": [0.0625,0.625,-0.125,0.5],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Float",
+        "declared_override": false,
+        "contracts": [{"registered":15,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":15,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "0000a03f000080be",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [1.25,-0.25,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 23,
+        "interpretation": "Rgb10A2Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":23,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":23,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "8000f8af",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.08341479301452637,0.33365917205810547,0.49983710050582886,0.6666666865348816],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 27,
+        "interpretation": "Rgba8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":27,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":27,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "2080bf80",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.007250243332237005,0.10835352540016174,0.2615194022655487,0.501960813999176],
+        "tolerance": 0.007843137718737125,
+        "max_shader_error": 0.0002265721559524536,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 33,
+        "interpretation": "Rg16Float",
+        "declared_override": false,
+        "contracts": [{"registered":33,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":33,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "003d00b4",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [1.25,-0.25,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 39,
+        "interpretation": "R32Float",
+        "declared_override": false,
+        "contracts": [{"registered":39,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":39,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "ded6fc3d",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.12345670163631439,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 48,
+        "interpretation": "Rg8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":48,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":48,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "2080",
+        "source_charge": 32,
+        "probe_charge": 8,
+        "shader_expected": [0.125490203499794,0.501960813999176,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 53,
+        "interpretation": "R16Float",
+        "declared_override": false,
+        "contracts": [{"registered":53,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":53,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "003d",
+        "source_charge": 32,
+        "probe_charge": 8,
+        "shader_expected": [1.25,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 60,
+        "interpretation": "R8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":60,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":60,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "20",
+        "source_charge": 16,
+        "probe_charge": 4,
+        "shader_expected": [0.125490203499794,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 90,
+        "interpretation": "Bgra8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":90,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":90,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "bf802080",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.007250243332237005,0.10835352540016174,0.2615194022655487,0.501960813999176],
+        "tolerance": 0.007843137718737125,
+        "max_shader_error": 0.0002265721559524536,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "native_format": 92,
+        "interpretation": "Bgrx8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":92,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":92,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "bf802000",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.014443843625485897,0.2158605307340622,0.5209956765174866,1],
+        "tolerance": 0.000244140625,
+        "max_shader_error": 1.4901161193847656e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 1,
+        "interpretation": "Rgba32Float",
+        "declared_override": false,
+        "contracts": [{"registered":1,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":1,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "ded6fc3d0000a03f000080be0000003f",
+        "source_charge": 256,
+        "probe_charge": 64,
+        "shader_expected": [0.061728350818157196,0.625,-0.125,0.5],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 9,
+        "interpretation": "Rgba16Float",
+        "declared_override": false,
+        "contracts": [{"registered":9,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":9,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "0030003d00b40038",
+        "source_charge": 128,
+        "probe_charge": 32,
+        "shader_expected": [0.0625,0.625,-0.125,0.5],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 15,
+        "interpretation": "Rg32Float",
+        "declared_override": false,
+        "contracts": [{"registered":15,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":15,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "0000a03f000080be",
+        "source_charge": 256,
+        "probe_charge": 32,
+        "shader_expected": [1.25,-0.25,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 23,
+        "interpretation": "Rgb10A2Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":23,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":23,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "80fcf76f",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.041707396507263184,0.16650375723838806,0.24991855025291443,0.3333333432674408],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 27,
+        "interpretation": "Rgba8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":27,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":27,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "207fbf7f",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.007193600758910179,0.10569922626018524,0.25947627425193787,0.49803921580314636],
+        "tolerance": 0.007843137718737125,
+        "max_shader_error": 0.0007293522357940674,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 33,
+        "interpretation": "Rg16Float",
+        "declared_override": false,
+        "contracts": [{"registered":33,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":33,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "003d00b4",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [1.25,-0.25,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 39,
+        "interpretation": "R32Float",
+        "declared_override": false,
+        "contracts": [{"registered":39,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":39,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "ded6fc3d",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.12345670163631439,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 48,
+        "interpretation": "Rg8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":48,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":48,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "207f",
+        "source_charge": 32,
+        "probe_charge": 8,
+        "shader_expected": [0.125490203499794,0.49803921580314636,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 53,
+        "interpretation": "R16Float",
+        "declared_override": false,
+        "contracts": [{"registered":53,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":53,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "003d",
+        "source_charge": 32,
+        "probe_charge": 8,
+        "shader_expected": [1.25,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 60,
+        "interpretation": "R8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":60,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":60,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "20",
+        "source_charge": 16,
+        "probe_charge": 4,
+        "shader_expected": [0.125490203499794,0,0,1],
+        "tolerance": 9.999999974752427e-7,
+        "max_shader_error": 0,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 90,
+        "interpretation": "Bgra8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":90,"declared":false,"alpha":"Straight"},{"registered":0,"declared":false,"alpha":"Straight"},{"registered":90,"declared":true,"alpha":"Straight"}],
+        "source_pixel_hex": "bf7f207f",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.007193600758910179,0.10569922626018524,0.25947627425193787,0.49803921580314636],
+        "tolerance": 0.007843137718737125,
+        "max_shader_error": 0.0007293522357940674,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "native_format": 92,
+        "interpretation": "Bgrx8Unorm",
+        "declared_override": false,
+        "contracts": [{"registered":92,"declared":false,"alpha":"Opaque"},{"registered":0,"declared":false,"alpha":"Opaque"},{"registered":92,"declared":true,"alpha":"Opaque"}],
+        "source_pixel_hex": "bf7f2000",
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [0.014443843625485897,0.21223072707653046,0.5209956765174866,1],
+        "tolerance": 0.000244140625,
+        "max_shader_error": 2.9802322387695312e-8,
+        "converted_bridge": false
+      }
+    ]
+  },
+  "defaults": [
+    {
+      "native": "R32G32B32A32_TYPELESS",
+      "interpretation": "Rgba32Float",
+      "view": "R32G32B32A32_FLOAT"
+    },
+    {
+      "native": "R16G16B16A16_TYPELESS",
+      "interpretation": "Rgba16Float",
+      "view": "R16G16B16A16_FLOAT"
+    },
+    {
+      "native": "R32G32_TYPELESS",
+      "interpretation": "Rg32Float",
+      "view": "R32G32_FLOAT"
+    },
+    {
+      "native": "R10G10B10A2_TYPELESS",
+      "interpretation": "Rgb10A2Unorm",
+      "view": "R10G10B10A2_UNORM"
+    },
+    {
+      "native": "R8G8B8A8_TYPELESS",
+      "interpretation": "Rgba8Unorm",
+      "view": "R8G8B8A8_UNORM"
+    },
+    {
+      "native": "R16G16_TYPELESS",
+      "interpretation": "Rg16Float",
+      "view": "R16G16_FLOAT"
+    },
+    {
+      "native": "R32_TYPELESS",
+      "interpretation": "R32Float",
+      "view": "R32_FLOAT"
+    },
+    {
+      "native": "R8G8_TYPELESS",
+      "interpretation": "Rg8Unorm",
+      "view": "R8G8_UNORM"
+    },
+    {
+      "native": "R16_TYPELESS",
+      "interpretation": "R16Float",
+      "view": "R16_FLOAT"
+    },
+    {
+      "native": "R8_TYPELESS",
+      "interpretation": "R8Unorm",
+      "view": "R8_UNORM"
+    },
+    {
+      "native": "B8G8R8A8_TYPELESS",
+      "interpretation": "Bgra8Unorm",
+      "view": "B8G8R8A8_UNORM"
+    },
+    {
+      "native": "B8G8R8X8_TYPELESS",
+      "interpretation": "Bgrx8Unorm",
+      "view": "B8G8R8X8_UNORM"
+    }
+  ],
+  "api_limit": {
+    "unaccepted_requirement": "Arbitrary automatic producer-view inference from typeless storage alone.",
+    "reason": "Native typeless metadata carries the resource family but not its typed view; identical bits can have different valid FLOAT/UINT/SINT interpretations.",
+    "implemented_scope": "Documented visual defaults and existing declared Core contracts for supported members of the exact native family; no manual UI format control or guessing heuristic.",
+    "return_trigger": "Authoritative fully typed producer metadata/contract or a backend that exposes its view interpretation."
+  },
+  "remaining": [
+    "Nine Intel/eight NVIDIA available video-plane layouts:100..105 and107..109, with NVIDIA105/P016 unavailable.",
+    "Full native app preview/output integration, continuous-producer reformat/resize, complete sender/device recovery and actual D3D9 producer-device scope remain required.",
+    "RGB32 native5..8 and NVIDIA BGR4444/P016 allocation requirements stay named unaccepted; no unchanged allocation sweep was repeated.",
+    "Default and declared-family support does not prove arbitrary typeless view inference. Custom transfer/alpha retention is software-verified; native overrides use their default linear transfer.",
+    "Small2x2 patterns do not qualify production cadence, physical latency or peak growth.",
+    "No complete acceptance gate closes:70/92 (76%),M13 1/14 (7%),7/14 phases (50%)."
+  ]
+}

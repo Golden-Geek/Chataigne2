@@ -26,7 +26,7 @@ pub(super) fn descriptor(extent: Extent2D, registered: u32) -> Option<TextureDes
 
 pub(super) fn observed(binding: &SpoutSource, extent: Extent2D, registered: u32) -> Option<TextureDescriptor> {
     let descriptor = descriptor(extent, registered)?;
-    interpreted(binding, descriptor)
+    interpreted(binding, descriptor, native_format(registered))
 }
 
 /// Zero is unspecified metadata, not a native pixel layout. Only an opened/authenticated
@@ -52,12 +52,19 @@ pub(super) fn observed_alias(
     registered: u32,
     native: DXGI_FORMAT,
 ) -> Option<TextureDescriptor> {
-    interpreted(binding, descriptor_from_alias(extent, registered, native)?)
+    interpreted(binding, descriptor_from_alias(extent, registered, native)?, native)
 }
 
-fn interpreted(binding: &SpoutSource, descriptor: TextureDescriptor) -> Option<TextureDescriptor> {
+fn interpreted(binding: &SpoutSource, descriptor: TextureDescriptor, native: DXGI_FORMAT) -> Option<TextureDescriptor> {
     match binding.metadata {
-        SpoutMetadata::Declared => binding.observed_descriptor(descriptor.extent, descriptor.format),
+        SpoutMetadata::Declared => {
+            let format = if super::texture::typeless_accepts(native, binding.descriptor.format) {
+                binding.descriptor.format
+            } else {
+                descriptor.format
+            };
+            binding.observed_descriptor(descriptor.extent, format)
+        }
         SpoutMetadata::Discover => binding.accepts(descriptor).then_some(descriptor),
     }
 }

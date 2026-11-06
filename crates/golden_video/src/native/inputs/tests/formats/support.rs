@@ -184,10 +184,17 @@ impl Sender {
         } else {
             texture.clone()
         };
+        let paint_view = super::typeless::view_format(format).map(|format| D3D11_RENDER_TARGET_VIEW_DESC {
+            Format: format,
+            ViewDimension: D3D11_RTV_DIMENSION_TEXTURE2D,
+            Anonymous: D3D11_RENDER_TARGET_VIEW_DESC_0 {
+                Texture2D: D3D11_TEX2D_RTV { MipSlice: 0 },
+            },
+        });
         unsafe {
             device
                 .device
-                .CreateRenderTargetView(&paint, None, Some(&mut rtv))
+                .CreateRenderTargetView(&paint, paint_view.as_ref().map(std::ptr::from_ref), Some(&mut rtv))
                 .unwrap()
         };
         let sdk = Sdk(NonNull::new(unsafe { sdk::spout_dx_create() }).unwrap());
@@ -270,6 +277,7 @@ fn readback_native(device: &Device, texture: &ID3D11Texture2D, pixel_bytes: usiz
     let mut desc = D3D11_TEXTURE2D_DESC::default();
     unsafe { texture.GetDesc(&mut desc) };
     assert!(desc.Width <= 8 && desc.Height <= 8);
+    desc.Format = super::typeless::view_format(desc.Format).unwrap_or(desc.Format);
     desc.Usage = D3D11_USAGE_STAGING;
     desc.BindFlags = 0;
     desc.MiscFlags = 0;

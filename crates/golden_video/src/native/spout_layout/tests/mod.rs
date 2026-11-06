@@ -5,6 +5,91 @@ use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::*;
 
 #[test]
+fn typeless_defaults_keep_exact_native_registration_and_allow_declared_family_members() {
+    let extent = Extent2D::new(4, 4).unwrap();
+    for (native, format, view) in [
+        (
+            DXGI_FORMAT_R32G32B32A32_TYPELESS,
+            PixelFormat::Rgba32Float,
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+        ),
+        (
+            DXGI_FORMAT_R16G16B16A16_TYPELESS,
+            PixelFormat::Rgba16Float,
+            DXGI_FORMAT_R16G16B16A16_FLOAT,
+        ),
+        (
+            DXGI_FORMAT_R32G32_TYPELESS,
+            PixelFormat::Rg32Float,
+            DXGI_FORMAT_R32G32_FLOAT,
+        ),
+        (
+            DXGI_FORMAT_R10G10B10A2_TYPELESS,
+            PixelFormat::Rgb10A2Unorm,
+            DXGI_FORMAT_R10G10B10A2_UNORM,
+        ),
+        (
+            DXGI_FORMAT_R8G8B8A8_TYPELESS,
+            PixelFormat::Rgba8Unorm,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+        ),
+        (
+            DXGI_FORMAT_R16G16_TYPELESS,
+            PixelFormat::Rg16Float,
+            DXGI_FORMAT_R16G16_FLOAT,
+        ),
+        (DXGI_FORMAT_R32_TYPELESS, PixelFormat::R32Float, DXGI_FORMAT_R32_FLOAT),
+        (DXGI_FORMAT_R8G8_TYPELESS, PixelFormat::Rg8Unorm, DXGI_FORMAT_R8G8_UNORM),
+        (DXGI_FORMAT_R16_TYPELESS, PixelFormat::R16Float, DXGI_FORMAT_R16_FLOAT),
+        (DXGI_FORMAT_R8_TYPELESS, PixelFormat::R8Unorm, DXGI_FORMAT_R8_UNORM),
+        (
+            DXGI_FORMAT_B8G8R8A8_TYPELESS,
+            PixelFormat::Bgra8Unorm,
+            DXGI_FORMAT_B8G8R8A8_UNORM,
+        ),
+        (
+            DXGI_FORMAT_B8G8R8X8_TYPELESS,
+            PixelFormat::Bgrx8Unorm,
+            DXGI_FORMAT_B8G8R8X8_UNORM,
+        ),
+    ] {
+        let known = descriptor_from_alias(extent, native.0 as u32, native).unwrap();
+        assert_eq!(known.format, format);
+        assert_eq!(descriptor_from_alias(extent, 0, native), Some(known));
+        assert!(descriptor_from_alias(extent, native.0 as u32, view).is_none());
+        assert!(descriptor_from_alias(extent, view.0 as u32, native).is_none());
+    }
+    for (native, format) in [
+        (DXGI_FORMAT_R32G32B32A32_TYPELESS, PixelFormat::Rgba32Uint),
+        (DXGI_FORMAT_R32G32B32A32_TYPELESS, PixelFormat::Rgba32Sint),
+        (DXGI_FORMAT_R32G32_TYPELESS, PixelFormat::Rg32Uint),
+        (DXGI_FORMAT_R32G32_TYPELESS, PixelFormat::Rg32Sint),
+        (DXGI_FORMAT_R10G10B10A2_TYPELESS, PixelFormat::Rgb10XrA2Unorm),
+    ] {
+        let binding = SpoutSource {
+            sender: "Typeless".into(),
+            descriptor: TextureDescriptor {
+                extent,
+                format,
+                color_encoding: ColorEncoding::Srgb,
+                alpha_mode: AlphaMode::Premultiplied,
+            },
+            metadata: SpoutMetadata::Declared,
+            poll_interval: Duration::from_millis(16),
+            frame_count: SpoutFrameCount::Unversioned,
+        };
+        for registration in [0, native.0 as u32] {
+            assert_eq!(
+                observed_alias(&binding, extent, registration, native),
+                Some(binding.descriptor)
+            );
+            assert!(observed_alias(&binding, Extent2D::new(5, 4).unwrap(), registration, native).is_none());
+            assert!(observed_alias(&binding, extent, registration, DXGI_FORMAT_R8G8B8A8_TYPELESS).is_none());
+        }
+    }
+}
+
+#[test]
 fn xr_registration_remains_exact_despite_copy_compatible_unorm_storage() {
     let extent = Extent2D::new(4, 4).unwrap();
     let xr = DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM;

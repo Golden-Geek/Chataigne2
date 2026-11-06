@@ -15,6 +15,7 @@ mod normalized;
 mod packed;
 mod srgb;
 mod support;
+mod typeless;
 mod unspecified;
 use support::{GpuUse, Sender, readback, wait};
 
@@ -75,6 +76,18 @@ fn hardware_integer_wide_formats_preserve_bits_color_alpha_and_charges() {
     verify_formats(&integers::wide_cases(), false);
 }
 
+#[test]
+#[ignore = "requires native typeless default-view qualification on both adapters"]
+fn hardware_typeless_defaults_preserve_bits_color_alpha_and_charges() {
+    verify_formats(&typeless::default_cases(), false);
+}
+
+#[test]
+#[ignore = "requires explicit compatible declared integer views over native typeless storage"]
+fn hardware_typeless_declared_views_preserve_integer_precision_and_charges() {
+    verify_formats(&typeless::declared_cases(), false);
+}
+
 fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
@@ -117,12 +130,21 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                     | PixelFormat::Rg32Uint
                     | PixelFormat::Rg32Sint
             );
-            let registrations = std::iter::once((raw_format.0 as u32, false))
-                .chain((!matches!(raw_format.0, 21 | 22)).then_some((0, false)))
-                .chain(
-                    (converted || format == PixelFormat::Rgb10XrA2Unorm || integers::layout(format).is_some())
+            let override_view = typeless::default_format(raw_format).is_some_and(|default| default != format);
+            let registrations = if override_view {
+                vec![(raw_format.0 as u32, true), (0, true)]
+            } else {
+                std::iter::once((raw_format.0 as u32, false))
+                    .chain((!matches!(raw_format.0, 21 | 22)).then_some((0, false)))
+                    .chain(
+                        (converted
+                            || format == PixelFormat::Rgb10XrA2Unorm
+                            || integers::layout(format).is_some()
+                            || typeless::default_format(raw_format).is_some())
                         .then_some((raw_format.0 as u32, true)),
-                );
+                    )
+                    .collect::<Vec<_>>()
+            };
             for (registered, declared) in registrations {
                 let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
                 let sender = if integers::layout(format).is_some() {
@@ -149,6 +171,9 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                     native_format,
                 )
                 .unwrap();
+                if override_view {
+                    descriptor = SpoutSource::discovered_descriptor(descriptor.extent, format);
+                }
                 assert_eq!(descriptor.format, format);
                 let opaque = registered == 22
                     || format == PixelFormat::Bgrx8Unorm
@@ -379,6 +404,7 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                         "registered_format":registered,
                         "declared":declared,
                         "alpha_mode":descriptor.alpha_mode,
+                        "declared_family_override":override_view,
                         "capture_bytes":raw.len(),
                         "source_charge":bytes,
                         "source_bits_exact":true,
