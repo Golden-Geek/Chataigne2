@@ -1,6 +1,6 @@
 // Finite public-authoring controls for one owned native-alignment fixture.
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core';
 
 const directory = path.resolve(process.argv[2]);
 const action = process.argv[3];
-assert(['setup', 'red', 'blue', 'dialog', 'dialog-state', 'capture'].includes(action));
+assert(['setup', 'red', 'blue', 'output', 'dialog', 'dialog-state', 'capture'].includes(action));
 const ready = JSON.parse(await readFile(path.join(directory, 'ready.json'), 'utf8'));
 let token;
 async function post(route, value) {
@@ -45,6 +45,25 @@ if (action === 'red' || action === 'blue') {
 	});
 	await delay(500);
 	console.log(JSON.stringify({ action, reference: surface.snapshot.definition.source }));
+} else if (action === 'output') {
+	const { definition } = await edit('screens', {
+		kind: 'InspectScreen',
+		screen: ready.reference.screen
+	});
+	const sender = `MapGyver-M1110-M058-${ready.reference.screen}`;
+	await edit('screens', {
+		kind: 'ConfigureScreen',
+		screen: ready.reference.screen,
+		definition: {
+			...definition,
+			target: { kind: 'Spout', sender, extent: { width: 800, height: 600 } }
+		}
+	});
+	await writeFile(
+		path.join(directory, 'output-ready.json'),
+		JSON.stringify({ sender, extent: [800, 600] }, null, 2)
+	);
+	console.log(JSON.stringify({ sender }));
 } else if (action === 'capture') {
 	const stage = process.argv[4];
 	assert(/^[a-z][a-z0-9-]{0,40}$/.test(stage));
@@ -59,7 +78,9 @@ if (action === 'red' || action === 'blue') {
 		'--hwnd',
 		hwnd,
 		'--pid',
-		String(ready.pid)
+		String(ready.pid),
+		'--wait-foreground-seconds',
+		'60'
 	];
 	if (process.argv[5]) {
 		assert(/^[1-9]\d*$/.test(process.argv[5]));
@@ -84,6 +105,8 @@ if (action === 'red' || action === 'blue') {
 	if (action === 'dialog-state') {
 		console.log(JSON.stringify(await page.evaluate(() => window.__opaqueDialogResult)));
 	} else if (action === 'dialog') {
+		const location = path.join(directory, 'dialog-location');
+		await mkdir(location, { recursive: true });
 		await page.evaluate(
 			(suggested) => {
 				window.__opaqueDialogResult = { pending: true };
@@ -100,7 +123,7 @@ if (action === 'red' || action === 'blue') {
 						window.__opaqueDialogResult = { pending: false, error: String(error) };
 					});
 			},
-			path.join(directory, 'never-written.mapgyver')
+			path.join(location, 'never-written.mapgyver')
 		);
 	} else {
 		const sourceTab = page.getByRole('tab').filter({ hasText: /^Surface Source:/ });
@@ -137,5 +160,6 @@ if (action === 'red' || action === 'blue') {
 		await writeFile(path.join(directory, 'layers-ready.json'), JSON.stringify(geometry, null, 2));
 		console.log(JSON.stringify(geometry));
 	}
+	// Closing a connectOverCDP client disconnects its transport; it does not close the host.
+	await browser.close();
 }
-process.exit(0);

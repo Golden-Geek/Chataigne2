@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Two-region opaque native Save-dialog portion verified; full gate remains Active",
+  "accepted_gate_change": 0,
+  "source_base": "b7541e955b8ae26afd71e6d849a608ae881b7dc8",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "cases": [
+    { "gpu": "dxgi:00000000:00016022", "pid": 35172, "main_hwnd": 687016798, "dialog_hwnd": 45682142, "normal_exit": 0 },
+    { "gpu": "dxgi:00000000:00015b69", "pid": 31028, "main_hwnd": 3082218, "dialog_hwnd": 18680850, "normal_exit": 0 }
+  ],
+  "verified": {
+    "scale_percent": 125,
+    "screen_css_size": [678, 508.5],
+    "source_css_size": [196, 110.25],
+    "physical_images": 14,
+    "native_red_blue_witness_pixels_per_case": 222932,
+    "covered_native_pixels_per_case": 193240,
+    "stable_opaque_pixels_per_case": 193240,
+    "maximum_rgb_difference_under_dialog": 0,
+    "uncovered_native_colour_changes": true,
+    "same_colour_controls": "red/red/blue/red; stable mask selected only from red controls, with blue held out",
+    "capture_guard": "Exact owned PID/main HWND plus observed same-PID #32770 foreground dialog; pre/post capture geometry and foreground checks",
+    "independent_sdk_images": 6,
+    "sdk_extent": [800, 600],
+    "sdk_red_pixels": 172800,
+    "sdk_black_pixels": 307200,
+    "sdk_png_sha256_all_six": "f3da02acab3b5a3ee3b1e9e8df68da245d3ea0d55b27466161605ec2ad3ad959",
+    "all_sdk_observers_retired": true,
+    "dialog_cancel_results": [null, null],
+    "save_files_absent": true
+  },
+  "fixture_changes": "Separate empty save directory prevents capture folders changing dialog rows. A bounded foreground wait preserves ownership guards. Public CDP client close replaces abrupt process.exit, which produced a Windows libuv assertion after output authoring; the successful final Intel output action and all subsequent actions exit normally. The app/runtime binary is unchanged.",
+  "limits": "NVIDIA independent output captures use a second real dialog in the same process after an explicit sender rename; no claim that its old sender name remained registered. Both differently sized regions have clear red/blue witnesses; uncovered changing pixels are required across the visible union, not falsely claimed beneath fully covered parts. This verifies solid red/blue and an opaque native Save dialog at 125%, not translucent app modal blending or DOM context-menu stacking, full reference/motion/hit or latency acceptance.",
+  "checks": "Seven capture/oracle negative-control tests, Node syntax, Prettier, root/Core Cargo formatting and independent physical/SDK image replay pass. Both parent fixtures and owned apps retire normally. Terminal compile/software prerequisites remain those of the unchanged qualified menu-fix bundle.",
+  "next_action": "Verify real app DOM context-menu/panel layering over native content, then retained pointer-capture/motion/hit/reference and original latency requirements. Do not repeat completed native-menu/Save-dialog or closed latency investigations.",
+  "archive": {
+    "path": "mapgyver-m05-opaque-dialog-2026-11-06.zip",
+    "bytes": 1110983,
+    "sha256": "97d30ee095d930d3298bc3dbc332c09f3ad48b23617106befe38035ac8899ff9"
+  }
+}

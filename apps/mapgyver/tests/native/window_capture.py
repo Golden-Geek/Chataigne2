@@ -8,6 +8,7 @@ import ctypes
 from ctypes import wintypes
 import hashlib
 import json
+import time
 from pathlib import Path
 
 from PIL import Image, ImageGrab
@@ -109,12 +110,15 @@ def main():
     parser.add_argument("--visible", action="store_true", help="Capture its visible desktop region, not PrintWindow")
     parser.add_argument("--pid", type=int, help="Required owned fixture PID for --visible")
     parser.add_argument("--foreground-hwnd", type=int, help="Exact observed owned native dialog covering the fixture")
+    parser.add_argument("--wait-foreground-seconds", type=float, default=0, help="Bounded wait for supported external activation before guarded capture")
     source.add_argument(
         "--image", type=Path, help="Analyze an existing capture without capturing again"
     )
     parser.add_argument("--geometry-only", action="store_true")
     parser.add_argument("output", type=Path, nargs="?")
     args = parser.parse_args()
+    if not 0 <= args.wait_foreground_seconds <= 60 or (args.wait_foreground_seconds and not args.visible):
+        parser.error("foreground wait requires --visible and a duration between 0 and 60 seconds")
     if args.foreground_hwnd is not None and not args.visible:
         parser.error("--foreground-hwnd requires --visible")
     if args.geometry_only:
@@ -134,6 +138,14 @@ def main():
         assert args.hwnd > 0, "Supply the positive HWND of the owned fixture"
         if args.visible:
             assert args.pid and args.pid > 0, "--visible requires the fixture PID"
+            if args.wait_foreground_seconds:
+                user = ctypes.windll.user32
+                user.GetForegroundWindow.restype = wintypes.HWND
+                expected = args.foreground_hwnd or args.hwnd
+                deadline = time.monotonic() + args.wait_foreground_seconds
+                while user.GetForegroundWindow() != expected:
+                    assert time.monotonic() < deadline, "owned foreground activation timed out"
+                    time.sleep(.05)
             geometry = client_geometry(args.hwnd)
             image, bounds = visible_owned_window(args.hwnd, args.pid, args.foreground_hwnd)
             assert geometry == client_geometry(args.hwnd), "client placement/DPI changed during capture"
