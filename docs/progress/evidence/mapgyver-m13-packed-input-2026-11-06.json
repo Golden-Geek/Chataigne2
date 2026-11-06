@@ -1,0 +1,498 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; XR-bias verified on both GPUs, BGR4444 on Intel; NVIDIA BGR4444 remains unavailable/unaccepted",
+  "base_commit": "a9b68e1de340e3db3c12d2b4b6433d692c9d6fe6",
+  "delivered": "Automatic XR-bias import through copy-compatible R10 UNORM storage and explicit shader bias; native BGR4444 through the existing GPU-only float bridge.",
+  "ownership": "Golden PixelFormat, storage/view mapping, source metadata authentication, shader interpretation and bounded source/probe storage. No UI format setting or CPU image conversion.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "233 passed,41 ignored; exact XR alias/registration, documented bias points and unbiased alpha, storage/overflow and compiled shader identity included."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass after corrected producer and before second native cohort."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included. Reused after changing only test-producer code."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass; production code unchanged by subsequent test-producer correction."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "Corrected cohort:4 passed,270 filtered,exit0 in95.76seconds.143 pixel cases; NVIDIA BGR4444 allocation separately unavailable/unaccepted. Each fixture retains its90-second guard."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-packed-input",
+      "result": "Current isolated app builds,exit0 in33.54seconds; running user's executable is not replaced."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run; product budgets unchanged."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "7263619fcc90b480129652c1e06d86458e01fcf65a8a2848b2acb48520458656"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-packed-input.exe",
+      "sha256": "86766c56235133af62a52a42bdd12c9a27e7aa6fffc923376b9416d54612f4fa"
+    }
+  ],
+  "native": {
+    "total_pixel_cases": 143,
+    "new_pixel_cases": 15,
+    "regression_cases": 128,
+    "xr_cases": 12,
+    "bgra4444_cases": 3,
+    "native_format_counts": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "native_formats": 30
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_formats": 29
+      }
+    ],
+    "direct_native_formats": 26,
+    "method": "Independent native D3D11 producer and actual SDK SendTexture. BGR4444 uses native Clear. XR paints independent raw R10 UNORM codes, copies within the type group into an actual native89 source, then publishes through the SDK. Staging authenticates literal producer bits before receiving; production source pool/native capture must preserve every bit. Production Pipeline float output is compared against independent packed decoding.",
+    "assertions": {
+      "all_source_bits_exact": true,
+      "all_ready_after_gpu_copy": true,
+      "explicit_unspecified_and_declared_contracts": true,
+      "default_linear_straight": true,
+      "negative_zero_hdr_xr_values": true,
+      "unbiased_fractional_alpha": true,
+      "full_source_probe_charge_and_retirement": true,
+      "declared_one_byte_short_rejected_before_worker": true,
+      "nonbyte_pixel_export_rejected_before_staging": true,
+      "previous_worker_probe_recovery_and_alias_mismatch_controls_pass": true
+    },
+    "precision": {
+      "target": 0.000001,
+      "max_new_shader_error": 5.960464477539063e-8,
+      "target_changed": false
+    },
+    "storage": {
+      "xr_raw_bytes_per_texel": 4,
+      "xr_source_bytes_per_texel": 16,
+      "xr_storage": "Copy-compatible R10G10B10A2 UNORM; metadata/alias remains exactly native89; no float bridge or extra conversion image.",
+      "bgra4444_raw_bytes_per_texel": 2,
+      "bgra4444_source_bytes_per_texel": 52,
+      "bgra4444_storage": "Sender alias + raw capture + three RGBA32F NT/keyed bridge slots; preserve native descriptor and exact bits.",
+      "probe": "One native-sized receiving image; no NT bridge.",
+      "limits": "Logical admission only; no physical growth, cadence or final app acceptance claim and no budget increases."
+    },
+    "cases": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Bgra4444Unorm",
+        "native_format": 115,
+        "registered_format": 115,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          139,
+          130
+        ],
+        "raw_capture_bytes": 8,
+        "source_charge": 208,
+        "probe_charge": 8,
+        "shader_expected": [
+          0.07111112028360367,
+          0.2844444811344147,
+          0.3911111354827881,
+          0.5333333611488342
+        ],
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Bgra4444Unorm",
+        "native_format": 115,
+        "registered_format": 0,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          139,
+          130
+        ],
+        "raw_capture_bytes": 8,
+        "source_charge": 208,
+        "probe_charge": 8,
+        "shader_expected": [
+          0.07111112028360367,
+          0.2844444811344147,
+          0.3911111354827881,
+          0.5333333611488342
+        ],
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Bgra4444Unorm",
+        "native_format": 115,
+        "registered_format": 115,
+        "metadata": "Declared",
+        "source_pixel_bytes": [
+          139,
+          130
+        ],
+        "raw_capture_bytes": 8,
+        "source_charge": 208,
+        "probe_charge": 8,
+        "shader_expected": [
+          0.07111112028360367,
+          0.2844444811344147,
+          0.3911111354827881,
+          0.5333333611488342
+        ],
+        "max_shader_error": 0,
+        "converted_bridge": true
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 0,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Declared",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 0,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "luid": "AdapterId { low: 88937, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Declared",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 0,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Declared",
+        "source_pixel_bytes": [
+          129,
+          252,
+          249,
+          191
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          -0.3333333432674408,
+          0.3333333432674408,
+          0.8352941274642944,
+          0.6666666865348816
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 0,
+        "metadata": "Discover",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "luid": "AdapterId { low: 2044916551, high: 0 }",
+        "format": "Rgb10XrA2Unorm",
+        "native_format": 89,
+        "registered_format": 89,
+        "metadata": "Declared",
+        "source_pixel_bytes": [
+          128,
+          249,
+          13,
+          192
+        ],
+        "raw_capture_bytes": 16,
+        "source_charge": 64,
+        "probe_charge": 16,
+        "shader_expected": [
+          0,
+          1,
+          -0.7529411911964417,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "converted_bridge": false
+      }
+    ],
+    "unavailable_requirements": [
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 115,
+        "format": "Bgra4444Unorm",
+        "hresult": -2147024809,
+        "scope": "SDK shared allocation unavailable; native reception remains unaccepted on this adapter"
+      }
+    ]
+  },
+  "failed_cohort": {
+    "result": "3 fixtures passed,1 failed;exit1 in89.62seconds.",
+    "completed_format_records": 131,
+    "observation": "128 regressions and three Intel BGR4444 cases passed. Intel then rejected the XR producer's UNORM render-target view on native89 with E_INVALIDARG before submission.",
+    "correction": "Change only independent producer: create a raw UNORM painting image, Clear exact ten-bit codes, CopyResource into native XR storage in its documented type group, retain both images until GPU completion, then validate native staging bits. Production decoder and1e-6 target remain unchanged.",
+    "retained_as_failed": true,
+    "native_cohorts": 2
+  },
+  "sources": [
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/display/casting-ability-of-xr-formats",
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/display/xr-bias-to-float-conversion-rules",
+    "https://learn.microsoft.com/en-us/windows-hardware/drivers/display/xr-format-alpha-content",
+    "https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-copyresource"
+  ],
+  "remaining": [
+    "NVIDIA BGR4444 shared allocation and RGB32 FLOAT6 SDK allocation remain named unaccepted hardware/API requirements.",
+    "Integer/typeless/video-plane import remains required.",
+    "Full native app preview/output integration, continuous-producer live reformat/resize, sender/device loss/recovery and actual D3D9 producer-device scope remain required.",
+    "New native Declared cases use native default interpretation. Custom sRGB/premultiplied XR metadata retention is software-verified; no expanded full-app/color contract is inferred.",
+    "Small2x2 patterns do not qualify production cadence, physical latency, residency or peak growth.",
+    "No full acceptance gate closes:70/92 (76%),M13 1/14 (7%),7/14 phases (50%)."
+  ]
+}

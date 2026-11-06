@@ -9,9 +9,11 @@ see [sender creation and recovery](mapgyver-sender-selection.md).
 
 Spout metadata discovery admits native RGBA8/BGRA8, RGBA16F/RGBA32F, RGBA16 UNORM/SNORM,
 RGBA8 SNORM, RGB10A2 and BGRX8 without converting their receiving storage to eight bits.
-Single/two-channel R/RG float and UNORM/SNORM, R11G11B10 float and A8 coverage storage
+R/RG16F, R32F, single/two-channel UNORM/SNORM, R11G11B10 float and A8 coverage storage
 also use direct native import. Their color is linear; missing color components are zero and
 missing alpha is opaque. A8 supplies coverage with zero RGB, rather than replicated luminance.
+RG32F and packed BGR use the float bridge where available; XR-bias uses compatible raw
+R10 UNORM storage with explicit shader interpretation, as described below.
 `PixelFormat` is the Rust source of truth for logical
 texel storage and checked byte accounting; native `texture::format` supplies the DXGI mapping.
 `SpoutSource::observed_descriptor` assigns unsigned byte RGB its existing sRGB interpretation;
@@ -32,6 +34,36 @@ reserves its full native image size. Its RGBA8 pixel-export API rejects other la
 allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
+
+## Packed BGR4444 and XR-bias
+
+BGR4444 (native115) uses two-byte storage, linear color and straight alpha, with the same
+GPU-only float bridge as the other packed BGR layouts. Its full source charge is52 bytes per
+texel. Independent native bits, fractional color/alpha and source/probe reclamation pass on
+Intel. NVIDIA rejects the SDK's shared allocation flags with E_INVALIDARG; reception remains
+explicitly unaccepted there. Mapping an enum never turns that allocation failure into Ready.
+
+XR-bias (native89) is part of the
+[R10G10B10A2 typeless family](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/casting-ability-of-xr-formats).
+Golden retains its distinct logical format and exact native alias/registration, while using
+copy-compatible R10G10B10A2 UNORM receiving storage and views. No extra image/conversion pass
+is required. The sampling shader reconstructs the ten-bit code and applies
+[`(code - 384) / 510`](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/xr-bias-to-float-conversion-rules)
+before transfer decoding, premultiplication or filtering. Its two-bit alpha remains
+[ordinary normalized coverage](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/xr-format-alpha-content).
+The untagged source default is linear/straight, and declared callers retain their interpretation.
+The four-image direct charge remains16 bytes per texel; the probe charges one four-byte image.
+Copy-compatible native24 and89 registrations remain semantically distinct and cannot stand in
+for each other during exact alias authentication.
+
+The independent producer first tried a UNORM render view on its native XR texture; Intel
+rejected that view before submission. The corrected producer clears independent UNORM codes
+and uses the documented [same-family GPU copy](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-copyresource)
+to populate an actual XR resource before the SDK publishes it. Raw staging bits authenticate
+that producer separately from Golden's receiver. The failed cohort is retained; production
+decoding and the1e-6 target are unchanged. See the
+[packed-format receipt](../progress/evidence/mapgyver-m13-packed-input-2026-11-06.json)
+for native results and the remaining NVIDIA/API and full app/recovery requirements.
 
 ## GPU bridge for non-NT layouts
 
@@ -187,6 +219,10 @@ complete format support is made by the verified subsets.
 | 91 /93 | BGRA8 /BGRX8 UNORM SRGB | Same-family canonical UNORM import; both-GPU bits/color/alpha/readiness/retirement and receiver replacement pass |
 | 31 | RGBA8 SNORM | Typed4-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
 | 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw SRV/shader decode; corrected both-GPU precision/readiness/retirement pass |
+| 16 | RG32 FLOAT | Native descriptor retained through RGBA32F bridge; both-GPU bits/shader/readiness/retirement pass |
+| 85 /86 | BGR565 /BGRA5551 | Same GPU bridge, exact native round trips and five/six-bit normalized sampling; both GPUs pass |
+| 115 | BGRA4444 | GPU bridge/native bits/fractional alpha pass on Intel; NVIDIA SDK shared allocation unavailable and unaccepted |
+| 89 | RGB10 XR-bias /A2 | Exact native alias, compatible raw UNORM storage and explicit bias decoding; both GPUs pass |
 | 6 | RGB32 FLOAT | Both GPUs reject the pinned SDK's shared allocation flags with E_INVALIDARG; API limitation stays unaccepted |
 | 21 /22 | Legacy D3D9 ARGB/XRGB metadata | Both-GPU native bits/color/alpha/readiness/retirement and sender replacement pass over D3D11 BGRA storage; D3D9 producer-device scope unverified |
 | Other DXGI values | DirectX pass-through candidates |70 Intel/68 NVIDIA shared native allocations open successfully; remaining import/conversion and typed-view/color proof below |
@@ -243,17 +279,20 @@ This is allocation/alias evidence, not typed-view, shader, pixel or complete imp
 The receipt retains every available native value and rejected HRESULT; names come from the
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
-The remaining formats include RG32 integer/typeless, XR-bias, other unsigned/signed integer,
+The remaining formats include RG32 integer/typeless, other unsigned/signed integer,
 typeless and video-plane formats. RG32 FLOAT16 and packed BGR85/86 now use the GPU bridge
 described above; they remain distinct from the 25 direct NT layouts. RG32 native15/17/18
-still need typed interpretation. Intel's BGR4444 format115 also needs conversion, and NVIDIA
-rejects its SDK shared allocation. XR-bias89's recorded
-support mask0x111a0020 lacks shader-sample/render-target view support despite allocation
-success. Thus extending only the enum is insufficient: these sources need supported GPU
-interpretation/conversion. Next is the remaining packed/XR-bias and integer/typeless/video
+still need typed interpretation. BGR4444 now uses the float bridge on Intel; NVIDIA's SDK
+shared-allocation rejection remains unaccepted. XR-bias89 uses compatible UNORM storage and
+explicit shader bias instead of requiring unsupported native shader/RTV operations. Native
+import now covers30 layouts on Intel and29 on NVIDIA, including26 direct layouts; this does
+not change the allocation counts or award a complete gate. Next is integer/typeless/video
 handling with real source/bridge charges, followed by full app/recovery acceptance.
 
 RGB32 FLOAT6 fails the SDK allocator's mandatory shader-resource/render-target shared flags
 on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend
 that can publish such a shared source or a justified import/conversion path for an actual
 producer. No successful subset, allocation result or rejection closes M13/2.
+NVIDIA BGR4444 has the same concrete return trigger: an actual producer/backend that can
+publish that native shared source, or new evidence supporting a different justified import
+path. Repeating the same rejected SDK flags does not advance either requirement.

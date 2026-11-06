@@ -148,10 +148,24 @@ impl Sender {
                 .unwrap();
         }
         let texture = texture.unwrap();
+        // XR resources have no native RTV. Paint independent raw UNORM codes, then copy
+        // their bits into the exact native XR resource within its compatible type group.
+        let paint = if format == DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM {
+            let mut desc = D3D11_TEXTURE2D_DESC::default();
+            let mut paint = None;
+            unsafe {
+                texture.GetDesc(&mut desc);
+                desc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+                device.device.CreateTexture2D(&desc, None, Some(&mut paint)).unwrap();
+            }
+            paint.unwrap()
+        } else {
+            texture.clone()
+        };
         unsafe {
             device
                 .device
-                .CreateRenderTargetView(&texture, None, Some(&mut rtv))
+                .CreateRenderTargetView(&paint, None, Some(&mut rtv))
                 .unwrap()
         };
         let sdk = Sdk(NonNull::new(unsafe { sdk::spout_dx_create() }).unwrap());
@@ -180,6 +194,9 @@ impl Sender {
             let _submission = sender.completion.begin(&sender.device, token);
             unsafe {
                 sender.device.context.ClearRenderTargetView(&rtv.unwrap(), &color);
+                if paint.as_raw() != sender.texture.as_raw() {
+                    sender.device.context.CopyResource(&sender.texture, &paint);
+                }
                 assert_eq!(
                     sdk::spout_dx_send_texture_status(sender.sdk.0.as_ptr(), sender.texture.as_raw(), 0),
                     sdk::SPOUT_DX_TRANSFER_COPIED

@@ -297,6 +297,7 @@ impl Pipeline {
             source_storage: match source.map(|texture| texture.descriptor.format) {
                 Some(crate::PixelFormat::Bgr565Unorm) => 1,
                 Some(crate::PixelFormat::Bgra5551Unorm) => 2,
+                Some(crate::PixelFormat::Rgb10XrA2Unorm) => 3,
                 _ => 0,
             },
             reserved: 0,

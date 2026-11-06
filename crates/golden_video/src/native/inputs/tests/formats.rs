@@ -11,6 +11,7 @@ mod channels;
 mod inventory;
 mod legacy;
 mod normalized;
+mod packed;
 mod srgb;
 mod support;
 mod unspecified;
@@ -55,6 +56,12 @@ fn hardware_conversion_formats_preserve_native_bits_and_exact_bridge_charges() {
     verify_formats(&bridge::cases(), false);
 }
 
+#[test]
+#[ignore = "requires explicit hardware D3D11/Spout qualification; unavailable layouts remain unaccepted"]
+fn hardware_packed_formats_preserve_xr_bias_precision_and_bgra4444_storage() {
+    verify_formats(&packed::cases(), false);
+}
+
 fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
@@ -62,6 +69,27 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     assert!(!hardware.is_empty());
     for adapter in hardware {
         for (format, raw_format, color, expected_bytes) in cases.iter().cloned() {
+            if format == PixelFormat::Bgra4444Unorm {
+                // This specific format is adapter-dependent in the existing inventory.
+                // Recheck only its allocator prerequisite, never infer pixel acceptance.
+                let device = Device::new(adapter.id).unwrap();
+                if let Err(error) = inventory::texture(
+                    &device,
+                    raw_format,
+                    windows::Win32::Graphics::Direct3D11::D3D11_RESOURCE_MISC_SHARED.0 as u32,
+                ) {
+                    assert_eq!(error.code().0, 0x8007_0057_u32 as i32);
+                    println!(
+                        "FORMAT_UNAVAILABLE {}",
+                        serde_json::json!({
+                            "adapter":format!("{:?}",adapter.id), "description":adapter.description,
+                            "format":format, "dxgi_format":raw_format.0,"hresult":error.code().0,
+                            "scope":"SDK shared allocation unavailable; native reception remains unaccepted on this adapter"
+                        })
+                    );
+                    continue;
+                }
+            }
             let native_format = if matches!(raw_format.0, 21 | 22) {
                 DXGI_FORMAT_B8G8R8A8_UNORM
             } else {
@@ -69,11 +97,14 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
             };
             let converted = matches!(
                 format,
-                PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm
+                PixelFormat::Rg32Float
+                    | PixelFormat::Bgr565Unorm
+                    | PixelFormat::Bgra5551Unorm
+                    | PixelFormat::Bgra4444Unorm
             );
             let registrations = std::iter::once((raw_format.0 as u32, false))
                 .chain((!matches!(raw_format.0, 21 | 22)).then_some((0, false)))
-                .chain(converted.then_some((raw_format.0 as u32, true)));
+                .chain((converted || format == PixelFormat::Rgb10XrA2Unorm).then_some((raw_format.0 as u32, true)));
             for (registered, declared) in registrations {
                 let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
                 let sender = Sender::new(adapter.id, &sender_name, native_format, color);

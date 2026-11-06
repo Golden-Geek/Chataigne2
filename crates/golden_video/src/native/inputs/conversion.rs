@@ -10,7 +10,7 @@ use crate::{PixelFormat, TextureDescriptor};
 pub(in crate::native) fn bridge_descriptor(source: TextureDescriptor) -> TextureDescriptor {
     if matches!(
         source.format,
-        PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm
+        PixelFormat::Rg32Float | PixelFormat::Bgr565Unorm | PixelFormat::Bgra5551Unorm | PixelFormat::Bgra4444Unorm
     ) {
         TextureDescriptor {
             format: PixelFormat::Rgba32Float,

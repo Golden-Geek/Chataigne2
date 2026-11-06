@@ -84,6 +84,11 @@ pub enum PixelFormat {
     Bgr565Unorm,
     /// Packed blue/green/red/alpha normalized channels (5/5/5/1 bits), two bytes per texel.
     Bgra5551Unorm,
+    /// Packed blue/green/red/alpha normalized four-bit channels, two bytes per texel.
+    Bgra4444Unorm,
+    /// Packed XR-biased ten-bit RGB and two-bit alpha, four bytes per texel.
+    /// RGB code values decode as (code - 384) / 510; alpha remains normalized.
+    Rgb10XrA2Unorm,
 }
 
 impl PixelFormat {
@@ -97,7 +102,8 @@ impl PixelFormat {
             Self::Rg8Unorm | Self::Rg8Snorm | Self::R16Unorm | Self::R16Snorm | Self::R16Float => 2,
             Self::Rg16Unorm | Self::Rg16Snorm | Self::Rg16Float | Self::R32Float | Self::Rg11B10Float => 4,
             Self::Rg32Float => 8,
-            Self::Bgr565Unorm | Self::Bgra5551Unorm => 2,
+            Self::Bgr565Unorm | Self::Bgra5551Unorm | Self::Bgra4444Unorm => 2,
+            Self::Rgb10XrA2Unorm => 4,
         }
     }
 
@@ -116,6 +122,8 @@ impl PixelFormat {
                 | Self::Rgba32Float
                 | Self::A8Unorm
                 | Self::Bgra5551Unorm
+                | Self::Bgra4444Unorm
+                | Self::Rgb10XrA2Unorm
         )
     }
 }

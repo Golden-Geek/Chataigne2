@@ -85,6 +85,10 @@ float4 load_source(int2 position) {
         stored.rgb = round(stored.rgb * maximum) / maximum;
     } else if (source_storage == 2) {
         stored.rgb = round(stored.rgb * 31) / 31;
+    } else if (source_storage == 3) {
+        // XR_BIAS is transported through its copy-compatible raw R10 UNORM member.
+        // Recover each stored code before applying the documented scale/offset.
+        stored.rgb = (round(stored.rgb * 1023) - 384) / 510;
     }
     float coverage = source_alpha == ALPHA_OPAQUE ? 1 : stored.a;
     if (coverage == 0) {

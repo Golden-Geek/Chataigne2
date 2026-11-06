@@ -331,7 +331,9 @@ impl SpoutSource {
             | crate::PixelFormat::A8Unorm
             | crate::PixelFormat::Rg32Float
             | crate::PixelFormat::Bgr565Unorm
-            | crate::PixelFormat::Bgra5551Unorm => crate::ColorEncoding::Linear,
+            | crate::PixelFormat::Bgra5551Unorm
+            | crate::PixelFormat::Bgra4444Unorm
+            | crate::PixelFormat::Rgb10XrA2Unorm => crate::ColorEncoding::Linear,
         }
     }
 

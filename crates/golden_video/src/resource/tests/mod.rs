@@ -27,6 +27,8 @@ fn narrow_and_packed_formats_keep_their_native_charge_and_alpha_presence() {
         (PixelFormat::Rg32Float, 8, false),
         (PixelFormat::Bgr565Unorm, 2, false),
         (PixelFormat::Bgra5551Unorm, 2, true),
+        (PixelFormat::Bgra4444Unorm, 2, true),
+        (PixelFormat::Rgb10XrA2Unorm, 4, true),
     ] {
         assert_eq!(descriptor(4, 2, format).byte_len().unwrap(), 8 * bytes);
         assert_eq!(format.has_alpha(), alpha);
