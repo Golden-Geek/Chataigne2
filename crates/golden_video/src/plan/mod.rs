@@ -299,8 +299,9 @@ impl SpoutSource {
                 SpoutMetadata::Discover => {
                     actual.color_encoding == Self::observed_encoding(actual.format)
                         && (actual.alpha_mode == Self::observed_alpha(actual.format)
-                            // Legacy XRGB shares native BGRA storage but has no authored alpha.
-                            || (actual.format == crate::PixelFormat::Bgra8Unorm && actual.alpha_mode == crate::AlphaMode::Opaque))
+                            // Opaque XRGB/video sources use alpha-capable canonical images.
+                            || (matches!(actual.format, crate::PixelFormat::Bgra8Unorm | crate::PixelFormat::Rgba32Float)
+                                && actual.alpha_mode == crate::AlphaMode::Opaque))
                 }
             }
     }

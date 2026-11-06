@@ -71,6 +71,37 @@ reservation conservatively holds256bytes, so Y416 needs16 additional bytes. Exis
 renderer completion authorities retain every image until actual uses retire. Probe readiness
 charges only its raw16/32-byte capture and rejects byte export before allocating staging storage.
 
+### Paired 4:2:2 storage
+
+The same boundary imports YUY2 (107), Y210 (108) and Y216 (109). Their UINT view exposes
+one `Y0,U,Y1,V` element per pair of logical pixels. The shader addresses `x/2`, chooses the
+even/odd luma and uses the pair's shared chroma. This explicit pair-replication default avoids
+the legacy hardware reconstruction view. Other chroma-siting/reconstruction interpretations
+remain part of the unadvertised-colorimetry limitation above. Width must be even; native
+metadata admission and capture construction reject odd widths before allocation.
+
+YUY2 consumes two raw bytes per logical pixel; Y210/Y216 consume four. Y210 decodes its upper
+ten bits and ignores the six padding bits in each word; Y216 retains all sixteen. These formats
+have no alpha: automatic sampled descriptors are opaque RGBA32F and declared sampled RGB
+contracts also receive coverage1. Raw V data never becomes alpha. The generic source contract
+admits this opaque canonical float descriptor, just as legacy XRGB uses opaque canonical BGRA.
+Native registration/alias authentication, sampled extent bounds and transfer validation still apply.
+
+Source admission includes both packed raw images, three RGBA32F bridge images and the existing
+16-byte decoder buffer. At4×2 this is432bytes for YUY2 and464bytes for Y210/Y216; declared
+RGBA32F reservations conservatively hold512bytes. Probe captures charge only the raw16/32bytes.
+The independent producer accepts literal rows with an explicit pitch, so native tests can vary
+both lumas, neighboring pairs and rows without going through Golden's decoder.
+
+The [paired-video receipt](../progress/evidence/mapgyver-m13-paired-video-input-2026-11-07.json)
+passes30 both-GPU cases: known/unspecified metadata and three declared sampled contracts,
+including physical opaque coverage under Straight/Premultiplied/Opaque interpretations.
+Every4×2 image varies both lumas, neighboring chroma and rows; below-black/headroom,
+Y210 padding and Y216 low bits match independent f64 references within unchanged1e-6.
+Actual raw-copy readiness, denied extra-byte admission and complete charge retirement pass.
+The72 existing4:4:4 and365 RGB/typeless regression cases pass unchanged. Full app/live/device
+and alternative chroma reconstruction acceptance remain open.
+
 ## Typeless defaults and declared views
 
 Typeless registrations identify storage families, not the producer's typed view. Golden uses
@@ -357,6 +388,8 @@ complete format support is made by the verified subsets.
 | 89 | RGB10 XR-bias /A2 | Exact native alias, compatible raw UNORM storage and explicit bias decoding; both GPUs pass |
 | 6 | RGB32 FLOAT | Both GPUs reject the pinned SDK's shared allocation flags with E_INVALIDARG; API limitation stays unaccepted |
 | 21 /22 | Legacy D3D9 ARGB/XRGB metadata | Both-GPU native bits/color/alpha/readiness/retirement and sender replacement pass over D3D11 BGRA storage; D3D9 producer-device scope unverified |
+| 100–102 | AYUV /Y410 /Y416 | Both-GPU literal native codes, BT.709 decode, alpha, sampled contracts, readiness and retirement pass through RGBA32F |
+| 107–109 | YUY2 /Y210 /Y216 | Both-GPU nonuniform pair/row pixels,10/16-bit precision, opaque sampled contracts, readiness and retirement pass through RGBA32F |
 | Other DXGI values | DirectX pass-through candidates |70 Intel/68 NVIDIA shared native allocations open successfully; remaining import/conversion and typed-view/color proof below |
 
 M13/2 remains Active until every required format and explicit hardware/API limitation is
@@ -412,12 +445,13 @@ The receipt retains every available native value and rejected HRESULT; names com
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
 All19 available RGB integer layouts and twelve typeless default/view paths now pass on both
-GPUs. AYUV/Y410/Y416 now pass through native read-only capture and GPU decoding. Reusing
-that original inventory, remaining native allocations are six Intel/five NVIDIA video layouts
-(`103–105,107–109`; NVIDIA excludes105/P016).
+GPUs. All six available packed video layouts (AYUV/Y410/Y416/YUY2/Y210/Y216) now pass
+through native read-only capture and GPU decoding. Reusing that original inventory,
+remaining native allocations are three Intel/two NVIDIA planar video layouts
+(`103–105`; NVIDIA excludes105/P016).
 RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-bias raw
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
-stays unaccepted. Recorded paths cover64 Intel/63 NVIDIA native layouts, with54 direct layouts;
+stays unaccepted. Recorded paths cover67 Intel/66 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
 Next is full video-plane precision/color handling and complete
 actual-app/continuous-producer/device recovery acceptance.

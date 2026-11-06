@@ -11,6 +11,8 @@ use golden_io::PayloadPool;
 use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT;
 
+mod paired;
+
 #[test]
 #[ignore = "explicit native packed-video precision/alpha/storage qualification on both GPUs"]
 fn hardware_packed_video_decodes_444_precision_and_retires_storage() {
@@ -255,8 +257,13 @@ fn encode_srgb(v: f32) -> f32 {
     }
 }
 fn compare(bytes: &[u8], expected: [f32; 4]) -> f32 {
+    compare_image(bytes, &vec![expected; bytes.len() / 16])
+}
+fn compare_image(bytes: &[u8], expected: &[[f32; 4]]) -> f32 {
+    assert!(!expected.is_empty());
+    assert_eq!(bytes.len(), expected.len() * 16);
     let mut maximum = 0_f32;
-    for texel in bytes.chunks_exact(16) {
+    for (texel, expected) in bytes.chunks_exact(16).zip(expected) {
         for i in 0..4 {
             let actual = f32::from_le_bytes(texel[i * 4..i * 4 + 4].try_into().unwrap());
             let error = (actual - expected[i]).abs();

@@ -1,0 +1,752 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "time_basis": "Europe/Paris local date; batch began2026-11-06 23:03 UTC, cutoff23:48 UTC",
+  "gate": "M13/2",
+  "status": "Active; native YUY2/Y210/Y216 input verified in the default BT.709/pair-replication scope; full gate remains unaccepted",
+  "base_commit": "c89b540865b3870ad6b01913708fd0945503d6e1",
+  "delivered": "GPU-only pair-aware decoding of packed4:2:2 sources into canonical RGBA32F, with exact native storage transport, separate luma per pixel, shared pair chroma, opaque coverage, Y210 ten-bit alignment and Y216 sixteen-bit precision.",
+  "ownership": "Golden native inputs/video, Spout layout admission and canonical source contract. Existing source/probe/renderer completion, budget and recovery authorities remain in place.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "237 passed,47 ignored; includes both known/unspecified4:2:2 native admission, opaque canonical defaults, even-width rejection, declared/observed bounds and expanded checked storage accounting."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before native qualification."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before native qualification."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-paired-video",
+      "result": "Isolated app builds,exit0 in14.76seconds; this is compile/integration evidence, not full app pixel acceptance."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::video::paired::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "1 passed,283 filtered,exit0 in18.81seconds;30 complete records, all pixels and charges asserted."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::video::hardware_packed_video_ -- --ignored --nocapture --test-threads=1",
+      "result": "1 passed,283 filtered,exit0 in45.10seconds;72 complete unchanged4:4:4 regression records."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "8 passed,276 filtered,exit0 in244.57seconds;365 complete unchanged native RGB/typeless records, no truncation. Existing retained sender-replacement assertions also pass."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "97d7efecd294fd4962d099b38731a837c3d7571eb86a5ad1a1fba2de296185ae"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-paired-video.exe",
+      "sha256": "dc412c4254250c38f395a4deefe48dcaf541ec74cfdca894485af0cb08cb163e"
+    }
+  ],
+  "native": {
+    "cohorts": 1,
+    "new_cases": 30,
+    "derivation": "3 native formats *5 contracts *2 hardware adapters; every case uses one4x2 image containing four distinct packed pairs and eight independently referenced pixels.",
+    "contracts": {
+      "0": "Known metadata, discovered Linear/Opaque descriptor",
+      "1": "Unspecified registry0, authenticated native layout before allocation",
+      "2": "Declared sRGB/Premultiplied sampled contract",
+      "3": "Declared Linear/Straight sampled contract",
+      "4": "Declared Linear/Opaque sampled contract; Y210 also supplies nonzero ignored low-six padding bits"
+    },
+    "absolute_tolerance": 0.000001,
+    "max_decoded_error": 5.960464477539062e-7,
+    "max_composited_error": 8.344650268554688e-7,
+    "complete_records_observed": 30,
+    "tool_truncation": false,
+    "assertions": [
+      "Literal independent source bits read back exactly before SDK transport",
+      "All eight decoded RGBA32F pixels match independent f64 BT.709 references",
+      "Alternating luma within each pair, differing neighboring pair chroma and distinct rows prove pair/view/row addressing",
+      "Below-black, headroom and Y216 low-word values remain visible at full precision",
+      "Production compositor over white matches the independent linear result; every output alpha equals1 for every declared contract",
+      "Native Y210 values are shifted down6bits before normalization; the explicit padding case yields identical ten-bit color",
+      "Actual source/probe readiness requires an SDK image copy",
+      "Exact raw/decoded/buffer admission denies one extra byte; actual GPU completion precedes reader release and full source/probe charge reclamation"
+    ],
+    "patterns": [
+      {
+        "native_format": 107,
+        "extent": [
+          4,
+          2
+        ],
+        "raw_bits": [
+          32,
+          128,
+          96,
+          128,
+          126,
+          96,
+          200,
+          160,
+          0,
+          128,
+          255,
+          128,
+          100,
+          100,
+          220,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.016235413029789925,
+            0.016235413029789925,
+            0.016235413029789925,
+            1
+          ],
+          [
+            0.14738048613071442,
+            0.14738048613071442,
+            0.14738048613071442,
+            1
+          ],
+          [
+            0.530521035194397,
+            0.22455570101737976,
+            0.07192526012659073,
+            1
+          ],
+          [
+            1.1365379095077515,
+            0.6400459408760071,
+            0.33750250935554504,
+            1
+          ],
+          [
+            -0.016235413029789925,
+            -0.016235413029789925,
+            -0.016235413029789925,
+            1
+          ],
+          [
+            1.194095492362976,
+            1.194095492362976,
+            1.194095492362976,
+            1
+          ],
+          [
+            0.2978488802909851,
+            0.14436715841293335,
+            0.0374404639005661,
+            1
+          ],
+          [
+            1.1826462745666504,
+            0.8251488208770752,
+            0.49180832505226135,
+            1
+          ]
+        ]
+      },
+      {
+        "native_format": 108,
+        "extent": [
+          4,
+          2
+        ],
+        "raw_bits": [
+          0,
+          32,
+          0,
+          128,
+          0,
+          96,
+          0,
+          128,
+          0,
+          126,
+          0,
+          96,
+          0,
+          200,
+          0,
+          160,
+          0,
+          0,
+          0,
+          128,
+          192,
+          255,
+          0,
+          128,
+          0,
+          100,
+          0,
+          100,
+          0,
+          220,
+          0,
+          150
+        ],
+        "y210_padding_case": [
+          1,
+          32,
+          63,
+          128,
+          17,
+          96,
+          42,
+          128,
+          1,
+          126,
+          63,
+          96,
+          17,
+          200,
+          42,
+          160,
+          1,
+          0,
+          63,
+          128,
+          209,
+          255,
+          42,
+          128,
+          1,
+          100,
+          63,
+          100,
+          17,
+          220,
+          42,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.016235413029789925,
+            0.016235413029789925,
+            0.016235413029789925,
+            1
+          ],
+          [
+            0.14738048613071442,
+            0.14738048613071442,
+            0.14738048613071442,
+            1
+          ],
+          [
+            0.530521035194397,
+            0.22455570101737976,
+            0.07192526012659073,
+            1
+          ],
+          [
+            1.1365379095077515,
+            0.6400459408760071,
+            0.33750250935554504,
+            1
+          ],
+          [
+            -0.016235413029789925,
+            -0.016235413029789925,
+            -0.016235413029789925,
+            1
+          ],
+          [
+            1.2017433643341064,
+            1.2017433643341064,
+            1.2017433643341064,
+            1
+          ],
+          [
+            0.2978488802909851,
+            0.14436715841293335,
+            0.0374404639005661,
+            1
+          ],
+          [
+            1.1826462745666504,
+            0.8251488208770752,
+            0.49180832505226135,
+            1
+          ]
+        ]
+      },
+      {
+        "native_format": 109,
+        "extent": [
+          4,
+          2
+        ],
+        "raw_bits": [
+          0,
+          32,
+          0,
+          128,
+          0,
+          96,
+          0,
+          128,
+          0,
+          126,
+          0,
+          96,
+          0,
+          200,
+          0,
+          160,
+          0,
+          0,
+          0,
+          128,
+          255,
+          255,
+          0,
+          128,
+          13,
+          100,
+          123,
+          100,
+          17,
+          220,
+          47,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.016235413029789925,
+            0.016235413029789925,
+            0.016235413029789925,
+            1
+          ],
+          [
+            0.14738048613071442,
+            0.14738048613071442,
+            0.14738048613071442,
+            1
+          ],
+          [
+            0.530521035194397,
+            0.22455570101737976,
+            0.07192526012659073,
+            1
+          ],
+          [
+            1.1365379095077515,
+            0.6400459408760071,
+            0.33750250935554504,
+            1
+          ],
+          [
+            -0.016235413029789925,
+            -0.016235413029789925,
+            -0.016235413029789925,
+            1
+          ],
+          [
+            1.204258680343628,
+            1.204258680343628,
+            1.204258680343628,
+            1
+          ],
+          [
+            0.2994326949119568,
+            0.14398135244846344,
+            0.03885320946574211,
+            1
+          ],
+          [
+            1.1861836910247803,
+            0.8242717385292053,
+            0.497689813375473,
+            1
+          ]
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 107,
+        "actual_storage": 432,
+        "probe_charge": 16,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 432,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 432,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.980232238769531e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 108,
+        "actual_storage": 464,
+        "probe_charge": 32,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 464,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 464,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.980232238769531e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 109,
+        "actual_storage": 464,
+        "probe_charge": 32,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 464,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 464,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 1.7881393432617188e-7,
+            "composited_error": 2.980232238769531e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 2.384185791015625e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_format": 107,
+        "actual_storage": 432,
+        "probe_charge": 16,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 432,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 432,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 8.344650268554688e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_format": 108,
+        "actual_storage": 464,
+        "probe_charge": 32,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 464,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 464,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 8.344650268554688e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_format": 109,
+        "actual_storage": 464,
+        "probe_charge": 32,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 464,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 464,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 512,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 8.344650268554688e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 512,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      }
+    ],
+    "regression_444": {
+      "cases": 72,
+      "complete_records": 72,
+      "tool_truncation": false,
+      "result": "Pass; source patterns, references and budgets unchanged."
+    },
+    "native_path_counts": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "recorded_paths": 67,
+        "inventory_allocations": 70,
+        "remaining": [
+          103,
+          104,
+          105
+        ]
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "recorded_paths": 66,
+        "inventory_allocations": 68,
+        "remaining": [
+          103,
+          104
+        ]
+      }
+    ],
+    "regression_rgb": {
+      "cases": 365,
+      "complete_records": 365,
+      "fixtures": 8,
+      "tool_truncation": false,
+      "result": "Pass; existing patterns, references, budgets and concrete NVIDIA BGRA4444 allocation rejection unchanged."
+    },
+    "total_cases": 467,
+    "total_fixtures": 10
+  },
+  "architecture": {
+    "source_formats": [
+      107,
+      108,
+      109
+    ],
+    "sampled_format": "Rgba32Float",
+    "default_alpha": "Opaque; physical coverage remains1 under declared Straight/Premultiplied/Opaque sampled contracts.",
+    "views": "YUY2:RGBA8_UINT; Y210/Y216:RGBA16_UINT. One view element per logical pixel pair; shader loads(x/2,y), selectsY0/Y1 and sharesU/V.",
+    "precision": "Y210 uses upper10bits of each16-bit word; Y216 uses all16. Default limited-range BT.709 transfer is unchanged.",
+    "geometry": "Even width required at native metadata admission and capture construction; odd heights are permitted for4:2:2.",
+    "storage": "Two packed native images +three decoded RGBA32F bridge images +one16-byte immutable decoder buffer. No CPU image conversion, eight-bit intermediate, budget increase, adapter fallback or output contract change.",
+    "source_bytes_4x2": {
+      "YUY2": 432,
+      "Y210": 464,
+      "Y216": 464
+    },
+    "declared_bytes_4x2": 512,
+    "probe_bytes_4x2": {
+      "YUY2": 16,
+      "Y210": 32,
+      "Y216": 32
+    }
+  },
+  "remaining": [
+    "NV12/P010/P016 planar reception; NVIDIA P016 SDK allocation remains unavailable and unaccepted",
+    "Alternate matrix/range/transfer/HDR and chroma reconstruction need an authoritative producer contract and typed interpretation boundary",
+    "Actual app preview/output pixels, live producer format/size changes, sender/device recovery and actual D3D9 producer-device scope",
+    "Arbitrary typeless view inference, native RGB32 shared allocator limits and NVIDIA BGRA4444 rejection retain existing named return triggers",
+    "Path/case counts do not close any gate or imply physical timing/cadence, full qualification or release readiness"
+  ],
+  "acceptance": {
+    "gate_closed": false,
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "overall_percent": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "m13_percent": 7,
+    "complete_phases": 7,
+    "total_phases": 14
+  }
+}

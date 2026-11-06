@@ -16,10 +16,23 @@ pub(super) fn native_format(registered: u32) -> DXGI_FORMAT {
 }
 
 pub(super) fn descriptor(extent: Extent2D, registered: u32) -> Option<TextureDescriptor> {
-    let format = super::texture::source_format(native_format(registered).0 as u32)?;
-    let mut descriptor = SpoutSource::discovered_descriptor(extent, format);
+    let mut descriptor = native_descriptor(extent, native_format(registered))?;
     if registered == 22 {
         descriptor.alpha_mode = AlphaMode::Opaque;
+    }
+    Some(descriptor)
+}
+
+fn native_descriptor(extent: Extent2D, native: DXGI_FORMAT) -> Option<TextureDescriptor> {
+    let format = super::texture::source_format(native.0 as u32)?;
+    let mut descriptor = SpoutSource::discovered_descriptor(extent, format);
+    if let Some(video) = super::inputs::video::Format::from_native(native.0 as u32) {
+        if !video.accepts_extent(extent) {
+            return None;
+        }
+        if !video.has_alpha() {
+            descriptor.alpha_mode = AlphaMode::Opaque;
+        }
     }
     Some(descriptor)
 }
@@ -37,8 +50,7 @@ pub(super) fn descriptor_from_alias(
     native: DXGI_FORMAT,
 ) -> Option<TextureDescriptor> {
     if registered == 0 {
-        let format = super::texture::source_format(native.0 as u32)?;
-        Some(SpoutSource::discovered_descriptor(extent, format))
+        native_descriptor(extent, native)
     } else if native == native_format(registered) {
         descriptor(extent, registered)
     } else {

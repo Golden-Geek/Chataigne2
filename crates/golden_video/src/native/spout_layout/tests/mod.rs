@@ -5,6 +5,34 @@ use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::*;
 
 #[test]
+fn paired_video_admission_requires_even_width_and_defaults_to_opaque_float() {
+    for native in [107, 108, 109] {
+        let format = DXGI_FORMAT(native);
+        for registered in [0, native as u32] {
+            let actual = descriptor_from_alias(Extent2D::new(4, 3).unwrap(), registered, format).unwrap();
+            assert_eq!(actual.format, PixelFormat::Rgba32Float);
+            assert_eq!(actual.color_encoding, ColorEncoding::Linear);
+            assert_eq!(actual.alpha_mode, AlphaMode::Opaque);
+            let binding = SpoutSource {
+                sender: "Paired video".into(),
+                descriptor: SpoutSource::discovered_descriptor(actual.extent, PixelFormat::Bgra8Unorm),
+                metadata: SpoutMetadata::Discover,
+                poll_interval: Duration::from_millis(16),
+                frame_count: SpoutFrameCount::Unversioned,
+            };
+            assert_eq!(
+                observed_alias(&binding, actual.extent, registered, format),
+                Some(actual)
+            );
+            assert!(observed_alias(&binding, Extent2D::new(6, 3).unwrap(), registered, format).is_none());
+            assert!(descriptor_from_alias(Extent2D::new(3, 2).unwrap(), registered, format).is_none());
+        }
+        assert!(descriptor(Extent2D::new(3, 2).unwrap(), native as u32).is_none());
+        assert!(descriptor_from_alias(Extent2D::new(4, 2).unwrap(), native as u32, DXGI_FORMAT_Y416).is_none());
+    }
+}
+
+#[test]
 fn typeless_defaults_keep_exact_native_registration_and_allow_declared_family_members() {
     let extent = Extent2D::new(4, 4).unwrap();
     for (native, format, view) in [

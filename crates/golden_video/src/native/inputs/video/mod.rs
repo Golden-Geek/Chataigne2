@@ -3,7 +3,7 @@ mod decoder;
 pub(super) use decoder::Decoder;
 
 use super::super::device::Device;
-use crate::{TextureDescriptor, TextureError};
+use crate::{Extent2D, TextureDescriptor, TextureError};
 use windows::Win32::Graphics::{Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D, Direct3D11::*, Dxgi::Common::*};
 use windows::core::{Error, HRESULT, Result};
 
@@ -14,6 +14,9 @@ pub(in crate::native) enum Format {
     Ayuv,
     Y410,
     Y416,
+    Yuy2,
+    Y210,
+    Y216,
 }
 impl Format {
     pub fn from_native(storage: u32) -> Option<Self> {
@@ -21,6 +24,9 @@ impl Format {
             100 => Some(Self::Ayuv),
             101 => Some(Self::Y410),
             102 => Some(Self::Y416),
+            107 => Some(Self::Yuy2),
+            108 => Some(Self::Y210),
+            109 => Some(Self::Y216),
             _ => None,
         }
     }
@@ -29,19 +35,34 @@ impl Format {
             Self::Ayuv => 100,
             Self::Y410 => 101,
             Self::Y416 => 102,
+            Self::Yuy2 => 107,
+            Self::Y210 => 108,
+            Self::Y216 => 109,
         }
     }
     fn view(self) -> DXGI_FORMAT {
         match self {
-            Self::Ayuv => DXGI_FORMAT_R8G8B8A8_UINT,
+            Self::Ayuv | Self::Yuy2 => DXGI_FORMAT_R8G8B8A8_UINT,
             Self::Y410 => DXGI_FORMAT_R10G10B10A2_UINT,
-            Self::Y416 => DXGI_FORMAT_R16G16B16A16_UINT,
+            Self::Y416 | Self::Y210 | Self::Y216 => DXGI_FORMAT_R16G16B16A16_UINT,
         }
     }
+    pub fn has_alpha(self) -> bool {
+        matches!(self, Self::Ayuv | Self::Y410 | Self::Y416)
+    }
+    pub fn accepts_extent(self, extent: Extent2D) -> bool {
+        self.has_alpha() || extent.width().is_multiple_of(2)
+    }
     pub fn image_bytes(self, descriptor: TextureDescriptor) -> std::result::Result<u64, TextureError> {
-        let pixels = u64::from(descriptor.extent.width()) * u64::from(descriptor.extent.height());
-        pixels
-            .checked_mul(if matches!(self, Self::Y416) { 8 } else { 4 })
+        let width = u64::from(descriptor.extent.width());
+        let groups = if self.has_alpha() { width } else { width.div_ceil(2) };
+        let group_bytes = if matches!(self, Self::Ayuv | Self::Y410 | Self::Yuy2) {
+            4
+        } else {
+            8
+        };
+        (groups * u64::from(descriptor.extent.height()))
+            .checked_mul(group_bytes)
             .ok_or_else(|| overflow(descriptor))
     }
     pub fn source_bytes(self, descriptor: TextureDescriptor) -> std::result::Result<u64, TextureError> {
@@ -68,6 +89,9 @@ pub(in crate::native) struct Image {
 }
 impl Image {
     pub fn new(device: &Device, descriptor: TextureDescriptor, format: Format) -> Result<Self> {
+        if !format.accepts_extent(descriptor.extent) {
+            return Err(invalid());
+        }
         let mut texture = None;
         let mut view = None;
         unsafe {

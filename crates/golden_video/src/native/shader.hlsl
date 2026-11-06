@@ -127,11 +127,17 @@ float decode_bt709(float value) {
 // Packed 4:4:4 defaults: studio-range BT.709. Native metadata contains neither
 // colorimetry nor range; alternate assumptions remain an explicit API limitation.
 float4 ps_video(Vertex input) : SV_Target {
-    uint4 code = source_uint_image.Load(int3(uint2(input.position.xy), 0));
-    float scale = video_format == 100 ? 1.0 : video_format == 101 ? 4.0 : 256.0;
-    float y = video_format == 100 ? code.b : code.g;
-    float u = video_format == 100 ? code.g : code.r;
-    float v = video_format == 100 ? code.r : code.b;
+    uint2 pixel = uint2(input.position.xy);
+    bool paired = video_format >= 107;
+    uint2 address = uint2(paired ? pixel.x / 2 : pixel.x, pixel.y);
+    uint4 code = source_uint_image.Load(int3(address, 0));
+    // Y210 stores ten significant bits in the high bits of each sixteen-bit word.
+    if (video_format == 108) code >>= 6;
+    float scale = video_format == 100 || video_format == 107 ? 1.0 :
+        video_format == 101 || video_format == 108 ? 4.0 : 256.0;
+    float y = paired ? ((pixel.x & 1) == 0 ? code.r : code.b) : video_format == 100 ? code.b : code.g;
+    float u = paired || video_format == 100 ? code.g : code.r;
+    float v = paired ? code.a : video_format == 100 ? code.r : code.b;
     y = (y - 16.0 * scale) / (219.0 * scale);
     u = (u - 128.0 * scale) / (224.0 * scale);
     v = (v - 128.0 * scale) / (224.0 * scale);
@@ -140,7 +146,7 @@ float4 ps_video(Vertex input) : SV_Target {
         y + 1.8556 * u);
     float3 color = float3(decode_bt709(encoded.r), decode_bt709(encoded.g), decode_bt709(encoded.b));
     float maximum_alpha = video_format == 100 ? 255.0 : video_format == 101 ? 3.0 : 65535.0;
-    float coverage = video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
+    float coverage = paired || video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
     [branch] if (video_target_encoding == ENCODING_SRGB) color = encode_rgb(color);
     if (video_target_alpha == ALPHA_PREMULTIPLIED) color *= coverage;
     return float4(color, coverage);

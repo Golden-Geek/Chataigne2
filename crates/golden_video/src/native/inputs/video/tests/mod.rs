@@ -13,6 +13,9 @@ fn native_video_admission_includes_raw_images_decoded_slots_and_uniform() {
         (Format::Ayuv, 16, 240),
         (Format::Y410, 16, 240),
         (Format::Y416, 32, 272),
+        (Format::Yuy2, 8, 224),
+        (Format::Y210, 16, 240),
+        (Format::Y216, 16, 240),
     ] {
         assert_eq!(format.image_bytes(descriptor).unwrap(), raw);
         assert_eq!(format.source_bytes(descriptor).unwrap(), total);

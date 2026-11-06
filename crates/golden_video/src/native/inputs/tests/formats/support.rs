@@ -128,14 +128,27 @@ impl Sender {
     }
 
     pub fn from_bytes(adapter: AdapterId, name: &str, format: DXGI_FORMAT, pixel: &[u8]) -> Self {
-        Self::initialized(
+        let bytes = pixel.repeat(4);
+        Self::from_rows(
             adapter,
             name,
             format,
-            [0.; 4],
             crate::Extent2D::new(2, 2).unwrap(),
-            Some(pixel),
+            &bytes,
+            2 * pixel.len() as u32,
         )
+    }
+
+    pub fn from_rows(
+        adapter: AdapterId,
+        name: &str,
+        format: DXGI_FORMAT,
+        extent: crate::Extent2D,
+        bytes: &[u8],
+        row_bytes: u32,
+    ) -> Self {
+        assert_eq!(bytes.len(), row_bytes as usize * extent.height() as usize);
+        Self::initialized(adapter, name, format, [0.; 4], extent, Some((bytes, row_bytes)))
     }
 
     fn initialized(
@@ -144,7 +157,7 @@ impl Sender {
         format: DXGI_FORMAT,
         color: [f32; 4],
         extent: crate::Extent2D,
-        pixel: Option<&[u8]>,
+        pixels: Option<(&[u8], u32)>,
     ) -> Self {
         let device = Device::new(adapter).unwrap();
         let mut texture = None;
@@ -191,7 +204,7 @@ impl Sender {
                 Texture2D: D3D11_TEX2D_RTV { MipSlice: 0 },
             },
         });
-        if !matches!(format.0, 100..=102) {
+        if !matches!(format.0, 100..=102 | 107..=109) {
             unsafe {
                 device
                     .device
@@ -224,17 +237,12 @@ impl Sender {
         {
             let _submission = sender.completion.begin(&sender.device, token);
             unsafe {
-                if let Some(pixel) = pixel {
-                    let bytes = pixel.repeat((extent.width() * extent.height()) as usize);
+                if let Some((bytes, row_bytes)) = pixels {
                     // Exact independent integer codes, including values no f32 Clear can represent.
-                    sender.device.context.UpdateSubresource(
-                        &paint,
-                        0,
-                        None,
-                        bytes.as_ptr().cast(),
-                        extent.width() * pixel.len() as u32,
-                        0,
-                    );
+                    sender
+                        .device
+                        .context
+                        .UpdateSubresource(&paint, 0, None, bytes.as_ptr().cast(), row_bytes, 0);
                 } else {
                     sender.device.context.ClearRenderTargetView(&rtv.unwrap(), &color);
                 }
