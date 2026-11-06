@@ -1,0 +1,224 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Updated-storage fixed-scale geometry complete on both GPUs; full native matrix remains Active",
+	"source_base": "c88c866b8863687e74a87267764a21d24ce10042",
+	"executable_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+	"capability_verified": "Both explicit GPUs preserve settled Screen/Source image/overlay/projection geometry and retire hidden native pixels at actual 150%/200% DPI under the pushed RGBA16Float preview build. Together with the prior 100%/125% receipt, all four fixed scales now have updated-storage both-GPU coverage",
+	"cohorts": [
+		{
+			"directory": "nv-screen-200",
+			"pid": 32724,
+			"hwnd": 41552262,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 192,
+			"dpr": 2,
+			"maximum_error_px": 0.48924791737192663,
+			"visible_captures": 9,
+			"hidden_region_pixels": 107823,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source-200",
+			"pid": 15832,
+			"hwnd": 104597556,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 192,
+			"dpr": 2,
+			"maximum_error_px": 0.4826864578357686,
+			"visible_captures": 9,
+			"hidden_region_pixels": 306398,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen-200",
+			"pid": 42040,
+			"hwnd": 284889014,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 192,
+			"dpr": 2,
+			"maximum_error_px": 0.5940793961651707,
+			"visible_captures": 9,
+			"hidden_region_pixels": 107823,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source-200-settled",
+			"pid": 30220,
+			"hwnd": 247271110,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 192,
+			"dpr": 2,
+			"maximum_error_px": 0.4826864578357686,
+			"visible_captures": 9,
+			"hidden_region_pixels": 306398,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-screen-150",
+			"pid": 28372,
+			"hwnd": 29426430,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 144,
+			"dpr": 1.5,
+			"maximum_error_px": 0.5176949737914924,
+			"visible_captures": 9,
+			"hidden_region_pixels": 104625,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source-150-toolbar",
+			"pid": 38312,
+			"hwnd": 55642742,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi": 144,
+			"dpr": 1.5,
+			"maximum_error_px": 0.456234741210892,
+			"visible_captures": 9,
+			"hidden_region_pixels": 298304,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen-150",
+			"pid": 26632,
+			"hwnd": 166202790,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 144,
+			"dpr": 1.5,
+			"maximum_error_px": 0.5176949737914924,
+			"visible_captures": 9,
+			"hidden_region_pixels": 104625,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source-150",
+			"pid": 13540,
+			"hwnd": 47843914,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi": 144,
+			"dpr": 1.5,
+			"maximum_error_px": 0.456234741210892,
+			"visible_captures": 9,
+			"hidden_region_pixels": 298304,
+			"trusted_editor_events": 17,
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"stages": [
+			"window-initial",
+			"window-maximized",
+			"window-restored",
+			"initial",
+			"dock-narrow",
+			"dock-restored",
+			"inspector-scrolled",
+			"inspector-top",
+			"editor-shown"
+		],
+		"ownership": "Owned temporary profile, exact requested/observed GPU LUID, same PID/HWND through each case, foreground capture and normal owned shutdown",
+		"scaling": "Laptop OS DPI192/DOM DPR2; external OS DPI144/DOM DPR1.5. Actual Settings Scale changes, no CSS simulation",
+		"input": "16 trusted maximize/restore clicks plus 136 trusted editor pointer/wheel/click events; sash dimensions and Inspector scroll offsets verified",
+		"capture_guards": "Real OS maximized state, exact restored bounds/client origin/DPI/monitor, installed native preview, stable full DOM projection before and after capture",
+		"alignment": "Independent red image/blue overlay/projection metrics all <=1 physical pixel; maximum 0.594079 px. Existing linear-light edge calibration and original tolerance retained",
+		"hidden": "1634300 former-landmark pixels across eight hidden captures contain zero native red pixels; all eight visible controls contain >10000 red pixels",
+		"scope": "Settled native geometry/retirement only. Inspector is the verified scroll scope; no motion, transition-frame, timing or production-performance acceptance"
+	},
+	"retained_rejections": [
+		{
+			"case": "intel-source-200",
+			"terminal_exit": 1,
+			"reason": "Viewport reached maximized size before ResizeObserver updated active-zone dimensions. Exact pre/post capture projection guard rejects the in-flight resize",
+			"correction": "Require the full measured projection to remain identical for 250ms before capture, with a five-second deadline. Exact post-capture equality and physical pixel checks remain strict",
+			"replacement": "intel-source-200-settled completes all nine visible stages, hidden check and terminal exit0. Three earlier accepted 200% cases already passed exact pre/post projection guards; raw images replay unchanged"
+		},
+		{
+			"case": "nv-source-150",
+			"terminal_exit": 1,
+			"reason": "Maximized Source toolbar contributes a third blue run outside the red image extent; old fixed-landmark detector rejects despite two real crop strokes",
+			"correction": "Only the independent fixed Source oracle restricts blue runs to the red source extent; its crop is strictly inside that extent. Screen, generic motion/latency witnesses, color thresholds and <=1px tolerance remain unchanged",
+			"proof": "New synthetic toolbar test fails before the correction, passes after it; missing real crop stroke still rejects. All 120 historical real captures pass. Original rejected maximized image reanalysis measures <=0.256235px; incomplete original lifecycle remains rejected",
+			"replacement": "nv-source-150-toolbar completes full native lifecycle before dependent Intel cases"
+		}
+	],
+	"display_restoration": {
+		"original": {
+			"laptop_scale_percent": 125,
+			"external_scale_percent": 100
+		},
+		"planned_order": "Laptop 200% both GPUs/editors, restore 125%, then external 150% both GPUs/editors, restore 100%",
+		"laptop_observed_scale_percent": 125,
+		"laptop_final_restoration_verified": true,
+		"external_observed_scale_percent": 100,
+		"external_final_restoration_verified": true,
+		"external_restored_after_rejected_capture": true,
+		"external_resolution": [1920, 1080],
+		"external_orientation": "Landscape",
+		"external_primary": false,
+		"restored_after_rejected_capture": true,
+		"laptop_resolution": [2560, 1600],
+		"laptop_orientation": "Landscape",
+		"restore_required": false,
+		"pending_mutation": null,
+		"obligation": "Verify original Scale through Settings before each mutation; restore after its cohort and on any failure. No resolution, primary, topology, orientation or HDR changes."
+	},
+	"verification": {
+		"native": "8 accepted complete cases, 72 visible and 8 hidden PNGs, zero page errors, 8 terminal normal exits; both failed runs retained separately",
+		"replay": "11 tests pass: 192 real current/historical images, +3 physical-pixel projection rejection and actual-DPI mismatch rejection for every image, 20 hidden/visible-control pairs, earlier landmark guards, analytic edge/displacement calibration and Source toolbar/missing-stroke controls",
+		"software": "Node syntax and targeted Prettier, Python compilation, root/golden_core cargo fmt",
+		"runtime_prerequisites": "Qualified precision binary reused: 218 Golden and 503 app tests, strict all-target Clippy, generated contract and both-GPU float upload/compositing/resource checks. No runtime changes",
+		"provenance": "Executable and all 419 runtime inputs unchanged. Nine selected fixture hashes frozen before, after settling correction and after toolbar correction; exactly capture-alignment.mjs and visible_zoom.py change. Current fixture and test sources archived",
+		"environment": "Eight paired read-only identity groups equal: OS, CPU, drivers/controllers, monitors, WebView2, toolchain, native hardware, locked host packages. Settings selectors verify laptop125% and external100% restored; resolution/orientation/primary/topology/HDR unchanged"
+	},
+	"artifacts": "mapgyver-m05-float-dpi-2026-11-06/float-dpi.zip",
+	"archive_bytes": 11822231,
+	"archive_sha256": "fccf60cb17c33f2d605066d5bc6c11259713062d81189cbf538bb65a69241ecd",
+	"artifact_contents": "Accepted/rejected PNGs, metadata/input/lifecycle receipts, all fixture hash versions, current fixture/tests, paired inventories and verified restoration state; Settings screenshots with account identity and temporary profiles excluded",
+	"remaining": [
+		"Genuine same-window mixed-monitor DPI moves and actual negative monitor origins",
+		"Full alpha/color/Reference/overlap and capture/overlay combinations, further docking and scrolling native content",
+		"Complete in-motion image/overlay/hit alignment and original <=50ms p95 input-to-visible latency; no new latency probe or unaccepted candidate restoration",
+		"Physical identity/hotplug/device removal, original performance/memory budgets and final qualification"
+	],
+	"next": "Retain M05/8 alone Active. Complete genuine same-window mixed-monitor movement using supported OS/app controls and independent physical captures; then actual negative-origin and remaining capture/pattern/motion requirements. Do not repeat passing fixed-scale cohorts without changed-code evidence",
+	"progress": "67/78 verified gates (86%), 7/13 phases (54%); scope and denominator unchanged; fixed-scale requirement verified, no whole gate closed"
+}

@@ -19,7 +19,7 @@ def blue(pixel):
     return b > 180 and 70 < r < 190 and 110 < g < 215
 
 
-def positions(image, roi):
+def positions(image, roi, *, blue_inside_red=False):
     left, top, right, bottom = roi
     cx, cy = (left + right) // 2, (top + bottom) // 2
     horizontal = [(x, image.getpixel((x, cy))) for x in range(left, right)]
@@ -28,6 +28,10 @@ def positions(image, roi):
     for line in [horizontal, vertical]:
         reds = [at for at, pixel in line if red(pixel)]
         blues = [at for at, pixel in line if blue(pixel)]
+        if blue_inside_red:
+            # This fixed Source fixture puts its crop strictly inside the red image.
+            # A floating toolbar outside the image is not a third crop stroke.
+            blues = [at for at in blues if reds and min(reds) <= at <= max(reds)]
         runs = [[at for _, at in group] for _, group in itertools.groupby(
             enumerate(blues), lambda value: value[1] - value[0])]
         assert reds and len(runs) == 2, "two blue edges and a red interior must be visible"
@@ -61,7 +65,7 @@ def independent_landmark_alignment(image, geometry, capture, editor):
     frame = project([0, 1])
     roi = tuple(round(frame[i]) for i in (0, 2, 1, 3))
     image = image.convert("RGB")
-    _, edges = positions(image, roi)
+    _, edges = positions(image, roi, blue_inside_red=editor == "source")
     # Binary encoded-R thresholds identify a local transition, but their integer run
     # boundaries amplify sampling error when extrapolated to the independent overlay.
     threshold_edges = [edges[0], edges[1] + 1, edges[4], edges[5] + 1]

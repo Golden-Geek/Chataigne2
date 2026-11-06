@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
@@ -66,7 +67,20 @@ export async function captureAlignment({ directory, stage, maximized = false, pa
 				active: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
 			};
 		});
-	const geometry = await projection();
+	// ResizeObserver updates the editor after the WebView viewport changes. Require a
+	// quiet settled projection before capture; the exact post-capture guard still applies.
+	let geometry = await projection();
+	let stableSince = Date.now();
+	const deadline = stableSince + 5000;
+	while (Date.now() - stableSince < 250) {
+		assert(Date.now() < deadline, 'Owned editor projection did not settle before capture');
+		await delay(50);
+		const observed = await projection();
+		if (JSON.stringify(observed) !== JSON.stringify(geometry)) {
+			geometry = observed;
+			stableSince = Date.now();
+		}
+	}
 	const hwnd = ownedWindowHandle(ready.pid);
 	const output = path.join(directory, stage);
 	execFileSync(

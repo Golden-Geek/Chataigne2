@@ -36,6 +36,10 @@ class WindowLayoutAlignment(unittest.TestCase):
              ("nv-screen-100", "nv-source-100", "nv-screen-125-calibrated", "nv-source-125",
               "intel-screen-100", "intel-source-100", "intel-screen-125", "intel-source-125"),
              ("window-layout.json", "editor-layout.json")),
+            ("mapgyver-m05-float-dpi-2026-11-06/float-dpi.zip",
+             ("nv-screen-200", "nv-source-200", "intel-screen-200", "intel-source-200-settled",
+              "nv-screen-150", "nv-source-150-toolbar", "intel-screen-150", "intel-source-150"),
+             ("window-layout.json", "editor-layout.json")),
         )
         for name, cases, layouts in archives:
             with zipfile.ZipFile(ROOT / "docs/progress/evidence" / name) as source:
@@ -51,8 +55,8 @@ class WindowLayoutAlignment(unittest.TestCase):
                                 "screen" if "screen" in case else "source", stage,
                                 source.read(case + "/" + stage["stage"] + "/baseline.png")))
 
-    def test_all_120_real_editor_states_have_independent_pixel_alignment(self):
-        self.assertEqual(len(self.samples), 120)
+    def test_all_192_real_editor_states_have_independent_pixel_alignment(self):
+        self.assertEqual(len(self.samples), 192)
         for name, editor, stage, raw in self.samples:
             with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
                 result = MODULE.independent_landmark_alignment(
@@ -77,7 +81,7 @@ class WindowLayoutAlignment(unittest.TestCase):
                     MODULE.independent_landmark_alignment(image, stage["geometry"], capture, editor)
 
     def test_hidden_editor_retires_pixels_that_exist_in_the_visible_control(self):
-        self.assertEqual(len(self.hidden), 12)
+        self.assertEqual(len(self.hidden), 20)
         for name, result, hidden, visible in self.hidden:
             with self.subTest(name=name):
                 self.assertGreater(result["pixels"], 10000)
