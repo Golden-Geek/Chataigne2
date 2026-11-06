@@ -5,10 +5,39 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from '../browser/native-editor.mjs';
+import { observeNativeAdapter } from '../browser/native-adapter.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-output-bounds-${Date.now()}`);
 await mkdir(directory, { recursive: true });
-const native = await openNativeEditor();
+const gpu = process.argv.find((value) => value.startsWith('--gpu='))?.slice('--gpu='.length);
+assert(!gpu || /^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(gpu), 'Exact GPU LUID required');
+const observer = path.resolve('target/debug/native_qualification-m1110.exe');
+const hardware = gpu
+	? JSON.parse(
+			execFileSync(observer, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })
+		)
+	: undefined;
+const native = await openNativeEditor({
+	prepareProfile: gpu
+		? async (root) => {
+				const preferences = path.join(root, 'MapGyver');
+				await mkdir(preferences, { recursive: true });
+				execFileSync(
+					observer,
+					[
+						'--role',
+						'gpu-preferences',
+						'--file',
+						path.join(preferences, 'preferences.json'),
+						'--selected',
+						gpu
+					],
+					{ windowsHide: true }
+				);
+			}
+		: undefined
+});
+let activeAdapter;
 const observations = [];
 const outputEvents = [];
 let outputBuffer = '';
@@ -106,7 +135,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	await native.page
 		.getByRole('tab')
-		.filter({ hasText: /^Screen Manager$/ })
+		.filter({ hasText: /^Screens$/ })
 		.waitFor();
 	let catalog;
 	const deadline = Date.now() + 10000;
@@ -119,6 +148,9 @@ try {
 		catalog.displays.length >= 2,
 		'display reassignment acceptance requires both local displays'
 	);
+	const negativeOriginObserved = catalog.displays.some((display) => display.bounds.left < 0);
+	if (process.argv.includes('--require-negative-origin'))
+		assert(negativeOriginObserved, 'An actual negative monitor origin is required');
 	const { reference: source } = await edit('media', {
 		kind: 'CreateMedia',
 		media_kind: 'SolidColor',
@@ -148,6 +180,10 @@ try {
 	};
 	await configure({ kind: 'Rectangle', bounds: initial });
 	await observe('initial', initial);
+	if (gpu) {
+		activeAdapter = await observeNativeAdapter(native.page, hardware);
+		assert.equal(activeAdapter.key, gpu);
+	}
 	const beforeMove = retirements();
 	const moved = { ...initial, left: initial.left + 140, top: initial.top + 60 };
 	await configure({ kind: 'Rectangle', bounds: moved });
@@ -191,6 +227,8 @@ try {
 		result: 'pass',
 		pid: native.app.pid,
 		identity,
+		adapter: activeAdapter,
+		negativeOriginObserved,
 		displays: catalog.displays,
 		observations,
 		outputEvents,

@@ -39,6 +39,9 @@ class WindowLayoutAlignment(unittest.TestCase):
             ("mapgyver-m05-mixed-move-2026-11-06/mixed-move.zip",
              ("nv-screen", "nv-source", "intel-screen", "intel-source"),
              ("mixed-move.json",)),
+            ("mapgyver-m05-negative-origin-2026-11-06/negative-origin.zip",
+             ("nv-screen", "nv-source", "intel-screen", "intel-source"),
+             ("negative-move.json",)),
             ("mapgyver-m05-float-dpi-2026-11-06/float-dpi.zip",
              ("nv-screen-200", "nv-source-200", "intel-screen-200", "intel-source-200-settled",
               "nv-screen-150", "nv-source-150-toolbar", "intel-screen-150", "intel-source-150"),
@@ -58,8 +61,8 @@ class WindowLayoutAlignment(unittest.TestCase):
                                 "screen" if "screen" in case else "source", stage,
                                 source.read(case + "/" + stage["stage"] + "/baseline.png")))
 
-    def test_all_204_real_editor_states_have_independent_pixel_alignment(self):
-        self.assertEqual(len(self.samples), 204)
+    def test_all_216_real_editor_states_have_independent_pixel_alignment(self):
+        self.assertEqual(len(self.samples), 216)
         for name, editor, stage, raw in self.samples:
             with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
                 result = MODULE.independent_landmark_alignment(

@@ -1,0 +1,153 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Actual negative-monitor-origin settled preview/output geometry verified on both GPUs; whole matrix remains Active",
+	"source_base": "9b3ce1b39d56a45e357fe2cded7950b7900ddc59",
+	"executable_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+	"capability_verified": "Both explicit GPUs preserve Screen/Source settled preview alignment through same-HWND laptop125% -> actual negative-origin external100% -> laptop125% round trips. Both also preserve one native output HWND through negative Rectangle movement/resize/Undo, Fullscreen on both displays and return to Rectangle, with actual red desktop pixels and completion-safe retirement",
+	"previews": [
+		{
+			"directory": "nv-screen",
+			"pid": 21696,
+			"hwnd": 31260864,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"negative_window_bounds": [-1444, 83, -215, 899],
+			"negative_monitor_bounds": [-1920, 0, 0, 1080],
+			"maximum_error_px": 0.30357595444138497,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source",
+			"pid": 24448,
+			"hwnd": 47450612,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"negative_window_bounds": [-1444, 83, -215, 899],
+			"negative_monitor_bounds": [-1920, 0, 0, 1080],
+			"maximum_error_px": 0.2560520091426497,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen",
+			"pid": 18900,
+			"hwnd": 94965188,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"negative_window_bounds": [-1444, 83, -215, 899],
+			"negative_monitor_bounds": [-1920, 0, 0, 1080],
+			"maximum_error_px": 0.30458774383555465,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source",
+			"pid": 22512,
+			"hwnd": 142740604,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"negative_window_bounds": [-1444, 83, -215, 899],
+			"negative_monitor_bounds": [-1920, 0, 0, 1080],
+			"maximum_error_px": 0.254572459894689,
+			"normal_exit": 0
+		}
+	],
+	"outputs": [
+		{
+			"directory": "output-nv",
+			"pid": 29976,
+			"hwnd": 20906874,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"observations": 7,
+			"normal_exit": 0
+		},
+		{
+			"directory": "output-intel",
+			"pid": 8676,
+			"hwnd": 31129792,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"observations": 7,
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"owner": "Existing MapGyver native alignment/capture/output-bounds fixtures; app/runtime/permissions unchanged",
+		"negative_configuration": "Supported Windows Display arrangement temporarily moves only external display2 from [2560,0,4480,1080] to [-1920,0,0,1080]; laptop stays primary [0,0,2560,1600]. Physical bounds come from hardware.displays and owned-window capture metadata, not DPI-virtualized adapter-output descriptions",
+		"preview_input": "Existing supported native System Move route, F10/Space/m/120 Left/Return then F10/Space/m/120 Right/Return. No position-setting API, synthetic DOM input or custom OS input helper",
+		"preview_guards": "Same PID/HWND, full-window monitor containment, OS DPI120 -> 96 -> 120 and DOM DPR1.25 -> 1 -> 1.25, owned foreground capture, installed preview, stable pre/post projection. Original independent image/overlay/projection metrics all <=1 physical pixel; maximum 0.304588px",
+		"output": "Actual negative monitor required before authoring. GPU selected in owned temporary profile and actual runtime LUID verified. Each seven-state case checks physical client bounds, one stable visible HWND, composited red center pixels, no session retirement for position-only change, actual retirement for resize, Undo bounds, exact Fullscreen display bounds, and final disabled-window retirement",
+		"fixture_changes": "Output bounds fixture gains optional exact GPU selection/observed LUID and --require-negative-origin. Its existing one-line Screens tab-name correction is retained because the previous Screen Manager label does not match current app readiness",
+		"lifetime": "Six owned app processes reach terminal exit 0 and normal app shutdown; user app/sender untouched"
+	},
+	"display_restoration": {
+		"original": {
+			"laptop": {
+				"bounds": [0, 0, 2560, 1600],
+				"primary": true,
+				"scale_percent": 125
+			},
+			"external": {
+				"bounds": [2560, 0, 4480, 1080],
+				"primary": false,
+				"scale_percent": 100
+			}
+		},
+		"planned": "Use Windows Display arrangement to put external left of laptop, with top edges aligned. Verify actual negative bounds before qualification, then restore exact original physical positions.",
+		"restore_required": false,
+		"pending_mutation": null,
+		"physical_configuration_restored": true,
+		"settings_restoration_verified": {
+			"external_scale_percent": 100,
+			"external_hdr": "Off",
+			"external_orientation": "Landscape",
+			"laptop_scale_percent": 125,
+			"laptop_hdr": "On",
+			"laptop_orientation": "Landscape"
+		},
+		"restoration_proof": "hardware-restored.json displays exactly equal hardware-before.json: IDs, EDIDs, physical positions/extents and primary flags",
+		"obligation": "Restore before handoff and on failure; verify exact physical bounds and identities through the existing hardware observer. Do not change scale, resolution, orientation, primary status, HDR or connected devices."
+	},
+	"verification": {
+		"native": "Four preview round trips/eight actual crossings/twelve physical PNGs, plus two GPU output cases/fourteen window observations; six normal owned exits",
+		"replay": "13 tests pass: 216 real preview images with +3px projection and DPI mismatch rejection, 20 hidden/visible pairs, 8 positive/negative-origin same-window round trips with replaced identity/copied startup/partial placement/CSS-only/false-negative-origin controls, and both-GPU output geometry with fake monitor, one-pixel Fullscreen and replaced-HWND negatives",
+		"software": "Node syntax/Prettier for changed bounds fixture, Python compilation, root and golden_core cargo fmt",
+		"prerequisites": "Unchanged qualified precision binary reuses 218 Golden and 503 app tests, strict all-target Clippy, generated contract and both-GPU float upload/compositing/resource checks",
+		"provenance": "Executable and 419 runtime input hashes unchanged; 11 selected native fixture hashes match their frozen pre-test values, including the changed output fixture. Three owning test hashes/source snapshots recorded",
+		"environment": "Eight paired identity groups equal after restoration: OS,CPU,video drivers/controllers,monitors,WebView2,toolchain,native hardware,locked host packages. hardware-restored.displays exactly equals hardware-before.displays for IDs,EDIDs,positions/extents and primary flags. Fresh Settings confirms external100%/HDR Off and laptop125%/HDR On,Landscape resolutions unchanged"
+	},
+	"artifacts": "mapgyver-m05-negative-origin-2026-11-06/negative-origin.zip",
+	"archive_bytes": 1517799,
+	"archive_sha256": "42ed32766e17fde03a7640607a86b01222bd3f0c6dd35b352e4138308f9d5060",
+	"artifact_contents": "12 physical preview PNGs, full identity/projection/alignment/input-route/lifecycle receipts,14 native output-window observations, original/negative/restored hardware and paired inventory, verified restoration state, fixture/test snapshots and hashes. No private temporary profiles or account-bearing Settings screenshots",
+	"limits": [
+		"Settled geometry and sampled output center pixels only; full alpha/color/Reference/overlap patterns and overlay/capture combinations remain required",
+		"No every-frame move, menu-loop presentation, hit-testing, native-content scroll or original <=50ms p95 input-to-visible latency acceptance",
+		"M05/5 physical hotplug and live display-arrangement identity/recovery remain open; output fixtures start after arrangement is negative, so this does not prove a running output survives an OS arrangement change",
+		"Original GPU/cadence/private-memory budgets, device-removal acceptance and final qualification remain unchanged; no reset, latency probe or unaccepted candidate restore"
+	],
+	"next": "Keep M05/8 alone Active. Verify the observed native System-menu recovering state with actual physical captures and output-continuity checks, then complete remaining overlay/capture/pattern/motion requirements. Do not repeat passing fixed-scale, positive/negative-origin geometry cohorts without changed-code evidence",
+	"progress": "67/78 verified gates (86%), 7/13 phases (54%); negative-origin settled geometry requirement verified, no whole gate closed; no denominator/budget changes"
+}
