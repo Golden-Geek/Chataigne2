@@ -21,17 +21,23 @@ class WindowLayoutAlignment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.samples = []
-        archive = ROOT / "docs/progress/evidence/mapgyver-m05-window-layout-2026-11-06/native-layout.zip"
-        with zipfile.ZipFile(archive) as source:
-            for case in ("auto-screen-100", "auto-screen-125", "auto-source-100", "auto-source-125"):
-                result = json.loads(source.read(case + "/window-layout.json"))
-                for stage in result["stages"]:
-                    cls.samples.append((case + "/" + stage["stage"],
-                        "screen" if "screen" in case else "source", stage,
-                        source.read(case + "/" + stage["stage"] + "/baseline.png")))
+        archives = (
+            ("mapgyver-m05-window-layout-2026-11-06/native-layout.zip",
+             ("auto-screen-100", "auto-screen-125", "auto-source-100", "auto-source-125")),
+            ("mapgyver-m05-dpi-2026-11-06/native-dpi.zip",
+             ("screen-150", "source-150", "screen-200", "source-200")),
+        )
+        for name, cases in archives:
+            with zipfile.ZipFile(ROOT / "docs/progress/evidence" / name) as source:
+                for case in cases:
+                    result = json.loads(source.read(case + "/window-layout.json"))
+                    for stage in result["stages"]:
+                        cls.samples.append((case + "/" + stage["stage"],
+                            "screen" if "screen" in case else "source", stage,
+                            source.read(case + "/" + stage["stage"] + "/baseline.png")))
 
-    def test_all_twelve_real_window_states_have_independent_pixel_alignment(self):
-        self.assertEqual(len(self.samples), 12)
+    def test_all_twenty_four_real_window_states_have_independent_pixel_alignment(self):
+        self.assertEqual(len(self.samples), 24)
         for name, editor, stage, raw in self.samples:
             with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
                 result = MODULE.independent_landmark_alignment(

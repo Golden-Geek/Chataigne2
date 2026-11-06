@@ -1,0 +1,98 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Actual 150% and 200% Screen/Source layout alignment verified; complete gate remains Active",
+	"source_base": "c346ff141918750df542fd2574bbd531bbb560ef",
+	"executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"capability_verified": "Both native editors preserve independent image/overlay/projection alignment at actual OS DPI 144 and 192, including same-window maximize and restore",
+	"cohorts": [
+		{
+			"directory": "screen-150",
+			"pid": 2920,
+			"hwnd": 2755086,
+			"dpi": 144,
+			"dpr": 1.5,
+			"max_errors_px": [0.625, 0.5, 0.625],
+			"normal_exit": 0
+		},
+		{
+			"directory": "source-150",
+			"pid": 19736,
+			"hwnd": 66981214,
+			"dpi": 144,
+			"dpr": 1.5,
+			"max_errors_px": [0.4812576293945767, 0.75, 0.4812576293945767],
+			"normal_exit": 0
+		},
+		{
+			"directory": "screen-200",
+			"pid": 40048,
+			"hwnd": 31001378,
+			"dpi": 192,
+			"dpr": 2,
+			"max_errors_px": [0.625, 0.875, 0.625],
+			"normal_exit": 0
+		},
+		{
+			"directory": "source-200",
+			"pid": 17620,
+			"hwnd": 72616350,
+			"dpi": 192,
+			"dpr": 2,
+			"max_errors_px": [0.75, 0.875, 0.75],
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"ownership": "Unchanged qualified product executable and existing independent-landmark/window-layout fixture; no new product permission, renderer, protocol or OS-input helper",
+		"settings_route": "Supported computer-use activation of the actual installed Settings registered AppID exposes its targetable window; direct executable launch alone previously did not. This closes that tool-availability blocker",
+		"scope_revision": "External standard Scale selector offers only 100/125/150/175%. After its 150% cohorts, restore external 100%; explicitly revise second cohort to laptop standard 200%, with recorded original 125% restoration before applying it. No custom scaling or sign-out",
+		"physical_scales": "External 1920x1080: DPI 144/DPR 1.5; laptop 2560x1600: DPI 192/DPR 2.0. Real owned window DPI must match DOM DPR, without CSS-scale substitution",
+		"stages": ["initial", "maximized", "restored"],
+		"controls": "Eight trusted public app-button clicks. Actual OS maximized state and real viewport change required before stage capture",
+		"pixels": "Foreground/PID-guarded visible capture, stable projection and placement; independent red image edges and blue authored-overlay edges compare against projection and one another",
+		"tolerance_physical_px": 1,
+		"maximum_error_physical_px": 0.875,
+		"restoration": "One PID/HWND through each cohort; final OS bounds/client origin/monitor/DPI/state exactly match initial values. All four owned app processes exit normally"
+	},
+	"display_restoration": {
+		"external": {
+			"display": 2,
+			"scale_percent": 100,
+			"resolution": [1920, 1080],
+			"orientation": "Landscape",
+			"primary": false,
+			"verified": true
+		},
+		"laptop": {
+			"display": 1,
+			"scale_percent": 125,
+			"resolution": [2560, 1600],
+			"orientation": "Landscape",
+			"primary": true,
+			"verified": true
+		},
+		"verification": "Actual Windows Scale selectors observed after restoration; paired read-only hardware/display inventory matches original configuration. Resolution, topology, monitor positions, HDR and primary status were not changed",
+		"restore_required": false
+	},
+	"verification": {
+		"native": "Twelve qualified physical images, four complete same-window lifecycles, eight trusted window-control clicks, four terminal exits 0",
+		"replay": "Three tests now cover all 24 real images across 100/125/150/200%; each +3 physical-pixel projection negative control rejects, and mismatched actual DPI rejects",
+		"software": "Unchanged runtime prerequisites reused; targeted Python compilation, JSON formatting and root/golden_core cargo fmt",
+		"provenance": "Qualified executable unchanged. All 414 selected inputs exactly match the immediately previous native-layout provenance; that provenance retains its one generated standalone smoke-fixture HTML difference from the older menu-icons reference",
+		"paired_inventory": "OS, CPU, video drivers/controllers, monitors, WebView2, toolchain, native hardware and locked host package observations all equal"
+	},
+	"artifacts": "mapgyver-m05-dpi-2026-11-06/native-dpi.zip",
+	"archive_bytes": 1815699,
+	"archive_sha256": "c434ba0eaa2f513556515f70a40632606f0a0c32d5a7aaefcf3aa462440b1269",
+	"artifact_contents": "Twelve physical PNGs and independent alignment/OS geometry/projection results, four full fixture receipts/logs and source images, original window-state fixtures, exact selected input hashes, paired inventories and verified restoration state. Settings screenshots containing account identity are excluded",
+	"remaining": [
+		"Genuine same-window mixed-monitor DPI moves and actual negative monitor origins",
+		"Resize/docking, scroll, tab hide/show and complete transition/animation coverage",
+		"Full alpha/color/reference patterns and capture/overlay combinations",
+		"Original <=50ms p95 input-to-visible latency, still unproven; no new latency experiment or rejected-candidate restoration",
+		"Physical identity/hotplug, device removal and all retained production/final requirements"
+	],
+	"next": "Keep M05/8 alone Active; continue the remaining editor-state matrix with the already qualified unchanged binary. Do not repeat the passing fixed-scale cohorts without a changed-code reason",
+	"progress": "67/78 gates (86%); original gate scope and denominator unchanged, no whole gate closed"
+}
