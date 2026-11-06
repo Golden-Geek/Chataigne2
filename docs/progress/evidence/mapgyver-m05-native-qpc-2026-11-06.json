@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "classification": "software checkpoint; native acceptance unverified",
+  "base_commit": "a40d228511b1a93821d30e216137bd42c27e22b4",
+  "batch": {
+    "start_utc": "2026-11-06T15:08:00Z",
+    "stop_adding_scope_utc": "2026-11-06T15:53:00Z",
+    "investigation": "Native common-QPC authority after earlier whole-cohort arrival bounds remained inconclusive. Cumulative effort is not reset.",
+    "maximum_measurements": "One baseline plus one justified comparison; no new renderer/capture/profiler variant."
+  },
+  "delivered": {
+    "owner": "Golden qualification-only desktop capture; MapGyver qualification CLI and browser consumer",
+    "production_behavior_changed": false,
+    "mechanisms": [
+      "Native pre-input stamp acknowledgement precedes documented CDP wheel dispatch.",
+      "Response endpoint is native QPC after bounded GPU staging Map/copy/Unmap and the final exact foreground HWND/PID/client/geometry/DPI guard.",
+      "Only the bounded owned-client region is exported; exact adapter/output, unrotated attached output and valid BGRA8 extent are required.",
+      "Capture access/device loss invalidates the lifetime; no implicit adapter fallback or continuation with stale stamps.",
+      "DPI context and native capture stay on the entering thread; frame acquire and Map have RAII release.",
+      "Rust owns the NDJSON protocol. Native QPC ticks cross JSON as decimal strings.",
+      "All30 trusted alternating wheel actions, >=2 physical pixel red-image AND blue-overlay movement, <=25ms baseline age and original50ms p95 target are retained.",
+      "Independent Python audit requires all60 raw strips, matching terminal cohort/native frequency/identity/ROI, freshness/order and normal stop/exit."
+    ]
+  },
+  "authority": {
+    "interpretation": "Conservative composited-desktop readback bound. No physical scanout proof, global DWM pixel/frame join, fitted delay subtraction or per-trial exclusions.",
+    "sources": [
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info",
+        "supports": "LastPresentTime is desktop image update QPC; pointer-only updates have zero LastPresentTime. Used for freshness only."
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api",
+        "supports": "AcquireNextFrame exposes the current BGRA8 desktop image."
+      },
+      {
+        "url": "https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmgetcompositiontiminginfo",
+        "supports": "Windows8.1 and later require null HWND; global timing cannot establish this owned-pixel/frame join."
+      }
+    ]
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib",
+      "result": "223 passed,36 ignored before final thread-affinity marker; no native hardware claim"
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::fixtures::desktop::tests",
+      "result": "Final body:2 passed,257 filtered out; region/identity/memory bounds and negative origins"
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --features native-qualification,application-process-fixture --bin native_qualification",
+      "result": "Final body:11 passed, including bounded input and exact-u64 JSON tests"
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Final body:exit0"
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --features native-qualification,application-process-fixture --bin native_qualification -- -D warnings",
+      "result": "Final body:exit0"
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin native_qualification -- -C extra-filename=-desktop-qpc",
+      "result": "Final body:exit0"
+    },
+    {
+      "command": "python -m unittest discover -s apps/mapgyver/tests/native/tests -p test_*latency.py -v",
+      "result": "9 passed;6 new common-QPC replay tests plus3 retained arrival-clock replay tests. Synthetic verifier evidence only."
+    },
+    {
+      "command": "Touched JS Prettier and node syntax checks; cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+      "result": "Passed. No authored UI or production protocol change."
+    }
+  ],
+  "prepared_native_attempt": {
+    "directory": "target/m058-native-qpc-2026-11-06/screen-100",
+    "pid": 2924,
+    "hwnd": 67965064,
+    "application_binary_sha256": "1bbed5c2e5e4f2c27497672d205e3dc36a7e880cfd4f02db1ca46eb5d83087d9",
+    "capture_binary_before_final_thread_affinity_guard_sha256": "5303377a777c477ae4380f2eb3964db9f5614f1a0b079e806a291dbabab62792",
+    "renderer": {
+      "key": "dxgi:00000000:79e2f347",
+      "hardware_index": 1,
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+    },
+    "viewport": {
+      "width": 971,
+      "height": 645,
+      "dpr": 1
+    },
+    "outcome": "Computer-use tool reported a physical Escape stop after explicit resume. No further desktop calls followed. Await-capture activation timed out; retained exec session1140 returned terminal exit1.",
+    "fixture_error": "AssertionError [ERR_ASSERTION]: alignment capture activation timeout",
+    "capture_started": false,
+    "timing_samples": 0,
+    "final_preview_state": {
+      "state": "available",
+      "painted": true
+    },
+    "limitation": "Readiness metadata and available preview are not a native timing result. No capture/pixel/QPC audit files exist for this attempt. Final guard/audit refinements are software-only."
+  },
+  "input_hashes": {
+    "target/debug/deps/native_qualification-desktop-qpc.exe": "64e74e40c98141fa4e22a036a3cb5b9abb6d0c48623ada9f7f4099da06cce9a1",
+    "target/debug/deps/MapGyver-preview-backdrop.exe": "1bbed5c2e5e4f2c27497672d205e3dc36a7e880cfd4f02db1ca46eb5d83087d9",
+    "Cargo.lock": "77ef6c02577c44029de4ba8b469fafbc528e0e29c7c6420b827d46b04f161644",
+    "package-lock.json": "85a62b85ab751659a4efd486b12f982385d5f8bc62dee2cee9dadc1460c9f0af",
+    "crates/golden_video/Cargo.toml": "47e1ad6fcdd9f819dc94135120d38595f9553b62670597c569aa323cd99dd7ad",
+    "crates/golden_video/src/native/fixtures/mod.rs": "82d33241195f00b15ff788278d856ed9e8bda5420776cc1be0129c4a21962731",
+    "crates/golden_video/src/native/fixtures/desktop/mod.rs": "e9cf5d11c3f3d8ff9a3365dc04250a8c3e8f4953f6af33c06f35950dc5de5982",
+    "crates/golden_video/src/native/fixtures/desktop/window.rs": "acd5f82f2692a3ad4cb7b36fc2071be7462372d22afa44a14d6f64093bf9d5f8",
+    "crates/golden_video/src/native/fixtures/desktop/tests/mod.rs": "437e45a87ee60edb6f5807e64aaa3d359aab11cfe60501a86e3b465d8f5513e8",
+    "apps/mapgyver/tests/native_qualification/runner.rs": "3c87861100aadf6f72b1efc0e9017dc79b29d0683d03616ca3cd15e26c924bdd",
+    "apps/mapgyver/tests/native_qualification/desktop_capture.rs": "f1c59800f12fa2b0199a2e145b9c1f6e7cd44497463a796c548e91bfef96345b",
+    "apps/mapgyver/tests/native_qualification/desktop_capture/tests/mod.rs": "c28dc5350c930f0e623ee6761b952ba54257179541a77fe92098032baf9a88d4",
+    "apps/mapgyver/tests/browser/native-alignment.mjs": "763f6baadf231b6ef877d51371cf8e35d1badaf596e11ee8713bdd77e6e86f24",
+    "apps/mapgyver/tests/browser/native-latency.mjs": "0adf1133d34859206166250699296131987e7ad65136b4c6b32767260db6a2b9",
+    "apps/mapgyver/tests/browser/native-qpc-latency.mjs": "c0e98a2c70779b9c5024bd860e7d07af592874630b77e353de4ad660d1a8b87f",
+    "apps/mapgyver/tests/native/qpc_latency.py": "7af2ea4ca399159f93f47e0d81a47a055abae1c5652856698beb7eb2334d68cc",
+    "apps/mapgyver/tests/native/tests/test_qpc_latency.py": "0d5e660ae57d9dba31a5f0b61090efd115e700ac490175739e719901e4db95a1"
+  },
+  "acceptance": {
+    "gate_closed": false,
+    "verified_gates": 69,
+    "total_gates": 78,
+    "percentage": 88,
+    "phase_complete": 7,
+    "phase_total": 13,
+    "original_p95_limit_ms": 50,
+    "earlier_complete_arrival_clock_p95_upper_bounds_ms": [
+      73.2444,
+      75.8513
+    ],
+    "remaining": "Original input latency, same-frame moving correspondence and complete retained native physical acceptance scope.",
+    "return_trigger": "Explicit resumption of owned-window automation plus a working computer-use service.",
+    "next_action": "Prepare one fresh owned lifetime after the terminal timeout, run the existing30-action common-QPC baseline, then replay every raw strip and terminal observation. At most one justified comparison; no new variants."
+  }
+}

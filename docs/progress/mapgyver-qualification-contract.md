@@ -133,6 +133,48 @@ silently omitted from a claimed creation timing.
 
 ## Fixed initial budgets
 
+### Native input-to-desktop observation
+
+The qualification-only capture implementation lives in
+`crates/golden_video/src/native/fixtures/desktop`; MapGyver's
+`tests/native_qualification/desktop_capture.rs` owns its bounded NDJSON process contract.
+The Rust declarations are authoritative; the browser controller consumes those events.
+Production preview/control IPC remains metadata-only. This collector exports only a bounded
+region inside the exact foreground HWND/PID's physical client, on one explicit adapter/output.
+Window/client geometry and DPI must remain unchanged. Device/access loss invalidates that
+cohort; a fresh authenticated lifetime is required rather than silently switching endpoints.
+
+`tests/browser/native-alignment.mjs --qpc-latency` uses
+`target/debug/deps/native_qualification-desktop-qpc.exe` and the explicit
+`MAPGYVER_CAPTURE_GPU` hardware index. Build that qualification binary with the
+`-C extra-filename=-desktop-qpc` suffix before use. Keep the original `--await-capture`
+foreground handoff; activation is not inferred from DOM focus or a successful raise request.
+The controller retains all 30 alternating trusted wheel actions, settled baselines no older
+than 25 ms, and raw before/response strips. Both red imagery and blue overlay must move at
+least two physical pixels in the intended direction. No timing result exists until the
+complete cohort, stop acknowledgement and normal capture exit are present.
+
+The capture process acknowledges a guarded native QPC stamp before the controller sends input.
+Its response endpoint is a QPC reading after successful GPU staging Map, bounded byte copy,
+Unmap and a second window/geometry guard. The difference includes acknowledgement and input
+dispatch overhead but excludes later pixel serialization and pipe delivery. No fitted delay
+is subtracted. `tests/native/qpc_latency.py::audit` independently replays every raw strip,
+native tick/frequency, freshness/order, identity, terminal state and percentile calculation.
+Synthetic audit checks validate the verifier, not the app's latency.
+
+Microsoft's [desktop duplication contract](https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/desktop-dup-api)
+supplies a current BGRA8 desktop image. Its
+[LastPresentTime](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info)
+uses QPC for the desktop image update and is zero for pointer-only updates; accumulated
+updates may exceed one. Use it only to reject a response older than the pre-input stamp.
+Neither this field nor pixel-copy completion proves physical scanout. Global
+[DWM timing](https://learn.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmgetcompositiontiminginfo)
+requires a null HWND on supported Windows versions and does not establish the required
+owned-pixel/frame join. Report these observations as conservative composited-desktop bounds;
+preserve the original 50 ms target and any remaining same-frame/physical requirement.
+
+### Unchanged targets
+
 These are engineering acceptance targets on the recorded adapter, not observed performance or
 user-specified product promises. Revision requires a documented rationale before a new run;
 preserve earlier failures. Reject unsupported allocations/plans atomically instead of reducing

@@ -1,6 +1,9 @@
-//! Owned production-runtime qualification roles. No frame pixels enter control IPC.
+//! Owned qualification roles. Production control stays metadata-only; desktop-capture exports
+//! a bounded owned pixel strip to its independent test collector.
 #[cfg(windows)]
 mod config;
+#[cfg(windows)]
+mod desktop_capture;
 #[cfg(windows)]
 mod host;
 #[cfg(windows)]
@@ -28,6 +31,7 @@ fn main() -> std::process::ExitCode {
             "pixels" => observations::pixels(args),
             "calibration-pixels" => observations::calibration_pixels(args),
             "gpu-preferences" => preferences::write(args),
+            "desktop-capture" => desktop_capture::run(args),
             _ => Err(std::io::Error::other("unknown qualification role")),
         }
     })();

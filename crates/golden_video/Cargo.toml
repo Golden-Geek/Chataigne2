@@ -50,4 +50,5 @@ windows = { version = "=0.61.3", optional = true, features = [
     "Win32_System_ProcessStatus",
     "Win32_System_SystemInformation",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_HiDpi",
 ] }

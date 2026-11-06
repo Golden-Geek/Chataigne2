@@ -12,7 +12,7 @@ const milliseconds = (value) => Number(value) / 1e6;
 const percentile = (values, rank) =>
 	[...values].sort((a, b) => a - b)[Math.ceil(values.length * rank) - 1];
 
-function edges(frame, width, height) {
+export function edges(frame, width, height) {
 	const red = [],
 		blue = [];
 	for (let x = 0; x < width; x++) {
