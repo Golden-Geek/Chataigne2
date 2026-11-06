@@ -30,7 +30,7 @@ pub(super) fn apply(
     let label = labels::unique(engine, parent, label, kind.default_label(), &[])?;
     let mut definition = InstanceDefinition::for_canvas(canvas);
     definition.transform.position = [position.x, position.y];
-    let tree = creation::owned_tree(kind, label).with_child(NodeTree::new(PlacementNode::from_definition(
+    let tree = creation::owned_tree(engine, kind, label).with_child(NodeTree::new(PlacementNode::from_definition(
         "Placement".into(),
         definition,
     )));

@@ -24,18 +24,27 @@ use std::sync::OnceLock;
         sender: String = String::new() (label = "Spout sender");
         sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
-            enum_options = crate::parameters::enum_options(&[""]));
+            enum_options = self.sender_options.clone());
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into(), "mapgyver.matrix.group.v2".into()]);
     }
 )]
 pub struct ChannelNode {
+    #[state(default = super::sender_catalog::choices(&[]))]
+    sender_options: golden_core::parameter::ParameterEnumOptions,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
     #[state(default = OnceLock::new())]
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
 }
 impl ChannelNode {
+    pub(super) fn initialize_sender_options(&mut self, options: golden_core::parameter::ParameterEnumOptions) {
+        assert!(
+            !self.sender_choice.is_bound(),
+            "sender defaults require a detached channel"
+        );
+        self.sender_options = options;
+    }
     pub(crate) fn sender_parameter(&self, mode: super::protocol::SenderSelectionMode) -> NodeId {
         match mode {
             super::protocol::SenderSelectionMode::Manual => self.sender.id(),
@@ -86,7 +95,9 @@ impl ChannelNode {
             }
             ChannelSource::Composition { .. } => {}
             ChannelSource::Spout { sender } => {
-                seed!(sender, sender.unwrap_or_default());
+                let name = sender.unwrap_or_default();
+                seed!(sender, name.clone());
+                seed!(sender_choice, Enum::new(name));
             }
             ChannelSource::Matrix { output } => match output {
                 MatrixOutput::Final { .. } => {

@@ -14,6 +14,7 @@ mod queries;
 mod resolution;
 mod script;
 mod scripting;
+mod sender_defaults;
 mod sender_selection;
 mod source_api;
 mod source_node;

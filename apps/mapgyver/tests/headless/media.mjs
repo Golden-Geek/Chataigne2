@@ -32,6 +32,7 @@
 // Add --column-applications-ui for M08 actual column UI and owned-process lifecycle verification.
 // Add --source-drop-ui for real Media/Channel outliner drags into Screen/Composition editors.
 // Add --catalog-ui for object-only manager creation menus.
+// Add --sender-defaults-ui for Auto/None and live SDK discovery in a headless browser.
 // Add --free-warp-ui for held invalid-shape editing and upside-down recovery.
 // Add --application-target-outcomes for actual owned singleton/launcher/breakaway/invalid-image cases.
 // Add --application-elevation-required after application_process/prepare-elevation.ps1.
@@ -50,6 +51,7 @@ assert(
 	'Run the Screen and Surface Source UI checks separately'
 );
 const withUi = [
+	'--sender-defaults-ui',
 	'--source-ui',
 	'--ui-reload',
 	'--application-ui',
@@ -301,6 +303,10 @@ try {
 	if (process.argv.includes('--ui-reload')) {
 		const { verifyPictureReloadUi } = await import('../browser/picture-reload.mjs');
 		await verifyPictureReloadUi({ base, inspect, picture, asset });
+	}
+	if (process.argv.includes('--sender-defaults-ui')) {
+		const { verifySenderDefaultsUi } = await import('../browser/sender-defaults.mjs');
+		await verifySenderDefaultsUi({ base, edit, post, directory, hostPid: app.pid });
 	}
 	if (process.argv.includes('--source-ui')) {
 		const { verifySourcesUi } = await import('../browser/sources.mjs');

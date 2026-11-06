@@ -143,6 +143,20 @@ fn pending_metadata_is_latest_only_and_cannot_overwrite_new_values_or_retired_pr
 }
 
 #[test]
+fn refreshing_one_binding_before_delivery_keeps_the_whole_pending_catalog_batch() {
+    let (mut engine, first, second) = engine();
+    let mut source = Source::capture(&engine).unwrap();
+    source.publish(&["Same catalog".into()]).unwrap();
+    // Refresh one captured binding from the still-older installed metadata, before delivery.
+    let channel = source.selections[0].channel;
+    source.selections[0] = Source::selection(&engine, channel).unwrap();
+    source.publish(&["Same catalog".into()]).unwrap();
+    drain(&mut engine);
+    assert_eq!(available(&engine, first), vec!["", "Same catalog"]);
+    assert_eq!(available(&engine, second), vec!["", "Same catalog"]);
+}
+
+#[test]
 fn conditional_enum_domain_is_restored_before_post_load_sender_disappearance() {
     let (mut engine, first, _) = engine();
     Source::capture(&engine)

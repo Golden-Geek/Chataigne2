@@ -43,6 +43,14 @@ pub struct MediaNode {
     matrix_root: OnceLock<golden_core::node::NodeUuid>,
 }
 impl MediaNode {
+    pub(super) fn initialize_auto_sender_selection(&mut self) {
+        assert!(
+            !self.sender_selection.is_bound(),
+            "sender defaults require detached media"
+        );
+        // Keep the intrinsic Manual codec baseline so older sparse projects retain their mode.
+        self.sender_selection = ParameterHandle::new(Enum::new("Auto"));
+    }
     pub(crate) fn sender_selection(&self) -> Option<super::protocol::SenderSelectionMode> {
         (self.kind() == super::protocol::MediaKind::SharedTexture).then(|| {
             super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())

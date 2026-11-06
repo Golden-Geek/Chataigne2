@@ -1,0 +1,233 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/1",
+  "result": "Accepted",
+  "base_commit": "fa49a47f64e42256b5ef5326601f9d6ab33703a5",
+  "product_behavior": "Fresh Shared Texture media are created in Auto mode with the first available exact sender from the same catalog/order shown by the Enum. Empty/unselected is labelled None. Existing choices are never reseeded.",
+  "owners": {
+    "discovery": "Existing Golden Spout discovery serviced on the existing MapGyver desktop/headless worker at500ms; no new engine/UI polling or SDK call in creation.",
+    "creation": "MapGyver live detached factories consume the manager's bounded latest catalog via the public Golden UserItemCreationContext.",
+    "persistence": "Intrinsic Manual/v8 codec baseline is unchanged; fresh creation overrides typed Parameters only. Decode, duplication and redo preserve authored mode/sender, including sparse Manual and None.",
+    "metadata": "Initial channel options use the same snapshot as the initial value. Pending worker batches remain complete/latest-only, fenced by existing revision/UUID/value ownership."
+  },
+  "requirements": [
+    {
+      "requirement": "Auto default and matching first sender/None label",
+      "proof": "sender_defaults::first_media_uses_one_snapshot_and_one_history_entry_for_zero_one_or_many_senders plus real SDK creation cases below; initial UI/backend options and selection agree."
+    },
+    {
+      "requirement": "All supported media creation paths own the default",
+      "proof": "sender_defaults::manager_folder_and_owned_creation_paths_share_first_sender_and_immediate_enum_metadata: manager/folder catalog, direct media/folder intents, Composition-owned media and Matrix-owned Cell media for zero/one/multiple names."
+    },
+    {
+      "requirement": "Commands/scripts/headless/transport parity",
+      "proof": "sender_defaults::named_script_and_command_creation_receive_backend_defaults plus complete existing QuickJS/hosted/named/public-intent parity suite and ordinary HTTP host checks below."
+    },
+    {
+      "requirement": "Explicit None/exact choice, mode changes, discovery loss/reappearance",
+      "proof": "Existing sender_selection/catalog tests plus sender_defaults::explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded and actual SDK/UI disappearance/recovery/mode checks below."
+    },
+    {
+      "requirement": "Grouped creation/history, copy and reload preserve selections",
+      "proof": "New creation tests require one history entry, change discovery before undo/redo, duplicate both None and Manual/exact media and reload sparse Manual choices. Real generic controls verify mode Undo/Redo and Save/New/Load."
+    },
+    {
+      "requirement": "No later UI repair or implicit authored selection on discovery",
+      "proof": "The initial creation result is asserted before selecting its UI. Worker publishes Enum metadata with selected_value=None; it also caches availability with zero channels. Explicit None stays empty through real source restart."
+    },
+    {
+      "requirement": "No regression in pending catalog delivery",
+      "proof": "sender_catalog::tests::refreshing_one_binding_before_delivery_keeps_the_whole_pending_catalog_batch requires both channels to receive the same pending catalog after a captured binding is refreshed."
+    }
+  ],
+  "checks": [
+    {
+      "command": "cargo check --locked -p MapGyver --lib",
+      "result": "Early focused API/Params DSL compilation passed."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "Final body:508 passed,0 failed,2 ignored. Includes generated TypeScript parity, app/module/script/history/project tests."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Final body:exit0."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m131-sender-defaults",
+      "result": "Final body:exit0; isolated executable, no replacement of the user's running app."
+    },
+    {
+      "command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m131-sender-defaults.exe node apps/mapgyver/tests/headless/media.mjs --sender-defaults-ui",
+      "result": "Final controller exit0; ordinary hostPID42156 normal shutdown0; two owned SDK producers each close with exit0. Complete existing M04 three-source/six-channel headless regression also passes."
+    },
+    {
+      "command": "Touched JS Prettier and node --check; root cargo fmt --all and cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+      "result": "Passed."
+    }
+  ],
+  "headless_ui": {
+    "result": "pass",
+    "host_pid": 42156,
+    "scope": "Ordinary headless host, actual SDK discovery and headless Chromium generic Inspector; no native desktop input, rendering-pixel or 240Hz claim",
+    "observer": {
+      "channel": "403203e7-ea99-45fb-b85b-60afc6844be9",
+      "media": "e156551e-265b-4c7f-aa8a-244087f6d121"
+    },
+    "probe": {
+      "channel": "4df32502-edb2-4f2a-934d-6e4fc98c08f4",
+      "media": "8db803d0-071c-495b-893e-a8424d8d6fc2"
+    },
+    "catalog": [
+      {
+        "value": "",
+        "label": "None"
+      },
+      {
+        "value": "MapGyver-M131-A-5948",
+        "label": "MapGyver-M131-A-5948"
+      },
+      {
+        "value": "MapGyver-M131-B-5948",
+        "label": "MapGyver-M131-B-5948"
+      }
+    ],
+    "creation_cases": [
+      {
+        "senders": 2,
+        "reference": {
+          "channel": "4df32502-edb2-4f2a-934d-6e4fc98c08f4",
+          "media": "8db803d0-071c-495b-893e-a8424d8d6fc2"
+        },
+        "selected": "MapGyver-M131-A-5948",
+        "mode": "Auto",
+        "options": [
+          {
+            "value": "",
+            "label": "None"
+          },
+          {
+            "value": "MapGyver-M131-A-5948",
+            "label": "MapGyver-M131-A-5948"
+          },
+          {
+            "value": "MapGyver-M131-B-5948",
+            "label": "MapGyver-M131-B-5948"
+          }
+        ]
+      },
+      {
+        "senders": 0,
+        "reference": {
+          "channel": "ec9e1e37-046e-4c74-9a66-603cbb83b63a",
+          "media": "a6645f38-cba6-4672-8f12-b15031ee9013"
+        },
+        "selected": null,
+        "mode": "Auto",
+        "options": [
+          {
+            "value": "",
+            "label": "None"
+          }
+        ]
+      },
+      {
+        "senders": 1,
+        "reference": {
+          "channel": "a5edc74c-664d-49c4-b9b8-c9c38d7b2b18",
+          "media": "e7d60786-c8da-48f1-8fe1-d287a8f6a7a1"
+        },
+        "selected": "MapGyver-M131-A-5948",
+        "mode": "Auto",
+        "options": [
+          {
+            "value": "",
+            "label": "None"
+          },
+          {
+            "value": "MapGyver-M131-A-5948",
+            "label": "MapGyver-M131-A-5948"
+          }
+        ]
+      }
+    ],
+    "checks": [
+      "Actual SDK ordering, backend creation selection and the initial generic Auto/None controls agree",
+      "Fresh Auto creation with actual zero, one and multiple SDK senders selects None or the first entry atomically",
+      "Explicit None survives real discovery disappearance and reappearance",
+      "Exact selection survives owned SDK stop/restart with truthful unavailable/recovered metadata",
+      "Mode changes and grouped Undo/Redo preserve the current exact sender",
+      "Save/New/Load restores authored mode/sender without applying creation policy again"
+    ],
+    "sources": [
+      {
+        "pid": 45084,
+        "name": "MapGyver-M131-A-5948"
+      },
+      {
+        "pid": 23672,
+        "name": "MapGyver-M131-B-5948"
+      }
+    ],
+    "errors": [],
+    "directory": "C:\\Users\\bkupe\\AppData\\Local\\Temp\\mapgyver-media-parity-chlH7Z"
+  },
+  "earlier_headless_attempts": [
+    {
+      "result": "Pass on previous body; partial two-sender coverage only, not used alone for acceptance",
+      "owned_producers": [
+        21540,
+        34868
+      ],
+      "controller_exit": 0,
+      "host_shutdown_exit": 0
+    },
+    {
+      "result": "Expanded fixture failed before reading the newly selected Inspector's options",
+      "error": "Actual[] versus expected None option at sender-defaults.mjs:140",
+      "controller_exit": 1,
+      "host_shutdown_exit": 0,
+      "correction": "Fixture now waits for the exact selected Inspector title, visible sender control and installed options before inspecting them. No product delay, budget or expected behavior was changed."
+    }
+  ],
+  "scope_limits": [
+    "No native desktop input was sent. The browser ran headless and both producer processes were owned test fixtures.",
+    "This gate verifies sender authoring/defaults and catalog recovery. It claims no new GPU pixel-format/color/alpha, native preview latency, physical alignment, high-refresh pacing or device-removal acceptance.",
+    "M13/2 still requires complete actual SDK/backend format inventory/import/conversion and both-GPU independent pixels, including fractional/float content and live format/device changes.",
+    "M05/8 retains its original50ms/same-frame/physical requirements and remains blocked by the user's explicit desktop-input stop. All other retained gates remain required."
+  ],
+  "input_sha256": {
+    "target/debug/deps/MapGyver-m131-sender-defaults.exe": "8f69659204beef50787be7e9d21b91362f2a64052ff9522e1cebc0394f839794",
+    "target/debug/native_source_fixture.exe": "3053028d548a2e38f5aef9f6af1fd517c8a55a7c5b29bd9a471893a52761f1d1",
+    "Cargo.lock": "77ef6c02577c44029de4ba8b469fafbc528e0e29c7c6420b827d46b04f161644",
+    "package-lock.json": "85a62b85ab751659a4efd486b12f982385d5f8bc62dee2cee9dadc1460c9f0af",
+    "apps/mapgyver/Cargo.toml": "3a4672f23e988bcea4efe3328ad15f287e891517a1215f34b2ab70dda2afaa65",
+    "apps/mapgyver/src/media/creation.rs": "4bd171af05d2d2b8ea2e5fdd10852545af7f167488bc05dba143b3454aa0675b",
+    "apps/mapgyver/src/media/sender_catalog.rs": "717c1126a9e976bd2e079478ec90902d1d0e74788289387db5bcd6c595dc9ef6",
+    "apps/mapgyver/src/media/sender_catalog/tests/mod.rs": "ee641a72e6dcb6b4e8ff52ca3e0b67c6b9219a69a097f6e6ce024018d1d99955",
+    "apps/mapgyver/src/media/channel_node.rs": "b4553f12b7f6a01d0c297a6ff514c90a533889246bcc0c56e45f467460d82264",
+    "apps/mapgyver/src/media/media_node.rs": "a7c2c2dd107aa50dacec3de36d5c23bb5bc5b4b4d4f6f2787b48a5abfbbd7950",
+    "apps/mapgyver/src/media/nodes.rs": "e4ecf19bb7d5271ee3742add32fa109f2a3c24b7e30860ecd9adcbb5a1aa89ae",
+    "apps/mapgyver/src/media/folders.rs": "10c3c9eb222652ea5d2f960aa5837a304b0d3a09af555d8435fa5da959287aeb",
+    "apps/mapgyver/src/media/authoring.rs": "d4c6ea52c6f2e7c054b3f9b1a20024a3899e26a56b5c01c8f99a3dd470f13c9b",
+    "apps/mapgyver/src/media/composition/creation.rs": "1502fb8304b23ac88a390201dc131d744ac436833a0ba50d0c3eaba6ae1f57c5",
+    "apps/mapgyver/src/matrix/cells.rs": "8f142d6e0aaff664ea0dc716ab6317e6add117c7c29ecfd1675225176779d4c5",
+    "apps/mapgyver/src/media/tests/sender_defaults.rs": "654c7fb708b6d20d2a10fa5c688ca2154b922be643728a0891947dde943352cf",
+    "apps/mapgyver/src/media/tests/sender_selection.rs": "688a7d15fd114a6a52d2afdfb010a4ca9dee28fcd39ef9b5aecfb7deb3c3b5fd",
+    "apps/mapgyver/tests/browser/sender-defaults.mjs": "0e77f426b1840348ca7136bb46f1abfa327ef2de69300a079f637687b4dd100b",
+    "apps/mapgyver/tests/browser/native-sender-selection.mjs": "e9748332d0b10afd2207c109d94f56f7bc75f074b2a69cafc9a9f0361c895f4a",
+    "apps/mapgyver/tests/headless/media.mjs": "0d733cb7a4be45893ade6ed41ad67769e1cb34993fdefaf15887992e2110cc26"
+  },
+  "progress": {
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "percentage": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "m13_percentage": 7,
+    "completed_phases": 7,
+    "total_phases": 14,
+    "calculation": "Round verified fixed-gate ratio to nearest whole percent; M13 adds no new denominator here. Only M13/1 closes in this batch."
+  }
+}

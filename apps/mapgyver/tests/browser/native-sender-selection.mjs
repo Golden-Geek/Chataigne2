@@ -106,6 +106,12 @@ export async function verifyNativeSenderSelection({ page, edit, post, nativePid 
 			label: 'Live sender controls'
 		});
 		const { reference: peer } = await edit({ kind: 'AddChannel', media: reference.media });
+		const created = (await edit({ kind: 'InspectManager' })).snapshot.media.find(
+			(media) => media.id === reference.media
+		);
+		assert.equal(created.sender_selection, 'Auto');
+		// This retained fixture specifically exercises Manual Detect before switching to Auto.
+		await edit({ kind: 'ConfigureMediaSenderSelection', media: reference.media, mode: 'Manual' });
 		await firstOutput.demand(reference);
 		await peerOutput.demand(peer);
 		const adapter = await observeNativeAdapter(page, hardware);

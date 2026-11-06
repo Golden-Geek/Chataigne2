@@ -708,9 +708,10 @@ fn create_media(
     if media_kind == MediaKind::Reference {
         return super::reference::create(engine, parent, None, requested);
     }
-    let (tree, reference) = media_tree(
+    let (tree, reference) = super::creation::media(
+        engine,
+        media_kind,
         label(engine, parent, requested, media_kind.default_label())?,
-        ChannelDefinition::for_media(media_kind),
     );
     engine.edits.push(Edit::AddUserItemTree {
         tree,

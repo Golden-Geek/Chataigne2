@@ -127,6 +127,13 @@ impl Node for MediaManagerNode {
     fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
         super::creation::tree(node_type)
     }
+    fn create_user_item_tree_with_context(
+        &self,
+        node_type: &str,
+        context: &golden_core::node::UserItemCreationContext<'_>,
+    ) -> Option<golden_core::edit::NodeTree> {
+        super::creation::tree_with_context(node_type, context)
+    }
 
     fn engine_script_descriptor(&self) -> NodeScriptDescriptor {
         super::scripting::manager_descriptor()

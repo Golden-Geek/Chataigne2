@@ -10,15 +10,31 @@ use golden_core::{
 use golden_io::RevisionGuard;
 use std::sync::{Arc, Mutex, Weak};
 
-#[derive(Default)]
 struct State {
     waker: Option<NodeWaker>,
     pending: Option<Vec<SelectionUpdate>>,
     closed: bool,
+    options: ParameterEnumOptions,
+}
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            waker: None,
+            pending: None,
+            closed: false,
+            options: choices(&[]),
+        }
+    }
 }
 #[derive(Default)]
 pub(crate) struct Inbox(Arc<Mutex<State>>);
 impl Inbox {
+    pub(super) fn options(&self) -> ParameterEnumOptions {
+        self.0
+            .lock()
+            .map(|state| state.options.clone())
+            .unwrap_or_else(|_| choices(&[]))
+    }
     pub fn register(&self, ctx: &ProcessCtx) -> Result<(), String> {
         self.0.lock().map_err(|_| "sender catalog inbox poisoned")?.waker =
             Some(ctx.node_waker().map_err(|e| e.to_string())?);
@@ -59,14 +75,16 @@ struct Publisher {
     waker: NodeWaker,
 }
 impl Publisher {
-    fn publish(&self, updates: Vec<SelectionUpdate>) -> Result<(), String> {
-        if updates.is_empty() {
-            return Ok(());
-        }
+    fn publish(&self, updates: Vec<SelectionUpdate>, options: ParameterEnumOptions) -> Result<(), String> {
         let state = self.state.upgrade().ok_or("sender catalog retired")?;
         let mut state = state.lock().map_err(|_| "sender catalog inbox poisoned")?;
         if state.closed || self.waker.is_closed() {
             return Err("sender catalog retired".into());
+        }
+        // The first creation must see discovery even when no channel exists to receive metadata.
+        state.options = options;
+        if updates.is_empty() {
+            return Ok(());
         }
         state.pending = Some(updates);
         drop(state);
@@ -144,20 +162,21 @@ impl Source {
     }
     pub(crate) fn publish(&mut self, names: &[String]) -> Result<(), String> {
         let options = choices(names);
-        if self.selections.iter().all(|selection| selection.options == options) {
-            return Ok(());
-        }
         let mut updates = Vec::new();
-        for selection in &mut self.selections {
-            updates.push(SelectionUpdate {
-                node: selection.node,
-                uuid: selection.uuid,
-                value: ParamValue::Enum(selection.value.clone()),
-                options: options.clone(),
-                guard: selection.guard.clone(),
-            });
+        // A replacement inbox batch must include every channel: an earlier batch may still
+        // be pending while one changed binding is refreshed against the older installed options.
+        if self.selections.iter().any(|selection| selection.options != options) {
+            for selection in &self.selections {
+                updates.push(SelectionUpdate {
+                    node: selection.node,
+                    uuid: selection.uuid,
+                    value: ParamValue::Enum(selection.value.clone()),
+                    options: options.clone(),
+                    guard: selection.guard.clone(),
+                });
+            }
         }
-        self.publisher.publish(updates)?;
+        self.publisher.publish(updates, options.clone())?;
         for selection in &mut self.selections {
             selection.options = options.clone();
         }
@@ -166,7 +185,7 @@ impl Source {
 }
 
 pub(crate) fn choices(names: &[String]) -> ParameterEnumOptions {
-    let mut entries = vec![option("", "Unconfigured".into(), true)];
+    let mut entries = vec![option("", "None".into(), true)];
     let mut seen = std::collections::HashSet::from([String::new()]);
     for name in names
         .iter()

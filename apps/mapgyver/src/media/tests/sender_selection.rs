@@ -16,6 +16,13 @@ fn sender(engine: &AppEngine, reference: ChannelReference) -> Option<String> {
 fn exact_missing_senders_survive_media_mode_switch_history_and_project_roundtrip() {
     let mut engine = fixture();
     let first = create(&mut engine, MediaKind::SharedTexture);
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureMediaSenderSelection {
+            media: first.media,
+            mode: SenderSelectionMode::Manual,
+        },
+    );
     let MediaEditResult::Created { reference: second } = apply(
         &mut engine,
         MediaEdit::AddChannel {

@@ -24,7 +24,7 @@ pub(super) fn create_media(
     let tree = if kind == MediaKind::Reference {
         NodeTree::new(ReferenceNode::new())
     } else {
-        crate::media::authoring::media_tree(kind.default_label().into(), ChannelDefinition::for_media(kind)).0
+        crate::media::creation::media(engine, kind, kind.default_label().into()).0
     };
     let media = MediaId(tree.node.node_data().meta.uuid);
     let cell = if let Some(id) = document.cells.get(&(layer, column)) {
