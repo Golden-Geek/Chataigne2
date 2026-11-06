@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Real opaque Inspector tab withdrawal/restoration portion verified; full gate remains Active",
+  "accepted_gate_change": 0,
+  "source_base": "8f5bcff6950c523f3e6468a36e76ded7e0c3ce82",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "cases": [
+    { "gpu": "dxgi:00000000:00016022", "pid": 8376, "normal_exit": 0 },
+    { "gpu": "dxgi:00000000:00015b69", "pid": 24568, "normal_exit": 0 }
+  ],
+  "verified": {
+    "scale_percent": 125,
+    "physical_images": 16,
+    "independently_sized_native_regions": 2,
+    "clear_native_colour_witness_pixels_per_case": 222932,
+    "source_pixels_covered_by_actual_inspector_per_case": 32176,
+    "stable_opaque_pixels_per_case": 32176,
+    "maximum_covered_rgb_difference": 0,
+    "uncovered_screen_keeps_changing": true,
+    "visible_installed_regions_with_inspector": 1,
+    "visible_installed_regions_after_source_restoration": 2,
+    "restored_blue_source_pixels_per_case": 32176,
+    "independent_sdk_images": 6,
+    "sdk_extent": [800, 600],
+    "sdk_coloured_pixels": 172800,
+    "sdk_black_pixels": 307200,
+    "red_sdk_png_sha256": "f3da02acab3b5a3ee3b1e9e8df68da245d3ea0d55b27466161605ec2ad3ad959",
+    "blue_sdk_png_sha256": "7d47ada13607755959ebc51cdeb729f9b5e308001c646a4865bc277fc9f7ca3a",
+    "all_sdk_observers_retired": true
+  },
+  "method": "Real Inspector/Surface Source tab clicks with the normal UI. Clear red/blue controls prove native pixels in both regions. Red/red/blue/red controls identify stable opaque pixels without selecting against blue. Backend remains blue while Source is restored, then returns red; independent SDK images verify matching output content. Actual Inspector image visually inspected. No synthetic DOM cover or theme change.",
+  "checks": "Seven capture/oracle negative-control tests, both prior native-dialog replays, Node syntax/Prettier, root and Core Cargo formatting and full independent SDK image comparison pass. Both parent fixtures exit0, whose close path asserts normal owned app exit0; owned PIDs are absent.",
+  "limits": "Settled 125% actual tab replacement and colour restoration only. No continuous scanout, strict frame-serial/freshness timing, translucent context-menu blending, complete reference/motion/pointer/hit or original latency acceptance inferred. No product/runtime change was needed.",
+  "next_action": "Actual outside-view pointer capture/release and matching backend/history/physical image evidence; retain translucent menu/reference/motion/hit and original latency return requirements.",
+  "archive": {
+    "path": "mapgyver-m05-opaque-panel-2026-11-06.zip",
+    "bytes": 1730497,
+    "sha256": "d3a48bb5f6755dee30892604199ae6c8011a71e7d13d2df419c911d2628e2d80"
+  }
+}

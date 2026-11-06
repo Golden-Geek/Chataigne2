@@ -48,26 +48,48 @@ def verify(clear_red, clear_blue, red1, red2, blue1, red3, views, dialog):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('directory', type=Path)
+    parser.add_argument('--panel', action='store_true', help='Replay a real opaque Inspector tab replacing the Source view')
     args = parser.parse_args()
     root = args.directory
     geometry = json.loads((root/'layers-ready.json').read_text(encoding='utf8'))
-    metadata = [json.loads((root/name/'capture.json').read_text(encoding='utf8')) for name in ['clear-red', 'clear-blue', 'dialog-red1', 'dialog-red2', 'dialog-blue', 'dialog-red3']]
+    names = ['clear-red', 'clear-blue', *(['panel-red1', 'panel-red2', 'panel-blue', 'panel-red3'] if args.panel else ['dialog-red1', 'dialog-red2', 'dialog-blue', 'dialog-red3'])]
+    metadata = [json.loads((root/name/'capture.json').read_text(encoding='utf8')) for name in names]
     for entry in metadata:
         for key in ['desktop_bounds', 'client_desktop_origin', 'window_dpi', 'monitor_bounds']:
             assert entry[key] == metadata[0][key], f'capture geometry changed: {key}'
-    assert all(entry['foreground_dialog'] == metadata[2]['foreground_dialog'] for entry in metadata[2:])
+    if args.panel:
+        assert all('foreground_dialog' not in entry for entry in metadata)
+    else:
+        assert all(entry['foreground_dialog'] == metadata[2]['foreground_dialog'] for entry in metadata[2:])
     assert geometry['dpr'] * 96 == metadata[0]['window_dpi']
     ox = metadata[0]['client_desktop_origin'][0] - metadata[0]['desktop_bounds'][0]
     oy = metadata[0]['client_desktop_origin'][1] - metadata[0]['desktop_bounds'][1]
     scale = geometry['dpr']
     views = [(round(ox+v['rect']['left']*scale)+2, round(oy+v['rect']['top']*scale)+2,
               round(ox+v['rect']['right']*scale)-2, round(oy+v['rect']['bottom']*scale)-2) for v in geometry['views']]
-    dl, dt, dr, db = metadata[2]['foreground_dialog_bounds']
-    wl, wt, _, _ = metadata[0]['desktop_bounds']
-    dialog = (dl-wl+20, dt-wt+64, dr-wl-20, db-wt-64)
-    names = ['clear-red', 'clear-blue', 'dialog-red1', 'dialog-red2', 'dialog-blue', 'dialog-red3']
+    if args.panel:
+        assert geometry['views'][1]['label'].startswith('Full source')
+        dialog = views[1]
+    else:
+        dl, dt, dr, db = metadata[2]['foreground_dialog_bounds']
+        wl, wt, _, _ = metadata[0]['desktop_bounds']
+        dialog = (dl-wl+20, dt-wt+64, dr-wl-20, db-wt-64)
     result = verify(*(Image.open(root/name/'baseline.png') for name in names), views, dialog)
-    (root/'opaque-result.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf8')
+    if args.panel:
+        restored_metadata = json.loads((root/'restored-blue/capture.json').read_text(encoding='utf8'))
+        for key in ['desktop_bounds', 'client_desktop_origin', 'window_dpi', 'monitor_bounds']:
+            assert restored_metadata[key] == metadata[0][key], f'restored geometry changed: {key}'
+        original_image = Image.open(root/'clear-blue/baseline.png').convert('RGB')
+        red_image = Image.open(root/'clear-red/baseline.png').convert('RGB')
+        restored_image = Image.open(root/'restored-blue/baseline.png').convert('RGB')
+        assert original_image.size == red_image.size == restored_image.size
+        original, original_red, restored = original_image.load(), red_image.load(), restored_image.load()
+        left, top, right, bottom = views[1]
+        witness = [(x, y) for y in range(top, bottom) for x in range(left, right) if blue(original[x, y]) and red(original_red[x, y])]
+        assert len(witness) >= 64
+        assert sum(blue(restored[p]) for p in witness) >= .99 * len(witness), 'Source must restore the latest blue native pixels'
+        result['latest_source_blue_pixels_verified'] = len(witness)
+    (root/('panel-result.json' if args.panel else 'opaque-result.json')).write_text(json.dumps(result, indent=2)+'\n', encoding='utf8')
     print(json.dumps(result))
 
 

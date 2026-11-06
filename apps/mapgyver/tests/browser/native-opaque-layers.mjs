@@ -8,7 +8,19 @@ import { chromium } from 'playwright-core';
 
 const directory = path.resolve(process.argv[2]);
 const action = process.argv[3];
-assert(['setup', 'red', 'blue', 'output', 'dialog', 'dialog-state', 'capture'].includes(action));
+assert(
+	[
+		'setup',
+		'inspector',
+		'source-view',
+		'red',
+		'blue',
+		'output',
+		'dialog',
+		'dialog-state',
+		'capture'
+	].includes(action)
+);
 const ready = JSON.parse(await readFile(path.join(directory, 'ready.json'), 'utf8'));
 let token;
 async function post(route, value) {
@@ -102,7 +114,24 @@ if (action === 'red' || action === 'blue') {
 	assert.equal(pages.length, 1);
 	const page = pages[0];
 	page.setDefaultTimeout(5000);
-	if (action === 'dialog-state') {
+	if (action === 'inspector' || action === 'source-view') {
+		const source = action === 'source-view';
+		await page
+			.getByRole('tab')
+			.filter({ hasText: source ? /^Surface Source:/ : /^Inspector:/ })
+			.click();
+		await page.waitForFunction(
+			(count) =>
+				[...document.querySelectorAll('.native-preview')].filter(
+					(e) =>
+						e.getBoundingClientRect().width > 0 &&
+						e.getBoundingClientRect().height > 0 &&
+						e.dataset.previewInstalled === 'true'
+				).length === count,
+			source ? 2 : 1
+		);
+		console.log(JSON.stringify({ action, installed_visible_regions: source ? 2 : 1 }));
+	} else if (action === 'dialog-state') {
 		console.log(JSON.stringify(await page.evaluate(() => window.__opaqueDialogResult)));
 	} else if (action === 'dialog') {
 		const location = path.join(directory, 'dialog-location');
