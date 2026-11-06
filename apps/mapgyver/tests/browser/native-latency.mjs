@@ -1,6 +1,6 @@
 // Conservative CDP-input to observed composited-desktop response bounds. No scanout claim.
 import assert from 'node:assert/strict';
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -26,16 +26,11 @@ function edges(frame, width, height) {
 		: null;
 }
 
-export async function measureVisibleLatency({ native, view, directory }) {
+export async function measureVisibleLatency({ native, view, directory, hwnd }) {
 	const gpu = process.env.MAPGYVER_CAPTURE_GPU;
 	assert(/^[01]$/.test(gpu ?? ''), 'Explicit capture adapter index 0 or 1 required');
-	const hwnd = Number(
-		execFileSync(
-			'powershell.exe',
-			['-NoProfile', '-Command', `(Get-Process -Id ${native.app.pid}).MainWindowHandle.ToInt64()`],
-			{ windowsHide: true, encoding: 'utf8' }
-		).trim()
-	);
+	// Resolve identity during fixture preparation, before supported foreground activation.
+	// Every geometry guard below still authenticates this exact HWND/PID and foreground.
 	assert(Number.isSafeInteger(hwnd) && hwnd > 0);
 	async function guard() {
 		const { stdout } = await run(

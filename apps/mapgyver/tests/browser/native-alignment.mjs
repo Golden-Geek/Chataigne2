@@ -13,6 +13,7 @@ import { measureVisibleLatency } from './native-latency.mjs';
 import { verifyNativeWindowLayout } from './native-window-layout.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { verifyNativeMotion } from './native-motion.mjs';
+import { ownedWindowHandle } from './capture-alignment.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -238,6 +239,7 @@ try {
 				}
 			: null,
 		pid: native.app.pid,
+		hwnd: Number(ownedWindowHandle(native.app.pid)),
 		holdSeconds,
 		directory,
 		base: native.base,
@@ -356,7 +358,7 @@ try {
 			console.log(result.stdout.trim());
 		}
 	} else if (process.argv.includes('--latency')) {
-		await measureVisibleLatency({ native, view, directory });
+		await measureVisibleLatency({ native, view, directory, hwnd: metadata.hwnd });
 	} else if (process.argv.includes('--zoom')) {
 		const hwnd = Number(
 			execFileSync(
