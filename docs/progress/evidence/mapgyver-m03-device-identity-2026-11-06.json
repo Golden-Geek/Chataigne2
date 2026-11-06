@@ -31,12 +31,27 @@
   "retirement": "Both owned apps are absent. Intel fixture exits0. NVIDIA fixture exits1 because its final Screen-view locator is absent (Source view present); its finally block completes native.close, whose normal app-exit assertion passes. This is not an entirely passing fixture or a bounded retirement timing qualification.",
   "rejected_first_attempt": "The first eight-minute capture waits and five-minute observer expired before the user disabled NVIDIA. Windows subsequently confirmed problem code22, but no live loss/recovery was recorded. Both fixtures exit1 from capture timeout; no recovery credit. Re-enable changed NVIDIA from16022 to79b2a873. Those baseline artifacts and failures are retained.",
   "observation_limit": "The final sample contains an Intel CDP-closed error during explicit fixture teardown. It is retained and excluded from healthy pre-teardown continuity, not concealed. Status sampling is500ms over a one-second runtime sampler; it is not a GPU completion/frame-age oracle.",
-  "next": "Use installed Microsoft DXCap -forcetdr for a real driver-reset case, with exact before/after adapter identities, fresh independent pixels and normal retirement. The next fixture must close independently of the selected editor. Preserve missing-identity behavior; any persistent physical-adapter policy is a separate explicit design change. Full M03/4 remains open.",
+  "fixture_followup": {
+    "source": "apps/mapgyver/tests/browser/native-device-scene.mjs",
+    "scope": "Editor-independent production API scene and normal shutdown; no driver reset triggered",
+    "startup_correction": "Initial two fixtures reached the initial about:blank WebView before host navigation; both close normally but harnesses fail. Await exact owned host URL and Tauri bridge before sampling. Those failures remain archived.",
+    "nvidia_pid": 13468,
+    "intel_pid": 25784,
+    "both_app_and_fixture_exit_codes": 0,
+    "unchanged_authored_surface_snapshots": true,
+    "both_independent_red_reference_images_max_rgb_error": 0,
+    "healthy_paired_status_observations": 548,
+    "first_sample_utc": "2026-11-06T11:46:20.680Z",
+    "last_sample_utc": "2026-11-06T11:50:58.134Z",
+    "observation_errors": 0,
+    "limit": "Stopped recorder before normal fixture teardown. Operator confirmation for system-wide DXCap reset remains pending; elapsed time is not consent. Qualification contract forbids automatic driver reset. No recovery credit from this healthy baseline."
+  },
+  "next": "After explicit operator confirmation, use installed Microsoft DXCap -forcetdr for a real driver-reset case, with exact before/after adapter identities, fresh independent pixels and the now-verified editor-independent normal retirement fixture. Preserve missing-identity behavior; any persistent physical-adapter policy is a separate explicit design change. Full M03/4 remains open.",
   "reference": "https://learn.microsoft.com/en-us/windows/uwp/gaming/handling-device-lost-scenarios",
-  "checks": "Node syntax and Prettier pass. All five SDK PNGs replay against exact independent RGB references. The239 non-test runtime hashes and qualified binary hash are unchanged; retained terminal native compile/software prerequisites apply. Root and Golden Core cargo fmt complete. No product code or generated protocol changed.",
+  "checks": "Both Node helpers pass syntax and Prettier. Five PnP SDK PNGs and two healthy fixture PNGs replay against exact independent RGB references. Authored before/after Surface snapshots match and both new fixture/application exits are0. The239 non-test runtime hashes and qualified binary hash are unchanged; retained terminal native compile/software prerequisites apply. Root and Golden Core cargo fmt complete. No product code or generated protocol changed.",
   "archive": {
     "path": "mapgyver-m03-device-identity-2026-11-06.zip",
-    "bytes": 53814,
-    "sha256": "06e478e60bfcd01f141824c2b1792626e0a1287eec9b47a0ea9c36ae40982d66"
+    "bytes": 84635,
+    "sha256": "f8700bf228051a9d6552fdf88aba569350593b9ec29cab995eab998536ddee95"
   }
 }
