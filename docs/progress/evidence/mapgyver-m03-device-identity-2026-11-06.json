@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-06",
+  "gate": "M03/4",
+  "accepted_gate_change": 0,
+  "state": "Real device loss and isolated healthy output verified; re-enumerated identity does not recover under the explicit LUID policy",
+  "source_base": "e9ba114bd9d3958fb9ee94560e36f54d6596bfe8",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "manual_action": "User disabled NVIDIA in Device Manager, then re-enabled it. Windows device problem code changed from22 to0; Intel stayed enabled. No registry/TDR settings were changed.",
+  "observed": {
+    "nvidia_pid": 40568,
+    "intel_pid": 26628,
+    "selected_nvidia": "dxgi:00000000:79b2a873",
+    "returned_nvidia": "dxgi:00000000:79e2f347",
+    "intel": "dxgi:00000000:00015b69",
+    "loss_error": "Backend: render device was lost",
+    "first_recovering_utc": "2026-11-06T11:38:42.025Z",
+    "last_recovering_utc": "2026-11-06T11:40:45.388Z",
+    "nvidia_running_samples": 93,
+    "nvidia_faulted_samples": 2,
+    "nvidia_recovering_samples": 243,
+    "intel_running_samples": 337,
+    "intel_observation_gaps_before_teardown": 0,
+    "sdk_images": 5,
+    "reference_extent": [320, 180],
+    "reference_red_rectangle": [64, 36, 256, 144],
+    "maximum_rgb_reference_error": 0
+  },
+  "freshness": "NVIDIA accepted a public Solid Color green edit after re-enable, but the independent SDK receiver timed out after five seconds (exit1); no recovered green frame is claimed. Intel's independent red output passes before, during loss and after re-enable; both pre-loss GPU images also pass. Static images do not establish cadence.",
+  "policy_boundary": "AdapterId::key explicitly defines a new Windows LUID as a missing choice. Selection and D3D11 recreation retain the exact startup identity, with no fallback. This PnP cycle proves actual loss and healthy-path isolation, but cannot establish same-identity driver-reset recovery or justify silently replacing the chosen adapter.",
+  "retirement": "Both owned apps are absent. Intel fixture exits0. NVIDIA fixture exits1 because its final Screen-view locator is absent (Source view present); its finally block completes native.close, whose normal app-exit assertion passes. This is not an entirely passing fixture or a bounded retirement timing qualification.",
+  "rejected_first_attempt": "The first eight-minute capture waits and five-minute observer expired before the user disabled NVIDIA. Windows subsequently confirmed problem code22, but no live loss/recovery was recorded. Both fixtures exit1 from capture timeout; no recovery credit. Re-enable changed NVIDIA from16022 to79b2a873. Those baseline artifacts and failures are retained.",
+  "observation_limit": "The final sample contains an Intel CDP-closed error during explicit fixture teardown. It is retained and excluded from healthy pre-teardown continuity, not concealed. Status sampling is500ms over a one-second runtime sampler; it is not a GPU completion/frame-age oracle.",
+  "next": "Use installed Microsoft DXCap -forcetdr for a real driver-reset case, with exact before/after adapter identities, fresh independent pixels and normal retirement. The next fixture must close independently of the selected editor. Preserve missing-identity behavior; any persistent physical-adapter policy is a separate explicit design change. Full M03/4 remains open.",
+  "reference": "https://learn.microsoft.com/en-us/windows/uwp/gaming/handling-device-lost-scenarios",
+  "checks": "Node syntax and Prettier pass. All five SDK PNGs replay against exact independent RGB references. The239 non-test runtime hashes and qualified binary hash are unchanged; retained terminal native compile/software prerequisites apply. Root and Golden Core cargo fmt complete. No product code or generated protocol changed.",
+  "archive": {
+    "path": "mapgyver-m03-device-identity-2026-11-06.zip",
+    "bytes": 53814,
+    "sha256": "06e478e60bfcd01f141824c2b1792626e0a1287eec9b47a0ea9c36ae40982d66"
+  }
+}
