@@ -44,6 +44,29 @@ fn sender_metadata_must_have_supported_bounded_storage_before_graphics_allocatio
         Endpoint { format: 28, ..base }.descriptor().unwrap().format,
         PixelFormat::Rgba8Unorm
     );
+    for (storage, format) in [
+        (29, PixelFormat::Rgba8Unorm),
+        (91, PixelFormat::Bgra8Unorm),
+        (93, PixelFormat::Bgrx8Unorm),
+    ] {
+        let endpoint = Endpoint {
+            format: storage,
+            ..base
+        };
+        let descriptor = endpoint.descriptor().unwrap();
+        assert_eq!(descriptor.format, format);
+        assert_eq!(descriptor.color_encoding, ColorEncoding::Srgb);
+        assert_eq!(
+            descriptor.alpha_mode,
+            if storage == 93 {
+                AlphaMode::Opaque
+            } else {
+                AlphaMode::Straight
+            }
+        );
+        let exact = PayloadPool::new("srgb-exact", 1, 64).unwrap();
+        assert!(endpoint.reserve(&exact).is_ok());
+    }
     for endpoint in [
         Endpoint { width: 0, ..base },
         Endpoint { height: 0, ..base },

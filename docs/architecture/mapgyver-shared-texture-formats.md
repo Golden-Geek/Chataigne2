@@ -30,6 +30,24 @@ allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
 
+## Native sRGB storage
+
+Native RGBA8/BGRA8/BGRX8 sRGB storage (DXGI29/91/93) maps to the corresponding raw UNORM
+logical format with explicit sRGB encoding. D3D11's
+[CopyResource contract](https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-copyresource)
+permits copies within the same typeless family. This preserves the sender bytes rather than
+applying a transfer conversion while receiving. The existing sampling stage decodes RGB once;
+alpha stays coverage. Declared encoded-premultiplied sources also retain their bytes until the
+shader can unpremultiply before decoding. No new logical enum or UI setting is needed.
+
+The receiving endpoint retains one authenticated native handle, raw format, logical descriptor
+and foreign alias. Preflight checks the raw format even when two endpoint layouts normalize to
+the same descriptor, and authenticates the actual shared texture against that exact raw value.
+Receive checks the caller's canonical descriptor and the SDK's exact raw layout after the call.
+A change withdraws the old endpoint/counter lifetime; existing completion-safe retirement and
+reconnect remain in force. The pinned SDK already uses the compatible D3D11 copy operation;
+its public API and vendored implementation are unchanged.
+
 ## SDK inventory and unfinished acceptance
 
 The pinned SDK's [SpoutGL implementation](../../vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp)
@@ -38,7 +56,7 @@ mentions three-component float storage. The [DirectX sender](../../vendor/spout2
 passes the supplied texture descriptor to `CheckSender`, so that advertised list is not proof
 that every other DXGI value is unavailable. Device-specific sharing/view support and any
 additional admitted color formats still require inventory and explicit results. No claim of
-complete format support is made by the float slice.
+complete format support is made by the verified subsets.
 
 | Native value | SDK storage | Current import / remaining requirement |
 | --- | --- | --- |
@@ -49,7 +67,8 @@ complete format support is made by the float slice.
 | 11 | RGBA16 UNORM | Typed8-byte import; both-GPU exact bits/shader/readiness/retirement pass |
 | 13 | RGBA16 SNORM | Typed8-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
 | 24 | RGB10A2 UNORM | Typed4-byte import; both-GPU exact packed bits/alpha/shader/readiness/retirement pass |
-| 29 | RGBA8 UNORM SRGB | Pending exact native format/view handling without double gamma decode |
+| 29 | RGBA8 UNORM SRGB | Byte-preserving canonical UNORM import; both-GPU bits/color/alpha/readiness/retirement and receiver replacement pass |
+| 91 /93 | BGRA8 /BGRX8 UNORM SRGB | Same-family canonical UNORM import; both-GPU bits/color/alpha/readiness/retirement and receiver replacement pass |
 | 31 | RGBA8 SNORM | Typed4-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
 | 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw SRV/shader decode; corrected both-GPU precision/readiness/retirement pass |
 | 6 | RGB32 FLOAT | Additional GL mapping; sharing/required-view capability and implicit alpha remain unverified |
@@ -80,3 +99,12 @@ exact storage bits, float/normalized precision, opaque/straight alpha, actual fi
 readiness and full source/probe budget reclamation. The two failed cohorts remain failed;
 the corrected acceptance does not erase them or close M13/2. The remaining inventory,
 actual-app integration and live format/size/sender/device recovery are still required.
+
+The [sRGB import receipt](../progress/evidence/mapgyver-m13-srgb-input-2026-11-06.json)
+passes24 native cases on Intel/NVIDIA: all ten formats listed by the SDK plus DXGI91/93.
+Native bits, color/alpha, first-frame readiness and source/probe retirement pass. Byte-source
+RGBA/BGRA comparisons retain the existing2/255 native kernel target; BGRX1/4096 and
+float/normalized1e-6 targets are unchanged. Six retained-receiver sequences cover18 phases
+of sender destruction/reappearance through UNORM→SRGB→UNORM with one capture and unchanged
+logical descriptor. Each observes the new exact bytes after real GPU completion. These
+receiver-level results do not close the remaining worker/app/device recovery requirements.

@@ -6,7 +6,7 @@ use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Graphics::Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Device, ID3D11Texture2D};
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use super::super::texture::{Texture, format};
+use super::super::texture::{Texture, source_format};
 use crate::plan::{SpoutFrameCount, SpoutSource};
 use crate::{Extent2D, TextureDescriptor};
 
@@ -20,6 +20,15 @@ pub(crate) enum Received {
     Frame,
 }
 
+/// A canonical image descriptor does not identify the exact sender storage (UNORM versus
+/// SRGB). Authenticate and retain both for the entire alias/counter lifetime.
+struct Endpoint {
+    handle: usize,
+    storage: u32,
+    descriptor: TextureDescriptor,
+    _alias: ID3D11Texture2D,
+}
+
 /// The receive-into overload never creates the SDK's unbounded private receiving copy.
 /// All endpoint operations run on a dedicated source device/context.
 pub(crate) struct Receiver {
@@ -27,11 +36,9 @@ pub(crate) struct Receiver {
     device: ID3D11Device,
     name: CString,
     binding: SpoutSource,
-    handle: usize,
-    alias: Option<ID3D11Texture2D>,
+    endpoint: Option<Endpoint>,
     freshness: Freshness,
     clear_capture: bool,
-    actual_descriptor: Option<TextureDescriptor>,
 }
 
 impl Receiver {
@@ -49,11 +56,9 @@ impl Receiver {
             device: device.clone(),
             name,
             binding: binding.clone(),
-            handle: 0,
-            alias: None,
+            endpoint: None,
             freshness: Freshness::new(frame_count),
             clear_capture: true,
-            actual_descriptor: None,
         };
         unsafe {
             let mode = match frame_count {
@@ -97,9 +102,11 @@ impl Receiver {
             self.disconnect();
             return Ok(Some(Received::Mismatch));
         };
-        if handle as usize != self.handle || self.actual_descriptor != Some(descriptor) {
+        if self.endpoint.as_ref().is_none_or(|endpoint| {
+            endpoint.handle != handle as usize || endpoint.storage != storage || endpoint.descriptor != descriptor
+        }) {
             self.disconnect();
-            if !self.validate_alias(handle, descriptor)? {
+            if !self.validate_alias(handle, storage, descriptor)? {
                 return Ok(Some(Received::Mismatch));
             }
             // Withdraw the old endpoint's publication before a replacement can be Busy.
@@ -118,7 +125,11 @@ impl Receiver {
     }
 
     pub fn receive(&mut self, capture: &Texture) -> Result<Received> {
-        let expected = self.actual_descriptor.ok_or_else(invalid)?;
+        let endpoint = self.endpoint.as_ref().ok_or_else(invalid)?;
+        let (expected, expected_storage, expected_handle) = (endpoint.descriptor, endpoint.storage, endpoint.handle);
+        if capture.descriptor != expected {
+            return Err(invalid());
+        }
         if self.clear_capture {
             // SAFETY: no source bytes become observable before a successful detailed copy.
             unsafe {
@@ -131,7 +142,8 @@ impl Receiver {
         let mut texture = capture.texture.as_raw();
         let mut frame = 0;
         let mut counter_available = 0;
-        // SAFETY: a fixed matching receiver texture on the exact caller device. Unlike the
+        // SAFETY: a fixed canonical receiver texture in the authenticated native format's
+        // copy-compatible family, on the exact caller device. Unlike the
         // no-argument overload this public SDK API does not allocate a private receiving image.
         let status = unsafe {
             sdk::spout_dx_receive_texture_into_status(
@@ -157,17 +169,18 @@ impl Receiver {
             return Ok(received);
         }
         let actual = unsafe { sdk::spout_dx_get_sender_handle(self.raw.as_ptr()) };
-        if !actual.is_null() && actual as usize != self.handle {
+        if !actual.is_null() && actual as usize != expected_handle {
             // A metadata-to-receive race sets IsUpdated before CopyResource in the pinned SDK.
             // Validate the new foreign alias and skip this call; fixed owned pools never resize.
-            self.alias = None;
             let width = unsafe { sdk::spout_dx_get_sender_width(self.raw.as_ptr()) };
             let height = unsafe { sdk::spout_dx_get_sender_height(self.raw.as_ptr()) };
             let storage = unsafe { sdk::spout_dx_get_sender_format(self.raw.as_ptr()) };
             let Some(descriptor) = layout(&self.binding, width, height, storage) else {
+                self.disconnect();
                 return Ok(Received::Mismatch);
             };
-            if !self.validate_alias(actual, descriptor)? {
+            if !self.validate_alias(actual, storage, descriptor)? {
+                self.disconnect();
                 return Ok(Received::Mismatch);
             }
             self.freshness.reset();
@@ -183,7 +196,7 @@ impl Receiver {
         };
         if actual_width != expected.extent.width()
             || actual_height != expected.extent.height()
-            || actual_format != format(expected.format).0 as u32
+            || actual_format != expected_storage
         {
             return Ok(Received::Mismatch);
         }
@@ -202,7 +215,12 @@ impl Receiver {
         Ok(received)
     }
 
-    fn validate_alias(&mut self, handle: *mut std::ffi::c_void, descriptor: TextureDescriptor) -> Result<bool> {
+    fn validate_alias(
+        &mut self,
+        handle: *mut std::ffi::c_void,
+        storage: u32,
+        descriptor: TextureDescriptor,
+    ) -> Result<bool> {
         // SAFETY: legacy Spout share handle, opened only on the explicitly selected adapter.
         // This is an alias of sender-owned storage, not an allocation of receiving storage.
         let mut alias = None;
@@ -217,7 +235,8 @@ impl Receiver {
         }
         if desc.Width != descriptor.extent.width()
             || desc.Height != descriptor.extent.height()
-            || desc.Format != format(descriptor.format)
+            || desc.Format.0 as u32 != storage
+            || source_format(storage) != Some(descriptor.format)
             || desc.MipLevels != 1
             || desc.ArraySize != 1
             || desc.SampleDesc.Count != 1
@@ -225,29 +244,30 @@ impl Receiver {
         {
             return Ok(false);
         }
-        self.handle = handle as usize;
-        self.actual_descriptor = Some(descriptor);
-        self.alias = Some(alias);
+        self.endpoint = Some(Endpoint {
+            handle: handle as usize,
+            storage,
+            descriptor,
+            _alias: alias,
+        });
         Ok(true)
     }
 
     pub fn disconnect(&mut self) {
-        if self.handle != 0 || self.alias.is_some() {
+        if self.endpoint.is_some() {
             // SAFETY: caller has drained previous source-device uses before SDK/alias replacement.
             unsafe {
                 sdk::spout_dx_release_receiver(self.raw.as_ptr());
                 sdk::spout_dx_set_receiver_name(self.raw.as_ptr(), self.name.as_ptr());
             }
         }
-        self.alias = None;
-        self.handle = 0;
+        self.endpoint = None;
         self.freshness.reset();
         self.clear_capture = true;
-        self.actual_descriptor = None;
     }
 
     pub fn descriptor(&self) -> Option<TextureDescriptor> {
-        self.actual_descriptor
+        self.endpoint.as_ref().map(|endpoint| endpoint.descriptor)
     }
 
     pub fn last_copied_frame(&self) -> Option<i32> {
@@ -255,8 +275,9 @@ impl Receiver {
     }
 
     pub fn copied_image_version(&self) -> Option<super::super::timing::SpoutImageVersion> {
+        let endpoint = self.endpoint.as_ref()?;
         self.last_copied_frame()
-            .and_then(|frame| super::super::timing::SpoutImageVersion::copied_legacy(self.handle, frame))
+            .and_then(|frame| super::super::timing::SpoutImageVersion::copied_legacy(endpoint.handle, frame))
     }
 }
 

@@ -35,6 +35,36 @@ pub(super) fn cases() -> Vec<Case> {
             [0.125, 0.5, 0.75, 0.125],
             vec![],
         ),
+        (
+            PixelFormat::Rgba8Unorm,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
+            PixelFormat::Bgra8Unorm,
+            DXGI_FORMAT_B8G8R8A8_UNORM,
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
+            PixelFormat::Rgba8Unorm,
+            DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
+            PixelFormat::Bgra8Unorm,
+            DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+            [0.125, 0.5, 0.75, 0.5],
+            vec![],
+        ),
+        (
+            PixelFormat::Bgrx8Unorm,
+            DXGI_FORMAT_B8G8R8X8_UNORM_SRGB,
+            [0.125, 0.5, 0.75, 0.125],
+            vec![],
+        ),
     ]
 }
 
@@ -59,7 +89,7 @@ pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4]) -> [f
                 (packed >> 30) as f32 / 3.,
             ]
         }
-        PixelFormat::Bgrx8Unorm => {
+        PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm | PixelFormat::Bgrx8Unorm => {
             let decode = |encoded: u8| {
                 let value = encoded as f32 / 255.;
                 if value <= 0.04045 {
@@ -68,9 +98,22 @@ pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4]) -> [f
                     ((value + 0.055) / 1.055).powf(2.4)
                 }
             };
-            [decode(bytes[2]), decode(bytes[1]), decode(bytes[0]), 1.]
+            let (r, b) = if format == PixelFormat::Rgba8Unorm {
+                (0, 2)
+            } else {
+                (2, 0)
+            };
+            [
+                decode(bytes[r]),
+                decode(bytes[1]),
+                decode(bytes[b]),
+                if format == PixelFormat::Bgrx8Unorm {
+                    1.
+                } else {
+                    bytes[3] as f32 / 255.
+                },
+            ]
         }
-        _ => panic!("unexpected conformance format"),
     };
     assert!(
         rgba[..3].iter().any(|value| value.abs() > 0.01),
@@ -80,4 +123,13 @@ pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4]) -> [f
         rgba[i] *= rgba[3];
     }
     rgba
+}
+
+pub(super) fn tolerance(format: PixelFormat) -> f32 {
+    match format {
+        // Preserve the existing native byte-source kernel contract (two output codes).
+        PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm => 2. / 255.,
+        PixelFormat::Bgrx8Unorm => 1. / 4096.,
+        _ => 0.000001,
+    }
 }

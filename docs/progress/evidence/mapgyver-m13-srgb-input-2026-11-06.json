@@ -1,0 +1,843 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; listed SDK formats plus two sRGB variants verified natively; complete backend/app/recovery gate remains open",
+  "base_commit": "a0b90e5e3f84fdceb32e1777445c4d1ef5b09d89",
+  "delivered": "Automatic exact native sRGB format authentication and byte-preserving canonical UNORM import, retaining one explicit transfer decode and correct alpha.",
+  "ownership": "Golden native texture format mapping, receiving endpoint/alias identity and shared readiness path. No UI settings, protocol duplication or vendored SDK changes.",
+  "behavior": [
+    "DXGI29/91/93 normalize to raw RGBA8/BGRA8/BGRX8 logical storage with explicit sRGB encoding. Compatible same-family CopyResource preserves source bytes.",
+    "The receiver retains one validated raw handle/format/descriptor/alias lifetime. Raw storage changes rebind even when the logical descriptor is unchanged. Exact shared texture layout and caller capture descriptor are checked.",
+    "Rendering decodes RGB once; straight-alpha formats retain source alpha and BGRX stays opaque. Native sRGB format does not prematurely decode encoded-premultiplied bytes.",
+    "All actual byte sizes, existing output restrictions, frame/counter freshness, reconnect, GPU-completion and resource limits are preserved."
+  ],
+  "reference": {
+    "title": "Microsoft ID3D11DeviceContext::CopyResource",
+    "url": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11/nf-d3d11-id3d11devicecontext-copyresource",
+    "claim": "Copies allow compatible formats within one typeless family; no numeric transfer conversion is introduced by receiving."
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "225 passed,37 ignored."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; includes generated-contract checks."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings; cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Both pass, terminal exit0 before dependent hardware cohort."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges -- --exact --ignored --nocapture",
+      "result": "1 passed,261 filtered out,exit0 in23.40seconds. Twenty-four adapter/format cases and six three-phase native receiver replacement sequences; baseline passes, no correction cohort needed."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-srgb-input",
+      "result": "Isolated actual app builds,exit0; user's running binary is not replaced."
+    },
+    {
+      "command": "cargo fmt --all -- --check; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
+      "result": "Both pass."
+    }
+  ],
+  "native": {
+    "method": "Independent raw D3D11 Clear and actual SDK SendTexture. Independent producer staging bytes compared exactly against production SourcePool receiving storage, then production sampling into RGBA32F compared against mathematical color/alpha from producer bytes. Real automatic-adapter first-frame probes, byte export where applicable, and full source/probe budget reclamation.",
+    "dimensions": [
+      2,
+      2
+    ],
+    "format_cases": 24,
+    "listed_sdk_formats": [
+      2,
+      10,
+      11,
+      13,
+      24,
+      28,
+      29,
+      31,
+      87,
+      88
+    ],
+    "additional_directx_variants": [
+      91,
+      93
+    ],
+    "precision": "Exact native bits for all formats. Existing byte RGBA/BGRA kernel target2/255 is retained; BGRX target1/4096 and float/normalized target1e-6 stay unchanged. The earlier BGRX hardware-decoder failures and correction remain in the normalized receipt.",
+    "cases": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 10,
+        "logical_format": "Rgba16Float",
+        "source_pixel_bytes": [
+          0,
+          48,
+          0,
+          61,
+          0,
+          180,
+          0,
+          56
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.0625,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 2,
+        "logical_format": "Rgba32Float",
+        "source_pixel_bytes": [
+          222,
+          214,
+          252,
+          61,
+          0,
+          0,
+          160,
+          63,
+          0,
+          0,
+          128,
+          190,
+          0,
+          0,
+          0,
+          63
+        ],
+        "source_charge": 256,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.061728350818157196,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 11,
+        "logical_format": "Rgba16Unorm",
+        "source_pixel_bytes": [
+          0,
+          32,
+          0,
+          128,
+          255,
+          191,
+          0,
+          128
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.06250190734863281,
+          0.25000762939453125,
+          0.3750038146972656,
+          0.5000076293945312
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 13,
+        "logical_format": "Rgba16Snorm",
+        "source_pixel_bytes": [
+          0,
+          224,
+          0,
+          64,
+          255,
+          95,
+          0,
+          64
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          -0.12500762939453125,
+          0.2500152587890625,
+          0.37500762939453125,
+          0.5000152587890625
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 31,
+        "logical_format": "Rgba8Snorm",
+        "source_pixel_bytes": [
+          224,
+          64,
+          95,
+          64
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          -0.12697625160217285,
+          0.2539525032043457,
+          0.37696075439453125,
+          0.5039370059967041
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 24,
+        "logical_format": "Rgb10A2Unorm",
+        "source_pixel_bytes": [
+          128,
+          0,
+          248,
+          175
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.08341479301452637,
+          0.33365917205810547,
+          0.49983710050582886,
+          0.6666666865348816
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 88,
+        "logical_format": "Bgrx8Unorm",
+        "source_pixel_bytes": [
+          191,
+          128,
+          32,
+          0
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.014443843625485897,
+          0.2158605307340622,
+          0.5209956765174866,
+          1
+        ],
+        "max_shader_error": 1.4901161193847656e-8,
+        "shader_tolerance": 0.000244140625,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 28,
+        "logical_format": "Rgba8Unorm",
+        "source_pixel_bytes": [
+          32,
+          128,
+          191,
+          128
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.007250243332237005,
+          0.10835352540016174,
+          0.2615194022655487,
+          0.501960813999176
+        ],
+        "max_shader_error": 0.0002265721559524536,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 87,
+        "logical_format": "Bgra8Unorm",
+        "source_pixel_bytes": [
+          191,
+          128,
+          32,
+          128
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.007250243332237005,
+          0.10835352540016174,
+          0.2615194022655487,
+          0.501960813999176
+        ],
+        "max_shader_error": 0.0002265721559524536,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 29,
+        "logical_format": "Rgba8Unorm",
+        "source_pixel_bytes": [
+          99,
+          187,
+          225,
+          128
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.06263057142496109,
+          0.24944090843200684,
+          0.37794753909111023,
+          0.501960813999176
+        ],
+        "max_shader_error": 0.0003287792205810547,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 91,
+        "logical_format": "Bgra8Unorm",
+        "source_pixel_bytes": [
+          225,
+          187,
+          99,
+          128
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.06263057142496109,
+          0.24944090843200684,
+          0.37794753909111023,
+          0.501960813999176
+        ],
+        "max_shader_error": 0.0003287792205810547,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 93,
+        "logical_format": "Bgrx8Unorm",
+        "source_pixel_bytes": [
+          225,
+          187,
+          99,
+          0
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.1247718408703804,
+          0.4969330430030823,
+          0.7529423236846924,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "shader_tolerance": 0.000244140625,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 10,
+        "logical_format": "Rgba16Float",
+        "source_pixel_bytes": [
+          0,
+          48,
+          0,
+          61,
+          0,
+          180,
+          0,
+          56
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.0625,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 2,
+        "logical_format": "Rgba32Float",
+        "source_pixel_bytes": [
+          222,
+          214,
+          252,
+          61,
+          0,
+          0,
+          160,
+          63,
+          0,
+          0,
+          128,
+          190,
+          0,
+          0,
+          0,
+          63
+        ],
+        "source_charge": 256,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.061728350818157196,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 11,
+        "logical_format": "Rgba16Unorm",
+        "source_pixel_bytes": [
+          0,
+          32,
+          255,
+          127,
+          255,
+          191,
+          255,
+          127
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.0625,
+          0.24999237060546875,
+          0.37499237060546875,
+          0.49999237060546875
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 13,
+        "logical_format": "Rgba16Snorm",
+        "source_pixel_bytes": [
+          0,
+          224,
+          255,
+          63,
+          255,
+          95,
+          255,
+          63
+        ],
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "shader_expected": [
+          -0.125,
+          0.2499847412109375,
+          0.3749847412109375,
+          0.4999847412109375
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 31,
+        "logical_format": "Rgba8Snorm",
+        "source_pixel_bytes": [
+          224,
+          63,
+          95,
+          63
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          -0.1249922513961792,
+          0.2460784912109375,
+          0.3710707426071167,
+          0.4960629940032959
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 24,
+        "logical_format": "Rgb10A2Unorm",
+        "source_pixel_bytes": [
+          128,
+          252,
+          247,
+          111
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.041707396507263184,
+          0.16650375723838806,
+          0.24991855025291443,
+          0.3333333432674408
+        ],
+        "max_shader_error": 0,
+        "shader_tolerance": 9.999999974752427e-7,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 88,
+        "logical_format": "Bgrx8Unorm",
+        "source_pixel_bytes": [
+          191,
+          127,
+          32,
+          0
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.014443843625485897,
+          0.21223072707653046,
+          0.5209956765174866,
+          1
+        ],
+        "max_shader_error": 2.9802322387695312e-8,
+        "shader_tolerance": 0.000244140625,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 28,
+        "logical_format": "Rgba8Unorm",
+        "source_pixel_bytes": [
+          32,
+          127,
+          191,
+          127
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.007193600758910179,
+          0.10569922626018524,
+          0.25947627425193787,
+          0.49803921580314636
+        ],
+        "max_shader_error": 0.0007293522357940674,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 87,
+        "logical_format": "Bgra8Unorm",
+        "source_pixel_bytes": [
+          191,
+          127,
+          32,
+          127
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.007193600758910179,
+          0.10569922626018524,
+          0.25947627425193787,
+          0.49803921580314636
+        ],
+        "max_shader_error": 0.0007293522357940674,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 29,
+        "logical_format": "Rgba8Unorm",
+        "source_pixel_bytes": [
+          99,
+          188,
+          225,
+          127
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.06214126944541931,
+          0.2504572570323944,
+          0.37499481439590454,
+          0.49803921580314636
+        ],
+        "max_shader_error": 0.0005078017711639404,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 91,
+        "logical_format": "Bgra8Unorm",
+        "source_pixel_bytes": [
+          225,
+          188,
+          99,
+          127
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.06214126944541931,
+          0.2504572570323944,
+          0.37499481439590454,
+          0.49803921580314636
+        ],
+        "max_shader_error": 0.0005078017711639404,
+        "shader_tolerance": 0.007843137718737125,
+        "first_frame_probe": true,
+        "byte_pixel_export": true,
+        "retired": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 93,
+        "logical_format": "Bgrx8Unorm",
+        "source_pixel_bytes": [
+          225,
+          188,
+          99,
+          0
+        ],
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "shader_expected": [
+          0.1247718408703804,
+          0.5028865933418274,
+          0.7529423236846924,
+          1
+        ],
+        "max_shader_error": 5.960464477539063e-8,
+        "shader_tolerance": 0.000244140625,
+        "first_frame_probe": true,
+        "byte_pixel_export": false,
+        "retired": true
+      }
+    ],
+    "replacement_scope": "One retained production Receiver and one canonical capture per family while owned sender objects are destroyed/recreated under the same exact name through UNORM→SRGB→UNORM. Logical descriptor remains unchanged; each native endpoint requires Waiting, then a real copied frame with new exact bytes, after actual GPU completion. This proves endpoint recovery; complete worker/app/device recovery remains required.",
+    "replacement_sequences": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Rgba8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          28,
+          29,
+          28
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Bgra8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          87,
+          91,
+          87
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Bgrx8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          88,
+          93,
+          88
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Rgba8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          28,
+          29,
+          28
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Bgra8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          87,
+          91,
+          87
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "descriptor_unchanged": true,
+        "format": "Bgrx8Unorm",
+        "gpu_completion": true,
+        "native_bits_exact": true,
+        "phases": 3,
+        "raw_formats": [
+          88,
+          93,
+          88
+        ],
+        "same_capture": true,
+        "same_receiver": true,
+        "sender_drop_reappearance": true,
+        "stale_frame_rejected": true
+      }
+    ],
+    "total_replacement_phases": 18,
+    "test_binary": {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "f63c27e3fa4c2fc1b05cff570b71f70b3c259acd98b4a4ae2bcbbe66af9ed137"
+    }
+  },
+  "app_binary": {
+    "path": "target/debug/deps/MapGyver-m132-srgb-input.exe",
+    "sha256": "5d4829694361f90c2886e910a27c3309ba0af16f3ce87f09188f8c0ebc7e3ebe",
+    "scope": "Current code compiled into isolated actual app; no complete native app preview/output integration claim."
+  },
+  "desktop": "Automation is authorized; this fixture uses no desktop input.",
+  "remaining": [
+    "RGB32 FLOAT, legacy D3D9 metadata and all other DirectX backend pass-through candidates require inventory, import/conversion or explicit unaccepted hardware/API limitations.",
+    "Full actual MapGyver native preview/output format integration remains unverified.",
+    "Complete live worker/app format/size changes and sender/device loss/recovery remain required beyond the retained native receiver replacement subset.",
+    "M13/2 stays Active; no gate credit. Overall70/92 (76%), M13 1/14 (7%)."
+  ]
+}

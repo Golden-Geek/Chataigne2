@@ -7,6 +7,7 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 use windows::Win32::Graphics::Dxgi::Common::*;
 
 mod normalized;
+mod srgb;
 mod support;
 use support::{GpuUse, Sender, readback, wait};
 
@@ -157,13 +158,7 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
             );
             let rendered = readback(&device, &target, 16);
             let expected = normalized::expected(format, &source_bits[..pixel_bytes], color);
-            // Byte sRGB sampling uses the GPU's transfer decoder; test linear values at
-            // twelve-bit precision. Native storage bits remain exact for every format.
-            let tolerance = if format == PixelFormat::Bgrx8Unorm {
-                1. / 4096.
-            } else {
-                0.000001
-            };
+            let tolerance = normalized::tolerance(format);
             let mut max_shader_error = 0_f32;
             for pixel in rendered.chunks_exact(16) {
                 for (component, expected) in pixel.chunks_exact(4).zip(expected) {
@@ -183,10 +178,29 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
             let remaining = probe_budget.try_reserve(raw.len() * 2).unwrap();
             assert!(probe_budget.try_reserve(1).is_err());
             drop(remaining);
-            assert!(
-                probe.capture_pixels().is_err(),
-                "byte-only pixel export must reject non-byte formats before staging allocation"
-            );
+            let byte_export = matches!(format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm);
+            if byte_export {
+                wait("byte probe export must preserve the received raw RGBA pixels", || {
+                    let Some(pixels) = probe.capture_pixels().unwrap() else {
+                        return false;
+                    };
+                    for (actual, raw) in pixels.pixels().iter().zip(source_bits.chunks_exact(4)) {
+                        let expected = if format == PixelFormat::Bgra8Unorm {
+                            [raw[2], raw[1], raw[0], raw[3]]
+                        } else {
+                            raw.try_into().unwrap()
+                        };
+                        assert_eq!(*actual, expected);
+                    }
+                    assert_eq!(pixels.pixels().len(), 4);
+                    true
+                });
+            } else {
+                assert!(
+                    probe.capture_pixels().is_err(),
+                    "byte-only export must reject before staging"
+                );
+            }
             drop(probe);
             assert!(
                 probe_budget.try_reserve(raw.len() * 3).is_ok(),
@@ -202,9 +216,10 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
                 "format":format, "dxgi_format":raw_format.0, "capture_bytes":raw.len(), "source_charge":bytes,
                 "source_bits_exact":true, "source_bits":source_bits, "shader_expected":expected,
                 "shader_tolerance":tolerance, "max_shader_error":max_shader_error,
-                "first_frame_probe":true, "probe_reserved_bytes":raw.len(), "retired":true})
+                "first_frame_probe":true, "probe_reserved_bytes":raw.len(), "byte_pixel_export":byte_export, "retired":true})
             );
         }
+        srgb::verify_replacements(adapter.id);
     }
     done.send(()).unwrap();
 }
