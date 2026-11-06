@@ -31,13 +31,23 @@ impl Extent2D {
     }
 }
 
-/// Initial supported storage formats; channel layout does not imply transfer or alpha semantics.
+/// Typed color storage; channel layout does not imply transfer encoding or premultiplication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum PixelFormat {
     /// Eight-bit red, green, blue and alpha channels.
     Rgba8Unorm,
     /// Eight-bit blue, green, red and alpha channels.
     Bgra8Unorm,
+    /// Eight-bit blue, green and red with an unused byte; sampling supplies alpha one.
+    Bgrx8Unorm,
+    /// Signed normalized eight-bit RGBA channels.
+    Rgba8Snorm,
+    /// Unsigned normalized sixteen-bit RGBA channels.
+    Rgba16Unorm,
+    /// Signed normalized sixteen-bit RGBA channels.
+    Rgba16Snorm,
+    /// Packed unsigned normalized ten-bit RGB and two-bit alpha.
+    Rgb10A2Unorm,
     /// IEEE 754 binary16 red, green, blue and alpha channels, eight little-endian bytes per texel.
     Rgba16Float,
     /// IEEE 754 binary32 RGBA channels, sixteen little-endian bytes per texel.
@@ -48,8 +58,8 @@ impl PixelFormat {
     /// Tight logical storage per texel, excluding backend alignment and pool multiplicity.
     pub const fn bytes_per_pixel(self) -> u64 {
         match self {
-            Self::Rgba8Unorm | Self::Bgra8Unorm => 4,
-            Self::Rgba16Float => 8,
+            Self::Rgba8Unorm | Self::Bgra8Unorm | Self::Bgrx8Unorm | Self::Rgba8Snorm | Self::Rgb10A2Unorm => 4,
+            Self::Rgba16Float | Self::Rgba16Unorm | Self::Rgba16Snorm => 8,
             Self::Rgba32Float => 16,
         }
     }
@@ -64,7 +74,7 @@ pub enum ColorEncoding {
     Srgb,
 }
 
-/// Explicit source alpha convention; never inferred from the storage format.
+/// Explicit source alpha convention; endpoint discovery supplies its documented default.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum AlphaMode {
     /// Stored RGB is independent of coverage alpha.

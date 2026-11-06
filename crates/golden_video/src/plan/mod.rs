@@ -249,7 +249,8 @@ pub struct SpoutSource {
 pub enum SpoutMetadata {
     /// Require the caller's fixed storage, transfer and alpha contract.
     Declared,
-    /// Discover storage: byte RGB is sRGB, floating RGB is linear; alpha is straight.
+    /// Discover storage: unsigned byte RGB is sRGB; other RGB is linear. BGRX is opaque;
+    /// formats carrying alpha use straight alpha.
     Discover,
 }
 
@@ -281,7 +282,7 @@ impl SpoutSource {
             extent,
             format,
             color_encoding: Self::observed_encoding(format),
-            alpha_mode: crate::AlphaMode::Straight,
+            alpha_mode: Self::observed_alpha(format),
         }
     }
 
@@ -297,15 +298,30 @@ impl SpoutSource {
                 }
                 SpoutMetadata::Discover => {
                     actual.color_encoding == Self::observed_encoding(actual.format)
-                        && actual.alpha_mode == crate::AlphaMode::Straight
+                        && actual.alpha_mode == Self::observed_alpha(actual.format)
                 }
             }
     }
 
     fn observed_encoding(format: crate::PixelFormat) -> crate::ColorEncoding {
         match format {
-            crate::PixelFormat::Rgba8Unorm | crate::PixelFormat::Bgra8Unorm => crate::ColorEncoding::Srgb,
-            crate::PixelFormat::Rgba16Float | crate::PixelFormat::Rgba32Float => crate::ColorEncoding::Linear,
+            crate::PixelFormat::Rgba8Unorm | crate::PixelFormat::Bgra8Unorm | crate::PixelFormat::Bgrx8Unorm => {
+                crate::ColorEncoding::Srgb
+            }
+            crate::PixelFormat::Rgba16Float
+            | crate::PixelFormat::Rgba32Float
+            | crate::PixelFormat::Rgba8Snorm
+            | crate::PixelFormat::Rgba16Unorm
+            | crate::PixelFormat::Rgba16Snorm
+            | crate::PixelFormat::Rgb10A2Unorm => crate::ColorEncoding::Linear,
+        }
+    }
+
+    fn observed_alpha(format: crate::PixelFormat) -> crate::AlphaMode {
+        if format == crate::PixelFormat::Bgrx8Unorm {
+            crate::AlphaMode::Opaque
+        } else {
+            crate::AlphaMode::Straight
         }
     }
 }

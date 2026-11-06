@@ -9,14 +9,29 @@ fn sender_metadata_must_have_supported_bounded_storage_before_graphics_allocatio
         format: 87,
     };
     assert_eq!(base.descriptor().unwrap().format, PixelFormat::Bgra8Unorm);
-    for (storage, format, bytes) in [(10, PixelFormat::Rgba16Float, 128), (2, PixelFormat::Rgba32Float, 256)] {
+    for (storage, format, bytes) in [
+        (10, PixelFormat::Rgba16Float, 128),
+        (2, PixelFormat::Rgba32Float, 256),
+        (11, PixelFormat::Rgba16Unorm, 128),
+        (13, PixelFormat::Rgba16Snorm, 128),
+        (31, PixelFormat::Rgba8Snorm, 64),
+        (24, PixelFormat::Rgb10A2Unorm, 64),
+        (88, PixelFormat::Bgrx8Unorm, 64),
+    ] {
         let endpoint = Endpoint {
             format: storage,
             ..base
         };
         let descriptor = endpoint.descriptor().unwrap();
         assert_eq!(descriptor.format, format);
-        assert_eq!(descriptor.color_encoding, ColorEncoding::Linear);
+        assert_eq!(
+            descriptor.color_encoding,
+            if storage == 88 {
+                ColorEncoding::Srgb
+            } else {
+                ColorEncoding::Linear
+            }
+        );
         let insufficient = PayloadPool::new("float-insufficient", 1, bytes - 1).unwrap();
         assert!(
             endpoint.reserve(&insufficient).is_err(),

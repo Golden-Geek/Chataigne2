@@ -1,6 +1,23 @@
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, TextureError};
 
-const FORMATS: [PixelFormat; 2] = [PixelFormat::Rgba8Unorm, PixelFormat::Bgra8Unorm];
+const FORMATS: [PixelFormat; 5] = [
+    PixelFormat::Rgba8Unorm,
+    PixelFormat::Bgra8Unorm,
+    PixelFormat::Bgrx8Unorm,
+    PixelFormat::Rgba8Snorm,
+    PixelFormat::Rgb10A2Unorm,
+];
+
+#[test]
+fn normalized_sixteen_bit_storage_is_not_charged_as_byte_storage() {
+    for format in [PixelFormat::Rgba16Unorm, PixelFormat::Rgba16Snorm] {
+        assert_eq!(descriptor(3840, 2160, format).byte_len(), Ok(66_355_200));
+        assert!(matches!(
+            descriptor(u32::MAX, (1 << 29) + 1, format).byte_len(),
+            Err(TextureError::ByteSizeOverflow { .. })
+        ));
+    }
+}
 
 #[test]
 fn floating_compositing_storage_is_charged_at_eight_bytes_without_overflow() {

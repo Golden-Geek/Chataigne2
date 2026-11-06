@@ -4,21 +4,22 @@ use crate::plan::{
     BlendMode, ExternalTexture, PlanLimits, RenderPlan, SampleFilter, SpoutFrameCount, SpoutMetadata, SpoutSource,
 };
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
-use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT};
+use windows::Win32::Graphics::Dxgi::Common::*;
 
+mod normalized;
 mod support;
 use support::{GpuUse, Sender, readback, wait};
 
 #[test]
 #[ignore = "requires explicit hardware D3D11/Spout qualification; no desktop input"]
-fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_charges() {
+fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges() {
     let (done, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if matches!(
             receiver.recv_timeout(Duration::from_secs(90)),
             Err(std::sync::mpsc::RecvTimeoutError::Timeout)
         ) {
-            eprintln!("float source qualification exceeded90seconds");
+            eprintln!("source format qualification exceeded90seconds");
             std::process::exit(1);
         }
     });
@@ -26,7 +27,7 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
     let hardware = inventory.iter().filter(|adapter| !adapter.software).collect::<Vec<_>>();
     assert!(!hardware.is_empty());
     for adapter in hardware {
-        for (format, raw_format, color, expected_bytes) in [
+        let mut cases = vec![
             (
                 PixelFormat::Rgba16Float,
                 DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -45,19 +46,22 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
                     .flat_map(f32::to_le_bytes)
                     .collect::<Vec<_>>(),
             ),
-        ] {
-            let sender_name = format!("GoldenFloat-{}", uuid::Uuid::new_v4());
-            let _sender = Sender::new(adapter.id, &sender_name, raw_format, color);
+        ];
+        cases.extend(normalized::cases());
+        for (format, raw_format, color, expected_bytes) in cases {
+            let sender_name = format!("GoldenFormats-{}", uuid::Uuid::new_v4());
+            let sender = Sender::new(adapter.id, &sender_name, raw_format, color);
+            let pixel_bytes = format.bytes_per_pixel() as usize;
+            let source_bits = sender.pixels(pixel_bytes);
+            if !expected_bytes.is_empty() {
+                assert_eq!(source_bits, expected_bytes.repeat(4), "independent float producer bits");
+            }
             let device = Device::new(adapter.id).unwrap();
-            let descriptor = TextureDescriptor {
-                extent: Extent2D::new(2, 2).unwrap(),
-                format,
-                color_encoding: ColorEncoding::Linear,
-                alpha_mode: AlphaMode::Straight,
-            };
+            let descriptor = SpoutSource::discovered_descriptor(Extent2D::new(2, 2).unwrap(), format);
             let nominal = TextureDescriptor {
                 format: PixelFormat::Bgra8Unorm,
                 color_encoding: ColorEncoding::Srgb,
+                alpha_mode: AlphaMode::Straight,
                 ..descriptor
             };
             let id = TextureId::new(1).unwrap();
@@ -106,7 +110,7 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
             let demand = pool.demands(&plan);
             let mut uses = GpuUse::new(&device);
             wait(
-                "automatic float source must stream with its exact observed descriptor",
+                "automatic source format must stream with its exact observed descriptor",
                 || {
                     let snapshot = *pool.inputs[&id].shared.status.lock().unwrap();
                     snapshot.state == SourceState::Streaming && snapshot.observed_descriptor == Some(descriptor)
@@ -114,12 +118,12 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
             );
             assert!(
                 budget.claim(1).is_none(),
-                "full float precision must be charged before allocation"
+                "full native precision must be charged before allocation"
             );
             let capture = Texture::new_sampled(&device.device, descriptor).unwrap();
             let mut copied = false;
             uses.submit(|| {
-                wait("float source import must copy", || {
+                wait("source format import must copy", || {
                     copied = pool
                         .copy(id, &device, &capture, 1, CopyFrame::default())
                         .unwrap()
@@ -129,16 +133,13 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
             });
             uses.wait();
             assert!(copied);
-            let raw = readback(&device, &capture, expected_bytes.len());
-            assert_eq!(
-                raw,
-                expected_bytes.repeat(4),
-                "native capture must preserve every source bit"
-            );
+            let raw = readback(&device, &capture, pixel_bytes);
+            assert_eq!(raw, source_bits, "native capture must preserve every source bit");
             let target = Texture::new(
                 &device.device,
                 TextureDescriptor {
                     format: PixelFormat::Rgba32Float,
+                    color_encoding: ColorEncoding::Linear,
                     alpha_mode: AlphaMode::Premultiplied,
                     ..descriptor
                 },
@@ -155,19 +156,28 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
                 SampleFilter::Nearest,
             );
             let rendered = readback(&device, &target, 16);
-            let expected = [color[0] * color[3], color[1] * color[3], color[2] * color[3], color[3]];
+            let expected = normalized::expected(format, &source_bits[..pixel_bytes], color);
+            // Byte sRGB sampling uses the GPU's transfer decoder; test linear values at
+            // twelve-bit precision. Native storage bits remain exact for every format.
+            let tolerance = if format == PixelFormat::Bgrx8Unorm {
+                1. / 4096.
+            } else {
+                0.000001
+            };
+            let mut max_shader_error = 0_f32;
             for pixel in rendered.chunks_exact(16) {
                 for (component, expected) in pixel.chunks_exact(4).zip(expected) {
                     let actual = f32::from_le_bytes(component.try_into().unwrap());
+                    max_shader_error = max_shader_error.max((actual - expected).abs());
                     assert!(
-                        (actual - expected).abs() <= 0.000001,
+                        (actual - expected).abs() <= tolerance,
                         "linear/HDR/straight alpha: {actual} versus {expected}"
                     );
                 }
             }
-            let probe_budget = golden_io::PayloadPool::new("float-readiness", 4, raw.len() * 3).unwrap();
+            let probe_budget = golden_io::PayloadPool::new("format-readiness", 4, raw.len() * 3).unwrap();
             let mut probe = crate::native::SpoutProbe::new_for_sender(&sender_name, probe_budget.clone()).unwrap();
-            wait("float first-frame readiness must receive a real image", || {
+            wait("native first-frame readiness must receive a real image", || {
                 probe.poll(true).unwrap().first_frame
             });
             let remaining = probe_budget.try_reserve(raw.len() * 2).unwrap();
@@ -175,7 +185,7 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
             drop(remaining);
             assert!(
                 probe.capture_pixels().is_err(),
-                "byte-only pixel export must reject floats before staging allocation"
+                "byte-only pixel export must reject non-byte formats before staging allocation"
             );
             drop(probe);
             assert!(
@@ -185,12 +195,13 @@ fn hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_char
             pool.retire(1);
             drop(demand);
             drop(pool);
-            assert!(budget.claim(bytes).is_some(), "float source storage must fully retire");
+            assert!(budget.claim(bytes).is_some(), "source format storage must fully retire");
             eprintln!(
-                "FLOAT_IMPORT {}",
+                "FORMAT_IMPORT {}",
                 serde_json::json!({"adapter": format!("{:?}", adapter.id), "description":adapter.description,
                 "format":format, "dxgi_format":raw_format.0, "capture_bytes":raw.len(), "source_charge":bytes,
-                "source_bits_exact":true, "shader_expected":expected, "shader_tolerance":0.000001,
+                "source_bits_exact":true, "source_bits":source_bits, "shader_expected":expected,
+                "shader_tolerance":tolerance, "max_shader_error":max_shader_error,
                 "first_frame_probe":true, "probe_reserved_bytes":raw.len(), "retired":true})
             );
         }

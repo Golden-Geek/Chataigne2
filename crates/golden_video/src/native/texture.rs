@@ -5,9 +5,11 @@ use windows::Win32::Graphics::Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D;
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_TYPELESS, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+    DXGI_FORMAT_B8G8R8X8_TYPELESS, DXGI_FORMAT_B8G8R8X8_UNORM, DXGI_FORMAT_R8G8B8A8_SNORM,
     DXGI_FORMAT_R8G8B8A8_TYPELESS, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-    DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_TYPELESS, DXGI_FORMAT_R32G32B32A32_FLOAT,
-    DXGI_FORMAT_R32G32B32A32_TYPELESS, DXGI_SAMPLE_DESC,
+    DXGI_FORMAT_R10G10B10A2_TYPELESS, DXGI_FORMAT_R10G10B10A2_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT,
+    DXGI_FORMAT_R16G16B16A16_SNORM, DXGI_FORMAT_R16G16B16A16_TYPELESS, DXGI_FORMAT_R16G16B16A16_UNORM,
+    DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_TYPELESS, DXGI_SAMPLE_DESC,
 };
 use windows::core::{Error, HRESULT, Interface, Result};
 
@@ -215,7 +217,12 @@ fn typeless_format(format: PixelFormat) -> DXGI_FORMAT {
     match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_TYPELESS,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_TYPELESS,
-        PixelFormat::Rgba16Float => DXGI_FORMAT_R16G16B16A16_TYPELESS,
+        PixelFormat::Bgrx8Unorm => DXGI_FORMAT_B8G8R8X8_TYPELESS,
+        PixelFormat::Rgba8Snorm => DXGI_FORMAT_R8G8B8A8_TYPELESS,
+        PixelFormat::Rgba16Float | PixelFormat::Rgba16Unorm | PixelFormat::Rgba16Snorm => {
+            DXGI_FORMAT_R16G16B16A16_TYPELESS
+        }
+        PixelFormat::Rgb10A2Unorm => DXGI_FORMAT_R10G10B10A2_TYPELESS,
         PixelFormat::Rgba32Float => DXGI_FORMAT_R32G32B32A32_TYPELESS,
     }
 }
@@ -224,7 +231,15 @@ fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
     match format {
         PixelFormat::Rgba8Unorm => Some(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB),
         PixelFormat::Bgra8Unorm => Some(DXGI_FORMAT_B8G8R8A8_UNORM_SRGB),
-        PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => None,
+        // Keep BGRX's sRGB decode in the shader: the native decoder on the integrated GPU
+        // exceeds the source-conformance precision target. Its raw SRV still supplies alpha one.
+        PixelFormat::Bgrx8Unorm => None,
+        PixelFormat::Rgba16Float
+        | PixelFormat::Rgba32Float
+        | PixelFormat::Rgba8Snorm
+        | PixelFormat::Rgba16Unorm
+        | PixelFormat::Rgba16Snorm
+        | PixelFormat::Rgb10A2Unorm => None,
     }
 }
 
@@ -232,6 +247,11 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
     match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_UNORM,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_UNORM,
+        PixelFormat::Bgrx8Unorm => DXGI_FORMAT_B8G8R8X8_UNORM,
+        PixelFormat::Rgba8Snorm => DXGI_FORMAT_R8G8B8A8_SNORM,
+        PixelFormat::Rgba16Unorm => DXGI_FORMAT_R16G16B16A16_UNORM,
+        PixelFormat::Rgba16Snorm => DXGI_FORMAT_R16G16B16A16_SNORM,
+        PixelFormat::Rgb10A2Unorm => DXGI_FORMAT_R10G10B10A2_UNORM,
         PixelFormat::Rgba16Float => DXGI_FORMAT_R16G16B16A16_FLOAT,
         PixelFormat::Rgba32Float => DXGI_FORMAT_R32G32B32A32_FLOAT,
     }
@@ -243,6 +263,11 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
         PixelFormat::Rgba8Unorm,
         PixelFormat::Rgba16Float,
         PixelFormat::Rgba32Float,
+        PixelFormat::Bgrx8Unorm,
+        PixelFormat::Rgba8Snorm,
+        PixelFormat::Rgba16Unorm,
+        PixelFormat::Rgba16Snorm,
+        PixelFormat::Rgb10A2Unorm,
     ]
     .into_iter()
     .find(|candidate| format(*candidate).0 as u32 == storage)

@@ -7,11 +7,13 @@ see [sender creation and recovery](mapgyver-sender-selection.md).
 
 ## Current import path
 
-Spout metadata discovery admits native RGBA8/BGRA8, RGBA16F and RGBA32F without converting
-their receiving storage to eight bits. `PixelFormat` is the Rust source of truth for logical
+Spout metadata discovery admits native RGBA8/BGRA8, RGBA16F/RGBA32F, RGBA16 UNORM/SNORM,
+RGBA8 SNORM, RGB10A2 and BGRX8 without converting their receiving storage to eight bits.
+`PixelFormat` is the Rust source of truth for logical
 texel storage and checked byte accounting; native `texture::format` supplies the DXGI mapping.
-`SpoutSource::observed_descriptor` assigns byte RGB its existing sRGB interpretation and
-floating RGB a linear interpretation, with straight alpha in both cases. The generic sampling
+`SpoutSource::observed_descriptor` assigns unsigned byte RGB its existing sRGB interpretation;
+floating, signed-normalized and higher-precision normalized RGB are linear. Alpha is straight
+where present; BGRX supplies opaque alpha. The generic sampling
 shader premultiplies coverage in linear space. An explicit declared contract keeps its authored
 transfer/alpha interpretation instead. No per-frame CPU image conversion is added.
 
@@ -23,7 +25,7 @@ and device recovery strategy. MapGyver's ordinary render/output precision policy
 accepting RGBA32F input does not promise that every downstream pass/output is also32-bit.
 
 The first-frame readiness probe shares the same native format/interpretation mapping and
-reserves its full float image size. Its RGBA8 pixel-export API rejects floats before staging
+reserves its full native image size. Its RGBA8 pixel-export API rejects other layouts before staging
 allocation. The eight-bit window/Spout output contract is unchanged.
 The source input enum is not duplicated in handwritten UI types. Existing generated contracts
 remain checked by the app suite.
@@ -42,14 +44,14 @@ complete format support is made by the float slice.
 | --- | --- | --- |
 | 87 | BGRA8 UNORM | Existing byte import, sRGB / straight alpha |
 | 28 | RGBA8 UNORM | Existing byte import, sRGB / straight alpha |
-| 10 | RGBA16 FLOAT | Typed8-byte float import, linear / straight alpha; current slice |
-| 2 | RGBA32 FLOAT | Typed16-byte float import, linear / straight alpha; current slice |
-| 11 | RGBA16 UNORM | Pending typed storage/import, precision and color/alpha proof |
-| 13 | RGBA16 SNORM | Pending signed-normalized storage and sampling proof |
-| 24 | RGB10A2 UNORM | Pending packed storage, precision and alpha proof |
+| 10 | RGBA16 FLOAT | Typed8-byte import; linear / straight alpha; both-GPU float receipt below |
+| 2 | RGBA32 FLOAT | Typed16-byte import; linear / straight alpha; both-GPU float receipt below |
+| 11 | RGBA16 UNORM | Typed8-byte import; Intel exact bits/shader/readiness/retirement pass; NVIDIA pending |
+| 13 | RGBA16 SNORM | Typed8-byte import; Intel exact bits/signed shader/readiness/retirement pass; NVIDIA pending |
+| 24 | RGB10A2 UNORM | Typed4-byte import; Intel exact packed bits/alpha/shader/readiness/retirement pass; NVIDIA pending |
 | 29 | RGBA8 UNORM SRGB | Pending exact native format/view handling without double gamma decode |
-| 31 | RGBA8 SNORM | Pending signed-normalized storage and sampling proof |
-| 88 | BGRX8 UNORM | Pending exact native storage and opaque alpha proof |
+| 31 | RGBA8 SNORM | Typed4-byte import; Intel exact bits/signed shader/readiness/retirement pass; NVIDIA pending |
+| 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw shader decode implemented after native decoder precision failure; corrected both-GPU proof pending |
 | 6 | RGB32 FLOAT | Additional GL mapping; sharing/required-view capability and implicit alpha remain unverified |
 | 21 /22 | Legacy D3D9 ARGB/XRGB metadata | SDK compatibility mappings exist; exact alias/storage/alpha admission remains unverified |
 | Other DXGI values | DirectX pass-through candidates | Device/backend capability inventory and interpretation remain unverified |
@@ -59,10 +61,21 @@ accounted for, including both-GPU independent native pixels, fractional/float co
 live format/size changes and sender/device loss/recovery. A failed or unavailable case stays
 unaccepted; no fallback or narrower successful subset closes the gate.
 
-The float conformance test lives in `golden_video/src/native/inputs/tests/formats.rs`.
+The source-format conformance test lives in `golden_video/src/native/inputs/tests/formats.rs`.
 Its producer uses independent D3D11 Clear and the actual SDK, bypassing Golden's render
 conversion. It checks all captured float bits, fractional/HDR/negative RGB and straight-alpha
 sampling into a float target on every hardware adapter, followed by completion-safe source
 budget reclamation. It also verifies automatic-adapter first-frame readiness and exact probe
 storage admission/reclamation. The [four-case both-GPU result](../progress/evidence/mapgyver-m13-float-input-2026-11-06.json)
 passes. It uses no desktop input and makes no physical latency/cadence claim.
+
+The [normalized-format checkpoint](../progress/evidence/mapgyver-m13-normalized-input-2026-11-06.json)
+retains two failed native cohorts and the exact remaining acceptance. Four new normalized/packed
+formats preserve independent Intel source bits and match CPU-decoded shader references exactly.
+BGRX's native sRGB decoder returned0.2163119 for128/255, versus the mathematical0.21586053,
+exceeding this fixture's1/4096 linear tolerance. BGRX now uses its raw SRV and the existing shader
+transfer decoder instead; no CPU conversion or precision-budget change is introduced. The
+corrected BGRX path and the new formats on NVIDIA remain unverified at this checkpoint. The
+next action is the unchanged conformance fixture against this concrete view-selection fix,
+followed by the remaining inventory/recovery requirements. The two-cohort batch is closed;
+neither failed cohort nor software-only correction earns gate credit.

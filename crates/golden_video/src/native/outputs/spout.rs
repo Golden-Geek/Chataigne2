@@ -44,7 +44,7 @@ impl SpoutOutput {
     }
 
     fn configured(device: &ID3D11Device, name: String, descriptor: TextureDescriptor, keyed: bool) -> Result<Self> {
-        if matches!(descriptor.format, PixelFormat::Rgba16Float | PixelFormat::Rgba32Float) {
+        if !matches!(descriptor.format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm) {
             return Err(Error::new(
                 INVALID_ARGUMENT,
                 "Spout outputs require eight-bit RGBA or BGRA storage",

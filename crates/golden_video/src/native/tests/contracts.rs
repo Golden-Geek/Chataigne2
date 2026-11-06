@@ -96,6 +96,12 @@ fn native_output_contracts_are_rejected_before_startup() {
         (239, PixelFormat::Rgba8Unorm, true),
         (240, PixelFormat::Rgba8Unorm, false),
         (20, PixelFormat::Rgba16Float, false),
+        (20, PixelFormat::Rgba32Float, false),
+        (20, PixelFormat::Rgba16Unorm, false),
+        (20, PixelFormat::Rgba16Snorm, false),
+        (20, PixelFormat::Rgba8Snorm, false),
+        (20, PixelFormat::Rgb10A2Unorm, false),
+        (20, PixelFormat::Bgrx8Unorm, false),
     ] {
         let config = D3d11Config {
             diagnostics: None,

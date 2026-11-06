@@ -125,7 +125,7 @@ impl Session {
                     pixels.push(match descriptor.format {
                         PixelFormat::Bgra8Unorm => [pixel[2], pixel[1], pixel[0], pixel[3]],
                         PixelFormat::Rgba8Unorm => [pixel[0], pixel[1], pixel[2], pixel[3]],
-                        PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => return Err(invalid()),
+                        _ => return Err(invalid()),
                     });
                 }
             }

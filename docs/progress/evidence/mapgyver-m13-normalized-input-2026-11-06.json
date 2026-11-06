@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; normalized import implemented, partial Intel native proof; corrected BGRX and NVIDIA acceptance pending",
+  "base_commit": "7bbf42c734e3b6a9f94e48f7e87c5601914fd678",
+  "delivered": "Golden native normalized/packed/BGRX storage and automatic source/probe descriptor admission. No UI format setting or CPU image conversion.",
+  "behavior": [
+    "RGBA16 UNORM/SNORM retain eight bytes per texel; RGBA8 SNORM, RGB10A2 and BGRX retain four. Checked accounting and all existing budgets stay intact.",
+    "Unsigned byte RGB defaults to sRGB; normalized high precision and signed formats default linear. BGRX is opaque, other new formats use straight alpha.",
+    "Native BGRX hardware sRGB decode failed the new conformance target; the corrected implementation uses the raw SRV and existing shader transfer decode. No tolerance increase after that failure.",
+    "Native output remains explicitly limited to RGBA8/BGRA8. Readiness admits full native storage; byte export rejects other layouts before staging."
+  ],
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "225 passed,37 ignored after BGRX view-selection correction."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Passed after BGRX correction."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet; cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Final post-correction508 passed,2 ignored; generated-contract tests and default-feature all-target strict lint pass."
+    },
+    {
+      "command": "cargo fmt --all -- --check; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
+      "result": "Both passed."
+    }
+  ],
+  "native": {
+    "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges -- --exact --ignored --nocapture",
+    "cohorts": [
+      {
+        "exit_code": 1,
+        "result": "Six Intel cases passed; fixture nominal BGRA descriptor inherited BGRX opaque alpha and compile rejected InvalidSourceBinding before BGRX receiving. Fixed nominal BGRA alpha to Straight."
+      },
+      {
+        "exit_code": 1,
+        "result": "Same six Intel cases passed again. BGRX native import bits matched the independent producer; hardware sRGB shader result exceeded the precision target. No BGRX first-frame/retirement record and no NVIDIA cases reached."
+      }
+    ],
+    "method": "Independent raw D3D11 producer and actual SDK SendTexture; independent producer staging pixels compared bit-for-bit against production SourcePool receiving pixels. Production shader draws into RGBA32F; CPU decodes producer bytes independently for numeric/alpha reference. Each passing case checks first-frame readiness and source/probe storage reclamation.",
+    "adapter": "Intel(R) Graphics; LUID low88937/high0",
+    "passed_formats": [
+      {
+        "format": "Rgba16Float",
+        "dxgi": 10,
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      },
+      {
+        "format": "Rgba32Float",
+        "dxgi": 2,
+        "source_charge": 256,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      },
+      {
+        "format": "Rgba16Unorm",
+        "dxgi": 11,
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      },
+      {
+        "format": "Rgba16Snorm",
+        "dxgi": 13,
+        "source_charge": 128,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      },
+      {
+        "format": "Rgba8Snorm",
+        "dxgi": 31,
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      },
+      {
+        "format": "Rgb10A2Unorm",
+        "dxgi": 24,
+        "source_charge": 64,
+        "source_bits_exact": true,
+        "max_shader_error": 0,
+        "shader_tolerance": 0.000001,
+        "first_frame_probe": true,
+        "retired": true
+      }
+    ],
+    "dimensions": [
+      2,
+      2
+    ],
+    "bgrx_failure": {
+      "native_value": 88,
+      "source_bits_exact": true,
+      "actual_linear_green": 0.2163119,
+      "reference_linear_green": 0.21586053,
+      "tolerance": 0.000244140625,
+      "correction": "Use raw BGRX SRV plus existing shader sRGB decoder; software/strict pass, unchanged native acceptance pending."
+    },
+    "limits": "Two native cohorts reached the recorded batch limit. No third probe or hardware cohort in this checkpoint. Previous both-GPU float acceptance remains scoped to its original receipt."
+  },
+  "desktop": "User explicitly resumed desktop automation during the batch; this checkpoint uses no desktop input.",
+  "remaining": [
+    "Corrected BGRX numeric/opaque-alpha/readiness/retirement acceptance on both GPUs.",
+    "All new normalized/packed formats on NVIDIA; final corrected cohort on Intel.",
+    "RGBA8 native sRGB, RGB32, legacy metadata and all backend pass-through format inventory/import/conversion or explicit unaccepted hardware/API limitation.",
+    "Actual MapGyver preview/output integration; live format/size changes and sender/device loss/recovery.",
+    "Full M13/2 acceptance; count remains70/92 overall, M13 1/14."
+  ],
+  "corrected_software_test_binary": {
+    "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+    "sha256": "aed1e75f90277017dca474f38f6e436c8dfd12065d9192e92b75e8b0b1181a01",
+    "native_acceptance": "Not run after correction in this bounded checkpoint."
+  }
+}

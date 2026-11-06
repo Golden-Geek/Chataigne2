@@ -49,7 +49,7 @@ impl<'a> GpuUse<'a> {
     }
     pub fn wait(&mut self) {
         assert!(self.submitted);
-        wait("finite float GPU use must complete", || {
+        wait("finite source GPU use must complete", || {
             self.completion
                 .completed(self.device, self.token.device)
                 .unwrap()
@@ -82,12 +82,16 @@ impl Drop for Sdk {
 /// Independent D3D11 Clear + SDK SendTexture; no Golden render/format conversion generates the oracle.
 pub(super) struct Sender {
     sdk: Sdk,
-    _texture: ID3D11Texture2D,
+    texture: ID3D11Texture2D,
     device: Device,
     completion: EventCompletion,
     token: CompletionToken,
 }
 impl Sender {
+    pub fn pixels(&self, pixel_bytes: usize) -> Vec<u8> {
+        readback_native(&self.device, &self.texture, pixel_bytes)
+    }
+
     pub fn new(adapter: AdapterId, name: &str, format: DXGI_FORMAT, color: [f32; 4]) -> Self {
         let device = Device::new(adapter).unwrap();
         let mut texture = None;
@@ -136,7 +140,7 @@ impl Sender {
         };
         let mut sender = Self {
             sdk,
-            _texture: texture,
+            texture,
             device,
             completion,
             token,
@@ -146,12 +150,12 @@ impl Sender {
             unsafe {
                 sender.device.context.ClearRenderTargetView(&rtv.unwrap(), &color);
                 assert_eq!(
-                    sdk::spout_dx_send_texture_status(sender.sdk.0.as_ptr(), sender._texture.as_raw(), 0),
+                    sdk::spout_dx_send_texture_status(sender.sdk.0.as_ptr(), sender.texture.as_raw(), 0),
                     sdk::SPOUT_DX_TRANSFER_COPIED
                 );
             }
         }
-        wait("independent SDK float publication must complete", || {
+        wait("independent SDK source publication must complete", || {
             sender
                 .completion
                 .completed(&sender.device, token.device)
@@ -176,8 +180,12 @@ impl Drop for Sender {
 }
 
 pub(super) fn readback(device: &Device, texture: &Texture, pixel_bytes: usize) -> Vec<u8> {
+    readback_native(device, &texture.texture, pixel_bytes)
+}
+
+fn readback_native(device: &Device, texture: &ID3D11Texture2D, pixel_bytes: usize) -> Vec<u8> {
     let mut desc = D3D11_TEXTURE2D_DESC::default();
-    unsafe { texture.texture.GetDesc(&mut desc) };
+    unsafe { texture.GetDesc(&mut desc) };
     assert!(desc.Width <= 8 && desc.Height <= 8);
     desc.Usage = D3D11_USAGE_STAGING;
     desc.BindFlags = 0;
@@ -187,10 +195,10 @@ pub(super) fn readback(device: &Device, texture: &Texture, pixel_bytes: usize) -
     unsafe { device.device.CreateTexture2D(&desc, None, Some(&mut staging)).unwrap() };
     let staging = staging.unwrap();
     let mut completion = GpuUse::new(device);
-    completion.submit(|| unsafe { device.context.CopyResource(&staging, &texture.texture) });
+    completion.submit(|| unsafe { device.context.CopyResource(&staging, texture) });
     completion.wait();
     let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
-    wait("completed float readback Map must become ready", || {
+    wait("completed native readback Map must become ready", || {
         match unsafe {
             device.context.Map(
                 &staging,
@@ -202,7 +210,7 @@ pub(super) fn readback(device: &Device, texture: &Texture, pixel_bytes: usize) -
         } {
             Ok(()) => true,
             Err(error) if error.code() == DXGI_ERROR_WAS_STILL_DRAWING => false,
-            Err(error) => panic!("float readback Map failed: {error}"),
+            Err(error) => panic!("native readback Map failed: {error}"),
         }
     });
     struct Mapped<'a>(&'a ID3D11DeviceContext, &'a ID3D11Texture2D);
