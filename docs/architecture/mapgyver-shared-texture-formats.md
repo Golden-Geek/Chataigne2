@@ -46,12 +46,12 @@ complete format support is made by the float slice.
 | 28 | RGBA8 UNORM | Existing byte import, sRGB / straight alpha |
 | 10 | RGBA16 FLOAT | Typed8-byte import; linear / straight alpha; both-GPU float receipt below |
 | 2 | RGBA32 FLOAT | Typed16-byte import; linear / straight alpha; both-GPU float receipt below |
-| 11 | RGBA16 UNORM | Typed8-byte import; Intel exact bits/shader/readiness/retirement pass; NVIDIA pending |
-| 13 | RGBA16 SNORM | Typed8-byte import; Intel exact bits/signed shader/readiness/retirement pass; NVIDIA pending |
-| 24 | RGB10A2 UNORM | Typed4-byte import; Intel exact packed bits/alpha/shader/readiness/retirement pass; NVIDIA pending |
+| 11 | RGBA16 UNORM | Typed8-byte import; both-GPU exact bits/shader/readiness/retirement pass |
+| 13 | RGBA16 SNORM | Typed8-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
+| 24 | RGB10A2 UNORM | Typed4-byte import; both-GPU exact packed bits/alpha/shader/readiness/retirement pass |
 | 29 | RGBA8 UNORM SRGB | Pending exact native format/view handling without double gamma decode |
-| 31 | RGBA8 SNORM | Typed4-byte import; Intel exact bits/signed shader/readiness/retirement pass; NVIDIA pending |
-| 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw shader decode implemented after native decoder precision failure; corrected both-GPU proof pending |
+| 31 | RGBA8 SNORM | Typed4-byte import; both-GPU exact bits/signed shader/readiness/retirement pass |
+| 88 | BGRX8 UNORM | Typed4-byte import, sRGB / opaque; raw SRV/shader decode; corrected both-GPU precision/readiness/retirement pass |
 | 6 | RGB32 FLOAT | Additional GL mapping; sharing/required-view capability and implicit alpha remain unverified |
 | 21 /22 | Legacy D3D9 ARGB/XRGB metadata | SDK compatibility mappings exist; exact alias/storage/alpha admission remains unverified |
 | Other DXGI values | DirectX pass-through candidates | Device/backend capability inventory and interpretation remain unverified |
@@ -69,13 +69,14 @@ budget reclamation. It also verifies automatic-adapter first-frame readiness and
 storage admission/reclamation. The [four-case both-GPU result](../progress/evidence/mapgyver-m13-float-input-2026-11-06.json)
 passes. It uses no desktop input and makes no physical latency/cadence claim.
 
-The [normalized-format checkpoint](../progress/evidence/mapgyver-m13-normalized-input-2026-11-06.json)
-retains two failed native cohorts and the exact remaining acceptance. Four new normalized/packed
-formats preserve independent Intel source bits and match CPU-decoded shader references exactly.
+The [normalized-format receipt](../progress/evidence/mapgyver-m13-normalized-input-2026-11-06.json)
+retains the two failed cohorts and the corrected fourteen-case acceptance on both GPUs. The
+new formats preserve independent source bits and match CPU-decoded color/alpha references.
 BGRX's native sRGB decoder returned0.2163119 for128/255, versus the mathematical0.21586053,
 exceeding this fixture's1/4096 linear tolerance. BGRX now uses its raw SRV and the existing shader
 transfer decoder instead; no CPU conversion or precision-budget change is introduced. The
-corrected BGRX path and the new formats on NVIDIA remain unverified at this checkpoint. The
-next action is the unchanged conformance fixture against this concrete view-selection fix,
-followed by the remaining inventory/recovery requirements. The two-cohort batch is closed;
-neither failed cohort nor software-only correction earns gate credit.
+unchanged fixture passes the concrete view-selection correction on both GPUs: seven formats,
+exact storage bits, float/normalized precision, opaque/straight alpha, actual first-frame
+readiness and full source/probe budget reclamation. The two failed cohorts remain failed;
+the corrected acceptance does not erase them or close M13/2. The remaining inventory,
+actual-app integration and live format/size/sender/device recovery are still required.

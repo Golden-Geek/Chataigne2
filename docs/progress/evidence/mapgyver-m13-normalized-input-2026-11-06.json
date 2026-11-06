@@ -2,13 +2,13 @@
   "schema": 1,
   "date": "2026-11-06",
   "gate": "M13/2",
-  "status": "Active; normalized import implemented, partial Intel native proof; corrected BGRX and NVIDIA acceptance pending",
+  "status": "Active; seven-format native subset verified on both GPUs, complete format/recovery gate unaccepted",
   "base_commit": "7bbf42c734e3b6a9f94e48f7e87c5601914fd678",
   "delivered": "Golden native normalized/packed/BGRX storage and automatic source/probe descriptor admission. No UI format setting or CPU image conversion.",
   "behavior": [
     "RGBA16 UNORM/SNORM retain eight bytes per texel; RGBA8 SNORM, RGB10A2 and BGRX retain four. Checked accounting and all existing budgets stay intact.",
     "Unsigned byte RGB defaults to sRGB; normalized high precision and signed formats default linear. BGRX is opaque, other new formats use straight alpha.",
-    "Native BGRX hardware sRGB decode failed the new conformance target; the corrected implementation uses the raw SRV and existing shader transfer decode. No tolerance increase after that failure.",
+    "Native BGRX hardware sRGB decode failed the conformance target. The corrected raw SRV plus existing shader transfer decoder passes the unchanged fixture on both GPUs; no tolerance increase after failure.",
     "Native output remains explicitly limited to RGBA8/BGRA8. Readiness admits full native storage; byte export rejects other layouts before staging."
   ],
   "checks": [
@@ -27,6 +27,14 @@
     {
       "command": "cargo fmt --all -- --check; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
       "result": "Both passed."
+    },
+    {
+      "command": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe native::inputs::tests::formats::hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges --exact --ignored --nocapture",
+      "result": "Corrected code: exit0,1 passed,261 filtered out in8.05seconds. Fourteen cases (two hardware adapters x seven formats) pass all source-bit, shader, readiness and retirement assertions."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-normalized-input",
+      "result": "Final isolated actual app builds, exit0. No user's running binary was replaced."
     }
   ],
   "native": {
@@ -115,14 +123,73 @@
       "actual_linear_green": 0.2163119,
       "reference_linear_green": 0.21586053,
       "tolerance": 0.000244140625,
-      "correction": "Use raw BGRX SRV plus existing shader sRGB decoder; software/strict pass, unchanged native acceptance pending."
+      "correction": "Raw BGRX SRV plus existing shader sRGB decoder passes the unchanged native precision/opaque-alpha/readiness/retirement checks on both GPUs."
     },
-    "limits": "Two native cohorts reached the recorded batch limit. No third probe or hardware cohort in this checkpoint. Previous both-GPU float acceptance remains scoped to its original receipt."
+    "limits": "The original two-cohort investigation checkpoint remains recorded in e69c464b. New evidence selected a concrete native-view correction; its unchanged acceptance fixture passed after that milestone was pushed. Original18:35 cumulative start and19:20 scope cutoff were retained. No new diagnostic probe/benchmark variant or tolerance change.",
+    "corrected_cohort": {
+      "kind": "Unchanged acceptance fixture against the concrete raw-SRV/shader view correction, after checkpoint e69c464b was pushed; no new probe or benchmark variant.",
+      "exit_code": 0,
+      "passed_tests": 1,
+      "filtered_tests": 261,
+      "duration_seconds": 8.05,
+      "test_binary_sha256": "aed1e75f90277017dca474f38f6e436c8dfd12065d9192e92b75e8b0b1181a01",
+      "adapters": [
+        {
+          "name": "Intel(R) Graphics",
+          "luid": {
+            "low": 88937,
+            "high": 0
+          }
+        },
+        {
+          "name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "luid": {
+            "low": 2044916551,
+            "high": 0
+          }
+        }
+      ],
+      "formats": [
+        "Rgba16Float",
+        "Rgba32Float",
+        "Rgba16Unorm",
+        "Rgba16Snorm",
+        "Rgba8Snorm",
+        "Rgb10A2Unorm",
+        "Bgrx8Unorm"
+      ],
+      "total_cases": 14,
+      "assertions": {
+        "source_bits_exact": true,
+        "shader_reference_within_target": true,
+        "real_first_frame_probe": true,
+        "probe_full_storage_reserved_and_retired": true,
+        "byte_export_rejected_before_staging": true,
+        "source_storage_fully_retired": true
+      },
+      "targets": {
+        "linear_float_normalized": 0.000001,
+        "bgrx_srgb": 0.000244140625
+      },
+      "observed_nvidia_bgrx": {
+        "max_shader_error": 2.9802322387695312e-8,
+        "source_pixel_bytes": [
+          191,
+          127,
+          32,
+          0
+        ],
+        "shader_expected": [
+          0.014443843625485897,
+          0.21223072707653046,
+          0.5209956765174866,
+          1
+        ]
+      }
+    }
   },
   "desktop": "User explicitly resumed desktop automation during the batch; this checkpoint uses no desktop input.",
   "remaining": [
-    "Corrected BGRX numeric/opaque-alpha/readiness/retirement acceptance on both GPUs.",
-    "All new normalized/packed formats on NVIDIA; final corrected cohort on Intel.",
     "RGBA8 native sRGB, RGB32, legacy metadata and all backend pass-through format inventory/import/conversion or explicit unaccepted hardware/API limitation.",
     "Actual MapGyver preview/output integration; live format/size changes and sender/device loss/recovery.",
     "Full M13/2 acceptance; count remains70/92 overall, M13 1/14."
@@ -130,6 +197,11 @@
   "corrected_software_test_binary": {
     "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
     "sha256": "aed1e75f90277017dca474f38f6e436c8dfd12065d9192e92b75e8b0b1181a01",
-    "native_acceptance": "Not run after correction in this bounded checkpoint."
+    "native_acceptance": "Verified exact binary,14 corrected cases pass on both GPUs."
+  },
+  "app_binary": {
+    "path": "target/debug/deps/MapGyver-m132-normalized-input.exe",
+    "sha256": "2ad07fc9f16037bcc18b053d8ebc46f6cc7b771b116078fc610219581ed2e732",
+    "scope": "Current native import code compiled into the actual app. Native preview/actual-app format and recovery integration is still required."
   }
 }
