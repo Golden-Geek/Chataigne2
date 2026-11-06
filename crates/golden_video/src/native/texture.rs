@@ -356,8 +356,10 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
     // CopyResource preserves bits within a typeless family. Receive into the raw UNORM
     // member so transfer/alpha interpretation remains explicit, including premultiplied sRGB.
     match DXGI_FORMAT(storage as i32) {
-        DXGI_FORMAT_AYUV | DXGI_FORMAT_Y410 | DXGI_FORMAT_Y416 | DXGI_FORMAT_YUY2 | DXGI_FORMAT_Y210
-        | DXGI_FORMAT_Y216 => return Some(PixelFormat::Rgba32Float),
+        DXGI_FORMAT_AYUV | DXGI_FORMAT_Y410 | DXGI_FORMAT_Y416 | DXGI_FORMAT_NV12 | DXGI_FORMAT_P010
+        | DXGI_FORMAT_P016 | DXGI_FORMAT_YUY2 | DXGI_FORMAT_Y210 | DXGI_FORMAT_Y216 => {
+            return Some(PixelFormat::Rgba32Float);
+        }
         DXGI_FORMAT_R8G8B8A8_UNORM_SRGB => return Some(PixelFormat::Rgba8Unorm),
         DXGI_FORMAT_B8G8R8A8_UNORM_SRGB => return Some(PixelFormat::Bgra8Unorm),
         DXGI_FORMAT_B8G8R8X8_UNORM_SRGB => return Some(PixelFormat::Bgrx8Unorm),

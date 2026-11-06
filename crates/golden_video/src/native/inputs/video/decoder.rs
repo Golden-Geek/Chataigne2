@@ -76,6 +76,7 @@ impl Decoder {
             context.DSSetShader(None, None);
             context.PSSetShader(&self.pixel, None);
             context.PSSetShaderResources(3, Some(&[Some(source.view.clone())]));
+            context.PSSetShaderResources(5, Some(std::slice::from_ref(&source.chroma)));
             context.PSSetConstantBuffers(3, Some(&[Some(self.constants.clone())]));
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
@@ -90,6 +91,7 @@ impl Decoder {
             }]));
             context.Draw(3, 0);
             context.PSSetShaderResources(3, Some(&[None]));
+            context.PSSetShaderResources(5, Some(&[None]));
             context.PSSetConstantBuffers(3, Some(&[None]));
             context.OMSetRenderTargets(None, None);
         }

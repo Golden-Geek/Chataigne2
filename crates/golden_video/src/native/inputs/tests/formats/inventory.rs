@@ -73,7 +73,11 @@ fn hardware_spout_backend_format_inventory() {
     done.send(()).unwrap();
 }
 
-pub(super) fn texture(device: &Device, format: DXGI_FORMAT, flags: u32) -> windows::core::Result<ID3D11Texture2D> {
+pub(in crate::native::inputs::tests) fn texture(
+    device: &Device,
+    format: DXGI_FORMAT,
+    flags: u32,
+) -> windows::core::Result<ID3D11Texture2D> {
     let mut texture = None;
     // Same descriptor used by the pinned SDK's CreateSharedDX11Texture; no GPU commands.
     unsafe {

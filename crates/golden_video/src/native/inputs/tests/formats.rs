@@ -9,7 +9,7 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 mod bridge;
 mod channels;
 mod integers;
-mod inventory;
+pub(super) mod inventory;
 mod legacy;
 mod normalized;
 mod packed;

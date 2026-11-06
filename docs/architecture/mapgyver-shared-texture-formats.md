@@ -102,6 +102,39 @@ Actual raw-copy readiness, denied extra-byte admission and complete charge retir
 The72 existing4:4:4 and365 RGB/typeless regression cases pass unchanged. Full app/live/device
 and alternative chroma reconstruction acceptance remain open.
 
+### Planar 4:2:0 storage
+
+NV12 (103), P010 (104) and P016 (105) use one native capture with two UINT views. NV12 maps
+luma through R8 and interleaved UV through RG8; P010/P016 use R16 and RG16. The decoder
+loads luma at `(x,y)` and UV at `(x/2,y/2)`, replicating each chroma sample over its2×2 block.
+This default is explicit; unadvertised alternative chroma siting/reconstruction remains open.
+P010 discards six padding bits per word before ten-bit normalization; P016 retains all sixteen.
+Automatic sampled descriptors are opaque RGBA32F, with the same BT.709 and declared sampled
+RGB rules as packed video. Native metadata and capture construction require both dimensions even.
+
+Both views reference the same native image. The decoder binds/unbinds the optional chroma view
+alongside its luma view, and the existing source completion authority retains that image. Admission
+includes both planes in each of the two raw images, three decoded bridge images and the16-byte
+decoder buffer. At4×4, NV12 raw storage is24bytes and the full source charge is832bytes;
+P010/P016 raw storage is48bytes and the source charge is880bytes. Declared RGBA32F reservations
+conservatively retain1024bytes. Driver row padding/residency is separate from these logical charges.
+Probe readiness reserves the raw image only; it never stages or converts planar pixels on the CPU.
+
+The independent finite producer uploads full luma rows followed by half as many interleaved UV
+rows at the same explicit pitch. Its native staging reader includes both planes. This permits
+nonuniform4×4 references with four different chroma blocks and sixteen distinct luma values.
+P016's known NVIDIA SDK shared-allocation limitation remains unaccepted; its fixture checks
+only that concrete allocator prerequisite, without repeating the format inventory.
+
+The [planar receipt](../progress/evidence/mapgyver-m13-planar-video-input-2026-11-07.json)
+passes25 available-path cases with all sixteen pixels compared against independent f64
+references, below-black/headroom, P010 padding, P016 low bits and all sampled alpha modes.
+Raw readiness, extra-byte denial and complete charge reclamation pass. The102 packed-video
+and365 RGB/typeless regression assertions pass. A tool limit omitted24 RGB record rows;
+the receipt states that limit and reuses unchanged case definitions and prior evidence, with
+current terminal fixture success. Native value-set comparison covers the original70/68
+allocation catalog completely; actual-app/live/device/D3D9 acceptance remains open.
+
 ## Typeless defaults and declared views
 
 Typeless registrations identify storage families, not the producer's typed view. Golden uses
@@ -390,6 +423,7 @@ complete format support is made by the verified subsets.
 | 21 /22 | Legacy D3D9 ARGB/XRGB metadata | Both-GPU native bits/color/alpha/readiness/retirement and sender replacement pass over D3D11 BGRA storage; D3D9 producer-device scope unverified |
 | 100–102 | AYUV /Y410 /Y416 | Both-GPU literal native codes, BT.709 decode, alpha, sampled contracts, readiness and retirement pass through RGBA32F |
 | 107–109 | YUY2 /Y210 /Y216 | Both-GPU nonuniform pair/row pixels,10/16-bit precision, opaque sampled contracts, readiness and retirement pass through RGBA32F |
+| 103–105 | NV12 /P010 /P016 | Separate luma/UV UINT views and RGBA32F decoding pass on all available paths; NVIDIA P016 SDK allocation remains unavailable and unaccepted |
 | Other DXGI values | DirectX pass-through candidates |70 Intel/68 NVIDIA shared native allocations open successfully; remaining import/conversion and typed-view/color proof below |
 
 M13/2 remains Active until every required format and explicit hardware/API limitation is
@@ -445,21 +479,22 @@ The receipt retains every available native value and rejected HRESULT; names com
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
 All19 available RGB integer layouts and twelve typeless default/view paths now pass on both
-GPUs. All six available packed video layouts (AYUV/Y410/Y416/YUY2/Y210/Y216) now pass
-through native read-only capture and GPU decoding. Reusing that original inventory,
-remaining native allocations are three Intel/two NVIDIA planar video layouts
-(`103–105`; NVIDIA excludes105/P016).
+GPUs. Packed and planar video now pass through native read-only capture and GPU decoding.
+Set comparison against the original inventory finds no missing or additional native value:
+all70 Intel/68 NVIDIA available allocations have a tested default import path. P016 remains
+unavailable on NVIDIA; it is implemented and verified on Intel, with no fallback or waiver.
 RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-bias raw
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
-stays unaccepted. Recorded paths cover67 Intel/66 NVIDIA native layouts, with54 direct layouts;
+stays unaccepted. Recorded paths cover70 Intel/68 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
-Next is full video-plane precision/color handling and complete
-actual-app/continuous-producer/device recovery acceptance.
+Next is complete actual-app/continuous-producer/device recovery and actual D3D9 producer
+acceptance. Native default-path coverage does not resolve unadvertised colorimetry/chroma,
+arbitrary typeless view inference or the named rejected allocations, and does not close M13/2.
 
 RGB32 native5–8 (typeless/FLOAT/UINT/SINT) fail the SDK allocator's mandatory shader-resource/render-target shared flags
 on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend
 that can publish such a shared source or a justified import/conversion path for an actual
 producer. No successful subset, allocation result or rejection closes M13/2.
-NVIDIA BGR4444 has the same concrete return trigger: an actual producer/backend that can
+NVIDIA BGR4444/P016 have the same concrete return trigger: an actual producer/backend that can
 publish that native shared source, or new evidence supporting a different justified import
 path. Repeating the same rejected SDK flags does not advance either requirement.

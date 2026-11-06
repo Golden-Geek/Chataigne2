@@ -1,0 +1,917 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "time_basis": "Europe/Paris local date; batch began2026-11-06 23:20 UTC, cutoff2026-11-07 00:05 UTC",
+  "gate": "M13/2",
+  "status": "Active; planar NV12/P010/P016 input verified on available native paths in default BT.709/block-replication scope; full gate unaccepted",
+  "base_commit": "02b48050943fe0b9d157cb8caae959a226b28da5",
+  "delivered": "GPU-only planar4:2:0 decoding from one native image through separate luma/chroma UINT views into canonical RGBA32F; complete8/10/16-bit input precision, independent per-pixel luma, shared2x2 chroma and physical opaque coverage.",
+  "ownership": "Golden native video layout/views, capture decoder, authenticated Spout descriptors and source/probe admission. Existing worker/renderer completion, retirement and recovery authorities are reused.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "238 passed,48 ignored; includes planar even-dimension admission, exact alias authentication, opaque float defaults and checked raw/decoded/buffer accounting."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before native cohort; optional chroma binding uses a borrowed slice."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before native cohort."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-planar-video",
+      "result": "Isolated current app builds,exit0 in41.39seconds. This is build evidence, not actual-app planar pixel acceptance."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::video::planar::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "1 passed,285 filtered,exit0 in14.02seconds;25 complete available-path records and one concrete P016 allocator rejection."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::video:: -- --ignored --nocapture --test-threads=1 --skip native::inputs::tests::video::planar::",
+      "result": "2 passed,284 filtered,exit0 in68.66seconds;72 unchanged4:4:4 and30 unchanged4:2:2 case vectors. The4:2:2 fixture now shares a finite verification helper with planar tests."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "8 passed,278 filtered,exit0 in238.85seconds;365 unchanged case assertions.341 complete current record rows retained;24 omitted by a tool output limit. No native cohort rerun for logging."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "352f011e15afc41688ba5e1b4c99f72a8dd3df511687b29aae9e7c89fe31b8d5"
+    },
+    {
+      "path": "target/debug/deps/MapGyver-m132-planar-video.exe",
+      "sha256": "b79cedb365374002816041500ebf0a7ca27ad906cef8c6836c5a41d3a0b77892"
+    }
+  ],
+  "native": {
+    "cohorts": 1,
+    "new_cases": 25,
+    "derivation": "5 contracts * (3 Intel formats +2 NVIDIA formats). P016 rechecks only its concrete SDK shared-allocation prerequisite, not the full inventory.",
+    "contracts": {
+      "0": "Known native metadata, automatic Linear/Opaque descriptor",
+      "1": "Unspecified registry0, authenticated real format before allocation",
+      "2": "Declared sampled sRGB/Premultiplied RGB",
+      "3": "Declared sampled Linear/Straight RGB",
+      "4": "Declared sampled Linear/Opaque RGB; P010 also supplies nonzero ignored low-six padding bits"
+    },
+    "absolute_tolerance": 0.000001,
+    "max_decoded_error": 5.960464477539062e-7,
+    "max_composited_error": 8.344650268554688e-7,
+    "complete_new_records_observed": 25,
+    "new_log_truncated": false,
+    "assertions": [
+      "Literal source staging includes all luma and UV rows; native bits match exactly before SDK transport",
+      "All sixteen decoded RGBA32F pixels match independent f64 BT.709 references",
+      "Sixteen distinct luma values and four chroma blocks prove plane, row and2x2 block addressing",
+      "P010's ignored padding and P016's low-word values preserve the defined10/16-bit interpretation",
+      "Production compositing over white matches the independent linear references, including below-black/headroom; coverage is1 under every sampled alpha contract",
+      "Actual first-frame readiness requires an SDK copy and completion, not metadata registration",
+      "Exact raw and full-source caps deny one extra byte; source/probe storage fully reclaims after actual GPU completion and reader release",
+      "Planar byte export rejects before staging allocation; production never converts or reads back image pixels on the CPU"
+    ],
+    "patterns": [
+      {
+        "native_format": 103,
+        "extent": [
+          4,
+          4
+        ],
+        "source_bits": [
+          32,
+          80,
+          126,
+          200,
+          96,
+          160,
+          64,
+          220,
+          0,
+          235,
+          100,
+          150,
+          55,
+          190,
+          210,
+          255,
+          128,
+          128,
+          96,
+          160,
+          128,
+          128,
+          100,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.016235413029789925,
+            0.016235413029789925,
+            0.016235413029789925,
+            1
+          ],
+          [
+            0.100740946829319,
+            0.100740946829319,
+            0.100740946829319,
+            1
+          ],
+          [
+            0.530521035194397,
+            0.22455570101737976,
+            0.07192526012659073,
+            1
+          ],
+          [
+            1.1365379095077515,
+            0.6400459408760071,
+            0.33750250935554504,
+            1
+          ],
+          [
+            0.14738048613071442,
+            0.14738048613071442,
+            0.14738048613071442,
+            1
+          ],
+          [
+            0.4361383020877838,
+            0.4361383020877838,
+            0.4361383020877838,
+            1
+          ],
+          [
+            0.20884592831134796,
+            0.04716930165886879,
+            -0.010201696306467056,
+            1
+          ],
+          [
+            1.3442189693450928,
+            0.7935550808906555,
+            0.44760510325431824,
+            1
+          ],
+          [
+            -0.016235413029789925,
+            -0.016235413029789925,
+            -0.016235413029789925,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0.2978488802909851,
+            0.14436715841293335,
+            0.0374404639005661,
+            1
+          ],
+          [
+            0.5882096290588379,
+            0.35352152585983276,
+            0.15789617598056793,
+            1
+          ],
+          [
+            0.04680006951093674,
+            0.04680006951093674,
+            0.04680006951093674,
+            1
+          ],
+          [
+            0.6313024163246155,
+            0.6313024163246155,
+            0.6313024163246155,
+            1
+          ],
+          [
+            1.0837684869766235,
+            0.7443718910217285,
+            0.4314894378185272,
+            1
+          ],
+          [
+            1.5665268898010254,
+            1.1443828344345093,
+            0.737667977809906,
+            1
+          ]
+        ]
+      },
+      {
+        "native_format": 104,
+        "extent": [
+          4,
+          4
+        ],
+        "source_bits": [
+          0,
+          32,
+          0,
+          80,
+          0,
+          126,
+          0,
+          200,
+          0,
+          96,
+          0,
+          160,
+          0,
+          64,
+          0,
+          220,
+          0,
+          0,
+          0,
+          235,
+          0,
+          100,
+          0,
+          150,
+          0,
+          55,
+          0,
+          190,
+          0,
+          210,
+          192,
+          255,
+          0,
+          128,
+          0,
+          128,
+          0,
+          96,
+          0,
+          160,
+          0,
+          128,
+          0,
+          128,
+          0,
+          100,
+          0,
+          150
+        ],
+        "p010_padding_bits": [
+          1,
+          32,
+          63,
+          80,
+          17,
+          126,
+          42,
+          200,
+          1,
+          96,
+          63,
+          160,
+          17,
+          64,
+          42,
+          220,
+          1,
+          0,
+          63,
+          235,
+          17,
+          100,
+          42,
+          150,
+          1,
+          55,
+          63,
+          190,
+          17,
+          210,
+          234,
+          255,
+          1,
+          128,
+          63,
+          128,
+          17,
+          96,
+          42,
+          160,
+          1,
+          128,
+          63,
+          128,
+          17,
+          100,
+          42,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.016235413029789925,
+            0.016235413029789925,
+            0.016235413029789925,
+            1
+          ],
+          [
+            0.100740946829319,
+            0.100740946829319,
+            0.100740946829319,
+            1
+          ],
+          [
+            0.530521035194397,
+            0.22455570101737976,
+            0.07192526012659073,
+            1
+          ],
+          [
+            1.1365379095077515,
+            0.6400459408760071,
+            0.33750250935554504,
+            1
+          ],
+          [
+            0.14738048613071442,
+            0.14738048613071442,
+            0.14738048613071442,
+            1
+          ],
+          [
+            0.4361383020877838,
+            0.4361383020877838,
+            0.4361383020877838,
+            1
+          ],
+          [
+            0.20884592831134796,
+            0.04716930165886879,
+            -0.010201696306467056,
+            1
+          ],
+          [
+            1.3442189693450928,
+            0.7935550808906555,
+            0.44760510325431824,
+            1
+          ],
+          [
+            -0.016235413029789925,
+            -0.016235413029789925,
+            -0.016235413029789925,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0.2978488802909851,
+            0.14436715841293335,
+            0.0374404639005661,
+            1
+          ],
+          [
+            0.5882096290588379,
+            0.35352152585983276,
+            0.15789617598056793,
+            1
+          ],
+          [
+            0.04680006951093674,
+            0.04680006951093674,
+            0.04680006951093674,
+            1
+          ],
+          [
+            0.6313024163246155,
+            0.6313024163246155,
+            0.6313024163246155,
+            1
+          ],
+          [
+            1.0837684869766235,
+            0.7443718910217285,
+            0.4314894378185272,
+            1
+          ],
+          [
+            1.5754045248031616,
+            1.1518542766571045,
+            0.743538498878479,
+            1
+          ]
+        ]
+      },
+      {
+        "native_format": 105,
+        "extent": [
+          4,
+          4
+        ],
+        "source_bits": [
+          13,
+          32,
+          20,
+          80,
+          27,
+          126,
+          34,
+          200,
+          41,
+          96,
+          48,
+          160,
+          55,
+          64,
+          62,
+          220,
+          69,
+          0,
+          76,
+          235,
+          19,
+          100,
+          26,
+          150,
+          33,
+          55,
+          40,
+          190,
+          47,
+          210,
+          255,
+          255,
+          0,
+          128,
+          0,
+          128,
+          0,
+          96,
+          0,
+          160,
+          0,
+          128,
+          0,
+          128,
+          123,
+          100,
+          47,
+          150
+        ],
+        "linear_reference": [
+          [
+            0.01628694124519825,
+            0.01628694124519825,
+            0.01628694124519825,
+            1
+          ],
+          [
+            0.10094518959522247,
+            0.10094518959522247,
+            0.10094518959522247,
+            1
+          ],
+          [
+            0.5312083959579468,
+            0.22498418390750885,
+            0.07215441763401031,
+            1
+          ],
+          [
+            1.1378540992736816,
+            0.6410057544708252,
+            0.3381776213645935,
+            1
+          ],
+          [
+            0.14789685606956482,
+            0.14789685606956482,
+            0.14789685606956482,
+            1
+          ],
+          [
+            0.43723589181900024,
+            0.43723589181900024,
+            0.43723589181900024,
+            1
+          ],
+          [
+            0.20968510210514069,
+            0.04753991216421127,
+            -0.00998369138687849,
+            1
+          ],
+          [
+            1.3468515872955322,
+            0.7955254912376404,
+            0.44904348254203796,
+            1
+          ],
+          [
+            -0.015961917117238045,
+            -0.015961917117238045,
+            -0.015961917117238045,
+            1
+          ],
+          [
+            1.002743124961853,
+            1.002743124961853,
+            1.002743124961853,
+            1
+          ],
+          [
+            0.29954421520233154,
+            0.14405588805675507,
+            0.038889478892087936,
+            1
+          ],
+          [
+            0.590862512588501,
+            0.35315442085266113,
+            0.16117048263549805,
+            1
+          ],
+          [
+            0.04702128469944,
+            0.04702128469944,
+            0.04702128469944,
+            1
+          ],
+          [
+            0.6324231624603271,
+            0.6324231624603271,
+            0.6324231624603271,
+            1
+          ],
+          [
+            1.0882734060287476,
+            0.7444627285003662,
+            0.4376501441001892,
+            1
+          ],
+          [
+            1.5816799402236938,
+            1.1525936126708984,
+            0.7523351311683655,
+            1
+          ]
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 103,
+        "actual_storage": 832,
+        "probe_charge": 24,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 832,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 832,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 1024,
+            "decoded_error": 1.7881393432617188e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 104,
+        "actual_storage": 880,
+        "probe_charge": 48,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 880,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 880,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 1024,
+            "decoded_error": 1.7881393432617188e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "description": "Intel(R) Graphics",
+        "native_format": 105,
+        "actual_storage": 880,
+        "probe_charge": 48,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 880,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 880,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 1024,
+            "decoded_error": 1.7881393432617188e-7,
+            "composited_error": 4.76837158203125e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 1024,
+            "decoded_error": 3.5762786865234375e-7,
+            "composited_error": 3.5762786865234375e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_format": 103,
+        "actual_storage": 832,
+        "probe_charge": 24,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 832,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 832,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 1024,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 8.344650268554688e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 1024,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 1024,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "native_format": 104,
+        "actual_storage": 880,
+        "probe_charge": 48,
+        "cases": [
+          {
+            "mode": 0,
+            "source_charge": 880,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 1,
+            "source_charge": 880,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 2,
+            "source_charge": 1024,
+            "decoded_error": 2.384185791015625e-7,
+            "composited_error": 8.344650268554688e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 3,
+            "source_charge": 1024,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          },
+          {
+            "mode": 4,
+            "source_charge": 1024,
+            "decoded_error": 5.960464477539062e-7,
+            "composited_error": 5.960464477539062e-7,
+            "ready": true,
+            "retired": true
+          }
+        ]
+      }
+    ],
+    "unavailable": [
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "hresult": -2147024809,
+        "native_format": 105,
+        "scope": "SDK shared allocation unavailable; native reception remains unaccepted"
+      }
+    ],
+    "packed_regression": {
+      "cases_444": 72,
+      "cases_422": 30,
+      "complete_records": 102,
+      "tool_truncation": false,
+      "result": "Pass; original pattern/reference/budget vectors unchanged."
+    },
+    "inventory_coverage": {
+      "basis": "Original committed70/68 SDK allocation inventory plus current127 video records and unchanged365 RGB/typeless case definitions, with current terminal regression success required. No inventory sweep repeated.",
+      "inventory_receipt": "mapgyver-m13-legacy-input-2026-11-06.json",
+      "unchanged_rgb_case_basis": "mapgyver-m13-paired-video-input-2026-11-07.json",
+      "case_definition_diff": "Only test inventory visibility/formatting and the finite producer's planar row support changed under formats/; normalized/channels/bridge/packed/integer/typeless/sRGB/legacy case definitions are unchanged.",
+      "adapters": [
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "description": "Intel(R) Graphics",
+          "inventory_count": 70,
+          "covered_count": 70,
+          "missing": [],
+          "additional": []
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "inventory_count": 68,
+          "covered_count": 68,
+          "missing": [],
+          "additional": []
+        }
+      ]
+    },
+    "rgb_regression": {
+      "cases": 365,
+      "fixtures": 8,
+      "complete_rows_retained": 341,
+      "omitted_rows": 24,
+      "tool_truncation": true,
+      "original_truncated_chunk_tokens": 23953,
+      "requested_chunk_limit": 20000,
+      "result": "Terminal8-fixture success proves all365 unchanged case assertions. Reuse the prior paired-video receipt and unchanged case definitions for omitted pattern details, not new per-case measurements."
+    },
+    "total_cases": 492,
+    "total_fixtures": 11
+  },
+  "architecture": {
+    "native_formats": [
+      103,
+      104,
+      105
+    ],
+    "sampled_format": "Rgba32Float",
+    "views": "NV12:R8_UINT luma +RG8_UINT chroma; P010/P016:R16_UINT +RG16_UINT. Both reference one native allocation.",
+    "addressing": "Luma(x,y),UV(x/2,y/2); explicit2x2 block replication. Width and height must be even before capture allocation.",
+    "precision": "P010 uses high10bits of each16-bit word; P016 retains all16. Default limited-range BT.709 is unchanged; declared sampled RGB encoding/alpha applies after decode.",
+    "storage": "Two full raw images including both planes +three decoded RGBA32F images +one16-byte immutable decoder buffer. No additional image for the chroma view.",
+    "source_bytes_4x4": {
+      "NV12": 832,
+      "P010": 880,
+      "P016": 880
+    },
+    "declared_bytes_4x4": 1024,
+    "probe_bytes_4x4": {
+      "NV12": 24,
+      "P010": 48,
+      "P016": 48
+    },
+    "ownership": "Optional chroma SRV is unbound after draw and retained with its native image through existing source completion; renderer leases still guard actual bridge uses. No CPU conversion, eight-bit intermediate, budget increase or adapter fallback."
+  },
+  "remaining": [
+    "Actual MapGyver preview/output pixels, continuous-producer format/size changes, sender/device recovery and actual D3D9 producer-device scope",
+    "NVIDIA P016 and BGRA4444 SDK shared allocation rejections, native RGB32 shared-allocator limits, arbitrary typeless view inference and alternate matrix/range/transfer/HDR/chroma interpretation retain named unaccepted requirements and existing authoritative-producer/backend/new-path return triggers",
+    "Native path coverage is complete for the existing allocation inventory only; it does not close M13/2, physical timing/cadence, final qualification or release readiness"
+  ],
+  "acceptance": {
+    "gate_closed": false,
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "overall_percent": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "m13_percent": 7,
+    "complete_phases": 7,
+    "total_phases": 14
+  }
+}

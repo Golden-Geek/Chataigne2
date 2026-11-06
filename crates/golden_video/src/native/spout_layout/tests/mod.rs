@@ -5,6 +5,25 @@ use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::*;
 
 #[test]
+fn planar_video_admission_requires_even_dimensions_and_preserves_native_authentication() {
+    let extent = Extent2D::new(4, 4).unwrap();
+    for native in [103, 104, 105] {
+        let format = DXGI_FORMAT(native);
+        let actual = descriptor(extent, native as u32).unwrap();
+        assert_eq!(actual.format, PixelFormat::Rgba32Float);
+        assert_eq!(actual.color_encoding, ColorEncoding::Linear);
+        assert_eq!(actual.alpha_mode, AlphaMode::Opaque);
+        for registered in [0, native as u32] {
+            assert_eq!(descriptor_from_alias(extent, registered, format), Some(actual));
+            for invalid in [Extent2D::new(3, 4).unwrap(), Extent2D::new(4, 3).unwrap()] {
+                assert!(descriptor_from_alias(invalid, registered, format).is_none());
+            }
+        }
+        assert!(descriptor_from_alias(extent, native as u32, DXGI_FORMAT_Y416).is_none());
+    }
+}
+
+#[test]
 fn paired_video_admission_requires_even_width_and_defaults_to_opaque_float() {
     for native in [107, 108, 109] {
         let format = DXGI_FORMAT(native);

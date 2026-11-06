@@ -12,6 +12,8 @@ use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT;
 
 mod paired;
+mod planar;
+mod subsampled;
 
 #[test]
 #[ignore = "explicit native packed-video precision/alpha/storage qualification on both GPUs"]

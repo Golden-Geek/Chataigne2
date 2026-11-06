@@ -147,7 +147,13 @@ impl Sender {
         bytes: &[u8],
         row_bytes: u32,
     ) -> Self {
-        assert_eq!(bytes.len(), row_bytes as usize * extent.height() as usize);
+        let rows = extent.height()
+            + if matches!(format.0, 103..=105) {
+                extent.height() / 2
+            } else {
+                0
+            };
+        assert_eq!(bytes.len(), row_bytes as usize * rows as usize);
         Self::initialized(adapter, name, format, [0.; 4], extent, Some((bytes, row_bytes)))
     }
 
@@ -204,7 +210,7 @@ impl Sender {
                 Texture2D: D3D11_TEX2D_RTV { MipSlice: 0 },
             },
         });
-        if !matches!(format.0, 100..=102 | 107..=109) {
+        if !matches!(format.0, 100..=105 | 107..=109) {
             unsafe {
                 device
                     .device
@@ -322,9 +328,15 @@ fn readback_native(device: &Device, texture: &ID3D11Texture2D, pixel_bytes: usiz
     }
     let _map = Mapped(&device.context, &staging);
     let stride = desc.Width as usize * pixel_bytes;
+    let rows = desc.Height as usize
+        + if matches!(desc.Format.0, 103..=105) {
+            desc.Height as usize / 2
+        } else {
+            0
+        };
     assert!(!mapped.pData.is_null() && mapped.RowPitch as usize >= stride);
-    let mut bytes = Vec::with_capacity(stride * desc.Height as usize);
-    for y in 0..desc.Height as usize {
+    let mut bytes = Vec::with_capacity(stride * rows);
+    for y in 0..rows {
         bytes.extend_from_slice(unsafe {
             std::slice::from_raw_parts(mapped.pData.cast::<u8>().add(y * mapped.RowPitch as usize), stride)
         });

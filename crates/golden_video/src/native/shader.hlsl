@@ -3,6 +3,7 @@ Texture2D<float4> previous_image : register(t1);
 ByteAddressBuffer pattern_data : register(t2);
 Texture2D<uint4> source_uint_image : register(t3);
 Texture2D<int4> source_sint_image : register(t4);
+Texture2D<uint2> video_chroma_image : register(t5);
 
 cbuffer VideoParameters : register(b3) {
     uint video_format;
@@ -124,17 +125,22 @@ float decode_bt709(float value) {
     return power * power;
 }
 
-// Packed 4:4:4 defaults: studio-range BT.709. Native metadata contains neither
+// Video defaults: studio-range BT.709. Native metadata contains neither
 // colorimetry nor range; alternate assumptions remain an explicit API limitation.
 float4 ps_video(Vertex input) : SV_Target {
     uint2 pixel = uint2(input.position.xy);
     bool paired = video_format >= 107;
+    bool planar = video_format >= 103 && video_format <= 105;
     uint2 address = uint2(paired ? pixel.x / 2 : pixel.x, pixel.y);
     uint4 code = source_uint_image.Load(int3(address, 0));
-    // Y210 stores ten significant bits in the high bits of each sixteen-bit word.
-    if (video_format == 108) code >>= 6;
-    float scale = video_format == 100 || video_format == 107 ? 1.0 :
-        video_format == 101 || video_format == 108 ? 4.0 : 256.0;
+    [branch] if (planar) {
+        uint2 chroma = video_chroma_image.Load(int3(pixel / 2, 0));
+        code = uint4(chroma.r, code.r, chroma.g, 0);
+    }
+    // Ten-bit video stores significant data in the high bits of each sixteen-bit word.
+    if (video_format == 108 || video_format == 104) code >>= 6;
+    float scale = video_format == 100 || video_format == 103 || video_format == 107 ? 1.0 :
+        video_format == 101 || video_format == 104 || video_format == 108 ? 4.0 : 256.0;
     float y = paired ? ((pixel.x & 1) == 0 ? code.r : code.b) : video_format == 100 ? code.b : code.g;
     float u = paired || video_format == 100 ? code.g : code.r;
     float v = paired ? code.a : video_format == 100 ? code.r : code.b;
@@ -146,7 +152,7 @@ float4 ps_video(Vertex input) : SV_Target {
         y + 1.8556 * u);
     float3 color = float3(decode_bt709(encoded.r), decode_bt709(encoded.g), decode_bt709(encoded.b));
     float maximum_alpha = video_format == 100 ? 255.0 : video_format == 101 ? 3.0 : 65535.0;
-    float coverage = paired || video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
+    float coverage = paired || planar || video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
     [branch] if (video_target_encoding == ENCODING_SRGB) color = encode_rgb(color);
     if (video_target_alpha == ALPHA_PREMULTIPLIED) color *= coverage;
     return float4(color, coverage);
