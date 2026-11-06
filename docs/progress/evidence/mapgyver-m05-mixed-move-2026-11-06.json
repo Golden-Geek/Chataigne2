@@ -1,0 +1,99 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Genuine same-window mixed-monitor settled geometry verified on both GPUs; whole native matrix remains Active",
+	"source_base": "857a74f9eff930a89d388ae80aa637b0bf74fbae",
+	"executable_sha256": "cf1d5078244645c442ccf6f47a30af39f19ec122ef13fd6da3d49560197d0521",
+	"capability_verified": "Screen and Surface Source preserve independent settled native image/overlay/projection alignment in the same OS window through laptop125% -> external100% -> laptop125%, on both explicit GPUs",
+	"cohorts": [
+		{
+			"directory": "nv-screen",
+			"pid": 37720,
+			"hwnd": 44302530,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"crossings": 2,
+			"maximum_error_px": 0.30357595444138497,
+			"normal_exit": 0
+		},
+		{
+			"directory": "nv-source",
+			"pid": 20696,
+			"hwnd": 110299188,
+			"adapter": {
+				"key": "dxgi:00000000:00016022",
+				"index": 1,
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"crossings": 2,
+			"maximum_error_px": 0.2560520091426497,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-screen",
+			"pid": 34436,
+			"hwnd": 563678184,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"crossings": 2,
+			"maximum_error_px": 0.30458774383555465,
+			"normal_exit": 0
+		},
+		{
+			"directory": "intel-source",
+			"pid": 40420,
+			"hwnd": 203427262,
+			"adapter": {
+				"key": "dxgi:00000000:00015b69",
+				"index": 0,
+				"description": "Intel(R) Graphics"
+			},
+			"dpi_sequence": [120, 96, 120],
+			"crossings": 2,
+			"maximum_error_px": 0.254572459894689,
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"owner": "Existing native alignment/capture fixtures; app/runtime, permissions and protocol unchanged",
+		"route": "Supported native CUA app binding, F10 then Space opens the observed System menu, m selects Move, 181 Right key presses and Return commit external placement; second menu plus m, 170 Left and Return commit laptop placement. Each menu is observed before selection. No Windows-key shortcut, PowerToys change, custom input helper or position-setting permission",
+		"documented_f10": "https://support.microsoft.com/en-gb/accessibility/windows/keyboard-shortcuts-in-windows",
+		"route_observation": "F10 menu-bar activation is documented; the full F10/Space/Move sequence is verified directly in these owned windows. Earlier header drags/menu clicks alone remain unsuccessful historical setup, not movement proof",
+		"native_input": "8 complete System Move operations; 724 Right and 680 Left key presses, consumed by the native placement loop. These are supported OS keyboard actions, not synthetic WebView events",
+		"identity": "Each cohort retains its exact PID/HWND through all three captures; both crossings are actual existing-window movement. Ordinary startup placement alone never qualifies",
+		"physical": "OS window DPI120 -> 96 -> 120, DOM DPR1.25 -> 1 -> 1.25; laptop monitor bounds[0,0,2560,1600], external[2560,0,4480,1080]. Every complete window rectangle is contained in its selected monitor",
+		"pixels": "Foreground PID/HWND guards, installed native preview, bounded full-projection settling and exact pre/post projection equality. Original independent red/blue/projection metrics all <=1 physical pixel; maximum 0.304588px",
+		"lifetime": "Four fixture terminal exits 0 and normal owned app retirement. No user app or sender altered",
+		"manifest": "Successful captureAlignment CLI observations normalized with saved capture/geometry/alignment JSON; later three cohorts also retain full per-stage CLI stdout metadata"
+	},
+	"verification": {
+		"native": "4 complete round trips, 8 real monitor crossings, 12 independently qualified physical images and 4 normal owned exits",
+		"replay": "8 tests pass: structural same-window/real-DPI round-trip acceptance plus replaced PID/HWND, copied startup placement, partial monitor and CSS-only negatives; existing pixel/DPI/projection suite now covers 204 real images and 20 hidden/visible retirement pairs",
+		"software": "Python compilation and root/golden_core cargo fmt. Pixel oracle and native fixtures unchanged from prior passing syntax/format/calibration checks",
+		"runtime_prerequisites": "Unchanged precision build reuses 218 Golden and 503 app tests, strict all-target Clippy, generated contract and both-GPU float upload/compositing/resource checks",
+		"provenance": "Exact executable, 419 runtime input hashes and 9 selected native fixture hashes remain unchanged; two owning test hashes recorded",
+		"environment": "Eight paired read-only identity groups equal: OS, CPU, video drivers/controllers, monitors, WebView2, toolchain, native hardware, locked host packages. No display scale/topology/position/primary/resolution/orientation/HDR settings changed; only owned test windows moved"
+	},
+	"artifacts": "mapgyver-m05-mixed-move-2026-11-06/mixed-move.zip",
+	"archive_bytes": 1409711,
+	"archive_sha256": "450cc90f7ccc917afb83ad8c767ac9061382b3cf0446bed6443c8d9556ad2434",
+	"artifact_contents": "12 physical PNGs, per-stage identity/projection/alignment/OS metadata, input-route and lifecycle manifests/logs, frozen hashes, paired inventories and owning fixtures/tests; no temporary profiles or unrelated UI screenshots",
+	"limits": [
+		"Settled after-crossing geometry only; no every-frame movement, hit-testing or latency acceptance",
+		"Window-only UI observations show a recovering label during the native System menu loop; those screenshots are not physical native-pixel proof. In-menu presentation and transition behavior remain unqualified",
+		"Actual negative monitor origins remain unverified; negative maximized window borders are not equivalent",
+		"Full alpha/color/Reference/overlap and overlay/capture combinations, scrolling native content and complete motion/hit scope remain open",
+		"Original <=50ms p95 input-to-visible latency, physical identity/hotplug/device removal, original production performance/memory budgets and final qualification remain required"
+	],
+	"next": "Keep M05/8 alone Active. Complete actual negative-monitor-origin geometry using a recorded reversible display arrangement and exact restoration, then remaining pattern/capture/motion requirements. Do not repeat passing fixed-scale or same-window positive-origin movement cohorts without changed-code evidence",
+	"progress": "67/78 verified gates (86%), 7/13 phases (54%); mixed-DPI same-window requirement verified, no whole gate closed, original denominator/budgets unchanged"
+}
