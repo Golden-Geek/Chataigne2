@@ -21,23 +21,31 @@ class WindowLayoutAlignment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.samples = []
+        cls.hidden = []
         archives = (
             ("mapgyver-m05-window-layout-2026-11-06/native-layout.zip",
              ("auto-screen-100", "auto-screen-125", "auto-source-100", "auto-source-125")),
             ("mapgyver-m05-dpi-2026-11-06/native-dpi.zip",
              ("screen-150", "source-150", "screen-200", "source-200")),
+            ("mapgyver-m05-editor-layout-2026-11-06/editor-layout.zip",
+             ("screen-100-corrected", "source-100", "screen-125", "source-125")),
         )
         for name, cases in archives:
             with zipfile.ZipFile(ROOT / "docs/progress/evidence" / name) as source:
                 for case in cases:
-                    result = json.loads(source.read(case + "/window-layout.json"))
+                    layout = "editor-layout.json" if "editor-layout.zip" in name else "window-layout.json"
+                    result = json.loads(source.read(case + "/" + layout))
+                    if "hidden" in result:
+                        cls.hidden.append((case, result["hidden"],
+                            source.read(case + "/editor-hidden/baseline.png"),
+                            source.read(case + "/initial/baseline.png")))
                     for stage in result["stages"]:
                         cls.samples.append((case + "/" + stage["stage"],
                             "screen" if "screen" in case else "source", stage,
                             source.read(case + "/" + stage["stage"] + "/baseline.png")))
 
-    def test_all_twenty_four_real_window_states_have_independent_pixel_alignment(self):
-        self.assertEqual(len(self.samples), 24)
+    def test_all_forty_eight_real_editor_states_have_independent_pixel_alignment(self):
+        self.assertEqual(len(self.samples), 48)
         for name, editor, stage, raw in self.samples:
             with self.subTest(name=name), Image.open(BytesIO(raw)) as image:
                 result = MODULE.independent_landmark_alignment(
@@ -60,6 +68,24 @@ class WindowLayoutAlignment(unittest.TestCase):
                 capture["window_dpi"] += 24
                 with self.assertRaises(AssertionError):
                     MODULE.independent_landmark_alignment(image, stage["geometry"], capture, editor)
+
+    def test_hidden_editor_retires_pixels_that_exist_in_the_visible_control(self):
+        self.assertEqual(len(self.hidden), 4)
+        for name, result, hidden, visible in self.hidden:
+            with self.subTest(name=name):
+                self.assertGreater(result["pixels"], 10000)
+                self.assertEqual(result["native_red_pixels"], 0)
+                for raw, expected in ((hidden, False), (visible, True)):
+                    with Image.open(BytesIO(raw)) as image:
+                        left, top, right, bottom = result["roi"]
+                        self.assertTrue(0 <= left < right <= image.width)
+                        self.assertTrue(0 <= top < bottom <= image.height)
+                        region = image.convert("RGB").crop(result["roi"])
+                        count = sum(MODULE.red(pixel) for pixel in region.get_flattened_data())
+                        if expected:
+                            self.assertGreater(count, 10000)
+                        else:
+                            self.assertEqual(count, 0)
 
 
 if __name__ == "__main__":

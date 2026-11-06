@@ -1,0 +1,92 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Real dock resize, Inspector scroll and tab hide/show pass on both available monitors; whole matrix remains Active",
+	"source_base": "6534063433598ff04e921464f483c7237624664b",
+	"executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"capability_verified": "Screen and Surface Source preserve settled native image/overlay/projection alignment through real dock-sash resize, Inspector wheel scrolling and tab hide/show at actual 100% and 125% DPI; hidden native image retires from its former physical region",
+	"cohorts": [
+		{
+			"directory": "screen-100-corrected",
+			"pid": 28948,
+			"hwnd": 22481524,
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.5,
+			"hidden_region_pixels": 45448,
+			"normal_exit": 0
+		},
+		{
+			"directory": "source-100",
+			"pid": 36064,
+			"hwnd": 235539306,
+			"dpi": 96,
+			"dpr": 1,
+			"maximum_error_px": 0.75,
+			"hidden_region_pixels": 130416,
+			"normal_exit": 0
+		},
+		{
+			"directory": "screen-125",
+			"pid": 12952,
+			"hwnd": 55577858,
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.375,
+			"hidden_region_pixels": 118503,
+			"normal_exit": 0
+		},
+		{
+			"directory": "source-125",
+			"pid": 11116,
+			"hwnd": 21827126,
+			"dpi": 120,
+			"dpr": 1.25,
+			"maximum_error_px": 0.5000076293945312,
+			"hidden_region_pixels": 336171,
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"owner": "MapGyver native acceptance fixtures, unchanged qualified app/runtime/permissions/protocol",
+		"software_prerequisites": "Existing strict runtime/UI prerequisites and exact qualified binary reused; fixture syntax passes before native input",
+		"input": "Existing bundled WebView2 CDP drives actual app input. All 68 recorded pointerdown/pointerup/wheel/click events are trusted; bounded journal remains below capacity",
+		"resize": "Two real dock-sash drags per cohort, -80/+80 CSS units. Measured active canvas widths change 532 to 452 to 532 at 100%, and 678 to 598 to 678 at 125%; heights and centering update with them",
+		"scroll": "Actual Inspector wheel down/up, verified scrollTop changes from zero to 233 at 100% and 55.2 at 125%, then returns to zero. No authored Parameter edit",
+		"hide_show": "Add/select ordinary Logger tab in the editor's existing group, wait for visible installed native previews and retirement DOM to clear, physically capture the former native landmark region, then select the original editor tab and verify native pixels again",
+		"visible_stages": [
+			"initial",
+			"dock-narrow",
+			"dock-restored",
+			"inspector-scrolled",
+			"inspector-top",
+			"editor-shown"
+		],
+		"alignment": "Original independent red image edges and blue overlay edges compare with DOM/client/DPR projection and one another; all three error metrics must be <=1 physical pixel",
+		"capture_guards": "Owned foreground PID/HWND and stable physical placement/DPI, installed native preview and equal pre/post projection; the same OS window geometry survives every input stage",
+		"hidden_oracle": "All 630538 sampled former-landmark pixels across four owned captures contain zero red landmark pixels. The same regions in the visible controls contain more than 10000 red pixels each. This verifies sampled settled retirement, not every transition frame",
+		"hidden_capture_exit": "The existing capture utility returns 2 for a picture lacking its red/blue alignment fixture. Accept 0/2 only for this absence capture, then independently require zero native red pixels; ownership/capture failures still reject. Visible alignment checks retain their original exit and tolerance",
+		"lifetime": "Observer releases the existing fixture's finish/capture markers after checks; both observer and app-fixture terminal success required. Four owned app processes close normally without altering the user's sender or app"
+	},
+	"retained_setup_failure": "First Screen 100% run reaches the intended hidden blank image, but the harness incorrectly expects the alignment utility's success exit. Cleanup also tries final visible geometry while Logger remains active. Observer and fixture exit 1; this run is rejected and its failure/log/hidden pixels retained. Correction distinguishes absence from alignment and restores the editor before failure cleanup. No product defect or gate pass inferred from that run",
+	"verification": {
+		"native": "Four complete cohorts, 24 visible aligned PNGs, four hidden physical PNGs, eight real sash drags, eight wheel operations, 68 trusted recorded events, zero page errors and four normal owned exits",
+		"replay": "Four tests pass: all 48 accepted real images across prior scale/window and current editor-state cohorts, +3 physical-pixel projection rejection, mismatched actual DPI rejection, and four hidden/visible-control retirement pairs",
+		"software": "Node syntax, targeted Prettier, Python compilation and root/golden_core cargo fmt",
+		"provenance": "All 414 selected inputs match the immediately previous qualified DPI provenance, and the exact product executable hash is unchanged",
+		"environment": "Eight paired read-only identity groups equal: OS, CPU, video drivers/controllers, monitors, WebView2, toolchain, native hardware and locked host packages. No display scale/topology/settings changed in this batch"
+	},
+	"artifacts": "mapgyver-m05-editor-layout-2026-11-06/editor-layout.zip",
+	"archive_bytes": 3032187,
+	"archive_sha256": "98e77e97a2dd64d7fc78b51d276b45d991eb150e2b1f6b4b76559b630d245e92",
+	"artifact_contents": "28 qualified native PNGs, full alignment/projection/OS metadata, trusted input and actual layout/scroll results, fixture logs/lifecycle receipts, selected input and fixture hashes, paired inventories; rejected initial setup evidence stored separately",
+	"remaining": [
+		"Genuine mixed-monitor same-window DPI moves and actual negative monitor origins",
+		"Additional docking placements, scrolling native content and all overlay/capture combinations; Inspector scrolling is only the verified scroll scope here",
+		"Full alpha/color/reference pattern matrix and complete in-motion image/overlay/hit alignment",
+		"Original <=50ms p95 input-to-visible latency, still unproven; no new latency experiment or rejected candidate restoration",
+		"Physical identity/hotplug, device removal, original performance budgets and final qualification"
+	],
+	"next": "Retain M05/8 alone Active; advance its alpha/color/reference and remaining native geometry coverage without repeating these passing editor-state cases",
+	"progress": "67/78 gates (86%), unchanged denominator and original acceptance scope; no whole gate closed"
+}
