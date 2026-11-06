@@ -1,0 +1,88 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Duplicate selection fill through alpha fixed and verified on both GPUs; Intel dark-gray precision still fails original RGB limit",
+	"whole_gate_accepted": false,
+	"source_base": "d0033251b5a35895d9e71c78df1b910548c5a357",
+	"executable_sha256": "b2ebbd2d891add4f5c1cce30dc3ea5d19b17fca045acf6100d1ecdbe39593464",
+	"baseline_executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"delivered": "Transparent Screen and Surface Source previews receive their selected overlay once instead of exposing a second fill painted into the black backing",
+	"cause": "PreviewLayout's black pass chained decorated ordinary image regions after complete canvas backdrops. The image pass painted those decorations again. Opaque pixels hid the first copy; transparent and partial-alpha pixels exposed it",
+	"fix": "Ordinary canvas backdrops already provide the required black aperture. Keep additional black image-aperture regions only for passive tiled placements, whose protocol forbids decorations. Preserve Matrix tiled backing, existing five passes, resource/dependency admission and all renderer/host/protocol contracts",
+	"ownership": "App-owned preview plan composition in apps/mapgyver/src/preview/layout.rs; reusable Golden layers and UI behavior unchanged",
+	"physical_method": {
+		"fixture": "Exact authored 800x600 straight-alpha sRGB PNG with 16 opaque/color/gray/zero/partial-alpha tiles. Public intents create Picture and a two-link Reference chain, route a Surface and configure crop/quad",
+		"expectations": "Independent PNG tile identities, standard sRGB decode/encode and linear-light alpha/overlay arithmetic. Independently solve a four-point projective correspondence with NumPy; use no renderer mapping or sampled pixel to derive expected RGB",
+		"variants": "Direct and two-link Reference routing, selected/unselected Screen, full Surface Source, and cropped non-affine perspective Screen mapping. Source remains full-image despite authored crop/warp",
+		"samples": "Sixteen projected tile centers per capture, each a 3x3 physical patch; fixed original RGB tolerance 2. Flat interiors verify color and sampled placement, not one-pixel edge alignment or latency",
+		"guards": "Exact active GPU LUID through public runtime status; owned foreground PID/HWND, stable physical client placement/DPI and equal DOM projection around captures; normal owned app retirement",
+		"pointer": "CDP movement alone did not clear the desktop pointer from initial Screen probes. Updated validation uses supported computer-use header input before capture. Initial pointer-contaminated opaque deviations are not attributed to the app's color pipeline",
+		"display_changes": "None; external remains 100%, laptop 125%, physical resolution/topology unchanged"
+	},
+	"cohorts": [
+		{
+			"directory": "fixed-nvidia-100",
+			"pid": 34536,
+			"gpu": "dxgi:00000000:00016022",
+			"dpi": 96,
+			"dpr": 1,
+			"complete_color_captures_passed": 9,
+			"complete_color_captures_total": 9,
+			"maximum_rgb_error": 2,
+			"fixture_exit": 0,
+			"app_normal_exit": 0
+		},
+		{
+			"directory": "fixed-intel-125",
+			"pid": 31468,
+			"gpu": "dxgi:00000000:00015b69",
+			"dpi": 120,
+			"dpr": 1.25,
+			"complete_color_captures_passed": 3,
+			"complete_color_captures_total": 9,
+			"maximum_rgb_error": 4,
+			"failed_scope": "Six selected captures: opaque dark-gray tile [32,32,32] with selection fill expects [49,64,90], observes [53,66,91]. All unselected captures and every sampled zero/partial-alpha tile pass RGB 2",
+			"fixture_exit": 1,
+			"app_normal_exit": 0
+		}
+	],
+	"alpha_proof": {
+		"sampled_pixels": 504,
+		"both_gpu_maximum_error": 2,
+		"old_zero_alpha_selected_source": {
+			"expected_single_fill": [36, 55, 85],
+			"actual": [50, 77, 115]
+		},
+		"root_cause_replay": "Old transparent RGB matches effective overlay coverage a*(2-a), within RGB 2, rather than one fill at a=24/255",
+		"fixed_nvidia_zero_alpha": [34, 56, 85],
+		"fixed_intel_zero_alpha": [38, 56, 85]
+	},
+	"remaining_precision": {
+		"requirement": "Meet the unchanged RGB <=2 native color limit for Intel selected dark-gray tiles",
+		"boundary": "Preview host declares Rgba8Unorm linear premultiplied intermediate textures; PixelFormat currently exposes only RGBA8/BGRA8. Accumulated linear-storage quantization is the implementation hypothesis for the remaining dark-tone error; these captures do not isolate each native rounding stage. Higher-precision validation must establish the result",
+		"next_implementation": "Design and implement shared higher-precision internal compositing storage with generated contracts, native format support and exact byte admission. Preserve original allocation limits and final eight-bit SDR output contracts; verify the same both-GPU physical cases",
+		"limits": "No higher precision implementation, enlarged memory budget, legal-interval oracle substitution or tolerance relaxation is accepted here. No third diagnostic experiment"
+	},
+	"verification": {
+		"rust": "503 app library tests pass, two ignored. Regression gives ordinary views real translucent overlays and requires zero decoration capacity in black backing, retained decoration capacity in image content, correct black/themed backing and valid bounded plan",
+		"strict": "All-target Clippy with native-qualification/application-process-fixture and -D warnings passes; isolated native app build succeeds",
+		"python": "Four preflight tests pass for exact authored RGBA, linear alpha, independent homography and swapped-channel/ignored-alpha controls. Four native replay tests pass, explicitly retaining six failed Intel captures rather than declaring them accepted",
+		"native": "Eighteen updated physical PNGs plus rejected baseline/comparison captures; twelve full-color captures pass, six Intel selected captures fail. All 504 zero/partial-alpha sampled pixels pass. Two updated apps close normally",
+		"provenance": "418 selected owning/runtime/fixture hashes and exact new binary match before/after native validation. Prior 414 selected inputs are unchanged; four added inputs are the two owning Rust files and new native JS/Python fixtures",
+		"environment": "Eight paired read-only OS/CPU/video/monitor/WebView/toolchain/native-hardware/locked-package groups equal",
+		"format": "Targeted Prettier, Python compilation and root/golden_core cargo fmt",
+		"retained_failures": "First oracle run rejects selected colors, then bounded comparison records all nine old-build stages. Initial Rust test incorrectly tried a private runtime identity constructor; corrected regression uses public placement capacities. Initial compile failure and both diagnostic comparisons remain archived"
+	},
+	"artifacts": "mapgyver-m05-preview-alpha-2026-11-06/pattern-captures.zip",
+	"archive_bytes": 2873665,
+	"archive_sha256": "3ce700e6b1a5d2e0a8f00a46ca1f3052ff49c30b4e125a4cf11b09b1f4fffcfe",
+	"artifact_contents": "28 actual desktop PNGs, four authored RGBA fixtures, full per-stage independent expectations/results/projection/OS geometry, both current outcomes and rejected old-build evidence, normal-exit receipts, software/build logs, exact hashes and paired inventories. Private app-data profiles excluded",
+	"remaining": [
+		"Intel selected dark-tone precision and complete native color/alpha/reference/capture combinations",
+		"Genuine same-window mixed-monitor DPI movement and actual negative monitor origins",
+		"Additional docking/native-content scrolling and full animation/image/overlay/hit matrix",
+		"Original <=50ms p95 input-to-visible latency, still unproven",
+		"Physical hotplug/device recovery, original GPU/cadence/lifecycle budgets and final qualification"
+	],
+	"progress": "67/78 gates (86%); M05/8 alone Active. Useful product fix checkpointed; no whole gate closed or original requirement revised"
+}

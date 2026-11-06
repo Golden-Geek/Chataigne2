@@ -55,6 +55,12 @@ A suppressed frame has a bounded timeout and uses the existing unavailable/recon
 Historical retirement paint uses Golden's background token, remaining opaque while matching
 the host's surrounding backdrop instead of introducing black rectangles outside live apertures.
 
+MapGyver's `PreviewLayout` composes the themed surround, black canvas backing and source image
+as separate passes. Selection decorations belong only to the source-image pass. Ordinary
+canvas backdrops already cover their active images; adding decorated image regions to the
+black pass would paint fills twice through transparent pixels. Passive tiled views alone need
+additional per-image black apertures, and their protocol excludes decorations.
+
 Verification state and remaining native/output acceptance belong to the
 [status ledger](../progress/mapgyver-status.md), not this boundary description.
 

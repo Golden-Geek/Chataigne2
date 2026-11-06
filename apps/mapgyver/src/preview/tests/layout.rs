@@ -2,7 +2,9 @@ use crate::preview::{layout::PreviewLayout, protocol::PreviewSource};
 use crate::screens::protocol::ScreenId;
 use golden_core::model::NodeUuid;
 use golden_io::RevisionSource;
-use golden_video::plan::{PlanLimits, RenderOperation, RenderPass, RenderPlan, UnitRect};
+use golden_video::plan::{
+    OverlayPrimitive, OverlayShape, PlanLimits, RenderOperation, RenderPass, RenderPlan, UnitRect,
+};
 use golden_video::preview::{PreviewSnapshot, ResolvedView};
 use golden_video::runtime::PlanSubmission;
 use golden_video::{
@@ -51,9 +53,18 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                     source: serde_json::to_string(&PreviewSource::Screen { screen }).unwrap(),
                     destination,
                     backdrop: destination,
-                    overlays: std::sync::Arc::from([]),
+                    overlays: std::sync::Arc::from([OverlayPrimitive {
+                        hit: None,
+                        shape: OverlayShape::Quad {
+                            corners: [[0., 0.], [1., 0.], [1., 1.], [0., 1.]],
+                        },
+                        fill: [120. / 255., 170. / 255., 250. / 255., 24. / 255.],
+                        stroke: [0., 0., 0., 0.],
+                        width: 1.,
+                        dash: None,
+                    }]),
                     overlay_scale: 1.0,
-                    overlay_capacity: 0,
+                    overlay_capacity: 1,
                     tile_groups: None,
                     source_rect: UnitRect::FULL,
                 })
@@ -97,13 +108,13 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
         panic!("active regions missing")
     };
     assert!(visibility.is_none());
-    assert_eq!(black_regions.len(), destinations.len() * 2);
+    assert_eq!(black_regions.len(), destinations.len());
     assert_eq!(
         black_regions
             .iter()
             .map(|region| region.destination)
             .collect::<Vec<_>>(),
-        destinations.repeat(2)
+        destinations
     );
     assert!(
         black_regions
@@ -115,6 +126,13 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
     };
     assert_eq!(content.len(), 1);
     assert_eq!(content[0].source, source);
+    assert!(black_regions.iter().all(|region| {
+        region
+            .placement
+            .as_ref()
+            .is_none_or(|placement| placement.overlay_capacity() == 0)
+    }));
+    assert_eq!(content[0].placement.as_ref().unwrap().overlay_capacity(), 1);
     let RenderOperation::Composite { layers } = &pass(3).operation else {
         panic!("compositor missing")
     };

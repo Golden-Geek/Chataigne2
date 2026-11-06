@@ -94,7 +94,21 @@ impl PreviewLayout {
                     .layout
                     .backdrops(black)
                     .into_iter()
-                    .chain(self.layout.regions(self.output, |_| Some(black)))
+                    // Ordinary backdrops already cover their complete canvas. Reusing their
+                    // decorated image regions here paints selection fills twice through alpha.
+                    // Only passive tiled views need additional per-image black apertures;
+                    // their protocol forbids decorations.
+                    .chain(
+                        self.layout
+                            .regions(self.output, |_| Some(black))
+                            .into_iter()
+                            .filter(|region| {
+                                region
+                                    .placement
+                                    .as_ref()
+                                    .is_some_and(|placement| placement.tile_capacity() > 0)
+                            }),
+                    )
                     .collect(),
             },
         });
