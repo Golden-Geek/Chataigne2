@@ -32,6 +32,7 @@
 	const toMenuItem = (panel: PanelDefinition): ContextMenuItem => ({
 		id: panel.panelType,
 		label: panel.title,
+		icon: panel.icon,
 		hint: panel.description,
 		action: () => {
 			onAddPanel(panel.panelType);
@@ -72,6 +73,9 @@
 
 {#snippet panelMenuItem(item: ContextMenuItem)}
 	<span class="gc-group-panel-add-menu-content">
+		{#if item.icon}
+			<img class="gc-group-panel-add-menu-icon" src={item.icon} alt="" />
+		{/if}
 		<span class="gc-group-panel-add-menu-copy">
 			<span class="gc-group-panel-add-menu-title">{item.label}</span>
 			{#if item.hint}
@@ -167,6 +171,14 @@
 	.gc-group-panel-add-menu-copy {
 		display: block;
 		min-inline-size: 0;
+		flex: 1;
+	}
+
+	.gc-group-panel-add-menu-icon {
+		inline-size: 1rem;
+		block-size: 1rem;
+		object-fit: contain;
+		flex: 0 0 auto;
 	}
 
 	.gc-group-panel-add-menu-title {

@@ -1,0 +1,45 @@
+{
+	"date": "2026-11-06",
+	"gate": "M12/11",
+	"state": "Accepted",
+	"source_base": "6b1c0394e2038b581bf99912d8fac89683df3605",
+	"capability": "Registered icons appear consistently in every current Panels and Media Add entry, including generic panels and Composition creation",
+	"ownership": {
+		"golden": "Panel definitions own generic Inspector/Outliner/Dashboard/Logger/Warnings icons. The existing chooser forwards each definition's icon and displays it in its custom row; tabs consume the same definition",
+		"mapgyver": "Creation aliases register in the existing treeIcons.nodeTypes map using the existing mediaIcons values. Composition menus read that same media-kind registry",
+		"boundaries": "Presentation only: no domain default, creation intent, Parameter, history, protocol DTO or native renderer change"
+	},
+	"checks": {
+		"mapgyver_svelte": "0 errors, 0 warnings",
+		"chataigne_svelte": "0 errors, 0 warnings",
+		"golden_ui_browser_svelte": "0 errors, 0 warnings",
+		"golden_ui_tests": { "files": 48, "passed": 244 },
+		"native_build": "Isolated MapGyver-menu-icons.exe build exits 0 and rebuilds the embedded frontend",
+		"native_executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+		"rust_scope": "No Rust/DTO changes; prior unchanged runtime 503+215 and strict lint remain valid. Root and golden_core formatting completed",
+		"fixture_corrections": "Wait for the existing menu exit transition before matching a new menu; exercise supported native-button Tab navigation rather than assuming an ArrowDown contract. Initial selector failure retained; no runtime behavior changed for the fixture"
+	},
+	"actual_behavior": {
+		"surfaces": ["actual bundled WebView2 app", "headless browser against the same owned backend"],
+		"native_pid": 38632,
+		"normal_native_exit": 0,
+		"panel_entries_per_host": 12,
+		"panel_checks": "Every registered panel is opened through its real menu, its new tab icon is compared by exact image source, and only that newly created tab is closed",
+		"media_entries_per_host": 7,
+		"media_checks": "Folder, Reference, Solid Color, Picture, Shared Texture, Composition and Matrix; exact catalog/outliner image identity, six distinct kind assets, real Folder creation and its Add submenu",
+		"composition_entries_per_host": 6,
+		"composition_checks": "Reference and all five currently offered source kinds match that same outliner/type registry. Video is not an available creation kind until M10",
+		"keyboard": "Decorative image alt is empty; normal accessible labels and Tab focus from Folder to Reference are preserved",
+		"variants_per_host": 6,
+		"variants": "Default and light CSS-token themes, each at relative root-font scales 100%, 125%, 200%; panel images retain their source and exact relative dimensions, media catalog images retain identity",
+		"page_errors": [],
+		"screenshots": 32,
+		"visual_review": "Compared native Panels and Media Add captures with both supplied 2026-11-04 screenshots: missing panel icons and generic blue media placeholders are replaced. Default and enlarged light-token panel captures inspected",
+		"limits": "CSS-token/relative-font-scale checks are not physical OS DPI or M05 presentation qualification. Current available menu kinds only; no performance or release qualification"
+	},
+	"artifacts": "mapgyver-m12-menu-icons-2026-11-06/menu-images.zip",
+	"archive_sha256": "947b27d5b57e8fe843aca302ca06ae41ceffa192c45ff0b9e5792ece90a45482",
+	"artifact_contents": "32 screenshots, browser/native result receipts, 414 selected execution hashes and executable hash, three Svelte checks, 244-test output, native build/run logs and initial selector failure",
+	"next": "Return to M12/8's remaining original cost cohorts using the unchanged qualified renderer inputs. Its Intel 4K Smooth failure and unapproved feature/production gate split remain explicit; no requirement or budget changes",
+	"progress": "67/78 gates (86%), M12 10/11 (91%), phases 7/13 (54%)"
+}

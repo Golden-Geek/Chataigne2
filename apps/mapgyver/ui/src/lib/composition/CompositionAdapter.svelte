@@ -10,6 +10,7 @@
 	import copyIcon from 'golden_ui/style/icons/copy.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
+	import { mediaIcons } from '../icons/tree';
 	import { createCompositionEditor } from './editor.svelte';
 	import { SPATIAL_PAGE_SIZE } from '../spatial/targets';
 	import type { ChannelReference } from '../media/generated/ChannelReference';
@@ -74,6 +75,7 @@
 			generation = session?.snapshotGeneration;
 		menuItems = (view.page?.media_types ?? []).map((type) => ({
 			label: type.label,
+			icon: mediaIcons[type.media_kind],
 			action: async () => {
 				if (
 					appState.session !== session ||

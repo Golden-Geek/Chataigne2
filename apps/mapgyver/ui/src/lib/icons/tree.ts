@@ -31,6 +31,11 @@ export const treeIcons: NodeIconSet = {
 		return kind ? mediaIcons[kind] : null;
 	},
 	nodeTypes: {
+		'mapgyver.media.solid_color': mediaIcons.SolidColor,
+		'mapgyver.media.picture': mediaIcons.Picture,
+		'mapgyver.media.shared_texture': mediaIcons.SharedTexture,
+		'mapgyver.media.composition': mediaIcons.Composition,
+		'mapgyver.media.matrix': mediaIcons.Matrix,
 		'mapgyver.media.folder': folder,
 		'mapgyver.media.v8': media,
 		'mapgyver.media.reference.v3': reference,

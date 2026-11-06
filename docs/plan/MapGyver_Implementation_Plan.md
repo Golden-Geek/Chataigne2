@@ -600,6 +600,12 @@ to the user. That proposal changes no requirement until explicitly approved. Ret
 on the scope answer or a justified owning renderer redesign addressing the reproduced cost;
 all other sustained cohorts, original budgets and M10/M09 prerequisites remain required.
 
+After M12/11 acceptance, return to M12/8's still-required canonical cost matrix while the
+scope answer is pending. The known Intel 4K Smooth failure remains unaccepted; measuring
+the remaining independent cases changes neither the original gate nor the proposed split.
+Reuse the exact cost executable only after its selected execution-input hashes still match;
+menu-only UI changes are outside that headless fixture's executed path.
+
 1. **Recorded glitches, flashes, panel reloads and Media Preview resizing.** Owners: Golden
    docking/Inspector/host/native-preview lifetime and MapGyver panel adapters. Reproduce the
    three supplied interactions on a recorded current build before choosing a fix. Cover Matrix

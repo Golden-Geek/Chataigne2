@@ -49,6 +49,7 @@ import { verifyMatrixLayerGeometry } from './matrix-layer-geometry.mjs';
 import { verifyMatrixCellLayout } from './matrix-cell-layout.mjs';
 import { verifyMatrixCellGeometry } from './matrix-cell-geometry.mjs';
 import { verifySpatialAcceptance } from './spatial-acceptance.mjs';
+import { verifyMenuIconsInBothHosts } from './menu-icons.mjs';
 
 const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
 try {
@@ -71,6 +72,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	const flow =
 		[
+			['--menu-icons', verifyMenuIconsInBothHosts],
 			['--spatial-acceptance', verifySpatialAcceptance],
 			['--matrix-cell-geometry', verifyMatrixCellGeometry],
 			['--matrix-cell-layout', verifyMatrixCellLayout],

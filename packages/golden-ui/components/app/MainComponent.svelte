@@ -47,6 +47,11 @@
 	import WarningsPanel from '../panels/warnings/WarningsPanel.svelte';
 	import DashboardPanel from '../panels/dashboard/DashboardPanel.svelte';
 	import GroupPanelAddAction from './GroupPanelAddAction.svelte';
+	import inspectorIcon from '../../style/icons/panels/inspector.svg';
+	import outlinerIcon from '../../style/icons/panels/outliner.svg';
+	import dashboardIcon from '../../style/icons/node/dashboard.svg';
+	import loggerIcon from '../../style/icons/panels/logger.svg';
+	import warningsIcon from '../../style/icons/warning.svg';
 
 	let { userPanels, initialPanels, nodeIcons } = $props<{
 		userPanels?: UserPanelDefinitionMap;
@@ -67,6 +72,7 @@
 		inspector: {
 			panelType: 'inspector',
 			title: 'Inspector',
+			icon: inspectorIcon,
 			component: InspectorPanel,
 			origin: 'golden'
 		},
@@ -74,24 +80,28 @@
 		outliner: {
 			panelType: 'outliner',
 			title: 'Outliner',
+			icon: outlinerIcon,
 			component: Outliner,
 			origin: 'golden'
 		},
 		dashboard: {
 			panelType: 'dashboard',
 			title: 'Dashboard',
+			icon: dashboardIcon,
 			component: DashboardPanel,
 			origin: 'golden'
 		},
 		logger: {
 			panelType: 'logger',
 			title: 'Logger',
+			icon: loggerIcon,
 			component: LoggerPanel,
 			origin: 'golden'
 		},
 		warnings: {
 			panelType: 'warnings',
 			title: 'Warnings',
+			icon: warningsIcon,
 			component: WarningsPanel,
 			origin: 'golden'
 		}

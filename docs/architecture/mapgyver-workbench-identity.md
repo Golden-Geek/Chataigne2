@@ -16,6 +16,23 @@ immutable typed `parameters/media_kind` leaf through the public session, stoppin
 declared Parameters folder. It does not scan the graph or reinterpret container admission.
 Static panel icons use the same assets where corresponding panels exist.
 
+Creation aliases are registered in that same `treeIcons.nodeTypes` map and refer to the
+existing `mediaIcons` values. The catalog therefore resolves the precise source kind before
+its generic media-class fallback. Composition's contextual creation menu reads the same
+kind-to-SVG registry; no backend setting, creation policy or second asset mapping is added.
+
+Golden's panel definitions own the reusable Inspector/Outliner/Dashboard/Logger/Warnings
+icons. Both tab rendering and the group panel chooser consume each definition's `icon`.
+The chooser preserves it through menu projection and its custom row snippet, using relative
+dimensions and decorative empty image labels. App panels keep their app-owned registrations.
+Menu labels, creation actions and backend intent/lifetime fences remain unchanged.
+
+[M12/11 menu acceptance](../progress/evidence/mapgyver-m12-menu-icons-2026-11-06.json) compares
+all twelve registered panel menu/tab identities, seven available catalog/outliner identities,
+the Folder submenu and six Composition creation kinds in the actual app and a browser.
+CSS token theme variants and relative 100/125/200% font scales cover the same image sources
+and menu geometry. Those checks do not replace physical OS-DPI qualification.
+
 Matrix and Composition bounded backend projections carry their displayed object's label.
 Surface editors use their existing Screen/Surface snapshots. `followPanelTitle` updates only
 the owning panel's title; the existing controllers continue to own locks, selection and
