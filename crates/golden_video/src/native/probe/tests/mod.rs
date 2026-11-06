@@ -9,6 +9,22 @@ fn sender_metadata_must_have_supported_bounded_storage_before_graphics_allocatio
         format: 87,
     };
     assert_eq!(base.descriptor().unwrap().format, PixelFormat::Bgra8Unorm);
+    for (storage, format, bytes) in [(10, PixelFormat::Rgba16Float, 128), (2, PixelFormat::Rgba32Float, 256)] {
+        let endpoint = Endpoint {
+            format: storage,
+            ..base
+        };
+        let descriptor = endpoint.descriptor().unwrap();
+        assert_eq!(descriptor.format, format);
+        assert_eq!(descriptor.color_encoding, ColorEncoding::Linear);
+        let insufficient = PayloadPool::new("float-insufficient", 1, bytes - 1).unwrap();
+        assert!(
+            endpoint.reserve(&insufficient).is_err(),
+            "full float storage must be admitted before allocation"
+        );
+        let exact = PayloadPool::new("float-exact", 1, bytes).unwrap();
+        assert!(endpoint.reserve(&exact).is_ok());
+    }
     assert_eq!(
         Endpoint { format: 28, ..base }.descriptor().unwrap().format,
         PixelFormat::Rgba8Unorm

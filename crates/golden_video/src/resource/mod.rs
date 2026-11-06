@@ -40,6 +40,8 @@ pub enum PixelFormat {
     Bgra8Unorm,
     /// IEEE 754 binary16 red, green, blue and alpha channels, eight little-endian bytes per texel.
     Rgba16Float,
+    /// IEEE 754 binary32 RGBA channels, sixteen little-endian bytes per texel.
+    Rgba32Float,
 }
 
 impl PixelFormat {
@@ -48,6 +50,7 @@ impl PixelFormat {
         match self {
             Self::Rgba8Unorm | Self::Bgra8Unorm => 4,
             Self::Rgba16Float => 8,
+            Self::Rgba32Float => 16,
         }
     }
 }

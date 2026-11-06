@@ -164,7 +164,9 @@ impl D3d11Config {
                 {
                     return Err(invalid("invalid or duplicate Spout sender name"));
                 }
-                OutputBinding::Spout { descriptor, .. } if descriptor.format == PixelFormat::Rgba16Float => {
+                OutputBinding::Spout { descriptor, .. }
+                    if matches!(descriptor.format, PixelFormat::Rgba16Float | PixelFormat::Rgba32Float) =>
+                {
                     return Err(invalid("Spout outputs require eight-bit RGBA or BGRA storage"));
                 }
                 _ => {}

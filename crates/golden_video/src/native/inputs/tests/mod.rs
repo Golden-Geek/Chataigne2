@@ -12,6 +12,7 @@ use super::surface::{Surface, acquired};
 use super::*;
 use crate::runtime::DeviceGeneration;
 
+mod formats;
 mod freshness;
 mod hardware_freshness;
 mod live_cadence;

@@ -51,6 +51,9 @@ impl SpoutProbe {
 impl Session {
     fn capture_pixels(&mut self, budget: &PayloadPool) -> Result<Option<ProbePixels>> {
         let descriptor = self.texture.descriptor;
+        if !matches!(descriptor.format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm) {
+            return Err(invalid());
+        }
         let count = u64::from(descriptor.extent.width()) * u64::from(descriptor.extent.height());
         let bytes = usize::try_from(count.checked_mul(4).ok_or_else(invalid)?).map_err(|_| invalid())?;
         if self.readback.is_none() {
@@ -122,7 +125,7 @@ impl Session {
                     pixels.push(match descriptor.format {
                         PixelFormat::Bgra8Unorm => [pixel[2], pixel[1], pixel[0], pixel[3]],
                         PixelFormat::Rgba8Unorm => [pixel[0], pixel[1], pixel[2], pixel[3]],
-                        PixelFormat::Rgba16Float => return Err(invalid()),
+                        PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => return Err(invalid()),
                     });
                 }
             }

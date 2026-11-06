@@ -675,7 +675,9 @@ fn storage_order(rgba: [u8; 4], format: PixelFormat) -> [u8; 4] {
     match format {
         PixelFormat::Rgba8Unorm => rgba,
         PixelFormat::Bgra8Unorm => [rgba[2], rgba[1], rgba[0], rgba[3]],
-        PixelFormat::Rgba16Float => panic!("byte pixel fixtures require an eight-bit format"),
+        PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => {
+            panic!("byte pixel fixtures require an eight-bit format")
+        }
     }
 }
 

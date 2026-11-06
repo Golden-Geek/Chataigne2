@@ -76,11 +76,12 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
     assert!(make(valid.clone()).compile(&limits()).is_ok());
     let mut discovered = valid.clone();
     discovered.metadata = crate::plan::SpoutMetadata::Discover;
-    assert!(
-        discovered
-            .observed_descriptor(valid.descriptor.extent, PixelFormat::Rgba16Float)
-            .is_none()
-    );
+    for format in [PixelFormat::Rgba16Float, PixelFormat::Rgba32Float] {
+        let observed = discovered.observed_descriptor(valid.descriptor.extent, format).unwrap();
+        assert_eq!(observed.format, format);
+        assert_eq!(observed.color_encoding, ColorEncoding::Linear);
+        assert_eq!(observed.alpha_mode, AlphaMode::Straight);
+    }
     for (frame_count, length, accepted) in [
         (SpoutFrameCount::VersionedV1, 239, true),
         (SpoutFrameCount::VersionedV1, 240, false),

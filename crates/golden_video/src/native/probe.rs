@@ -14,8 +14,12 @@ use super::{
     inputs::receiver::{Received, Receiver},
     texture::Texture,
 };
+#[cfg(any(test, feature = "qualification"))]
+use crate::PixelFormat;
+#[cfg(test)]
+use crate::{AlphaMode, ColorEncoding};
 use crate::{
-    AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor,
+    Extent2D, TextureDescriptor,
     plan::SpoutFrameCount,
     runtime::{CompletionToken, DeviceGeneration},
 };
@@ -46,20 +50,14 @@ impl Endpoint {
         if self.width > 16384 || self.height > 16384 {
             return Err(invalid());
         }
-        Ok(TextureDescriptor {
-            extent: Extent2D::new(self.width, self.height).map_err(|_| invalid())?,
-            format: match self.format {
-                28 => PixelFormat::Rgba8Unorm,
-                87 => PixelFormat::Bgra8Unorm,
-                _ => return Err(invalid()),
-            },
-            color_encoding: ColorEncoding::Srgb,
-            alpha_mode: AlphaMode::Straight,
-        })
+        Ok(crate::plan::SpoutSource::discovered_descriptor(
+            Extent2D::new(self.width, self.height).map_err(|_| invalid())?,
+            super::texture::source_format(self.format).ok_or_else(invalid)?,
+        ))
     }
     fn reserve(self, budget: &PayloadPool) -> Result<(TextureDescriptor, PayloadReservation)> {
         let descriptor = self.descriptor()?;
-        let bytes = usize::try_from(u64::from(self.width) * u64::from(self.height) * 4).map_err(|_| invalid())?;
+        let bytes = usize::try_from(descriptor.byte_len().map_err(|_| invalid())?).map_err(|_| invalid())?;
         let reservation = budget.try_reserve(bytes).map_err(|_| invalid())?;
         Ok((descriptor, reservation))
     }

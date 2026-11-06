@@ -1,0 +1,271 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; verified float slice, full format gate unaccepted",
+  "base_commit": "a9f254a8deaa71c208d67da64087561363c6109b",
+  "delivered": "Automatic RGBA16F/RGBA32F import and first-frame readiness, without byte conversion or a UI format setting.",
+  "ownership": "Golden resource/storage model, Spout metadata/native texture import and bounded probe reservations. MapGyver consumes the complete observed descriptor.",
+  "behavior": [
+    "PixelFormat::Rgba32Float retains sixteen bytes per texel, with checked size arithmetic.",
+    "One native storage mapping serves the receiving worker and first-frame probe. Discover uses linear RGB/straight alpha for floats; byte sources retain sRGB/straight alpha.",
+    "Native source pools and readiness probes reserve the full format size before graphics allocation. Existing limits, backoff and completion-safe retirement are unchanged.",
+    "The existing byte-only pixel-export API rejects float layouts before staging allocation. Eight-bit window/Spout output policy is unchanged."
+  ],
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "224 passed,37 ignored after readiness/budget changes; final cfg-only import cleanup also compiled by test --no-run and strict lint."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated-contract checks included. No hand-maintained UI PixelFormat declarations exist."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings; cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Final terminal success after qualifying PixelFormat's feature/test-only import."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_float_sources_preserve_bits_linear_alpha_shader_pixels_and_pool_charges -- --exact --ignored --nocapture",
+      "result": "1 passed,260 filtered out; four exact adapter/format cases below; final controller exit0."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-float-input",
+      "result": "Final isolated app executable builds, exit0; user's running executable was not replaced."
+    }
+  ],
+  "native": {
+    "method": "Independent D3D11 ClearRenderTargetView and actual SDK SendTexture generate source pixels; production SourcePool copies them through real worker/NT imports into renderer storage. Compare every captured bit, then sample with the production shader into a float32 target. No production rendering generates the oracle.",
+    "source_values": {
+      "Rgba16Float": [
+        0.125,
+        1.25,
+        -0.25,
+        0.5
+      ],
+      "Rgba32Float": [
+        0.1234567,
+        1.25,
+        -0.25,
+        0.5
+      ]
+    },
+    "dimensions": [
+      2,
+      2
+    ],
+    "cases": [
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "capture_bytes": 32,
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 10,
+        "first_frame_probe": true,
+        "format": "Rgba16Float",
+        "probe_reserved_bytes": 32,
+        "retired": true,
+        "shader_expected": [
+          0.0625,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "shader_tolerance": 0.000001,
+        "source_bits_exact": true,
+        "source_charge": 128
+      },
+      {
+        "adapter": "AdapterId { low: 88937, high: 0 }",
+        "capture_bytes": 64,
+        "description": "Intel(R) Graphics",
+        "dxgi_format": 2,
+        "first_frame_probe": true,
+        "format": "Rgba32Float",
+        "probe_reserved_bytes": 64,
+        "retired": true,
+        "shader_expected": [
+          0.061728350818157196,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "shader_tolerance": 0.000001,
+        "source_bits_exact": true,
+        "source_charge": 256
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "capture_bytes": 32,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 10,
+        "first_frame_probe": true,
+        "format": "Rgba16Float",
+        "probe_reserved_bytes": 32,
+        "retired": true,
+        "shader_expected": [
+          0.0625,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "shader_tolerance": 0.000001,
+        "source_bits_exact": true,
+        "source_charge": 128
+      },
+      {
+        "adapter": "AdapterId { low: 2044916551, high: 0 }",
+        "capture_bytes": 64,
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "dxgi_format": 2,
+        "first_frame_probe": true,
+        "format": "Rgba32Float",
+        "probe_reserved_bytes": 64,
+        "retired": true,
+        "shader_expected": [
+          0.061728350818157196,
+          0.625,
+          -0.125,
+          0.5
+        ],
+        "shader_tolerance": 0.000001,
+        "source_bits_exact": true,
+        "source_charge": 256
+      }
+    ],
+    "test_binary_sha256": "94f31547a02dd7d4f91b68f64475d98611ee8b2afc78343a8a9ac20f97c16c22",
+    "readiness": "Automatic sender-adapter selection must complete a real first-frame copy. Remaining-capacity reservation proves the full native float image charge. Byte export must reject before staging; after probe/source retirement their budgets must be fully reclaimable.",
+    "retirement_scope": "Source/probe logical admission storage reclaimed after actual GPU completion; no claim of zero physical driver residency.",
+    "earlier_float_only_cohort": {
+      "test_binary_sha256": "1190dc3ffa6f9968f342e21e3994ac91822e18fd625763145ec684c9847dbbd8",
+      "cases": [
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "capture_bytes": 32,
+          "description": "Intel(R) Graphics",
+          "dxgi_format": 10,
+          "format": "Rgba16Float",
+          "retired": true,
+          "shader_expected": [
+            0.0625,
+            0.625,
+            -0.125,
+            0.5
+          ],
+          "shader_tolerance": 0.000001,
+          "source_bits_exact": true,
+          "source_charge": 128
+        },
+        {
+          "adapter": "AdapterId { low: 88937, high: 0 }",
+          "capture_bytes": 64,
+          "description": "Intel(R) Graphics",
+          "dxgi_format": 2,
+          "format": "Rgba32Float",
+          "retired": true,
+          "shader_expected": [
+            0.061728350818157196,
+            0.625,
+            -0.125,
+            0.5
+          ],
+          "shader_tolerance": 0.000001,
+          "source_bits_exact": true,
+          "source_charge": 256
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "capture_bytes": 32,
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "dxgi_format": 10,
+          "format": "Rgba16Float",
+          "retired": true,
+          "shader_expected": [
+            0.0625,
+            0.625,
+            -0.125,
+            0.5
+          ],
+          "shader_tolerance": 0.000001,
+          "source_bits_exact": true,
+          "source_charge": 128
+        },
+        {
+          "adapter": "AdapterId { low: 2044916551, high: 0 }",
+          "capture_bytes": 64,
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "dxgi_format": 2,
+          "format": "Rgba32Float",
+          "retired": true,
+          "shader_expected": [
+            0.061728350818157196,
+            0.625,
+            -0.125,
+            0.5
+          ],
+          "shader_tolerance": 0.000001,
+          "source_bits_exact": true,
+          "source_charge": 256
+        }
+      ],
+      "result": "Four import/shader cases passed before the readiness boundary was extended. Final cohort above adds the readiness/budget proof."
+    }
+  },
+  "remaining": {
+    "inventory": "docs/architecture/mapgyver-shared-texture-formats.md",
+    "formats": [
+      "RGBA16 UNORM",
+      "RGBA16 SNORM",
+      "RGB10A2 UNORM",
+      "RGBA8 UNORM SRGB",
+      "RGBA8 SNORM",
+      "BGRX8 UNORM",
+      "RGB32 FLOAT capability/implicit alpha",
+      "legacy D3D9 metadata mappings",
+      "additional device/backend-admitted DXGI candidates"
+    ],
+    "acceptance": [
+      "Complete format inventory and automatic import/conversion for every required SDK/backend format, with explicit unaccepted API/hardware limits.",
+      "Independent native pixels/color/alpha/precision on both GPUs for remaining formats.",
+      "Live format/size changes and sender/device loss/recovery across the complete required matrix.",
+      "Full actual-app integration of the completed format contract. This slice proves the production Golden input/shader/readiness paths, not a native preview capture."
+    ]
+  },
+  "scope_limits": [
+    "No desktop input, display manipulation or driver reset occurred.",
+    "No complete M13/2, source cadence, 4K throughput, physical latency or 240Hz acceptance is awarded.",
+    "Reported black RGBA Float source contents were not independently captured here; code proved prior float rejection and the independent corrected float path now passes.",
+    "MapGyver's usual intermediate/output precision remains unchanged; float32 input storage does not make every output float32."
+  ],
+  "input_sha256": {
+    "target/debug/deps/golden_video-fa94e9e28cc1568b.exe": "94f31547a02dd7d4f91b68f64475d98611ee8b2afc78343a8a9ac20f97c16c22",
+    "target/debug/deps/MapGyver-m132-float-input.exe": "74be8b89e30dcaaf0a87a5ac2ab7546337fa1a43cafbe2a078ded0c96c62aee0",
+    "Cargo.lock": "77ef6c02577c44029de4ba8b469fafbc528e0e29c7c6420b827d46b04f161644",
+    "crates/golden_video/src/resource/mod.rs": "0ac07f0c6d09128e8af8d6fef6f43c90d5b78fcb03ae337f161029964fa83926",
+    "crates/golden_video/src/resource/tests/mod.rs": "67882fbd6bda64c23a0ebe02ed57881df42ab518c3afdbd15bcfc15cb748b3c5",
+    "crates/golden_video/src/plan/mod.rs": "112c2c825256f23b1debf96a9ce2afbeb0445a31174d645369089a34fae3203d",
+    "crates/golden_video/src/plan/tests/validation.rs": "ab430c43611d28c58c220fb0be28dbe5dd64ce74efb781d3d87c25e4d5db9a6d",
+    "crates/golden_video/src/native/texture.rs": "4f20363a1836013be471728d7758a51898d671891fdbfcc01be8543890ac09e9",
+    "crates/golden_video/src/native/config.rs": "bc9f3ff60cb9e5bcfc4a6408abff70fe7f70c58a2d47b6aedb228d865a54b930",
+    "crates/golden_video/src/native/outputs/spout.rs": "59b92f2c5fa22f799ed80f768745bcfc1c90c492c066bcd61ff8ce980326dacf",
+    "crates/golden_video/src/native/inputs/receiver.rs": "78c226750ed46c28232d35493a047dc2b14489de7c346d5dd47c74c2979045f4",
+    "crates/golden_video/src/native/inputs/tests/mod.rs": "644a9a58ee7403819b95dbe1de5b00828f0448a9fb0a85647e299e4c117374f2",
+    "crates/golden_video/src/native/inputs/tests/metadata.rs": "681176b2118d4e89c57aec83201cf42ae85f294c7ef4008494bddcd36836d0b6",
+    "crates/golden_video/src/native/inputs/tests/formats.rs": "6b856db75ff99a7a65f4abc338cede2634ff5792705eff84238a80e665ae474f",
+    "crates/golden_video/src/native/inputs/tests/formats/support.rs": "9ccc137d8becde2588dab939518737a10f168e872da43b81637f8d85414de0fc",
+    "crates/golden_video/src/native/probe.rs": "f69bf8dd95d5047e01e03f40301d6df491d13ef3f75b03fece0049b1695bf702",
+    "crates/golden_video/src/native/probe/pixels.rs": "b55cb4d67133954d9b58c33f4ce3b488272d22a9d5d9481a4eb725c67a57f7ec",
+    "crates/golden_video/src/native/probe/tests/mod.rs": "63813cd3d7d58da3b5101c0f62d2a002b0054fe175b17866f2a6f0ef4d22f079",
+    "crates/golden_video/src/native/tests/pixels.rs": "295dd03b4026a227f3401ac11883dc40acba9f9790a6d4a62e912f9112d5d303",
+    "vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp": "a2144638e55e067c9ff216f73df2682f185681979f86a69ca1b206527b608b8c",
+    "vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp": "f07d3ab4790589271420e847395571f23536075349396cad2d04989036c7dfbe"
+  },
+  "progress": {
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "percentage": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "gate_changes": [],
+    "next": "Continue the same M13/2 gate with normalized/packed/sRGB/BGRX storage and the remaining inventory/recovery requirements."
+  }
+}

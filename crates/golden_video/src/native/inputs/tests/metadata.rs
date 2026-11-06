@@ -2,10 +2,11 @@ use super::*;
 use crate::plan::{SpoutFrameCount, SpoutMetadata, SpoutSource};
 use windows::Win32::Graphics::Dxgi::Common::{
     DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R16G16B16A16_FLOAT,
+    DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_UNKNOWN,
 };
 
 #[test]
-fn exact_native_metadata_admission_discovers_byte_storage_and_rejects_unsupported_or_oversized_sources() {
+fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_changing_precision() {
     let binding = SpoutSource {
         sender: "Exact source".into(),
         metadata: SpoutMetadata::Discover,
@@ -21,18 +22,26 @@ fn exact_native_metadata_admission_discovers_byte_storage_and_rejects_unsupporte
     for (storage, format) in [
         (DXGI_FORMAT_B8G8R8A8_UNORM, PixelFormat::Bgra8Unorm),
         (DXGI_FORMAT_R8G8B8A8_UNORM, PixelFormat::Rgba8Unorm),
+        (DXGI_FORMAT_R16G16B16A16_FLOAT, PixelFormat::Rgba16Float),
+        (DXGI_FORMAT_R32G32B32A32_FLOAT, PixelFormat::Rgba32Float),
     ] {
         let actual = receiver::layout(&binding, 3840, 2160, storage.0 as u32).unwrap();
         assert_eq!(actual.extent, Extent2D::new(3840, 2160).unwrap());
         assert_eq!(actual.format, format);
-        assert_eq!(actual.color_encoding, ColorEncoding::Srgb);
+        assert_eq!(
+            actual.color_encoding,
+            match format {
+                PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => ColorEncoding::Linear,
+                _ => ColorEncoding::Srgb,
+            }
+        );
         assert_eq!(actual.alpha_mode, AlphaMode::Straight);
     }
     for (width, height, storage) in [
         (0, 1, DXGI_FORMAT_B8G8R8A8_UNORM),
         (4097, 1, DXGI_FORMAT_B8G8R8A8_UNORM),
         (1, 4097, DXGI_FORMAT_B8G8R8A8_UNORM),
-        (1, 1, DXGI_FORMAT_R16G16B16A16_FLOAT),
+        (1, 1, DXGI_FORMAT_UNKNOWN),
     ] {
         assert!(receiver::layout(&binding, width, height, storage.0 as u32).is_none());
     }

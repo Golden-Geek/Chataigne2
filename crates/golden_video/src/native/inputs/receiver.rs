@@ -261,9 +261,7 @@ impl Receiver {
 }
 
 pub(super) fn layout(binding: &SpoutSource, width: u32, height: u32, storage: u32) -> Option<TextureDescriptor> {
-    let pixel_format = [crate::PixelFormat::Bgra8Unorm, crate::PixelFormat::Rgba8Unorm]
-        .into_iter()
-        .find(|candidate| format(*candidate).0 as u32 == storage)?;
+    let pixel_format = super::super::texture::source_format(storage)?;
     binding.observed_descriptor(Extent2D::new(width, height).ok()?, pixel_format)
 }
 

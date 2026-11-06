@@ -464,8 +464,10 @@ consumer delivery or scanout. Opaque API waits remain part of native cadence qua
 
 `ExternalTexture::source` selects an immutable image or `ExternalSource::Spout`: exact selector,
 metadata policy, polling interval and admitted maximum extent. `SpoutMetadata::Declared` fixes
-storage/transfer/alpha. `Discover` admits native BGRA/RGBA byte storage and interprets byte colors
-as sRGB with straight alpha, since classic Spout carries no independent transfer/alpha metadata.
+storage/transfer/alpha. `Discover` admits native BGRA/RGBA byte and RGBA16F/RGBA32F storage.
+It interprets byte RGB as sRGB and floating RGB as linear, both with straight alpha, because
+classic Spout carries no independent transfer/alpha metadata. Float imports retain their native
+8/16-byte texels through the receiving bridge; their storage charge includes that full precision.
 Unsupported native formats are rejected rather than guessed. Bindings travel inside the same
 revisioned plan as their consumers. `D3d11Config::inputs` bounds at most 32 overlapping workers
 and one aggregate source-storage budget. Declared subscriptions reserve their maximum before

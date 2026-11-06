@@ -244,12 +244,12 @@ pub struct SpoutSource {
     pub frame_count: SpoutFrameCount,
 }
 
-/// Classic Spout byte textures carry storage format but no transfer/alpha metadata.
+/// Classic Spout textures carry storage format but no transfer/alpha metadata.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SpoutMetadata {
     /// Require the caller's fixed storage, transfer and alpha contract.
     Declared,
-    /// Discover BGRA/RGBA byte storage and interpret it as sRGB with straight alpha.
+    /// Discover storage: byte RGB is sRGB, floating RGB is linear; alpha is straight.
     Discover,
 }
 
@@ -271,20 +271,23 @@ impl SpoutSource {
                 format,
                 ..self.descriptor
             },
-            SpoutMetadata::Discover => TextureDescriptor {
-                extent,
-                format,
-                color_encoding: crate::ColorEncoding::Srgb,
-                alpha_mode: crate::AlphaMode::Straight,
-            },
+            SpoutMetadata::Discover => Self::discovered_descriptor(extent, format),
         };
         self.accepts(descriptor).then_some(descriptor)
     }
 
+    pub(crate) fn discovered_descriptor(extent: crate::Extent2D, format: crate::PixelFormat) -> TextureDescriptor {
+        TextureDescriptor {
+            extent,
+            format,
+            color_encoding: Self::observed_encoding(format),
+            alpha_mode: crate::AlphaMode::Straight,
+        }
+    }
+
     pub(crate) fn accepts(&self, actual: TextureDescriptor) -> bool {
         let maximum = self.descriptor;
-        actual.format != crate::PixelFormat::Rgba16Float
-            && actual.extent.width() <= maximum.extent.width()
+        actual.extent.width() <= maximum.extent.width()
             && actual.extent.height() <= maximum.extent.height()
             && match self.metadata {
                 SpoutMetadata::Declared => {
@@ -293,10 +296,17 @@ impl SpoutSource {
                         && actual.alpha_mode == maximum.alpha_mode
                 }
                 SpoutMetadata::Discover => {
-                    actual.color_encoding == crate::ColorEncoding::Srgb
+                    actual.color_encoding == Self::observed_encoding(actual.format)
                         && actual.alpha_mode == crate::AlphaMode::Straight
                 }
             }
+    }
+
+    fn observed_encoding(format: crate::PixelFormat) -> crate::ColorEncoding {
+        match format {
+            crate::PixelFormat::Rgba8Unorm | crate::PixelFormat::Bgra8Unorm => crate::ColorEncoding::Srgb,
+            crate::PixelFormat::Rgba16Float | crate::PixelFormat::Rgba32Float => crate::ColorEncoding::Linear,
+        }
     }
 }
 

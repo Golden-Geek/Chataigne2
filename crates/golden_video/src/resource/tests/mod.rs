@@ -19,6 +19,18 @@ fn floating_compositing_storage_is_charged_at_eight_bytes_without_overflow() {
     ));
 }
 
+#[test]
+fn binary32_storage_preserves_its_sixteen_byte_charge_and_checked_overflow() {
+    let format = PixelFormat::Rgba32Float;
+    assert_eq!(descriptor(1, 1, format).byte_len(), Ok(16));
+    assert_eq!(descriptor(3840, 2160, format).byte_len(), Ok(132_710_400));
+    assert!(descriptor(u32::MAX, 1 << 28, format).byte_len().is_ok());
+    assert!(matches!(
+        descriptor(u32::MAX, (1 << 28) + 1, format).byte_len(),
+        Err(TextureError::ByteSizeOverflow { .. })
+    ));
+}
+
 fn descriptor(width: u32, height: u32, format: PixelFormat) -> TextureDescriptor {
     TextureDescriptor {
         extent: Extent2D::new(width, height).unwrap(),
