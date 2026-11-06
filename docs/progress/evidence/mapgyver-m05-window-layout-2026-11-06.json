@@ -1,0 +1,91 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Four complete native maximize/restore cohorts pass within scope; whole physical matrix remains unaccepted",
+	"source_base": "0494ede07da3499d0ecc91bc28e35b16fe4cea46",
+	"executable_sha256": "c983feb71cd1beb0d0d870a0e597c9c03370b6aabbfbfa6540d4dedb73bd0d1d",
+	"ownership": "Existing MapGyver owned native Screen/Source fixture, documented WebView2 app-button input, read-only physical capture and independent landmark oracle. Product runtime, permissions, protocol and domain behavior unchanged",
+	"capability_verified": "Both editors preserve native image/overlay/projection alignment through actual OS maximize and restore on the available 100% and 125% monitors",
+	"cohorts": [
+		{
+			"directory": "auto-screen-125",
+			"pid": 24976,
+			"hwnd": 43715146,
+			"dpi": 120,
+			"dpr": 1.25,
+			"max_errors_px": [0.375, 0.375, 0.375],
+			"normal_exit": 0
+		},
+		{
+			"directory": "auto-source-125",
+			"pid": 27444,
+			"hwnd": 66719070,
+			"dpi": 120,
+			"dpr": 1.25,
+			"max_errors_px": [0.5000076293945312, 0.875, 0.5000076293945312],
+			"normal_exit": 0
+		},
+		{
+			"directory": "auto-screen-100",
+			"pid": 22860,
+			"hwnd": 4262972,
+			"dpi": 96,
+			"dpr": 1,
+			"max_errors_px": [0.5, 0.4306249999999636, 0.5],
+			"normal_exit": 0
+		},
+		{
+			"directory": "auto-source-100",
+			"pid": 16116,
+			"hwnd": 29035652,
+			"dpi": 96,
+			"dpr": 1,
+			"max_errors_px": [0.75, 0.48750000000001137, 0.75],
+			"normal_exit": 0
+		}
+	],
+	"method": {
+		"stages_per_cohort": ["initial", "maximized", "restored"],
+		"window_controls": "Two actual trusted app-button clicks through the existing bundled WebView2 CDP driver. OS IsZoomed must change to true/false and the real viewport must resize before physical capture",
+		"identity_and_restoration": "One owned PID/HWND through all stages; final physical bounds, client origin, monitor, DPI and non-maximized state must exactly match initial geometry",
+		"pixels": "Foreground/PID-guarded visible desktop pixels; independent red landmark lies clear of authored blue crop/quad strokes. Compare image edges and overlay edges against DOM/client/DPR projection and each other",
+		"capture_stability": "Actual native preview is installed, DOM projection is equal before/after capture and OS window placement/DPI/state stays fixed around it",
+		"tolerance_physical_px": 1,
+		"maximum_observed_error_physical_px": 0.875,
+		"automation": "Optional --window-layout workflow runs all stages and closes normally after one owned-window foreground handoff; finite waits survive model unavailability without requiring manual maximize/restore"
+	},
+	"fixture_changes": [
+		"Expose only the existing owned loopback CDP endpoint in test metadata for bounded read-only inspection",
+		"Reuse owned-window bounds/DPI capture and the original independent landmark oracle; add real OS maximized state to capture metadata",
+		"Reject a mislabeled OS state, unstable projection or changed window identity before accepting a stage",
+		"Drive the existing public app maximize/restore button in the native fixture rather than adding OS-input helpers, window permissions or product commands"
+	],
+	"verification": {
+		"native": "Four cohorts, twelve complete physical captures, eight trusted window-control clicks, same-window identity and normal owned exits",
+		"replay": "Three tests pass: all twelve real images, every +3 physical-pixel projection negative control, and mismatched real-window DPI rejection",
+		"existing_oracle": "Three earlier landmark tests pass before the native cohorts",
+		"software": "Node syntax, targeted Prettier, Python compilation; root and golden_core cargo fmt",
+		"runtime_reuse": "Unchanged qualified menu-icons executable. All 413 other selected input hashes match its qualification reference; only regenerated standalone smoke-fixture bootstrap HTML differs, outside this embedded app path",
+		"paired_inventory_identity_fields_equal": 9
+	},
+	"retained_setup_failures": {
+		"settings": "SystemSettings process starts, but neither supported UI inventory exposes a targetable window. No display setting was changed; actual 150%/200% remains unavailable",
+		"mixed_dpi_move": "Two supported header drags and a System-menu click leave the owned window at physical [80,80,1616,1100], DPI 120. No genuine monitor move or DPI change accepted",
+		"early_screen_capture": "One maximized 125% image passes independently, but the first fixture reaches its eight-minute hold timeout before restored capture. Partial result retained, not a complete lifecycle pass",
+		"indexed_control_setup": "A screenshot-less indexed action is rejected for missing input geometry; a later restore action leaves IsZoomed true and the stage guard rejects it. These partial captures are excluded from the four accepted cohorts",
+		"correction": "Existing app-button input plus explicit OS-state/viewport waits makes the final four cohorts deterministic; no product workaround or extra permission"
+	},
+	"artifacts": "mapgyver-m05-window-layout-2026-11-06/native-layout.zip",
+	"archive_bytes": 2100201,
+	"archive_sha256": "9113ab489907fcb5374176ae8ee3991c826d6f6c568dfda11726ee3e0309dc63",
+	"artifact_contents": "Twelve qualified PNGs, full per-stage geometry/state/alignment, trusted-click/native lifecycle results, picture fixtures/logs and exact fixture/binary/input hashes; earlier partial/rejected setup captures and paired read-only inventories retained separately",
+	"remaining": [
+		"Actual 150%/200%, genuine mixed-DPI window moves and real negative monitor origins",
+		"Resize/docking, scroll, tab hide/show and complete transition/animation matrix",
+		"Full alpha/color/reference patterns and capture/overlay combinations",
+		"Original <=50ms p95 input-to-visible latency; previous conservative bounds remain inconclusive",
+		"Physical display identity/hotplug, device removal and all retained production/final requirements"
+	],
+	"next": "Keep M05/8 Active for remaining native layout/pattern coverage. Return to unavailable DPI/settings/movement only when a supported exact route becomes usable; do not simulate acceptance or repeat the twelve passing states without changed-code reason",
+	"progress": "67/78 gates (86%), M12 10/11 (91%); no whole acceptance gate closed"
+}

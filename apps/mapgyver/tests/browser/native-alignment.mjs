@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { crc32, deflateSync } from 'node:zlib';
 import { openNativeEditor } from './native-editor.mjs';
 import { measureVisibleLatency } from './native-latency.mjs';
+import { verifyNativeWindowLayout } from './native-window-layout.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-native-alignment-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -209,6 +210,7 @@ try {
 		holdSeconds,
 		directory,
 		base: native.base,
+		cdp: native.cdp,
 		reference,
 		viewport: await page.evaluate(() => ({
 			width: innerWidth,
@@ -299,6 +301,8 @@ try {
 				separationCss: separation
 			})
 		);
+	} else if (process.argv.includes('--window-layout')) {
+		await verifyNativeWindowLayout({ native, directory });
 	} else if (process.argv.includes('--latency')) {
 		await measureVisibleLatency({ native, view, directory });
 	} else if (process.argv.includes('--zoom')) {

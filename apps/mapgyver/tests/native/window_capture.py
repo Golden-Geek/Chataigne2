@@ -50,6 +50,8 @@ def client_geometry(hwnd):
     assert user.ClientToScreen(hwnd, ctypes.byref(origin))
     dpi = user.GetDpiForWindow(hwnd)
     assert dpi > 0, "owned fixture has no valid window DPI"
+    user.IsZoomed.argtypes = [wintypes.HWND]
+    user.IsZoomed.restype = wintypes.BOOL
     class MonitorInfo(ctypes.Structure):
         _fields_ = [("size", wintypes.DWORD), ("monitor", wintypes.RECT),
                     ("work", wintypes.RECT), ("flags", wintypes.DWORD)]
@@ -61,6 +63,7 @@ def client_geometry(hwnd):
     user.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MonitorInfo)]
     assert monitor and user.GetMonitorInfoW(monitor, ctypes.byref(info))
     return {"client_desktop_origin": [origin.x, origin.y], "window_dpi": dpi,
+            "window_maximized": bool(user.IsZoomed(hwnd)),
             "monitor_bounds": [info.monitor.left, info.monitor.top,
                                info.monitor.right, info.monitor.bottom]}
 

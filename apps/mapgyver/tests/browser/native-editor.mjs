@@ -110,7 +110,7 @@ export async function openNativeEditor({ appDataDirectory, windowState } = {}) {
 		const page = pages[0];
 		page.setDefaultTimeout(5000);
 		await page.waitForLoadState('domcontentloaded');
-		return { app, browser, page, base, directory, close, log: () => log };
+		return { app, browser, page, base, cdp, directory, close, log: () => log };
 	} catch (error) {
 		await close().catch((cleanup) => {
 			console.error(`Owned native cleanup: ${cleanup}`);
