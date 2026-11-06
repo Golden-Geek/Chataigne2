@@ -438,6 +438,103 @@ describe('window preview session', () => {
 		expect(frames).toHaveLength(0);
 	});
 
+	const decoration = (x = 0.5): import('../generated/OverlayPrimitive').OverlayPrimitive => ({
+		shape: { kind: 'Circle', center: [x, 0.5], radius: 6 },
+		hit: `handle:${x}`,
+		fill: [1, 1, 1, 1],
+		stroke: [0, 0, 1, 1],
+		width: 1.6,
+		dash: null
+	});
+
+	it('sends native decoration changes in the measurement frame without another DOM paint wait', async () => {
+		const endpoint = transport();
+		const session = own(endpoint.value);
+		let overlays = [decoration()];
+		const view = session.register('screen', () => ({
+			...geometry(),
+			overlays,
+			overlay_capacity: 2
+		}));
+		await session.connect();
+		await flush();
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+			frames.push(callback)
+		);
+		vi.stubGlobal('cancelAnimationFrame', () => {});
+		overlays = [decoration(0.7), decoration(0.8)];
+		view.invalidate();
+		expect(frames).toHaveLength(1);
+		frames.shift()!(0);
+		await flush();
+		expect(frames).toHaveLength(0);
+		const layouts = endpoint.requests.filter((request) => request.kind === 'Layout');
+		expect(layouts).toHaveLength(2);
+		expect(layouts[1].views[0].overlays).toEqual(overlays);
+		expect(session.state.installed).toBe(true);
+	});
+
+	it.each(['rect', 'clip', 'capacity', 'source', 'presence', 'scale'] as const)(
+		'retains the browser paint barrier for %s changes alongside native decoration movement',
+		async (change) => {
+			const endpoint = transport();
+			const session = own(endpoint.value);
+			let current = { ...geometry(), overlays: [decoration()], overlay_capacity: 2 };
+			const view = session.register('screen', () => current);
+			await session.connect();
+			await flush();
+			const frames: FrameRequestCallback[] = [];
+			vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
+				frames.push(callback)
+			);
+			vi.stubGlobal('cancelAnimationFrame', () => {});
+			current = { ...current, overlays: [decoration(0.7)] };
+			if (change === 'rect') current.rect = { ...current.rect, x: 10 };
+			if (change === 'clip') current.clip = { ...current.clip, x: 10 };
+			if (change === 'capacity') current.overlay_capacity = 3;
+			if (change === 'source') view.update('replacement');
+			if (change === 'presence') current.overlays = [];
+			if (change === 'scale') vi.stubGlobal('devicePixelRatio', 1.5);
+			view.invalidate();
+			frames.shift()!(0);
+			await flush();
+			expect(endpoint.requests.filter((request) => request.kind === 'Layout')).toHaveLength(1);
+			expect(frames).toHaveLength(1);
+			frames.shift()!(1);
+			await flush();
+			expect(endpoint.requests.filter((request) => request.kind === 'Layout')).toHaveLength(2);
+		}
+	);
+
+	it('does not treat a delayed decoration-only reply as the exact installed cohort', async () => {
+		const reply = deferred<PreviewResponse>();
+		let blocked = false;
+		const endpoint = transport((request) =>
+			blocked && request.kind === 'Layout' ? reply.promise : undefined
+		);
+		const session = own(endpoint.value);
+		let overlays = [decoration()];
+		const view = session.register('screen', () => ({
+			...geometry(),
+			overlays,
+			overlay_capacity: 2
+		}));
+		await session.connect();
+		await flush();
+		blocked = true;
+		overlays = [decoration(0.7)];
+		view.invalidate();
+		await flush();
+		await vi.advanceTimersByTimeAsync(1501);
+		expect(session.state.availability).toBe('unavailable');
+		expect(session.state.presentedViews).toEqual([]);
+		expect(await view.pointer(1, 1)).toBeNull();
+		reply.resolve({ kind: 'Applied', revision: 2, visible_views: 1, installed: true });
+		await flush();
+		expect(session.state.presentedViews).toEqual([]);
+	});
+
 	it('retains only the installed cohort during a delayed unchanged reply without admitting parallel controls', async () => {
 		const reply = deferred<PreviewResponse>();
 		let blocked = false;

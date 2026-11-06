@@ -82,6 +82,8 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 	let presentedLayout: PreviewView[] = [];
 	let presentedKey = '';
 	let lastLayoutKey = '';
+	let presentedPaintKey = '';
+	let lastPaintKey = '';
 	let pendingApplied: Extract<PreviewResponse, { kind: 'Applied' }> | null = null;
 	let delayedPresentation: string | null = null;
 	let maximumViews = MAX_VIEWS;
@@ -207,6 +209,14 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 		// This is only a fence hint; native geometry still uses authenticated host metrics.
 		return JSON.stringify([globalThis.devicePixelRatio ?? 1, views]);
 	}
+	function paintKey(views: PreviewView[]) {
+		// Native decoration coordinates/colors/hits do not change the transparent DOM aperture.
+		// Presence still matters: NativePreview hides/shows its fallback controls at that boundary.
+		return JSON.stringify([
+			globalThis.devicePixelRatio ?? 1,
+			views.map((view) => ({ ...view, overlays: view.overlays.length > 0 }))
+		]);
+	}
 	function acknowledge(response: Extract<PreviewResponse, { kind: 'Applied' }>) {
 		// Host clipping can resolve fewer views than the browser measured. The aggregate reply
 		// cannot identify that subset, so retain presentation only when every visible view agrees.
@@ -214,6 +224,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			presentedLayout =
 				response.visible_views === lastViews.filter((view) => view.visible).length ? lastViews : [];
 			presentedKey = presentedLayout.length ? lastLayoutKey : '';
+			presentedPaintKey = presentedLayout.length ? lastPaintKey : '';
 		}
 		update({
 			acknowledgedRevision: response.revision,
@@ -267,6 +278,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						}
 						lastViews = views;
 						lastLayoutKey = presentationKey(views);
+						lastPaintKey = paintKey(views);
 						stopStatus();
 						statusAttempts = 0;
 						request = { kind: 'Layout', session: state.session, revision: ++revision, views };
@@ -286,14 +298,14 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 					if (closing && statusTimer === null) fail('Native preview clear could not be confirmed');
 					break;
 				}
-				const alreadyPresented =
+				const paintUnchanged =
 					request.kind === 'Layout' &&
 					state.presentedViews.length > 0 &&
-					presentationKey(request.views) === presentedKey;
+					paintKey(request.views) === presentedPaintKey;
 				if (
 					request.kind === 'Layout' &&
 					request.views.some((view) => view.visible) &&
-					!alreadyPresented
+					!paintUnchanged
 				) {
 					const ready = await rendering.wait();
 					if (turn !== generation || (disposed && !closing)) continue;

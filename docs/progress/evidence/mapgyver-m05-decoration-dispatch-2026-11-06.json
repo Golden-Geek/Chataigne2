@@ -1,0 +1,72 @@
+{
+	"date": "2026-11-06",
+	"gate": "M05/8",
+	"state": "Native decoration-only dispatch implemented and functionally verified; whole gate remains Active",
+	"whole_gate_accepted": false,
+	"source_base": "8b48879d4c1b266873941e64901bd5a31c71dcd2",
+	"executable_sha256": "02b0069a88a58a800dab41464210e1de5a27035ce29b743b4819eeb175b5099d",
+	"deliverable": "Moving native handles/selection decorations dispatch in the measurement frame without a redundant browser rendering opportunity when the installed DOM paint state is unchanged.",
+	"owning_layer": "Golden Video UI window preview session; app-owned native fixture selects and independently checks each exact GPU through public preferences/runtime status.",
+	"boundary": {
+		"change": "Keep a separate paint-state identity for dispatch scheduling. Ignore native primitive coordinates/colors/hit IDs/counts inside a nonempty admitted decoration set; retain all other view fields, decoration presence and browser DPR.",
+		"preserved": "Initial installation, empty/nonempty decoration transitions, source, image rectangle, clip, capacity, scale and tile-group changes retain the rendering opportunity barrier. Native frame installation still requires the exact Layout/Status acknowledgement. The delayed control timeout compares the full exact cohort, including every primitive, and never treats moved decorations as unchanged installed content.",
+		"wire": "No Rust DTO, generated TypeScript, protocol version, host authentication, app graph policy, renderer or retirement ownership changes.",
+		"scope_decision": "Inspection confirms Viewport2D already supplies a fixed canvas backdrop. No duplicate viewport protocol was added. This slice removes the proven redundant wait for native decoration-only edits; zoom/image rectangle movement still follows the original geometry barrier."
+	},
+	"software": {
+		"preview_tests": "57 tests pass across four files, including eight new scheduling/fence cases: same-frame nonempty decoration movement/count change, six retained barrier cases and exact-cohort delayed-reply rejection.",
+		"type_checks": "Golden Video UI and MapGyver Svelte checks each report zero errors and zero warnings.",
+		"browser": "Existing complete Golden preview lifecycle fixture passes: metadata installation/retirement, source swaps, Inspector churn, pan/zoom continuity, real browser native-input retargeting/coalescing/outside-aperture capture/Escape/source fences, and themed/overlapping retirement masks; no page errors. The adapter remains metadata-only, not native pixel evidence.",
+		"build": "MapGyver UI production build passes; existing large-chunk warning retained. cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin MapGyver -- -C extra-filename=-preview-decoration exits0 and embeds the rebuilt bundle.",
+		"format": "Touched TypeScript/JavaScript passes Prettier; Node syntax and root/golden_core cargo formatting pass."
+	},
+	"native_cases": [
+		{
+			"flow": "--keyboard",
+			"gpu": "dxgi:00000000:79e2f347",
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+			"pid": 42236,
+			"fixture_exit": 0,
+			"normal_app_exit": 0,
+			"page_errors": 0
+		},
+		{
+			"flow": "--keyboard",
+			"gpu": "dxgi:00000000:00015b69",
+			"description": "Intel(R) Graphics",
+			"pid": 1900,
+			"fixture_exit": 0,
+			"normal_app_exit": 0,
+			"page_errors": 0
+		},
+		{
+			"flow": "--source",
+			"gpu": "dxgi:00000000:79e2f347",
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+			"pid": 44696,
+			"fixture_exit": 0,
+			"normal_app_exit": 0,
+			"page_errors": 0,
+			"unexpected_crop_rejections": 0
+		},
+		{
+			"flow": "--source",
+			"gpu": "dxgi:00000000:00015b69",
+			"description": "Intel(R) Graphics",
+			"pid": 24712,
+			"fixture_exit": 0,
+			"normal_app_exit": 0,
+			"page_errors": 0,
+			"unexpected_crop_rejections": 0
+		}
+	],
+	"native_scope": {
+		"keyboard": "100 repeated arrow edits, Shift10 output pixels at zoom, chord release, exact one-step Undo, blur, modifier isolation and New while held, through the actual bundled WebView2 editor.",
+		"source": "Actual generic Surface Parameters, calibration, crop handles/origin/clamping, live-before-release edits, Escape, source loss, history and viewport navigation. Both cases independently verify the runtime GPU key and enumerated hardware description after the flow.",
+		"limit": "Input/domain state, native installation and normal retirement are verified. These four fixtures do not establish native pixel alignment, physical scanout, same-frame input/image correspondence or visible latency. Existing physical receipts retain their own scopes; none are relabeled as captures of this build."
+	},
+	"investigation": "One predeclared software/native functional baseline; all four named native matrix cases pass. No comparison, reset, new capture framework or unchanged timing probe. User authorization permits necessary resets but none is required here.",
+	"reproduce": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-preview-decoration.exe; node apps/mapgyver/tests/browser/native-navigation.mjs --keyboard|--source --gpu=<exact current hardware LUID>. Each flow uses a fresh private profile and exits normally before the next one.",
+	"remaining": "M05/8 remains Active for original p95<=50ms visible input response and same-frame moving correspondence. Next owning slice: explicitly separate the already stationary editor backdrop's DOM paint identity from image placement, preserving ordinary preview/tile geometry and all DPI/source/lifetime fences before any new timing workload.",
+	"progress": "69/78 verified gates (88%); no whole acceptance gate closes."
+}

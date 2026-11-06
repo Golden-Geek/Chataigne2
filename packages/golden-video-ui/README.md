@@ -35,6 +35,14 @@ An acknowledgement proves a native generation/frame observation, not scanout or 
 Unchanged installed heartbeat layouts do not flash the covers. Unregister/dispose explicitly
 withdraw presentation; native lease expiry remains the fallback after frontend interruption.
 
+Browser paint fencing follows the installed DOM aperture. Native decoration coordinates, colors,
+hit identities and primitive counts can update in the measurement frame when source, image/clip
+bounds, DPR, capacity and decoration presence stay unchanged. Changing between empty and nonempty
+decorations still waits for paint because `NativePreview` then shows/hides its DOM controls.
+Source, geometry, clipping, scale, capacity and tile-group changes keep the rendering opportunity
+barrier. Delayed-reply retention still compares the complete exact layout, including every
+decoration; this scheduling distinction never certifies native installation or input latency.
+
 Session-owned retirement masks survive a removed component. Each view unions its old clipped CSS
 areas until the latest native installation is confirmed; a fixed 64-cover ceiling conservatively
 merges overflow during rapid unmount/remount churn. Each cover uses at most four rectangular masks

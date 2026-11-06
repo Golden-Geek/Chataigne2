@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { openNativeEditor } from './native-editor.mjs';
+import { observeNativeAdapter } from './native-adapter.mjs';
 import { verifyViewportNavigation } from './viewport-navigation.mjs';
 import { verifyScreenSelection } from './screen-selection.mjs';
 import { verifyScreenKeyboard } from './screen-keyboard.mjs';
@@ -51,7 +55,31 @@ import { verifyMatrixCellGeometry } from './matrix-cell-geometry.mjs';
 import { verifySpatialAcceptance } from './spatial-acceptance.mjs';
 import { verifyMenuIconsInBothHosts } from './menu-icons.mjs';
 
-const native = await openNativeEditor({ appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA });
+const gpu = process.argv.find((value) => value.startsWith('--gpu='))?.slice('--gpu='.length);
+assert(!gpu || /^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(gpu), 'Exact GPU LUID required');
+assert(!gpu || !process.env.MAPGYVER_TEST_APP_DATA, 'Pin GPUs only in a fresh owned profile');
+const observer = path.resolve('target/debug/native_qualification-m1110.exe');
+const native = await openNativeEditor({
+	appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA,
+	prepareProfile: gpu
+		? async (root) => {
+				const preferences = path.join(root, 'MapGyver');
+				await mkdir(preferences, { recursive: true });
+				execFileSync(
+					observer,
+					[
+						'--role',
+						'gpu-preferences',
+						'--file',
+						path.join(preferences, 'preferences.json'),
+						'--selected',
+						gpu
+					],
+					{ windowsHide: true }
+				);
+			}
+		: undefined
+});
 try {
 	console.log(JSON.stringify({ flow: process.argv.slice(2), nativePid: native.app.pid }));
 	let token;
@@ -193,6 +221,17 @@ try {
 			return ack.result.value;
 		}
 	});
+	if (gpu) {
+		const hardware = JSON.parse(
+			execFileSync(observer, ['--role', 'hardware'], {
+				encoding: 'utf8',
+				windowsHide: true
+			})
+		);
+		const adapter = await observeNativeAdapter(native.page, hardware);
+		assert.equal(adapter.key, gpu);
+		console.log(JSON.stringify({ nativeAdapter: adapter }));
+	}
 } finally {
 	await native.close();
 }
