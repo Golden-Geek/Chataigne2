@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/8",
+  "state": "Actual Source crop outside-view capture/release and history portion verified; full gate remains Active",
+  "accepted_gate_change": 0,
+  "source_base": "a7059521a64a5792f0cd274ce0d083f419d96e2a",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "cases": [
+    { "gpu": "dxgi:00000000:00016022", "pid": 39820, "hwnd": 12651986, "maximum_settled_alignment_px": 0.2560520091426497, "normal_exit": 0 },
+    { "gpu": "dxgi:00000000:00015b69", "pid": 28220, "hwnd": 4263746, "maximum_settled_alignment_px": 0.254572459894689, "normal_exit": 0 }
+  ],
+  "verified": {
+    "scale_percent": 125,
+    "native_physical_images": 7,
+    "independent_sdk_images": 6,
+    "trusted_event_sequence": ["pointerdown inside crop handle", "gotpointercapture", "captured move outside viewport", "captured pointerup outside viewport", "lostpointercapture"],
+    "bounded_crop_after_drag": { "x": 0, "y": 0, "width": 0.800000011920929, "height": 0.800000011920929 },
+    "other_surface_definition_fields_unchanged": true,
+    "exact_one_step_undo_redo_and_final_undo": true,
+    "sdk_extent": [800, 600],
+    "original_red_rect": [160, 120, 640, 480],
+    "cropped_red_rect": [220, 165, 640, 480],
+    "maximum_full_output_rgb_difference": 0,
+    "original_restored_sdk_png_sha256": "f3da02acab3b5a3ee3b1e9e8df68da245d3ea0d55b27466161605ec2ad3ad959",
+    "cropped_sdk_png_sha256": "f475ec98f4ecda8b40ff05764ecc574d27d9a5587651187fb2e2592850b34d07",
+    "all_sdk_observers_retired": true
+  },
+  "method": "Supported Computer Use drag of the visible native crop corner into the manager area, outside the entire preview viewport. Read-only bounded event journals and public Surface snapshots join the real gesture to backend authoring/history. Pixel references derive from the independent picture landmark, authored crop and Screen quad. Before/restored physical reference alignment remains below one pixel. No event injection or product behavior modification by the fixture.",
+  "observation_correction": "The first NVIDIA trace observed the logical crop canvas. Golden intentionally retains OS capture on data-native-preview-backdrop and replays projected PointerEvents to the logical target. One same-owned-window comparison observed the correct viewport boundary: all five required OS events are trusted, capture remains active outside, then releases. Logical projected events are correctly untrusted; they are not presented as OS events. Both raw traces are retained.",
+  "checks": "Two new pointer-oracle tests include missing/untrusted/inside/uncaptured/wrong-owner negative controls; seven existing guard/opacity tests pass. Independent actual-case replay, Node syntax/Prettier, Python compile and root/Core Cargo formatting pass. Both parent fixtures and owned apps exit normally; PIDs are absent. App/runtime inputs and qualified executable remain unchanged.",
+  "limits": "One crop corner at125% per GPU, exact rectangle crop and one-step history. No continuous full-motion image/DOM/hit correspondence, general perspective pixel oracle, alpha/translucent menu blend or input-to-visible p95 acceptance inferred. Event timestamps remain raw diagnostic evidence and do not pass the original latency gate.",
+  "next_action": "Finish full-frame native motion/accepted-frame hit correspondence and remaining compositing/reference scope; preserve original latency budget and closed latency investigation return action.",
+  "archive": {
+    "path": "mapgyver-m05-crop-capture-2026-11-06.zip",
+    "bytes": 937922,
+    "sha256": "9b6484210872b14d0062db7da20c716af30b0b6978c0ed9802ce076e396b0e2e"
+  }
+}
