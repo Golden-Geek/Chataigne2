@@ -3,15 +3,7 @@ use std::rc::Rc;
 
 use windows::Win32::Graphics::Direct3D::D3D11_SRV_DIMENSION_TEXTURE2D;
 use windows::Win32::Graphics::Direct3D11::*;
-use windows::Win32::Graphics::Dxgi::Common::{
-    DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_TYPELESS, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
-    DXGI_FORMAT_B8G8R8X8_TYPELESS, DXGI_FORMAT_B8G8R8X8_UNORM, DXGI_FORMAT_B8G8R8X8_UNORM_SRGB,
-    DXGI_FORMAT_R8G8B8A8_SNORM, DXGI_FORMAT_R8G8B8A8_TYPELESS, DXGI_FORMAT_R8G8B8A8_UNORM,
-    DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R10G10B10A2_TYPELESS, DXGI_FORMAT_R10G10B10A2_UNORM,
-    DXGI_FORMAT_R16G16B16A16_FLOAT, DXGI_FORMAT_R16G16B16A16_SNORM, DXGI_FORMAT_R16G16B16A16_TYPELESS,
-    DXGI_FORMAT_R16G16B16A16_UNORM, DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_TYPELESS,
-    DXGI_SAMPLE_DESC,
-};
+use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::core::{Error, HRESULT, Interface, Result};
 
 use crate::{AlphaMode, ColorEncoding, PixelFormat, TextureDescriptor};
@@ -91,7 +83,7 @@ impl Texture {
             MipLevels: 1,
             ArraySize: 1,
             Format: if sampled && hardware_decode(descriptor) {
-                typeless_format(descriptor.format)
+                typeless_format(descriptor.format).ok_or_else(missing_output)?
             } else {
                 format(descriptor.format)
             },
@@ -123,7 +115,7 @@ impl Texture {
             || desc.Width != descriptor.extent.width()
             || desc.Height != descriptor.extent.height()
             || !(desc.Format == format(descriptor.format)
-                || (hardware_decode(descriptor) && desc.Format == typeless_format(descriptor.format)))
+                || (hardware_decode(descriptor) && Some(desc.Format) == typeless_format(descriptor.format)))
             || desc.MipLevels != 1
             || desc.ArraySize != 1
             || desc.SampleDesc.Count != 1
@@ -163,7 +155,7 @@ impl Texture {
                 }),
                 Some(&mut rtv),
             )?;
-            if desc.Format == typeless_format(descriptor.format) {
+            if Some(desc.Format) == typeless_format(descriptor.format) {
                 device.CreateShaderResourceView(
                     &texture,
                     Some(&srv_desc(srgb_format(descriptor.format).ok_or_else(missing_output)?)),
@@ -214,8 +206,8 @@ fn hardware_decode(descriptor: TextureDescriptor) -> bool {
         && srgb_format(descriptor.format).is_some()
 }
 
-fn typeless_format(format: PixelFormat) -> DXGI_FORMAT {
-    match format {
+fn typeless_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
+    Some(match format {
         PixelFormat::Rgba8Unorm => DXGI_FORMAT_R8G8B8A8_TYPELESS,
         PixelFormat::Bgra8Unorm => DXGI_FORMAT_B8G8R8A8_TYPELESS,
         PixelFormat::Bgrx8Unorm => DXGI_FORMAT_B8G8R8X8_TYPELESS,
@@ -225,7 +217,19 @@ fn typeless_format(format: PixelFormat) -> DXGI_FORMAT {
         }
         PixelFormat::Rgb10A2Unorm => DXGI_FORMAT_R10G10B10A2_TYPELESS,
         PixelFormat::Rgba32Float => DXGI_FORMAT_R32G32B32A32_TYPELESS,
-    }
+        PixelFormat::R8Unorm => DXGI_FORMAT_R8_TYPELESS,
+        PixelFormat::R8Snorm => DXGI_FORMAT_R8_TYPELESS,
+        PixelFormat::Rg8Unorm => DXGI_FORMAT_R8G8_TYPELESS,
+        PixelFormat::Rg8Snorm => DXGI_FORMAT_R8G8_TYPELESS,
+        PixelFormat::R16Unorm => DXGI_FORMAT_R16_TYPELESS,
+        PixelFormat::R16Snorm => DXGI_FORMAT_R16_TYPELESS,
+        PixelFormat::Rg16Unorm => DXGI_FORMAT_R16G16_TYPELESS,
+        PixelFormat::Rg16Snorm => DXGI_FORMAT_R16G16_TYPELESS,
+        PixelFormat::R16Float => DXGI_FORMAT_R16_TYPELESS,
+        PixelFormat::Rg16Float => DXGI_FORMAT_R16G16_TYPELESS,
+        PixelFormat::R32Float => DXGI_FORMAT_R32_TYPELESS,
+        PixelFormat::Rg11B10Float | PixelFormat::A8Unorm => return None,
+    })
 }
 
 fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
@@ -240,7 +244,20 @@ fn srgb_format(format: PixelFormat) -> Option<DXGI_FORMAT> {
         | PixelFormat::Rgba8Snorm
         | PixelFormat::Rgba16Unorm
         | PixelFormat::Rgba16Snorm
-        | PixelFormat::Rgb10A2Unorm => None,
+        | PixelFormat::Rgb10A2Unorm
+        | PixelFormat::R8Unorm
+        | PixelFormat::R8Snorm
+        | PixelFormat::Rg8Unorm
+        | PixelFormat::Rg8Snorm
+        | PixelFormat::R16Unorm
+        | PixelFormat::R16Snorm
+        | PixelFormat::Rg16Unorm
+        | PixelFormat::Rg16Snorm
+        | PixelFormat::R16Float
+        | PixelFormat::Rg16Float
+        | PixelFormat::R32Float
+        | PixelFormat::Rg11B10Float
+        | PixelFormat::A8Unorm => None,
     }
 }
 
@@ -255,6 +272,19 @@ pub(super) fn format(format: PixelFormat) -> DXGI_FORMAT {
         PixelFormat::Rgb10A2Unorm => DXGI_FORMAT_R10G10B10A2_UNORM,
         PixelFormat::Rgba16Float => DXGI_FORMAT_R16G16B16A16_FLOAT,
         PixelFormat::Rgba32Float => DXGI_FORMAT_R32G32B32A32_FLOAT,
+        PixelFormat::R8Unorm => DXGI_FORMAT_R8_UNORM,
+        PixelFormat::R8Snorm => DXGI_FORMAT_R8_SNORM,
+        PixelFormat::Rg8Unorm => DXGI_FORMAT_R8G8_UNORM,
+        PixelFormat::Rg8Snorm => DXGI_FORMAT_R8G8_SNORM,
+        PixelFormat::R16Unorm => DXGI_FORMAT_R16_UNORM,
+        PixelFormat::R16Snorm => DXGI_FORMAT_R16_SNORM,
+        PixelFormat::Rg16Unorm => DXGI_FORMAT_R16G16_UNORM,
+        PixelFormat::Rg16Snorm => DXGI_FORMAT_R16G16_SNORM,
+        PixelFormat::R16Float => DXGI_FORMAT_R16_FLOAT,
+        PixelFormat::Rg16Float => DXGI_FORMAT_R16G16_FLOAT,
+        PixelFormat::R32Float => DXGI_FORMAT_R32_FLOAT,
+        PixelFormat::Rg11B10Float => DXGI_FORMAT_R11G11B10_FLOAT,
+        PixelFormat::A8Unorm => DXGI_FORMAT_A8_UNORM,
     }
 }
 
@@ -277,6 +307,19 @@ pub(super) fn source_format(storage: u32) -> Option<PixelFormat> {
         PixelFormat::Rgba16Unorm,
         PixelFormat::Rgba16Snorm,
         PixelFormat::Rgb10A2Unorm,
+        PixelFormat::R8Unorm,
+        PixelFormat::R8Snorm,
+        PixelFormat::Rg8Unorm,
+        PixelFormat::Rg8Snorm,
+        PixelFormat::R16Unorm,
+        PixelFormat::R16Snorm,
+        PixelFormat::Rg16Unorm,
+        PixelFormat::Rg16Snorm,
+        PixelFormat::R16Float,
+        PixelFormat::Rg16Float,
+        PixelFormat::R32Float,
+        PixelFormat::Rg11B10Float,
+        PixelFormat::A8Unorm,
     ]
     .into_iter()
     .find(|candidate| format(*candidate).0 as u32 == storage)

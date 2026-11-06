@@ -52,6 +52,32 @@ pub enum PixelFormat {
     Rgba16Float,
     /// IEEE 754 binary32 RGBA channels, sixteen little-endian bytes per texel.
     Rgba32Float,
+    /// Unsigned normalized red, one byte per texel.
+    R8Unorm,
+    /// Signed normalized red, one byte per texel.
+    R8Snorm,
+    /// Unsigned normalized red/green, two bytes per texel.
+    Rg8Unorm,
+    /// Signed normalized red/green, two bytes per texel.
+    Rg8Snorm,
+    /// Unsigned normalized red, two bytes per texel.
+    R16Unorm,
+    /// Signed normalized red, two bytes per texel.
+    R16Snorm,
+    /// Unsigned normalized red/green, four bytes per texel.
+    Rg16Unorm,
+    /// Signed normalized red/green, four bytes per texel.
+    Rg16Snorm,
+    /// IEEE 754 binary16 red, two bytes per texel.
+    R16Float,
+    /// IEEE 754 binary16 red/green, four bytes per texel.
+    Rg16Float,
+    /// IEEE 754 binary32 red, four bytes per texel.
+    R32Float,
+    /// Packed unsigned floating-point eleven-bit red/green and ten-bit blue.
+    Rg11B10Float,
+    /// Unsigned normalized coverage alpha, one byte per texel; RGB samples as zero.
+    A8Unorm,
 }
 
 impl PixelFormat {
@@ -61,7 +87,27 @@ impl PixelFormat {
             Self::Rgba8Unorm | Self::Bgra8Unorm | Self::Bgrx8Unorm | Self::Rgba8Snorm | Self::Rgb10A2Unorm => 4,
             Self::Rgba16Float | Self::Rgba16Unorm | Self::Rgba16Snorm => 8,
             Self::Rgba32Float => 16,
+            Self::R8Unorm | Self::R8Snorm | Self::A8Unorm => 1,
+            Self::Rg8Unorm | Self::Rg8Snorm | Self::R16Unorm | Self::R16Snorm | Self::R16Float => 2,
+            Self::Rg16Unorm | Self::Rg16Snorm | Self::Rg16Float | Self::R32Float | Self::Rg11B10Float => 4,
         }
+    }
+
+    /// Whether native storage carries alpha; absent color components sample as zero,
+    /// and storage without alpha supplies coverage one.
+    pub const fn has_alpha(self) -> bool {
+        matches!(
+            self,
+            Self::Rgba8Unorm
+                | Self::Bgra8Unorm
+                | Self::Rgba8Snorm
+                | Self::Rgba16Unorm
+                | Self::Rgba16Snorm
+                | Self::Rgb10A2Unorm
+                | Self::Rgba16Float
+                | Self::Rgba32Float
+                | Self::A8Unorm
+        )
     }
 }
 

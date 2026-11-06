@@ -9,6 +9,30 @@ const FORMATS: [PixelFormat; 5] = [
 ];
 
 #[test]
+fn narrow_and_packed_formats_keep_their_native_charge_and_alpha_presence() {
+    for (format, bytes, alpha) in [
+        (PixelFormat::R8Unorm, 1, false),
+        (PixelFormat::R8Snorm, 1, false),
+        (PixelFormat::Rg8Unorm, 2, false),
+        (PixelFormat::Rg8Snorm, 2, false),
+        (PixelFormat::R16Unorm, 2, false),
+        (PixelFormat::R16Snorm, 2, false),
+        (PixelFormat::Rg16Unorm, 4, false),
+        (PixelFormat::Rg16Snorm, 4, false),
+        (PixelFormat::R16Float, 2, false),
+        (PixelFormat::Rg16Float, 4, false),
+        (PixelFormat::R32Float, 4, false),
+        (PixelFormat::Rg11B10Float, 4, false),
+        (PixelFormat::A8Unorm, 1, true),
+    ] {
+        assert_eq!(descriptor(4, 2, format).byte_len().unwrap(), 8 * bytes);
+        assert_eq!(format.has_alpha(), alpha);
+        let largest = descriptor(u32::MAX, u32::MAX, format).byte_len();
+        assert_eq!(largest.is_err(), bytes > 1);
+    }
+}
+
+#[test]
 fn normalized_sixteen_bit_storage_is_not_charged_as_byte_storage() {
     for format in [PixelFormat::Rgba16Unorm, PixelFormat::Rgba16Snorm] {
         assert_eq!(descriptor(3840, 2160, format).byte_len(), Ok(66_355_200));

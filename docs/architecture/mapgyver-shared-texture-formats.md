@@ -9,6 +9,9 @@ see [sender creation and recovery](mapgyver-sender-selection.md).
 
 Spout metadata discovery admits native RGBA8/BGRA8, RGBA16F/RGBA32F, RGBA16 UNORM/SNORM,
 RGBA8 SNORM, RGB10A2 and BGRX8 without converting their receiving storage to eight bits.
+Single/two-channel R/RG float and UNORM/SNORM, R11G11B10 float and A8 coverage storage
+also use direct native import. Their color is linear; missing color components are zero and
+missing alpha is opaque. A8 supplies coverage with zero RGB, rather than replicated luminance.
 `PixelFormat` is the Rust source of truth for logical
 texel storage and checked byte accounting; native `texture::format` supplies the DXGI mapping.
 `SpoutSource::observed_descriptor` assigns unsigned byte RGB its existing sRGB interpretation;
@@ -91,6 +94,36 @@ The owned producer is destroyed/recreated between phases; continuous-producer re
 remains separately required. Unsupported native layouts stay unaccepted; unspecified metadata
 adds no fallback.
 
+## Direct channel formats
+
+The [channel-format receipt](../progress/evidence/mapgyver-m13-channel-formats-2026-11-06.json)
+adds13 native layouts on both GPUs, with explicit and unspecified registration. These keep
+one/two/four-byte storage and native normalized/float precision. The shared resource model
+exposes physical alpha presence independently of transfer and premultiplication. Source
+discovery uses opaque alpha for R/RG/R11G11B10 and straight alpha for A8; declared contracts
+retain their interpretation. Formats without a typeless family do not request typeless/sRGB
+views. No CPU image conversion or authored setting is introduced.
+
+| Native formats | Storage | Default channels / interpretation |
+| --- | --- | --- |
+| 61 /63 | R8 UNORM /SNORM | (R,0,0,1), linear |
+| 49 /51 | RG8 UNORM /SNORM | (R,G,0,1), linear |
+| 56 /58 | R16 UNORM /SNORM | (R,0,0,1), linear |
+| 35 /37 | RG16 UNORM /SNORM | (R,G,0,1), linear |
+| 54 /34 | R16 /RG16 FLOAT | (R,0,0,1) /(R,G,0,1), linear |
+| 41 | R32 FLOAT | (R,0,0,1), linear |
+| 26 | R11G11B10 FLOAT | (R,G,B,1), linear |
+| 65 | A8 UNORM | (0,0,0,A), linear coverage |
+
+Two independently bounded native fixtures pass104 cases:52 earlier cases plus52 new
+adapter/format/registration combinations. Every new case preserves source bits and matches
+the float shader reference exactly, including fractional red, HDR above one, signed values
+and implicit channels. A8 composites over white to verify real coverage with a nonblack
+reference. Source/probe logical format charges, actual first-frame readiness and reclamation
+pass; physical driver allocation growth/timing remain separate retained qualification.
+The unchanged90-second guard applies separately to each fixture; no product timing or
+memory limit changes. The existing live worker/probe and mismatch regressions also pass.
+
 ## SDK inventory and unfinished acceptance
 
 The pinned SDK's [SpoutGL implementation](../../vendor/spout2-sys-0.1.1/vendor/Spout2/SPOUTSDK/SpoutGL/SpoutGL.cpp)
@@ -164,17 +197,20 @@ The allocation inventory sweeps native DXGI ordinals1–191 using the pinned SDK
 8×8 shared texture descriptor, then opens an alias on a second same-adapter device and
 checks NT/keyed bridge allocation. Reserved ordinals return native errors. It finds70 Intel
 and68 NVIDIA allocations with exact foreign aliases, including12 formats already imported.
+The subsequent channel slice raises direct native import to25 of those formats; allocation
+counts remain unchanged and are not accepted-gate counts.
 This is allocation/alias evidence, not typed-view, shader, pixel or complete import acceptance.
 The receipt retains every available native value and rejected HRESULT; names come from the
 pinned Windows bindings. SDK legacy0/21/22 normalization is separate from native DXGI values.
 
-The remaining formats include single/two-channel float and normalized color, R11G11B10 and
-XR-bias, unsigned/signed integer, typeless and video-plane formats. Native RG32 families15–18
+The remaining formats include RG32, XR-bias, unsigned/signed integer, typeless and video-plane
+formats. Native RG32 families15–18
 and packed BGR85/86 cannot use the current NT bridge on either GPU; Intel's BGR4444 format115
-also needs conversion, and NVIDIA rejects its SDK shared allocation. Thus extending only the
-format enum is insufficient: these sources need a supported GPU conversion bridge. Next is
-the next missing float/normalized import, with real source/bridge sizes and implicit channels;
-then integer/typeless/video interpretation/conversion and full app/recovery acceptance.
+also needs conversion, and NVIDIA rejects its SDK shared allocation. XR-bias89's recorded
+support mask0x111a0020 lacks shader-sample/render-target view support despite allocation
+success. Thus extending only the enum is insufficient: these sources need supported GPU
+interpretation/conversion. Next is the RG32/packed conversion bridge with real source/bridge
+charges, then integer/typeless/video handling and full app/recovery acceptance.
 
 RGB32 FLOAT6 fails the SDK allocator's mandatory shader-resource/render-target shared flags
 on both GPUs. It remains a named unaccepted API limit, with return triggered by an SDK/backend

@@ -29,6 +29,19 @@ fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_chan
         (DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, PixelFormat::Rgba8Unorm),
         (DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, PixelFormat::Bgra8Unorm),
         (DXGI_FORMAT_B8G8R8X8_UNORM_SRGB, PixelFormat::Bgrx8Unorm),
+        (DXGI_FORMAT_R8_UNORM, PixelFormat::R8Unorm),
+        (DXGI_FORMAT_R8_SNORM, PixelFormat::R8Snorm),
+        (DXGI_FORMAT_R8G8_UNORM, PixelFormat::Rg8Unorm),
+        (DXGI_FORMAT_R8G8_SNORM, PixelFormat::Rg8Snorm),
+        (DXGI_FORMAT_R16_UNORM, PixelFormat::R16Unorm),
+        (DXGI_FORMAT_R16_SNORM, PixelFormat::R16Snorm),
+        (DXGI_FORMAT_R16G16_UNORM, PixelFormat::Rg16Unorm),
+        (DXGI_FORMAT_R16G16_SNORM, PixelFormat::Rg16Snorm),
+        (DXGI_FORMAT_R16_FLOAT, PixelFormat::R16Float),
+        (DXGI_FORMAT_R16G16_FLOAT, PixelFormat::Rg16Float),
+        (DXGI_FORMAT_R32_FLOAT, PixelFormat::R32Float),
+        (DXGI_FORMAT_R11G11B10_FLOAT, PixelFormat::Rg11B10Float),
+        (DXGI_FORMAT_A8_UNORM, PixelFormat::A8Unorm),
     ] {
         let actual = receiver::layout(&binding, 3840, 2160, storage.0 as u32).unwrap();
         assert_eq!(actual.extent, Extent2D::new(3840, 2160).unwrap());
@@ -42,7 +55,7 @@ fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_chan
         );
         assert_eq!(
             actual.alpha_mode,
-            if format == PixelFormat::Bgrx8Unorm {
+            if !format.has_alpha() {
                 AlphaMode::Opaque
             } else {
                 AlphaMode::Straight

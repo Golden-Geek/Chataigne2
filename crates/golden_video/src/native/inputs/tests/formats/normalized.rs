@@ -1,7 +1,7 @@
 use crate::PixelFormat;
 use windows::Win32::Graphics::Dxgi::Common::*;
 
-type Case = (PixelFormat, DXGI_FORMAT, [f32; 4], Vec<u8>);
+pub(super) type Case = (PixelFormat, DXGI_FORMAT, [f32; 4], Vec<u8>);
 
 pub(super) fn cases() -> Vec<Case> {
     vec![
@@ -83,55 +83,60 @@ pub(super) fn cases() -> Vec<Case> {
 /// Decode the independent producer's native bytes, without using Golden format/view mappings.
 /// UNORM/SNORM Clear rounding may differ by device; transport must preserve the resulting bits.
 pub(super) fn expected(format: PixelFormat, bytes: &[u8], color: [f32; 4], opaque: bool) -> [f32; 4] {
-    let mut rgba: [f32; 4] = match format {
-        PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => color,
-        PixelFormat::Rgba16Unorm => {
-            std::array::from_fn(|i| u16::from_le_bytes(bytes[i * 2..i * 2 + 2].try_into().unwrap()) as f32 / 65535.)
-        }
-        PixelFormat::Rgba16Snorm => std::array::from_fn(|i| {
-            (i16::from_le_bytes(bytes[i * 2..i * 2 + 2].try_into().unwrap()) as f32 / 32767.).max(-1.)
-        }),
-        PixelFormat::Rgba8Snorm => std::array::from_fn(|i| (bytes[i] as i8 as f32 / 127.).max(-1.)),
-        PixelFormat::Rgb10A2Unorm => {
-            let packed = u32::from_le_bytes(bytes.try_into().unwrap());
-            [
-                (packed & 1023) as f32 / 1023.,
-                ((packed >> 10) & 1023) as f32 / 1023.,
-                ((packed >> 20) & 1023) as f32 / 1023.,
-                (packed >> 30) as f32 / 3.,
-            ]
-        }
-        PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm | PixelFormat::Bgrx8Unorm => {
-            let decode = |encoded: u8| {
-                let value = encoded as f32 / 255.;
-                if value <= 0.04045 {
-                    value / 12.92
+    let mut rgba: [f32; 4] = if let Some(rgba) = super::channels::expected(format, bytes, color) {
+        rgba
+    } else {
+        match format {
+            PixelFormat::Rgba16Float | PixelFormat::Rgba32Float => color,
+            PixelFormat::Rgba16Unorm => {
+                std::array::from_fn(|i| u16::from_le_bytes(bytes[i * 2..i * 2 + 2].try_into().unwrap()) as f32 / 65535.)
+            }
+            PixelFormat::Rgba16Snorm => std::array::from_fn(|i| {
+                (i16::from_le_bytes(bytes[i * 2..i * 2 + 2].try_into().unwrap()) as f32 / 32767.).max(-1.)
+            }),
+            PixelFormat::Rgba8Snorm => std::array::from_fn(|i| (bytes[i] as i8 as f32 / 127.).max(-1.)),
+            PixelFormat::Rgb10A2Unorm => {
+                let packed = u32::from_le_bytes(bytes.try_into().unwrap());
+                [
+                    (packed & 1023) as f32 / 1023.,
+                    ((packed >> 10) & 1023) as f32 / 1023.,
+                    ((packed >> 20) & 1023) as f32 / 1023.,
+                    (packed >> 30) as f32 / 3.,
+                ]
+            }
+            PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm | PixelFormat::Bgrx8Unorm => {
+                let decode = |encoded: u8| {
+                    let value = encoded as f32 / 255.;
+                    if value <= 0.04045 {
+                        value / 12.92
+                    } else {
+                        ((value + 0.055) / 1.055).powf(2.4)
+                    }
+                };
+                let (r, b) = if format == PixelFormat::Rgba8Unorm {
+                    (0, 2)
                 } else {
-                    ((value + 0.055) / 1.055).powf(2.4)
-                }
-            };
-            let (r, b) = if format == PixelFormat::Rgba8Unorm {
-                (0, 2)
-            } else {
-                (2, 0)
-            };
-            [
-                decode(bytes[r]),
-                decode(bytes[1]),
-                decode(bytes[b]),
-                if format == PixelFormat::Bgrx8Unorm {
-                    1.
-                } else {
-                    bytes[3] as f32 / 255.
-                },
-            ]
+                    (2, 0)
+                };
+                [
+                    decode(bytes[r]),
+                    decode(bytes[1]),
+                    decode(bytes[b]),
+                    if format == PixelFormat::Bgrx8Unorm {
+                        1.
+                    } else {
+                        bytes[3] as f32 / 255.
+                    },
+                ]
+            }
+            _ => panic!("missing independent format reference: {format:?}"),
         }
     };
     if opaque {
         rgba[3] = 1.;
     }
     assert!(
-        rgba[..3].iter().any(|value| value.abs() > 0.01),
+        rgba[..3].iter().any(|value| value.abs() > 0.01) || (format == PixelFormat::A8Unorm && rgba[3] > 0.01),
         "a black oracle is invalid"
     );
     for i in 0..3 {

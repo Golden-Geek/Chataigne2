@@ -315,12 +315,25 @@ impl SpoutSource {
             | crate::PixelFormat::Rgba8Snorm
             | crate::PixelFormat::Rgba16Unorm
             | crate::PixelFormat::Rgba16Snorm
-            | crate::PixelFormat::Rgb10A2Unorm => crate::ColorEncoding::Linear,
+            | crate::PixelFormat::Rgb10A2Unorm
+            | crate::PixelFormat::R8Unorm
+            | crate::PixelFormat::R8Snorm
+            | crate::PixelFormat::Rg8Unorm
+            | crate::PixelFormat::Rg8Snorm
+            | crate::PixelFormat::R16Unorm
+            | crate::PixelFormat::R16Snorm
+            | crate::PixelFormat::Rg16Unorm
+            | crate::PixelFormat::Rg16Snorm
+            | crate::PixelFormat::R16Float
+            | crate::PixelFormat::Rg16Float
+            | crate::PixelFormat::R32Float
+            | crate::PixelFormat::Rg11B10Float
+            | crate::PixelFormat::A8Unorm => crate::ColorEncoding::Linear,
         }
     }
 
     fn observed_alpha(format: crate::PixelFormat) -> crate::AlphaMode {
-        if format == crate::PixelFormat::Bgrx8Unorm {
+        if !format.has_alpha() {
             crate::AlphaMode::Opaque
         } else {
             crate::AlphaMode::Straight

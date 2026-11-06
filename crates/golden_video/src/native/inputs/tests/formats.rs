@@ -6,6 +6,7 @@ use crate::plan::{
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 use windows::Win32::Graphics::Dxgi::Common::*;
 
+mod channels;
 mod inventory;
 mod legacy;
 mod normalized;
@@ -17,33 +18,43 @@ use support::{GpuUse, Sender, readback, wait};
 #[test]
 #[ignore = "requires explicit hardware D3D11/Spout qualification; no desktop input"]
 fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_charges() {
+    let mut cases = vec![
+        (
+            PixelFormat::Rgba16Float,
+            DXGI_FORMAT_R16G16B16A16_FLOAT,
+            [0.125, 1.25, -0.25, 0.5],
+            [0x3000_u16, 0x3d00, 0xb400, 0x3800]
+                .into_iter()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<_>>(),
+        ),
+        (
+            PixelFormat::Rgba32Float,
+            DXGI_FORMAT_R32G32B32A32_FLOAT,
+            [0.1234567, 1.25, -0.25, 0.5],
+            [0.1234567_f32, 1.25, -0.25, 0.5]
+                .into_iter()
+                .flat_map(f32::to_le_bytes)
+                .collect::<Vec<_>>(),
+        ),
+    ];
+    cases.extend(normalized::cases());
+    verify_formats(&cases, true);
+}
+
+#[test]
+#[ignore = "requires explicit hardware D3D11/Spout qualification; no desktop input"]
+fn hardware_extended_formats_preserve_bits_implicit_channels_and_pool_charges() {
+    verify_formats(&channels::cases(), false);
+}
+
+fn verify_formats(cases: &[normalized::Case], replacements: bool) {
     let done = support::watchdog("source format qualification");
     let inventory = adapters().unwrap();
     let hardware = inventory.iter().filter(|adapter| !adapter.software).collect::<Vec<_>>();
     assert!(!hardware.is_empty());
     for adapter in hardware {
-        let mut cases = vec![
-            (
-                PixelFormat::Rgba16Float,
-                DXGI_FORMAT_R16G16B16A16_FLOAT,
-                [0.125, 1.25, -0.25, 0.5],
-                [0x3000_u16, 0x3d00, 0xb400, 0x3800]
-                    .into_iter()
-                    .flat_map(u16::to_le_bytes)
-                    .collect::<Vec<_>>(),
-            ),
-            (
-                PixelFormat::Rgba32Float,
-                DXGI_FORMAT_R32G32B32A32_FLOAT,
-                [0.1234567, 1.25, -0.25, 0.5],
-                [0.1234567_f32, 1.25, -0.25, 0.5]
-                    .into_iter()
-                    .flat_map(f32::to_le_bytes)
-                    .collect::<Vec<_>>(),
-            ),
-        ];
-        cases.extend(normalized::cases());
-        for (format, raw_format, color, expected_bytes) in cases {
+        for (format, raw_format, color, expected_bytes) in cases.iter().cloned() {
             let native_format = if matches!(raw_format.0, 21 | 22) {
                 DXGI_FORMAT_B8G8R8A8_UNORM
             } else {
@@ -70,7 +81,7 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
                 )
                 .unwrap();
                 assert_eq!(descriptor.format, format);
-                let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm;
+                let opaque = registered == 22 || format == PixelFormat::Bgrx8Unorm || channels::opaque(format);
                 assert_eq!(
                     descriptor.alpha_mode,
                     if opaque { AlphaMode::Opaque } else { AlphaMode::Straight }
@@ -163,17 +174,30 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
                 )
                 .unwrap();
                 let pipeline = Pipeline::new(&device.device).unwrap();
+                let background = (format == PixelFormat::A8Unorm).then(|| {
+                    let background = Texture::new(&device.device, target.descriptor).unwrap();
+                    unsafe {
+                        device.context.ClearRenderTargetView(&background.rtv, &[1.; 4]);
+                    }
+                    background
+                });
                 pipeline.draw(
                     &device.context,
                     &capture,
-                    None,
+                    background.as_ref(),
                     (&target).into(),
                     1.,
                     BlendMode::Normal,
                     SampleFilter::Nearest,
                 );
                 let rendered = readback(&device, &target, 16);
-                let expected = normalized::expected(format, &source_bits[..pixel_bytes], color, opaque);
+                let mut expected = normalized::expected(format, &source_bits[..pixel_bytes], color, opaque);
+                if background.is_some() {
+                    for i in 0..3 {
+                        expected[i] += 1. - expected[3];
+                    }
+                    expected[3] = 1.;
+                }
                 let tolerance = normalized::tolerance(format);
                 let mut max_shader_error = 0_f32;
                 for pixel in rendered.chunks_exact(16) {
@@ -245,13 +269,16 @@ fn hardware_source_formats_preserve_bits_color_alpha_shader_pixels_and_pool_char
                         "probe_reserved_bytes":raw.len(),
                         "byte_pixel_export":byte_export,
                         "retired":true,
+                        "alpha_only_over_white":background.is_some(),
                     })
                 );
             }
         }
-        srgb::verify_replacements(adapter.id);
-        legacy::verify_replacements(adapter.id);
-        unspecified::verify_replacements(adapter.id);
+        if replacements {
+            srgb::verify_replacements(adapter.id);
+            legacy::verify_replacements(adapter.id);
+            unspecified::verify_replacements(adapter.id);
+        }
     }
     done.send(()).unwrap();
 }

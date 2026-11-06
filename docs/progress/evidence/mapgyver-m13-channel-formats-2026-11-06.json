@@ -1,0 +1,690 @@
+{
+  "schema": 1,
+  "date": "2026-11-06",
+  "gate": "M13/2",
+  "status": "Active; thirteen direct channel layouts verified; complete backend/app/recovery gate remains open",
+  "base_commit": "80faf1c26467e12ffa264d193d2f0ab97572940f",
+  "delivered": "Automatic native R/RG float and UNORM/SNORM, R11G11B10 float and A8 import, with exact format storage charges and correct implicit channels.",
+  "ownership": "Golden PixelFormat storage/alpha facts, D3D11 format/view selection, Spout discovery and generic shader sampling; no app-specific settings or CPU conversion.",
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "230 passed,39 ignored; includes native-sized byte arithmetic/overflow and physical alpha presence."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "508 passed,2 ignored; generated contracts included."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings; cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Both pass before native validation."
+    },
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib native::inputs::tests::formats::hardware_ -- --ignored --nocapture --test-threads=1",
+      "result": "2 passed,267 filtered,exit0 in75.01seconds.104 cases including52 new and52 regressions, with prior worker/probe/receiver/mismatch controls. Each independent fixture keeps its original90-second process guard; no product budget changes."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-channel-formats",
+      "result": "Isolated current app builds,exit0; user's running executable is not replaced."
+    },
+    {
+      "command": "cargo fmt --all -- --check; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml -- --check",
+      "result": "Both pass."
+    }
+  ],
+  "native": {
+    "method": "Independent raw D3D11 Clear and actual SDK SendTexture with explicit/unspecified metadata. Compare producer staging bits with production SourcePool receiving storage, then sample through production Pipeline into RGBA32F and compare with independent normalized/float decoding.",
+    "total_cases": 104,
+    "new_cases": 52,
+    "previous_cases": 52,
+    "direct_native_formats_now": 25,
+    "assertions": {
+      "source_bits_exact": true,
+      "shader_reference_within_target": true,
+      "all_new_shader_errors_zero": true,
+      "actual_first_frame_ready": true,
+      "source_probe_logical_charges_reserved_and_reclaimed": true,
+      "nonbyte_export_rejected_before_staging": true,
+      "known_legacy_wrong_alias_rejections_preserved": true,
+      "previous_live_worker_probe_recovery_passes": true
+    },
+    "patterns": "Fractional binary32 red; binary16 and R11G11B10 HDR values above one; signed-normalized negative values; normalized precision; implicit zero G/B and opaque alpha. A8 composites over white to verify real alpha coverage and a nonblack result.",
+    "formats": [
+      {
+        "format": "R8Unorm",
+        "native_format": 61,
+        "bytes_per_pixel": 1,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              32
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              0.125490203499794,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              32
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              0.125490203499794,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "R8Snorm",
+        "native_format": 63,
+        "bytes_per_pixel": 1,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              224
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              -0.25196850299835205,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              224
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              -0.25196850299835205,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg8Unorm",
+        "native_format": 49,
+        "bytes_per_pixel": 2,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              32,
+              128
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              0.125490203499794,
+              0.501960813999176,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              32,
+              127
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              0.125490203499794,
+              0.49803921580314636,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg8Snorm",
+        "native_format": 51,
+        "bytes_per_pixel": 2,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              224,
+              64
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              -0.25196850299835205,
+              0.5039370059967041,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              224,
+              63
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              -0.25196850299835205,
+              0.4960629940032959,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "R16Unorm",
+        "native_format": 56,
+        "bytes_per_pixel": 2,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              32
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              0.1250019073486328,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              32
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              0.1250019073486328,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "R16Snorm",
+        "native_format": 58,
+        "bytes_per_pixel": 2,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              224
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              -0.25000762939453125,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              224
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              -0.25000762939453125,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg16Unorm",
+        "native_format": 35,
+        "bytes_per_pixel": 4,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              32,
+              0,
+              128
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.1250019073486328,
+              0.5000076293945312,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              32,
+              255,
+              127
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.1250019073486328,
+              0.49999237060546875,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg16Snorm",
+        "native_format": 37,
+        "bytes_per_pixel": 4,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              224,
+              0,
+              64
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              -0.25000762939453125,
+              0.5000152587890625,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              224,
+              255,
+              63
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              -0.25000762939453125,
+              0.4999847412109375,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "R16Float",
+        "native_format": 54,
+        "bytes_per_pixel": 2,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              61
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              1.25,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              61
+            ],
+            "source_charge": 32,
+            "shader_expected": [
+              1.25,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg16Float",
+        "native_format": 34,
+        "bytes_per_pixel": 4,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              61,
+              0,
+              180
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              1.25,
+              -0.25,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              61,
+              0,
+              180
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              1.25,
+              -0.25,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "R32Float",
+        "native_format": 41,
+        "bytes_per_pixel": 4,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              222,
+              214,
+              252,
+              61
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.12345670163631439,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              222,
+              214,
+              252,
+              61
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.12345670163631439,
+              0,
+              0,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "Rg11B10Float",
+        "native_format": 26,
+        "bytes_per_pixel": 4,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              131,
+              30,
+              116
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.125,
+              1.25,
+              0.75,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              0,
+              131,
+              30,
+              116
+            ],
+            "source_charge": 64,
+            "shader_expected": [
+              0.125,
+              1.25,
+              0.75,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": false
+          }
+        ]
+      },
+      {
+        "format": "A8Unorm",
+        "native_format": 65,
+        "bytes_per_pixel": 1,
+        "adapters": [
+          {
+            "adapter": "AdapterId { low: 88937, high: 0 }",
+            "description": "Intel(R) Graphics",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              128
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              0.498039186000824,
+              0.498039186000824,
+              0.498039186000824,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": true
+          },
+          {
+            "adapter": "AdapterId { low: 2044916551, high: 0 }",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+            "explicit_and_unspecified": true,
+            "source_pixel_bytes": [
+              127
+            ],
+            "source_charge": 16,
+            "shader_expected": [
+              0.5019607543945312,
+              0.5019607543945312,
+              0.5019607543945312,
+              1
+            ],
+            "max_shader_error": 0,
+            "shader_tolerance": 9.999999974752427e-7,
+            "alpha_only_over_white": true
+          }
+        ]
+      }
+    ],
+    "test_binary": {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "1238a852e0000bcc7200909751879cb4207b614239bde3b8d277c3a32e4fef1f"
+    },
+    "scope": "Format-native source/probe logical storage charges and real GPU completion, not a new claim about driver padding/private growth, sustained timing, full app pixels or continuous-producer/device recovery."
+  },
+  "xr_bias_conversion_queue": {
+    "native_format": 89,
+    "existing_inventory_masks": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "support_mask": 286916640
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "support_mask": 286916640
+      }
+    ],
+    "shader_sample_support": false,
+    "render_target_support": false,
+    "source": "Already recorded native CheckFormatSupport results; no capability sweep repeated.",
+    "accepted": false,
+    "next": "Supported typed reinterpretation/conversion, with precision/color/alpha proof; allocation alone is insufficient."
+  },
+  "app_binary": {
+    "path": "target/debug/deps/MapGyver-m132-channel-formats.exe",
+    "sha256": "8e3a4dbc6697437fd77207aef7503d240868fd6b13852cfe5ab400c3525c3083",
+    "scope": "Current app compilation; full native app format/recovery integration remains unverified."
+  },
+  "remaining": [
+    "RG32 and packed BGR require supported bridge conversion; XR-bias requires supported typed interpretation/conversion.",
+    "Unsigned/signed integer, typeless and video-plane formats remain unimplemented/unverified; use the existing70 Intel/68 NVIDIA allocation inventory.",
+    "RGB32's API limit and actual D3D9 producer-device scope remain unaccepted.",
+    "Full native app preview/output integration, continuous producer reformat/resize and complete device recovery remain required.",
+    "No full gate closes:70/92 overall (76%),M13 1/14 (7%)."
+  ],
+  "desktop": "Automation authorized; no desktop input used."
+}
