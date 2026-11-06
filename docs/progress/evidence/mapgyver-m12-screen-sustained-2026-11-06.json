@@ -104,6 +104,66 @@
 	"archive_sha256": "acb42dd64aa65152c00d99fc43b289ec54d0a408128c50a1d7abfb8cf54ba29f",
 	"raw_sha256": "88d16ab8b536c87111ea3189e08e5bbb453c8b0b18a10457bb870b36509884a8",
 	"interpretation": "All samples fail GPU and definite submission cadence limits. CPU upper-bound percentiles, resource admission and retirement pass within this scope. Same-clock render partitions dominate, but do not distinguish active execution from scheduling/waits or prove text alone is the cause",
-	"next": "Deliver planned M12/10 destination-appropriate calibration typography, which changes this scene's text path. Return immediately afterward to M12/8 on that qualified implementation, retaining this failed series, all original budgets and every other required sustained cohort. No further unchanged-case probe or lower acceptance gate",
-	"progress": "65/78 gates (83%), M12 8/11 (73%); no gate accepted in this batch"
+	"atlas_text_retest": {
+		"product_commit": "37a98de2d6cce09e648f4f61d2bdbc2457db76d4",
+		"executable_sha256": "02cecb8b24aecedecdb21ca1878b344cb84ca1c4224c3e2413ae0afd03b2c0f0",
+		"pid": 39632,
+		"native_exit": 0,
+		"warmup_seconds": 30,
+		"sample_seconds": [120, 120, 120],
+		"samples": [
+			{
+				"frames": 4495,
+				"gpu_median_ms": 27.0784375,
+				"gpu_p95_ms": 27.947916666666668,
+				"gpu_p99_ms": 28.50567708333333,
+				"gpu_max_ms": 30.620625,
+				"cpu_p95_ms": 0.3421,
+				"cpu_p99_ms": 0.4385,
+				"definite_misses": 2705,
+				"deadline_slots": 7200
+			},
+			{
+				"frames": 4471,
+				"gpu_median_ms": 27.27546875,
+				"gpu_p95_ms": 28.126145833333332,
+				"gpu_p99_ms": 28.769479166666667,
+				"gpu_max_ms": 30.291822916666668,
+				"cpu_p95_ms": 0.367,
+				"cpu_p99_ms": 0.4897,
+				"definite_misses": 2730,
+				"deadline_slots": 7200
+			},
+			{
+				"frames": 4462,
+				"gpu_median_ms": 27.254947916666666,
+				"gpu_p95_ms": 28.165416666666665,
+				"gpu_p99_ms": 28.926979166666666,
+				"gpu_max_ms": 30.34796875,
+				"cpu_p95_ms": 0.3478,
+				"cpu_p99_ms": 0.4436,
+				"definite_misses": 2737,
+				"deadline_slots": 7200
+			}
+		],
+		"sample_frames": 13428,
+		"complete_cpu_gpu_schedule_coverage": true,
+		"diagnostic_rows": 67058,
+		"lost_or_queued_diagnostics": 0,
+		"paired_inventory_and_qpc_brackets": true,
+		"unchanged_execution_input_hashes": 412,
+		"peak_reserved_bytes": 374315504,
+		"retirement_ms": 75.8958,
+		"textures_created_and_released": 6,
+		"final_live_bytes": 0,
+		"final_outputs": [],
+		"artifacts": "mapgyver-m12-screen-sustained-2026-11-06/atlas-intel-4k-smooth.zip",
+		"archive_sha256": "3973393b4d33e22594fd85543de579ec958d04df6a3a2b56ece7e768c3e33119",
+		"raw_sha256": "ede694130a806b1c351b4b0b0a5b63f156e04520559ae591817acdac744848a4",
+		"result": "Typography is qualified, but this sustained Intel 4K Smooth case still fails unchanged GPU/cadence limits. Render-stage medians remain 24.58..24.61ms; no text-only cause or performance pass inferred",
+		"static_shader_review": "The exact embedded DXBC (SHA-256 0d84e63791e84b41cfea48e63c8b5fbff77dd3fb3cbb0936edbe63dea4a03149) has a declared immediate font table, no indexable temporary or per-pixel initializer instructions, and the old bitmap lookup inside its branch. Unconditional initialization hypothesis is unsupported; no product change or new GPU probe follows"
+	},
+	"proposal_unapproved": "Complete the remaining M12/8 measured-cost matrix as functional feature evidence, while retaining the unchanged 60Hz/GPU budget as unaccepted M03/9 and M09 production qualification. Accepting this split requires the user's explicit scope decision; no current gate or budget is revised",
+	"next": "Keep M12/8 unaccepted. Deliver independent M12/11 menu icons while the precise feature-versus-production gate decision is pending; return on that answer or an owning renderer redesign justified against the reproduced failure. Other sustained cohorts and all original budgets remain required",
+	"progress": "66/78 gates (85%), M12 9/11 (82%); M12/10 accepted separately, no cost gate accepted"
 }

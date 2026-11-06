@@ -591,6 +591,15 @@ implementation. This is an ordering change, not evidence that text alone caused 
 All original budgets, other sustained cohorts and all-gates prerequisites remain required.
 Do not repeat unchanged probes or infer a pass from delivered quality/resource behavior.
 
+**Execution ordering after the M12/10 return:** typography is Accepted, but its exact warmed
+Intel 4K Smooth retest still measures GPU p95 27.95–28.17 ms and fails cadence. A static read
+of the embedded shader does not support unconditional bitmap-font initialization; stop that
+hypothesis without another GPU probe. Keep M12/8 unaccepted and finish independent M12/11
+menu icons while a precise functional-feature versus production-timing gate split is proposed
+to the user. That proposal changes no requirement until explicitly approved. Return to M12/8
+on the scope answer or a justified owning renderer redesign addressing the reproduced cost;
+all other sustained cohorts, original budgets and M10/M09 prerequisites remain required.
+
 1. **Recorded glitches, flashes, panel reloads and Media Preview resizing.** Owners: Golden
    docking/Inspector/host/native-preview lifetime and MapGyver panel adapters. Reproduce the
    three supplied interactions on a recorded current build before choosing a fix. Cover Matrix
