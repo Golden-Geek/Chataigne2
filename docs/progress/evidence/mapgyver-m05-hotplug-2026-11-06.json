@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-06",
+  "gate": "M05/5",
+  "state": "Accepted",
+  "accepted_gate_change": 1,
+  "source_base": "0d62e2c77f364bbc1a99af32a1c4bb2cbd26aebf",
+  "capability_verified": "An already running fullscreen output preserves its authored target through physical monitor disconnect/reconnect and live OS arrangement, recovers the same EDID despite a changed Windows path, and follows negative and restored physical origins",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "cases": [
+    { "case": "NVIDIA hotplug", "pid": 35484, "hwnd": 96930610, "physical_checkpoints": 3 },
+    { "case": "NVIDIA live arrangement", "pid": 38236, "hwnd": 986566, "physical_checkpoints": 3, "normal_exit": 0 },
+    { "case": "Intel hotplug and live arrangement", "pid": 2904, "hwnd": 20909014, "physical_checkpoints": 5, "normal_exit": 0 }
+  ],
+  "observations": {
+    "same_native_hwnd_through_each_case": true,
+    "authored_screen_definition_unchanged": true,
+    "actual_adapter_unchanged": true,
+    "red_composited_pixels_at_all_11_checkpoints": true,
+    "negative_external_bounds": [-1920, 0, 0, 1080],
+    "restored_external_bounds": [2560, 0, 4480, 1080],
+    "restored_laptop_bounds": [0, 0, 2560, 1600],
+    "physical_monitor_identity": "Exact distinct EDID; OS path/index/adapter routing may change after physical reconnect",
+    "user_confirmed_scale_percent": { "external": 100, "laptop": 125 },
+    "both_complete_drivers_disabled_outputs_and_verified_native_retirement": true
+  },
+  "prerequisites": "Terminal software/strict checks in mapgyver-m05-native-menu-fixed-2026-11-06.json; exact qualified executable and 239 non-test input hashes rechecked before and after this fixture-only slice",
+  "retained_scope": [
+    "mapgyver-m05-mixed-move-2026-11-06.json: both-GPU mixed-DPI native geometry",
+    "mapgyver-m05-negative-origin-2026-11-06.json: both-GPU negative-origin outputs and preview geometry",
+    "mapgyver-m05-float-dpi-2026-11-06.json: fixed physical scales"
+  ],
+  "fixture_limits": "First startup failed before UI readiness; next run was interrupted by the user disabling the fallback output. The subsequent NVIDIA hotplug case physically recovered with the same HWND and EDID but its exact-path driver timed out. A same-live-process public catalog/Screen/status plus physical-window observation independently proves recovery, and is retained as reconnected-observed.json. The complete NVIDIA arrangement and Intel drivers pass and exit normally. Failed setup/driver results are retained, not relabelled as passing drivers.",
+  "remaining": "M05/8 full native capture/pattern/motion/hit and original latency acceptance; no device-removal, cadence or latency acceptance inferred",
+  "checks": "Node syntax and Prettier pass; root and Golden Core Cargo formatting completed; independent replay of all eleven actual observations passes",
+  "archive": {
+    "path": "mapgyver-m05-hotplug-2026-11-06.zip",
+    "bytes": 48060,
+    "sha256": "d52299f155ed7d627c811342caf50d9351797a904075e1cdc1e2608e2aaae1a7"
+  }
+}

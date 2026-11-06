@@ -217,6 +217,11 @@ Retain the [shell evidence](../progress/mapgyver-m02-shell.md); native quality i
 
 ### M03 — Deliver render/resource and channel foundations
 
+**Manual qualification priority (2026-11-06):** while the user is present, finish physical
+acceptance before returning to autonomous capture work. M05/5 hotplug/live arrangement is
+accepted; next exercise genuine M03/4 device recovery, then return to M05/8. All original
+requirements and M12/M08 prerequisites for Video/final qualification remain unchanged.
+
 Golden Video owns app-neutral immutable render plans, scheduling, opaque resources and native
 execution. MapGyver projects its authored media into guarded plans. Reuse Golden Time and Assets.
 
