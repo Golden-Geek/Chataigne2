@@ -23,6 +23,7 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, 
 
 const WAIT: Duration = Duration::from_secs(6);
 
+mod blocked_retirement;
 mod reader_leases;
 
 fn descriptor(side: u32) -> TextureDescriptor {

@@ -85,10 +85,11 @@ fn run(genuine: bool) {
         assert!(original.bytes_used > 0);
         owners.push((adapter, owner, original));
     }
+    eprintln!(
+        "READY_EXTERNAL_DEVICE_REMOVAL pid={}: owned D3D11 plans active, completions withheld; external reset must be explicitly approved",
+        std::process::id()
+    );
     if genuine {
-        eprintln!(
-            "READY_EXTERNAL_DEVICE_REMOVAL: owned D3D11 plans active, completions withheld; external reset must be explicitly approved"
-        );
         let deadline = Instant::now() + Duration::from_secs(30);
         while !owners
             .iter()

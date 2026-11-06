@@ -7,17 +7,25 @@ worker/shared-time deliveries; accepted counts belong to the [nine fixed M03 gat
 
 ## Current recovery qualification
 
-[Actual driver-reset recovery](evidence/mapgyver-m03-driver-reset-2026-11-06.json) now verifies
-genuine device loss and automatic recreation on both NVIDIA and Intel, unchanged adapter LUIDs,
-fresh exact independent output pixels, unchanged authored Surface state and normal owned exits.
-The user authorized the installed Microsoft DXCap trigger. Earlier NVIDIA-only PnP observations
-separately prove healthy Intel isolation; a new PnP LUID remains a missing explicit choice.
+**M03/4 is Accepted; M03 is 8/9 (89%).** The [complete recovery audit](evidence/mapgyver-m03-blocked-retirement-2026-11-06.json)
+combines real SDK contention and real queued GPU-fence waits on both adapters, fresh native
+initialization/endpoint/held-retirement regressions, and the original combined source/removal
+fixture with four real producer processes and two renderers. Intel's actual reset rebuilds the
+same plan on device generation 2 in 1181 ms, retires old withheld uses, restores current-device
+source copies/output pixels and ends with zero reservations in 197 ms. NVIDIA is the healthy
+control in that combined run; [earlier actual-app recovery](evidence/mapgyver-m03-driver-reset-2026-11-06.json)
+separately verifies genuine device recreation on both adapters.
 
-M03/4 still requires bounded recovery/retirement under an actually blocked source SDK or
-completion-query call. Existing held-completion and modeled source-drain tests establish safe
-ownership and responsive close requests, not cancellation of a blocked driver call. M03 remains
-7/9; production timing and peak-growth failures remain in M03/9. No budget or original requirement
-is waived by the successful driver reset.
+SDK workers retire within 83.221 ms while the peer access mutex stays held. Actual source GPU
+work queued behind a shared fence retains owners and storage charges through cancellation;
+cleanup follows the real release within 9.345 ms. Cancellation/timeout alone never certifies
+completion or authorizes freeing native owners. This preserves the original pending-retirement
+contract, including when completion/removal remains unproved; no forced OS-driver-call abort
+is claimed. Both invalid early-reset controller attempts remain preserved. Strict scalar/PID
+readiness, fresh artifacts and authoritative exit codes now guard the corrected passing run.
+
+M03/9 still owns production timing, cadence/frame-age and peak-growth failures. No original
+budget or qualification requirement changed. A new PnP LUID remains a missing explicit choice.
 
 ## Immutable render-plan compiler — 2026-10-28
 

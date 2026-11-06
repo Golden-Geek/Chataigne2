@@ -26,7 +26,7 @@ fn keyed_mutex_positive_timeout_and_abandoned_codes_are_not_success() {
     assert!(acquired(HRESULT(0x8000_4005_u32 as i32)).is_err());
 }
 
-fn fixture() -> (Arc<Shared>, TextureDescriptor) {
+pub(super) fn fixture() -> (Arc<Shared>, TextureDescriptor) {
     let descriptor = TextureDescriptor {
         extent: Extent2D::new(1, 1).unwrap(),
         format: PixelFormat::Rgba8Unorm,

@@ -444,3 +444,6 @@ impl Drop for Session {
         self.shared.update(|status| status.bridge_slots = 0);
     }
 }
+
+#[cfg(test)]
+mod tests;

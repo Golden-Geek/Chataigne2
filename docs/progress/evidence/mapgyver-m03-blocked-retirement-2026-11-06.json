@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-06",
+  "gate": "M03/4",
+  "state": "Accepted: production endpoint recovery, genuine device recreation, isolated healthy paths and completion-safe bounded retirement",
+  "accepted_gate_change": 1,
+  "progress": {"m03": "8/9 (89%)", "overall": "69/78 (88%)", "complete_phases": "7/13 (54%)"},
+  "source_base": "9fe3740217d9b382fb3fc614659e20f7326fa8cb",
+  "artifacts": {
+    "initial_native_test_sha256": "bc330e25c3bf53627fa53765612cd013590a4da911473542cc733e215b1aeed9",
+    "final_native_test_sha256": "546f24390d5b1d9810f231c7f2f0c830508e2fa000dea2c959bd1949fec5b258",
+    "current_source_fixture_sha256": "ba4e4899e1c0780534afa3f44d2f09c790bc7f2328db8d7ba4d22ad359a0dc6c",
+    "test_revision": "Initial blocked-work/cohort tests precede the readiness-marker-only edit in the separate removal fixture. Their bodies and runtime behavior are unchanged. Final221-test software/strict checks, full real no-reset handshake and combined genuine reset use the final executable."
+  },
+  "sdk_contention": {
+    "method": "Hold one owned legacy sender's actual named Spout access mutex. Two real inputs run in the same SourcePool. Require repeated SDK Busy and healthy input copies, then retire both workers while the peer mutex is still held.",
+    "intel_shutdown_us": 76417,
+    "nvidia_shutdown_us": 83221,
+    "busy_outcomes_each": 3,
+    "healthy_input_copy_publications": [38, 39],
+    "retirement_limit_seconds": 2,
+    "result": "Both worker states Stopped, mailboxes empty, no wait for peer access release. Copy/publication counts are successful API copies of a frozen source, not unique frames or cadence."
+  },
+  "native_gpu_wait": {
+    "method": "Queue ID3D11DeviceContext4::Wait on a shared fence before actual source bridge GPU work and its real completion signal. No withheld-CPU-observation seam is used in this case. Cancel while work is genuinely incomplete; require native owner/charge retention and independent same-GPU progress before signaling the dependency.",
+    "held_interval_ms": 100,
+    "retained_source_storage_bytes_each": 16,
+    "cancellation_request_limit_ms": 50,
+    "intel_total_retirement_ms": 103,
+    "nvidia_total_retirement_ms": 104,
+    "intel_release_to_retire_observation_us": 9345,
+    "nvidia_release_to_retire_observation_us": 9096,
+    "post_release_limit_seconds": 2,
+    "result": "Actual source slots stay owned and capacity cannot be reclaimed while the queue is blocked. After real fence release, native slots and ownership disappear and the full storage charge is reclaimable on both adapters.",
+    "reference": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11_3/nf-d3d11_3-id3d11devicecontext4-wait"
+  },
+  "combined_genuine_case": {
+    "directory": "m034-removal-4763c795d1ec425fb4a7cf8b2d0fa891",
+    "pid": 34552,
+    "started_utc": "2026-11-06T13:14:33.4184398Z",
+    "ready_utc": "2026-11-06T13:14:34.4414376Z",
+    "finished_utc": "2026-11-06T13:14:48.9011203Z",
+    "fixture_exit_code": 0,
+    "dxcap_exit_code": 0,
+    "owned_sender_processes": 4,
+    "renderers": 2,
+    "source_inputs_per_renderer": 2,
+    "affected_adapter": "dxgi:00000000:00015b69 (Intel)",
+    "native_removal_reason": "0x887a0007 (DXGI_ERROR_DEVICE_RESET), observed by the owning device",
+    "old_device_generation": 1,
+    "rebuilt_device_generation": 2,
+    "same_plan_identity": true,
+    "recreation_ms": 1181,
+    "recreation_limit_ms": 5000,
+    "shutdown_ms": 197,
+    "shutdown_limit_ms": 5000,
+    "asserted": "Old unobserved uses retire only after confirmed loss; no old retiring generations remain. Rebuilt plan identity and byte charge match, peak remains admitted, current-device sources stream and copy again, both outputs resume API acceptance and independent complete pixel captures are green. Both runtimes end Stopped with zero reserved bytes and no initialized native backend; all four owned producers exit normally.",
+    "adapter_scope": "This combined reset affects Intel; NVIDIA remains the healthy control. Earlier actual-app reset evidence verifies device loss/recreation on both GPUs separately. Do not relabel NVIDIA as affected in this combined run."
+  },
+  "gate_audit": {
+    "production_source_output_observations": "Current SDK contention and combined four-producer input/output fixture, retained M04 native source parity and initial endpoint-recovery evidence",
+    "device_removal_recreation": "Combined real Intel reset with held old uses and active input aliases; earlier mapgyver-m03-driver-reset-2026-11-06.json supplies actual-app both-GPU recreation",
+    "isolated_healthy_paths": "Healthy input progresses during real SDK contention; NVIDIA survives the combined Intel reset; retained endpoint-collision case keeps its other output active",
+    "cancellation_and_retirement": "Real pending GPU work retains owners and charges, actual SDK contention honors bounded retirement, then confirmed completion/removal permits actual cleanup. Public close/project-ack held-observation regressions also pass in the fresh cohort.",
+    "initial_allocation_and_fences": "Fresh native startup-retry test makes four real attempts before serving;221 software tests cover cancellation, project/revision/device fencing and ownership",
+    "original_semantics_preserved": "Cancellation or a timeout never certifies GPU completion. If completion/removal is still unknown, retirement stays pending and owners stay charged, as explicitly required by the original endpoint-recovery evidence. No forced abort of an unreturning OS driver call, fabricated HRESULT or unsafe timer-based release is claimed."
+  },
+  "checks": {
+    "software": "cargo test --locked -p golden_video --features qualification --lib:221 passed,36 hardware tests ignored",
+    "strict": "Golden Video qualification all-target Clippy with -D warnings passed; current native_source_fixture build and its strict MapGyver target Clippy passed",
+    "native": "Two new blocked-work tests pass on both adapters; five existing initialization/endpoint/source/held-retirement/preflight groups pass; final genuine combined removal test passes",
+    "controller": "Six pure readiness negative/positive checks pass; full real no-reset current-PID readiness handshake passes before the final reset; fresh GUID directories and authoritative exit codes are mandatory",
+    "format": "Root and Golden Core cargo fmt complete",
+    "scope": "Changes are tests, their cfg(test) module wiring and controller safety. No product/protocol behavior or UI authored source changed; no performance budget was relaxed."
+  },
+  "failed_attempts": "Two reset attempts triggered before actual fixture readiness and failed in producer startup. Initially suspected stale content; the fresh-directory retry isolated the PowerShell empty-cmdlet-output/-notmatch condition. The first wrapper also lost the native exit code and returned0 despite a FAILED test log. Both failures remain archived and accepted no gate. The final controller requires a strict scalar Boolean, exact current PID plus actual marker text, a retained process handle and nonmissing exit status; its positive no-reset handshake is tested before use.",
+  "authorization_and_limits": "First extra resets were individually approved. At lunch the user explicitly authorized autonomous resets; the original13:10 cutoff and failed attempts remained recorded, and only the already-defined corrected combined case was reopened through13:22. That case passes; no further reset variant is needed. M03/9 production CPU/GPU/cadence/frame-age/memory qualification and its measured failures remain open, as do other phase gates.",
+  "archive": {
+    "path": "mapgyver-m03-blocked-retirement-2026-11-06.zip",
+    "bytes": 20596,
+    "sha256": "b9de6128e7838449663bef85f86f6652815efda5e115581cf33a441bf2196505"
+  }
+}
