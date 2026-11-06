@@ -5,6 +5,20 @@ identity, defaults, automatic-size intent and editor policy. The shared desktop 
 windows and WebView UI-thread access. This evidence covers the compiler and subsequent bounded
 worker/shared-time deliveries; accepted counts belong to the [nine fixed M03 gates](mapgyver-status.md#m03-acceptance-items).
 
+## Current recovery qualification
+
+[Actual driver-reset recovery](evidence/mapgyver-m03-driver-reset-2026-11-06.json) now verifies
+genuine device loss and automatic recreation on both NVIDIA and Intel, unchanged adapter LUIDs,
+fresh exact independent output pixels, unchanged authored Surface state and normal owned exits.
+The user authorized the installed Microsoft DXCap trigger. Earlier NVIDIA-only PnP observations
+separately prove healthy Intel isolation; a new PnP LUID remains a missing explicit choice.
+
+M03/4 still requires bounded recovery/retirement under an actually blocked source SDK or
+completion-query call. Existing held-completion and modeled source-drain tests establish safe
+ownership and responsive close requests, not cancellation of a blocked driver call. M03 remains
+7/9; production timing and peak-growth failures remain in M03/9. No budget or original requirement
+is waived by the successful driver reset.
+
 ## Immutable render-plan compiler — 2026-10-28
 
 The new [Golden Video crate](../../crates/golden_video/README.md) is independent of Tauri,

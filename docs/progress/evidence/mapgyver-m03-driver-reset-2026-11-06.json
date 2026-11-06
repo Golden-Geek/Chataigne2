@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-06",
+  "gate": "M03/4",
+  "state": "Genuine driver-reset loss and automatic same-adapter recovery verified on both GPUs; stuck-call retirement remains open",
+  "accepted_gate_change": 0,
+  "source_base": "688718ccf6b3c7ccb36d38ddaef0ee0a29c19517",
+  "binary_sha256": "cf626a9162e29f895e44f04ba7d3048b829a37bc9bff9699bd1437f3b4d708a5",
+  "unchanged_non_test_inputs": 239,
+  "authorization": "User explicitly replied: Saved, run the driver reset now. No driver reset was performed before this confirmation. Microsoft DXCap is already installed at C:/Windows/System32/DXCap.exe.",
+  "trigger": {
+    "command": "DXCap.exe -forcetdr",
+    "unelevated_result": "Exit -1; explicitly requires administrator; no successful trigger claimed",
+    "elevated_start_utc": "2026-11-06T11:58:52.5299649Z",
+    "elevated_finish_utc": "2026-11-06T11:58:52.6933773Z",
+    "elevated_pid": 34812,
+    "elevated_exit_code": 0,
+    "method": "Start-Process with RunAs, hidden window and retained process handle; no registry/driver/display-setting mutation",
+    "reference": "https://learn.microsoft.com/en-us/windows/uwp/gaming/handling-device-lost-scenarios"
+  },
+  "observations": {
+    "paired_samples": 316,
+    "first_utc": "2026-11-06T11:58:09.359Z",
+    "last_utc": "2026-11-06T12:00:50.451Z",
+    "observation_errors": 0,
+    "each_gpu_faulted_samples": 2,
+    "first_actual_loss_sample_utc": "2026-11-06T11:59:09.313Z",
+    "last_actual_loss_sample_utc": "2026-11-06T11:59:10.062Z",
+    "first_recovered_sample_utc": "2026-11-06T11:59:10.573Z",
+    "runtime_error": "Backend: render device was lost",
+    "nvidia_output_hresult": -2005270523,
+    "nvidia_output_hresult_name": "DXGI_ERROR_DEVICE_REMOVED (0x887a0005)",
+    "nvidia_output_states_in_retained_log": ["DeviceLost", "Stopped"],
+    "claim_boundary": "Runtime loss evidence comes from the production backend's real device-removal checks; the command's exit0 alone is insufficient. Both adapters lose their devices during this global trigger; healthy-path isolation is proved separately by the prior NVIDIA-only PnP case."
+  },
+  "adapters": [
+    {"name": "NVIDIA GeForce RTX 5080 Laptop GPU", "pid": 30844, "before_and_after": "dxgi:00000000:79e2f347", "fresh_colour": "green"},
+    {"name": "Intel(R) Graphics", "pid": 23144, "before_and_after": "dxgi:00000000:00015b69", "fresh_colour": "blue"}
+  ],
+  "pixels": {
+    "independent_sdk_images": 4,
+    "extent": [320, 180],
+    "colour_rectangle": [64, 36, 256, 144],
+    "background": "black",
+    "before": "red on both GPUs",
+    "after": "NVIDIA green and Intel blue after explicit public ConfigureChannel edits",
+    "maximum_whole_image_rgb_error": 0,
+    "all_sdk_probes_retired": true
+  },
+  "retirement": "Both exact authored Surface snapshots match before/after. Both owned native app exits and fixture exits are0; closed.json retains shutdown logs. Recorder stops before teardown. Static pixels, metadata sampling and the helper's finite seven-second shutdown assertion do not establish the separate production timing/memory budgets.",
+  "timing_limit": "500ms observer over one-second runtime metadata. The last preceding Running sample is11:59:07.569Z; first restored Running is11:59:10.573Z. No exact device-loss instant, GPU completion latency, p95 recovery distribution or input-to-visible latency is inferred. The trigger command returns before the actual loss samples.",
+  "gate_audit": {
+    "production_source_output_and_isolation": "Retained Spout/source observations, endpoint name-collision recovery and actual NVIDIA-only PnP/healthy-Intel output evidence",
+    "initialization_retries_and_cancellation": "Retained startup-retry and endpoint-recovery contracts/tests",
+    "genuine_native_device_loss_recreation": "Verified here on both GPUs, with exact identities and fresh independent output images",
+    "completion_unavailable_safety": "Existing native held-completion test retains owners/project acknowledgment, keeps healthy output active and bounds close request; source-drain test models blocked/failing queries",
+    "remaining": "Bounded recovery/retirement under an actually blocked source SDK or completion-query call remains unverified. The modeled/held-completion seams do not prove cancellation can abort a blocked driver call. Retain this original requirement; do not close M03/4 or transfer it silently into M03/9."
+  },
+  "checks": "Node syntax/Prettier, four exact SDK PNG replays, unchanged Surface snapshots, both normal exits and239 unchanged runtime input hashes pass. Qualified binary and retained terminal software/compile evidence are unchanged. Root and Golden Core cargo fmt completed. No product/protocol code changed.",
+  "other_work": "M05 real-menu baseline failed its60-second owned-foreground wait before any pixel capture; app/fixture closes0. Three unverified menu sources remain in stashdb6fdca31886e8c85c47d107dcb80486911fab7f. No unrelated desktop image archived and no menu acceptance claimed.",
+  "archive": {
+    "path": "mapgyver-m03-driver-reset-2026-11-06.zip",
+    "bytes": 21816,
+    "sha256": "884aba7ff1aaeea0c93d74ac26084f57398712fafcbf705b6ba3b73e5e5e6dc2"
+  }
+}
