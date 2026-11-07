@@ -18,6 +18,7 @@
 	import VirtualGrid from './VirtualGrid.svelte';
 	import { followPanelTitle } from '../panel-title.svelte';
 	import { gridActions } from './grid-actions';
+	import { createCellTransfers, type CellDrag } from './cell-transfer';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
@@ -85,6 +86,17 @@
 		() => matrixWindow?.label
 	);
 	const selection = useDocumentSelection();
+	const transfers = createCellTransfers({
+		session: () => owner.session,
+		target: () =>
+			owner.matrixWindow
+				? { project: owner.matrixWindow.project, media: owner.matrixWindow.media }
+				: null,
+		busy: () => owner.busy,
+		edit: (edit) => owner.edit(edit),
+		captureSelection: selection.capture,
+		selectAddress: (layer, column) => controller.select({ kind: 'Layer', id: layer }, column)
+	});
 	const selectDocumentNode = selection.select;
 	let anchor = $state<ContextMenuAnchor | null>(null);
 	let items = $state.raw<ContextMenuItem[]>([]);
@@ -96,16 +108,24 @@
 		group?: ColumnGroupSnapshot
 	) {
 		if (busy) return;
-		items = gridActions(owner, selection, row, column, creationOnly, group);
+		items = gridActions(owner, selection, row, column, creationOnly, group, undefined, transfers);
 		anchor =
 			event.type === 'click' && event.detail === 0 && event.currentTarget instanceof HTMLElement
 				? { kind: 'element', element: event.currentTarget, placement: 'bottom-start' }
 				: { kind: 'point', x: event.clientX, y: event.clientY };
 	}
+	function cellDrop(source: CellDrag, layer: string, column: string, event: DragEvent) {
+		if (busy) return;
+		if (event.altKey) {
+			items = transfers.menu(source, layer, column);
+			anchor = { kind: 'point', x: event.clientX, y: event.clientY };
+		} else void transfers.run(source, layer, column, 'Drop');
+	}
 	$effect(() => {
 		void view.media;
 		void owner.session?.snapshotGeneration;
 		anchor = null;
+		items = [];
 	});
 </script>
 
@@ -137,9 +157,22 @@
 						persist();
 					}}
 					{menu}
+					cellSource={transfers.source}
+					{cellDrop}
+					cellCopy={transfers.copy}
+					cellPaste={transfers.paste}
 					createMenu={(event, axis) => {
 						if (busy) return;
-						items = gridActions(owner, selection, undefined, undefined, false, undefined, axis);
+						items = gridActions(
+							owner,
+							selection,
+							undefined,
+							undefined,
+							false,
+							undefined,
+							axis,
+							transfers
+						);
 						anchor = {
 							kind: 'element',
 							element: event.currentTarget instanceof HTMLElement ? event.currentTarget : null,
@@ -205,6 +238,7 @@
 	{items}
 	onClose={() => {
 		anchor = null;
+		items = [];
 	}} />
 
 <style>

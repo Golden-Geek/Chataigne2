@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { IconButton } from 'golden_ui';
+	import { IconButton, registerCommandHandler } from 'golden_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
@@ -25,6 +25,8 @@
 	import StopAllControl from './StopAllControl.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
+	import { CELL_DRAG_TYPE, readCellDrag, type CellDrag } from './cell-transfer';
+	import { sameSelection } from './selection';
 	let {
 		snapshot,
 		selected,
@@ -41,6 +43,10 @@
 		selectedGroup,
 		trigger,
 		drop,
+		cellSource,
+		cellDrop,
+		cellCopy,
+		cellPaste,
 		edit,
 		menu,
 		createMenu
@@ -60,6 +66,10 @@
 		selectedGroup: string | null;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
+		cellSource(cell: string): CellDrag | null;
+		cellDrop(source: CellDrag, layer: string, column: string, event: DragEvent): void;
+		cellCopy(cell: string, cut?: boolean): boolean;
+		cellPaste(layer: string, column: string, reference?: boolean): Promise<boolean>;
 		edit(value: MatrixEdit): Promise<unknown>;
 		createMenu(event: MouseEvent, axis: 'Column' | 'Layer'): void;
 		menu(
@@ -117,6 +127,26 @@
 		dragging = value;
 		event.dataTransfer.effectAllowed = 'move';
 		event.dataTransfer.setData('application/x-mapgyver-matrix-drag', JSON.stringify(value));
+	}
+	function startCellDrag(event: DragEvent, cell: string) {
+		const source = disabled ? null : cellSource(cell);
+		if (!source || !event.dataTransfer) {
+			event.preventDefault();
+			return;
+		}
+		event.stopPropagation();
+		event.dataTransfer.effectAllowed = 'all';
+		event.dataTransfer.setData(CELL_DRAG_TYPE, JSON.stringify(source));
+	}
+	function cellTarget(event: DragEvent) {
+		if (
+			disabled ||
+			!event.dataTransfer?.types.includes(CELL_DRAG_TYPE) ||
+			!(event.target instanceof Element)
+		)
+			return null;
+		const target = event.target.closest<HTMLElement>('[data-cell-drop]');
+		return target && element.contains(target) ? target : null;
 	}
 	function selectHeader(event: MouseEvent | KeyboardEvent, select: () => void) {
 		if (disabled) return;
@@ -225,7 +255,41 @@
 			snapshot.media
 		);
 	}
+	function transferKey(event: KeyboardEvent) {
+		if (
+			!disabled &&
+			(event.ctrlKey || event.metaKey) &&
+			event.target instanceof Element &&
+			!event.target.closest('input,textarea,select,[contenteditable=true],[role=slider]')
+		) {
+			const selectedCell =
+				snapshot.selected && sameSelection(snapshot.selected.selection, selected)
+					? snapshot.selected.cell?.cell
+					: selected?.item
+						? cells.get(`${selected.item.id}:${selected.column}`)?.cell
+						: null;
+			const key = event.key.toLowerCase();
+			if (
+				(key === 'c' || key === 'x') &&
+				!event.altKey &&
+				selectedCell &&
+				cellCopy(selectedCell.id, key === 'x')
+			) {
+				event.preventDefault();
+				event.stopPropagation();
+				return;
+			}
+			if (key === 'v' && selected?.item?.kind === 'Layer' && selected.column) {
+				event.preventDefault();
+				event.stopPropagation();
+				void cellPaste(selected.item.id, selected.column, event.altKey);
+				return;
+			}
+		}
+	}
 	function navigate(event: KeyboardEvent) {
+		// Alt+Paste is a specialized Reference action; ordinary clipboard keys use Golden commands.
+		if (event.altKey) transferKey(event);
 		if (event.target !== element) return;
 		const delta: Record<string, ScrollToOptions> = {
 			ArrowDown: { top: projection.row * metrics.rem },
@@ -262,13 +326,35 @@
 		untrack(() => viewport(wanted));
 	});
 	onMount(() => {
+		const commands = (['edit.copy', 'edit.cut', 'edit.paste'] as const).map((command) =>
+			registerCommandHandler(
+				command,
+				({ event }) => {
+					if (
+						!event ||
+						!(event.target instanceof Element) ||
+						!element.contains(event.target) ||
+						event.target.closest('input,textarea,select,[contenteditable=true],[role=slider]')
+					)
+						return false;
+					// Claim this panel's clipboard command before generic subtree editing can run.
+					event.stopPropagation();
+					transferKey(event);
+					return true;
+				},
+				{ priority: 200 }
+			)
+		);
 		const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 1;
 		element.scrollTop = scroll.top * rem;
 		element.scrollLeft = scroll.left * rem;
 		const resize = new ResizeObserver(measure);
 		resize.observe(element);
 		measure();
-		return () => resize.disconnect();
+		return () => {
+			resize.disconnect();
+			for (const dispose of commands) dispose();
+		};
 	});
 </script>
 
@@ -288,6 +374,16 @@
 			}}
 			oncontextmenu={context}
 			ondragover={(event) => {
+				const cell = cellTarget(event);
+				if (cell) {
+					clearDropHint();
+					event.preventDefault();
+					event.stopPropagation();
+					if (event.dataTransfer) event.dataTransfer.dropEffect = event.altKey ? 'copy' : 'move';
+					highlighted = cell;
+					cell.setAttribute('data-matrix-drop-position', 'inside');
+					return;
+				}
 				const target = dropAt(event);
 				clearDropHint();
 				if (!target) return;
@@ -302,6 +398,16 @@
 					clearDropHint();
 			}}
 			ondrop={(event) => {
+				const cell = cellTarget(event);
+				if (event.dataTransfer?.types.includes(CELL_DRAG_TYPE)) {
+					const source = readCellDrag(event.dataTransfer.getData(CELL_DRAG_TYPE));
+					endDrag();
+					event.preventDefault();
+					event.stopPropagation();
+					if (source && cell?.dataset.cellLayer && cell.dataset.cellColumn)
+						cellDrop(source, cell.dataset.cellLayer, cell.dataset.cellColumn, event);
+					return;
+				}
 				const target = dropAt(event);
 				endDrag();
 				if (!target) return;
@@ -465,10 +571,18 @@
 								addLabel="Set media"
 								replaceOnly={cell?.cell.media ? column.id : null}
 								data-column-id={column.id}
+								data-cell-drop={row.item.id.kind === 'Layer' ? '' : undefined}
+								data-cell-layer={row.item.id.id}
+								data-cell-column={column.id}
 								style={`position:absolute;top:0;left:${projection.columnOrigin + column.axis_index * projection.column}rem;width:var(--column);height:var(--row)`}
 								onsource={(source, _target, event) => drop(row, column, source, event.altKey)}>
 								<button
 									class="cell"
+									draggable={cell != null && row.item.id.kind === 'Layer' && !disabled}
+									data-cell-id={cell?.cell.id}
+									ondragstart={(event) => {
+										if (cell) startCellDrag(event, cell.cell.id);
+									}}
 									class:has-preview={cell?.source_preview != null && !cell?.source_missing}
 									class:group-cell={row.item.id.kind === 'Group'}
 									role="gridcell"

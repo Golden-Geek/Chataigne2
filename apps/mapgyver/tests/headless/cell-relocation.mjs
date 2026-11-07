@@ -73,7 +73,13 @@ try {
 	]) {
 		const before = await read();
 		const source = before.value.cells.find((cell) => cell.id === a);
-		await matrix({ kind: 'RelocateCell', cell: a, layer, column, occupied });
+		await matrix({
+			kind: 'TransferCell',
+			cell: a,
+			layer,
+			column,
+			action: occupied === 'Swap' ? 'Drop' : 'Move'
+		});
 		const after = await read();
 		const moved = after.value.cells.find((cell) => cell.id === a);
 		assert.equal(moved.layer, layer);
@@ -97,11 +103,11 @@ try {
 			kind: 'Matrix',
 			media: reference.media,
 			edit: {
-				kind: 'RelocateCell',
+				kind: 'TransferCell',
 				cell: a,
 				layer: rows[1],
 				column: columns[1],
-				occupied: 'Reject'
+				action: 'Move'
 			}
 		}
 	});
@@ -110,11 +116,11 @@ try {
 	assert.equal((await read()).history.undo_len, before.history.undo_len);
 	checks.push({ occupied_rejection: true, no_partial_state: true, exact_history: true });
 	await matrix({
-		kind: 'RelocateCell',
+		kind: 'TransferCell',
 		cell: a,
 		layer: rows[0],
 		column: columns[1],
-		occupied: 'Reject'
+		action: 'Move'
 	});
 	assert.deepEqual((await read()).value, before.value);
 	assert.equal((await read()).history.undo_len, before.history.undo_len);
@@ -148,7 +154,7 @@ try {
 		const result = await operation({
 			kind: 'Matrix',
 			media: targetMedia,
-			edit: { kind: 'DuplicateCell', cell: a, layer, column, mode }
+			edit: { kind: 'TransferCell', cell: a, layer, column, action: mode }
 		});
 		const after = await inspect();
 		const created = after.value.cells.find((cell) => cell.id === result.value.cell);

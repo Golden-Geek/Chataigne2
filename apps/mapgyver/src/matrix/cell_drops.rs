@@ -9,13 +9,53 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 
-pub(super) fn duplicate(
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DuplicateMode {
+    Copy,
+    Reference,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OccupiedPolicy {
+    Reject,
+    Swap,
+}
+
+pub(super) fn transfer(
     engine: &mut AppEngine,
     document: &Document,
     cell: CellId,
     layer: LayerId,
     column: ColumnId,
-    mode: CellDuplicateMode,
+    action: CellTransferAction,
+) -> Result<crate::media::protocol::MediaEditResult, String> {
+    match action {
+        CellTransferAction::Copy => duplicate(engine, document, cell, layer, column, DuplicateMode::Copy),
+        CellTransferAction::Reference => duplicate(engine, document, cell, layer, column, DuplicateMode::Reference),
+        CellTransferAction::Move | CellTransferAction::Drop => {
+            relocate(
+                engine,
+                document,
+                cell,
+                layer,
+                column,
+                if action == CellTransferAction::Drop {
+                    OccupiedPolicy::Swap
+                } else {
+                    OccupiedPolicy::Reject
+                },
+            )?;
+            Ok(crate::media::protocol::MediaEditResult::Changed)
+        }
+    }
+}
+
+fn duplicate(
+    engine: &mut AppEngine,
+    document: &Document,
+    cell: CellId,
+    layer: LayerId,
+    column: ColumnId,
+    mode: DuplicateMode,
 ) -> Result<crate::media::protocol::MediaEditResult, String> {
     let parent = document.item(MatrixItemId::Layer { id: layer })?;
     document.column(column)?;
@@ -59,7 +99,7 @@ pub(super) fn duplicate(
         DeclId("parameters/column".into()),
         ParamValue::Reference(NodeReference::new(column.0)),
     )];
-    if mode == CellDuplicateMode::Reference {
+    if mode == DuplicateMode::Reference {
         project.root.children.retain(|child| Some(child.uuid) != content);
         initial_params.push((
             DeclId("parameters/shared_app_control".into()),
@@ -83,7 +123,7 @@ pub(super) fn duplicate(
         unreachable!()
     };
     let created_id = CellId(created.node_data().meta.uuid);
-    if mode == CellDuplicateMode::Reference {
+    if mode == DuplicateMode::Reference {
         let settings = created
             .application_node()
             .ok_or("Cell app-control settings are missing")?;
@@ -109,13 +149,13 @@ pub(super) fn duplicate(
     })
 }
 
-pub(super) fn relocate(
+fn relocate(
     engine: &mut AppEngine,
     document: &Document,
     cell: CellId,
     layer: LayerId,
     column: ColumnId,
-    occupied: CellOccupiedDrop,
+    occupied: OccupiedPolicy,
 ) -> Result<(), String> {
     let source = document
         .snapshot
@@ -133,7 +173,7 @@ pub(super) fn relocate(
         .cells
         .iter()
         .find(|entry| entry.layer == layer && entry.definition.column == column);
-    if target.is_some() && occupied == CellOccupiedDrop::Reject {
+    if target.is_some() && occupied == OccupiedPolicy::Reject {
         return Err("Destination Cell is occupied; choose Swap or an empty address".into());
     }
     let mut candidate = document.snapshot.clone();

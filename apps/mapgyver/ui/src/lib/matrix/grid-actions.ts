@@ -6,6 +6,7 @@ import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
 import type { createMatrixEditor } from './editor.svelte';
 import type { useDocumentSelection } from '../selection.svelte';
+import type { createCellTransfers } from './cell-transfer';
 
 export function gridActions(
 	owner: ReturnType<typeof createMatrixEditor>,
@@ -14,7 +15,8 @@ export function gridActions(
 	column?: ColumnSnapshot,
 	creationOnly = false,
 	group?: ColumnGroupSnapshot,
-	axis?: 'Column' | 'Layer'
+	axis?: 'Column' | 'Layer',
+	transfers?: Pick<ReturnType<typeof createCellTransfers>, 'copy' | 'clipboardActions'>
 ): ContextMenuItem[] {
 	const session = owner.session,
 		generation = session?.snapshotGeneration,
@@ -105,6 +107,30 @@ export function gridActions(
 		if (creationOnly) return create;
 		return [
 			inspect,
+			...(transfers
+				? [
+						...(cell
+							? [
+									{
+										label: 'Copy Cell',
+										hint: 'Ctrl/Cmd+C',
+										action: () => {
+											if (current()) transfers.copy(cell.id);
+										}
+									},
+									{
+										label: 'Cut Cell',
+										hint: 'Ctrl/Cmd+X',
+										action: () => {
+											if (current()) transfers.copy(cell.id, true);
+										}
+									}
+								]
+							: []),
+						...transfers.clipboardActions(layer, column.id),
+						{ separator: true }
+					]
+				: []),
 			...(cell?.media
 				? [
 						{
@@ -125,7 +151,7 @@ export function gridActions(
 				: [{ label: 'Add Media', submenu: create }]),
 			{ separator: true },
 			action('Trigger Cell', { kind: 'LaunchCell', layer, column: column.id, mode: 'Configured' }),
-			action('Cut Cell', { kind: 'LaunchCell', layer, column: column.id, mode: 'Cut' })
+			action('Trigger Cell (Cut)', { kind: 'LaunchCell', layer, column: column.id, mode: 'Cut' })
 		];
 	}
 	if (row)

@@ -104,20 +104,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return Ok(MediaEditResult::Changed);
     };
     match edit {
-        MatrixEdit::DuplicateCell {
+        MatrixEdit::TransferCell {
             cell,
             layer,
             column,
-            mode,
-        } => return super::cell_drops::duplicate(engine, &document, cell, layer, column, mode),
-        MatrixEdit::RelocateCell {
-            cell,
-            layer,
-            column,
-            occupied,
-        } => {
-            super::cell_drops::relocate(engine, &document, cell, layer, column, occupied)?;
-        }
+            action,
+        } => return super::cell_drops::transfer(engine, &document, cell, layer, column, action),
         MatrixEdit::EditCellGeometry { .. } => unreachable!("direct Cell geometry is resolved before document loading"),
         MatrixEdit::EditLayerGeometry { .. } => unreachable!("direct geometry is resolved before document loading"),
         MatrixEdit::CreateAxisItem { .. } => unreachable!("contextual creation was resolved"),

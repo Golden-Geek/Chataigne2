@@ -64,11 +64,11 @@ fn relocation_and_swaps_preserve_actual_subtrees_with_exact_single_step_history_
         },
     );
     for (target_layer, target_column, policy) in [
-        (rows[0], columns[2], CellOccupiedDrop::Reject),
-        (rows[1], columns[1], CellOccupiedDrop::Swap),
-        (rows[0], columns[2], CellOccupiedDrop::Swap),
-        (rows[1], columns[2], CellOccupiedDrop::Reject),
-        (rows[1], columns[1], CellOccupiedDrop::Swap),
+        (rows[0], columns[2], CellTransferAction::Move),
+        (rows[1], columns[1], CellTransferAction::Drop),
+        (rows[0], columns[2], CellTransferAction::Drop),
+        (rows[1], columns[2], CellTransferAction::Move),
+        (rows[1], columns[1], CellTransferAction::Drop),
     ] {
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let initial = inspect(&mut engine, matrix.media);
@@ -83,11 +83,11 @@ fn relocation_and_swaps_preserve_actual_subtrees_with_exact_single_step_history_
         edit(
             &mut engine,
             matrix.media,
-            MatrixEdit::RelocateCell {
+            MatrixEdit::TransferCell {
                 cell: a,
                 layer: target_layer,
                 column: target_column,
-                occupied: policy,
+                action: policy,
             },
         );
         let next = inspect(&mut engine, matrix.media);
@@ -150,35 +150,35 @@ fn occupied_prepared_foreign_missing_and_cycle_destinations_reject_without_parti
     let foreign_column = super::columns(&mut engine, foreign.media, 1)[0];
     let other = owned(&mut engine, foreign.media, foreign_row, foreign_column);
     for intent in [
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: CellId(golden_core::model::NodeUuid(uuid::Uuid::new_v4())),
             layer: layer(rows[0]),
             column: columns[1],
-            occupied: CellOccupiedDrop::Swap,
+            action: CellTransferAction::Drop,
         },
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: a,
             layer: layer(rows[1]),
             column: columns[1],
-            occupied: CellOccupiedDrop::Reject,
+            action: CellTransferAction::Move,
         },
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: other,
             layer: layer(rows[0]),
             column: columns[1],
-            occupied: CellOccupiedDrop::Swap,
+            action: CellTransferAction::Drop,
         },
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: a,
             layer: foreign_row,
             column: columns[1],
-            occupied: CellOccupiedDrop::Swap,
+            action: CellTransferAction::Drop,
         },
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: a,
             layer: layer(rows[0]),
             column: foreign_column,
-            occupied: CellOccupiedDrop::Swap,
+            action: CellTransferAction::Drop,
         },
     ] {
         let before = to_sparse_project_json_pretty(&engine).unwrap();
@@ -202,11 +202,11 @@ fn occupied_prepared_foreign_missing_and_cycle_destinations_reject_without_parti
     edit(
         &mut engine,
         matrix.media,
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: a,
             layer: layer(rows[0]),
             column: columns[0],
-            occupied: CellOccupiedDrop::Reject,
+            action: CellTransferAction::Move,
         },
     );
     assert_eq!(engine.undo_len(), history);
@@ -235,11 +235,11 @@ fn occupied_prepared_foreign_missing_and_cycle_destinations_reject_without_parti
             &mut engine,
             MediaEdit::Matrix {
                 media: matrix.media,
-                edit: MatrixEdit::RelocateCell {
+                edit: MatrixEdit::TransferCell {
                     cell: a,
                     layer: layer(rows[1]),
                     column: columns[0],
-                    occupied: CellOccupiedDrop::Swap
+                    action: CellTransferAction::Drop
                 }
             }
         )
@@ -291,11 +291,11 @@ fn relocation_keeps_running_clip_source_launch_and_application_identity_until_an
     edit(
         &mut engine,
         matrix.media,
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell: a,
             layer: rows[1],
             column: columns[1],
-            occupied: CellOccupiedDrop::Swap,
+            action: CellTransferAction::Drop,
         },
     );
     let after = super::cell_playback::capture(&engine, matrix.media, rows[0], time);
@@ -381,11 +381,11 @@ fn same_column_reparent_refreshes_application_membership_for_the_next_launch() {
     edit(
         &mut engine,
         matrix.media,
-        MatrixEdit::RelocateCell {
+        MatrixEdit::TransferCell {
             cell,
             layer: rows[1],
             column,
-            occupied: CellOccupiedDrop::Reject,
+            action: CellTransferAction::Move,
         },
     );
     edit(

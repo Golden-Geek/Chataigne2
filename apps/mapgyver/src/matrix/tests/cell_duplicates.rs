@@ -30,16 +30,16 @@ fn duplicate(
     source: CellId,
     layer: LayerId,
     column: ColumnId,
-    mode: CellDuplicateMode,
+    mode: CellTransferAction,
 ) -> CellId {
     let MediaEditResult::MatrixCellPrepared { cell, .. } = edit(
         engine,
         media,
-        MatrixEdit::DuplicateCell {
+        MatrixEdit::TransferCell {
             cell: source,
             layer,
             column,
-            mode,
+            action: mode,
         },
     ) else {
         panic!()
@@ -121,10 +121,10 @@ fn copy_and_reference_preserve_exact_parameters_with_independent_or_linked_owner
     );
     let original = inspect(&mut engine, media).cells[0].clone();
     for (index, (target, target_row, column, mode)) in [
-        (media, row, columns[1], CellDuplicateMode::Copy),
-        (media, row, columns[2], CellDuplicateMode::Reference),
-        (other, other_row, other_columns[0], CellDuplicateMode::Copy),
-        (other, other_row, other_columns[1], CellDuplicateMode::Reference),
+        (media, row, columns[1], CellTransferAction::Copy),
+        (media, row, columns[2], CellTransferAction::Reference),
+        (other, other_row, other_columns[0], CellTransferAction::Copy),
+        (other, other_row, other_columns[1], CellTransferAction::Reference),
     ]
     .into_iter()
     .enumerate()
@@ -142,7 +142,7 @@ fn copy_and_reference_preserve_exact_parameters_with_independent_or_linked_owner
             engine.nodes.get(opacity).unwrap().engine_param_snapshot()
         );
         assert_eq!(created.definition.settings, original.definition.settings);
-        if mode == CellDuplicateMode::Copy {
+        if mode == CellTransferAction::Copy {
             assert_ne!(created.media, original.media);
             assert_eq!(created.definition.application.0, cell.0);
             assert!(
@@ -202,7 +202,7 @@ fn duplicate_rejects_occupied_same_address_foreign_addresses_and_feedback_withou
             column: columns[1],
         },
     );
-    for mode in [CellDuplicateMode::Copy, CellDuplicateMode::Reference] {
+    for mode in [CellTransferAction::Copy, CellTransferAction::Reference] {
         for (layer, column) in [(row, columns[0]), (row, columns[1]), (other_row, columns[2])] {
             let before = to_sparse_project_json_pretty(&engine).unwrap();
             let history = engine.undo_len();
@@ -211,11 +211,11 @@ fn duplicate_rejects_occupied_same_address_foreign_addresses_and_feedback_withou
                     &mut engine,
                     MediaEdit::Matrix {
                         media,
-                        edit: MatrixEdit::DuplicateCell {
+                        edit: MatrixEdit::TransferCell {
                             cell: source,
                             layer,
                             column,
-                            mode
+                            action: mode
                         }
                     }
                 )
@@ -237,18 +237,18 @@ fn duplicate_rejects_occupied_same_address_foreign_addresses_and_feedback_withou
             }],
         },
     );
-    for mode in [CellDuplicateMode::Copy, CellDuplicateMode::Reference] {
+    for mode in [CellTransferAction::Copy, CellTransferAction::Reference] {
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         assert!(
             !invoke(
                 &mut engine,
                 MediaEdit::Matrix {
                     media: other,
-                    edit: MatrixEdit::DuplicateCell {
+                    edit: MatrixEdit::TransferCell {
                         cell: source,
                         layer: other_row,
                         column: columns[2],
-                        mode
+                        action: mode
                     }
                 }
             )
@@ -270,7 +270,7 @@ fn reference_application_dependencies_follow_definition_edits_without_rebuilding
         source,
         row,
         columns[0],
-        CellDuplicateMode::Reference,
+        CellTransferAction::Reference,
     );
     edit(
         &mut engine,

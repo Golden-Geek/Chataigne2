@@ -1,0 +1,65 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Matrix Cell dragging, Alt Move/Copy/Reference and keyboard/context clipboard use one backend-owned transfer contract.",
+	"gate": "M13/7 Active; interactive software slice verified, full acceptance remains open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "16:46", "cutoff_utc": "17:31" },
+	"ownership": "MapGyver's backend owns Drop defaults, occupied handling, dependency preflight, subtree identity and history. The specialized grid carries bounded identities only. Golden exposes its existing prioritized command registration through its public package API.",
+	"contract": [
+		"TransferCell replaces the separate relocation/duplication DTOs. Drop swaps materialized Cells or moves into an empty address; explicit Move, Copy and Reference reject occupied destinations. Prepared Cells remain materialized. No compatibility aliases remain.",
+		"Normal HTML dragging dispatches Drop. Alt-drop opens the standard Golden Move/Copy/Reference menu without mutation until a choice. Escape cancels the menu or native browser drag. Backend errors remain visible without partial mutation.",
+		"Ctrl/Cmd+C/X and V provide Copy/Cut/Paste; modifier+Alt+V pastes Reference. Grid context menus provide equivalent clipboard actions. Rejected cuts survive, successful moves clear the captured cut, and cross-Matrix Copy/Reference preserves backend ownership semantics.",
+		"Payloads and clipboard contain identities, ephemeral project and snapshot generation only. Menus fence session and displayed Matrix; late replies cannot steal changed selection. Closed menus discard closures. Clipboard is a session-keyed WeakMap. Golden command handlers are scoped to the focused grid and disposed on unmount, preventing generic subtree edits from also handling Cell clipboard keys."
+	],
+	"software": {
+		"rust": "554 pass/3 ignored with native-preview-smoke,application-process-fixture, including exact generated TypeScript contract checks and retained ownership/history/cycle/application tests.",
+		"strict": "MapGyver Clippy --lib --tests with the same features and -D warnings passes.",
+		"ui": "MapGyver check and Golden check:browser both report zero errors and zero warnings. An attempted Golden check command was unavailable; the package's actual check:browser script supplied the check.",
+		"focused_node": "40 pass, including five new payload bounds, deferred menu, session/project/target fencing, rejected/successful clipboard and late-selection cases.",
+		"format": "Scoped Prettier, root cargo fmt, golden_core cargo fmt and owned diff whitespace checks pass."
+	},
+	"browser": {
+		"fixture": "apps/mapgyver/tests/browser/cell-transfers.mjs",
+		"binary": "target/debug/deps/MapGyver-m137-cell-grid-commands.exe",
+		"binary_sha256": "d315dca21196be0ce6513dbd0062ca9b75b19c11f7bd8ccd7f4c514798e2d1f5",
+		"build_exit": 0,
+		"artifact": "target/m137-cell-grid-commands-20261107/result.json",
+		"artifact_sha256": "813553624714e3b514b1985fbfbcd2963e6cce86b0b10006c53ed475927169b0",
+		"pid": 45884,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 18,
+		"proof": "Actual bundled frontend in headless Chromium with real mouse HTML dragging, keyboard, Golden context menus and public toolbar Undo/Redo. Setup and read-only assertions use ordinary HTTP; a passive websocket observer confirms UI TransferCell actions. No DOM/store input simulation replaces those gestures. Cases cover occupied swap, empty move, self no-op, deferred Alt Copy/Reference ownership, Alt Move, three occupied rejections, menu/drag Escape, prepared Cell move, keyboard Copy/Paste, rejected Cut then Move, cleared cut clipboard, context Reference and both cross-Matrix paste modes. Every mutation has exact single-step history assertions. Page errors are empty.",
+		"limits": "Headless software interaction only; no native pixels, desktop input, GPU cadence or real process lifetime claim."
+	},
+	"http": {
+		"artifact": "target/m137-transfer-http-20261107/result.json",
+		"artifact_sha256": "df1a2d897fce42affaed762e10b32615872bcd77e7a3ba7a50c25e6dcc61c563",
+		"pid": 25644,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 10,
+		"proof": "Updated ordinary-host transfer protocol passes retained relocation/swap/no-op/rejection and same/cross-Matrix Copy/Reference ownership with exact public history. Uses the same current binary as the passing browser cohort."
+	},
+	"retained_failures": [
+		{
+			"artifact": "target/m137-cell-grid-20261107/failure.json",
+			"sha256": "11ec219a1a6a7beadb45c3719b435b2f57ea06685317d0f32822fd68415abcde",
+			"fixture_exit": 1,
+			"reason": "The first fixture did not wait for DOM Cell addresses to reflect Redo; the next drag sent no operation. The corrected fixture compares actual displayed identities with the canonical snapshot before dragging."
+		},
+		{
+			"artifact": "target/m137-cell-grid-settled-20261107/failure.json",
+			"sha256": "ae1dbc85770e0d07813adb2eeeac36190d58822eba5197848db0cc793e44a999",
+			"fixture_exit": 1,
+			"reason": "Eleven cases passed, then prepared Cell input hit the centered Add action. Coordinates now select the Cell body away from Add and trigger buttons."
+		},
+		{
+			"artifact": "target/m137-cell-grid-body-20261107/failure.json",
+			"sha256": "ea262b1a0c46ed92d9e5a666d12b401e53463dafc5d427122ad26b05701aca03",
+			"fixture_exit": 1,
+			"reason": "All eighteen functional cases passed but five page errors exposed Golden's global generic clipboard handler running before local grid bubbling. The product fix registers focused handlers through the public Golden command API; the fresh final build has no page errors."
+		}
+	],
+	"remaining": "M13/7 retains scrolling/virtualized and grouped contexts, missing/replaced/empty source recovery and copy/reference lifetime, full caller parity, running/native/process completion and retirement, reload interactions and large-project structural timing. Move/Swap remain same-Matrix; Copy/Reference support cross-Matrix. M13/4 remains Blocked on owned-window input resumption with original quantitative scope. No full acceptance gate closes."
+}

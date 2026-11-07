@@ -13,15 +13,12 @@ macro_rules! identity {
 }
 identity!(LayerId, GroupId, ColumnId, ColumnGroupId, CellId);
 
-/// Prepared Cells are occupied even when they have no media; their authored state is never discarded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub enum CellOccupiedDrop {
-    Reject,
-    Swap,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
-pub enum CellDuplicateMode {
+pub enum CellTransferAction {
+    /// Default grid gesture: swap materialized Cells or move into an empty address.
+    Drop,
+    /// Explicit Move, Copy and Reference require an unmaterialized destination.
+    Move,
     Copy,
     Reference,
 }
@@ -469,19 +466,11 @@ pub enum MatrixAxisItemKind {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
-    /// Duplicate into an unmaterialized address; occupied destinations always reject.
-    DuplicateCell {
+    TransferCell {
         cell: CellId,
         layer: LayerId,
         column: ColumnId,
-        mode: CellDuplicateMode,
-    },
-    /// Move the actual Cell subtree within this Matrix; existing launched clips keep their identity.
-    RelocateCell {
-        cell: CellId,
-        layer: LayerId,
-        column: ColumnId,
-        occupied: CellOccupiedDrop,
+        action: CellTransferAction,
     },
     EditCellGeometry {
         cell: CellId,

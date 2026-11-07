@@ -120,7 +120,7 @@ try {
 	assert.equal(pulse.kind, 'MatrixControlInvoked');
 	assert.equal(pulse.owner, created.id);
 	assert.equal(typeof pulse.parameter, 'string');
-	for (const name of ['Trigger Cell', 'Cut Cell']) {
+	for (const name of ['Trigger Cell', 'Trigger Cell (Cut)']) {
 		const bounds = await sparse.boundingBox();
 		assert(bounds);
 		await sparse.click({ button: 'right', position: { x: 8, y: bounds.height - 8 } });
