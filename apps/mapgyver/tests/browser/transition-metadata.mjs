@@ -170,6 +170,24 @@ try {
 	assert.equal(await toggle().getAttribute('aria-checked'), 'true');
 	assert.equal(await parameter('Transition curve').locator('select').inputValue(), 'Linear');
 	checks.push({ project_roundtrip: true, metadata_and_values: true });
+	if (process.argv.includes('--time-drag')) {
+		stage = 'time drag';
+		const { verifyTimeDragging } = await import('./time-drag.mjs');
+		checks.push(
+			...(await verifyTimeDragging({
+				page,
+				inspect,
+				edit,
+				post,
+				select,
+				parameter,
+				column,
+				cell,
+				row,
+				wait
+			}))
+		);
+	}
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
 	await page.screenshot({ path: path.join(directory, 'inspector.png') });

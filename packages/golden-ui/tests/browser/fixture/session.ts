@@ -1,5 +1,6 @@
 import { createWorkbenchSession } from '../../../store/workbench.svelte';
 import { UI_PROTOCOL_VERSION } from '../../../generated/rust_protocol/protocol-version';
+import type { UiTransportOptions } from '../../../transport';
 import {
 	wholeGraphScope,
 	type UiClient,
@@ -44,6 +45,9 @@ export function fixtureNode(
 }
 
 export function createFixtureSession() {
+	let connectionOptions: UiTransportOptions | undefined;
+	let unmount: (() => void) | undefined;
+	let connecting = false;
 	let snapshot: UiSnapshot;
 	let rejectNext = false;
 	let sequence = 0;
@@ -64,7 +68,10 @@ export function createFixtureSession() {
 			}
 			return snapshot;
 		},
-		subscribe: unused,
+		subscribe: () => {
+			if (!connecting) return unused();
+			return () => {};
+		},
 		sendIntents: async (intents) => Promise.all(intents.map((intent) => client.sendIntent(intent))),
 		replay: unused,
 		referenceTargets: unused,
@@ -92,7 +99,10 @@ export function createFixtureSession() {
 		}
 	};
 	const session = createWorkbenchSession({
-		transportFactory: () => client,
+		transportFactory: (options) => {
+			connectionOptions = options;
+			return client;
+		},
 		enableGlobalShortcuts: false
 	});
 	const load = (count: number) => {
@@ -164,6 +174,21 @@ export function createFixtureSession() {
 		session.graph.loadSnapshot(snapshot);
 	};
 	return {
+		async connect() {
+			connecting = true;
+			connectionOptions?.onConnectionStateChange?.('connected');
+			unmount ??= session.mount();
+			const deadline = Date.now() + 3000;
+			while (session.status !== 'connected' || session.loading.visible) {
+				if (Date.now() > deadline) throw Error('Fixture connection did not become ready');
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+		},
+		disconnect() {
+			unmount?.();
+			unmount = undefined;
+			connecting = false;
+		},
 		editAcknowledgement(
 			active?: boolean,
 			history: Partial<UiSnapshot['history']> = {}

@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { constrainSliderValue, sliderDragDelta } from './slider-value';
 	let {
 		value = $bindable(),
 		min = undefined,
 		max = undefined,
 		step = 0,
-		stepBase = 0,
+		stepBase = undefined,
+		dragStep = undefined,
 		sensitivity = 1,
 		orientation = 'horizontal',
 		disabled = false,
@@ -15,6 +18,7 @@
 		bgColor = 'var(--gc-color-slider-bg)',
 		fgColor = 'var(--gc-color-slider-fg)',
 		label = '',
+		accessibleLabel = 'Adjust value',
 		showValue = false,
 		forceInfinite = false
 	} = $props();
@@ -22,12 +26,13 @@
 	let infiniteMode = $derived(min === undefined || max === undefined || forceInfinite);
 	let sliderDiv = $state(null as HTMLDivElement | null);
 
-	let valueAtDown = $state(0);
-	let mouseAtDown = $state(0);
-
 	let isHorizontal = $derived(orientation === 'horizontal');
-
-	let isDragging = $derived(false);
+	let isDragging = $state(false);
+	let initialValue = 0;
+	let rawValue = 0;
+	let lastPosition = 0;
+	let pointer: number | null = null;
+	let owner: HTMLElement | null = null;
 
 	let midZero = $derived(min < 0 && max > 0);
 	let relativeValue = $derived(
@@ -48,80 +53,115 @@
 					: relativeZero)
 	);
 
-	let pointerLockId = $state(null as number | null);
-
-	async function startDrag(e: MouseEvent) {
-		if (disabled || readOnly) {
-			return;
-		}
+	function publish(candidate: number) {
+		const next = constrainSliderValue(candidate, { min, max, step, stepBase });
+		if (!Number.isFinite(next) || next === value) return;
+		value = next;
+		onValueChange?.(next);
+	}
+	function begin() {
 		isDragging = true;
-		onStartEdit && onStartEdit(value);
-		mouseAtDown = isHorizontal ? e.clientX : e.clientY;
-		valueAtDown = value;
-
-		document.addEventListener('mousemove', dragUpdate);
-		document.addEventListener('mouseup', stopDrag);
-
-		// Hide mouse pointer globally by adding a CSS class
-		document.body.classList.add('slider-hide-cursor');
-
-		// await document.body.requestPointerLock();
+		initialValue = rawValue = value;
+		onStartEdit?.();
 	}
-
-	function dragUpdate(e: MouseEvent) {
+	function finish(cancel = false) {
 		if (!isDragging) return;
-		const delta = isHorizontal ? e.movementX : e.movementY;
-		const range = max - min;
-		const previousValue = value;
-		let nextValue = value;
-
-		let alteredSensitivity = e.altKey
-			? sensitivity / 10
-			: e.shiftKey
-				? sensitivity * 10
-				: sensitivity;
-
-		let sliderWidth = infiniteMode ? 100 : sliderDiv!.getBoundingClientRect().width;
-		if (step > 0) {
-			const stepCount = range / step;
-			const pixelsPerStep = sliderWidth / stepCount / alteredSensitivity;
-			const stepsMoved = Math.round(delta / pixelsPerStep);
-			nextValue = Math.min(max, Math.max(min, valueAtDown + stepsMoved * step));
-		} else if (!infiniteMode) {
-			const percentDelta = (delta / sliderWidth) * alteredSensitivity;
-			nextValue = Math.min(max, Math.max(min, valueAtDown + percentDelta * range));
-		} else //infinite mode, no range
-		{
-			const valueDelta = (delta * alteredSensitivity) / 10;
-			nextValue = valueAtDown + valueDelta;
-		}
-
-		value = nextValue;
-		valueAtDown = value;
-
-		if (previousValue === nextValue) {
+		isDragging = false;
+		const element = owner,
+			id = pointer;
+		owner = null;
+		pointer = null;
+		if (id !== null && element?.hasPointerCapture(id)) element.releasePointerCapture(id);
+		if (cancel) publish(initialValue);
+		onEndEdit?.();
+	}
+	function startDrag(event: PointerEvent) {
+		if (disabled || readOnly || event.button !== 0 || isDragging) return;
+		event.preventDefault();
+		event.stopPropagation();
+		owner = event.currentTarget as HTMLElement;
+		owner.focus();
+		pointer = event.pointerId;
+		lastPosition = isHorizontal ? event.clientX : event.clientY;
+		begin();
+		owner.setPointerCapture(pointer);
+	}
+	function dragUpdate(event: PointerEvent) {
+		if (!isDragging || event.pointerId !== pointer) return;
+		const position = isHorizontal ? event.clientX : event.clientY;
+		rawValue += sliderDragDelta(position - lastPosition, {
+			min,
+			max,
+			step,
+			dragStep,
+			width: sliderDiv?.getBoundingClientRect().width ?? 1,
+			relative: infiniteMode,
+			sensitivity: sensitivity * (event.altKey ? 0.1 : event.shiftKey ? 10 : 1)
+		});
+		lastPosition = position;
+		// Clamp the accumulator at bounds while retaining fractional steps between moves.
+		rawValue = Math.max(min ?? -Infinity, Math.min(max ?? Infinity, rawValue));
+		publish(rawValue);
+	}
+	function keydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && isDragging) {
+			event.preventDefault();
+			event.stopPropagation();
+			finish(true);
 			return;
 		}
-
-		onValueChange && onValueChange(nextValue);
+		if (disabled || readOnly || pointer !== null) return;
+		const direction = ['ArrowRight', 'ArrowUp', 'PageUp'].includes(event.key)
+			? 1
+			: ['ArrowLeft', 'ArrowDown', 'PageDown'].includes(event.key)
+				? -1
+				: 0;
+		if (!direction && !['Home', 'End'].includes(event.key)) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (!isDragging) begin();
+		const unit = step || dragStep || (infiniteMode ? 0.1 : (max - min) / 100);
+		const amount =
+			unit * (event.key.startsWith('Page') || event.shiftKey ? 10 : event.altKey ? 0.1 : 1);
+		publish(
+			event.key === 'Home'
+				? (min ?? value)
+				: event.key === 'End'
+					? (max ?? value)
+					: value + direction * amount
+		);
 	}
-
-	function stopDrag(e: MouseEvent) {
-		if (!isDragging) return;
-		isDragging = false;
-		// Remove the global cursor-hiding class
-		document.body.classList.remove('slider-hide-cursor');
-
-		isDragging = false;
-		onEndEdit && onEndEdit(value);
-
-		// document.exitPointerLock();
+	function pointerFinish(event: PointerEvent, cancel = false) {
+		if (event.pointerId === pointer) finish(cancel);
 	}
+	$effect(() => {
+		if (disabled || readOnly) finish();
+	});
+	onDestroy(() => finish());
 </script>
 
 {#if infiniteMode}
-	<button class="button infinite-slider {isDragging ? 'dragging' : ''}" onmousedown={startDrag}>
-		{'⟷'}
+	<button
+		class="button infinite-slider {isDragging ? 'dragging' : ''}"
+		role="slider"
+		aria-label={accessibleLabel}
+		aria-valuenow={value}
+		aria-valuemin={min}
+		aria-valuemax={max}
+		aria-orientation={isHorizontal ? 'horizontal' : 'vertical'}
+		disabled={disabled || readOnly}
+		onpointerdown={startDrag}
+		onpointermove={dragUpdate}
+		onpointerup={(event) => pointerFinish(event)}
+		onpointercancel={(event) => pointerFinish(event, true)}
+		onlostpointercapture={(event) => pointerFinish(event, true)}
+		onkeydown={keydown}
+		onkeyup={() => {
+			if (pointer === null) finish();
+		}}
+		onblur={() => finish()}
+		onclick={(event) => event.stopPropagation()}>
+		↔
 	</button>
 {:else}
 	<div
@@ -129,10 +169,25 @@
 		class:disabled
 		class:readonly={readOnly}
 		bind:this={sliderDiv}
-		onmousedown={startDrag}
+		onpointerdown={startDrag}
+		onpointermove={dragUpdate}
+		onpointerup={(event) => pointerFinish(event)}
+		onpointercancel={(event) => pointerFinish(event, true)}
+		onlostpointercapture={(event) => pointerFinish(event, true)}
+		onkeydown={keydown}
+		onkeyup={() => {
+			if (pointer === null) finish();
+		}}
+		onblur={() => finish()}
+		onclick={(event) => event.stopPropagation()}
 		role="slider"
+		aria-label={accessibleLabel}
 		aria-valuenow={value}
-		tabindex="-1"
+		aria-valuemin={min}
+		aria-valuemax={max}
+		aria-disabled={disabled || readOnly}
+		aria-orientation={isHorizontal ? 'horizontal' : 'vertical'}
+		tabindex={disabled || readOnly ? -1 : 0}
 		style="--bg-color: {bgColor}; --fg-color: {fgColor};">
 		<div
 			class="slider-foreground {midZero ? 'mid-zero' : ''}"
@@ -152,6 +207,7 @@
 
 <style>
 	.slider {
+		touch-action: none;
 		min-width: 0;
 		min-height: 0;
 		display: block;
@@ -216,12 +272,8 @@
 		min-width: 1px;
 	}
 
-	/* Hide cursor globally when dragging */
-	:global(.slider-hide-cursor) {
-		cursor: none !important;
-	}
-
 	.infinite-slider {
+		touch-action: none;
 		background: none;
 		border: none;
 		font-size: 0.6rem;

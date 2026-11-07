@@ -1,0 +1,100 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/12",
+	"status": "Accepted",
+	"batch": { "started_utc": "21:15", "cutoff_utc": "22:00", "verification_finished_utc": "21:38" },
+	"progress": {
+		"verified": 79,
+		"total": 92,
+		"overall_percent": 86,
+		"m13_verified": 10,
+		"m13_total": 14,
+		"m13_percent": 71,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One existing gate accepted:79/92 rounds to86%; M13 10/14 rounds to71%; phases remain7/14(50%). Denominators, requirements and timing budgets are unchanged.",
+	"capability": "Golden float time Parameters now expose shared relative drag controls beside formatted clock fields; explicit time_slider hints retain bounded sliding. The same NumberEditor/Slider works in ordinary Inspectors and Dashboard consumers, using the real Parameter intents and backend edit groups. No app-specific time controller or duplicate authored state is added.",
+	"architecture": "docs/architecture/mapgyver-parameters.md",
+	"implementation": {
+		"owner": "packages/golden-ui/components/common/Slider.svelte and slider-value.ts own pointer/keyboard geometry and declared step-grid presentation. NumberEditor owns typed Parameter interaction and uses existing session preview/intent/edit-session contracts. time-value.ts owns stored-unit clock presentation only; backend/domain constraints and authored history remain authoritative.",
+		"gestures": "Pointer capture replaces document mouse listeners and cursor-hiding state. One owned pointer, fractional-step accumulation, bounds/grid origin, fine Alt/coarse Shift, Escape/pointercancel/lost-capture restoration and unmount cleanup are shared across consumers. Start/end callbacks take no value argument, preserving zero-start vector grouping. Keyboard Arrow/Page/Home/End and accessible slider names/ranges share the same constrained values.",
+		"time": "Plain time uses relative steps so wide millisecond bounds stay usable; declared step wins, otherwise one millisecond per pixel. The explicit bounded slider remains available. Stored/API units remain ms or seconds. Formatting infers precision from both step and current value, preserving unstepped fractions and fine raw-ms steps. Decimal clock parts are parsed once in the authored unit to avoid extra floating-point rounding. Clock presentation supports up to12 fractional second digits; existing integer-ms controls still display three.",
+		"drafts": "NumberEditor reads existing session Parameter previews before committed graph data. Accepted values remain visible across held graph publication without another acknowledgement owner. Invalid/rejected clock or range text restores the displayed value; read-only fields now expose their native readonly attribute as well as existing admission guards.",
+		"unchanged": "No Rust source, product schema, generated DTO, authored settings or native rendering change. M13/11's564-test backend/strict/generated/native fade evidence is reused only for that unchanged scope. No additional expensive Rust test/lint cycle is claimed for this UI-only slice."
+	},
+	"software": {
+		"golden_ui": {
+			"command": "npm test --workspace golden_ui",
+			"files": 59,
+			"passed": 319,
+			"failed": 0,
+			"exit": 0
+		},
+		"focused": "Six time/grid tests cover seconds/ms unit roundtrips, integer milliseconds, sub-ms precision, unstepped fractional values, fine steps, malformed input, one-sided/unbounded stepped dragging and nonzero grid origins/bounds.",
+		"mapgyver_ui": {
+			"command": "npm run check --workspace mapgyver-ui",
+			"errors": 0,
+			"warnings": 0,
+			"exit": 0
+		},
+		"chataigne_ui": {
+			"command": "npm run check --workspace chataigne-ui",
+			"errors": 0,
+			"warnings": 0,
+			"exit": 0
+		},
+		"shared_fixture_types": {
+			"command": "npm run check:browser --workspace golden_ui",
+			"errors": 0,
+			"warnings": 0,
+			"exit": 0
+		},
+		"format": "Touched source/fixtures/docs use repository Prettier; Node syntax, owning diff checks, root and golden_core cargo fmt pass. Initial compiler/rune warnings were corrected; no new warning is retained."
+	},
+	"shared_browser": {
+		"command": "node packages/golden-ui/tests/browser/numeric.mjs",
+		"production_bundle": true,
+		"receipt": "target/qualification/m1312-numeric/result.json",
+		"receipt_sha256": "9ae904d0ebb37cc3dba96c5610572e2d513fa558356f8d63b14740bcd1b1dfff",
+		"check_groups": 13,
+		"checks": [
+			"Fractional milliseconds and one begin/end group",
+			"Zero and upper bounds",
+			"Unbounded stepped drag and Escape restoration",
+			"Alt/Shift fine/coarse modifiers retain the declared grid",
+			"Pointer cancellation and lost capture restore the initial value",
+			"Seconds precision and keyboard/formatted entry",
+			"Unstepped fractional time survives focus/blur and dragging",
+			"Bounded time slider, Home and End",
+			"Read-only/disabled controls",
+			"Ordinary integer and zero-start vector regression",
+			"Actual shared Dashboard Number widget consumer",
+			"Connected session with acknowledged writes and held graph publications preserves the final projection",
+			"Unmount closes the gesture without global drag listeners"
+		],
+		"page_errors": 0,
+		"exit": 0,
+		"scope": "Real production-built Svelte controls and Dashboard consumer with a typed controlled session, not a native host. The held-publication case explicitly completes the public workbench connection/snapshot/subscription bootstrap; offline fixture state cannot stand in for a live session. Existing fixture callers retain unexpected-subscription rejection unless they explicitly connect."
+	},
+	"actual_mapgyver": {
+		"build_command": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-m1312-time-final3",
+		"build_exit": 0,
+		"binary": "target/debug/deps/MapGyver-m1312-time-final3.exe",
+		"sha256": "1aa7b11525577e3b0d3095313804f84b89b097adf6e5e6ccceb9526dfde3fcad",
+		"command": "node apps/mapgyver/tests/browser/transition-metadata.mjs target/m1312-time-ui-final-20261107 --time-drag",
+		"receipt": "target/m1312-time-ui-final-20261107/result.json",
+		"receipt_sha256": "02a1248677aea04f006fada138463d849c002d00068595dd41714de17ed5a072",
+		"check_groups": 11,
+		"checks": "All four existing metadata/curve/project groups pass. Additional actual backend checks: Cell0→50ms while pointer remains down, active backend edit session, exactly one new history item and exact Undo/Redo; Escape restores50ms and closes the group; invalid/malformed/out-of-range text restores the field; Arrow increments1ms; Layer700→730ms; Column retains dormant1234ms then drags to1264ms; App Control Graceful stop2000→2020ms and600000ms upper bound; mixed manager selection clears the ordinary Golden Inspector with no stale writes, and single selection restores the exact value.",
+		"page_errors": 0,
+		"rejected_requests": 0,
+		"fixture_and_host_exit": 0,
+		"screenshot": "target/m1312-time-ui-final-20261107/inspector.png",
+		"visual_review": "Inspected actual bundled layout: compact drag handles beside the clock fields in Column and App Control, with existing optional metadata, conditional settings and workbench styling. No new permanent form, prose card or authored UI state.",
+		"limits": "Chromium mouse/keyboard interaction in the fresh bundled UI against an ordinary isolated Windows headless MapGyver host. Shared consumer interaction uses the actual Dashboard component; Chataigne's complete UI type check also passes. No desktop input, native preview pixels/cadence, full browser suite or release readiness is claimed. Video has no authored time control yet and will consume this shared path in M10."
+	},
+	"corrected_attempts": "Initial Slider aria orientation typing and a fixture export conflicting with the Svelte state rune were fixed. A held-publication attempt used a fixture that had not completed connection bootstrap; it was rejected as invalid evidence and replaced with the real public bootstrap. Precision coverage exposed an extra floating-point rounding step, fixed by parsing in the authored unit; final full tests and both browser workflows pass. Intermediate bundles remain distinct from the final hashed binary.",
+	"retained": "M13/2 format prerequisites, M13/4 and M05/8 native input/timing, M12/8 Intel4K Smooth timing, M03/9 production timing/memory, M08/4 WOW64 retirement and M09's named Matrix native/UI fixture failures remain open with their original limits and return actions. This gate closes none of them.",
+	"gate_change": "M13/12 Accepted. M13/13 alone Active next: themed grey surroundings outside the content rectangle, native clearing/clipping and Screen Warping/Surface Source alignment, with actual both-GPU pixel/clipping/output invariants and the original complete scope."
+}

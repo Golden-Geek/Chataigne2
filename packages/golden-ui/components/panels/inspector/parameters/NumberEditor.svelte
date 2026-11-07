@@ -4,7 +4,7 @@
 	import { appState } from '../../../../store/workbench.svelte';
 	import { createUiEditSession, sendSetParamIntent } from '../../../../store/ui-intents';
 	import type { UiNodeDto, UiRangeConstraint } from '../../../../types';
-	import { formatTimeValue, parseTimeValue } from './time-value';
+	import { formatTimeValue, parseTimeValue, timeFractionDigits } from './time-value';
 
 	interface NumberEditorPresentation {
 		show_value_field?: boolean;
@@ -41,8 +41,11 @@
 
 	let kind = $derived(param?.value.kind ?? 'float');
 	let isInteger = $derived(kind === 'int');
+	let projectedValue = $derived(
+		session?.editOperations.get(liveNode.node_id, liveNode.uuid) ?? param?.value
+	);
 	let value = $derived(
-		param && (param.value.kind === 'int' || param.value.kind === 'float') ? param.value.value : 0
+		projectedValue?.kind === 'int' || projectedValue?.kind === 'float' ? projectedValue.value : 0
 	);
 
 	let viewRange = $derived(rangeOverride ?? constraints?.range ?? null);
@@ -60,8 +63,7 @@
 	let forceSlider = $derived(presentation.show_slider === true || timeSliderWidget);
 	let fieldOnlyWidget = $derived(
 		!forceSlider &&
-			(timeWidget ||
-				widgetHint === 'text' ||
+			(widgetHint === 'text' ||
 				widgetHint === 'input' ||
 				widgetHint === 'field' ||
 				widgetHint === 'number_field')
@@ -81,10 +83,14 @@
 	);
 	let showsInlineFieldLabel = $derived(!hasRange && showValueField && sliderLabel.length > 0);
 	let formattedDraftValue = $derived(
-		timeWidget ? formatTimeValue(draftValue, timeUnit) : draftValue.toFixed(fractionDigits)
+		timeWidget
+			? formatTimeValue(draftValue, timeUnit, timeFractionDigits(step, timeUnit, draftValue))
+			: draftValue.toFixed(fractionDigits)
 	);
 	let formattedValue = $derived(
-		timeWidget ? formatTimeValue(value, timeUnit) : value.toFixed(fractionDigits)
+		timeWidget
+			? formatTimeValue(value, timeUnit, timeFractionDigits(step, timeUnit, value))
+			: value.toFixed(fractionDigits)
 	);
 	let displayedSliderValue = $derived.by(() => {
 		if (min !== undefined && draftValue < min) {
@@ -198,9 +204,9 @@
 			: Number(numberInput.value);
 		if (parsedValue !== null && Number.isFinite(parsedValue)) {
 			commitValue(parsedValue);
-		} else {
-			numberInput.value = formattedDraftValue;
 		}
+		// Canonicalize valid clocks and restore rejected/invalid text at the same boundary.
+		numberInput.value = formattedDraftValue;
 	}
 
 	const startEdit = (): void => {
@@ -237,7 +243,9 @@
 				{readOnly}
 				disabled={!enabled}
 				label={hasRange ? sliderLabel : ''}
-				forceInfinite={isInteger}
+				forceInfinite={isInteger || (timeWidget && !timeSliderWidget)}
+				dragStep={timeWidget ? (timeUnit === 'ms' ? 1 : 0.001) : undefined}
+				accessibleLabel={`Adjust ${liveNode.meta.label}`}
 				onValueChange={(nextValue: number) => {
 					commitValue(nextValue);
 				}}
@@ -257,6 +265,7 @@
 					class="number-field inline-labeled"
 					class:time-field={timeWidget}
 					disabled={!enabled}
+					readonly={readOnly}
 					class:readonly={readOnly}
 					value={formattedDraftValue}
 					onblur={setValueFromField}
@@ -279,6 +288,7 @@
 				class="number-field"
 				class:time-field={timeWidget}
 				disabled={!enabled}
+				readonly={readOnly}
 				class:readonly={readOnly}
 				value={formattedDraftValue}
 				onblur={setValueFromField}

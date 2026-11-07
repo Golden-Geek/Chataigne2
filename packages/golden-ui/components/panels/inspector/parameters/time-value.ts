@@ -1,15 +1,35 @@
 /** Clock presentation for numeric Parameters; hints declare the stored unit, never change it. */
-export function formatTimeValue(value: number, unit?: string | null): string {
+export function timeFractionDigits(step?: number, unit?: string | null, value?: number): number {
+	const seconds = step === undefined ? 0.001 : step / (unit === 'ms' ? 1000 : 1);
+	const actual = value === undefined ? 0 : value / (unit === 'ms' ? 1000 : 1);
+	for (let digits = 3; digits < 12; digits++) {
+		const scale = 10 ** digits;
+		if (
+			Math.abs(seconds * scale - Math.round(seconds * scale)) < 1e-8 &&
+			Math.abs(actual * scale - Math.round(actual * scale)) < 1e-8
+		)
+			return digits;
+	}
+	return 12;
+}
+
+export function formatTimeValue(value: number, unit?: string | null, fractionDigits = 3): string {
 	if (!Number.isFinite(value)) return '00:00:00.000';
 	const sign = value < 0 ? '-' : '';
-	let remaining = Math.round(Math.abs(value) * (unit === 'ms' ? 1 : 1000));
-	const hours = Math.floor(remaining / 3_600_000);
-	remaining -= hours * 3_600_000;
-	const minutes = Math.floor(remaining / 60_000);
-	remaining -= minutes * 60_000;
-	const seconds = Math.floor(remaining / 1000);
-	const milliseconds = remaining - seconds * 1000;
-	return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+	const digits = Math.max(3, Math.min(12, Math.round(fractionDigits)));
+	// Split in the authored unit before clock conversion: scaling a large float into
+	// fractional ticks loses precision even when its authored decimal is representable.
+	const [whole, sub = ''] = Math.abs(value)
+		.toFixed(unit === 'ms' ? digits - 3 : digits)
+		.split('.');
+	let remaining = unit === 'ms' ? Math.floor(Number(whole) / 1000) : Number(whole);
+	const fraction =
+		unit === 'ms' ? `${(Number(whole) % 1000).toString().padStart(3, '0')}${sub}` : sub;
+	const hours = Math.floor(remaining / 3600);
+	remaining -= hours * 3600;
+	const minutes = Math.floor(remaining / 60);
+	const seconds = remaining - minutes * 60;
+	return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${fraction}`;
 }
 
 export function parseTimeValue(text: string, unit?: string | null): number | null {
@@ -29,8 +49,14 @@ export function parseTimeValue(text: string, unit?: string | null): number | nul
 	else seconds = Number(segments[0]);
 	if ((segments.length === 3 && minutes >= 60) || (segments.length >= 2 && seconds >= 60))
 		return null;
-	const milliseconds =
-		(hours * 3600 + minutes * 60 + seconds) * 1000 + Number((fraction + '000').slice(0, 3));
+	const wholeMilliseconds = (hours * 3600 + minutes * 60 + seconds) * 1000;
+	if (!Number.isSafeInteger(wholeMilliseconds) || fraction.length > 12) return null;
+	const milliseconds = wholeMilliseconds + Number((fraction + '000').slice(0, 3));
 	if (!Number.isSafeInteger(milliseconds)) return null;
-	return sign * (unit === 'ms' ? milliseconds : milliseconds / 1000);
+	// Parse once in the authored unit rather than adding independently rounded floats.
+	const authored =
+		unit === 'ms'
+			? `${milliseconds}.${fraction.slice(3)}`
+			: `${wholeMilliseconds / 1000}.${fraction}`;
+	return sign * Number(authored);
 }

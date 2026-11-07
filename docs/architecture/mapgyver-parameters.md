@@ -12,10 +12,10 @@ Editable collections use real child nodes. Identity, labels, hierarchy and order
 Golden topology/metadata. Selection/zoom, panel locks and native observations are presentation/
 runtime state. Declared Parameter folders must not advertise unsupported Add actions.
 
-Channel source differences stay expanded in the generic Inspector. Picture rows forward the
-catalog's actual File Parameter; path, Browse and Clear share one compact row. Contextual asset
-actions use the public Inspector header slot, outside the collapse toggle and available for
-root inspection too. No duplicate path or asset state is stored in the UI.
+Channel source differences stay expanded in the generic Inspector. Picture rows edit their
+own real File Parameter; path, Browse and Clear share Golden's compact file widget. They do
+not create an implicit catalog Asset or forward another object's File. Explicit catalog Assets
+remain independent. See [Picture File ownership](mapgyver-picture-file-ownership.md).
 
 Golden's File widget retains a focused draft across external value updates. Its Enter action
 commits through the ordinary change event; Escape restores the current authoritative value.
@@ -26,6 +26,23 @@ These are local editor drafts; Parameter nodes remain the authored authority.
 Time Parameters keep their stored/API milliseconds and declare `widget = "time", unit = "ms"`.
 Golden's generic numeric editor displays a clock and converts edits back into those same units;
 seconds-based Golden Parameters use `unit = "s"` (or the existing unspecified seconds convention).
+
+The shared `NumberEditor.svelte` exposes the same `Slider.svelte` interaction beside time
+fields in Inspectors and Dashboard widgets. Plain time uses relative dragging, so a wide
+millisecond domain does not turn every small movement into hours; an explicit `time_slider`
+hint retains bounded sliding. Declared steps take priority, with a one-millisecond relative
+increment when time has no step. Declared step precision and existing unstepped fractional
+values survive clock entry/formatting, including sub-millisecond values.
+The slider owns pointer capture, pointer identity, fine/coarse modifiers, keyboard range
+actions and cancellation to the initial value; gesture callbacks own one ordinary edit group.
+There are no document-level drag listeners or product-specific time controls. Read-only and
+disabled Parameters remain inert, and invalid clock/range text restores the displayed value.
+
+Scalar numeric fields read the existing session Parameter preview as well as the committed
+graph, so accepted local values remain visible until their graph publication catches up.
+This uses the [shared Parameter presentation boundary](editor-parameter-projection.md),
+without another authored store or an editor-specific acknowledgement path. All available
+MapGyver Matrix and App Control times use these real controls; Video consumes the same path.
 The public Params DSL and `#[param]` forms share hint generation, including rebinding after load.
 Matrix Layer/Column/Cell transition durations and all five app-control timing fields use this
 metadata. No parallel UI store or project/schema conversion owns their values.
