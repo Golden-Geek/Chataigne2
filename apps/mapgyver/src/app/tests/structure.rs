@@ -74,6 +74,129 @@ fn move_item(engine: &mut AppEngine, uuid: NodeUuid, parent: NodeId, after: Opti
 }
 
 #[test]
+fn candidate_preparation_keeps_declared_matrix_app_controls_intrinsic_across_reload_and_live_group_moves() {
+    use crate::matrix::protocol::*;
+    let mut engine = create_new_project_engine::<AppNode>().unwrap();
+    let matrix = source(&mut engine, MediaKind::Matrix);
+    let MediaEditResult::Matrix { snapshot } = media(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::Inspect,
+        },
+    ) else {
+        panic!()
+    };
+    let columns = snapshot.columns.iter().map(|column| column.id).collect::<Vec<_>>();
+    let MatrixItemId::Layer { id: layer } = snapshot.items[0].id else {
+        panic!()
+    };
+    media(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::ConfigureCell {
+                layer,
+                column: columns[0],
+                settings: CellSettings::default(),
+            },
+        },
+    );
+    let MediaEditResult::MatrixColumnGroupCreated { group } = media(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::AddColumnGroup {
+                parent: None,
+                label: None,
+            },
+        },
+    ) else {
+        panic!()
+    };
+    let MediaEditResult::MatrixColumnGroupCreated { group: nested } = media(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::AddColumnGroup {
+                parent: Some(group),
+                label: None,
+            },
+        },
+    ) else {
+        panic!()
+    };
+    let controls = engine
+        .nodes
+        .iter()
+        .filter_map(|(_, node)| {
+            matches!(
+                node,
+                AppNode::MatrixColumn(_) | AppNode::MatrixColumnGroup(_) | AppNode::MatrixCell(_)
+            )
+            .then_some(node.node_data().meta.uuid)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(controls.len(), 6);
+    let encoded = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
+    let controls = controls
+        .into_iter()
+        .map(|owner| {
+            let owner_id = loaded.node_id_by_uuid(owner).unwrap();
+            let control = match loaded.nodes.get(owner_id).unwrap() {
+                AppNode::MatrixColumn(node) => node.application_node(),
+                AppNode::MatrixColumnGroup(node) => node.application_node(),
+                AppNode::MatrixCell(node) => node.application_node(),
+                _ => None,
+            }
+            .unwrap();
+            (control, owner)
+        })
+        .collect::<Vec<_>>();
+    for corrupt in [false, true] {
+        if corrupt {
+            for (control, _) in &controls {
+                let data = loaded.nodes.get_mut(*control).unwrap().node_data_mut();
+                data.user_role = UserNodeRole::ItemRoot;
+                data.meta.user_permissions.can_edit_name = true;
+                data.meta.user_permissions.can_remove_and_duplicate = true;
+            }
+        }
+        AppNode::prepare_project_candidate(&mut loaded).unwrap();
+        for (control, owner) in &controls {
+            let data = loaded.nodes.get(*control).unwrap().node_data();
+            assert_eq!(
+                data.user_role,
+                UserNodeRole::Regular,
+                "declared App Control {control:?}"
+            );
+            assert_eq!(data.meta.user_permissions, Default::default());
+            assert_eq!(data.parent, loaded.node_id_by_uuid(*owner));
+            assert_eq!(data.meta.decl_id.0, "app_control");
+        }
+    }
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
+    for (column, parent) in [(columns[0], group), (columns[1], nested)] {
+        media(
+            &mut loaded,
+            MediaEdit::Matrix {
+                media: matrix.media,
+                edit: MatrixEdit::MoveColumnItem {
+                    item: ColumnItemId::Column { id: column },
+                    parent: Some(parent),
+                    after: None,
+                },
+            },
+        );
+    }
+    let saved = to_sparse_project_json_pretty(&loaded).unwrap();
+    assert!(loaded.undo().unwrap());
+    assert!(loaded.redo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), saved);
+}
+
+#[test]
 fn shared_tree_sorts_screens_surfaces_media_channels_and_whole_matrix_owners_with_exact_history() {
     let mut engine = create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();

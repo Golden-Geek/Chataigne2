@@ -55,8 +55,11 @@ call playback intents directly; routing every caller through real controls remai
 including sparse empty-address behavior. Native final-use/process retirement and complete
 scope/caller acceptance are not established by functional mix and button checks.
 
-The live native grouping fixture currently rejects a generated `MoveNode` of intrinsic
-`mapgyver.app_control.v1` into a Column Group after adding its Parameters folder. Software
-scope tests pass, but the native group route is unverified until this declared-child ordering
-defect is fixed and the same bundled fixture exits successfully. Changing the app intent's
-insertion anchor did not resolve the failure and was discarded.
+Project-candidate hierarchy classification keeps each owner's declared App Control root
+`Regular`, with non-curated permissions matching its embedded constructor. The typed owner's
+handle determines this policy. Promoting those settings to `ItemRoot` during load incorrectly
+made Column reparenting validate the embedded control as a new user item in the destination
+Group. Correcting the app's classification restores nested grouping after reload without
+changing Golden admission or insertion order. The [ownership regression and bundled native
+fixture](../progress/evidence/mapgyver-m13-intrinsic-controls-2026-11-07.json) now pass; earlier
+native failures remain preserved in the preceding scoped-stop evidence.

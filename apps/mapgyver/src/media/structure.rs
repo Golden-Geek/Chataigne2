@@ -27,20 +27,44 @@ fn editable_item(engine: &AppEngine, id: NodeId) -> bool {
     }
 }
 
+fn intrinsic_application(engine: &AppEngine, id: NodeId) -> bool {
+    let Some(AppNode::Application(node)) = engine.nodes.get(id) else {
+        return false;
+    };
+    match node.node_data().parent.and_then(|parent| engine.nodes.get(parent)) {
+        Some(AppNode::MatrixColumn(owner)) => owner.application_node() == Some(id),
+        Some(AppNode::MatrixColumnGroup(owner)) => owner.application_node() == Some(id),
+        Some(AppNode::MatrixCell(owner)) => owner.application_node() == Some(id),
+        _ => false,
+    }
+}
+
 /// Authored app objects are curated items by hierarchy policy, including projects saved when
 /// their constructors accidentally used Regular insertion. Classify before candidate publication;
 /// keep identities, declared Parameter children, settings and paired Matrix exports unchanged.
+/// Embedded App Control roots remain non-curated settings, including when loaded metadata
+/// incorrectly classified them as user items. Their typed owner's handle is authoritative.
 pub(crate) fn classify_authored_items(engine: &mut AppEngine) {
     let ids = engine
         .nodes
         .iter()
-        .filter_map(|(id, _)| editable_item(engine, id).then_some(id))
+        .filter_map(|(id, _)| {
+            if intrinsic_application(engine, id) {
+                Some((id, UserNodeRole::Regular))
+            } else {
+                editable_item(engine, id).then_some((id, UserNodeRole::ItemRoot))
+            }
+        })
         .collect::<Vec<_>>();
-    for id in ids {
+    for (id, role) in ids {
         let data = engine.nodes.get_mut(id).unwrap().node_data_mut();
-        data.user_role = UserNodeRole::ItemRoot;
-        data.meta.user_permissions.can_edit_name = true;
-        data.meta.user_permissions.can_remove_and_duplicate = true;
+        data.user_role = role;
+        if role == UserNodeRole::Regular {
+            data.meta.user_permissions = Default::default();
+        } else {
+            data.meta.user_permissions.can_edit_name = true;
+            data.meta.user_permissions.can_remove_and_duplicate = true;
+        }
     }
 }
 

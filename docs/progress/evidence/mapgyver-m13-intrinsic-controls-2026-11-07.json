@@ -1,0 +1,47 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/6",
+	"state": "Active",
+	"acceptance_change": "None: 72/92 overall and M13 3/14 remain verified. The reproduced live grouping defect is resolved, but complete caller/lifetime acceptance is still required.",
+	"deliverable": "Saved/reloaded Matrix Columns can move into nested Column Groups and use every scoped Play/Stop button. Declared embedded App Controls remain non-curated settings.",
+	"root_cause": "MapGyver's prepare_project_candidate classified every Application node as ItemRoot, including declared Column, Cell and Column Group controls. Moving a loaded Column then subjected its embedded control to user-item admission in the destination Group, which correctly rejects standalone App Controls.",
+	"repair": "App-owned hierarchy classification resolves intrinsic controls through their typed owners' application_node handles and assigns Regular/default non-curated permissions. The same policy restores incorrectly curated candidate metadata. Standalone authored item classification, Golden admission, insertion ordering, authored parameters and runtime demand are unchanged.",
+	"software": {
+		"baseline": "The exact load/candidate-preparation regression failed with ItemRoot versus required Regular before the policy fix.",
+		"regression": "Six declared controls across Columns, a Cell and nested Column Groups: sparse load, candidate preparation, deliberately incorrect role/permissions, repeated preparation, runtime activation, nested live moves and exact Undo/Redo replay.",
+		"app_tests": {
+			"passed": 530,
+			"failed": 0,
+			"ignored": 2,
+			"command": "cargo test --locked -p MapGyver --lib --no-fail-fast --quiet"
+		},
+		"strict_lint": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings: exit 0",
+		"contracts": "Generated Media/Screen TypeScript equality tests pass in the full suite; no DTO changes.",
+		"format": "Root/Core cargo fmt and diff checks pass. UI/fixture inputs are unchanged; prior Svelte0/0 and JS/Prettier evidence is reused."
+	},
+	"native_functional": {
+		"build_command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m136-intrinsic-owner",
+		"binary": "target/debug/deps/MapGyver-m136-intrinsic-owner.exe",
+		"sha256": "bdb91d2118cd51f04f064cc9accfedd4ce16e01f5ec1942dbabe67d69c97fa53",
+		"fixture": "apps/mapgyver/tests/browser/matrix-triggers.mjs",
+		"result": "target/m136-intrinsic-owner-native-20261107/result.json",
+		"result_sha256": "2c0b15354e2773d21a281ffdc1f703e77127986bcca3581361a63175e81958cb",
+		"pid": 21476,
+		"exit_code": 0,
+		"checks": [
+			"Stop All invokes its actual Parameter and clears the base Column plus independent Cell.",
+			"30 rapid direct-parameter transport cycles preserve authored history.",
+			"Reload does not replay controls and preserves the callable Stop All widget.",
+			"Real Column/Cell Play and Cell/Layer/Column/nested Layer Group/nested Column Group Stop buttons send exact Parameter triggers and preserve unrelated scope/anchor.",
+			"Nested Column moves after reload succeed through the same previously failing fixture; no page errors; screenshot inspected; normal owned-app shutdown."
+		],
+		"screenshot": "target/m136-intrinsic-owner-native-20261107/stop-all.png",
+		"limits": "Functional bundled WebView/HTTP/ownership check only. No GPU cadence, timing, moving-source correspondence or native/process final-use retirement qualification is inferred."
+	},
+	"prior_failures": "docs/progress/evidence/mapgyver-m13-scoped-stops-2026-11-07.json retains the failing native attempts and discarded insertion-anchor change. Their failure is not reclassified as a pass.",
+	"remaining": [
+		"Route Cell double-click/context actions and high-level launch/clear wrappers through real Parameters, including sparse empty-address semantics.",
+		"Complete every scope/caller/history/project case and native GPU/process completion-safe final-use retirement before accepting M13/6.",
+		"Every retained format, timing, memory, physical and WOW64 gate keeps its original requirement and return trigger."
+	]
+}
