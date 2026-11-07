@@ -37,46 +37,81 @@ export async function createGestureQualification({
 		throw error;
 	}
 	return {
-		async pending({ name, svg, control, initial, latest }) {
-			if (!['Screen warp corner', 'Surface Source crop'].includes(name)) return;
-			const preview = svg
-				.locator('xpath=ancestor::*[@data-native-preview-backdrop][1]')
-				.locator('.native-preview');
-			// The preview and DOM controls are siblings inside their common viewport.
-			const identity = await preview.evaluate((e) => ({
-				session: e.dataset.previewSession,
-				view: e.dataset.previewView,
-				source: e.dataset.previewSource
-			}));
-			assert(identity.session && identity.view && identity.source);
-			const hit = await control.getAttribute('data-native-hit-id');
-			assert(hit);
-			const box = await control.boundingBox();
-			const point = [box.x + box.width / 2, box.y + box.height / 2];
-			let sample;
-			const until = Date.now() + 5000;
-			do {
-				sample = await page.evaluate(
-					async ({ identity, point }) =>
-						JSON.parse(
-							await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
-								request: JSON.stringify({ kind: 'Pointer', ...identity, point })
-							})
-						),
-					{ identity, point }
-				);
-				if (sample.sample?.hit === hit) break;
-				assert(Date.now() < until, JSON.stringify({ name, hit, sample }));
-				await delay(30);
-			} while (true);
-			const area = await svg.boundingBox();
-			const midpoint = (v) =>
-				v.length === 4 ? [v[0] + v[2] / 2, v[1]] : [(v[0] + v[2]) / 2, (v[1] + v[3]) / 2];
-			const project = (v) => {
-				const [x, y] = midpoint(v);
-				return [area.x + x * area.width, area.y + y * area.height];
-			};
-			const stage = name.startsWith('Screen') ? 'screen-pending' : 'source-pending';
+		async pending({ name, svg, shape, control, initial, latest }) {
+			const nativeControls = ['Screen warp corner', 'Surface Source crop'].includes(name);
+			let hit = null,
+				point = null,
+				sample = null;
+			if (nativeControls) {
+				const preview = svg
+					.locator('xpath=ancestor::*[@data-native-preview-backdrop][1]')
+					.locator('.native-preview');
+				// The preview and DOM controls are siblings inside their common viewport.
+				const identity = await preview.evaluate((e) => ({
+					session: e.dataset.previewSession,
+					view: e.dataset.previewView,
+					source: e.dataset.previewSource
+				}));
+				assert(identity.session && identity.view && identity.source);
+				hit = await control.getAttribute('data-native-hit-id');
+				assert(hit);
+				const box = await control.boundingBox();
+				point = [box.x + box.width / 2, box.y + box.height / 2];
+				const until = Date.now() + 5000;
+				do {
+					sample = await page.evaluate(
+						async ({ identity, point }) =>
+							JSON.parse(
+								await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+									request: JSON.stringify({ kind: 'Pointer', ...identity, point })
+								})
+							),
+						{ identity, point }
+					);
+					if (sample.sample?.hit === hit) break;
+					assert(Date.now() < until, JSON.stringify({ name, hit, sample }));
+					await delay(30);
+				} while (true);
+			}
+			// SVG screen CTM includes each editor's actual viewBox and viewport transform;
+			// Matrix/Composition coordinates are canvas units, Screen/Source are unit space.
+			const geometry = await svg.evaluate(
+				(element, { initial, latest, resize }) => {
+					const matrix = element.getScreenCTM();
+					if (!matrix) throw Error('Visible SVG projection required');
+					const project = (v) => {
+						const at = element.createSVGPoint();
+						// Stay clear of endpoint and midpoint resize handles painted over the edge.
+						const along = 0.37;
+						// A corner resize preserves the opposite top edge's line. Probe its
+						// moved bottom edge so an old point cannot still lie on the new boundary.
+						const vertices = resize ? [...v.slice(4), ...v.slice(0, 4)] : v;
+						[at.x, at.y] =
+							v.length === 4
+								? [v[0] + v[2] * along, v[1]]
+								: [
+										vertices[0] + (vertices[2] - vertices[0]) * along,
+										vertices[1] + (vertices[3] - vertices[1]) * along
+									];
+						const point = at.matrixTransform(matrix);
+						return [point.x, point.y];
+					};
+					return {
+						expected: project(latest),
+						stale: project(initial),
+						initial,
+						latest,
+						projection: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f],
+						probe_edge: resize ? 'bottom' : 'top',
+						dpr: devicePixelRatio
+					};
+				},
+				{ initial, latest, resize: name === 'Composition rotated resize' }
+			);
+			const stroke = await shape.evaluate((element) => getComputedStyle(element).stroke);
+			assert(/^rgb\(\d+, \d+, \d+\)$/.test(stroke), `Explicit RGB edge required: ${stroke}`);
+			geometry.color = stroke.match(/\d+/g).map(Number);
+			const stage = name.toLowerCase().replaceAll(' ', '-') + '-pending';
 			const folder = path.join(directory, stage);
 			const hwnd = ownedWindowHandle(native.app.pid);
 			execFileSync(
@@ -92,11 +127,6 @@ export async function createGestureQualification({
 				],
 				{ windowsHide: true }
 			);
-			const geometry = {
-				expected: project(latest),
-				stale: project(initial),
-				dpr: await page.evaluate(() => devicePixelRatio)
-			};
 			await writeFile(path.join(folder, 'geometry.json'), JSON.stringify(geometry));
 			const pixels = JSON.parse(
 				execFileSync('python', ['apps/mapgyver/tests/native/pending_overlay.py', folder], {
@@ -104,7 +134,7 @@ export async function createGestureQualification({
 					windowsHide: true
 				})
 			);
-			alignment.push({ name, hit, point, sample, pixels });
+			alignment.push({ name, hit, point, sample, stroke, pixels, native_controls: nativeControls });
 		},
 		async after(name) {
 			await output.observePixels(name.toLowerCase().replaceAll(' ', '-'), [255, 0, 0, 255]);

@@ -175,7 +175,7 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 		(v) => !near(v, first)
 	);
 	assert.equal(held.length, 1, 'one in-flight request only');
-	await qualification?.pending({ name, svg, control, initial, latest });
+	await qualification?.pending({ name, svg, shape, control, initial, latest });
 	assert.deepEqual(
 		await inspect(),
 		before,

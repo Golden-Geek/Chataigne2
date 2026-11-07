@@ -66,3 +66,10 @@ two-editor selection in narrow panes pass. The Matrix toolbar reserves header cl
 Browser invalid-quad checks preserve the red cue without covering unrelated areas. Native
 input and DOM alignment do not establish scanout timing or close retained physical gates.
 See the [receipt](../progress/evidence/mapgyver-m11-canvas-controls-2026-11-04.json).
+
+M13's [pending-outline checks](../progress/evidence/mapgyver-m13-pending-outlines-2026-11-07.json)
+now cover Matrix Layer/Cell, Composition translation/rotated resize, Screen and Source on both
+GPUs at125%. Captured physical edges agree within one pixel while authored requests are held;
+final geometry/history and independent output continuity pass. Composition/Matrix outlines are
+DOM controls; native accepted-frame control hits apply to Screen/Source. This scoped coverage
+does not establish moving image correspondence,240Hz timing or other DPI/workload acceptance.

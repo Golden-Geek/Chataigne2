@@ -1,0 +1,91 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; pending physical control-outline coverage complete for the six named125% cases on both GPUs, full gate unaccepted",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": { "started_utc": "04:51", "planned_cutoff_utc": "05:36", "result_utc": "04:59" },
+	"production": {
+		"changed": false,
+		"binary": "target/debug/deps/MapGyver-m134-redraw.exe",
+		"sha256": "970d4f4d340855159d62f6ccc1737db0de32bb8500092167512a2a64a4ff147b",
+		"baseline": "3e457c6577c44ddc3e67dcb06b350cd1486ff66c"
+	},
+	"coverage_change": "Existing gesture-qualification now captures pending outlines for Matrix Layer/Cell and Composition translation/rotated resize as well as Screen warp/Source crop. All use actual SVG screen CTM, window/client/DPR coordinates and the selected edge's computed RGB color. Probe points avoid resize handles; rotated resize samples its moved bottom edge. Require current pixels within1 physical pixel and no matching stale edge within2 pixels. Preserve the native accepted-frame hit check for Screen/Source, and the existing exact canonical/history/independent-output checks.",
+	"scope": "Physical visible outline pixels while a real authored request is held, across five editors. Four Composition/Matrix outlines are DOM controls; native accepted-frame control hits apply to Screen/Source only. Held authored content is deliberately unchanged, so this is not a claim that Composition/Matrix native image transforms already follow an uncommitted hint. No moving-frame image/outline correspondence, display pacing, pointer latency or general DPI/production qualification inferred.",
+	"software": "Three independent Python oracle tests pass: blue/theme-cyan pixels and physical offset/DPR; missing/wrong-color/stale-edge rejection; grey-background/wrong-DPI rejection. Modified JS syntax and repository Prettier pass. Root/Core cargo fmt and scoped diff checks pass. Production Rust/UI inputs are unchanged, so prior software/native compilation evidence remains scoped and reused.",
+	"cases": [
+		{
+			"name": "Matrix Layer translation",
+			"each_gpu_error_px": 0.3435510813695682,
+			"each_gpu_stale_edge_distance_px": null
+		},
+		{
+			"name": "Matrix Cell translation",
+			"each_gpu_error_px": 0.4379579495589153,
+			"each_gpu_stale_edge_distance_px": null
+		},
+		{
+			"name": "Composition translation",
+			"each_gpu_error_px": 0.7501605709568784,
+			"each_gpu_stale_edge_distance_px": 4.69327612294989
+		},
+		{
+			"name": "Composition rotated resize",
+			"each_gpu_error_px": 0.24166261234409614,
+			"each_gpu_stale_edge_distance_px": 4.635602373411915
+		},
+		{
+			"name": "Screen warp corner",
+			"each_gpu_error_px": 0.42222181118746727,
+			"each_gpu_stale_edge_distance_px": null
+		},
+		{
+			"name": "Surface Source crop",
+			"each_gpu_error_px": 0.28848795319488785,
+			"each_gpu_stale_edge_distance_px": null
+		}
+	],
+	"each_gpu": "Six real held-request local-hint cases pass; older receipts cannot rewind the latest hint, exactly one geometry request is in flight, final canonical geometry and grouped Undo/Redo match, and capture/output observation does not author the held state. Current native Screen/Source hit IDs agree. Six physical captures have120DPI/1.25DPR and monitor[0,0,2560,1600]. Seven independent complete96x64 output images are exactly RGBA[255,0,0,255]. No page errors, unexpected rejections, absent output, descriptor mismatch or failed SDK receive. Owned fixtures/app close normally.",
+	"intel": {
+		"artifacts": "target/m134-all-pending-intel-bottom-20261107",
+		"pid": 3816,
+		"gpu": "dxgi:00000000:00015b69",
+		"fixture_exit": 0,
+		"sdk_copies": 847,
+		"first_frame": 61,
+		"last_frame": 907,
+		"stable_shared_handle": 1073758658,
+		"maximum_receive_gap_ms": 33.7363,
+		"consumer_exit": 0,
+		"result_sha256": "de58cf279309f33b71b02b46ee8bc83a6b4f0ca497c3daf9c6ec9469c8acffbc"
+	},
+	"nvidia": {
+		"artifacts": "target/m134-all-pending-nvidia-20261107",
+		"pid": 22836,
+		"gpu": "dxgi:00000000:90b3a15f",
+		"fixture_exit": 0,
+		"sdk_copies": 877,
+		"first_frame": 70,
+		"last_frame": 946,
+		"stable_shared_handle": 1073747522,
+		"maximum_receive_gap_ms": 33.5131,
+		"consumer_exit": 0,
+		"requests": 619,
+		"receipts": 619,
+		"result_sha256": "d1938bb7ac52800a8afdc3cfd77d87b1b02f7a948f417c4068ab41a3f24dcf98"
+	},
+	"verifier_failures_retained": [
+		{
+			"artifacts": "target/m134-all-pending-intel-20261107",
+			"pid": 43556,
+			"fixture_exit": 1,
+			"cause": "The first Matrix midpoint oracle sampled a blue/white resize handle over the cyan line, so it found no cyan pixels. Saved visible image identifies the obstruction. Sample moved to37% along the edge, clear of endpoint/midpoint handles; no production change or threshold relaxation."
+		},
+		{
+			"artifacts": "target/m134-all-pending-intel-edge-20261107",
+			"pid": 30276,
+			"fixture_exit": 1,
+			"cause": "Three translation cases passed, but rotated-resize's old top-edge sample still lies on the correctly extended top-edge line. Rejecting that legitimate paint was an oracle error. Sample moved to the changed bottom edge. Both complete GPU suites then passed the same one-pixel/current and two-pixel/stale limits. Prior failures and successful partial samples remain retained."
+		}
+	],
+	"remaining": "Fully populated3x3 and larger/empty/other-media interaction workloads; ordinary controls/scroll/docking and silent/background-intent audit; actual240Hz presented pacing, long stalls and pointer-to-visible p95/p99 on both GPUs. The separate zero-action common-QPC checkpoint retains its return trigger. SDK receive gaps here establish functional continuity only. All original timing/memory/retirement/physical requirements remain; no full gate closed."
+}
