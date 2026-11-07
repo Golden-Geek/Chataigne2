@@ -3,7 +3,7 @@
   "date": "2026-11-07",
   "gate": "M13/2",
   "base_commit": "4f34e96170c7a28f4c69b71021839dc41d20b6a2",
-  "status": "Active; actual Intel float-source device loss and expanded-format recovery verified; NVIDIA loss assertion failed because this trigger did not prove its device loss",
+  "status": "Active; Intel format/device recovery verified; default DXCap did not prove NVIDIA loss; targeted NVIDIA restart confirms recovery cannot retain a removed LUID, and status error priority is corrected",
   "deliverable": "Actual MapGyver automatically rebuilds its Intel renderer after real device loss and imports fresh float, half-float, signed integer and planar P010 sources without app-side source reconfiguration.",
   "authorization": "User explicitly authorized autonomous desktop work and as many driver resets as needed. Existing installed DXCap/controller workflow reused. No display settings or persistent driver-disable state changed.",
   "cohorts": {
@@ -67,10 +67,44 @@
     "artifact": "target/mapgyver-m13-device-reset-nvidia-20261107/failure.json",
     "return_action": "Use a justified reset/removal targeting NVIDIA, with fresh owned readiness and actual per-device failure evidence; preserve Intel as control. An unchanged default DXCap reset is not a new useful experiment."
   },
+  "nvidia_targeted_restart_followup": {
+    "base_commit": "d24d720c22a6d25044199833892a750d90846736",
+    "decision": "Prior Intel-only DXCap evidence changes the trigger choice. One targeted comparison is performed; no further native reset follows this failure. This is a third cumulative device experiment including the prior no-reset baseline and default reset, not another passing sample of the same trigger.",
+    "command": "pnputil /restart-device \"PCI\\VEN_10DE&DEV_2C59&SUBSYS_800F17AA&REV_A1\\813FD165DA2DB04800\"",
+    "controller": "Existing exact-PID/readiness controller accepts an optional exact NVIDIA PCI instance, checks its present Display/NVIDIA/healthy identity, and runs elevated pnputil without disable, uninstall, class-wide or reboot flags.",
+    "controller_artifact": "target/m034-removal-14b7b09ef4394c5f9e4bf9f24d04fe8e/result.json",
+    "qualification_pid": 31668,
+    "ready_utc": "2026-11-07T00:42:52.2273755Z",
+    "finished_utc": "2026-11-07T00:43:02.5114015Z",
+    "pnputil_exit_code": 0,
+    "device_status_after": "OK",
+    "both_display_devices_problem_code_after": 0,
+    "old_nvidia_luid": "dxgi:00000000:79e2f347",
+    "new_nvidia_luid": "dxgi:00000000:90b3a15f",
+    "native_result": "Exit101: real removal rebuilds original plan on a new native device exceeds original five-second deadline. Same pinned LUID is no longer enumerated. No deadline increase or adapter fallback.",
+    "actual_app": {
+      "nvidia_pid": 11672,
+      "intel_control_pid": 25840,
+      "nvidia_observed": "Recovering from00:42:53.282Z onward, gpu_adapter absent, error source observations belong to a stale renderer project/device. StatusSampler publishes Recovering only for the core's confirmed device_lost flag; real loss is observed, but rebuilding fails after identity removal.",
+      "original_harness_result": "Exit1 at the error-text loss assertion. The error-priority defect hid the native cause. No fresh NVIDIA post-loss pixels claimed. Source/app close normally through finally.",
+      "intel_control": "Five format stages pass, no device-loss status, exact original GPU preserved; node/source/app exit0.",
+      "artifacts": ["target/mapgyver-m13-nvidia-target-loss-20261107/failure.json", "target/mapgyver-m13-nvidia-target-intel-control-20261107/result.json"]
+    },
+    "contract": "AdapterId::key explicitly documents Windows re-enumeration as a missing choice. Device::new requires exact LUID; Selection pins startup choice. PCI instance/label similarity is not permission to change that contract.",
+    "return_trigger": "A supported reset that loses NVIDIA's device while preserving its LUID, or an explicitly revised adapter-identity contract. Installed DXCap documents adapter selection for playback only. No undocumented debug escape, registry change or repeated identical reset is introduced."
+  },
+  "status_correction": {
+    "owner": "apps/mapgyver/src/preview/runtime_status.rs",
+    "before": "A confirmed lost-device state selected an app planning error before RuntimeSnapshot.failure, hiding its owning backend failure behind stale source observations.",
+    "after": "During confirmed device loss, the backend/runtime failure takes priority; other lifecycle error priority remains. No GPU selection/rebinding, authored setting, protocol or recovery budget changes.",
+    "proof": "Regression starts the real null runtime, confirms loss and failed reset, and verifies Recovering exposes RuntimeSnapshot.failure instead of a concurrent stale-source error with no invented FPS/timing. Full app suite510 passed,2 ignored; unused_mut warning removed and strict all-target Clippy passes.",
+    "harness": "Future checks also recognize the public typed Recovering state as confirmed device loss; arbitrary Faulted/errors still do not qualify it. Failed original cohorts remain failed, and no post-fix native reset/recovery pass is inferred.",
+    "checks": "Node syntax/Prettier,6 readiness plus4 exact-target identifier checks, root/Core cargo fmt and scoped diff checks pass. Software checks establish the presentation correction; no native requalification is claimed."
+  },
   "limits": [
     "One genuine Intel loss/recovery sample, not a latency percentile, physical cadence or production-memory qualification.",
     "Sender recovery uses explicit external producer recreation after real loss; no automatic recovery behavior is attributed to that independent producer.",
-    "NVIDIA expanded-format actual device loss/recovery remains required; prior byte-source loss evidence is not substituted.",
+    "NVIDIA expanded-format recovery remains required. Targeted PnP restart removes its pinned LUID and fails rebuilding; prior byte-source evidence is not substituted.",
     "Actual D3D9 producer, broader actual-app native storage classes and named interpretation/API limits remain unaccepted."
   ],
   "gate_changes": "None:70/92 accepted gates,76%; M13 1/14,7%;7/14 phases complete,50%."

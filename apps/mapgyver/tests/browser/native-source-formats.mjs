@@ -222,7 +222,9 @@ async function waitForDeviceCycle() {
 		);
 		if (!samples.length || samples.at(-1).status.sequence !== status.sequence)
 			samples.push({ utc: new Date().toISOString(), status });
-		if (status.error?.includes('render device was lost'))
+		// Recovering is published only from the core's confirmed device_lost flag.
+		// A separate planning error must not hide that typed lifecycle observation.
+		if (status.state === 'Recovering' || status.error?.includes('render device was lost'))
 			loss ??= { utc: new Date().toISOString(), status };
 		await writeFile(
 			path.join(directory, 'reset-observations.json'),

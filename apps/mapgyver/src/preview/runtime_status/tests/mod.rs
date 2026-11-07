@@ -74,3 +74,42 @@ fn project_replacement_resets_the_fps_baseline() {
     runtime.close();
     assert!(runtime.retirement().wait(Duration::from_secs(5)));
 }
+
+#[cfg(all(windows, feature = "native-video"))]
+#[test]
+fn device_recovery_reports_the_backend_failure_before_invalidated_source_observations() {
+    use golden_video::runtime::{NullConfig, VideoRuntime};
+    let config = crate::preview::config::configuration(512 * 1024 * 1024, None).video;
+    let runtime = VideoRuntime::spawn_null(config, NullConfig::default()).unwrap();
+    let control = runtime.null_control().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !control.snapshot().initialized {
+        assert!(Instant::now() < deadline, "null backend initialization");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    control.fail_next_resets(usize::MAX);
+    control.lose_device();
+    let snapshot = loop {
+        let snapshot = runtime.snapshot();
+        if snapshot.resources.is_some_and(|resources| resources.device_lost) && snapshot.failure.is_some() {
+            break snapshot;
+        }
+        assert!(Instant::now() < deadline, "confirmed loss and failed recovery");
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    let backend_error = snapshot.failure.as_ref().unwrap().to_string();
+    let mut sampler = StatusSampler::default();
+    let status = sampler
+        .sample(
+            Instant::now(),
+            Some((&snapshot, "Pinned GPU")),
+            Some("source observations belong to a stale renderer project/device"),
+        )
+        .unwrap();
+    assert_eq!(status.state, VideoRuntimeState::Recovering);
+    assert_eq!(status.error.as_deref(), Some(backend_error.as_str()));
+    assert_eq!(status.submitted_fps, None);
+    assert_eq!(status.cpu_submit_ms, None);
+    runtime.close();
+    assert!(runtime.retirement().wait(Duration::from_secs(5)));
+}

@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$TestExecutable,
-    [switch]$AllowDriverReset
+    [switch]$AllowDriverReset,
+    [ValidatePattern('^PCI\\VEN_10DE&[A-Z0-9_&]+\\[A-Z0-9&]+$')]
+    [string]$RestartDeviceInstanceId
 )
 
 function Test-OwnedFixtureReady {
@@ -12,6 +14,13 @@ function Test-OwnedFixtureReady {
 
 # Default is a no-reset preflight. Supply the switch only after explicit operator approval.
 $ErrorActionPreference = 'Stop'
+if ($RestartDeviceInstanceId) {
+    if (-not $AllowDriverReset) { throw 'Targeted device restart requires explicit reset authorization' }
+    $targetDevice = Get-PnpDevice -PresentOnly -InstanceId $RestartDeviceInstanceId -ErrorAction Stop
+    if ($targetDevice.Class -ne 'Display' -or $targetDevice.FriendlyName -notlike 'NVIDIA *' -or $targetDevice.Status -ne 'OK') {
+        throw 'Target must be the exact present healthy NVIDIA display adapter'
+    }
+}
 $repository = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
 $binary = (Resolve-Path -LiteralPath $TestExecutable).Path
 $directory = Join-Path $repository ('target/m034-removal-' + [guid]::NewGuid().ToString('N'))
@@ -28,6 +37,7 @@ $metadata = [ordered]@{
     binary = $binary
     binary_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
     reset_authorized = [bool]$AllowDriverReset
+    restart_device_instance_id = $RestartDeviceInstanceId
     directory = $directory
 }
 $qualificationProcess = $null
@@ -62,11 +72,25 @@ try {
     $metadata.ready_utc = [DateTime]::UtcNow.ToString('o')
     if ($AllowDriverReset) {
         if ($qualificationProcess.HasExited) { throw 'Ready fixture has already exited' }
-        $resetProcess = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/DXCap.exe') `
-            -ArgumentList '-forcetdr' -Verb RunAs -WindowStyle Hidden -PassThru
+        if ($RestartDeviceInstanceId) {
+            # Restart one verified adapter. No class-wide, persistent-disable or reboot flag.
+            $resetProcess = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/pnputil.exe') `
+                -ArgumentList @('/restart-device', ('"' + $RestartDeviceInstanceId + '"')) `
+                -Verb RunAs -WindowStyle Hidden -PassThru
+        } else {
+            $resetProcess = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/DXCap.exe') `
+                -ArgumentList '-forcetdr' -Verb RunAs -WindowStyle Hidden -PassThru
+        }
         $resetProcess.WaitForExit()
-        $metadata.dxcap_exit_code = $resetProcess.ExitCode
-        if ($resetProcess.ExitCode -ne 0) { throw 'DXCap failed; no successful trigger claimed' }
+        if ($RestartDeviceInstanceId) {
+            $metadata.pnputil_exit_code = $resetProcess.ExitCode
+            $restored = Get-PnpDevice -PresentOnly -InstanceId $RestartDeviceInstanceId -ErrorAction Stop
+            $metadata.device_status_after = [string]$restored.Status
+            if ($restored.Status -ne 'OK') { throw 'Restarted NVIDIA adapter is not healthy' }
+        } else {
+            $metadata.dxcap_exit_code = $resetProcess.ExitCode
+        }
+        if ($resetProcess.ExitCode -ne 0) { throw 'Driver trigger failed; no successful trigger claimed' }
     }
     $qualificationProcess.WaitForExit()
     $metadata.qualification_exit_code = $qualificationProcess.ExitCode

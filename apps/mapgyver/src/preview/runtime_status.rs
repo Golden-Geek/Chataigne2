@@ -94,7 +94,8 @@ impl StatusSampler {
                 RuntimeState::Faulted => VideoRuntimeState::Faulted,
                 _ => VideoRuntimeState::Starting,
             };
-            if snapshot.resources.is_some_and(|resources| resources.device_lost) {
+            let recovering = snapshot.resources.is_some_and(|resources| resources.device_lost);
+            if recovering {
                 status.state = VideoRuntimeState::Recovering;
             }
             if status.state == VideoRuntimeState::Running {
@@ -121,9 +122,14 @@ impl StatusSampler {
                 retiring: value.retiring_generations,
             });
             if status.state != VideoRuntimeState::Running {
-                status.error = status
-                    .error
-                    .or_else(|| snapshot.failure.as_ref().map(ToString::to_string));
+                let runtime_error = snapshot.failure.as_ref().map(ToString::to_string);
+                // A lost device invalidates captured source observations. Report its owning
+                // failure before the resulting stale-plan error while recovery is pending.
+                status.error = if recovering {
+                    runtime_error.or(status.error)
+                } else {
+                    status.error.or(runtime_error)
+                };
             }
         } else {
             self.counter = None;

@@ -20,8 +20,13 @@ The independent producer retains its SDK/device until explicit stop; new native 
 for prior GPU completion. The [device-reset slice](../progress/evidence/mapgyver-m13-format-device-reset-2026-11-07.json)
 then observes actual Intel float-source device loss, same-adapter rebuilding and fresh float,
 half-float, SINT and P010 output after external producer recreation. That default DXCap trigger
-does not prove NVIDIA device loss; its strict assertion remains failed. NVIDIA device recovery,
-D3D9, broader app classes and named interpretation/API limits still require acceptance.
+does not prove NVIDIA device loss; its strict assertion remains failed. A targeted NVIDIA
+PnP restart subsequently changes its LUID, so exact-identity rebuilding fails the original
+deadline. This does not authorize rebinding by label or PCI similarity. During confirmed
+device loss the app now reports the runtime/backend failure before a dependent stale-source
+planning error. The regression covers that presentation correction; it does not qualify
+missing-LUID recovery. NVIDIA recovery returns on a supported same-LUID reset or an explicitly
+revised identity contract. D3D9, broader app classes and named interpretation/API limits remain.
 
 ## Current import path
 
