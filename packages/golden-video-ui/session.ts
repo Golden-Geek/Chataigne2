@@ -6,6 +6,7 @@ import type { PreviewTransport } from './transport';
 import type { OverlayPrimitive } from './generated/OverlayPrimitive';
 import type { PreviewPointer } from './generated/PreviewPointer';
 import { RenderOpportunity } from './render-opportunity';
+import { createPreviewBackground } from './background';
 
 export type PreviewGeometry = Pick<PreviewView, 'rect' | 'clip' | 'visible'> & {
 	overlays?: OverlayPrimitive[];
@@ -63,6 +64,7 @@ const newId = (): string => globalThis.crypto.randomUUID();
 /** One window's presentation owner. The single pump serializes Connect/Layout/Disconnect;
  * layout changes retain one latest desired snapshot while an IPC is in flight. */
 export function createPreviewSession(transport: PreviewTransport): PreviewSession {
+	const canvasBackground = createPreviewBackground();
 	let state: PreviewSessionState = {
 		availability: 'idle',
 		session: null,
@@ -214,10 +216,10 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 			...registration.measure()
 		}));
 	}
-	function presentationKey(views: PreviewView[]) {
+	function presentationKey(views: PreviewView[], background = canvasBackground()) {
 		// A browser scale change is a new rendering cohort even with identical CSS bounds.
 		// This is only a fence hint; native geometry still uses authenticated host metrics.
-		return JSON.stringify([globalThis.devicePixelRatio ?? 1, views]);
+		return JSON.stringify([globalThis.devicePixelRatio ?? 1, background, views]);
 	}
 	function paintKey(views: PreviewView[]) {
 		// Native decoration coordinates/colors/hits do not change the transparent DOM aperture.
@@ -292,17 +294,24 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						// Freeze the exact cohort before yielding; reactive overlay/tile arrays may
 						// change while the browser completes the rendering opportunity.
 						const views = JSON.parse(geometry) as PreviewView[];
+						const background = canvasBackground();
 						const paint = paintKey(views);
 						if (geometry !== lastGeometry || paint !== lastPaintKey) {
 							lastGeometry = geometry;
 							update({ installed: false, presentedViews: retainPresentation(views) });
 						}
 						lastViews = views;
-						lastLayoutKey = presentationKey(views);
+						lastLayoutKey = presentationKey(views, background);
 						lastPaintKey = paint;
 						stopStatus();
 						statusAttempts = 0;
-						request = { kind: 'Layout', session: state.session, revision: ++revision, views };
+						request = {
+							kind: 'Layout',
+							session: state.session,
+							revision: ++revision,
+							views,
+							background
+						};
 					} catch (error) {
 						fail(String(error));
 						continue;
@@ -349,7 +358,7 @@ export function createPreviewSession(transport: PreviewTransport): PreviewSessio
 						// pending; the native owner still enforces its lease and lifetime fences.
 						try {
 							if (request.kind === 'Layout' && state.presentedViews.length > 0) {
-								const cohort = presentationKey(request.views);
+								const cohort = presentationKey(request.views, request.background);
 								if (cohort === presentedKey && cohort === presentationKey(measure())) {
 									delayedPresentation = cohort;
 									update({

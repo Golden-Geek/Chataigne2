@@ -27,6 +27,7 @@ pub struct Fixture {
     receiver: PreviewReceiver,
     session: uuid::Uuid,
     revision: u32,
+    canvas: Option<(CssRect, [u8; 4])>,
     pub extent: Extent2D,
 }
 
@@ -116,6 +117,7 @@ impl Fixture {
             receiver,
             session,
             revision: 0,
+            canvas: None,
             extent,
         }
     }
@@ -147,6 +149,9 @@ impl Fixture {
     }
     pub fn sender(&self, index: usize) -> &str {
         &self.names[index]
+    }
+    pub fn set_canvas(&mut self, content: CssRect, background: [u8; 4]) {
+        self.canvas = Some((content, background));
     }
     pub fn publish_channels(
         &mut self,
@@ -190,12 +195,13 @@ impl Fixture {
         };
         let response = self.preview.handle(
             PreviewRequest::Layout {
+                background: self.canvas.map_or([21, 21, 21, 255], |(_, color)| color),
                 session: self.session,
                 revision: self.revision,
                 views: vec![PreviewView {
                     id: uuid::Uuid::new_v4(),
                     source: serde_json::to_string(&root).unwrap(),
-                    rect,
+                    rect: self.canvas.map_or(rect, |(content, _)| content),
                     clip: rect,
                     visible: true,
                     overlays: Vec::new(),

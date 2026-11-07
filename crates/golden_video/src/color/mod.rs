@@ -5,6 +5,22 @@ use thiserror::Error;
 pub struct LinearColor([f32; 4]);
 
 impl LinearColor {
+    /// Decode a bounded straight-alpha sRGB byte color at an I/O/presentation boundary.
+    pub fn from_srgba8(rgba: [u8; 4]) -> Self {
+        let alpha = f32::from(rgba[3]) / 255.;
+        let mut linear = [0.; 4];
+        for index in 0..3 {
+            let value = f32::from(rgba[index]) / 255.;
+            linear[index] = (if value <= 0.04045 {
+                value / 12.92
+            } else {
+                ((value + 0.055) / 1.055).powf(2.4)
+            }) * alpha;
+        }
+        linear[3] = alpha;
+        Self(linear)
+    }
+
     /// Transparent black in the internal compositing representation.
     pub const TRANSPARENT: Self = Self([0.0; 4]);
 

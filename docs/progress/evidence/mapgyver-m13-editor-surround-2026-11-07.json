@@ -1,0 +1,50 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/13",
+	"status": "Functionally verified; full acceptance remains open",
+	"batch": { "started_utc": "21:43", "cutoff_utc": "22:28", "verified_utc": "22:04" },
+	"progress": { "verified": 79, "total": 92, "overall_percent": 86, "m13_verified": 10, "m13_total": 14, "m13_percent": 71, "completed_phases": 7, "total_phases": 14 },
+	"calculation": "No gate accepted in this slice. Existing79/92 rounds to86%; M13 10/14 rounds to71%. Denominators and all original budgets remain unchanged.",
+	"capability": "Native preview canvas follows the shared workbench theme outside image bounds. Only content bounds receive black backing, preserving transparent-image composition and native overlays outside the image. Screen Warping and Surface Source inherit the fix through their existing shared adapters.",
+	"architecture": "docs/architecture/mapgyver-media-preview.md",
+	"implementation": {
+		"owner": "Golden UI samples the window theme token; Rust Golden preview authenticates/resolves geometry, decodes bounded colour metadata and owns routing/placement fences; MapGyver preview composes its existing themed base, content backing and image/overlay passes.",
+		"protocol": "Rust-owned preview protocol v7 adds required Layout.background:[u8;4]. Exporter output and all consumers change together; v6 clients reject. All11 generated exports match normalized text; OS line endings alone differ.",
+		"colour": "One cached1x1 CSS sample is refreshed only when the computed panel token changes, using the existing document style observer. No video CPU copies or recurring polling are introduced. Decode straight sRGB bytes before alpha premultiplication. Existing linear RGBA8 target quantization remains explicit in the native oracle.",
+		"geometry": "Black regions and live backing placements use the clipped image destination; full viewport backdrop remains the overlay clip. Theme changes invalidate routing without replacing the view identity. Missing-source backing, alpha, placement and overlay capacity remain distinct.",
+		"budgets": "Existing five preview passes and five reserved textures, view/tile/source/resource limits and authored outputs remain unchanged."
+	},
+	"software": {
+		"mapgyver": { "command": "cargo test --locked -p MapGyver --lib --quiet", "passed": 564, "failed": 0, "ignored": 2, "exit": 0 },
+		"golden_video": { "command": "cargo test --locked -p golden_video --lib --no-default-features", "passed": 162, "failed": 0, "ignored": 0, "exit": 0 },
+		"strict": { "command": "cargo clippy --locked -p MapGyver -p golden_video --features golden_video/qualification --lib --tests -- -D warnings", "exit": 0 },
+		"native_target": { "compile": "cargo test --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering --no-run", "strict": "cargo clippy --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering -- -D warnings", "exit": 0 },
+		"ui_unit": { "command": "npm test --workspace golden_video_ui", "passed": 68, "files": 5, "exit": 0 },
+		"ui_types": "MapGyver and golden_video_ui checks pass with0errors0warnings.",
+		"browser": "Production-built lifecycle suite passes theme metadata/stable view, continuity/pan/zoom, delayed native metadata, native-pointer projection/fences, qualification layouts, source swaps and retirement masks; pageErrors is empty. This is isolated headless browser software evidence, not actual desktop input or native pixels.",
+		"format": "Root and golden_core cargo fmt, touched-source Prettier and owning diff checks pass."
+	},
+	"native": {
+		"command": "target/debug/deps/matrix_rendering-c4e257fea1eae2ec.exe native_canvas_surround_tracks_content_geometry_theme_and_alpha_on_both_gpus --ignored --nocapture",
+		"binary_sha256": "716da185e675b33d8ef4de4382969bd2fa15e669ff1707e8f4212a400f20a47b",
+		"exit": 0,
+		"hardware_adapter_luids": ["00000000:00015b69", "00000000:90b3a15f"],
+		"cases_per_adapter": 4,
+		"complete_preview_images": 8,
+		"texels_per_image": 768,
+		"independent_authored_output_images": 8,
+		"assertions": "Half-alpha red composites over content-only black; grey theme is outside the content; pan, scale/size and negative/right/bottom clipping follow exact bounds. Every preview texel is within2/255 of an oracle including declared linear RGBA8 quantization. Authored output is byte-identical across all geometry/theme cases. Both owners retire with zero live plan/source/output resources and balanced plan allocations.",
+		"receipt": "target/m1313-canvas-native-corrected-20261107.log",
+		"receipt_sha256": "b2bb589ab873931b4c79b143028d0db0ececb34ceb600e8701cb6e8983d1f2fd",
+		"scope_limit": "Independent real D3D11 render/Spout copies do not establish actual desktop composition, native editor input, docking or physical DPI alignment."
+	},
+	"corrected_failures": [
+		"First native experiment stopped before pixel comparison: readback fixture admitted one payload credit, but the existing receiver needs three simultaneous receiving/staging/CPU credits. Corrected to three; rebuilt target and strict lint passed before the sole retry. Failed receipt retained at target/m1313-canvas-native-20261107.log.",
+		"Initial broad strict invocation omitted golden_video/qualification; native test references require the feature-gated readback API. Corrected explicit feature invocation passes; no product API workaround added.",
+		"First browser expectation used fallback#252525 although the real fixture imports Golden's current#1f2021 panel token. Corrected assertion to actual declared theme, then reran the suite successfully."
+	],
+	"remaining": "Full M13/13 acceptance still requires actual desktop pixels/clipping on both GPUs through Screen Warping and Surface Source pan/zoom/resize, missing sources, alpha, theme/scale, docking and project transitions, with bounds/imagery/overlays/hits aligned and unchanged output pixels.",
+	"blocker": "Owned-window desktop input remains stopped after physical Escape. No CDP input bypass was used. Two native experiments, including the failed baseline, are complete; no further native probe in this batch.",
+	"return_trigger": "User resumes owned-window input; run the remaining actual-app desktop transition cases using this implementation and existing native capture tools. Do not rerun unchanged standalone probes as a prerequisite.",
+	"next": "M13/14 media-first Surface/Reference target and dependent Channel picker is dependency-ready. Start only after this coherent milestone is committed and pushed. All retained gates still block qualification and Video."
+}

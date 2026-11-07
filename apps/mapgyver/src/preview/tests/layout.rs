@@ -52,7 +52,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                     id: uuid::Uuid::new_v4(),
                     source: serde_json::to_string(&PreviewSource::Screen { screen }).unwrap(),
                     destination,
-                    backdrop: destination,
+                    backdrop: UnitRect::FULL,
                     overlays: std::sync::Arc::from([OverlayPrimitive {
                         hit: None,
                         shape: OverlayShape::Quad {
@@ -70,6 +70,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
                 })
                 .collect(),
             reader.guard_at(reader.current()),
+            golden_video::LinearColor::from_srgba8([21, 21, 21, 255]),
         ),
     };
     let source = TextureId::new(PreviewLayout::RESERVED_TEXTURES + 1).unwrap();
@@ -95,7 +96,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
     let RenderOperation::Clear(theme) = pass(2).operation else {
         panic!("theme base missing")
     };
-    assert_eq!(theme.components(), [0.0075, 0.0075, 0.0075, 1.]);
+    assert_eq!(theme, golden_video::LinearColor::from_srgba8([21, 21, 21, 255]));
     let RenderOperation::Clear(black) = pass(4).operation else {
         panic!("black fill missing")
     };

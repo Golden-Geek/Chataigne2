@@ -16,6 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod canvas;
 mod cell_editor;
 mod cell_geometry;
 #[cfg(feature = "application-process-fixture")]

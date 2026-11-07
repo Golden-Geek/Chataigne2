@@ -98,6 +98,7 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
                 ),
             }],
             reader.guard_at(reader.current()),
+            golden_video::LinearColor::from_srgba8([21, 21, 21, 255]),
         ),
     };
     let probe = renderer();
@@ -201,6 +202,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
     };
     controller.handle(
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session,
             revision: 1,
             views: vec![view.clone()],
@@ -267,6 +269,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
     view.rect.x = 12.;
     controller.handle(
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session,
             revision: 2,
             views: vec![view.clone()],
@@ -280,6 +283,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
     view.source = serde_json::to_string(&PreviewSource::Channel { reference: second }).unwrap();
     controller.handle(
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session,
             revision: 3,
             views: vec![view],

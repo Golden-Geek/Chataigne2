@@ -4,7 +4,7 @@ use ts_rs::TS;
 use uuid::Uuid;
 
 /// Current local native-preview negotiation/control schema version.
-pub const PREVIEW_PROTOCOL_VERSION: u32 = 6;
+pub const PREVIEW_PROTOCOL_VERSION: u32 = 7;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 /// Event-driven pointer projection from an output-accepted native frame.
@@ -92,6 +92,8 @@ pub enum PreviewRequest {
         session: Uuid,
         /// Strictly increasing revision within that session.
         revision: u32,
+        /// Window canvas colour as straight-alpha sRGB bytes, independent of source pixels.
+        background: [u8; 4],
         /// Complete ordered registration set; omitted views become hidden.
         views: Vec<PreviewView>,
     },

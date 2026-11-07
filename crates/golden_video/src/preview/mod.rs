@@ -72,6 +72,8 @@ pub struct ResolvedTileGroup {
 #[derive(Clone, Debug)]
 /// Immutable metadata copied for worker-side render-plan preparation.
 pub struct PreviewSnapshot {
+    /// Window canvas colour, already decoded for native compositing.
+    pub background: crate::LinearColor,
     /// Coalesced layout generation, distinct from wire revisions and Video generations.
     pub generation: u64,
     /// Visible, nonempty views in submitted layout order.
@@ -90,7 +92,12 @@ pub struct PreviewSnapshot {
 impl PreviewSnapshot {
     /// Builds a snapshot whose destinations share one visibility lifetime. Controller snapshots
     /// retain independent destination lifetimes so unrelated layout edits do not clear live views.
-    pub fn new(generation: u64, views: Vec<ResolvedView>, guard: RevisionGuard) -> Self {
+    pub fn new(
+        generation: u64,
+        views: Vec<ResolvedView>,
+        guard: RevisionGuard,
+        background: crate::LinearColor,
+    ) -> Self {
         let placements = views
             .iter()
             .filter(|view| !view.overlays.is_empty() || view.tile_groups.is_some())
@@ -102,6 +109,7 @@ impl PreviewSnapshot {
         let mut tile_placements = HashMap::new();
         tiles::update(&mut tile_placements, &views);
         Self {
+            background,
             generation,
             views,
             routing_generation: generation,
@@ -156,13 +164,13 @@ impl PreviewSnapshot {
         regions
     }
 
-    /// Black editor backing stays under the complete canvas while its active image moves.
+    /// Black backing follows only the content; overlay clipping retains the complete canvas.
     pub fn backdrops(&self, source: TextureId) -> Vec<BlitRegion> {
         self.views
             .iter()
             .map(|view| BlitRegion {
                 source,
-                destination: view.backdrop,
+                destination: view.destination,
                 source_rect: UnitRect::FULL,
                 filter: SampleFilter::Nearest,
                 visibility: Some(self.view_guards.get(&view.id).unwrap_or(&self.guard).clone()),
@@ -202,6 +210,7 @@ struct Session {
     deadline: Instant,
 }
 struct State {
+    background: crate::LinearColor,
     closed: bool,
     suspended_at: Option<Instant>,
     session: Option<Session>,
@@ -240,8 +249,9 @@ impl State {
         self.revision.advance();
         self.installed = None;
     }
-    fn replace_views(&mut self, views: Vec<ResolvedView>, viewport: HostViewport) {
-        let routing_changed = self.viewport != Some(viewport)
+    fn replace_views(&mut self, views: Vec<ResolvedView>, viewport: HostViewport, background: crate::LinearColor) {
+        let routing_changed = self.background != background
+            || self.viewport != Some(viewport)
             || self.views.len() != views.len()
             || self.views.iter().zip(&views).any(|(old, new)| {
                 old.id != new.id
@@ -301,10 +311,11 @@ impl State {
             self.backdrops
                 .entry(view.id)
                 .and_modify(|placement| {
-                    assert!(placement.update(view.backdrop, UnitRect::FULL));
+                    assert!(placement.update(view.destination, UnitRect::FULL));
                 })
                 .or_insert_with(|| {
-                    crate::plan::RegionPlacement::new(view.backdrop, UnitRect::FULL).expect("resolved preview backing")
+                    crate::plan::RegionPlacement::new(view.destination, UnitRect::FULL)
+                        .expect("resolved preview backing")
                 });
             self.view_revisions.entry(view.id).or_default();
             self.placements
@@ -319,6 +330,7 @@ impl State {
         tiles::update(&mut self.tile_placements, &views);
         self.views = views;
         self.viewport = Some(viewport);
+        self.background = background;
         self.revision.advance();
         self.installed = None;
     }
@@ -403,6 +415,7 @@ impl PreviewController {
         }
         let shared = Arc::new(Shared {
             state: Mutex::new(State {
+                background: crate::LinearColor::TRANSPARENT,
                 closed: false,
                 suspended_at: None,
                 session: None,
@@ -547,6 +560,7 @@ impl PreviewController {
                     session,
                     revision,
                     views,
+                    background,
                 } => {
                     if state.session.as_ref().is_none_or(|current| current.id != session) {
                         PreviewResponse::Rejected {
@@ -596,8 +610,12 @@ impl PreviewController {
                         })();
                         match resolved {
                             Ok(views) => {
-                                if state.views != views || state.viewport != Some(viewport) {
-                                    state.replace_views(views, viewport);
+                                let background = crate::LinearColor::from_srgba8(background);
+                                if state.views != views
+                                    || state.viewport != Some(viewport)
+                                    || state.background != background
+                                {
+                                    state.replace_views(views, viewport, background);
                                     changed = true;
                                 }
                                 let current = state.session.as_mut().unwrap();
@@ -702,6 +720,7 @@ impl PreviewReceiver {
         state.expire(Instant::now());
         let reader = state.revision.reader();
         PreviewSnapshot {
+            background: state.background,
             generation: reader.current(),
             views: state.views.clone(),
             guard: reader.guard_at(reader.current()),

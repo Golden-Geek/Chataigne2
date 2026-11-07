@@ -38,6 +38,10 @@ session: string,
  */
 revision: number,
 /**
+ * Window canvas colour as straight-alpha sRGB bytes, independent of source pixels.
+ */
+background: [number, number, number, number],
+/**
  * Complete ordered registration set; omitted views become hidden.
  */
 views: Array<PreviewView>, } | { "kind": "Status",

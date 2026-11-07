@@ -4,6 +4,21 @@ MapGyver owns selected-media resolution and panel presentation choices. Golden o
 transport, native preview geometry and completion-based view retirement. The Inspector keeps
 authored Parameters and Channels; it no longer embeds media images.
 
+The native window canvas follows Golden's `--gc-color-panel`, matching Composition's grey
+surround. Preview protocol v7 carries one straight-alpha sRGB byte colour per measured Layout
+cohort. Golden UI caches a one-pixel CSS colour sample per window session and resamples only
+when the computed token changes; this is presentation metadata, never a video-frame readback.
+The Rust preview boundary decodes that colour to linear premultiplied compositing values.
+Theme replacement advances the routing fence so a stale clear-colour plan cannot install.
+
+Image bounds and overlay clipping have separate responsibilities. Content-only black follows
+the clipped image destination, including when the source is absent or translucent. The larger
+viewport clip remains available for native frames, handles and hit testing outside the image.
+Screen Warping and Surface Source retain their existing shared Viewport2D/NativePreview
+adapters; no app-specific theme reader or duplicate geometry owner is added. The existing five
+preview passes/textures and linear RGBA8 precision are unchanged. Authored output plans never
+consume the window canvas colour.
+
 `media::preview_selection` resolves the nearest actual Media/Reference ancestor from a selected
 node UUID. The immutable `InspectMediaPreview` operation returns a bounded channel page plus
 one independently resolved selected channel, including when that channel is outside the page.

@@ -17,6 +17,7 @@ fn discovery_and_all_existing_preview_requests_keep_their_canonical_contracts() 
             version: PREVIEW_PROTOCOL_VERSION,
         },
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session: id,
             revision: 1,
             views: vec![],

@@ -21,7 +21,7 @@
 		identity: string;
 		selection?: ViewBounds | null;
 		label?: string;
-		/** Native underlays supply black themselves; their DOM aperture must stay transparent. */
+		/** Native underlays supply content black themselves; the DOM aperture stays transparent. */
 		native?: boolean;
 		/** An installed underlay owns the image frame and surrounding canvas paint. */
 		nativeFrame?: boolean;

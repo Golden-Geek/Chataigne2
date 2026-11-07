@@ -52,6 +52,30 @@ export async function verifyContinuity(browser, baseUrl) {
 		const firstId = await page.evaluate(
 			() => window.__continuityRequests.find((request) => request.kind === 'Layout').views[0].id
 		);
+		assert.deepEqual(
+			await page.evaluate(
+				() => window.__continuityRequests.find((request) => request.kind === 'Layout').background
+			),
+			[31, 32, 33, 255]
+		);
+		await page.evaluate(() =>
+			document.documentElement.style.setProperty('--gc-color-panel', 'rgb(72, 74, 80)')
+		);
+		await page.waitForFunction(() =>
+			window.__continuityRequests.some(
+				(request) =>
+					request.kind === 'Layout' && JSON.stringify(request.background) === '[72,74,80,255]'
+			)
+		);
+		assert.equal(
+			await page.evaluate(
+				() =>
+					window.__continuityRequests.filter((request) => request.kind === 'Layout').at(-1).views[0]
+						.id
+			),
+			firstId,
+			'theme update retains the real view identity'
+		);
 		await page.evaluate(() => {
 			window.__continuityFlashes = [];
 			window.__continuityEdgeOverlap = 0;

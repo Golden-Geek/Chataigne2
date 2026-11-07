@@ -1,5 +1,6 @@
 use super::*;
 use protocol::{CssRect, PreviewView};
+mod canvas;
 mod continuity;
 mod groups;
 mod overlays;
@@ -65,6 +66,7 @@ fn fixture_with_limit(max_views: u32) -> (PreviewController, PreviewReceiver, Uu
 fn layout(control: &PreviewController, session: Uuid, revision: u32, views: Vec<PreviewView>) -> PreviewResponse {
     control.handle(
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session,
             revision,
             views,
@@ -291,6 +293,7 @@ fn wire_contract_rejects_mismatched_version_and_contains_only_layout_metadata() 
         }
     );
     let request = serde_json::to_string(&PreviewRequest::Layout {
+        background: [21, 21, 21, 255],
         session,
         revision: 1,
         views: vec![view()],

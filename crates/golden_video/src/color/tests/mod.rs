@@ -1,6 +1,21 @@
 use crate::{ColorError, LinearColor, Opacity};
 
 #[test]
+fn srgb_byte_canvas_colours_decode_before_premultiplication() {
+    let opaque = LinearColor::from_srgba8([128, 128, 128, 255]).components();
+    for value in &opaque[..3] {
+        assert!((value - 0.2158605).abs() < 0.000001);
+    }
+    assert_eq!(opaque[3], 1.);
+    assert_eq!(LinearColor::from_srgba8([255, 0, 0, 0]), LinearColor::TRANSPARENT);
+    let alpha = 128. / 255.;
+    assert_eq!(
+        LinearColor::from_srgba8([255, 0, 0, 128]).components(),
+        [alpha, 0., 0., alpha]
+    );
+}
+
+#[test]
 fn straight_colors_are_converted_to_linear_premultiplied_coverage() {
     for (straight, premultiplied) in [
         ([1.0, 0.5, 0.25, 0.0], [0.0, 0.0, 0.0, 0.0]),

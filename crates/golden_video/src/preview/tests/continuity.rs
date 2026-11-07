@@ -81,6 +81,7 @@ fn zoom_retains_frames_but_host_session_and_lease_changes_withdraw_captured_dest
     resized.client_width *= 2;
     control.handle(
         PreviewRequest::Layout {
+            background: [21, 21, 21, 255],
             session,
             revision: 3,
             views: vec![a.clone()],
@@ -163,7 +164,7 @@ fn sustained_pan_zoom_moves_an_installed_region_without_replacing_resource_routi
                 .is_none()
         );
         let actual = region.for_frame(token);
-        assert_eq!(backing.for_frame(token).destination, installed.views[0].backdrop);
+        assert_eq!(backing.for_frame(token).destination, desired.views[0].destination);
         assert_eq!(actual.destination, desired.views[0].destination);
         assert_eq!(actual.source_rect, desired.views[0].source_rect);
         assert_eq!(

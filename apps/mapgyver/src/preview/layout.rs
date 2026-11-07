@@ -69,7 +69,7 @@ impl PreviewLayout {
                 extent: Extent2D::new(1, 1).unwrap(),
                 ..self.descriptor
             },
-            operation: RenderOperation::Clear(LinearColor::from_straight(0.0075, 0.0075, 0.0075, 1.).unwrap()),
+            operation: RenderOperation::Clear(self.layout.background),
         });
         let black = TextureId::new(4).unwrap();
         let active_areas = TextureId::new(5).unwrap();
@@ -86,8 +86,8 @@ impl PreviewLayout {
             id: PassId::new(5).unwrap(),
             output: active_areas,
             descriptor: self.descriptor,
-            // Every registered aperture is black, even when its source is unavailable. Keep
-            // this below the source regions so their alpha composites over black, not the theme.
+            // Content stays black even without a source; the larger overlay clip retains the
+            // themed canvas. Source alpha composites over content black, never the surround.
             operation: RenderOperation::Regions {
                 visibility: None,
                 regions: self
