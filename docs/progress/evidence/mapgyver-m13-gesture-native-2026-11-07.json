@@ -52,7 +52,7 @@
 		"receipts": 618,
 		"unexpected_rejections": [],
 		"page_errors": [],
-		"display_observation": "Owned-window computer-use capture shows200Hz in the app footer, not proof of the required actual240Hz input/presented-frame qualification. No refresh settings changed."
+		"display_observation": "Owned-window computer-use capture shows200Hz engine rate (EngineStatus renders session.engineHz), not display refresh. No monitor refresh observation or setting change is claimed; actual240Hz input/presented-frame qualification remains required."
 	},
 	"failed_baseline": {
 		"artifacts": "target/m134-pending-qual-intel",
@@ -66,7 +66,8 @@
 			"new_handle_frame": 1
 		},
 		"correction": "Arrange every edited scene and output before starting the gesture-only consumer interval. The second Intel run passes with no absent observations and one stable handle. The baseline remains failed; topology-change continuity is not accepted or explained away.",
-		"retained_followup": "Inspect the recorded output replacement during scene/output topology creation before claiming continuity for those operations. The qualified interval covers gestures/history in an already arranged document."
+		"source_finding": "MapGyver preview/host/worker.rs deliberately drops Owner when targets::same_bindings differs; adding a Screen changes the binding count. Golden D3d11Config documents fixed immutable bindings and backend::base_resource_bytes reserves their persistent pools at construction. A live binding update API does not exist. This explains why the previous sender/device session is replaced; it is not an acknowledgement-driven gesture regression.",
+		"retained_followup": "Do not claim stable handles/continuity across output topology changes. Revisit during ordinary creation/control acceptance: measure that authored targets recover and UI feedback remains prompt. If uninterrupted peer outputs are required there, implement a public revisioned Golden binding-update contract with memory admission, per-endpoint completion retirement and host-window lifetime acknowledgement; do not skip the existing global retirement boundary or patch immutable config in place. The qualified interval covers gestures/history in an already arranged document."
 	},
 	"nvidia": {
 		"result": "pass",
