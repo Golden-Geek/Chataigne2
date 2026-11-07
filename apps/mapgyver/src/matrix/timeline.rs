@@ -43,6 +43,16 @@ pub(crate) struct Clip {
     pub column: ColumnId,
     pub version: u64,
     pub individual: bool,
+    pub order: u64,
+}
+struct Launch {
+    column: Option<ColumnId>,
+    id: Option<uuid::Uuid>,
+    transition: TransitionDefinition,
+    version: u64,
+    individual: bool,
+    order: u64,
+    suppressed: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Contribution {
@@ -87,17 +97,23 @@ impl Frame {
                 entry.clip.column == column && entry.clip.version == version && entry.clip.individual == individual
             })
     }
-    fn changed(
-        &self,
-        column: Option<ColumnId>,
-        launch: Option<uuid::Uuid>,
-        transition: TransitionDefinition,
-        version: u64,
-        individual: bool,
-        time: Option<TimeSnapshot>,
-    ) -> Result<Self, String> {
+    fn changed(&self, request: Launch, time: Option<TimeSnapshot>) -> Result<Self, String> {
+        let Launch {
+            column,
+            id: launch,
+            transition,
+            version,
+            individual,
+            order,
+            suppressed,
+        } = request;
         if self.target == launch {
             return Ok(self.flat());
+        }
+        if suppressed {
+            let mut frame = self.flat();
+            frame.target = launch;
+            return Ok(frame);
         }
         let mut frame = Self {
             target: launch,
@@ -133,6 +149,7 @@ impl Frame {
                 entry.clip.column == column && entry.clip.version == version && entry.clip.individual == individual
             }) {
                 entry.to = 1.0;
+                entry.clip.order = order;
             } else {
                 frame.clips.push(Contribution {
                     clip: Clip {
@@ -140,6 +157,7 @@ impl Frame {
                         column,
                         version,
                         individual,
+                        order,
                     },
                     from: if frame.interval.is_none() { 1.0 } else { 0.0 },
                     to: 1.0,
@@ -162,6 +180,27 @@ impl Frame {
             }
             self.interval = None;
         }
+    }
+    fn cut_mix(&mut self, cuts: &super::stops::Cuts, layer: Option<LayerId>) {
+        self.clips.retain(|entry| !cuts.removes(layer, entry.clip));
+        if self.clips.is_empty() {
+            self.interval = None;
+        }
+    }
+    fn cut(&mut self, cuts: &super::stops::Cuts) {
+        if cuts.is_empty() {
+            return;
+        }
+        self.cut_mix(cuts, None);
+        let base = self.flat();
+        let layers = Arc::make_mut(&mut self.layers);
+        for layer in cuts.layers() {
+            layers.entry(layer).or_insert_with(|| Arc::new(base.clone()));
+        }
+        for (layer, frame) in layers {
+            Arc::make_mut(frame).cut_mix(cuts, Some(*layer));
+        }
+        self.refresh();
     }
     fn refresh(&mut self) {
         self.generation = self.generation.checked_add(1).expect("Matrix frame revision exhausted");
@@ -192,6 +231,21 @@ pub(crate) struct Timeline {
     pub applications: super::applications::Applications,
 }
 impl Timeline {
+    pub(super) fn has_playable(&self, layer: LayerId, columns: &HashSet<(LayerId, ColumnId)>) -> bool {
+        self.frame
+            .layer(layer)
+            .clips
+            .iter()
+            .any(|entry| columns.contains(&(layer, entry.clip.column)))
+    }
+    pub(super) fn columns(&self) -> HashSet<ColumnId> {
+        self.frame
+            .clips
+            .iter()
+            .chain(self.frame.layers.values().flat_map(|frame| frame.clips.iter()))
+            .map(|entry| entry.clip.column)
+            .collect()
+    }
     pub fn settle(&mut self, time: TimeSnapshot) {
         if self
             .frame
@@ -212,11 +266,25 @@ impl Timeline {
         self.bindings.retain_frame(&self.frame);
         self.applications.retain(&self.frame);
     }
-    pub fn accepts_request(&self, request: &MatrixPlaybackSnapshot, version: u64) -> bool {
+    fn filtered(&self, cuts: &super::stops::Cuts) -> std::borrow::Cow<'_, Frame> {
+        if cuts.is_empty() {
+            return std::borrow::Cow::Borrowed(&self.frame);
+        }
+        let mut frame = self.frame.clone();
+        frame.cut(cuts);
+        std::borrow::Cow::Owned(frame)
+    }
+    pub(super) fn accepts_request(
+        &self,
+        request: &MatrixPlaybackSnapshot,
+        version: u64,
+        cuts: &super::stops::Cuts,
+    ) -> bool {
+        let frame = self.filtered(cuts);
         let Some(column) = request.desired_column else {
             return true;
         };
-        if request.transition.duration_ms != 0 && !self.frame.accepts(column, version, false) {
+        if request.transition.duration_ms != 0 && !frame.accepts(column, version, false) {
             return false;
         }
         let layers = request
@@ -224,7 +292,7 @@ impl Timeline {
             .iter()
             .map(|request| (request.layer, request))
             .collect::<HashMap<_, _>>();
-        for (layer, frame) in self.frame.layers.iter() {
+        for (layer, frame) in frame.layers.iter() {
             if !layers.contains_key(layer)
                 && request.transition.duration_ms != 0
                 && !frame.accepts(column, version, false)
@@ -233,7 +301,7 @@ impl Timeline {
             }
         }
         request.layers.iter().all(|request| {
-            let frame = self.frame.layer(request.layer);
+            let frame = frame.layer(request.layer);
             request.transition.duration_ms == 0
                 || frame.target == request.launch_id
                 || request
@@ -241,15 +309,23 @@ impl Timeline {
                     .is_none_or(|column| frame.accepts(column, version, request.individual))
         })
     }
-    pub fn accepts_cell(&self, layer: LayerId, column: ColumnId, version: u64) -> bool {
-        self.frame.layer(layer).accepts(column, version, true)
+    pub(super) fn accepts_cell(
+        &self,
+        layer: LayerId,
+        column: ColumnId,
+        version: u64,
+        cuts: &super::stops::Cuts,
+    ) -> bool {
+        self.filtered(cuts).layer(layer).accepts(column, version, true)
     }
-    pub fn frame(
+    pub(super) fn frame(
         &mut self,
         desired: &MatrixPlaybackSnapshot,
         time: Option<TimeSnapshot>,
         version: u64,
         epochs: &HashMap<uuid::Uuid, u64>,
+        orders: &HashMap<uuid::Uuid, u64>,
+        cuts: &super::stops::Cuts,
     ) -> Result<Option<Frame>, String> {
         if time.is_none()
             && ((desired.transition.duration_ms != 0 && desired.launch_id.is_some())
@@ -260,6 +336,8 @@ impl Timeline {
         {
             return Ok(None);
         }
+        // Remove stopped historical clips before sampling a newer launch's starting weights.
+        self.frame.cut(cuts);
         if let Some(time) = time {
             self.settle(time);
         }
@@ -268,11 +346,15 @@ impl Timeline {
             let column_changed = self.frame.target != desired.launch_id;
             let mut frame = if column_changed {
                 old.changed(
-                    desired.desired_column,
-                    desired.launch_id,
-                    desired.transition,
-                    version,
-                    false,
+                    Launch {
+                        column: desired.desired_column,
+                        id: desired.launch_id,
+                        transition: desired.transition,
+                        version,
+                        individual: false,
+                        order: desired.launch_id.and_then(|id| orders.get(&id)).copied().unwrap_or(0),
+                        suppressed: cuts.suppresses(None, desired.launch_id),
+                    },
                     time,
                 )?
             } else {
@@ -289,11 +371,15 @@ impl Timeline {
                 for (layer, current) in &mut layers {
                     if !requests.contains_key(layer) {
                         *current = Arc::new(current.changed(
-                            desired.desired_column,
-                            desired.launch_id,
-                            desired.transition,
-                            version,
-                            false,
+                            Launch {
+                                column: desired.desired_column,
+                                id: desired.launch_id,
+                                transition: desired.transition,
+                                version,
+                                individual: false,
+                                order: desired.launch_id.and_then(|id| orders.get(&id)).copied().unwrap_or(0),
+                                suppressed: cuts.suppresses(None, desired.launch_id),
+                            },
                             time,
                         )?);
                     }
@@ -309,16 +395,22 @@ impl Timeline {
                 layers.insert(
                     request.layer,
                     Arc::new(current.changed(
-                        request.column,
-                        request.launch_id,
-                        request.transition,
-                        epoch,
-                        request.individual,
+                        Launch {
+                            column: request.column,
+                            id: request.launch_id,
+                            transition: request.transition,
+                            version: epoch,
+                            individual: request.individual,
+                            order: request.launch_id.and_then(|id| orders.get(&id)).copied().unwrap_or(0),
+                            suppressed: cuts.suppresses(Some(request.layer), request.launch_id),
+                        },
                         time,
                     )?),
                 );
             }
             frame.layers = Arc::new(layers);
+            // A stopped request may not have been captured before this stop was committed.
+            frame.cut(cuts);
             frame.refresh();
             self.frame = frame;
             self.explicit = requests.keys().copied().collect();

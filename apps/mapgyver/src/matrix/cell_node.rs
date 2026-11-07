@@ -20,6 +20,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
 #[children(folder(parameters, label = "Parameters") {
     play: ParamValue = ParamValue::Trigger() (label = "Play");
     cut: ParamValue = ParamValue::Trigger() (label = "Cut");
+    stop: ParamValue = ParamValue::Trigger() (label = "Stop");
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
@@ -289,6 +290,8 @@ impl Node for CellNode {
             Some(super::controls::Action::Play)
         } else if parameter == self.cut.id() {
             Some(super::controls::Action::Cut)
+        } else if parameter == self.stop.id() {
+            Some(super::controls::Action::Stop)
         } else {
             None
         };

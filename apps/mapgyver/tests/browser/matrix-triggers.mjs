@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
+import { verifyMatrixScopeControls } from './matrix-scope-controls.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
@@ -148,6 +149,7 @@ try {
 	await button.click();
 	await wait(playback, (value) => value.layers.length === 0);
 	checks.push('project reload neither replays controls nor loses the real Stop All widget');
+	checks.push(await verifyMatrixScopeControls({ page, matrix, wait, sent }));
 	assert.deepEqual(errors, []);
 	await page.screenshot({ path: path.join(directory, 'stop-all.png') });
 } catch (error) {

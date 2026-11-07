@@ -14,7 +14,7 @@ pub(crate) struct Configuration {
     pub transitions: HashMap<ColumnId, Option<TransitionDefinition>>,
     pub layer_base: TransitionDefinition,
     pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
-    pub transition_layers: HashSet<LayerId>,
+    pub playable: HashSet<(LayerId, ColumnId)>,
 }
 pub(crate) fn index(
     engine: &AppEngine,
@@ -79,15 +79,15 @@ pub(crate) fn index(
             _ => None,
         })
         .collect();
-    let transition_layers = document
+    let playable = document
         .snapshot
         .cells
         .iter()
         .filter(|cell| cell.media.is_some() || cell_apps.contains_key(&(cell.layer, cell.definition.column)))
-        .map(|cell| cell.layer)
+        .map(|cell| (cell.layer, cell.definition.column))
         .collect();
     let index = Arc::new(Configuration {
-        transition_layers,
+        playable,
         layer_base,
         layer_overrides,
         layers: document

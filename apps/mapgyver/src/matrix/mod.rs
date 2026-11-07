@@ -26,6 +26,7 @@ mod placement;
 pub(crate) mod playback;
 mod projection;
 pub mod protocol;
+mod stops;
 mod timeline;
 mod view;
 pub(crate) use admission::validate_ui_intent;

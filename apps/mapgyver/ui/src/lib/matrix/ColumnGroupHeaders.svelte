@@ -1,5 +1,6 @@
 <script lang="ts">
 	import GridLabel from './GridLabel.svelte';
+	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { gridSize, groupHeaderRow } from './viewport';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
@@ -87,6 +88,11 @@
 						select={() => select(group)}
 						rename={async (label) =>
 							Boolean(await edit({ kind: 'RenameColumnGroup', group: group.id, label }))} />
+					<ParameterTrigger
+						owner={group.id}
+						field="stop"
+						label={`Stop ${group.label}`}
+						{disabled} />
 					{#if requested.includes(group.id)}<span
 							class="marker requested"
 							role="img"

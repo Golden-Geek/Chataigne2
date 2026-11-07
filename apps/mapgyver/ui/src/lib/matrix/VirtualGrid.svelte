@@ -23,6 +23,7 @@
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
 	import StopAllControl from './StopAllControl.svelte';
+	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	let {
 		snapshot,
@@ -38,7 +39,6 @@
 		selectColumn,
 		selectGroup,
 		selectedGroup,
-		launch,
 		trigger,
 		drop,
 		edit,
@@ -58,7 +58,6 @@
 		selectColumn(column: ColumnSnapshot): void;
 		selectGroup(group: ColumnGroupSnapshot): void;
 		selectedGroup: string | null;
-		launch(column: string): void;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
 		edit(value: MatrixEdit): Promise<unknown>;
@@ -388,11 +387,17 @@
 								rename={async (label) =>
 									Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
 							<div class="column-state">
-								<IconButton
+								<ParameterTrigger
 									{disabled}
+									owner={column.id}
+									field="play"
 									icon={playIcon}
-									label={`Launch ${column.label}`}
-									onclick={() => launch(column.id)} />
+									label={`Launch ${column.label}`} />
+								<ParameterTrigger
+									owner={column.id}
+									field="stop"
+									label={`Stop ${column.label}`}
+									{disabled} />
 								{#if snapshot.playback.desired_column === column.id}
 									<span
 										class="request-marker"
@@ -445,6 +450,11 @@
 										rename={async (label) =>
 											Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
 								</div>
+								<ParameterTrigger
+									owner={row.item.id.id}
+									field="stop"
+									label={`Stop ${row.item.label}`}
+									{disabled} />
 							</div>
 							<RowControls uuid={row.item.id.id} label={row.item.label} />
 						</div>
@@ -493,6 +503,21 @@
 												? 'Missing source'
 												: (cell?.source_label ?? '')}</span>
 								</button>
+								{#if cell}
+									<span class="cell-controls">
+										<ParameterTrigger
+											owner={cell.cell.id}
+											field="play"
+											icon={playIcon}
+											label={`Play ${row.item.label} / ${column.label}`}
+											{disabled} />
+										<ParameterTrigger
+											owner={cell.cell.id}
+											field="stop"
+											label={`Stop ${row.item.label} / ${column.label}`}
+											{disabled} />
+									</span>
+								{/if}
 								{#if row.item.id.kind === 'Layer'}
 									{#if cell?.cell.media}
 										<span class="remove"
@@ -751,6 +776,14 @@
 	.remove {
 		right: 0.25rem;
 		top: 0.25rem;
+	}
+	.cell-controls {
+		position: absolute;
+		z-index: 1;
+		left: 0.25rem;
+		top: 0.25rem;
+		display: flex;
+		gap: 0.15rem;
 	}
 	:global([data-matrix-drop-position='before']) {
 		box-shadow: inset 0 0.2rem var(--gc-color-focus);

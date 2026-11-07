@@ -182,7 +182,6 @@
 							selectDocumentNode(result.cell);
 						}
 					}}
-					launch={(column) => owner.edit({ kind: 'LaunchColumn', column, mode: 'Configured' })}
 					trigger={(row, column) => {
 						if (row.item.id.kind === 'Layer')
 							void owner.edit({

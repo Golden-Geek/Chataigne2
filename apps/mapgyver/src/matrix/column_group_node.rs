@@ -2,6 +2,7 @@
 use golden_core::{
     node,
     node::{Node, NodeId},
+    parameter::ParamValue,
     process_ctx::ProcessCtx,
 };
 use std::sync::OnceLock;
@@ -11,8 +12,15 @@ pub const COLUMN_GROUP_TYPE: &str = "mapgyver.matrix.column_group.v1";
 #[node("mapgyver.matrix.column_group.v1", label = "Column Group", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
-#[children(node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");)]
+#[children(
+    folder(parameters, label = "Parameters", can_be_disabled = false) {
+        stop: ParamValue = ParamValue::Trigger() (label = "Stop");
+    }
+    node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");
+)]
 pub struct ColumnGroupNode {
+    #[state(default = super::controls::Pulses::default())]
+    pulses: super::controls::Pulses,
     #[state(default = OnceLock::new())]
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
@@ -49,6 +57,20 @@ impl ColumnGroupNode {
 
 #[node("mapgyver.matrix.column_group.v1", from_struct)]
 impl Node for ColumnGroupNode {
+    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.pulses.ready();
+    }
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if parameter == self.stop.id() {
+            self.pulses.invoke(ctx, &self.node_data, super::controls::Action::Stop);
+        }
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        super::controls::Pulses::result(ctx, self.id(), &event);
+    }
     fn user_container_rules(&self) -> Option<golden_core::node::UserContainerRules> {
         Some(golden_core::node::UserContainerRules::new(&[
             super::column_node::COLUMN_TYPE,
@@ -71,10 +93,14 @@ impl Node for ColumnGroupNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.pulses.revoke();
+        }
         self.invalidate();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.pulses.destroy();
         self.invalidate();
     }
     fn project_decode_data(&mut self, value: &serde_json::Value) -> Result<(), String> {

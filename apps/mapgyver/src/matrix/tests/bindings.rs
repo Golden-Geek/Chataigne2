@@ -19,6 +19,7 @@ fn reference() -> ChannelReference {
 fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metadata_bound() {
     let mut bindings = Bindings::default();
     let clip = Clip {
+        order: 0,
         individual: false,
         id: uuid::Uuid::new_v4(),
         column: ColumnId(uuid()),

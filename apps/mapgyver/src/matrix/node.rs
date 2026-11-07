@@ -24,6 +24,7 @@ enum Kind {
     can_edit_name: true, ..Default::default()
 })]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
+    stop: ParamValue = ParamValue::Trigger() (label = "Stop");
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     blend: Enum = "Normal" (label = "Blend Mode", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
     expose_channel: bool = false (label = "Expose Channel");
@@ -35,6 +36,8 @@ enum Kind {
         label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
 })]
 pub struct ElementNode {
+    #[state(default = super::controls::Pulses::default())]
+    pulses: super::controls::Pulses,
     #[state(default = Kind::Layer)]
     kind: Kind,
     #[state(default = OnceLock::new())]
@@ -227,13 +230,27 @@ impl Node for ElementNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.pulses.revoke();
+        }
         self.invalidate();
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
+    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.pulses.ready();
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        super::controls::Pulses::result(ctx, self.id(), &event);
+    }
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if parameter == self.stop.id() {
+            self.pulses.invoke(ctx, &self.node_data, super::controls::Action::Stop);
+            return;
+        }
         self.invalidate();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.pulses.destroy();
         self.invalidate();
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {

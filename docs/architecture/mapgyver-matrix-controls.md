@@ -11,10 +11,15 @@ The current M13/6 slice provides these intrinsic Trigger Parameters:
 | Column | `parameters/play`, `parameters/cut` | Configured transition or immediate launch of that Column. |
 | Cell | `parameters/play`, `parameters/cut` | Independent launch on its Layer, preserving the Column anchor and other Layers. |
 | Matrix media | `parameters/stop_all` | Immediate Cut to empty across the base Column and every independent Layer request. |
+| Layer / Layer Group | `parameters/stop` | Cut every playing clip on that Layer / its current descendant Layers. |
+| Column / Column Group | `parameters/stop` | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
+| Cell | `parameters/stop` | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer. |
 
 The Matrix grid's top-left Stop All uses Golden's ordinary Trigger editor on that same
-Parameter. The previous Installed dropdown is removed. Runtime submission markers remain
-observational; pressing a control does not claim the renderer has submitted a frame.
+Parameter. Compact grid Play and Stop buttons send Parameter intents to their exact real
+nodes, using Golden's declaration-only child index. The previous Installed dropdown is
+removed. Runtime submission markers remain observational; pressing a control does not
+claim the renderer has submitted a frame.
 
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched
@@ -23,12 +28,35 @@ project reconstruction from replaying pulses. Control callbacks do not invalidat
 clip bindings or require a prior Matrix inspection. Backend playback still stages requests
 behind atomic edit-completion receipts; failed edits cannot publish a new request.
 
-Stop All clears current playback demand, including independent Cell launches and preparation
-cursors. Previously captured render/application plans remain owned until their consumers
-release them. This does not bypass GPU completion or process retirement barriers.
+Scope membership comes from the actual owning hierarchy when the backend services the
+trigger. A group walk visits its selected axis subtree and stops at Layers/Columns; it never
+descends into Cell media or another Matrix. Cell/Layer stops retain the Column anchor.
+Column-axis stops clear that anchor only when its selected Column is in the stopped scope.
+Affected Cell requests become empty instead of falling back to the Column. Unrelated
+contributions retain their original fade weights, curve and deadline.
 
-M13/6 remains open. Layer, Column, Layer Group, Column Group and Cell scoped stops still need
-implementation and verification, including outgoing clips. Existing grid Play/context actions
-and high-level launch wrappers still call playback intents directly; routing every caller
-through the real controls remains required. Native final-use/process retirement and complete
-scope/caller acceptance are not established by this initial slice.
+Deferred Cut filters are committed with the playback edit receipt. A private launch order
+separates historical clips from a later Play before the next capture. Suppressed targets
+prevent a cancelled, uncaptured launch from retargeting unrelated mixes. Filters run before
+sampling a newer transition and after materializing pending requests, then drain after the
+timeline installs them. Admission accounts for committed cuts, so Stop All recovers a full
+interrupted mix immediately. Existing 4096 Layer-request/32 clips-per-Layer bounds remain;
+coalesced deferred scope/target entries are bounded at their product, not an event queue.
+Inactive configured Layers do not materialize runtime requests when a group stops.
+
+Scoped stops withdraw their playing Cell/application references. A retained Column anchor
+can still legitimately demand an application through its own anchor/pre/post input. Stop All
+clears those inputs as well as independent playback. Previously captured render/application
+plans remain owned until their consumers release them; these controls do not bypass GPU
+completion or process retirement barriers.
+
+M13/6 remains open. Cell double-click/context actions and high-level launch wrappers still
+call playback intents directly; routing every caller through real controls remains required,
+including sparse empty-address behavior. Native final-use/process retirement and complete
+scope/caller acceptance are not established by functional mix and button checks.
+
+The live native grouping fixture currently rejects a generated `MoveNode` of intrinsic
+`mapgyver.app_control.v1` into a Column Group after adding its Parameters folder. Software
+scope tests pass, but the native group route is unverified until this declared-child ordering
+defect is fixed and the same bundled fixture exits successfully. Changing the app intent's
+insertion anchor did not resolve the failure and was discarded.

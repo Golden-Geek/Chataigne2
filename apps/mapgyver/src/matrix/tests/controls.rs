@@ -7,7 +7,7 @@ use golden_core::{
     script::ScriptPropertyWrite,
 };
 
-fn parameter(engine: &AppEngine, owner: NodeUuid, field: &str) -> NodeId {
+pub(super) fn parameter(engine: &AppEngine, owner: NodeUuid, field: &str) -> NodeId {
     let owner = engine.node_id_by_uuid(owner).unwrap();
     let folder = engine
         .nodes
@@ -24,7 +24,7 @@ fn parameter(engine: &AppEngine, owner: NodeUuid, field: &str) -> NodeId {
         .unwrap()
         .0
 }
-fn pulse(engine: &mut AppEngine, owner: NodeUuid, field: &str) {
+pub(super) fn pulse(engine: &mut AppEngine, owner: NodeUuid, field: &str) {
     let node = parameter(engine, owner, field);
     assert_eq!(
         engine.nodes.get(node).unwrap().engine_param_snapshot().unwrap().value,
@@ -40,7 +40,7 @@ fn pulse(engine: &mut AppEngine, owner: NodeUuid, field: &str) {
     );
     assert!(ack.success, "{field}: {ack:?}");
 }
-fn current(engine: &AppEngine, media: MediaId) -> MatrixPlaybackSnapshot {
+pub(super) fn current(engine: &AppEngine, media: MediaId) -> MatrixPlaybackSnapshot {
     let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(engine, media).unwrap() else {
         panic!()
     };

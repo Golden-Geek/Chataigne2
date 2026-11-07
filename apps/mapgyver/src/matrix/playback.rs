@@ -36,11 +36,20 @@ struct State {
     current: MatrixPlaybackSnapshot,
     version: u64,
     epochs: std::collections::HashMap<uuid::Uuid, u64>,
-    pending: Option<(MatrixPlaybackSnapshot, EditCompletion, u64)>,
+    pending: Option<Pending>,
+    order: u64,
+    launch_orders: std::collections::HashMap<uuid::Uuid, u64>,
+    cuts: super::stops::Cuts,
     index: Option<Arc<RenderIndex>>,
     timeline: super::timeline::Timeline,
     view: Option<(u64, Arc<super::view::ViewIndex>)>,
     application_axis: Option<(u64, Arc<super::application_axis::ApplicationAxis>)>,
+}
+struct Pending {
+    desired: MatrixPlaybackSnapshot,
+    receipt: EditCompletion,
+    version: u64,
+    stop: Option<super::stops::Scope>,
 }
 
 #[derive(Clone)]
@@ -166,10 +175,18 @@ impl PlaybackControl {
         let desired = self.snapshot();
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let version = state.version;
-        let State { timeline, epochs, .. } = &mut *state;
-        let Some(frame) = timeline.frame(&desired, time, version, epochs)? else {
+        let State {
+            timeline,
+            epochs,
+            launch_orders,
+            cuts,
+            ..
+        } = &mut *state;
+        let Some(frame) = timeline.frame(&desired, time, version, epochs, launch_orders, cuts)? else {
             return Ok(None);
         };
+        // The installed timeline now carries the filtered mixes and suppressed targets.
+        *cuts = super::stops::Cuts::default();
         capture(timeline, &frame, &desired).map(Some)
     }
     pub(crate) fn bind_sources(
@@ -195,14 +212,12 @@ impl PlaybackControl {
         }
     }
     fn admits(&self, request: &MatrixPlaybackSnapshot) -> bool {
-        self.0
-            .state
-            .lock()
-            .expect("Matrix playback lock poisoned")
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        state
             .timeline
-            .accepts_request(request, self.0.authored.reader().current())
+            .accepts_request(request, self.0.authored.reader().current(), &state.cuts)
     }
-    fn retained_layers(&self) -> std::collections::HashSet<LayerId> {
+    pub(super) fn retained_layers(&self) -> std::collections::HashSet<LayerId> {
         let state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let mut layers = state.timeline.bindings.layers();
         layers.extend(state.timeline.applications.layers());
@@ -210,10 +225,20 @@ impl PlaybackControl {
     }
     pub fn snapshot(&self) -> MatrixPlaybackSnapshot {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        if let Some((_, receipt, _)) = &state.pending {
-            match receipt.status() {
+        if let Some(pending) = &state.pending {
+            match pending.receipt.status() {
                 EditCompletionStatus::Applied => {
-                    let (desired, _, version) = state.pending.take().unwrap();
+                    let Pending {
+                        desired, version, stop, ..
+                    } = state.pending.take().unwrap();
+                    state.order = state.order.checked_add(1).expect("Matrix playback order exhausted");
+                    let order = state.order;
+                    if stop.is_none() && desired.desired_column.is_none() && desired.layers.is_empty() {
+                        state.cuts.stop_all(order);
+                    }
+                    if let Some(stop) = stop {
+                        state.cuts.extend(stop, order);
+                    }
                     if state.current.launch_id != desired.launch_id {
                         state.version = version;
                     }
@@ -223,8 +248,10 @@ impl PlaybackControl {
                         .chain(desired.layers.iter().filter_map(|request| request.launch_id))
                         .collect::<std::collections::HashSet<_>>();
                     state.epochs.retain(|id, _| ids.contains(id));
+                    state.launch_orders.retain(|id, _| ids.contains(id));
                     for id in ids {
                         state.epochs.entry(id).or_insert(version);
+                        state.launch_orders.entry(id).or_insert(order);
                     }
                     state.current = desired;
                     self.0.revision.advance();
@@ -238,13 +265,64 @@ impl PlaybackControl {
         state.current.clone()
     }
     pub fn stage(&self, desired: MatrixPlaybackSnapshot, receipt: EditCompletion) {
+        self.stage_with_stop(desired, receipt, None);
+    }
+    pub(super) fn stage_with_stop(
+        &self,
+        desired: MatrixPlaybackSnapshot,
+        receipt: EditCompletion,
+        stop: Option<super::stops::Scope>,
+    ) {
         // Preserve an earlier committed request even when the next request later fails.
         self.snapshot();
-        self.0.state.lock().expect("Matrix playback lock poisoned").pending =
-            Some((desired, receipt, self.authoring_revision()));
+        self.0.state.lock().expect("Matrix playback lock poisoned").pending = Some(Pending {
+            desired,
+            receipt,
+            version: self.authoring_revision(),
+            stop,
+        });
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
         self.notify_applications();
+    }
+    pub(super) fn stop_capacity(&self, additional: usize) -> bool {
+        self.0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .cuts
+            .len()
+            .saturating_add(additional)
+            <= super::bindings::MAX_BINDINGS * super::timeline::MAX_MIX_COLUMNS
+    }
+    pub(super) fn active_columns(&self) -> std::collections::HashSet<ColumnId> {
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        let mut columns = state.timeline.columns();
+        columns.extend(state.current.desired_column);
+        columns.extend(state.current.layers.iter().filter_map(|request| request.column));
+        columns
+    }
+    pub(super) fn retain_playing_layers(
+        &self,
+        layers: &mut std::collections::HashSet<LayerId>,
+        index: &super::configuration::Configuration,
+    ) {
+        let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        let mut retained = state.timeline.bindings.layers();
+        retained.extend(state.timeline.applications.layers());
+        let requests = state
+            .current
+            .layers
+            .iter()
+            .map(|request| (request.layer, request.column))
+            .collect::<std::collections::HashMap<_, _>>();
+        layers.retain(|layer| {
+            let target = requests.get(layer).copied().unwrap_or(state.current.desired_column);
+            retained.contains(layer)
+                || requests.get(layer).is_some_and(Option::is_some)
+                || target.is_some_and(|column| index.playable.contains(&(*layer, column)))
+                || state.timeline.has_playable(*layer, &index.playable)
+        });
     }
     pub fn guard(&self) -> RevisionGuard {
         let reader = self.0.revision.reader();
@@ -352,7 +430,7 @@ pub(super) fn launch(
     }
     if column_definition.transition.is_none() && mode == LaunchMode::Configured {
         let mut active = control.retained_layers();
-        active.extend(index.transition_layers.iter().copied());
+        active.extend(index.playable.iter().map(|(layer, _)| *layer));
         for layer in active {
             if !disabled_layers.contains(&layer)
                 && let Some(transition) = index.layer_overrides.get(&layer)
@@ -466,15 +544,13 @@ pub(super) fn launch_cell(
             .unwrap_or(fallback),
         mode,
     );
-    if transition.duration_ms != 0
-        && !control
-            .0
-            .state
-            .lock()
-            .expect("Matrix playback lock poisoned")
+    let admitted = {
+        let state = control.0.state.lock().expect("Matrix playback lock poisoned");
+        state
             .timeline
-            .accepts_cell(layer, column, control.authoring_revision())
-    {
+            .accepts_cell(layer, column, control.authoring_revision(), &state.cuts)
+    };
+    if transition.duration_ms != 0 && !admitted {
         return Err("Layer interrupted mix retains 32 clips; use Cut or wait for completion".into());
     }
     let mut desired = control.snapshot();

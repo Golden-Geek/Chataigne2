@@ -16,7 +16,9 @@ pub(crate) struct Applications {
 }
 impl Applications {
     pub fn layers(&self) -> impl Iterator<Item = LayerId> + '_ {
-        self.clips.keys().filter_map(|(_, layer)| *layer)
+        self.clips
+            .iter()
+            .filter_map(|((_, layer), applications)| (!applications.is_empty()).then_some(*layer).flatten())
     }
     pub fn retain(&mut self, frame: &Frame) {
         self.clips.retain(|(id, layer), _| match layer {

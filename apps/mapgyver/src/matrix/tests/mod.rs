@@ -34,6 +34,7 @@ mod placement;
 mod playback;
 mod playback_acceptance;
 mod retained_demand;
+mod stops;
 mod timeline;
 mod validation;
 mod view;

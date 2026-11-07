@@ -19,6 +19,7 @@ pub(crate) enum Action {
     Play,
     Cut,
     StopAll,
+    Stop,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -120,9 +121,10 @@ pub(crate) fn apply(
     let mode = match invocation.action {
         Action::Play => super::protocol::LaunchMode::Configured,
         Action::Cut => super::protocol::LaunchMode::Cut,
-        Action::StopAll => super::protocol::LaunchMode::Cut,
+        Action::StopAll | Action::Stop => super::protocol::LaunchMode::Cut,
     };
     let result: MediaEditResult = match (node, invocation.action) {
+        (_, Action::Stop) => super::stops::stop(engine, media, invocation.owner)?,
         (AppNode::Media(owner), Action::StopAll) if owner.kind() == MediaKind::Matrix => {
             super::playback::unload(engine, media)?
         }

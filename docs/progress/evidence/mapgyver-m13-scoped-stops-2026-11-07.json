@@ -1,0 +1,84 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/6",
+	"state": "Active",
+	"acceptance_change": "None: 72/92 overall; M13 3/14. Implemented/functionally checked scope is distinct from complete gate acceptance.",
+	"delivered": [
+		"Real Stop Trigger Parameters on Cells, Layers, Layer Groups, Columns and Column Groups; compact grid controls use the exact node identities.",
+		"Column header and authored Cell Play buttons use real Play Parameters. Cell Play/Stop icons are persistent so regrouping/scrolling cannot hide their pointer targets.",
+		"Backend Cut filters include outgoing and independent clips, preserve unrelated envelopes, keep the Column anchor except when its selected Column scope stops, and resolve membership from current authored ownership.",
+		"Applied edit receipts admit coalesced bounded cuts; private launch orders protect later Play before capture; suppressed targets cancel unseen launches without restarting unrelated fades.",
+		"Stop All recovers full interrupted-mix admission before capture. Inactive configured rows and empty app-cache entries do not allocate scoped Layer requests."
+	],
+	"software": {
+		"app_tests": {
+			"passed": 529,
+			"failed": 0,
+			"ignored": 2,
+			"command": "cargo test --locked -p MapGyver --lib --no-fail-fast --quiet"
+		},
+		"new_tests": [
+			"Exact outgoing Column and current Column cuts preserve unrelated weights/deadlines.",
+			"Cell and Layer stops preserve other addresses and Column anchors.",
+			"Uncaptured Column/row stops and 20 Stop/Play bursts preserve the later launch.",
+			"Nested Layer and Column groups apply distinct authored descendant membership.",
+			"Discarded receipt and disabled-owner cancellation.",
+			"32 retained clips recover through Stop All followed by configured Play without intervening capture.",
+			"Playing app references withdraw while retained anchor demand remains valid; Stop All withdraws aggregate demand; disabled Cell Play is a no-op.",
+			"Inactive configured rows do not materialize runtime requests."
+		],
+		"strict_lint": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings: exit 0",
+		"ui": "npm run check: 0 errors, 0 warnings after persistent Cell-control fix",
+		"generated_contracts": "Media and Screen Rust/TypeScript equality tests pass; no public DTO change.",
+		"format": "Root/Core cargo fmt, touched Svelte/JS Prettier and JS syntax checks pass."
+	},
+	"corrected_findings": [
+		"Test source identity uses each owned Reference media output rather than its external original.",
+		"The application test distinguishes playing references from the retained Column anchor/pre/post demand; scoped stops intentionally preserve that separate aggregate input.",
+		"Inactive-row regression exposed empty app-cache vectors being counted as live references. Filtering actual references and using a flat playable-address index fixes it without per-row set allocations.",
+		"Two native checks reproduced pointer interception on hover-only Cell controls after regrouping. No passing qualification is inferred from them; persistent essential icons are the implemented product fix.",
+		"A live grouping rejection remains after an ineffective app-side insertion-anchor change. Removed that change and its insufficient activated-engine test; final source reuses its exact prior 529-test/strict-lint passing configuration."
+	],
+	"retained_native_failures": [
+		{
+			"result": "target/m136-scoped-stops-native-20261107/result.json",
+			"pid": 45520,
+			"fixture_exit_code": 1
+		},
+		{
+			"result": "target/m136-scoped-stops-native-hover-20261107/result.json",
+			"fixture_exit_code": 1,
+			"pid": 3964
+		},
+		{
+			"result": "target/m136-scoped-stops-native-visible-20261107/result.json",
+			"pid": 21628,
+			"fixture_exit_code": 1
+		},
+		{
+			"result": "target/m136-scoped-stops-native-order-20261107/result.json",
+			"fixture_exit_code": 1,
+			"limit": "Ineffective app insertion-anchor attempt, removed; its activated regression passed while native failure persisted."
+		}
+	],
+	"remaining": [
+		"Fix the reproduced live intrinsic-child grouping rejection at its owning boundary and rerun the existing bundled scope fixture.",
+		"Route Cell double-click/context actions and high-level launch/clear wrappers through real controls, including sparse empty-address semantics.",
+		"Complete every scope/caller and history/project replay case, then actual native GPU/process completion-safe final-use retirement.",
+		"Retained timing, memory, format, WOW64 and other acceptance budgets are unchanged; this slice does not qualify them."
+	],
+	"next_deliverable": "Repair live Column Group declared-child ordering, then route remaining caller actions through real Parameters.",
+	"native_functional": {
+		"result": "failed; partial checks only",
+		"binary": "target/debug/deps/MapGyver-m136-scoped-stops-check.exe",
+		"sha256": "1287859363bafa94bf9a8a666cd99cd945f3daddf72adbd08ff15c397763bd95",
+		"result_file": "target/m136-scoped-stops-native-visible-20261107/result.json",
+		"pid": 21628,
+		"fixture_exit_code": 1,
+		"passed": [
+			"Stop All exact real Parameter, base plus independent clear, 30 rapid transport cycles and reload",
+			"Persistent Cell icons let the fixture progress through Column/Cell Play, Cell/Layer/Column Stop and nested Layer Group Stop before the grouping failure"
+		],
+		"failure": "MoveColumnItem with nested Column Group triggers rejected MoveNode of intrinsic mapgyver.app_control.v1. Whole native scope check fails; no final-use/process/timing qualification."
+	}
+}

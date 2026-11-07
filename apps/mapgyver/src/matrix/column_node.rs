@@ -18,6 +18,7 @@ pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
     folder(parameters, label = "Parameters", can_be_disabled = false) {
         play: ParamValue = ParamValue::Trigger() (label = "Play");
         cut: ParamValue = ParamValue::Trigger() (label = "Cut");
+        stop: ParamValue = ParamValue::Trigger() (label = "Stop");
         transition_override: bool = false (label = "Override transition");
         duration_ms: f64 = 250.0 [0.0..4294967295.0] (
             label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
@@ -117,6 +118,8 @@ impl Node for ColumnNode {
             Some(super::controls::Action::Play)
         } else if parameter == self.cut.id() {
             Some(super::controls::Action::Cut)
+        } else if parameter == self.stop.id() {
+            Some(super::controls::Action::Stop)
         } else {
             None
         };
