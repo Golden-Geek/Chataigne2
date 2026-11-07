@@ -8,6 +8,19 @@ use golden_core::{
 };
 use std::collections::HashSet;
 
+/// Fresh documents precede the native catalog. Use the same no-display fallback
+/// as live creation, without later rewriting the authored destination.
+pub(crate) fn initial_tree() -> NodeTree {
+    with_surface("Screen".into(), shared_target(&HashSet::new()), None, None)
+}
+
+fn shared_target(senders: &HashSet<String>) -> ScreenTarget {
+    ScreenTarget::Spout {
+        sender: unique_sender(senders),
+        extent: crate::media::resolution::default_canvas(),
+    }
+}
+
 pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Result<NodeTree, String> {
     let manager = manager(context, "mapgyver.screen.manager").ok_or("Screens is missing")?;
     let owner = context
@@ -59,12 +72,17 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
             display: display.id.clone(),
         }
     } else {
-        let sender = unique_sender(&senders);
-        ScreenTarget::Spout {
-            sender,
-            extent: crate::media::resolution::default_canvas(),
-        }
+        shared_target(&senders)
     };
+    Ok(with_surface(label, target, secondary, first_source(context)?))
+}
+
+fn with_surface(
+    label: String,
+    target: ScreenTarget,
+    display: Option<&DisplayInfo>,
+    source: Option<ChannelReference>,
+) -> NodeTree {
     let mut screen = ScreenNode::from_definition(
         label,
         ScreenDefinition {
@@ -73,15 +91,15 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
             anti_aliasing: Default::default(),
         },
     );
-    if let Some(display) = secondary {
+    if let Some(display) = display {
         screen.remember_display(display);
     }
     let definition = SurfaceDefinition {
-        source: first_source(context)?,
+        source,
         ..Default::default()
     };
-    Ok(NodeTree::new(screen)
-        .with_child(NodeTree::new(SurfaceNode::from_definition("Surface 1".into(), definition)).as_user_item()))
+    NodeTree::new(screen)
+        .with_child(NodeTree::new(SurfaceNode::from_definition("Surface 1".into(), definition)).as_user_item())
 }
 
 pub(crate) fn unique_sender(used: &HashSet<String>) -> String {

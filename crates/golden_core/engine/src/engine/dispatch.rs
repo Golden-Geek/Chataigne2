@@ -110,9 +110,10 @@ impl<T: Node> Engine<T> {
     /// Builds the internal preprocessing batches needed by pre-cutover project
     /// augmentation without routing startup-only events through the live graph.
     ///
-    /// The event origin and its direct parent are sufficient for generated child
-    /// binding and parameter-handle cache synchronization. App inbox callbacks are
-    /// not run, and the host replaces these transient events with one full snapshot.
+    /// Include declaration owners above generated folders so their parameter handles
+    /// bind before publication. Declaration-path depth bounds this local walk;
+    /// unrelated graph ancestors and live subscriptions are not routed. App inbox
+    /// callbacks remain disabled; the host publishes one snapshot after cutover.
     pub(crate) fn precompute_project_load_augmentation_since(&mut self, start: usize) -> Vec<(NodeId, EventFrame)> {
         let mut index_by_node = HashMap::<NodeId, usize>::new();
         let mut per_node_events = Vec::<(NodeId, EventFrame)>::new();
@@ -124,8 +125,27 @@ impl<T: Node> Engine<T> {
             let mut recipients = Vec::<NodeId>::with_capacity(4);
             if let Some(origin) = event.kind.propagation_origin() {
                 recipients.push(origin);
-                if let Some(parent) = self.nodes.get(origin).and_then(|node| node.node_data().parent) {
-                    recipients.push(parent);
+                if let Some(node) = self.nodes.get(origin) {
+                    // Params DSL declaration IDs encode their owner-relative path.
+                    // Ordinary empty/flat IDs retain the direct-parent-only cost.
+                    let depth_limit = node
+                        .node_data()
+                        .meta
+                        .decl_id
+                        .0
+                        .bytes()
+                        .filter(|byte| *byte == b'/')
+                        .count()
+                        + 1;
+                    let mut parent = node.node_data().parent;
+                    for depth in 1..=depth_limit {
+                        let Some(id) = parent else { break };
+                        let Some(node) = self.nodes.get(id) else { break };
+                        if depth == 1 || node.engine_child_event_interest_depth(event) as usize >= depth {
+                            recipients.push(id);
+                        }
+                        parent = node.node_data().parent;
+                    }
                 }
             }
             if let EventKind::ChildMoved {

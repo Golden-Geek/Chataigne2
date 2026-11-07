@@ -183,7 +183,7 @@ fn shared_catalog_creation_builds_complete_typed_media_and_screen_forests() {
     );
     assert!(ack.success, "{ack:?}");
     let created = crate::screens::inspect(&engine).unwrap();
-    assert_eq!(created.screens.len(), 1);
+    assert_eq!(created.screens.len(), 2);
     assert_eq!(created.screens[0].surfaces.len(), 1);
     let json = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&json).unwrap();

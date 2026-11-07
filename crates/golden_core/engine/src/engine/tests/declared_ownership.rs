@@ -8,9 +8,16 @@ use crate::{
 
 #[crate::node("scoped_parameter_owner")]
 #[children(folder(parameters) { value: f64 = 0.0; })]
-struct ScopedOwner {}
+struct ScopedOwner {
+    #[state(default = 0)]
+    inbox_calls: usize,
+}
 #[crate::node("scoped_parameter_owner", from_struct)]
-impl Node for ScopedOwner {}
+impl Node for ScopedOwner {
+    fn on_inbox(&mut self, _ctx: &mut crate::process_ctx::ProcessCtx) {
+        self.inbox_calls += 1;
+    }
+}
 
 crate::define_node_enum!(
     enum TestNode {
@@ -21,6 +28,55 @@ crate::define_node_enum!(
 fn value(engine: &Engine<TestNode>, owner: NodeId) -> NodeId {
     match engine.nodes.get(owner).unwrap() {
         TestNode::Owner(node) => node.value.id(),
+        _ => unreachable!(),
+    }
+}
+
+#[test]
+fn detached_project_template_binds_nested_parameter_handles_before_activation() {
+    let mut engine = Engine::<TestNode>::new(Folder::new("root").into());
+    let tree = NodeTree::new(Folder::new("manager")).with_child(NodeTree::new(ScopedOwner::new()).as_user_item());
+    engine.edits.push(Edit::AddNodeTree {
+        parent: engine.root,
+        prev_sibling: None,
+        tree,
+    });
+    crate::app::prepare_engine_candidate_for_runtime(&mut engine).unwrap();
+    let owner = engine
+        .nodes
+        .iter()
+        .find_map(|(id, node)| matches!(node, TestNode::Owner(_)).then_some(id))
+        .unwrap();
+    let parameter = value(&engine, owner);
+    assert!(
+        engine.nodes.contains(parameter),
+        "template parameter handle must be bound before publication"
+    );
+    match engine.nodes.get(owner).unwrap() {
+        TestNode::Owner(node) => assert_eq!(
+            node.inbox_calls, 0,
+            "candidate binding must not invoke app inbox callbacks"
+        ),
+        _ => unreachable!(),
+    }
+    crate::app::activate_engine_for_runtime(&mut engine).unwrap();
+    engine.edits.push(Edit::SetParam {
+        node: parameter,
+        value: ParamValue::Float(0.75),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    engine
+        .dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)
+        .unwrap();
+    match engine.nodes.get(owner).unwrap() {
+        TestNode::Owner(node) => {
+            assert_eq!(node.value.get(), 0.75);
+            assert!(
+                node.inbox_calls > 0,
+                "normal inbox delivery resumes only after activation"
+            );
+        }
         _ => unreachable!(),
     }
 }

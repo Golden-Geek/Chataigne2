@@ -60,6 +60,13 @@ pub(super) fn config() -> RuntimeConfig {
 pub(super) fn engine() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
+    // Rendering cases below author their own complete output cohort.
+    let initial = crate::screens::inspect(&engine).unwrap().screens.pop().unwrap();
+    screens::screen_edit(
+        &mut engine,
+        crate::screens::protocol::ScreenEdit::RemoveScreen { screen: initial.id },
+    );
+    engine.clear_history();
     engine
 }
 pub(super) fn edit(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {

@@ -10,7 +10,11 @@ use super::{ScreenManagerNode, SurfaceNode, protocol::*};
 use crate::app::{AppEngine, AppNode, labels};
 
 pub fn initialize(engine: &mut AppEngine) {
-    engine.add_node(ScreenManagerNode::new().into(), None);
+    engine.edits.push(Edit::AddNodeTree {
+        parent: engine.root,
+        prev_sibling: None,
+        tree: NodeTree::new(ScreenManagerNode::new()).with_child(super::creation::initial_tree().as_user_item()),
+    });
 }
 
 pub(super) fn manager(engine: &AppEngine) -> Result<NodeId, String> {

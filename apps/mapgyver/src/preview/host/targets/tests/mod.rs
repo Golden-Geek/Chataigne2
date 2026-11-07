@@ -4,6 +4,16 @@ use golden_core::{app::create_new_project_engine, application::apply_project_int
 use golden_video::Extent2D;
 mod bounds;
 
+fn empty_outputs() -> AppEngine {
+    let mut engine = create_new_project_engine().unwrap();
+    engine.apply_edits().unwrap();
+    // Each target-registry case controls its own entire output cohort.
+    let initial = crate::screens::inspect(&engine).unwrap().screens.pop().unwrap();
+    edit(&mut engine, ScreenEdit::RemoveScreen { screen: initial.id });
+    engine.clear_history();
+    engine
+}
+
 fn edit(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
     let result = apply_project_intent(
         engine,
@@ -36,8 +46,7 @@ fn configure(engine: &mut AppEngine, screen: ScreenId, sender: &str, enabled: bo
 
 #[test]
 fn outputs_without_editors_keep_stable_ids_through_toggle_rename_and_reorder() {
-    let mut engine: AppEngine = create_new_project_engine().unwrap();
-    engine.apply_edits().unwrap();
+    let mut engine = empty_outputs();
     let ScreenEditResult::ScreenCreated { screen, surface } =
         edit(&mut engine, ScreenEdit::CreateScreen { label: None })
     else {
@@ -101,8 +110,7 @@ fn outputs_without_editors_keep_stable_ids_through_toggle_rename_and_reorder() {
 
 #[test]
 fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
-    let mut engine: AppEngine = create_new_project_engine().unwrap();
-    engine.apply_edits().unwrap();
+    let mut engine = empty_outputs();
     let ScreenEditResult::ScreenCreated { screen, .. } = edit(&mut engine, ScreenEdit::CreateScreen { label: None })
     else {
         panic!()
@@ -148,8 +156,7 @@ fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
 #[test]
 fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_fallback() {
     use crate::{preview::protocol::PreviewSource, screens::protocol::DisplayInfo};
-    let mut engine: AppEngine = create_new_project_engine().unwrap();
-    engine.apply_edits().unwrap();
+    let mut engine = empty_outputs();
     let ScreenEditResult::ScreenCreated { screen, surface } =
         edit(&mut engine, ScreenEdit::CreateScreen { label: None })
     else {

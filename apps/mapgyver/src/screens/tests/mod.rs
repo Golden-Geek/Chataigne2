@@ -31,6 +31,11 @@ use golden_core::{
 fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
+    // These domain-operation suites deliberately start with an empty manager.
+    // Fresh-project seeding is covered separately by the app lifecycle tests.
+    let initial = super::inspect(&engine).unwrap().screens.pop().unwrap();
+    apply(&mut engine, ScreenEdit::RemoveScreen { screen: initial.id });
+    engine.clear_history();
     engine
 }
 

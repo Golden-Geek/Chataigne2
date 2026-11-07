@@ -1,0 +1,74 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/5 Accepted; M13/6 selected next; M13/4 retains its timing blocker and all original budgets",
+	"acceptance": {
+		"verified": 72,
+		"total": 92,
+		"overall_percent": 78,
+		"m13_verified": 3,
+		"m13_total": 14,
+		"m13_percent": 21
+	},
+	"batch": {
+		"started_utc": "06:07",
+		"cutoff_utc": "06:52",
+		"last_check_started_utc": "06:51:40",
+		"last_check_finished_utc": "06:52",
+		"cutoff_action": "Finished the already running NVIDIA check, then reviewed/formatted/checkpointed; no new experiment or product scope after cutoff."
+	},
+	"capability": "Every fresh MapGyver project contains one real selectable/removable Screen and one typed Surface, created atomically with its manager through the existing public project lifecycle. Startup/New share the same hook; saved projects, including intentionally zero Screens, are never seeded during load. No frontend repair or app-shell bootstrap duplication.",
+	"defaults": "Shared ordinary creation helpers: Screen label, enabled, Raw anti-aliasing, MapGyver Screen shared-texture target1920x1080, one Surface 1 with no source/default full mapping. Construction precedes native display discovery; later catalogs do not rewrite that authored fallback. An unassigned Screen has no live output row; assigning its source activates output. Subsequent ordinary creation reserves labels/sender names and can choose an available secondary display as before.",
+	"golden_fix": "A real native ConfigureSurface failure (missing NodeId0) reproduced in a software test: detached-candidate augmentation delivered parameter ChildAdded only to child/direct parent, missing the owner above Parameters folders. Golden now includes interested generated declaration owners up to owner-relative declaration-path depth. Flat/empty IDs keep direct-parent cost; no whole-graph routing or live subscriptions. Generic regression proves valid handles and zero app inbox callbacks before activation, then correct cached values through ordinary post-activation dispatch. MapGyver regression verifies actual Screen/Surface writes and exact two-step Undo.",
+	"software": {
+		"app": "cargo test --locked -p golden_engine -p MapGyver --lib --quiet: final MapGyver516 passed/2ignored; production source unchanged afterward. Four app lifecycle tests cover defaults/history, exact0/1/2/3 Screen codec roundtrips, reserved defaults/history and editable bound parameters after runtime preparation.",
+		"golden": "Corrected Golden-only regression rerun:675 passed/3ignored, terminal0. Earlier combined run had674 pass/3ignored and one new fixture assertion expecting an inbox-delivered cache update before activation/dispatch; test now checks candidate suppression before activation and cache delivery at its actual runtime boundary. No production code changed for that test correction.",
+		"strict": "cargo clippy --locked -p golden_engine -p MapGyver --lib --tests -- -D warnings passes after final production and test edits.",
+		"ui_contract": "MapGyver Svelte0 errors/0 warnings. Generated-contract assertions pass in the app suite; no DTO or production UI change. JS syntax/Prettier, root/Core cargo fmt and scoped diff checks pass.",
+		"build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m135-bound-screen; terminal0 before final hardware checks. Earlier default-feature --tests run passed515/2ignored with other targets containing0 tests; it does not establish ignored hardware acceptance."
+	},
+	"binary": {
+		"path": "target/debug/deps/MapGyver-m135-bound-screen.exe",
+		"sha256": "c3d7067ba093e6369d43d462a7fcdb31d53e38804b9e458e1e21b1e1f2a8e5e8"
+	},
+	"driver": "apps/mapgyver/tests/browser/initial-screen.mjs uses owned temporary desktop/headless profiles and public project/authoring APIs. Native Windows Ctrl+N is performed through supported computer-use input at shortcut-ready.json; File menu New and HTTP New also pass. All final owned hosts exit normally; result files are written before finalizers, so terminal0 is separately required.",
+	"headless": {
+		"artifact": "target/m135-final-headless-20261107/result.json",
+		"sha256": "5b6bc4140159e87243b04a654767882058380ced76d87d4009f7dc3ef512a780",
+		"pid": 26540,
+		"fixture_exit": 0,
+		"checks": 6,
+		"scope": "Ordinary --headless --no-frontend startup, three HTTP New replacements with fresh IDs/zero history, two empty-project loads and exact three-Screen load; no GPU claim."
+	},
+	"intel": {
+		"artifact": "target/m135-final-intel-unassigned-20261107/result.json",
+		"sha256": "17c68bf0bd6a581ca135f2934e25e16981e1640caa3d6d5406945b3b4625de38",
+		"pid": 30944,
+		"gpu_index": 0,
+		"fixture_exit": 0,
+		"checks": 13,
+		"previous_status_sequence": 28,
+		"retired_status_sequence": 29,
+		"retiring_resources": 0,
+		"unassigned_output_rows": 0
+	},
+	"nvidia": {
+		"artifact": "target/m135-final-nvidia-20261107/result.json",
+		"sha256": "1bac7d30d1af148beb9109e74d2285bf3345f550c7b0c956932cd2014bc021e1",
+		"pid": 33340,
+		"gpu_index": 1,
+		"fixture_exit": 0,
+		"checks": 13,
+		"previous_status_sequence": 25,
+		"retired_status_sequence": 26,
+		"retiring_resources": 0,
+		"unassigned_output_rows": 0
+	},
+	"native_scope": "Both pinned GPUs: startup selection in actual Screens manager/Inspector leaves authored state/history unchanged; repeated HTTP/Windows shortcut/File menu New each produces one new Screen and zero undo/redo; two empty loads plus browser reload stay empty; three-Screen authored snapshot loads exactly. Configure the initial Surface to a real red channel and its target to an owned unique sender96x64: complete independent SDK pixels pass, New withdraws that exact sender, and a newer runtime status has no old Screen rows and zero retiring resources. Load restores exact authored Screen/Surface/source identities and complete red pixels; another New withdraws it again. Four complete independent SDK images total; each probe reports retired=true. No page errors. This is functional output lifetime, not zero total GPU memory, physical residency, cadence, DPI, latency or full renderer retirement qualification.",
+	"retained_failures": [
+		"Initial native CDP Ctrl+N attempts target/m135-initial-intel-20261107 and target/m135-initial-intel-focus-20261107 did not create a project. Real Windows input succeeds; the fixture now uses that actual native path rather than inferring shortcut acceptance.",
+		"target/m135-initial-intel-native-key-20261107 PID45980: actual Windows/menu New passed, then real ConfigureSurface rejected missing NodeId0. Matching software regression failed before the owning Golden fix.",
+		"target/m135-final-intel-20261107 PID25368: fixed source assignment and complete red output passed, then fixture incorrectly required one native output row for an unassigned replacement Screen. Corrected predicate retains fresh sequence, exact old-sender withdrawal, no old Screen row and zero retiring resources, while allowing the correct empty output list.",
+		"Initial app suite exposed eight legacy empty-output-cohort assumptions. Domain/render/target fixtures now explicitly remove the real initial Screen in setup; app lifecycle tests retain and verify it. No production fallback or acceptance expectation weakened."
+	],
+	"remaining": "No remaining M13/5 requirement. M13/6 real typed Matrix triggers/stop scopes selected next. M13/2, M13/4 actual240Hz/moving-frame/physical timing, M03/M05/M08/M12 and every original release prerequisite/budget remain unchanged and unaccepted where recorded. No release readiness claimed."
+}

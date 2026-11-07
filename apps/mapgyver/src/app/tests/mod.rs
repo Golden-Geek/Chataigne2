@@ -3,6 +3,7 @@ use golden_core::node::{Folder, Node};
 
 use super::AppNode;
 mod catalogs;
+mod initial_screen;
 mod preview_capture;
 mod removal;
 mod structure;
