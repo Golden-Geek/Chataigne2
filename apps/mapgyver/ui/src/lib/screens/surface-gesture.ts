@@ -17,6 +17,11 @@ type Handle<T> = T extends { point: Point }
 		? Omit<T, 'pixels'>
 		: never;
 export type SurfaceHandle = Handle<SurfaceGeometryEdit>;
+export type SurfacePresentation = import('golden_ui/store/latest-edit-gesture').GesturePresentation<
+	SurfaceReference,
+	SurfaceHandle,
+	Point
+>;
 export type EditGroup = GestureEditGroup;
 export type SurfaceGestureState = LatestEditGestureState;
 export const createSurfaceGestureState = createLatestEditGestureState;
@@ -26,6 +31,7 @@ interface Client<S> {
 	accepted(snapshot: SurfaceSnapshot): void;
 	active(value: boolean): void;
 	finished(): void;
+	present?(value: SurfacePresentation | null): void;
 }
 
 /** App adapter; generic bounded ownership/history lifecycle belongs to Golden UI. */

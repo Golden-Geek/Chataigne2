@@ -11,9 +11,11 @@
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
 	import { createSurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
-	import type { SurfaceHandle } from './surface-gesture';
+	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
+	import { surfaceQuad } from './gesture-presentation';
 	let {
 		screen,
+		presentation = null,
 		selected,
 		disabled,
 		select,
@@ -26,6 +28,7 @@
 		actions
 	}: {
 		screen: ScreenSnapshot;
+		presentation?: SurfacePresentation | null;
 		selected: SurfaceId | null;
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
@@ -98,11 +101,11 @@
 				? target.extent
 				: status?.extent
 	);
+	const selectedSurface = $derived(
+		screen.surfaces.find((surface) => surface.reference.surface === selected)
+	);
 	const selection = $derived(
-		pointBounds(
-			screen.surfaces.find((surface) => surface.reference.surface === selected)?.definition.quad
-				.corners ?? []
-		)
+		selectedSurface ? pointBounds(surfaceQuad(selectedSurface, presentation, extent)) : null
 	);
 </script>
 
@@ -146,6 +149,8 @@
 			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
 			{#key documentIdentity}
 				<SurfaceHandles
+					{presentation}
+					{extent}
 					onoverlays={setOverlays}
 					{screen}
 					{selected}

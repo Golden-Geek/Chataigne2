@@ -8,7 +8,7 @@
 	import SpatialViewport from './SpatialViewport.svelte';
 	import RectLayoutControls from './RectLayoutControls.svelte';
 	import { createLayerEditor } from './layer-editor.svelte';
-	import { matrixLayerPaintRows } from './rect-presentation';
+	import { matrixLayerPaintRows, displayRect } from './rect-presentation';
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	let props: {
@@ -74,13 +74,27 @@
 			null
 	);
 	const rows = $derived(snapshot ? matrixLayerPaintRows(snapshot, selected) : []);
+	const selectedDisplay = $derived(
+		selected?.item.layer
+			? displayRect(
+					{
+						id: selected.item.id.id,
+						label: selected.item.label,
+						enabled: selected.item.settings.enabled,
+						position: selected.item.layer.position,
+						size: selected.item.layer.size
+					},
+					geometry.presentation
+				)
+			: null
+	);
 	const bounds = $derived(
-		selected?.item.layer && canvas
+		selectedDisplay?.size && canvas
 			? {
-					x: selected.item.layer.position[0] / canvas.width,
-					y: selected.item.layer.position[1] / canvas.height,
-					width: selected.item.layer.size.width / canvas.width,
-					height: selected.item.layer.size.height / canvas.height
+					x: selectedDisplay.position[0] / canvas.width,
+					y: selectedDisplay.position[1] / canvas.height,
+					width: selectedDisplay.size.width / canvas.width,
+					height: selectedDisplay.size.height / canvas.height
 				}
 			: null
 	);
@@ -182,6 +196,7 @@
 				{actions}>
 				<RectLayoutControls
 					{objects}
+					presentation={geometry.presentation}
 					kind="Layer"
 					{canvas}
 					selected={selected?.item.id.id ?? null}

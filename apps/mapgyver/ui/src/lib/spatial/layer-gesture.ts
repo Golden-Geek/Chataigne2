@@ -9,6 +9,11 @@ import type { Point } from '../media/generated/Point';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
 export type LayerHandle = Omit<RectGeometryEdit, 'point'>;
+export type LayerPresentation = import('golden_ui/store/latest-edit-gesture').GesturePresentation<
+	{ media: string; layer: string },
+	LayerHandle,
+	Point
+>;
 export type LayerGeometryResult = Extract<MediaEditResult, { kind: 'MatrixLayerGeometryChanged' }>;
 export function createLayerGesture<S extends GestureHost>(
 	host: () => S | null,
@@ -19,6 +24,7 @@ export function createLayerGesture<S extends GestureHost>(
 		accepted(result: LayerGeometryResult): void;
 		active(active: boolean): void;
 		finished(): void;
+		present?(value: LayerPresentation | null): void;
 	}
 ) {
 	return new LatestEditGesture<

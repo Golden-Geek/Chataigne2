@@ -18,12 +18,18 @@ export const createLatestEditGestureState = (): LatestEditGestureState => ({
 	closing: false,
 	error: ''
 });
+export interface GesturePresentation<R, H, P> {
+	readonly reference: R;
+	readonly handle: H;
+	readonly sample: P;
+}
 export interface LatestEditGestureClient<S, R, H, P, T> {
 	group(host: S, handle: H): GestureEditGroup;
 	move(host: S, reference: R, handle: H, sample: P): Promise<T>;
 	accepted(snapshot: T): void;
 	active(value: boolean): void;
 	finished(): void;
+	present?(value: GesturePresentation<R, H, P> | null): void;
 }
 
 /** Exclusive edit group with one in-flight request and one latest sample; no domain policy. */
@@ -78,7 +84,12 @@ export class LatestEditGesture<
 	}
 	move(sample: P) {
 		if (this.owner && !this.state.closing) {
-			this.latest = sample;
+			this.latest = { ...sample };
+			this.client.present?.({
+				reference: this.owner.reference,
+				handle: this.owner.handle,
+				sample: this.latest
+			});
 			this.run();
 		}
 	}
@@ -90,6 +101,7 @@ export class LatestEditGesture<
 	}
 	stop() {
 		this.latest = null;
+		this.client.present?.(null);
 		this.finish();
 	}
 	dispose() {
@@ -161,6 +173,7 @@ export class LatestEditGesture<
 					this.state.error = String(cause);
 				}
 				this.owner = null;
+				this.client.present?.(null);
 				this.state.active = false;
 				this.state.closing = false;
 				this.client.active(false);

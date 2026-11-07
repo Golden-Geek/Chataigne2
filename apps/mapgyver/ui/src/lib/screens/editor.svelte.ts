@@ -6,6 +6,7 @@ import { SurfaceGesture, createSurfaceGestureState } from './surface-gesture';
 import { invokeScreenEdit } from './operations';
 import { SCREEN_NAMESPACE } from './generated/constants';
 import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
+import type { SurfacePresentation } from './surface-gesture';
 
 export function createScreenEditor(query: () => ScreenEditorQuery) {
 	const session = $derived(appState.session);
@@ -16,6 +17,7 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		invokeScreenEdit
 	);
 	const gestureState = $state(createSurfaceGestureState());
+	let presentation = $state.raw<SurfacePresentation | null>(null);
 	const gesture = new SurfaceGesture<WorkbenchSession>(() => session, gestureState, {
 		group: (current, handle) =>
 			createUiEditSession(
@@ -37,6 +39,9 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			return result.snapshot;
 		},
 		accepted: (snapshot) => controller.acceptSurface(snapshot),
+		present: (value) => {
+			presentation = value;
+		},
 		active: (active) => controller.setInteracting(active),
 		finished: () => controller.refresh()
 	});
@@ -78,5 +83,13 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		gesture.dispose();
 		controller.dispose();
 	});
-	return { view, controller, gestureState, gesture };
+	return {
+		view,
+		controller,
+		gestureState,
+		gesture,
+		get presentation() {
+			return presentation;
+		}
+	};
 }

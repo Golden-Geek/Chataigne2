@@ -28,6 +28,21 @@ document and connection loss cancel pending input, and focus loss never replays 
 The app input adapter owns this sequencing; backend geometry still owns output-pixel conversion
 and validity. Native gesture ownership is queried synchronously when closing a queued gesture.
 
+Golden UI's `LatestEditGesture` also publishes a bounded transient presentation containing
+the owned reference, immutable gesture basis and latest pointer sample. It updates before
+transport acknowledgement while the existing one-in-flight/one-latest mutation queue stays
+unchanged. Receipts update canonical snapshots without replacing the newer presentation.
+Finishing retains the hint through the final acknowledgement and history close; cancellation,
+lost ownership and disposal clear it. Presentation never becomes an authored edit basis.
+
+MapGyver projects this hint into control vertices for Screen warp, Surface Source crop,
+Composition transforms and Matrix Layer/Cell rectangles. Screen/Source native overlays and
+DOM hit controls use the same projected vertices. Domain limits, rounding, validity, persisted
+settings and history remain backend-owned; provisional outlines are not authoritative output.
+The [functional receipt](../progress/evidence/mapgyver-m13-gesture-presentation-2026-11-07.json)
+verifies real held-request input and history. Presented-frame timing and native/DOM pixel
+alignment remain separate M13/4 qualification requirements.
+
 ## Acceptance
 
 M11/6 is **Accepted**. Software suites and native anchored/reduced-motion navigation,

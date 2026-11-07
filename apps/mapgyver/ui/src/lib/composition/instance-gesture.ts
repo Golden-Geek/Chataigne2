@@ -12,12 +12,19 @@ import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
 
 export type InstanceHandle = Omit<InstanceGeometryEdit, 'point'>;
+export type InstancePresentation =
+	import('golden_ui/store/latest-edit-gesture').GesturePresentation<
+		InstanceReference,
+		InstanceHandle,
+		Point
+	>;
 interface Client<S> {
 	group(host: S, handle: InstanceHandle): GestureEditGroup;
 	invoke(host: S, edit: MediaEdit): Promise<MediaEditResult>;
 	accepted(snapshot: InstanceSnapshot): void;
 	active(value: boolean): void;
 	finished(): void;
+	present?(value: InstancePresentation | null): void;
 }
 
 /** One typed backend intent per admitted sample; geometry and history semantics stay in Rust. */

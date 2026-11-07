@@ -6,8 +6,14 @@
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';
 	import type { SurfaceHandle } from './surface-gesture';
+	import type { SurfacePresentation } from './surface-gesture';
+	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
+	import { cropCorners } from './gesture-presentation';
+	import { pointBounds } from 'golden_ui';
 	let {
 		crop,
+		surface,
+		presentation = null,
 		disabled,
 		start,
 		move,
@@ -16,6 +22,8 @@
 		onoverlays = () => {}
 	}: {
 		crop: UnitRect;
+		surface: SurfaceSnapshot;
+		presentation?: SurfacePresentation | null;
 		disabled: boolean;
 		start(handle: SurfaceHandle): boolean;
 		move(point: Point): void;
@@ -26,12 +34,8 @@
 	let canvas: SVGSVGElement;
 	let drag: { id: number; offset: Point } | null = null;
 	let ghost = $state<Point | null>(null);
-	const corners = $derived([
-		{ x: crop.x, y: crop.y },
-		{ x: crop.x + crop.width, y: crop.y },
-		{ x: crop.x + crop.width, y: crop.y + crop.height },
-		{ x: crop.x, y: crop.y + crop.height }
-	]);
+	const corners = $derived(cropCorners(surface, presentation));
+	const bounds = $derived(pointBounds(corners)!);
 	$effect(() => {
 		const rem = overlayRem();
 		onoverlays([
@@ -112,6 +116,7 @@
 	preserveAspectRatio="none"
 	role="group"
 	aria-label="Source crop controls"
+	data-geometry-presentation={presentation ? 'pending' : 'committed'}
 	onpointermove={update}
 	onpointerup={release}
 	onpointercancel={(event) => {
@@ -122,10 +127,10 @@
 	}}>
 	<rect
 		data-native-hit-id="crop"
-		x={crop.x}
-		y={crop.y}
-		width={crop.width}
-		height={crop.height}
+		x={bounds.x}
+		y={bounds.y}
+		width={bounds.width}
+		height={bounds.height}
 		aria-hidden="true"
 		onpointerdown={(event) => down(event, { kind: 'CropOrigin' })} />
 </svg>

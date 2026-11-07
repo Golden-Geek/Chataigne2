@@ -209,6 +209,7 @@
 				{actions}>
 				<RectLayoutControls
 					{objects}
+					presentation={geometry.presentation}
 					kind="Cell"
 					canvas={layer.size}
 					selected={selected?.view.cell.id ?? null}

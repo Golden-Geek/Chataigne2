@@ -185,6 +185,7 @@
 			</p>{/if}
 		{#if editor === 'screen' && screen}
 			<ScreenPreview
+				presentation={owner.presentation}
 				{actions}
 				{screen}
 				selected={surface?.reference.surface ?? null}
@@ -198,6 +199,7 @@
 				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
 			<SurfaceSourcePreview
+				presentation={owner.presentation}
 				{surface}
 				disabled={controller.busy}
 				start={(handle) => gesture.start(surface.reference, handle)}

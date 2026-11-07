@@ -7,10 +7,13 @@
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
 	import type { Point } from './generated/Point';
-	import type { SurfaceHandle } from './surface-gesture';
+	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
+	import { surfaceQuad } from './gesture-presentation';
 	type WarpHandle = Extract<SurfaceHandle, { kind: 'QuadCorner' | 'QuadTranslation' }>;
 	let {
 		screen,
+		presentation = null,
+		extent = null,
 		selected,
 		selectedCorner,
 		pickCorner,
@@ -23,6 +26,8 @@
 		onoverlays = () => {}
 	}: {
 		screen: ScreenSnapshot;
+		presentation?: SurfacePresentation | null;
+		extent?: { width: number; height: number } | null;
 		selected: SurfaceId | null;
 		selectedCorner: number | null;
 		pickCorner(surface: SurfaceId, corner: number): void;
@@ -58,7 +63,7 @@
 		onoverlays([
 			imageFrameOverlay(rem),
 			...visible.map((item) =>
-				quadOverlay(item.definition.quad.corners, rem, {
+				quadOverlay(surfaceQuad(item, presentation, extent), rem, {
 					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
 					enabled: item.definition.enabled,
@@ -66,7 +71,7 @@
 				})
 			),
 			...handles.flatMap((item) =>
-				item.definition.quad.corners.flatMap((point, index) =>
+				surfaceQuad(item, presentation, extent).flatMap((point, index) =>
 					handleOverlays(
 						point,
 						rem,
@@ -183,6 +188,7 @@
 	viewBox="0 0 1 1"
 	preserveAspectRatio="none"
 	aria-label="Surface mapping controls"
+	data-geometry-presentation={presentation ? 'pending' : 'committed'}
 	role="group"
 	onclick={(event) => event.stopPropagation()}
 	onkeydown={(event) => {
@@ -197,7 +203,9 @@
 			data-native-hit-id={item.reference.surface}
 			data-surface-drop-target={item.reference.surface}
 			data-source-drop-object={item.reference.surface}
-			points={item.definition.quad.corners.map((point) => `${point.x},${point.y}`).join(' ')}
+			points={surfaceQuad(item, presentation, extent)
+				.map((point) => `${point.x},${point.y}`)
+				.join(' ')}
 			class:selected={item.reference.surface === selected}
 			class:inactive={!item.definition.enabled}
 			class:invalid={!item.mapping_valid}
@@ -222,7 +230,7 @@
 
 {#each handles as item (item.reference.surface)}
 	<div class="corners" role="group" aria-label={`Warp handles for ${item.label}`}>
-		{#each item.definition.quad.corners as corner, index}
+		{#each surfaceQuad(item, presentation, extent) as corner, index}
 			<ViewportHandle
 				data-native-hit-id={`${item.reference.surface}:${index}`}
 				data-native-overlay-control

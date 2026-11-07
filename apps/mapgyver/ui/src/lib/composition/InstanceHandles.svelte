@@ -7,14 +7,15 @@
 	import type { InstanceSnapshot } from '../media/generated/InstanceSnapshot';
 	import type { InstanceGeometryMode } from '../media/generated/InstanceGeometryMode';
 	import type { Point } from '../media/generated/Point';
-	import type { InstanceHandle } from './instance-gesture';
+	import type { InstanceHandle, InstancePresentation } from './instance-gesture';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
-	import { outline, gizmo } from './presentation';
+	import { instanceDisplay } from './presentation';
 	import rotateCursor from './rotate-cursor.svg';
 	import { createSpatialPointer } from '../spatial/pointer';
 	let {
 		composition,
+		presentation = null,
 		selected,
 		disabled,
 		active,
@@ -25,6 +26,7 @@
 		stop
 	}: {
 		composition: CompositionSnapshot;
+		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
 		disabled: boolean;
 		active: boolean;
@@ -45,7 +47,9 @@
 					?.extent
 			: null
 	);
-	const handles = $derived(instance ? gizmo(instance.definition.transform, selectedExtent) : null);
+	const handles = $derived(
+		instance ? instanceDisplay(instance, selectedExtent, presentation).handles : null
+	);
 	let canvas: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
 	const pointer = createSpatialPointer({
@@ -94,6 +98,7 @@
 	viewBox={`0 0 ${composition.canvas.width} ${composition.canvas.height}`}
 	preserveAspectRatio="none"
 	aria-label="Composition transform controls"
+	data-geometry-presentation={presentation ? 'pending' : 'committed'}
 	role="group"
 	onpointermove={pointer.move}
 	onpointerup={(event) => pointer.release(event)}
@@ -108,8 +113,8 @@
 			<polygon
 				data-instance-drop-target={item.reference.instance}
 				data-source-drop-object={item.reference.instance}
-				points={outline(item.definition.transform, extent)
-					.map((point) => `${point.x},${point.y}`)
+				points={instanceDisplay(item, extent, presentation)
+					.points.map((point) => `${point.x},${point.y}`)
 					.join(' ')}
 				class:selected={item.reference.instance === selected}
 				class:inactive={!item.definition.enabled}
@@ -135,8 +140,8 @@
 				class="selected"
 				data-instance-drop-target={instance.reference.instance}
 				data-source-drop-object={instance.reference.instance}
-				points={outline(instance.definition.transform, selectedExtent)
-					.map((point) => `${point.x},${point.y}`)
+				points={instanceDisplay(instance, selectedExtent, presentation)
+					.points.map((point) => `${point.x},${point.y}`)
 					.join(' ')}
 				aria-hidden="true"
 				onpointerdown={(event) => down(event, instance!, 'Translate')} />

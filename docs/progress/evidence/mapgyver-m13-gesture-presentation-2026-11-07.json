@@ -1,0 +1,80 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; functional gesture slice verified, full smoothness acceptance remains open",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"deliverable": "Selected geometry follows local pointer samples independently of transport acknowledgement across Screen warp, Surface Source crop, Composition transforms and Matrix Layer/Cell controls.",
+	"ownership": "Golden LatestEditGesture publishes reference/basis/latest-sample presentation. MapGyver projects display vertices/rectangles. Authored settings, limits, validation, snapshots and history remain backend-owned; no protocol or Rust change.",
+	"invariants": [
+		"One in-flight mutation and one latest sample remain bounded; input publishes its control hint synchronously before asynchronous writes.",
+		"Older receipts update canonical state without replacing newer local control geometry.",
+		"Finish holds the hint until the final real request/history close. Stop, ownership/project loss and disposal clear transient presentation; rejected edits cannot invent accepted state.",
+		"Provisional vertices are presentation only. They never become an authored edit basis or a source of backend defaults/constraints. Screen/Source native overlay descriptions and DOM controls use the same vertices."
+	],
+	"software": {
+		"golden_ui": "50 files,256 tests passed; three new lifecycle cases cover immediate publication, coalescing/old receipts, final close, project invalidation and rejection",
+		"mapgyver_ui_tests": "101 tests passed across spatial,composition,screens,matrix; six new projection cases cover float hints, immutable origins, unknown natural extent, rotated fixed anchors, degeneracy, raw crop/warp hints and older receipts",
+		"mapgyver_svelte": "0 errors/0 warnings",
+		"chataigne_svelte": "0 errors/0 warnings",
+		"native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-gesture; terminal exit0",
+    "unchanged_backend": "Prior512 app tests/2ignored, strict lint and generated-contract proof retained for unchanged Rust/protocol layers",
+    "format": "Scoped Prettier and Node syntax checks, root cargo fmt and golden_core cargo fmt passed"
+	},
+	"native": {
+		"driver": "apps/mapgyver/tests/browser/native-gesture-presentation.mjs",
+		"routing_reference": "https://playwright.dev/docs/api/class-websocketroute",
+		"artifacts": "target/m134-gesture-native-classified",
+		"binary": "target/debug/deps/MapGyver-m134-gesture.exe",
+		"sha256": "ea8a0b65b63338c405dcf86e0e46bb03929c5cf046b401138801a3aef42cb54a",
+		"pid": 6564,
+		"exit": 0,
+		"webview": "156.0.4314.58",
+		"fixture": "Owned actual bundled Windows WebView and real server. A3x3 Matrix has one assigned active Cell so overlapping peer Cells cannot capture the target gesture. Real source extent also feeds Composition and Screen/Source previews. Only delivery of selected actual geometry requests is held using documented WebSocket routing; receipts are never synthesized.",
+		"checks": [
+			"Matrix Layer translation",
+			"Matrix Cell translation",
+			"Composition translation",
+			"Composition rotated resize",
+			"Screen warp corner",
+			"Surface Source crop"
+		],
+		"each_case": [
+			"First held request leaves backend geometry unchanged while local control geometry advances.",
+			"A second pointer sample advances the outline while exactly one request remains in flight.",
+			"Delivering the older request changes authoritative geometry without rewinding the latest local outline; the coalesced successor is held next.",
+			"Pointer release and final real receipt/history close remove the draft and settle canonical geometry within its authored precision.",
+			"Actual toolbar Undo/Redo restores exact backend geometry and the displayed canonical outline."
+		],
+		"requests": 446,
+		"receipts_at_result": 445,
+		"receipt_scope": "Every gesture and its endEdit is explicitly awaited; a background reader may still be outstanding when the result is captured.",
+		"page_errors": [],
+		"unexpected_rejections": [],
+		"feedback_regression": {
+			"driver": "apps/mapgyver/tests/browser/native-pending-feedback.mjs",
+			"artifacts": "target/m134-gesture-feedback-final",
+			"pid": 7868,
+			"exit": 0,
+			"cases": 4,
+			"scope": "Long fast stream stays quiet; held work shows progress/completion; real rejection preserves state; connection replacement clears abandoned work. Only the existing precisely correlated stale endEdit cleanup is expected."
+		}
+	},
+	"fixture_failures_retained": [
+		{
+			"artifacts": "target/m134-gesture-native-baseline",
+			"cause": "The fixture compared unchanged Layer composite settings instead of Layer geometry; corrected to the typed .layer field."
+		},
+		{
+			"artifacts": "target/m134-gesture-native-corrected",
+			"cause": "All peer Cells overlapped and a different Cell received the gesture. The owned fixture now assigns only the selected Cell, preserving the production hit-order contract."
+		},
+		{
+			"artifacts": "target/m134-gesture-native-owned-cell,target/m134-gesture-native-ready",
+			"cause": "Four media cases passed, but Screen requests were not held because their operation name was incorrectly read from the nested geometry variant. Existing recorded requests prove the real QuadCorner edit arrived. Routing now selects the top-level Screen operation; six-case final fixture passes."
+		},
+		{
+			"artifacts": "target/m134-media-gesture-native-final",
+			"scope": "Intermediate media-only four-case pass,PID45136/exit0; superseded by the complete six-case result."
+		}
+	],
+	"remaining": "Actual240Hz presented pacing/stalls and pointer-to-visible p95/p99; independent native/DOM pixel alignment and output continuity; both selected GPUs; larger projects and ordinary controls/scroll/dock; silent/background intent audit. Functional CDP/DOM proof does not establish physical latency or qualify release. Original budgets and all retained return-queue gates remain required. No acceptance credit awarded."
+}

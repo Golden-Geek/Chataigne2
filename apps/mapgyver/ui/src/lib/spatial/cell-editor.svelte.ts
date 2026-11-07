@@ -2,7 +2,7 @@ import { onDestroy, untrack } from 'svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
-import { createCellGesture, type CellHandle } from './cell-gesture';
+import { createCellGesture, type CellHandle, type CellPresentation } from './cell-gesture';
 import { invokeMediaEdit } from '../media/operations';
 import type { CellLayoutReader } from './cell-layout';
 
@@ -12,11 +12,15 @@ export function createCellEditor(
 ) {
 	const state = $state(createLatestEditGestureState());
 	let activeCell = $state<string | null>(null);
+	let presentation = $state.raw<CellPresentation | null>(null);
 	const gesture = createCellGesture<WorkbenchSession>(() => appState.session, state, {
 		group: (session, handle) =>
 			createUiEditSession(`${handle.kind} Cell`, 'matrix-cell-geometry', session),
 		invoke: invokeMediaEdit,
 		accepted: (result) => reader.acceptCell(result),
+		present: (value) => {
+			presentation = value;
+		},
 		active: (active) => {
 			reader.setInteracting(active);
 			if (!active) activeCell = null;
@@ -44,6 +48,9 @@ export function createCellEditor(
 	return {
 		state,
 		gesture,
+		get presentation() {
+			return presentation;
+		},
 		get activeCell() {
 			return activeCell;
 		},

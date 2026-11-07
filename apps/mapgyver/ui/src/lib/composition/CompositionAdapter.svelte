@@ -208,6 +208,7 @@
 			</p>{/if}
 		{#if props.present && channel && composition}
 			<CompositionPreview
+				presentation={owner.presentation}
 				{actions}
 				{channel}
 				{composition}

@@ -10,6 +10,11 @@ import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
 type WithoutPoint<T> = T extends unknown ? Omit<T, 'point'> : never;
 export type CellHandle = WithoutPoint<CellGeometryEdit>;
+export type CellPresentation = import('golden_ui/store/latest-edit-gesture').GesturePresentation<
+	{ media: string; cell: string },
+	CellHandle,
+	Point
+>;
 export type CellGeometryResult = Extract<MediaEditResult, { kind: 'MatrixCellGeometryChanged' }>;
 export function createCellGesture<S extends GestureHost>(
 	host: () => S | null,
@@ -20,6 +25,7 @@ export function createCellGesture<S extends GestureHost>(
 		accepted(result: CellGeometryResult): void;
 		active(active: boolean): void;
 		finished(): void;
+		present?(value: CellPresentation | null): void;
 	}
 ) {
 	return new LatestEditGesture<

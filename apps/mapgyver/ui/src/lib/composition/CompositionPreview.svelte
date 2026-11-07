@@ -7,15 +7,16 @@
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
 	import type { Point } from '../media/generated/Point';
-	import type { InstanceHandle } from './instance-gesture';
+	import type { InstanceHandle, InstancePresentation } from './instance-gesture';
 	import InstanceHandles from './InstanceHandles.svelte';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
-	import { outline, gizmo } from './presentation';
+	import { instanceDisplay, gizmo } from './presentation';
 	import type { SpatialKeyboardMode } from '../spatial/keyboard.svelte';
 	let {
 		channel,
 		composition,
+		presentation = null,
 		selected,
 		disabled,
 		active,
@@ -28,6 +29,7 @@
 	}: {
 		channel: ChannelSnapshot;
 		composition: CompositionSnapshot;
+		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
 		disabled: boolean;
 		active: boolean;
@@ -52,7 +54,7 @@
 		instance
 			? extent
 				? pointBounds(
-						outline(instance.definition.transform, extent).map((point) => ({
+						instanceDisplay(instance, extent, presentation).points.map((point) => ({
 							x: point.x / composition.canvas.width,
 							y: point.y / composition.canvas.height
 						}))
@@ -118,6 +120,7 @@
 	}}
 	label="Composition view">
 	<InstanceHandles
+		{presentation}
 		{composition}
 		{selected}
 		{disabled}

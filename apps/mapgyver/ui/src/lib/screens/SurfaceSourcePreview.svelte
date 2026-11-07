@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { NativePreview, type OverlayPrimitive } from 'golden_video_ui';
-	import { appState, Viewport2D } from 'golden_ui';
+	import { appState, Viewport2D, pointBounds } from 'golden_ui';
+	import { cropCorners } from './gesture-presentation';
 	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
-	import type { SurfaceHandle } from './surface-gesture';
+	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import CropHandles from './CropHandles.svelte';
 	let {
 		surface,
+		presentation = null,
 		disabled,
 		start,
 		move,
@@ -17,6 +19,7 @@
 		stop
 	}: {
 		surface: SurfaceSnapshot;
+		presentation?: SurfacePresentation | null;
 		disabled: boolean;
 		start(handle: SurfaceHandle): boolean;
 		move(point: Point): void;
@@ -43,6 +46,8 @@
 {#snippet controls()}
 	{#key surface.reference.surface + source}
 		<CropHandles
+			{surface}
+			{presentation}
 			onoverlays={setOverlays}
 			crop={surface.definition.crop}
 			{disabled}
@@ -58,7 +63,7 @@
 		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
-		selection={surface.definition.crop}
+		selection={pointBounds(cropCorners(surface, presentation))}
 		label="Surface source view"
 		native={identity !== null}>
 		{#if identity}

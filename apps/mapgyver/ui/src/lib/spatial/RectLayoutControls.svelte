@@ -4,10 +4,14 @@
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	import type { LayoutRect } from './rect-presentation';
+	import { displayRect } from './rect-presentation';
+	import type { LayerPresentation } from './layer-gesture';
+	import type { CellPresentation } from './cell-gesture';
 	import { createSpatialPointer } from './pointer';
 	import { SPATIAL_RESIZE_HANDLES } from './handles';
 	let {
 		objects,
+		presentation = null,
 		kind,
 		canvas,
 		selected,
@@ -21,6 +25,7 @@
 		enter
 	}: {
 		objects: LayoutRect[];
+		presentation?: LayerPresentation | CellPresentation | null;
 		kind: 'Layer' | 'Cell';
 		canvas: { width: number; height: number };
 		selected: string | null;
@@ -45,7 +50,8 @@
 		finish: () => finish(),
 		stop: () => stop()
 	});
-	const item = $derived(objects.find((object) => object.id === selected));
+	const displayed = $derived(objects.map((object) => displayRect(object, presentation)));
+	const item = $derived(displayed.find((object) => object.id === selected));
 	function down(event: PointerEvent, object: LayoutRect, mode: RectGeometryMode) {
 		if (disabled) return;
 		pointer.start(event, (at) => {
@@ -74,11 +80,12 @@
 	preserveAspectRatio="none"
 	role="group"
 	aria-label={`Matrix ${kind} layout controls`}
+	data-geometry-presentation={presentation ? 'pending' : 'committed'}
 	onpointermove={pointer.move}
 	onpointerup={(event) => pointer.release(event)}
 	onpointercancel={(event) => pointer.release(event, true)}
 	onlostpointercapture={pointer.cancel}>
-	{#each objects as object (object.id)}
+	{#each displayed as object (object.id)}
 		{#if object.size}
 			<rect
 				data-layer-id={kind === 'Layer' ? object.id : undefined}
@@ -112,7 +119,7 @@
 	{/each}
 </svg>
 
-{#each objects as object (object.id)}
+{#each displayed as object (object.id)}
 	{#if !object.size}<ViewportHandle
 			x={object.position[0] / canvas.width}
 			y={object.position[1] / canvas.height}

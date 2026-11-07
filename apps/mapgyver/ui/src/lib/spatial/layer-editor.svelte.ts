@@ -2,7 +2,7 @@ import { onDestroy, untrack } from 'svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
-import { createLayerGesture, type LayerHandle } from './layer-gesture';
+import { createLayerGesture, type LayerHandle, type LayerPresentation } from './layer-gesture';
 import { invokeMediaEdit } from '../media/operations';
 import type { createMatrixEditor } from '../matrix/editor.svelte';
 
@@ -12,6 +12,7 @@ export function createLayerEditor(
 ) {
 	const state = $state(createLatestEditGestureState());
 	let activeLayer = $state<string | null>(null);
+	let presentation = $state.raw<LayerPresentation | null>(null);
 	const gesture = createLayerGesture<WorkbenchSession>(() => owner.session, state, {
 		group: (session, handle) =>
 			createUiEditSession(
@@ -21,6 +22,9 @@ export function createLayerEditor(
 			),
 		invoke: invokeMediaEdit,
 		accepted: (result) => owner.controller.acceptLayer(result),
+		present: (value) => {
+			presentation = value;
+		},
 		active: (active) => {
 			owner.controller.setInteracting(active);
 			if (!active) activeLayer = null;
@@ -48,6 +52,9 @@ export function createLayerEditor(
 	return {
 		state,
 		gesture,
+		get presentation() {
+			return presentation;
+		},
 		get activeLayer() {
 			return activeLayer;
 		},

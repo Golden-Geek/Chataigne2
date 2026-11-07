@@ -3,7 +3,11 @@ import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
 import { createCompositionEditorState, CompositionEditorController } from './editor-controller';
-import { createInstanceGesture, type InstanceHandle } from './instance-gesture';
+import {
+	createInstanceGesture,
+	type InstanceHandle,
+	type InstancePresentation
+} from './instance-gesture';
 import { invokeMediaEdit } from '../media/operations';
 import { MEDIA_NAMESPACE } from '../media/generated/constants';
 import type { CompositionEditorQuery } from '../media/generated/CompositionEditorQuery';
@@ -20,6 +24,7 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 	);
 	const gestureState = $state(createLatestEditGestureState());
 	let activeInstance = $state<InstanceId | null>(null);
+	let presentation = $state.raw<InstancePresentation | null>(null);
 	const gesture = createInstanceGesture<WorkbenchSession>(() => session, gestureState, {
 		group: (session, handle) =>
 			createUiEditSession(
@@ -29,6 +34,9 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 			),
 		invoke: invokeMediaEdit,
 		accepted: (snapshot) => controller.acceptInstance(snapshot),
+		present: (value) => {
+			presentation = value;
+		},
 		active: (active) => {
 			controller.setInteracting(active);
 			if (!active) activeInstance = null;
@@ -62,6 +70,9 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 		controller,
 		gestureState,
 		gesture,
+		get presentation() {
+			return presentation;
+		},
 		get channel() {
 			return controller.channel;
 		},
