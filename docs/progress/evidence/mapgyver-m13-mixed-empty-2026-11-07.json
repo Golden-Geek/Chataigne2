@@ -1,0 +1,101 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; empty/mixed-media functional scope verified on both GPUs; no whole gate closed",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": {
+		"started_utc": "05:33",
+		"planned_cutoff_utc": "06:18",
+		"native_checks_finished_utc": "05:52"
+	},
+	"ownership": "Existing MapGyver bundled gesture fixture plus focused empty-scene and mixed-source helpers. Public media/screen operations author real typed objects. No production runtime, UI, backend, protocol or budget changed.",
+	"prerequisites": {
+		"app": "Unchanged pushed b476c2f9 bundled app; its successful build, Svelte0 errors/0 warnings, keyboard5 tests and unchanged Rust/strict/generated-contract checks are reused within their recorded scope.",
+		"source": "cargo test --locked -p golden_video --features qualification --lib --no-run completed successfully before spawning the existing ignored owned source fixture.",
+		"fixture": "Three changed/new JS modules pass Prettier and node --check. Existing pending-overlay Python tests3 pass. Root/Core cargo fmt and scoped diff checks pass."
+	},
+	"binaries": {
+		"app": {
+			"path": "target/debug/deps/MapGyver-m134-focus.exe",
+			"sha256": "52f0b8c21a88e0be04c9a9dc818531848b63e45deaee9748ae955a7d2745ce77"
+		},
+		"source": {
+			"path": "target/debug/deps/golden_video-911f31446169e35d.exe",
+			"sha256": "5e5748bc24c9db06f564b661fd1533d1364fbb0917c8f3d05553f948ce232ea7"
+		}
+	},
+	"empty_scope": "Composition, Matrix Layers, Matrix Cells without authored Cells, and source-less Screen each retain the same viewport through Home/Zoom1.2/keyboard Home1. Exact before/after domain snapshots remain equal, with no materialized Cells/instances or Surface mutation. Each view is followed by a complete independent red output image. Empty Surface Source is not covered by these four cases.",
+	"mixed_scope": {
+		"grid": [
+			"Picture red",
+			"SolidColor green",
+			"Picture blue",
+			"Reference yellow",
+			"Composition cyan",
+			"Matrix magenta",
+			"SolidColor white",
+			"Picture grey188",
+			"SharedTexture orange255/188/0"
+		],
+		"objects": "All nine are distinct real public media/channel references, fixed120x90; Pictures use generated PNG files, Reference retains its own public preview identity, Composition has a child instance, Matrix has a launched real Cell. InspectViewport verifies all nine resolved source references.",
+		"shared_texture": "Owned same-adapter static BGRA8 source, format87/4x4, explicit Manual exact sender. Existing Rust fixture verifies allocation pixels; app grid verifies received orange pixels. This is not a fast dynamic sender, motion/pacing test, format sweep or foreign-sender modification.",
+		"gestures": "Matrix Layer/Cell translation, Composition translation/rotated resize, Screen warp corner and Picture Surface Source crop: one in-flight intent, local latest geometry while acknowledgement held, no old-receipt rewind, exact canonical final geometry and Undo/Redo. The primary Composition instance is selected through its named parent's actual hierarchy; nested instances may legitimately share labels.",
+		"pixels_per_gpu": "18 matching thumbnail patches across two nine-Cell captures; six physical pending-outline captures at125% scaling, maximum0.750161px error;11 complete independent red96x64 output images. Screen/Source native accepted-frame hit checks retained. No moving-frame correspondence or general DPI inference."
+	},
+	"intel": {
+		"artifact": "target/m134-mixed-empty-intel-tree-20261107/result.json",
+		"sha256": "ceb6dc3a0e160f3c47df1723deac293d070bcd3f3b7dff89def9e556c39afac0",
+		"app_pid": 21480,
+		"source_pid": 30712,
+		"source_ack": "OK started 87 4 4 52bf8cd1-c395-4a1c-91da-7d4f6c0d1448",
+		"fixture_exit": 0,
+		"requests": 782,
+		"receipts": 782,
+		"rejected_or_unsuccessful": 0,
+		"page_errors": 0,
+		"sdk_copies": 1173,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_handle": 2147493634,
+		"first_frame": 64,
+		"last_frame": 1237,
+		"maximum_receive_gap_ms": 60.9191,
+		"consumer_exit": 0
+	},
+	"nvidia": {
+		"artifact": "target/m134-mixed-empty-nvidia-active-20261107/result.json",
+		"sha256": "367f2da66dc1debb8bb91ebc11c7deeffe60962192ef7510e56941bf42ff3df3",
+		"app_pid": 34948,
+		"source_pid": 6744,
+		"source_ack": "OK started 87 4 4 431f0665-3dad-49b3-b4d0-302781044c0c",
+		"fixture_exit": 0,
+		"requests": 805,
+		"receipts": 805,
+		"rejected_or_unsuccessful": 0,
+		"page_errors": 0,
+		"sdk_copies": 1240,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_handle": 2147497666,
+		"first_frame": 71,
+		"last_frame": 1310,
+		"maximum_receive_gap_ms": 34.4071,
+		"consumer_exit": 0
+	},
+	"receipts_and_shutdown": "Each observed request ID matches exactly one terminal applied receipt ID with successful acknowledgements; no duplicate IDs, page errors or rejections. Observers finish before the app closes normally, followed by the owned producer's asserted normal exit. Overall terminal0 establishes the finalizers passed; result.json alone precedes those finalizers. This cohort does not establish the complete silent/background-intent scope.",
+	"retained_failures": [
+		{
+			"artifact": "target/m134-mixed-empty-intel-20261107/failure.json",
+			"fixture_exit": 1,
+			"cause": "After four empty views, initial nine source pixels and Layer/Cell gestures passed, global Instance1 locator matched both the primary and nested Composition's legitimate instance. Corrected the fixture to navigate the named parent's hierarchy; no production defect inferred."
+		},
+		{
+			"artifact": "target/m134-mixed-empty-nvidia-20261107/failure.json",
+			"app_pid": 45036,
+			"fixture_exit": 1,
+			"cause": "Owned-window activation marker expired before any gesture check. App/source finalizers ran; replacement PID34948 was activated through supported desktop control before its marker and passed."
+		}
+	],
+	"remaining": "Ordinary controls/shared scrolling/docking, empty Surface Source and complete silent/background-intent coverage; actual240Hz real-input presented pacing, long stalls and pointer-to-visible p95/p99 across workloads/both GPUs; moving-frame native/DOM correspondence. SDK gaps above remain functional continuity data, including Intel60.9191ms, with no production cadence/latency credit. The zero-action QPC return trigger and every original physical/memory/timing/retirement requirement remain unchanged. No denominator, acceptance or execution-order revision."
+}

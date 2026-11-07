@@ -8,11 +8,14 @@ import { openNativeEditor } from './native-editor.mjs';
 import { execFileSync } from 'node:child_process';
 import { adapterKey } from './native-adapter.mjs';
 import { createGestureQualification } from './gesture-qualification.mjs';
+import { createMixedGestureSources } from './gesture-mixed-sources.mjs';
+import { createEmptyGestureScenes, verifyEmptyGestureScenes } from './gesture-empty-scenes.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 const gpuIndex = process.argv[3] === undefined ? null : Number(process.argv[3]);
-const populated = process.argv.includes('--populated-3x3');
+const mixed = process.argv.includes('--mixed-media');
+const populated = process.argv.includes('--populated-3x3') || mixed;
 const colors = [
 	{ rgba: [1, 0, 0, 1], rgb: [255, 0, 0] },
 	{ rgba: [0, 1, 0, 1], rgb: [0, 255, 0] },
@@ -65,6 +68,8 @@ let token,
 	hold = false,
 	closing = false,
 	qualification;
+let mixedSources,
+	emptyReports = [];
 const held = [],
 	requests = [],
 	receipts = [],
@@ -264,17 +269,23 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 try {
 	await page.reload();
 	token = (await post('/api/ui/session', {})).token;
-	const { reference: source } = await edit({
-		kind: 'CreateMedia',
-		media_kind: 'SolidColor',
-		label: 'Gesture source'
-	});
+	if (mixed) {
+		assert(hardware, 'Mixed native media fixture requires a pinned GPU');
+		mixedSources = await createMixedGestureSources({ edit, directory, colors, adapter: gpuIndex });
+	}
+	const { reference: source } = mixed
+		? mixedSources.records[0]
+		: await edit({
+				kind: 'CreateMedia',
+				media_kind: 'SolidColor',
+				label: 'Gesture source'
+			});
 	await edit({
 		kind: 'ConfigureMediaResolution',
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
 	});
-	if (hardware || populated) {
+	if (!mixed && (hardware || populated)) {
 		await edit({
 			kind: 'ConfigureChannel',
 			reference: source,
@@ -282,7 +293,8 @@ try {
 		});
 	}
 	matrixSources.push(source);
-	if (populated) {
+	if (mixed) matrixSources.push(...mixedSources.records.slice(1).map((record) => record.reference));
+	else if (populated) {
 		for (let index = 1; index < colors.length; index++) {
 			const { reference } = await edit({
 				kind: 'CreateMedia',
@@ -424,6 +436,7 @@ try {
 			}
 		}
 	});
+	const emptyScene = mixed ? await createEmptyGestureScenes(edit, screens) : null;
 	if (hardware)
 		qualification = await createGestureQualification({
 			native,
@@ -432,6 +445,14 @@ try {
 			source,
 			hardware,
 			gpuIndex
+		});
+	if (emptyScene)
+		emptyReports = await verifyEmptyGestureScenes({
+			page,
+			edit,
+			screens,
+			scene: emptyScene,
+			qualification
 		});
 	await tab('Medias').click();
 	await page
@@ -481,10 +502,10 @@ try {
 		await parent.focus();
 		await parent.press('ArrowRight');
 	}
-	await manager
-		.getByRole('treeitem', { name: original.label, exact: true })
-		.getByRole('button', { name: original.label, exact: true })
-		.click();
+	// Follow this parent's hierarchy; nested Compositions can legitimately reuse labels.
+	await parent.focus();
+	await page.keyboard.press('ArrowRight');
+	await page.keyboard.press('Enter');
 	const compPanel = page.locator('section[aria-label="Composition"]');
 	const compSvg = compPanel.getByRole('group', {
 		name: 'Composition transform controls',
@@ -576,7 +597,13 @@ try {
 				app_pid: native.app.pid,
 				browser: native.browser.version(),
 				checks,
-				workload: { populated_3x3: populated, source_references: matrixSources },
+				workload: {
+					populated_3x3: populated,
+					source_references: matrixSources,
+					mixed_media: mixedSources?.records,
+					owned_source: mixedSources?.source,
+					empty: emptyReports
+				},
 				requests,
 				receipts,
 				errors,
@@ -607,6 +634,10 @@ try {
 	try {
 		await qualification?.close();
 	} finally {
-		await native.close();
+		try {
+			await native.close();
+		} finally {
+			await mixedSources?.close();
+		}
 	}
 }
