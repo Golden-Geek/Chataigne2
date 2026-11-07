@@ -249,8 +249,16 @@ impl Node for ElementNode {
     fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
         golden_core::engine::NodeExecutionRule::passive()
     }
-    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
-        false
+    fn inbox_requires_tree_snapshot(&self, events: &golden_core::events::EventFrame) -> bool {
+        self.is_layer() && events.iter().any(|event| matches!(event.kind, golden_core::events::EventKind::ChildAdded { parent, .. } if parent == self.id()))
+    }
+    fn on_child_added(&mut self, ctx: &mut ProcessCtx, parent: NodeId, child: NodeId) {
+        if parent == self.id()
+            && super::cell_application_links::snapshot_has_application(ctx, child)
+            && let Some(binding) = self.runtime.get()
+        {
+            binding.invalidate_applications();
+        }
     }
     fn get_type(&self) -> &str {
         match self.kind {

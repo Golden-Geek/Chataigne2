@@ -52,7 +52,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
             unreachable!()
         };
         let control = root.matrix_playback().ok_or("Matrix playback is missing")?;
-        control.bind_application_parent(&manager.application_revision);
+        control.bind_application_parent(&manager.application_revision, &manager.application_definition_revision);
         let playback = control.snapshot();
         if !root.node_data().effective_enabled {
             continue;
@@ -66,6 +66,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
         guards.push(root.guard());
         guards.push(control.application_guard());
         let axis = crate::matrix::capture_application_axis(engine, root_id, control, columns_left)?;
+        guards.extend(axis.dependency_guard());
         columns_left -= axis.columns.len();
         let cursors = playback
             .desired_column

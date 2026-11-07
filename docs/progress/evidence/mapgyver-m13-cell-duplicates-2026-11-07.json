@@ -1,0 +1,33 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Typed Cell Copy/Reference preserves exact authored settings and independent-versus-linked media/application ownership within and between Matrices.",
+	"gate": "M13/7 Active; backend slice verified by software, full drop acceptance remains open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "16:00", "cutoff_utc": "16:45" },
+	"ownership": "MapGyver owns atomic Cell structural intents and typed producer ownership. Golden's public dense subtree import remaps identities and overrides Column before readiness. No UI settings copy or domain policy is introduced.",
+	"contract": [
+		"Copy imports the complete authored Cell subtree with fresh owned identities, preserving exact f64 values, constraints and metadata. External references retain their targets. Reference keeps Cell settings, links the media through a real Reference node and stores its shared Cell application owner in a typed read-only Parameter.",
+		"Reference leaves local App File unconfigured so it shares the source Cell's application identity. A local App File takes precedence for ordinary typed Parameter writes; clearing it restores sharing. Explicit Cell application configuration or source replacement clears the shared relationship. Column/Group preparation follows the destination hierarchy.",
+		"Copy/Reference reject occupied/prepared/same-address destinations, invalid foreign addresses, feedback cycles and placement inside the source's own producer before mutation. Same- and cross-Matrix source selection is backend-owned. Existing same-Matrix relocation/swapping remains unchanged.",
+		"Definition revisions invalidate linked consumer caches without rebuilding authored indices on launch. Layer child-addition callbacks inspect configured/shared ownership from the shared process snapshot, including Undo/Redo restoration; ordinary unconfigured Cell authoring keeps logical application captures valid. Geometry/value events request no tree snapshot. Structural snapshot cost remains unqualified on large projects."
+	],
+	"software": {
+		"rust": "554 pass/3 ignored with native-preview-smoke,application-process-fixture, including generated contracts. New owning tests cover four same/cross-Matrix Copy/Reference cases, exact precision and public Undo/Redo/reload, prepared/same-address/foreign/cycle rejection, shared application definition edits, ordinary App File override/fallback and unchanged cached application index on launch.",
+		"strict": "Strict MapGyver Clippy passes; MapGyver Svelte0errors0warnings; scoped fixture syntax and root/Core Rust formatting pass.",
+		"corrected_validation": "An initial broad structural invalidation failed the existing logical idle-path test. Readiness/Parameter notifications then missed Reference ownership after Redo. The final Layer child-addition boundary passes exact application membership after every public Undo/Redo as well as the unchanged idle-path assertion. Earlier failures supply no acceptance credit."
+	},
+	"ordinary_host": {
+		"binary": "target/debug/deps/MapGyver-m137-cell-duplicates.exe",
+		"binary_sha256": "3797301f72d5970d515664013393aedbe615bd530342a957512be180dc542f83",
+		"build_exit": 0,
+		"artifact": "target/m137-cell-duplicates-20261107/result.json",
+		"artifact_sha256": "3731acf3720fcc1fbe121e5f7bae2c8e7cda678a875b06544528f3e625ad5d77",
+		"pid": 7204,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"checks": 10,
+		"proof": "Six retained relocation/swap/no-op/rejection cases plus same- and cross-Matrix Copy/Reference through the ordinary HTTP host. Exact public Undo/Redo, settings, effective application identity and independent-versus-shared output channel identities pass.",
+		"limits": "No desktop input, GUI path, native pixels, process launch/retirement or timing is measured."
+	},
+	"remaining": "Grid dragging and Alt Move/Copy/Reference menu, keyboard/context equivalents, scroll/cancellation, prepared empty sources, missing/replaced source recovery, copy/reference lifetime, full caller/native/process retirement and large-project structural timing. Same-Matrix Move/Swap and same/cross-Matrix Copy/Reference are the currently implemented operation scopes. M13/4 remains Blocked on owned-window input resumption with every original quantitative requirement retained. No full acceptance gate closes."
+}

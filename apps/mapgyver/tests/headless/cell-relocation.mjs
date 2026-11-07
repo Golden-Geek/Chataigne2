@@ -119,6 +119,68 @@ try {
 	assert.deepEqual((await read()).value, before.value);
 	assert.equal((await read()).history.undo_len, before.history.undo_len);
 	checks.push({ same_address: true, exact_noop: true });
+	const other = (
+		await operation({
+			kind: 'CreateMedia',
+			media_kind: 'Matrix',
+			label: 'Cell duplicate destination'
+		})
+	).value.reference;
+	const otherSnapshot = (
+		await operation({ kind: 'Matrix', media: other.media, edit: { kind: 'Inspect' } })
+	).value.snapshot;
+	for (const [targetMedia, layer, column, mode] of [
+		[reference.media, rows[2], columns[0], 'Copy'],
+		[reference.media, rows[2], columns[1], 'Reference'],
+		[other.media, otherSnapshot.items[0].id.id, otherSnapshot.columns[0].id, 'Copy'],
+		[other.media, otherSnapshot.items[0].id.id, otherSnapshot.columns[1].id, 'Reference']
+	]) {
+		const inspect = async () => {
+			const result = await operation({
+				kind: 'Matrix',
+				media: targetMedia,
+				edit: { kind: 'Inspect' }
+			});
+			return { value: result.value.snapshot, history: result.history };
+		};
+		const before = await inspect();
+		const source = (await read()).value.cells.find((cell) => cell.id === a);
+		const result = await operation({
+			kind: 'Matrix',
+			media: targetMedia,
+			edit: { kind: 'DuplicateCell', cell: a, layer, column, mode }
+		});
+		const after = await inspect();
+		const created = after.value.cells.find((cell) => cell.id === result.value.cell);
+		assert.notEqual(created.id, a);
+		assert.deepEqual(created.definition.settings, source.definition.settings);
+		assert.equal(
+			created.definition.application,
+			mode === 'Reference' ? source.definition.application : created.id
+		);
+		const channels = (
+			await operation({
+				kind: 'InspectChannels',
+				query: { media: created.media, start: 0, count: 32 }
+			})
+		).value.page;
+		assert.equal(channels.total, 1);
+		assert.equal(
+			channels.channels[0].reference.channel === source.definition.source.channel,
+			mode === 'Reference'
+		);
+		assert.equal(after.history.undo_len, before.history.undo_len + 1);
+		assert((await intent({ kind: 'undo' })).success);
+		assert.deepEqual((await inspect()).value, before.value);
+		assert((await intent({ kind: 'redo' })).success);
+		assert.deepEqual((await inspect()).value, after.value);
+		checks.push({
+			mode,
+			cross_matrix: targetMedia !== reference.media,
+			ownership: true,
+			exact_history: true
+		});
+	}
 	await writeFile(
 		path.join(directory, 'result.json'),
 		JSON.stringify({ result: 'pass', pid: host.app.pid, checks, native_pixels: false }, null, 2)

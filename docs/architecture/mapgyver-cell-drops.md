@@ -24,8 +24,34 @@ Cell structural events invalidate application membership on reparenting, even
 when the Column Parameter is unchanged. That boundary also handles Undo/Redo;
 it is independent of the UI or the particular operation that moved the Cell.
 
-This first delivery supports same-Matrix relocation/swapping through the public
-operation. Foreign Cells/addresses reject before mutation. Copy/Reference,
-supported cross-Matrix drops, grid dragging, the Alt menu, context/keyboard paths
-and complete native/process qualification remain M13/7 work; this API milestone
-does not accept that gate.
+`DuplicateCell` supports Copy and Reference within or between Matrices. Both
+require an unmaterialized destination, including when the source and destination
+are the same address. Copy imports the complete dense Cell subtree through
+Golden's public persistence API, with one UUID remap and a typed Column override.
+Parameter values, constraints and metadata survive without an f32 round-trip.
+External references retain their identities; owned producers gain fresh ones.
+
+Reference imports the Cell settings and links its media through an actual
+Reference node. Its typed **Shared app control** Parameter points to the source
+Cell. With no local App File, it shares that Cell's application identity instead
+of duplicating a producer process. A local App File takes precedence through the
+same backend projection for Inspector, script and transport writes. Explicit
+Cell application configuration or source replacement clears the shared link.
+Column and Group preparation remain part of the destination's hierarchy;
+Cell-local producer ownership is what the reference shares.
+
+Shared owner chains are bounded and cycle-checked. Their cached projections use
+one definition-revision guard, separate from runtime launch revisions. Source
+application edits invalidate linked consumers, while launches reuse the authored
+index. A Layer checks newly added Cells for configured/shared application
+ownership, including history restoration. It requests the shared callback tree
+snapshot only for direct child additions and reads the two bounded Parameter
+folders; ordinary geometry/value events request no tree snapshot. Unconfigured
+Cell authoring does not invalidate logical application captures. Structural
+materialization snapshot cost remains part of large-project qualification.
+
+Missing linked owners retain their authored identities for Undo/recovery.
+Relocation/swapping still requires one Matrix. GUI dragging, the Alt menu,
+context/keyboard paths, scrolling/cancellation and complete native/process/
+copy-reference lifetime qualification remain M13/7 work. Backend milestones
+do not accept that gate.

@@ -14,6 +14,7 @@ pub struct MediaManagerNode {
     pub(crate) resolutions: Arc<super::resolution::RuntimeResolutions>,
     pub(crate) applications: crate::applications::runtime::RuntimeView,
     pub(crate) application_revision: Arc<RevisionSource>,
+    pub(crate) application_definition_revision: Arc<RevisionSource>,
     project: RevisionSource,
     membership: RevisionSource,
     operation_owner: Arc<()>,
@@ -31,6 +32,7 @@ impl MediaManagerNode {
             resolutions: Default::default(),
             applications: Default::default(),
             application_revision: Default::default(),
+            application_definition_revision: Default::default(),
             project: RevisionSource::default(),
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
@@ -69,6 +71,7 @@ impl Node for MediaManagerNode {
         self.resolutions = Default::default();
         self.applications = Default::default();
         self.application_revision.advance();
+        self.application_definition_revision.advance();
         self.operation_owner = Arc::new(());
     }
     fn node_data(&self) -> &NodeData {

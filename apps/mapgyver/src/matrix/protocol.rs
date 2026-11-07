@@ -20,6 +20,12 @@ pub enum CellOccupiedDrop {
     Swap,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum CellDuplicateMode {
+    Copy,
+    Reference,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ColumnItemId {
@@ -135,7 +141,7 @@ pub struct CellDefinition {
     pub column: ColumnId,
     #[serde(default)]
     pub source: Option<ChannelReference>,
-    /// This Cell's declared typed settings, including when unconfigured.
+    /// Effective application owner; Reference Cells may share another Cell's typed control.
     pub application: crate::applications::protocol::ApplicationId,
     pub transition: Option<TransitionDefinition>,
     pub settings: CellSettings,
@@ -463,6 +469,13 @@ pub enum MatrixAxisItemKind {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    /// Duplicate into an unmaterialized address; occupied destinations always reject.
+    DuplicateCell {
+        cell: CellId,
+        layer: LayerId,
+        column: ColumnId,
+        mode: CellDuplicateMode,
+    },
     /// Move the actual Cell subtree within this Matrix; existing launched clips keep their identity.
     RelocateCell {
         cell: CellId,

@@ -2,10 +2,112 @@
 use super::{document::Document, protocol::*};
 use crate::app::{AppEngine, AppNode};
 use golden_core::{
-    edit::Edit,
-    node::{NodeId, NodeReference},
+    app::ProjectNode,
+    edit::{Edit, NodeTree},
+    engine::ProjectImportSpec,
+    node::{DeclId, Node, NodeId, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
 };
+
+pub(super) fn duplicate(
+    engine: &mut AppEngine,
+    document: &Document,
+    cell: CellId,
+    layer: LayerId,
+    column: ColumnId,
+    mode: CellDuplicateMode,
+) -> Result<crate::media::protocol::MediaEditResult, String> {
+    let parent = document.item(MatrixItemId::Layer { id: layer })?;
+    document.column(column)?;
+    if document.cells.contains_key(&(layer, column)) {
+        return Err("Destination Cell is occupied; Copy and Reference require an empty address".into());
+    }
+    let id = engine.node_id_by_uuid(cell.0).ok_or("Source Cell is missing")?;
+    let Some(AppNode::MatrixCell(source)) = engine.nodes.get(id) else {
+        return Err("Source must be a Cell".into());
+    };
+    let source_media = super::cell_application_links::matrix(engine, id)?;
+    let source_document = Document::load(engine, source_media)?;
+    let original = source_document
+        .snapshot
+        .cells
+        .iter()
+        .find(|entry| entry.id == cell)
+        .ok_or("Source Cell is outside its Matrix")?;
+    let mut ancestor = Some(parent);
+    while let Some(current) = ancestor {
+        if current == id {
+            return Err("A Cell cannot be copied or referenced inside its own producer".into());
+        }
+        ancestor = engine.nodes.get(current).and_then(|node| node.node_data().parent);
+    }
+    document.admit(1)?;
+    let target_channel = document.channel(MatrixItemId::Layer { id: layer });
+    let mut replacements = super::document::dependencies(&document.snapshot);
+    if let Some(output) = original.definition.source {
+        replacements.entry(target_channel).or_default().push(output);
+    }
+    crate::media::dependencies::replace_sources(engine, replacements)?;
+    let selection = source.selection(engine)?;
+    let content = source
+        .content(engine)?
+        .map(|id| engine.nodes.get(id).unwrap().node_data().meta.uuid);
+    let mut project = engine
+        .capture_project_subtree_with(id, Node::project_encode_data)
+        .map_err(|error| error.to_string())?;
+    let mut initial_params = vec![(
+        DeclId("parameters/column".into()),
+        ParamValue::Reference(NodeReference::new(column.0)),
+    )];
+    if mode == CellDuplicateMode::Reference {
+        project.root.children.retain(|child| Some(child.uuid) != content);
+        initial_params.push((
+            DeclId("parameters/shared_app_control".into()),
+            ParamValue::Reference(NodeReference::new(cell.0)),
+        ));
+    }
+    let imported = engine
+        .import_project_subtrees_with(
+            vec![ProjectImportSpec {
+                project,
+                initial_params,
+            }],
+            parent,
+            None,
+            AppNode::project_decode_node,
+            |_, _| Ok(()),
+        )
+        .map_err(|error| error.to_string())?;
+    let root = imported.roots[0];
+    let Some(AppNode::MatrixCell(created)) = engine.nodes.get(root) else {
+        unreachable!()
+    };
+    let created_id = CellId(created.node_data().meta.uuid);
+    if mode == CellDuplicateMode::Reference {
+        let settings = created
+            .application_node()
+            .ok_or("Cell app-control settings are missing")?;
+        crate::applications::configure_node(
+            engine,
+            settings,
+            crate::applications::protocol::ApplicationDefinition::default(),
+        )?;
+        if let Some(source) = selection {
+            engine.edits.push(Edit::AddUserItemTree {
+                parent: root,
+                prev_sibling: None,
+                tree: NodeTree::new(crate::media::ReferenceNode::from_target(
+                    "Reference".into(),
+                    Some(source.media),
+                )),
+            });
+        }
+    }
+    Ok(crate::media::protocol::MediaEditResult::MatrixCellPrepared {
+        cell: created_id,
+        application: crate::applications::protocol::ApplicationId(created_id.0),
+    })
+}
 
 pub(super) fn relocate(
     engine: &mut AppEngine,

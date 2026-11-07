@@ -7,6 +7,6 @@ import type { TransitionDefinition } from "./TransitionDefinition";
 
 export type CellDefinition = { column: ColumnId, source: ChannelReference | null,
 /**
- * This Cell's declared typed settings, including when unconfigured.
+ * Effective application owner; Reference Cells may share another Cell's typed control.
  */
 application: ApplicationId, transition: TransitionDefinition | null, settings: CellSettings, };

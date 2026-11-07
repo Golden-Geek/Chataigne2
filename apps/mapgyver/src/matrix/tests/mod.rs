@@ -14,6 +14,7 @@ mod bindings;
 mod bulk_authoring;
 mod cell_creation;
 mod cell_drops;
+mod cell_duplicates;
 mod cell_geometry;
 mod cell_layout;
 mod cell_playback;

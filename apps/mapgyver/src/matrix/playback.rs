@@ -28,6 +28,7 @@ struct Control {
     columns: RevisionSource,
     logical: RevisionSource,
     application_parent: OnceLock<Weak<RevisionSource>>,
+    application_definition_parent: OnceLock<Weak<RevisionSource>>,
     dirty: AtomicBool,
 }
 #[derive(Default)]
@@ -105,8 +106,9 @@ impl PlaybackControl {
             .expect("Matrix playback lock poisoned")
             .configuration = Some((self.authoring_revision(), index));
     }
-    pub(crate) fn bind_application_parent(&self, source: &Arc<RevisionSource>) {
+    pub(crate) fn bind_application_parent(&self, source: &Arc<RevisionSource>, definitions: &Arc<RevisionSource>) {
         let _ = self.0.application_parent.set(Arc::downgrade(source));
+        let _ = self.0.application_definition_parent.set(Arc::downgrade(definitions));
     }
     fn notify_applications(&self) {
         self.0.logical.advance();
@@ -116,6 +118,9 @@ impl PlaybackControl {
     }
     pub(crate) fn invalidate_applications(&self) {
         self.0.columns.advance();
+        if let Some(source) = self.0.application_definition_parent.get().and_then(Weak::upgrade) {
+            source.advance();
+        }
         self.notify_applications();
     }
     pub(crate) fn application_guard(&self) -> RevisionGuard {
@@ -129,7 +134,7 @@ impl PlaybackControl {
             .expect("Matrix playback lock poisoned")
             .application_axis
             .as_ref()
-            .filter(|(revision, _)| *revision == self.0.columns.reader().current())
+            .filter(|(revision, axis)| *revision == self.0.columns.reader().current() && axis.is_current())
             .map(|(_, axis)| axis.clone())
     }
     pub(crate) fn cache_application_axis(&self, axis: Arc<super::application_axis::ApplicationAxis>) {
@@ -353,6 +358,7 @@ impl PlaybackControl {
                 .expect("Matrix playback lock poisoned")
                 .index
                 .clone()
+                .filter(|index| index.applications.is_current())
         }
     }
     pub fn cache(&self, index: Arc<RenderIndex>) {

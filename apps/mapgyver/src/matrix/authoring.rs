@@ -104,6 +104,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return Ok(MediaEditResult::Changed);
     };
     match edit {
+        MatrixEdit::DuplicateCell {
+            cell,
+            layer,
+            column,
+            mode,
+        } => return super::cell_drops::duplicate(engine, &document, cell, layer, column, mode),
         MatrixEdit::RelocateCell {
             cell,
             layer,

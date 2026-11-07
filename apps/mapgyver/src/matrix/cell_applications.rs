@@ -55,6 +55,14 @@ pub(super) fn configure(
 ) -> Result<crate::media::protocol::MediaEditResult, String> {
     definition.validate()?;
     let (cell, settings) = ensure(engine, document, layer, column)?;
+    let Some(AppNode::MatrixCell(owner)) = engine.nodes.get(cell) else {
+        unreachable!()
+    };
+    engine.edits.push(Edit::SetParam {
+        node: owner.application_source_parameter(),
+        value: golden_core::parameter::ParamValue::Reference(golden_core::node::NodeReference::empty()),
+        behaviour: ParameterEventBehaviour::Append,
+    });
     let Some(AppNode::Application(node)) = engine.nodes.get(settings) else {
         return Err("Cell app-control type is invalid".into());
     };
@@ -155,10 +163,15 @@ pub(super) fn append(
             unreachable!()
         };
         owner.bind_runtime(control.binding());
+        if let Some(AppNode::Application(own)) = owner.application_node().and_then(|id| engine.nodes.get(id)) {
+            bind(own, control);
+        }
         let Some(node) = crate::applications::control_node(engine, cell.definition.application) else {
-            return Err("Cell app-control settings are missing".into());
+            if cell.definition.application.0 == cell.id.0 {
+                return Err("Cell app-control settings are missing".into());
+            }
+            continue;
         };
-        bind(node, control);
         if !node.configured() || !node.node_data().effective_enabled {
             continue;
         }

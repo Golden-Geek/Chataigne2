@@ -9,6 +9,7 @@ use golden_core::node::{Node, NodeId};
 use std::{collections::HashMap, sync::Arc};
 
 pub(crate) struct ApplicationAxis {
+    dependency: Option<golden_io::RevisionGuard>,
     pub columns: Vec<DemandColumn>,
     pub spans: Vec<DemandSpan>,
     pub cell_apps: HashMap<(LayerId, ColumnId), ApplicationId>,
@@ -19,6 +20,14 @@ pub(crate) struct ApplicationAxis {
 }
 
 impl ApplicationAxis {
+    pub fn is_current(&self) -> bool {
+        self.dependency
+            .as_ref()
+            .is_none_or(golden_io::RevisionGuard::is_current)
+    }
+    pub fn dependency_guard(&self) -> Option<golden_io::RevisionGuard> {
+        self.dependency.clone()
+    }
     pub fn column_groups(&self, column: ColumnId) -> impl Iterator<Item = ColumnGroupId> + '_ {
         std::iter::successors(self.column_groups.get(&column).copied(), |group| {
             self.group_parents.get(group).copied()
@@ -64,6 +73,12 @@ pub(super) fn for_document(
     if let Some(axis) = control.application_axis() {
         return Ok(axis);
     }
+    let dependency = super::cell_application_links::dependencies(engine, document)?;
+    for id in document.items.values() {
+        if let Some(AppNode::MatrixElement(node)) = engine.nodes.get(*id) {
+            node.bind_runtime(control.binding());
+        }
+    }
     let configured = |application| {
         crate::applications::control_node(engine, application)
             .is_some_and(|node| node.configured() && node.node_data().effective_enabled)
@@ -108,6 +123,7 @@ pub(super) fn for_document(
         group_apps.insert(group.id, group.application);
     }
     let axis = Arc::new(ApplicationAxis {
+        dependency,
         columns,
         spans,
         group_apps,

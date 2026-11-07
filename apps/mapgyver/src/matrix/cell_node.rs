@@ -23,6 +23,10 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
+    shared_app_control: NodeReference = NodeReference::empty() (label = "Shared app control",
+        description = "When no local App File is configured, share this Cell's App Control.",
+        read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
+        reference_allowed_node_types = vec!["mapgyver.matrix.cell.v3".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
@@ -245,6 +249,20 @@ impl CellNode {
     pub(super) fn column_parameter(&self) -> NodeId {
         self.column.id()
     }
+    pub(super) fn application_source(&self) -> Option<super::protocol::CellId> {
+        let uuid = self.shared_app_control.get_ref().uuid;
+        (!uuid.0.is_nil()).then_some(super::protocol::CellId(uuid))
+    }
+    pub(super) fn application_source_parameter(&self) -> NodeId {
+        self.shared_app_control.id()
+    }
+    pub(super) fn independent_application_edit(&self) -> golden_core::edit::Edit {
+        golden_core::edit::Edit::SetParam {
+            node: self.shared_app_control.id(),
+            value: ParamValue::Reference(NodeReference::empty()),
+            behaviour: ParameterEventBehaviour::Append,
+        }
+    }
     pub(crate) fn output_parameter(&self) -> NodeId {
         self.output.id()
     }
@@ -282,7 +300,10 @@ impl CellNode {
         Ok(CellDefinition {
             column: self.column(),
             source,
-            application: crate::applications::protocol::ApplicationId(self.node_data().meta.uuid),
+            application: super::cell_application_links::owner(
+                engine,
+                super::protocol::CellId(self.node_data().meta.uuid),
+            )?,
             transition: self.transition(),
             settings: self.settings(engine),
         })
@@ -348,6 +369,11 @@ impl Node for CellNode {
             self.pulses.revoke();
         }
         self.invalidate();
+        if self.application_source().is_some()
+            && let Some(binding) = self.runtime.get()
+        {
+            binding.invalidate_applications();
+        }
     }
     fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
@@ -388,7 +414,7 @@ impl Node for CellNode {
             return;
         }
         self.invalidate();
-        if parameter == self.column.id()
+        if (parameter == self.column.id() || parameter == self.shared_app_control.id())
             && let Some(binding) = self.runtime.get()
         {
             binding.invalidate_applications();
@@ -396,6 +422,9 @@ impl Node for CellNode {
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.pulses.destroy();
+        if let Some(binding) = self.runtime.get() {
+            binding.invalidate_applications();
+        }
         self.invalidate();
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {

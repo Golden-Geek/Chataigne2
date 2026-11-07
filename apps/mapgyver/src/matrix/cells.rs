@@ -60,6 +60,7 @@ pub(super) fn create_media(
         if node.content(engine)?.is_some() {
             return Err("Cell already owns media; remove it or explicitly replace its source".into());
         }
+        engine.edits.push(node.independent_application_edit());
         engine.edits.push(Edit::SetParam {
             node: node.output_parameter(),
             value: ParamValue::Reference(NodeReference::empty()),
@@ -223,6 +224,7 @@ fn assign_sources(
             let AppNode::MatrixCell(current) = engine.nodes.get(*id).unwrap() else {
                 unreachable!()
             };
+            engine.edits.push(current.independent_application_edit());
             if let Some(old) = current.content(engine)? {
                 engine.edits.push(Edit::RemoveNode { node: old });
             }
@@ -292,6 +294,7 @@ pub(super) fn drop_source(
         };
         node.bind_runtime(binding(engine, document));
         let old = node.content(engine)?;
+        engine.edits.push(node.independent_application_edit());
         let output_parameter = node.output_parameter();
         let source_id = engine
             .node_id_by_uuid(source.media.0)
