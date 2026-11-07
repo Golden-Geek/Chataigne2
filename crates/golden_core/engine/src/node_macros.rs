@@ -823,6 +823,10 @@ macro_rules! define_node_enum {
                 $crate::__dispatch_node_enum!(self, project_encode_data; $($variant),*)
             }
 
+            fn project_preserve_identity(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, project_preserve_identity; $($variant),*)
+            }
+
             fn project_migrate_children<'a>(
                 &self,
                 children: &'a [$crate::engine::ProjectNodeRecord],

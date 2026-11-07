@@ -228,6 +228,9 @@ pub(super) fn diff_project_data_against_baseline(
 pub(super) fn collect_referenced_uuids<T: Node>(engine: &Engine<T>) -> HashSet<NodeUuid> {
     let mut referenced_uuids = HashSet::<NodeUuid>::new();
     for (_, node) in engine.nodes.iter() {
+        if node.project_preserve_identity() {
+            referenced_uuids.insert(node.node_data().meta.uuid);
+        }
         node.engine_visit_references(&mut |reference| {
             referenced_uuids.insert(reference.uuid());
         });

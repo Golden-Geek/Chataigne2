@@ -1,0 +1,32 @@
+{
+	"date": "2026-11-08",
+	"gate": "M13/14",
+	"status": "Golden identity prerequisite verified; Reference integration remains in progress",
+	"batch": { "started_utc": "2026-11-07 22:23", "cutoff_utc": "2026-11-07 23:08", "checks_finished_utc": "2026-11-07 23:09" },
+	"progress": { "verified": 79, "total": 92, "overall_percent": 86, "m13_verified": 10, "m13_total": 14, "m13_percent": 71 },
+	"calculation": "No gate accepted. Existing79/92 rounds to86%; M13 10/14 rounds to71%. Every original requirement and budget remains required.",
+	"verified_milestone": {
+		"capability": "Golden nodes can preserve their UUID in sparse projects even when they are unreferenced declared defaults. This supplies the persistence boundary needed by independently addressable Reference outputs.",
+		"owner": "Golden Engine Node policy, live sparse codec, immutable project capture and node-enum dispatch; no app types or product policy in Golden.",
+		"architecture": "docs/architecture/sparse-node-identity.md",
+		"format": "Root and golden_core cargo fmt and owning diff checks pass.",
+		"behavior": { "command": "cargo test --locked -p golden_engine --lib app::tests:: --quiet", "passed": 18, "failed": 0, "ignored": 1, "filtered": 660, "exit": 0 },
+		"proof": "The new concrete declared-node fixture compares live and immutable sparse codecs, preserves an unreferenced child's UUID through loading, and proves an ordinary default sibling remains omitted. Existing project identity, capture and preference tests remain green.",
+		"strict": { "command": "cargo clippy --locked -p golden_engine --lib --tests -- -D warnings", "exit": 0 },
+		"limits": "The whole Golden test suite is not claimed. The hook uses the existing UUID record and adds no persisted data field; copy/import keeps its existing identity-remapping policy."
+	},
+	"unfinished_reference_integration": {
+		"delivery_state": "App changes remain in the same worktree, uncommitted, for continuation of this active gate. Only the verified Golden identity prerequisite is selected for this milestone commit.",
+		"implemented_prototype": "Reference v4 selects one typed Media/Channel input and declares one identity-only output node. Backend default/explicit selection, selected-channel intent/command/named script, generated consumers, capture/resolution/dependencies, catalog and source drops are being converted together. The identity-only output requires no source Parameters or tree snapshots.",
+		"correctness_finding": "A real reload comparison proved that an unreferenced default declared output was omitted and regenerated its UUID. The verified Golden policy corrects that persistence mechanism; no synthetic self-reference or opaque identity setting was introduced.",
+		"retention_finding": "Automatic output identity settles later in the same capture. RuntimeSources previously rejected a weak owner while its source list was still empty, dropping its outgoing graph. Registration now admits that owner until the existing completed-capture update prunes empty owners. This app fix remains with the unfinished Reference integration.",
+		"retention_checks": { "command": "cargo test --locked -p MapGyver --lib media::rendering::tests::transitions:: --quiet", "passed": 9, "failed": 0, "filtered": 561, "exit": 0, "receipt": "target/m1314-retained-output-current-20261107.log" },
+		"retention_scope": "The existing suite includes interrupted/relaunched source weights, retained producer graphs and the feedback edge that must remain rejected until the owning clip retires. No native retirement or full Reference acceptance is inferred.",
+		"ui_types": "MapGyver svelte-check passes with0errors0warnings; subsequent UI changes are output-row labels only. No new native UI check is claimed.",
+		"broader_validation": "The prior integration run returned529passed/38failed/2ignored/1filtered. Failures included obsolete mirrored-channel expectations, caller fixtures, recovery/copy identity and genuine retention regressions. Many fixtures and retention are now corrected, but a fresh complete suite is still required; the current failure count is unverified. Receipt: target/m1314-reference-integration-20261107.log.",
+		"superseded_run": "The earlier full run on the discarded parameter-heavy output model was explicitly stopped after the UUID defect was reproduced; its deep-forest case was still running. The4096-depth requirement stays open and must run on the corrected model. No timeout was treated as successful completion.",
+		"test_correction": "The first Golden fixture comparison included application_id stamped only by the full project writer. The corrected comparison uses the two raw sparse codecs, then separately loads the stamped project; the final19-test invocation and strict check pass."
+	},
+	"remaining": "Finish current Reference integration and complete its full software/caller/copy/history/project/cycle/missing/recovery/large-catalog checks, including the4096-depth forest. Then validate native routing and producer reuse. Implement the shared bounded catalog-only Media picker/dependent Channel dropdown and complete every M13/14 requirement. M13/13 and M13/4 keep their exact desktop-input resumption triggers.",
+	"next": "Continue the same M13/14 gate from the uncommitted app migration; reconcile source and run a complete planned validation cycle after the remaining consumer fixtures are updated. Do not rerun the superseded output model, add another benchmark variant, switch phases or count this prerequisite as gate closure."
+}

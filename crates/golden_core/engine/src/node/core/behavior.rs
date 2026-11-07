@@ -133,6 +133,12 @@ pub trait Node: Send + Any {
         Ok(std::borrow::Cow::Borrowed(children))
     }
 
+    /// Preserve this node's UUID in sparse projects even when its declared contents match
+    /// defaults and no other node references it. Use for independently addressable identities.
+    fn project_preserve_identity(&self) -> bool {
+        false
+    }
+
     /// Captures complete authored data for in-place history restoration.
     /// Sparse custom codecs must override this to include default-valued fields.
     /// Snapshots belong to this live node instance. Immutable derived storage

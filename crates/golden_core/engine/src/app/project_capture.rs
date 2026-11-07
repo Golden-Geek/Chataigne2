@@ -26,6 +26,7 @@ pub(crate) struct CapturedProjectNode {
     pub(crate) children: Arc<[NodeId]>,
     pub(crate) referenced_uuids: Arc<[NodeUuid]>,
     pub(crate) app_data_persisted: bool,
+    pub(crate) preserve_identity: bool,
 }
 
 impl CapturedProjectNode {
@@ -67,6 +68,7 @@ impl CapturedProjectNode {
             parent: node.node_data().parent,
             children: children.into(),
             referenced_uuids: referenced_uuids.into(),
+            preserve_identity: node.project_preserve_identity(),
             app_data_persisted: node_is_app_data_persisted(node),
         })
     }
@@ -301,6 +303,7 @@ where
         && self_matches_parent_baseline
         && children.is_empty()
         && !referenced_uuids.contains(&captured.meta.uuid)
+        && !captured.preserve_identity
     {
         return Ok(None);
     }
