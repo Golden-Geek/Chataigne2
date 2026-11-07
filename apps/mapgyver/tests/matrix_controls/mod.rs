@@ -16,6 +16,7 @@ use mapgyver::{
     matrix::protocol::*,
     media::protocol::*,
 };
+pub mod transfers;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scope {

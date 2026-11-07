@@ -19,6 +19,8 @@ use std::{
 mod cell_editor;
 mod cell_geometry;
 mod cell_sizing;
+#[cfg(feature = "application-process-fixture")]
+mod cell_transfers;
 mod layer_geometry;
 #[cfg(feature = "application-process-fixture")]
 mod scoped_stops;

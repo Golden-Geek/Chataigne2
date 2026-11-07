@@ -59,6 +59,12 @@ snapshot generation. Menu actions and late replies fence the session and target
 Matrix, and completed operations adopt selection only while its captured owner
 remains current. Closed menus clear their item closures.
 
+The app-owned script API exposes
+`local.transferMatrixCell(requestId, matrixId, cellId, layerId, columnId, action)`.
+Its action is the same Rust-owned Drop/Move/Copy/Reference enum, and its committed
+or rejected callback follows the ordinary media operation and history boundary.
+Malformed identifiers or action names are rejected before queueing any work.
+
 Ctrl/Cmd+C and X capture a Cell identity, V pastes Copy or Move, and Alt+V with
 the same modifier pastes a Reference. Grid context menus offer equivalent actions.
 The clipboard is scoped to the workbench session/project; it stores no authored
@@ -75,6 +81,10 @@ replaced or removed; they do not silently adopt a replacement producer. Restorin
 the same source through history restores that binding. Independent copies keep
 their owned content. A prepared empty Cell can also be copied or referenced:
 its authored settings and application ownership survive without inventing media.
+An already running clip retains its admitted owned producer graph through this
+removal, following the existing Matrix lifetime contract. The authored Reference
+can report missing while that clip finishes; a fresh launch resolves the current
+missing target, and stopping the final consumer retires the retained graph.
 Relocation/swapping still requires one Matrix. Complete native/process/
 copy-reference lifetime and large-project qualification remain M13/7 work;
 software and browser milestones alone do not accept that gate.

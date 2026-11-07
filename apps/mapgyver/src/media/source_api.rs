@@ -7,6 +7,7 @@ use super::protocol::*;
 
 pub(super) const METHODS: &[&str] = &[
     "dropMatrixMedia",
+    "transferMatrixCell",
     "dropCompositionMedia",
     "createCompositionMedia",
     "createReference",
@@ -79,6 +80,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "dropCompositionMedia" => 7,
         "createCompositionMedia" => 6,
         "dropMatrixMedia" => 5,
+        "transferMatrixCell" => 5,
         "createReference" | "configureReference" => 2,
         _ => return Ok(None),
     };
@@ -86,6 +88,15 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "transferMatrixCell" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::TransferCell {
+                cell: crate::matrix::protocol::CellId(uuid(args, 1)?),
+                layer: crate::matrix::protocol::LayerId(uuid(args, 2)?),
+                column: crate::matrix::protocol::ColumnId(uuid(args, 3)?),
+                action: choice(args, 4)?,
+            },
+        },
         "createCompositionMedia" => MediaEdit::Composition {
             reference: reference(args)?,
             edit: super::composition::protocol::CompositionEdit::CreateMedia {

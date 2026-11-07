@@ -2,7 +2,7 @@ use super::*;
 use crate::matrix_controls::{Caller, SCOPES, Scene as ControlScene, Scope};
 use mapgyver::applications::{protocol::*, runtime::ApplicationRuntime};
 
-fn phase(runtime: &ApplicationRuntime, expected: ApplicationPhase) -> ApplicationRuntimeStatus {
+pub(super) fn phase(runtime: &ApplicationRuntime, expected: ApplicationPhase) -> ApplicationRuntimeStatus {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         let snapshot = runtime.snapshot();

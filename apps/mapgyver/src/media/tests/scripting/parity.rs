@@ -5,6 +5,7 @@ use golden_core::app::ProjectNode;
 use golden_video::Extent2D;
 
 mod applications;
+mod cell_transfers;
 mod composition;
 mod matrix;
 mod picture_file;
@@ -20,6 +21,19 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Matrix {
+            media,
+            edit:
+                crate::matrix::protocol::MatrixEdit::TransferCell {
+                    cell,
+                    layer,
+                    column,
+                    action,
+                },
+        } => (
+            "transferMatrixCell",
+            serde_json::json!([media, cell, layer, column, action]),
+        ),
         MediaEdit::ConfigurePictureFile { reference, file } => (
             "configurePictureFile",
             serde_json::json!([reference.media, reference.channel, file]),

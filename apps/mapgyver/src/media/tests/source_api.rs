@@ -80,6 +80,26 @@ fn named_method_argument_rejection_never_queues_work_or_changes_history() {
     let reference = create(&mut engine, MediaKind::SolidColor);
     let media = ParamValue::Str(reference.media.0.0.to_string());
     for (method, args) in [
+        (
+            "transferMatrixCell",
+            vec![
+                media.clone(),
+                media.clone(),
+                media.clone(),
+                media.clone(),
+                ParamValue::Str("Swap".into()),
+            ],
+        ),
+        (
+            "transferMatrixCell",
+            vec![
+                media.clone(),
+                ParamValue::Str("invalid".into()),
+                media.clone(),
+                media.clone(),
+                ParamValue::Str("Copy".into()),
+            ],
+        ),
         ("createMedia", vec![ParamValue::Str("bad".into())]),
         (
             "addChannel",

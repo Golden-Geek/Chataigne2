@@ -15,6 +15,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.executeCommand("run-command", commandId); // or command.execute("run-command")
 	// Uncomment the operations you need. Each call is its own atomic history step.
 	// local.dropMatrixMedia("cell", matrixId, layerId, columnId, mediaId, false); // true copies the full media
+	// local.transferMatrixCell("transfer", matrixId, cellId, layerId, columnId, "Drop"); // Drop swaps/moves; Move/Copy/Reference require empty destination
 	// local.dropCompositionMedia("drop", compositionMediaId, compositionChannelId, mediaId, "", false, 0, 0); // true copies the full media
 	// local.createCompositionMedia("create-child", compositionMediaId, compositionChannelId, "SolidColor", "", 320, 180);
 	// local.createReference("reference", mediaId, ""); // ReferenceCreated returns media UUID

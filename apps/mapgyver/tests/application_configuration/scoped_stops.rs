@@ -83,7 +83,7 @@ fn every_stop_scope_cancels_queued_pulses_on_disable_and_undo_never_replays_them
     }
 }
 
-fn installed(renderer: &ChannelRenderer, request: golden_video::runtime::RequestId) {
+pub(super) fn installed(renderer: &ChannelRenderer, request: golden_video::runtime::RequestId) {
     let until = Instant::now() + Duration::from_secs(4);
     loop {
         let mut outcomes = Vec::new();
@@ -97,6 +97,32 @@ fn installed(renderer: &ChannelRenderer, request: golden_video::runtime::Request
         }
         assert!(Instant::now() < until, "scoped renderer installation deadline");
         std::thread::sleep(Duration::from_millis(2));
+    }
+}
+
+pub(super) fn held_config() -> golden_video::runtime::RuntimeConfig {
+    golden_video::runtime::RuntimeConfig {
+        plan_limits: golden_video::plan::PlanLimits {
+            max_passes: 16,
+            max_external_textures: 16,
+            max_outputs: 4,
+            max_dependencies: 64,
+            max_texture_dimension: 4096,
+            max_texture_bytes: 64 * 1024 * 1024,
+        },
+        resource_limits: golden_video::runtime::ResourceLimits {
+            max_bytes: 128 * 1024 * 1024,
+            max_in_flight: NonZeroUsize::new(2).unwrap(),
+            max_retiring: 2,
+        },
+        additional_frame_rates: Vec::new(),
+        frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
+        max_outstanding: NonZeroUsize::new(16).unwrap(),
+        max_input_bytes: NonZeroUsize::new(65536).unwrap(),
+        max_retained_input_bytes: NonZeroUsize::new(262144).unwrap(),
+        recovery_delay: Duration::from_millis(10),
+        max_recovery_delay: Duration::from_millis(100),
+        notifier: None,
     }
 }
 
@@ -123,29 +149,7 @@ fn every_scoped_stop_preserves_aggregate_owned_process_until_held_renderer_compl
         let original = wait(&runtime, ApplicationPhase::Ready);
         assert_eq!(runtime.snapshot().applications.len(), 1);
         assert_eq!(original.consumers.len(), 2);
-        let config = golden_video::runtime::RuntimeConfig {
-            plan_limits: golden_video::plan::PlanLimits {
-                max_passes: 16,
-                max_external_textures: 16,
-                max_outputs: 4,
-                max_dependencies: 64,
-                max_texture_dimension: 4096,
-                max_texture_bytes: 64 * 1024 * 1024,
-            },
-            resource_limits: golden_video::runtime::ResourceLimits {
-                max_bytes: 128 * 1024 * 1024,
-                max_in_flight: NonZeroUsize::new(2).unwrap(),
-                max_retiring: 2,
-            },
-            additional_frame_rates: Vec::new(),
-            frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
-            max_outstanding: NonZeroUsize::new(16).unwrap(),
-            max_input_bytes: NonZeroUsize::new(65536).unwrap(),
-            max_retained_input_bytes: NonZeroUsize::new(262144).unwrap(),
-            recovery_delay: Duration::from_millis(10),
-            max_recovery_delay: Duration::from_millis(100),
-            notifier: None,
-        };
+        let config = held_config();
         let video = VideoRuntime::spawn_null(
             config.clone(),
             NullConfig {

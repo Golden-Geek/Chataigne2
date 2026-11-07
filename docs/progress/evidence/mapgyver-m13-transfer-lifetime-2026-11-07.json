@@ -1,0 +1,76 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Named Cell transfer script API, public caller parity, real process final-use ownership and both-GPU Copy/Reference source/reload lifetime.",
+	"gate": "M13/7 Active; native move/swap and sparse structural acceptance remain",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "17:31", "cutoff_utc": "18:16", "native_finished_utc": "17:53" },
+	"product": "App-owned local.transferMatrixCell(requestId, matrixId, cellId, layerId, columnId, action) decodes the existing Rust-owned TransferCell intent. The method registry, template and committed/rejected callback use the ordinary media boundary. Invalid identifiers/actions queue no partial work. No protocol duplicate or alternate mutation implementation was added.",
+	"caller_parity": {
+		"source": "apps/mapgyver/src/media/tests/scripting/parity/cell_transfers.rs",
+		"cases": 56,
+		"callers": [
+			"transport intent",
+			"gc.invokeAppOperation QuickJS",
+			"hosted editMedia QuickJS",
+			"named transferMatrixCell QuickJS"
+		],
+		"proof": "Fourteen cases per caller cover occupied swap, empty Drop/Move, self no-ops, same/cross-Matrix Copy/Reference, occupied rejection and rejected cross-Matrix Move/Drop. Every actual mutation has exact one-step Undo/Redo; no-op/rejection has no history. Scripts emit one applied/rejected committed callback and history replay never requeues them. Exact typed settings, media/application/channel ownership and sparse reload match. Named method malformed-action/UUID rejection also passes the existing argument transaction test."
+	},
+	"software": {
+		"library": "557 pass/3 ignored with native-preview-smoke,application-process-fixture, including generated-contract checks; exit0.",
+		"process_integration": "17 pass/2 ignored; exit0. The new owning test runs Copy and Reference through actual ProcessStarted owners, source stop/edit/clear/removal/Undo and held renderer completion.",
+		"raster_preflight": "9 pass/10 explicitly ignored native tests; exit0 before the hardware cohort.",
+		"strict": "Root MapGyver --lib --tests with native-qualification,application-process-fixture and isolated runner --tests both pass Clippy -D warnings, including after final fixture correction.",
+		"ui_reuse": "Frontend runtime remains unchanged from178013e5 and the passing MapGyver/Golden Svelte,40 focused UI and22 bundled browser cases in the linked earlier receipts.",
+		"format": "Root and golden_core cargo fmt, template Node syntax/Prettier and owned diff whitespace checks pass.",
+		"runner": "Existing target/m136-control-qualification/Cargo.toml, SHA25630434a752ff7bc757365dcba47dcf6cdc7077410623ac9e0ca8c92e64bce2589, consumes repository integration sources through the public MapGyver crate. Root manifests/lock and the running user's executable are untouched."
+	},
+	"process_final_use": {
+		"binary": "target/debug/deps/application_runtime-6fe621fb53752f0c.exe",
+		"binary_sha256": "56400c2a0a6cacb00011e01c16cff0dbcfbf0b9be3cfb678e0512f0a89d22484",
+		"log": "target/m137-transfer-native-20261107/process.log",
+		"log_sha256": "67af0d383eb35feb7cb639595d423be531640303dd37f7d90d0313c4af9e57b1",
+		"exit": 0,
+		"pids": { "copy": 49828, "reference": 11812 },
+		"proof": "Copy adds an independent application identity; Reference coalesces its shared owner in aggregate demand. Stopping the original consumer preserves the duplicate. A running Reference retains its exact removed owner with Missing availability. Same equivalent process PID survives authored changes. Stop All, project drop and renderer close retain that actual process while null-renderer final completion is held; releasing the real completion tokens permits renderer and process retirement."
+	},
+	"native": {
+		"source": "apps/mapgyver/tests/matrix_pixels/cell_transfers.rs",
+		"binary": "target/debug/deps/matrix_rendering-8306e6d868a999de.exe",
+		"binary_sha256": "d2ec398a1a6a226c6548640d4304a09737a8a46422d423f4104f1cee7ee4032c",
+		"log": "target/m137-transfer-native-20261107/native-owned-retention.log",
+		"log_sha256": "df717d62dd8f384b607de33dd27f51961f5a5e27fb60885d2099885d4c86c0df",
+		"exit": 0,
+		"elapsed_seconds": 19.93,
+		"cases": 4,
+		"adapters": [
+			"Intel(R) Graphics LUID88937/0",
+			"NVIDIA GeForce RTX5080 Laptop GPU LUID2427691359/0"
+		],
+		"images": 132,
+		"texels_per_image": 768,
+		"maximum_error": "0/255 for every independent output and preview image",
+		"producer_proof": "Published channel target identities prove Reference reuses the original physical producer target and Copy owns another. Live original color changes affect Reference and leave Copy independent after the original playing Cell stops.",
+		"source_lifetime": "Authored clear/owner removal retains the last admitted owned producer for an already running clip. A fresh launch then resolves the missing Reference and displays transparency; Copy survives. Undo restores the exact producer. The original process PID stays stable through these operations. Old runtime rejects a different project instance; old renderer/process retire before fresh reload owners render the persisted Copy/Reference identities.",
+		"retirement": "Eight renderer lifetimes balance138 created/released plan textures in total, with live0, owned_texel_bytes0 and empty output/source inventories. Copy old/reloaded inventories are19/15; Reference20/15 on each GPU. All eight corresponding process owners retire; Stop All renders empty before final release.",
+		"limits": "Finite pixel/identity/resource acceptance only. No desktop input, manipulation cadence, general latency/private-memory, external-source format or WOW64 qualification claim."
+	},
+	"ordinary_app": {
+		"binary": "target/debug/deps/MapGyver-m137-transfer-api.exe",
+		"binary_sha256": "ed9320c940ad2b08c324911d93796c8d68f06849270a5a4ec5635863a4f4bb3d",
+		"build_exit": 0,
+		"artifact": "target/m137-transfer-api-http-20261107/result.json",
+		"artifact_sha256": "c66b111d07e55bdd49d79337ffcc2cb870cd029de793954f66af4de8f523659d",
+		"pid": 38008,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 10,
+		"proof": "Fresh bundled build passes ordinary HTTP relocation/swap/no-op/rejection, same/cross-Matrix Copy/Reference, exact settings/ownership and public single-step history."
+	},
+	"retained_failed_attempts": [
+		"Software fixture corrections: the older scoped scene started from catalog aliases, so this acceptance now explicitly materializes an owned Solid Color producer before duplicating. Aggregate demand is unique by application identity, not playing Cell count; running removed owners remain Missing holds. Corrected assertions preserve these existing contracts rather than changing runtime policy.",
+		"target/m137-transfer-native-20261107/native.log, SHA2569853b06b9b4bccd2919bd0223b98bcf45b9922083654bd770a518d828f09d80f, exit101: Intel Copy pixels through seven stages pass; fixture incorrectly reuses an old project runtime after replacing the engine. The corrected fixture asserts cross-project rejection and fully retires/recreates owners.",
+		"target/m137-transfer-native-20261107/native-project-lifecycle.log, SHA256a5c789ca6dd4fa6b64535184e8abb00359537fdf659ec6ebaf6e49333cb08006, exit101: complete Intel Copy passes, then Reference's live source after authored deletion contradicts the fixture's immediate-transparency expectation. Existing Matrix owned-producer retention is correct. Final verification explicitly checks both retained running pixels and fresh-launch missing pixels, then Undo/reload and complete retirement. Three executions of the same required cohort, with two fixture-contract repairs; no new profiler or measurement variant. Only the final complete cohort earns the scoped native evidence."
+	],
+	"remaining": "Native move/swap with running playback identities and exact history, then bounded sparse structural update/admission qualification and the full M13/7 requirement audit. Retain M13/4 quantitative scope and all other unfinished plan gates. No full gate closes in this milestone."
+}
