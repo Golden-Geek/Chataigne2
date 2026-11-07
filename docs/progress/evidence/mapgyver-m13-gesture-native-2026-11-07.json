@@ -1,6 +1,6 @@
 {
 	"date": "2026-11-07",
-	"gate": "M13/4 Active; Intel pending-overlay/output-continuity slice verified, NVIDIA comparison pending",
+	"gate": "M13/4 Active; both-GPU pending-overlay/output-continuity slice verified, full smoothness acceptance remains open",
 	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
 	"drivers": {
 		"functional": "apps/mapgyver/tests/browser/native-gesture-presentation.mjs",
@@ -69,8 +69,46 @@
 		"retained_followup": "Inspect the recorded output replacement during scene/output topology creation before claiming continuity for those operations. The qualified interval covers gestures/history in an already arranged document."
 	},
 	"nvidia": {
-		"state": "Pending",
-		"next_action": "Run the unchanged verified arranged-scene fixture on exact hardware adapter1, activate its newly returned owned window, and compare the same physical/native-hit/output assertions."
+		"result": "pass",
+		"artifacts": "target/m134-pending-qual-nvidia",
+		"pid": 33736,
+		"app_exit": 0,
+		"fixture_exit": 0,
+		"gpu": {
+			"index": 1,
+			"key": "dxgi:00000000:90b3a15f",
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+		},
+		"functional": "Same unchanged arranged-scene fixture: all six held-request/history cases pass, including unchanged authored state during pending physical/native-hit observation.",
+		"screen_pending": {
+			"current_edge_error_physical_px": 0.37110123083244856,
+			"stale_edge_blue_within_5px": false,
+			"native_hit": "Exact selected Surface corner0 at current DOM handle center"
+		},
+		"source_pending": {
+			"current_edge_error_physical_px": 0.37545355745113485,
+			"stale_edge_blue_within_5px": false,
+			"native_hit": "crop:0 at current DOM handle center"
+		},
+		"dpi": { "dpr": 1.25, "window_dpi": 120 },
+		"output": {
+			"consumer_exit": 0,
+			"independent_sdk_copies": 726,
+			"logged_frames": 726,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 1073743938,
+			"first_frame": 70,
+			"last_frame": 795,
+			"maximum_receive_gap_ms": 32.6666,
+			"complete_exact_red_images": 7
+		},
+		"requests": 619,
+		"receipts": 619,
+		"unexpected_rejections": [],
+		"page_errors": []
 	},
-	"remaining": "NVIDIA comparison; Composition/Matrix visible geometry alignment; actual240Hz real-input presented pacing, long stalls and pointer-to-visible p95/p99; larger/fully populated3x3 workloads; ordinary controls/scroll/dock and silent-intent audit. Screen-creation/topology continuity observation retained. Original budgets and return-queue gates unchanged; no gate accepted."
+	"format": "Scoped Prettier/Node syntax, Python compilation and root/golden_core cargo fmt passed. Product layers unchanged since the verified feature milestone.",
+	"remaining": "Composition/Matrix visible geometry alignment; actual240Hz real-input presented pacing, long stalls and pointer-to-visible p95/p99; larger/fully populated3x3 workloads; ordinary controls/scroll/dock and silent-intent audit. Screen-creation/topology continuity observation retained. Original budgets and return-queue gates unchanged; no gate accepted."
 }
