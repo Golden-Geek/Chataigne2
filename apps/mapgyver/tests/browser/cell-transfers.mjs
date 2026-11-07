@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openInitialScreenHeadless } from '../headless/initial-screen-host.mjs';
+import { prepareCellScrollTransfers, verifyCellScrollTransfers } from './cell-scroll-transfers.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 const directory = path.resolve(process.argv[2]);
@@ -87,6 +88,7 @@ try {
 	).value.cell;
 	const prepared = (await edit({ kind: 'EnsureCell', layer: rows[2], column: columns[0] })).value
 		.cell;
+	const sparse = await prepareCellScrollTransfers(operation);
 	browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
 	page.setDefaultTimeout(6500);
@@ -347,6 +349,18 @@ try {
 	);
 	await history(before, after, other.media);
 	checks.push({ stage, exact_history: true });
+	await verifyCellScrollTransfers({
+		scene: sparse,
+		page,
+		read,
+		wait,
+		show,
+		history,
+		checks,
+		setStage: (value) => {
+			stage = value;
+		}
+	});
 	assert.deepEqual(errors, []);
 	assert(requests.some((value) => value.action === 'Drop'));
 	assert(requests.some((value) => value.action === 'Move'));

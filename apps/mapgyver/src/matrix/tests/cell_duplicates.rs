@@ -4,13 +4,13 @@ use golden_core::{
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 
-fn scene(engine: &mut AppEngine) -> (MediaId, LayerId, Vec<ColumnId>) {
+pub(super) fn scene(engine: &mut AppEngine) -> (MediaId, LayerId, Vec<ColumnId>) {
     let matrix = create(engine, MediaKind::Matrix);
     let row = layer(layers(engine, matrix.media, None, 1)[0]);
     let columns = columns(engine, matrix.media, 4);
     (matrix.media, row, columns)
 }
-fn owned(engine: &mut AppEngine, media: MediaId, layer: LayerId, column: ColumnId) -> CellId {
+pub(super) fn owned(engine: &mut AppEngine, media: MediaId, layer: LayerId, column: ColumnId) -> CellId {
     let MediaEditResult::MatrixMediaCreated { cell, .. } = edit(
         engine,
         media,
@@ -24,7 +24,7 @@ fn owned(engine: &mut AppEngine, media: MediaId, layer: LayerId, column: ColumnI
     };
     cell
 }
-fn duplicate(
+pub(super) fn duplicate(
     engine: &mut AppEngine,
     media: MediaId,
     source: CellId,
@@ -69,7 +69,7 @@ fn field_on(engine: &AppEngine, root: NodeId, name: &str) -> NodeId {
     }
     panic!("missing Cell Parameter {name}")
 }
-fn application_at(
+pub(super) fn application_at(
     engine: &AppEngine,
     media: MediaId,
     row: LayerId,

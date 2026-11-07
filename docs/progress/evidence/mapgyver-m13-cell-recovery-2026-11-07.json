@@ -1,0 +1,41 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Verify exact Cell source recovery and sparse grouped transfer interactions after the original source scrolls out of view.",
+	"gate": "M13/7 Active; recovery and sparse UI software cases pass, native/process and remaining caller/structural qualification remain open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "17:20", "cutoff_utc": "18:05" },
+	"runtime_base": "178013e5d1a388cd59b87f919eb3e3e67ba9b94d; this slice adds behavioral acceptance tests without changing product runtime",
+	"source_lifetime": {
+		"tests": "apps/mapgyver/src/matrix/tests/cell_duplicate_lifetime.rs",
+		"result": "Two owning tests pass across source-content clear, source-Layer removal, source-Matrix removal, source replacement and prepared-empty Cell duplication.",
+		"proof": [
+			"Cross-Matrix Copies retain their independent media, application identity and preview after source content/Layer/Matrix removal. References keep the exact authored media/application identities, truthfully expose missing source/preview and restore the exact source through public Undo. Public Redo returns exact missing state; sparse reload preserves both states.",
+			"A warmed application-membership cache drops a removed source owner, preserves a configured owner whose media alone was cleared, and recovers after Undo. Missing owners are not replaced by another Cell or a default producer.",
+			"Replacing source content leaves existing References attached to the old producer identity, with truthful missing state. Independent Copies are unchanged; Undo restores the original Reference preview.",
+			"Empty prepared Cells copy/reference authored placement and opacity without inventing media. Copy has independent application ownership; Reference shares the configured owner. Later source-setting edits do not overwrite the duplicated settings. Explicit owned-media creation in the empty Reference Cell detaches its shared app owner, and reload preserves it."
+		],
+		"limits": "These tests inspect typed authoring, actual cached application membership, preview projections, public history and persistence. They do not launch producer processes or establish native GPU retirement."
+	},
+	"software": {
+		"rust": "556 pass/3 ignored with native-preview-smoke,application-process-fixture, including generated-contract checks; terminal exit0.",
+		"strict": "MapGyver Clippy --lib --tests with the same features and -D warnings passes; terminal exit0.",
+		"format": "Root and golden_core cargo fmt, scoped browser Prettier and Node syntax checks pass.",
+		"ui_reuse": "The product frontend is unchanged from the passing MapGyver and Golden Svelte checks, 40 focused UI tests and bundled browser milestone recorded in mapgyver-m13-cell-grid-2026-11-07.json.",
+		"corrected_validation": "Initial test compilation tried direct equality on a non-PartialEq view DTO. Tests now compare its complete serialized public value; product DTO derives were not changed. No host experiment ran against that failing test build."
+	},
+	"browser": {
+		"fixture": "apps/mapgyver/tests/browser/cell-transfers.mjs with cell-scroll-transfers.mjs",
+		"binary": "target/debug/deps/MapGyver-m137-cell-grid-commands.exe",
+		"binary_sha256": "d315dca21196be0ce6513dbd0062ca9b75b19c11f7bd8ccd7f4c514798e2d1f5",
+		"artifact": "target/m137-cell-scroll-20261107/result.json",
+		"artifact_sha256": "bdecb83212f8666e56d490e42707d7c513cb81536b4436c6477f91116bc95a7f",
+		"pid": 32928,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 22,
+		"new_cases": 4,
+		"proof": "Retained eighteen gesture/history cases plus actual wheel scrolling to the far corner of a sparse1000-Layer/1000-Column Matrix with nested Layer/Column Groups. The source is unmounted, only100 Cell controls are mounted, and scrolling changes no authored state. Modifier+Alt+V References the offscreen source; ordinary Paste Copies it with independent channel identity. Real Alt-drag Move crosses from nested Layer to root; normal occupied drag swaps the two real Cells. Every mutation passes exact single-step toolbar Undo/Redo and data assertions. The Matrix has three sparse Cells at the end. No page errors; normal host retirement.",
+		"limits": "Headless browser input and bounded mounted controls only. No native pixels, cadence, process retirement or large-project structural timing claim."
+	},
+	"remaining": "Full public caller parity for TransferCell, running Copy/Reference and source recovery with native pixels and real process final-use retirement, remaining reload/project lifetime interactions, and bounded sparse structural update timing. Original M13/4 quantitative requirements remain separate and open. No full gate closes."
+}

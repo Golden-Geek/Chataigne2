@@ -70,6 +70,11 @@ The playback context action is called **Trigger Cell (Cut)** to distinguish it
 from clipboard Cut.
 
 Missing linked owners retain their authored identities for Undo/recovery.
+References keep the selected media identity when its originating Cell is cleared,
+replaced or removed; they do not silently adopt a replacement producer. Restoring
+the same source through history restores that binding. Independent copies keep
+their owned content. A prepared empty Cell can also be copied or referenced:
+its authored settings and application ownership survive without inventing media.
 Relocation/swapping still requires one Matrix. Complete native/process/
 copy-reference lifetime and large-project qualification remain M13/7 work;
 software and browser milestones alone do not accept that gate.
