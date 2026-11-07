@@ -43,6 +43,13 @@ The [functional receipt](../progress/evidence/mapgyver-m13-gesture-presentation-
 verifies real held-request input and history. Presented-frame timing and native/DOM pixel
 alignment remain separate M13/4 qualification requirements.
 
+Golden video UI's native input adapter admits a hit through the accepted native frame, then
+projects explicitly captured movement in that stable native/DOM coordinate basis without
+per-move IPC. Terminal hit testing remains native; changed bounds/DPR or ownership cancels
+the sequence. This lets Screen/Source control delivery proceed independently of metadata
+reply time, alongside the bounded authored-edit queue. Native decoration drawing still uses
+the configured video cadence; this change alone does not establish 240 Hz presentation.
+
 ## Acceptance
 
 M11/6 is **Accepted**. Software suites and native anchored/reduced-motion navigation,

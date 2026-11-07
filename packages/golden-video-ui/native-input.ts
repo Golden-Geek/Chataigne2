@@ -10,7 +10,8 @@ export function capturePreviewPointer(element: Element, event: PointerEvent) {
 	else element.setPointerCapture(event.pointerId);
 }
 
-/** One metadata query in flight, one latest move and one terminal event. No frame polling. */
+/** Native admission/hit testing stays serialized. An owned drag projects moves locally in
+ * its accepted coordinate basis; geometry changes cancel it instead of retargeting capture. */
 export function observeNativeInput(
 	element: HTMLElement,
 	query: (x: number, y: number) => Promise<PreviewPointer | null>,
@@ -28,6 +29,7 @@ export function observeNativeInput(
 		hit: string | null;
 		capture: Element | null;
 		started: boolean;
+		projection: { native: PreviewPointer['rect']; dom: PreviewPointer['rect']; dpr: number } | null;
 	} | null = null;
 	let hovered: Element | null = null;
 	let last: PreviewPointer | null = null;
@@ -37,6 +39,32 @@ export function observeNativeInput(
 		!!event.target.closest('[data-native-preview-input-exclude]');
 	const owns = (event: Event) =>
 		!disposed && enabled() && !projected.has(event) && !excluded(event);
+	const bounds = () => {
+		const { x, y, width, height } = element.getBoundingClientRect();
+		return { x, y, width, height };
+	};
+	function sameBounds(left: PreviewPointer['rect'], right: PreviewPointer['rect']) {
+		return (
+			left.x === right.x &&
+			left.y === right.y &&
+			left.width === right.width &&
+			left.height === right.height
+		);
+	}
+	function validProjection(rect: PreviewPointer['rect']) {
+		return Object.values(rect).every(Number.isFinite) && rect.width > 0 && rect.height > 0;
+	}
+	function capturedSample(event: PointerEvent, hit: string | null): PreviewPointer | null {
+		const projection = active?.projection;
+		if (!projection || projection.dpr !== devicePixelRatio || !sameBounds(projection.dom, bounds()))
+			return null;
+		const rect = projection.native;
+		const point: [number, number] = [
+			(event.clientX - rect.x) / rect.width,
+			(event.clientY - rect.y) / rect.height
+		];
+		return point.every(Number.isFinite) ? { rect, point, hit } : null;
+	}
 	function target(hit: string | null) {
 		if (hit === null) return root;
 		const found = element.querySelector(`[data-native-hit-id="${CSS.escape(hit)}"]`);
@@ -113,11 +141,31 @@ export function observeNativeInput(
 					else terminal = null;
 				}
 				const before = epoch;
-				const sample = await query(event.clientX, event.clientY);
+				const dom = bounds();
+				// Only a control's explicit logical capture admits local movement. Hover, down
+				// and terminal hit testing still use the accepted native frame.
+				const local = !beginning && event.type === 'pointermove' && active?.capture;
+				let sample: PreviewPointer | null;
+				if (local) sample = capturedSample(event, active!.hit);
+				else {
+					try {
+						sample = await query(event.clientX, event.clientY);
+					} catch {
+						if (!disposed && before === epoch) cancel();
+						continue;
+					}
+				}
 				if (disposed || before !== epoch) continue;
-				if (!sample || !enabled()) {
+				if (!sample || !enabled() || !sameBounds(dom, bounds())) {
 					cancel();
 					continue;
+				}
+				if (active?.capture && !beginning && !local) {
+					sample = capturedSample(event, sample.hit);
+					if (!sample) {
+						cancel();
+						continue;
+					}
 				}
 				last = sample;
 				lastEvent = event;
@@ -125,6 +173,11 @@ export function observeNativeInput(
 					beginning.started = true;
 					beginning.hit = sample.hit;
 					beginning.target = target(sample.hit);
+					if (!validProjection(sample.rect) || !validProjection(dom)) {
+						cancel();
+						continue;
+					}
+					beginning.projection = { native: { ...sample.rect }, dom, dpr: devicePixelRatio };
 					if (beginning.target)
 						beginning.capture = dispatch('pointerdown', beginning.target, event, sample);
 				} else if (active) {
@@ -151,7 +204,14 @@ export function observeNativeInput(
 		event.stopPropagation();
 		epoch++;
 		latest = terminal = null;
-		active = { down: event, target: null, hit: null, capture: null, started: false };
+		active = {
+			down: event,
+			target: null,
+			hit: null,
+			capture: null,
+			started: false,
+			projection: null
+		};
 		root.setPointerCapture(event.pointerId);
 		void drain();
 	}
@@ -205,6 +265,16 @@ export function observeNativeInput(
 	function key(event: KeyboardEvent) {
 		if (event.key === 'Escape') cancel();
 	}
+	function geometryChanged() {
+		const projection = active?.projection;
+		if (
+			projection &&
+			(projection.dpr !== devicePixelRatio || !sameBounds(projection.dom, bounds()))
+		)
+			cancel();
+	}
+	const resize = new ResizeObserver(geometryChanged);
+	resize.observe(element);
 	root.addEventListener('pointerdown', down, true);
 	root.addEventListener('pointermove', move, true);
 	root.addEventListener('pointerup', up, true);
@@ -214,6 +284,8 @@ export function observeNativeInput(
 		root.addEventListener(name, blockHover, true);
 	window.addEventListener('blur', cancel);
 	window.addEventListener('keydown', key);
+	window.addEventListener('resize', geometryChanged);
+	window.addEventListener('scroll', geometryChanged, true);
 	return () => {
 		cancel();
 		disposed = true;
@@ -226,5 +298,8 @@ export function observeNativeInput(
 			root.removeEventListener(name, blockHover, true);
 		window.removeEventListener('blur', cancel);
 		window.removeEventListener('keydown', key);
+		window.removeEventListener('resize', geometryChanged);
+		window.removeEventListener('scroll', geometryChanged, true);
+		resize.disconnect();
 	};
 }

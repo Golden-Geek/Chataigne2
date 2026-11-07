@@ -1,0 +1,88 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; captured input delivery verified, native high-refresh presentation remains open",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"deliverable": "An explicitly captured Screen/Source control receives movement in its admitted native/DOM coordinate basis without waiting for per-move metadata IPC. Authoritative geometry/history stays backend-owned.",
+	"ownership": "packages/golden-video-ui/native-input.ts. Native down admission, hover and terminal hit/click testing retain serialized accepted-frame queries. Captured movement projects locally; bounds/DPR/source/session/Escape/blur/disposal fences cancel stale ownership. No new protocol, domain defaults, polling or renderer resource policy.",
+	"software": {
+		"golden_video_ui_tests": "5 files,68 tests passed",
+		"golden_video_ui_check": "Svelte0 errors/0 warnings",
+		"browser": "Full golden_video_ui browser lifecycle/qualification/continuity/input/retirement suite passed with no page errors. After down admission,25 captured moves all dispatch while native replies would take1000ms; zero additional move queries. Terminal hit testing adds exactly one native query. Changed projection cancels without move/up commit, and unclamped outside-image movement, offset native/DOM projection, Escape/source fences and maximum one native query in flight pass.",
+		"mapgyver_ui": "Svelte0 errors/0 warnings",
+		"chataigne_ui": "Svelte0 errors/0 warnings",
+		"native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-input; terminal exit0",
+    "unchanged_layers": "Prior Golden256/app101 gesture suites and backend512 tests/2ignored/strict/generated-contract proof retained for unchanged layers. Current native build embeds the changed Golden video UI.",
+    "format": "Scoped Prettier/strict formatting and root/golden_core cargo fmt passed"
+	},
+	"binary": {
+		"path": "target/debug/deps/MapGyver-m134-input.exe",
+		"sha256": "dd3f54f07d75346100162ce9572515d69a85f85dbcc4fba5df2a98982a0bbdf7"
+	},
+	"native_fixture": "Existing arranged-scene native-gesture-presentation.mjs + gesture-qualification.mjs. Actual bundled WebView input, real server, six held-request geometry/history cases across five editors; native accepted-frame hit IDs, foreground physical Screen/Source edge pixels and an independent SDK consumer. Supported @oai/sky activation targets the unique returned owned executable window. No user app or display setting changed.",
+	"intel": {
+		"artifacts": "target/m134-input-qual-intel",
+		"pid": 21540,
+		"app_exit": 0,
+		"fixture_exit": 0,
+		"gpu": { "index": 0, "key": "dxgi:00000000:00015b69", "description": "Intel(R) Graphics" },
+		"six_cases": "pass; pending observation cannot author the held request, old receipts cannot rewind latest hints, final geometry and exact Undo/Redo match",
+		"screen_pending_edge_error_physical_px": 0.371103632438633,
+		"source_pending_edge_error_physical_px": 0.3754572302413621,
+		"stale_edge_blue_within_5px": false,
+		"native_hits": "Exact selected Surface corner0 and crop:0 at their current DOM centers",
+		"output": {
+			"copies": 699,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 2147486466,
+			"first_frame": 62,
+			"last_frame": 760,
+			"maximum_receive_gap_ms": 23.2402,
+			"consumer_exit": 0,
+			"complete_exact_red_images": 7
+		},
+		"requests": 620,
+		"receipts": 620,
+		"page_errors": [],
+		"unexpected_rejections": []
+	},
+	"nvidia": {
+		"artifacts": "target/m134-input-qual-nvidia",
+		"pid": 45608,
+		"app_exit": 0,
+		"fixture_exit": 0,
+		"gpu": {
+			"index": 1,
+			"key": "dxgi:00000000:90b3a15f",
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+		},
+		"six_cases": "pass; same held-request/final/history assertions as Intel",
+		"screen_pending_edge_error_physical_px": 0.371103632438633,
+		"source_pending_edge_error_physical_px": 0.3754572302413621,
+		"stale_edge_blue_within_5px": false,
+		"native_hits": "Exact selected Surface corner0 and crop:0 at their current DOM centers",
+		"output": {
+			"copies": 719,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 1073753794,
+			"first_frame": 70,
+			"last_frame": 788,
+			"maximum_receive_gap_ms": 32.6464,
+			"consumer_exit": 0,
+			"complete_exact_red_images": 7
+		},
+		"requests": 615,
+		"receipts": 615,
+		"page_errors": [],
+		"unexpected_rejections": []
+	},
+	"display_observation": "Read-only Win32_VideoController CIM reports Intel laptop2560x1600 at240Hz; both owned physical captures report monitor[0,0,2560,1600],DPI120/DPR1.25. NVIDIA is a render adapter without a separate current display mode in that query. This establishes an available current mode, not real-input presented pacing or latency. Footer200Hz is engine rate.",
+	"source_findings": {
+		"removed_dependency": "observeNativeInput previously awaited a fresh query for every admitted move. Logical pointer capture now pins the validated accepted projection and dispatches stable-basis movement synchronously; terminal hit authentication remains native.",
+		"remaining_native_cadence": "apps/mapgyver/src/preview/config.rs sets video.frame_rate to60. Golden native backend draws RegionPlacement overlays inside the video submission. Local delivery/authoring improvements do not remove this presentation cap. The next product slice must decouple interactive presentation from media/output cadence without unsafe GPU use or whole-document rebuilds."
+	},
+	"remaining": "Decouple native decoration presentation from video60Hz and measure actual240Hz real-input presented frame pacing, long stalls and pointer-to-visible p95/p99 on both GPUs; remaining Composition/Matrix physical alignment, larger/fully populated3x3 scenes, ordinary controls/scroll/dock and silent-intent audit. All original budgets and return-queue gates remain required; no gate closed."
+}

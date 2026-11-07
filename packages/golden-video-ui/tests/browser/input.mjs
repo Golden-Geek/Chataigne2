@@ -29,6 +29,67 @@ export async function verifyNativeInput(browser, base) {
 			Math.abs(up.x - 1) < 0.0001 && up.y > 1,
 			'captured drag keeps unclamped native image coordinates'
 		);
+		await page.mouse.move(130, 220);
+		await page.mouse.down();
+		await page.waitForFunction(
+			() => window.__nativeInput.trace.filter((e) => e.kind === 'down').length === 3
+		);
+		const admitted = await page.evaluate(() => ({
+			queries: window.__nativeInput.queries,
+			moves: window.__nativeInput.trace.filter((e) => e.kind === 'move').length
+		}));
+		await page.evaluate(() => {
+			window.__nativeInput.delay = 1000;
+		});
+		await page.mouse.move(450, 400, { steps: 25 });
+		const immediate = await page.evaluate(() => ({
+			queries: window.__nativeInput.queries,
+			moves: window.__nativeInput.trace.filter((e) => e.kind === 'move').length
+		}));
+		assert.equal(
+			immediate.queries,
+			admitted.queries,
+			'owned moves do not wait for another native IPC'
+		);
+		assert.equal(
+			immediate.moves - admitted.moves,
+			25,
+			'every captured sample advances control feedback while native replies would take1s'
+		);
+		await page.mouse.up();
+		await page.waitForFunction(
+			() => window.__nativeInput.trace.filter((e) => e.kind === 'up').length === 3
+		);
+		assert.equal(
+			await page.evaluate(() => window.__nativeInput.queries),
+			admitted.queries + 1,
+			'terminal hit/click still uses a native query'
+		);
+		await page.evaluate(() => {
+			window.__nativeInput.delay = 30;
+		});
+		await page.mouse.move(130, 220);
+		await page.mouse.down();
+		await page.waitForFunction(
+			() => window.__nativeInput.trace.filter((e) => e.kind === 'down').length === 4
+		);
+		const beforeGeometry = await page.evaluate(() => window.__nativeInput.trace.length);
+		await page.evaluate(() => window.__nativeInput.moveImage());
+		await page.mouse.move(150, 230);
+		await page.mouse.up();
+		const changedGeometry = await page.evaluate(
+			(before) => window.__nativeInput.trace.slice(before),
+			beforeGeometry
+		);
+		assert(
+			changedGeometry.some((e) => e.kind === 'cancel'),
+			'a changed DOM projection cancels capture'
+		);
+		assert(
+			!changedGeometry.some((e) => e.kind === 'move' || e.kind === 'up'),
+			'a changed projection never commits in a stale coordinate basis'
+		);
+		trace = await page.evaluate(() => window.__nativeInput.trace);
 		await page.evaluate(() => {
 			window.__nativeInput.delay = 150;
 		});
@@ -58,6 +119,8 @@ export async function verifyNativeInput(browser, base) {
 			retargetedNativeHandle: true,
 			projectedDownUp: true,
 			coalescedDrag: true,
+			capturedMovesIndependentOfNativeReplies: 25,
+			geometryFence: true,
 			outsideApertureDrag: true,
 			escapeFence: true,
 			sourceFence: true,

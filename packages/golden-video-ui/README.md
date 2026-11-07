@@ -44,6 +44,16 @@ rendering opportunity barrier. Delayed-reply retention still compares the comple
 including every decoration; this scheduling distinction never certifies native installation or
 input latency.
 
+Native input uses an accepted-frame query to admit a pointer target. When that control calls
+`capturePreviewPointer`, the adapter pins its accepted native projection and current DOM/DPR
+cohort for the drag. Captured moves project locally without another IPC or animation-frame
+poll; coordinates remain unclamped outside the image. Terminal hit/click testing still queries
+the native frame, while the final geometry sample keeps the admitted drag's coordinate basis.
+Bounds/DPR changes, source/session replacement, Escape, blur and disposal cancel ownership;
+an outdated query cannot revive it. Hover and uncaptured input retain serialized native queries.
+This removes a control-delivery dependency, not the renderer's presentation cadence. Physical
+high-refresh pacing and native/DOM alignment still require separate validation.
+
 An editor using `Viewport2D`'s fully native canvas may explicitly set `NativePreview nativeBackdrop`.
 Once native decorations own the installed image/frame/controls, the fixed clipping rectangle is
 the DOM paint boundary; pan/zoom changes only native image placement inside it. The registration's

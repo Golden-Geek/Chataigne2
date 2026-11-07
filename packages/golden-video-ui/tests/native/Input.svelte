@@ -13,6 +13,9 @@
 		queries: 0,
 		maximumQueries: 0,
 		delay: 30,
+		moveImage() {
+			image.style.left = '19.75rem';
+		},
 		changeSource() {
 			source = 'replacement';
 		},
