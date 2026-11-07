@@ -315,7 +315,9 @@ pub(crate) fn capture(
                     }
                 }
                 let mut children = children.into_iter().collect::<Vec<_>>();
-                children.sort_by_key(|(_, order)| *order);
+                // The document lists frontmost siblings first; compositing draws back to front.
+                // Apply this at every Group boundary without reversing its authored hierarchy.
+                children.sort_by_key(|(_, order)| std::cmp::Reverse(*order));
                 for (item, _) in children {
                     let entry = &index.items[&item];
                     if entry.enabled && entry.settings.enabled && entry.settings.opacity > 0.0 {

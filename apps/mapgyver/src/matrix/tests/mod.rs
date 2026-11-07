@@ -24,6 +24,7 @@ mod copying;
 mod creation;
 mod defaults;
 mod editor;
+mod front_order;
 mod layer_geometry;
 mod layer_settings;
 mod owned_media;

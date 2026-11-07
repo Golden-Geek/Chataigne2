@@ -33,6 +33,12 @@ Enter and Space. Embedded rename, launch and Parameter controls retain their own
 handling. Layer and Group titles sit at the top left, with hierarchy indentation applied
 to the title rather than reducing the controls' available width.
 
+Layer and Group sibling order in the document and grid is front to back. The Matrix capture
+boundary reverses each immediate sibling set for Golden's back-to-front compositing draw
+order. Nested Groups apply the same rule locally and remain one composited input in their
+parent. Reordering changes the authored hierarchy; the UI never reverses a separate copy,
+and Layer-internal transition inputs keep their independent additive playback order.
+
 Empty Cells show a subtle outline. Add and X removal actions appear on pointer hover or
 keyboard focus, retaining accessible labels, tooltips and context-menu equivalents.
 Golden's public `registerActionIcon` lets the app choose the same X for built-in node menus

@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-07",
+  "milestone": "M13/3 first/top Matrix Layer is frontmost",
+  "gate": "Active; order contract verified, full Matrix gate still open",
+  "acceptance": { "verified": 70, "total": 92, "m13_verified": 1, "m13_total": 14 },
+  "change": "MapGyver capture sorts immediate siblings from back to front for Golden draw order. Document/grid hierarchy remains front to back; nested Groups apply the same local rule. Layer-internal additive transition order is unchanged. Existing O(n log n) ordering and bounded traversal budgets are unchanged.",
+  "software": {
+    "app_tests": "cargo test --locked -p MapGyver --lib: 512 passed, 0 failed, 2 existing ignored",
+    "new_tests": "front_order.rs verifies explicit root and nested draw stacks, MoveItem/DropItem, reparenting, exact one-step history and project replay",
+    "caller_contracts": "Full suite includes existing public caller parity, snapshot invalidation, sparse authoring, bindings/transitions and generated TypeScript contracts",
+    "strict": "cargo clippy --locked -p MapGyver --lib --tests --features native-preview-smoke,application-process-fixture -- -D warnings; exit0",
+    "native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m133-order; exit0",
+    "format": "Scoped Prettier, node --check, root/Core cargo fmt and check pass",
+    "initial_target_correction": "The initial --bin MapGyver filtered invocation ran zero tests and is not counted as proof; tests belong to --lib. The complete library suite subsequently passed."
+  },
+  "native": {
+    "driver": "apps/mapgyver/tests/browser/native-matrix-order.mjs",
+    "binary": "target/debug/deps/MapGyver-m133-order.exe",
+    "sha256": "9424e280797ba14a932160837605e7a243bd3acf94b61c9cd4781c1194c0784d",
+    "independent_receiver": "target/debug/native_qualification.exe",
+    "receiver_sha256": "be5830476e4c7f2eb0d383876546158fed6878fbe404afd292e40aa6703be2e8",
+    "scope": "Ordinary native app with exact GPU preferences, real authored opaque overlapping Solid Color Layers and independent SDK receive/readback of every pixel in each 96x64 Screen output. Both GPU runs were issued only after compile, full software tests and strict lint succeeded.",
+    "gpus": [
+      { "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU", "key": "dxgi:00000000:90b3a15f", "pid": 25956, "exit": 0, "artifacts": "target/mapgyver-m13-order-nvidia-20261107", "images": 11, "requests": 255, "receipts": 255, "half_opacity_actual": [187,255,188,255] },
+      { "gpu": "Intel(R) Graphics", "key": "dxgi:00000000:00015b69", "pid": 35136, "exit": 0, "artifacts": "target/mapgyver-m13-order-intel-20261107", "images": 11, "requests": 257, "receipts": 257, "half_opacity_actual": [188,255,187,255] }
+    ],
+    "cases_on_each_gpu": [
+      ["root-first-red", [255,0,0,255]],
+      ["move-first-blue", [0,0,255,255]],
+      ["undo-red", [255,0,0,255]],
+      ["redo-blue", [0,0,255,255]],
+      ["group-first-yellow", [255,255,0,255]],
+      ["group-reordered-cyan", [0,255,255,255]],
+      ["reparent-front-yellow", [255,255,0,255]],
+      ["front-half-yellow-over-cyan", [188,255,188,255]],
+      ["disabled-front-cyan", [0,255,255,255]],
+      ["reloaded-cyan", [0,255,255,255]],
+      ["reloaded-front-enabled-yellow", [255,255,0,255]]
+    ],
+    "complete_images": 22,
+    "compared_pixels": 135168,
+    "tolerance": "Existing SDR comparison bound 2/255; all opaque cases are exact, half-opacity differs by at most one code value",
+    "ui": "Rendered row UUID order agrees after root/group moves, reparenting and reload. App-WebView screenshots inspected for hierarchy/layout; native compositor pixels are proved by the independent output captures, not WebView screenshots.",
+    "page_errors": [],
+    "rejected_requests": [],
+    "limits": "16x16 authored procedural canvases; 700ms settling is not latency/cadence proof. No driver reset, display manipulation, 4K timing or full sparse preview lifetime claim."
+  },
+  "remaining": "M13/3 limiting/exact-fit/both-axis/dock/group scrollbar stability, narrow/large/scale controls and complete sparse1000x1000 native preview/resource lifetime. M13/2 and all older blocked return requirements remain unchanged. No gate closed or denominator changed."
+}
