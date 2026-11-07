@@ -21,6 +21,7 @@ const gpuIndex =
 		? null
 		: Number(process.argv[3]);
 const liveSync = process.argv.includes('--live-sync');
+const cancelInput = process.argv.includes('--cancel-input');
 const sharedTexture = process.argv.includes('--shared-texture');
 const mixed = process.argv.includes('--mixed-media');
 const workbench = process.argv.includes('--workbench-controls');
@@ -82,7 +83,9 @@ let mixedSources,
 	workbenchReport;
 let livePreview = null;
 let livePreviewId = null;
-const liveChecks = [];
+let cancellationAttempt = null;
+const liveChecks = [],
+	cancellationChecks = [];
 const held = [],
 	requests = [],
 	receipts = [],
@@ -108,7 +111,7 @@ await page.routeWebSocket('**', (socket) => {
 				'EditSurfaceGeometry'
 			].includes(operation);
 		if (frame.kind === 'intent')
-			requests.push({ id: frame.request_id, kind: intent.kind, operation, stage });
+			requests.push({ id: frame.request_id, kind: intent.kind, operation, geometry, stage });
 		if (geometry && hold) held.push({ server, message, id: frame.request_id });
 		else server.send(message);
 	});
@@ -189,6 +192,99 @@ async function liveInspector(name, shape) {
 		.locator('.parameter-inspector')
 		.filter({ has: page.getByText('Position', { exact: true }) });
 	await liveInput(name, shape, row.locator('.infinite-slider').first(), true);
+}
+async function cancelGesture(name, svg, shape, control, inspect, tolerance) {
+	stage = `${name} cancellation`;
+	const requestStart = requests.length;
+	const before = await inspect(),
+		initial = await values(shape),
+		box = await control.boundingBox();
+	assert(box);
+	const point = { x: box.x + box.width * 0.43, y: box.y + box.height * 0.43 };
+	await page.mouse.move(point.x, point.y);
+	await page.mouse.down();
+	hold = true;
+	await page.mouse.move(point.x + 8, point.y + 5);
+	await wait(
+		() => held.length,
+		(count) => count === 1
+	);
+	const dispatched = await wait(
+		() => values(shape),
+		(value) => !near(value, initial)
+	);
+	await page.mouse.move(point.x + 21, point.y + 13);
+	const unsent = await wait(
+		() => values(shape),
+		(value) => !near(value, dispatched)
+	);
+	cancellationAttempt = { name, initial, dispatched, unsent, tolerance };
+	assert.deepEqual(await inspect(), before, 'held edit has not authored state');
+	await page.keyboard.press('Escape');
+	await wait(
+		() => svg.getAttribute('data-geometry-presentation'),
+		(value) => value === 'committed'
+	);
+	assert(
+		near(await values(shape), initial, tolerance),
+		'cancellation clears the unacknowledged hint'
+	);
+	await page.mouse.move(point.x + 30, point.y + 18);
+	await page.mouse.up();
+	assert.equal(held.length, 1, 'cancellation must not dispatch the queued successor');
+	hold = false;
+	const pending = held.shift();
+	pending.server.send(pending.message);
+	const end = await wait(
+		() => requests.slice(requestStart).find((request) => request.kind === 'endEdit'),
+		Boolean
+	);
+	await wait(() => receipts.some((receipt) => receipt.id === end.id), Boolean);
+	assert(
+		receipts.some((receipt) => receipt.id === pending.id && receipt.phase === 'applied'),
+		'the preserved dispatched edit has its own applied receipt'
+	);
+	const after = await wait(inspect, (value) => !equal(value, before));
+	cancellationAttempt.actual = await values(shape);
+	await wait(
+		() => values(shape),
+		(value) => near(value, dispatched, tolerance)
+	);
+	const cohort = requests.slice(requestStart);
+	assert.equal(
+		cohort.filter((request) => request.geometry).length,
+		1,
+		'only dispatched input survives'
+	);
+	assert.equal(
+		cohort.filter((request) => request.kind === 'endEdit').length,
+		1,
+		'one history close'
+	);
+	assert(
+		!near(await values(shape), unsent, tolerance),
+		'queued pointer position is never authored'
+	);
+	await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+	await wait(inspect, (value) => equal(value, before));
+	await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
+	await wait(inspect, (value) => equal(value, after));
+	await wait(
+		() => values(shape),
+		(value) => near(value, dispatched, tolerance)
+	);
+	cancellationChecks.push({
+		name,
+		initial,
+		dispatched,
+		discarded: unsent,
+		final: await values(shape),
+		tolerance,
+		geometry_requests: 1,
+		history_closes: 1,
+		canonical_undo_redo: true,
+		presentation_cleared_before_receipt: true
+	});
 }
 async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) {
 	stage = name;
@@ -301,6 +397,15 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 		canonical_undo_redo: true
 	});
 	await qualification?.after(name);
+	if (cancelInput)
+		await cancelGesture(
+			name,
+			svg,
+			shape,
+			control,
+			inspect,
+			name.startsWith('Composition') ? 0.0001 : tolerance
+		);
 }
 try {
 	await page.reload();
@@ -715,6 +820,8 @@ try {
 				browser: native.browser.version(),
 				checks,
 				live_checks: liveChecks,
+				cancellation_checks: cancellationChecks,
+				cancellation_attempt: cancellationAttempt,
 				workbench: workbenchReport,
 				workload: {
 					populated_3x3: populated,
@@ -746,8 +853,10 @@ try {
 			{
 				stage,
 				error: String(error),
+				cancellation_attempt: cancellationAttempt,
 				checks,
 				live_checks: liveChecks,
+				cancellation_checks: cancellationChecks,
 				requests,
 				receipts,
 				errors,

@@ -1,0 +1,56 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Actual editor Escape cancels unsent pointer work without losing dispatched edits or leaving history/transient geometry behind.",
+	"gate": "M13/4 Active; six-control release/cancellation slice verified, complete presented smoothness/latency/workload acceptance remains open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "13:07", "cutoff_utc": "13:52", "native_verified_utc": "13:13" },
+	"ownership": "Existing Golden LatestEditGesture contract and MapGyver native gesture acceptance fixture. No production behavior, rollback policy, transport, protocol, resource limit or renderer changed.",
+	"contract": "Cancellation immediately clears the presentation hint and discards queued unsent samples. Already dispatched work remains authoritative when acknowledged. One owned edit group closes once; the resulting partial edit remains one exact Undo/Redo operation. Project/host invalidation separately rejects late ownership.",
+	"software": {
+		"focused": "15 Golden gesture-presentation/edit-operation tests pass. Two new cases establish ordinary cancellation while a request/close is pending, repeated stop, restart admission, and cancellation before begin acknowledgement without dispatching input.",
+		"strict_types": "New Golden test source passes strict standalone TypeScript checking.",
+		"retained": "Unchanged runtime/backend retains preceding284 Golden tests, both-app Svelte0errors0warnings,542 app tests/2ignored and strict/generated evidence. No Rust/UI runtime changes require a new native compile.",
+		"format": "Scoped Prettier, Node syntax, root/Core cargo fmt and diff checks pass."
+	},
+	"native": {
+		"driver": "apps/mapgyver/tests/browser/native-gesture-presentation.mjs --cancel-input",
+		"binary": "target/debug/deps/MapGyver-m134-feedback-lifetime.exe",
+		"binary_sha256": "b27617fb314a04cbaffa3407770af929dd7f46de02b6ba42d4989eab711b29b0",
+		"artifact": "target/m134-cancellation-precision-20261107/result.json",
+		"sha256": "9e1a2801b6896c024bbe03e5dae7d5bacf898baf26d8c31e6333fcf67b31045c",
+		"pid": 43608,
+		"fixture_exit": 0,
+		"app_exit": 0,
+		"ordinary_release_cases": 6,
+		"escape_cases": [
+			"Matrix Layer translation",
+			"Matrix Cell translation",
+			"Composition translation",
+			"Composition rotated resize",
+			"Screen warp corner",
+			"Surface Source crop"
+		],
+		"every_case": [
+			"One actual geometry request is held before server delivery; a second pointer position advances local presentation without authoring state.",
+			"Trusted Escape clears the hint before the held request is released. Later pointer movement/up cannot dispatch the queued successor.",
+			"Exactly one geometry request and one history end survive, each with its own applied receipt. Canonical geometry matches the dispatched sample and differs from the discarded sample.",
+			"Actual Undo and Redo restore exact complete typed backend values and the canonical displayed geometry."
+		],
+		"requests": 675,
+		"receipts_at_result": 674,
+		"receipt_limit": "The fixture explicitly awaits every gesture/end receipt; one unrelated background request can remain outstanding at result capture. Normal finalization exits0.",
+		"page_errors": [],
+		"rejections": [],
+		"maximum_coordinate_error_canvas_units": 0.00001676627837809974,
+		"precision": "Composition comparisons use0.0001 canvas units, consistent with existing rotated-resize/f32 precision. Matrix native checks retain their existing1.01-unit tolerance; independent replay of all six saved final/dispatched vectors also passes0.0001, and verifies both applied receipt IDs per cancellation.",
+		"final_assertion": "The explicit dispatched-receipt assertion added after the live run is independently replayed against all six complete saved cohorts; no extra live run was performed for that assertion.",
+		"scope": "Bundled native app, real server, trusted WebView input, controlled request delivery, DOM geometry and history. No new physical pixels, actual FPS, latency or both-GPU qualification claim."
+	},
+	"retained_failure": {
+		"artifact": "target/m134-cancellation-20261107/failure.json",
+		"sha256": "b50e570bfa53651932607f41defe43d05808387f1429c619ec2f2712e2255da1",
+		"fixture_exit": 1,
+		"scope": "Both Matrix cancellation cases passed; Composition translation stopped at the0.00001 coordinate comparison. The corrected fixture records pending/actual vectors and uses the already established0.0001 Composition precision; its successful translation error0.0000111077 exceeds the old threshold. Exact backend history checks are unchanged. No production fix was needed."
+	},
+	"remaining": "Actual moving-source/geometry presented30+fps pacing and native/DOM alignment, pointer p95/p99 and missed/stall metrics across required workloads/both GPUs/large projects. Keep the complete30-action latency return and all original budgets. Inspector/focus/project/reconnect cancellation beyond the linked existing software evidence is not newly certified by this six-control run. Next reduce the timing slice to one continuous Composition manipulation using the established window-capture path before broadening; no new capture variant or unchanged DXGI probe."
+}
