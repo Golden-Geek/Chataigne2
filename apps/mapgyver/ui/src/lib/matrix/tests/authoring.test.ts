@@ -100,6 +100,8 @@ function snapshot(
 	return {
 		kind: 'MatrixEditor',
 		page: {
+			at: { tick: 0, micro: 0, seq: 0 },
+			parameters: [],
 			document: 'document',
 			document_matches: true,
 			media,
@@ -112,6 +114,8 @@ function snapshot(
 const missing = (media = 'matrix'): MediaEditResult => ({
 	kind: 'MatrixEditor',
 	page: {
+		at: { tick: 0, micro: 0, seq: 0 },
+		parameters: [],
 		document: 'document',
 		document_matches: true,
 		media,

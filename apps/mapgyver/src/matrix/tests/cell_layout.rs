@@ -1,4 +1,37 @@
 use super::*;
+use golden_core::node::Node;
+
+fn content(engine: &AppEngine, page: MatrixCellLayoutPage) -> serde_json::Value {
+    assert_eq!(page.at, engine.time);
+    for binding in &page.parameters {
+        for (uuid, declaration) in [
+            (binding.position, "parameters/position"),
+            (
+                binding.size,
+                if binding.item == page.layer.0 {
+                    "parameters/canvas_size"
+                } else {
+                    "parameters/size"
+                },
+            ),
+        ] {
+            let parameter = engine.nodes.get(engine.node_id_by_uuid(uuid).unwrap()).unwrap();
+            assert_eq!(parameter.node_data().meta.decl_id.0, declaration);
+            assert!(parameter.engine_param_snapshot().is_some());
+            let folder = engine.nodes.get(parameter.node_data().parent.unwrap()).unwrap();
+            let owner = engine.nodes.get(folder.node_data().parent.unwrap()).unwrap();
+            assert_eq!(owner.node_data().meta.uuid, binding.item);
+        }
+    }
+    let mut value = serde_json::to_value(page).unwrap();
+    value.as_object_mut().unwrap().remove("at");
+    // Actual live ownership is checked above; sparse reload regenerates declaration identities.
+    for binding in value["parameters"].as_array_mut().unwrap() {
+        binding.as_object_mut().unwrap().remove("position");
+        binding.as_object_mut().unwrap().remove("size");
+    }
+    value
+}
 
 #[test]
 fn layer_cell_layout_pages_only_authored_cells_and_keeps_selected_definitions_independent_through_history_and_load() {
@@ -39,6 +72,8 @@ fn layer_cell_layout_pages_only_authored_cells_and_keeps_selected_definitions_in
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     let page = crate::matrix::inspect_cells(&engine, query).unwrap();
+    assert_eq!(page.parameters.len(), 6);
+    assert!(page.parameters.iter().any(|binding| binding.item == selected.0));
     assert_eq!(page.total, 130);
     assert_eq!(page.cells.len(), 4);
     assert_eq!(
@@ -53,8 +88,8 @@ fn layer_cell_layout_pages_only_authored_cells_and_keeps_selected_definitions_in
     assert_eq!(engine.undo_len(), history);
     let mut loaded = from_sparse_project_json::<AppNode>(&before).unwrap();
     assert_eq!(
-        serde_json::to_value(crate::matrix::inspect_cells(&loaded, query).unwrap()).unwrap(),
-        serde_json::to_value(crate::matrix::inspect_cells(&engine, query).unwrap()).unwrap()
+        content(&loaded, crate::matrix::inspect_cells(&loaded, query).unwrap()),
+        content(&engine, crate::matrix::inspect_cells(&engine, query).unwrap())
     );
     edit(&mut loaded, media, MatrixEdit::RemoveColumn { column: columns[129] });
     let missing = crate::matrix::inspect_cells(&loaded, query).unwrap();

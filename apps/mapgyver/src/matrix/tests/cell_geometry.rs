@@ -2,6 +2,73 @@ use super::*;
 use crate::media::spatial::protocol::{SpatialRect, SpatialResizeHandle};
 use golden_video::{Extent2D, plan::Point};
 
+#[test]
+fn cell_geometry_preserves_unrelated_authored_opacity_without_f32_round_tripping() {
+    use golden_core::{
+        node::Node,
+        parameter::{ParamValue, ParameterEventBehaviour},
+    };
+    for resizing in [false, true] {
+        let (mut engine, media, row, column, cell, _) = arranged(None);
+        let mut original = settings(&mut engine, media, cell);
+        original.size = Some(Extent2D::new(80, 40).unwrap());
+        edit(
+            &mut engine,
+            media,
+            MatrixEdit::ConfigureCell {
+                layer: row,
+                column,
+                settings: original,
+            },
+        );
+        let cell_node = engine.nodes.get(engine.node_id_by_uuid(cell.0).unwrap()).unwrap();
+        let folder = cell_node.node_data().first_child.unwrap();
+        let opacity = engine
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.node_data().parent == Some(folder) && node.node_data().meta.decl_id.0 == "parameters/opacity"
+            })
+            .unwrap()
+            .0;
+        let precise = ParamValue::Float(0.123456789012345);
+        assert!(
+            apply_project_intent(
+                &mut engine,
+                UiEditIntent::SetParam {
+                    node: opacity,
+                    value: precise.clone(),
+                    behaviour: ParameterEventBehaviour::Append
+                }
+            )
+            .success
+        );
+        let request = if resizing {
+            resize(
+                SpatialRect {
+                    position: original.position,
+                    size: original.size.unwrap(),
+                },
+                SpatialResizeHandle::BottomRight,
+                [4.0, 6.0],
+            )
+        } else {
+            translate(original.position, [4.0, 6.0])
+        };
+        geometry(&mut engine, media, cell, request);
+        assert_eq!(
+            engine
+                .nodes
+                .get(opacity)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value,
+            precise
+        );
+    }
+}
+
 fn arranged(source: Option<MediaKind>) -> (AppEngine, MediaId, LayerId, ColumnId, CellId, Option<MediaId>) {
     let mut engine = fixture();
     let media = create(&mut engine, MediaKind::Matrix).media;

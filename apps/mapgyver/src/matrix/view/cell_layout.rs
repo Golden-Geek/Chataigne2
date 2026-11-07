@@ -30,6 +30,8 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixCellLayoutQuery) -> Resul
         return Err("Cell layout admits 1..128 definitions per page".into());
     }
     let mut page = MatrixCellLayoutPage {
+        at: engine.time,
+        parameters: Vec::new(),
         media: query.media,
         layer: query.layer,
         row: None,
@@ -49,6 +51,10 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixCellLayoutQuery) -> Resul
         return Ok(page);
     };
     let row = &index.rows[position];
+    let Some(AppNode::MatrixElement(layer)) = engine.nodes.get(row.node) else {
+        return Err("Layer changed".into());
+    };
+    page.parameters.push(layer.geometry_bindings(engine, query.layer.0));
     page.row = Some(row_snapshot(engine, row)?);
     let root = super::super::playback::root(engine, query.media)?;
     page.context = Some(crate::media::channel(
@@ -89,6 +95,16 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixCellLayoutQuery) -> Resul
             .is_some_and(|node| matches!(node, AppNode::MatrixCell(_)) && node.node_data().parent == Some(row.node))
     {
         page.selected = Some(cell(engine, query.media, query.layer, id)?);
+    }
+    for cell in page.cells.iter().chain(page.selected.iter()) {
+        let id = cell.view.cell.id.0;
+        if page.parameters.iter().any(|binding| binding.item == id) {
+            continue;
+        }
+        let Some(AppNode::MatrixCell(node)) = engine.node_id_by_uuid(id).and_then(|id| engine.nodes.get(id)) else {
+            return Err("Cell changed".into());
+        };
+        page.parameters.push(node.geometry_bindings(engine, id));
     }
     Ok(page)
 }

@@ -17,7 +17,9 @@ they do not implement transport ordering or acknowledgement fences themselves.
 
 The backend owns bindings and snapshot event fences. MapGyver's bounded
 Composition editor query returns the exact Parameter UUIDs for each visible
-instance and its independently selected off-page instance. The generated
+instance and its independently selected off-page instance. Matrix queries do
+the same for visible/independently selected Layers and Cells, with one Layer
+binding for the Cell canvas. The generated
 protocol carries those bindings and the engine event boundary. The app's
 `composition/parameter-projection.ts` maps typed values onto its existing read
 projection; transform semantics and validation remain in Rust.
@@ -27,11 +29,19 @@ values. A committed graph older than a backend snapshot cannot overwrite that
 snapshot. A local canvas gesture retains its existing transient presentation
 and acknowledgement path while active. Its applied receipt raises the event
 fence before the gesture's presentation is cleared, so a delayed graph batch
-cannot rewind an accepted final transform. Editor observation still refreshes
+cannot rewind an accepted final transform. Receipt identity uses a weak session
+reference so a retained panel cannot pin a replaced session's graph. Editor observation still refreshes
 backend-dependent metadata and authoritative snapshots; it is no longer the
 only way Inspector geometry reaches Composition controls.
 
+Optional typed reads and Parameter enabled-state projection preserve the Cell
+Size Parameter's natural-source mode without inventing an authored size. App
+projections keep membership, natural source extents and other metadata from the
+authoritative DTO. Direct geometry operations write only their requested
+position/size fields, preserving unrelated settings and concurrent size changes
+during translation.
+
 New editors can use the same Golden reader with backend-owned typed bindings.
-Matrix and Screen bindings have not yet been added. This presentation mechanism
+Screen bindings have not yet been added. This presentation mechanism
 does not certify native rendering cadence or remove render-plan preparation
 latency; those remain separate acceptance requirements.

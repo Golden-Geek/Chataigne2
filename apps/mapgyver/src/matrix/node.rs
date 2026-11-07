@@ -44,6 +44,46 @@ pub struct ElementNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ElementNode {
+    pub(super) fn geometry_bindings(
+        &self,
+        engine: &crate::app::AppEngine,
+        item: golden_core::node::NodeUuid,
+    ) -> MatrixGeometryBindings {
+        let uuid = |id| {
+            engine
+                .nodes
+                .get(id)
+                .expect("materialized Layer Parameter")
+                .node_data()
+                .meta
+                .uuid
+        };
+        MatrixGeometryBindings {
+            item,
+            position: uuid(self.position.id()),
+            size: uuid(self.canvas_size.id()),
+        }
+    }
+    pub(super) fn geometry_edit(
+        &self,
+        settings: LayerSettings,
+        mode: crate::media::spatial::protocol::RectGeometryMode,
+    ) -> Edit {
+        let mut values = vec![(
+            self.position.id(),
+            ParamValue::Vec2(settings.position[0].into(), settings.position[1].into()),
+        )];
+        if matches!(mode, crate::media::spatial::protocol::RectGeometryMode::Resize { .. }) {
+            values.push((
+                self.canvas_size.id(),
+                ParamValue::Vec2(settings.size.width().into(), settings.size.height().into()),
+            ));
+        }
+        Edit::SetParamsAtomic {
+            values,
+            behaviour: ParameterEventBehaviour::Append,
+        }
+    }
     pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
         self.pulses.claim(action, token)
     }

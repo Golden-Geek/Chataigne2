@@ -1,0 +1,54 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Matrix Layer/Cell spatial controls project ordinary Inspector Parameter drafts through the same Golden mechanism as Composition, including explicit/natural Size and off-page selections.",
+	"gate": "M13/4 Active; functional synchronization slice verified, complete quantitative native acceptance remains open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "14:47", "cutoff_utc": "15:32" },
+	"ownership": "Golden owns typed/optional Parameter reads, enabled-state projection and receipt fences. MapGyver Rust owns bounded exact Layer/Cell Parameter bindings, geometry edits and source/natural-size policy. App adapters project those bindings without copying Inspector behavior or choosing domain defaults.",
+	"changes": [
+		"Matrix editor replies include event fences and at most the requested visible Layers plus their independent selected Layer. Cell-layout replies add the Layer binding, up to128 visible Cells and one independent selected Cell. No extra document scan or recurring polling is introduced.",
+		"Matrix spatial adapters reuse the shared ordinary-write draft publisher and applied-receipt fence. Hidden panels skip live projection; the current snapshot generation and exact UUIDs fence ownership. Receipt state uses WeakRef so retained panels cannot pin a replaced session graph.",
+		"Cell Size enabled state preserves natural-source sizing; optional reads never invent a disabled authored size. Source extents, membership and non-geometry settings stay in authoritative backend DTOs.",
+		"Layer translation writes Position only and preserves a Canvas Size changed after its gesture basis was captured; its returned settings match actual state. Resize writes Position/Canvas Size. Cell geometry writes Position/Size only, preserving unrelated authored f64 opacity exactly."
+	],
+	"software": {
+		"rust": "546 pass/3 ignored with native-preview-smoke,application-process-fixture. Includes exact unrelated opacity preservation through translation/resize, concurrent Layer-size preservation, bounded off-page bindings, sparse reload, public caller parity and generated-contract checks.",
+		"golden_ui": "303 tests pass, including optional value/enabled-state lifetime coverage.",
+		"focused_app_ui": "53 Node tests pass across Composition, Matrix controllers/spatial gestures/readers, projection, pointers and operation receipt forwarding.",
+		"strict": "Strict MapGyver Clippy passes. Both apps report Svelte0errors0warnings. Focused strict TypeScript passes.",
+		"format": "Scoped authored formatting and root/Core Rust formatting required before delivery; generated DTOs retain exact generator formatting."
+	},
+	"bundled_headless": {
+		"binary": "target/debug/deps/MapGyver-m134-matrix-projection.exe",
+		"sha256": "05b28a85b1b1173dbe396987676bd53168fd559f79768171a2fc682252c73dfd",
+		"build_exit": 0,
+		"artifact": "target/m134-matrix-drafts-20261107/result.json",
+		"artifact_sha256": "ff4ba9a9e97ab9afaadd72e6da3cb404905d4351190a6146dc9bf2dd0bc79317",
+		"pid": 5968,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 10,
+		"controls": [
+			"Composition Position",
+			"Matrix Layer Position",
+			"Matrix Layer Canvas Size",
+			"Matrix Cell Position",
+			"Matrix Cell Size"
+		],
+		"every_control": "One real full-app Inspector request is held before engine delivery. Its bound handle/rectangle changes while canonical state remains exactly unchanged. Applied edits produce the expected final geometry and one exact Undo/Redo operation; an intentionally invalid component is rejected and clears its draft without authored/history changes. Position gestures also publish a later queued draft while the first request remains held.",
+		"matrix_scene": "Actual backend-created3x3 Matrix with nine populated Cells, ordinary Layer/Cell selection and generic Inspector controls. No app-state/DOM mutation is used to manufacture draft values.",
+		"page_errors": [],
+		"limits": "Headless Chromium runs the actual bundled frontend and ordinary headless host. No desktop input, GPU/native pixels, presented FPS, pixel alignment or pointer latency is measured. This establishes control/transport/editor behavior only."
+	},
+	"publisher_preflight": {
+		"binary": "target/debug/deps/MapGyver-m134-draft-publisher.exe",
+		"artifact": "target/m134-headless-drafts-settled-20261107/result.json",
+		"sha256": "9736699c72977a720129b9197107a4ccfd54565efaf9740c68a0d57e2387d5fe",
+		"pid": 35332,
+		"cases": 2,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"retained_failure": "target/m134-headless-drafts-20261107/failure.json (SHA2562412b5b1fed8badf061cc3b27e4fc3888d4cb0961ef56aa9f0b368d1d11053c0) passed held draft publication but began rejection immediately after Redo before the displayed baseline settled. The corrected fixture waits for exact canonical baseline agreement; no extra recorder/backend/profiler variant was introduced."
+	},
+	"remaining": "Adopt shared bindings for Screen/Surface geometry and audit Media Preview's relevant authored/presentation paths. Retain actual30+fps, native/DOM alignment, pointer p95/p99, missed/stall metrics, full30-action latency and cancellation/recovery across every required workload/both GPUs/large projects. The user's earlier passing Composition manual check retains its own binary scope. Desktop input remains stopped after the earlier physical Escape; no full acceptance credit or release claim."
+}

@@ -31,6 +31,7 @@ export interface MatrixState {
 	readError: string;
 	interacting: boolean;
 	history: unknown;
+	generation: number | null;
 }
 export const matrixState = (): MatrixState => ({
 	media: null,
@@ -44,7 +45,8 @@ export const matrixState = (): MatrixState => ({
 	error: '',
 	readError: '',
 	interacting: false,
-	history: undefined
+	history: undefined,
+	generation: null
 });
 export class MatrixController<S extends EditorConnection> {
 	private reads = new ReadQueue();
@@ -182,6 +184,7 @@ export class MatrixController<S extends EditorConnection> {
 				this.context = { session, project };
 				this.state.media = result.page.media;
 				this.state.page = result.page;
+				this.state.generation = generation;
 				this.state.window = result.page.snapshot;
 				this.state.selected = result.page.selection;
 				this.state.node = result.page.node;

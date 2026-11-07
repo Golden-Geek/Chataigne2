@@ -45,7 +45,7 @@ test('Inspector drafts reach Composition geometry without waiting for the queued
 		snapshotGeneration: 1,
 		loading: { visible: false },
 		graph: { state: graph },
-		editOperations: { get: () => draft }
+		editOperations: { get: () => draft, enabled: () => undefined }
 	};
 	const reader = editorParameterProjection(host, 1, { tick: 2, micro: 0, seq: 0 });
 	const projected = projectInstanceParameters(instance, bindings, reader);

@@ -22,7 +22,7 @@ export function createLayerEditor(
 				'matrix-geometry',
 				session
 			),
-		invoke: invokeMediaEdit,
+		invoke: (session, edit) => invokeMediaEdit(session, edit, owner.projection.applied()),
 		accepted: (result) => owner.controller.acceptLayer(result),
 		present: (value) => {
 			presentation = value;

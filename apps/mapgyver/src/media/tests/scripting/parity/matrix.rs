@@ -56,11 +56,23 @@ fn cell_layout_is_read_only_and_identical_for_every_public_caller() {
     let mut expected = None;
     for caller in CALLERS {
         let mut engine = loaded(&scene.document);
+        let before_time = engine.time;
         let value = run(&mut engine, caller, MediaEdit::InspectMatrixCells { query }).unwrap();
-        assert_eq!(expected.get_or_insert_with(|| value.clone()), &value);
-        let MediaEditResult::MatrixCellLayout { page } = serde_json::from_value(value).unwrap() else {
+        let MediaEditResult::MatrixCellLayout { page } = serde_json::from_value(value.clone()).unwrap() else {
             panic!()
         };
+        assert!(page.at >= before_time && page.at <= engine.time);
+        let mut direct = crate::matrix::inspect_cells(&engine, query).unwrap();
+        direct.at = page.at;
+        assert_eq!(
+            value,
+            serde_json::to_value(MediaEditResult::MatrixCellLayout { page: direct }).unwrap()
+        );
+        // Event fences and declaration Parameter UUIDs are runtime-local; all other content is canonical.
+        let mut content = value;
+        content["page"].as_object_mut().unwrap().remove("at");
+        content["page"].as_object_mut().unwrap().remove("parameters");
+        assert_eq!(expected.get_or_insert_with(|| content.clone()), &content);
         assert_eq!(page.selected.unwrap().view.cell.id, cell.id);
         assert_eq!(page.cells.len(), 1);
     }
@@ -162,9 +174,16 @@ fn retained_matrix_editor_query_is_identical_and_read_only_for_every_public_call
             selection: None,
             node: None,
         };
+        let before_time = engine.time;
         let value = run(&mut engine, caller, MediaEdit::InspectMatrixEditor { query }).unwrap();
         // Runtime project identities are fresh per load; compare callers inside their exact engine.
-        let expected = crate::matrix::inspect_editor(&engine, query).unwrap();
+        let mut expected = crate::matrix::inspect_editor(&engine, query).unwrap();
+        let actual: MediaEditResult = serde_json::from_value(value.clone()).unwrap();
+        let MediaEditResult::MatrixEditor { page: actual } = actual else {
+            panic!()
+        };
+        assert!(actual.at >= before_time && actual.at <= engine.time);
+        expected.at = actual.at;
         assert_eq!(
             value,
             serde_json::to_value(MediaEditResult::MatrixEditor { page: expected }).unwrap()

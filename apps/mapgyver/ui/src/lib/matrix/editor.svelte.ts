@@ -1,5 +1,8 @@
 import { onDestroy } from 'svelte';
 import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
+import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
+import { createEditorParameterProjection } from 'golden_ui/store/editor-parameter-projection.svelte';
+import { projectMatrixWindow } from '../spatial/parameter-projection';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { MatrixController, matrixState } from './authoring';
 import { invokeMediaEdit } from '../media/operations';
@@ -12,13 +15,25 @@ import { useApplicationRuntime } from '../applications/runtime-context.svelte';
 import type { MatrixEditorQuery } from '../media/generated/MatrixEditorQuery';
 import type { MatrixEdit } from '../media/generated/MatrixEdit';
 export function createMatrixEditor(query: () => MatrixEditorQuery) {
+	const panel = usePanelVisibility();
 	const session = $derived(appState.session),
 		view = $state(matrixState());
 	const controller = new MatrixController<WorkbenchSession>(() => session, view, invokeMediaEdit);
 	const preview = usePreview(),
 		runtime = useApplicationRuntime(),
 		selection = useDocumentSelection();
-	const window = $derived(controller.window);
+	const projection = createEditorParameterProjection(() => session);
+	const parameters = $derived(
+		panel.visible && view.page ? projection.read(view.generation, view.page.at) : null
+	);
+	const bindings = $derived(
+		new Map(view.page?.parameters.map((binding) => [binding.item, binding]) ?? [])
+	);
+	const window = $derived(
+		controller.window && parameters && !view.interacting
+			? projectMatrixWindow(controller.window, bindings, parameters)
+			: controller.window
+	);
 	const observation = $derived(
 		matrixFeedback(
 			window,
@@ -42,6 +57,7 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 	return {
 		view,
 		controller,
+		projection,
 		async edit(intent: MatrixEdit) {
 			const selectParent = selection.capture(),
 				parent = window?.final_output.reference.channel;

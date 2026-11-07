@@ -38,9 +38,14 @@ pub(super) fn layer(
     }
     let rect = edit.apply()?;
     settings.position = rect.position;
-    settings.size = rect.size;
+    if matches!(
+        edit.mode,
+        crate::media::spatial::protocol::RectGeometryMode::Resize { .. }
+    ) {
+        settings.size = rect.size;
+    }
     settings.validate()?;
-    engine.edits.push(node.spatial_edit(settings));
+    engine.edits.push(node.geometry_edit(settings, edit.mode));
     Ok(MediaEditResult::MatrixLayerGeometryChanged { media, layer, settings })
 }
 
@@ -112,7 +117,7 @@ pub(super) fn cell(
             .ok_or("Matrix runtime owner is missing")?
             .binding(),
     );
-    let edits = node.configuration_edits(settings);
+    let edits = node.geometry_edits(settings, matches!(edit, CellGeometryEdit::Resize { .. }));
     for edit in edits {
         engine.edits.push(edit);
     }

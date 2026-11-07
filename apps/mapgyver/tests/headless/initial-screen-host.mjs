@@ -6,7 +6,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function openInitialScreenHeadless(directory) {
+export async function openInitialScreenHeadless(directory, { frontend = false } = {}) {
 	const listener = createServer();
 	listener.listen(0, '127.0.0.1');
 	await once(listener, 'listening');
@@ -16,7 +16,13 @@ export async function openInitialScreenHeadless(directory) {
 	const stop = path.join(directory, 'host.stop');
 	const app = spawn(
 		path.resolve(process.env.MAPGYVER_TEST_BINARY),
-		['--headless', '--no-frontend', '--no-remote', '--automation-shutdown-file', stop],
+		[
+			'--headless',
+			...(frontend ? [] : ['--no-frontend']),
+			'--no-remote',
+			'--automation-shutdown-file',
+			stop
+		],
 		{
 			windowsHide: true,
 			stdio: ['ignore', 'pipe', 'pipe'],

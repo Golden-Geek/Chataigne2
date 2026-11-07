@@ -2,6 +2,42 @@ use super::*;
 use crate::media::spatial::protocol::*;
 use golden_video::{Extent2D, plan::Point};
 
+#[test]
+fn translation_preserves_a_canvas_size_changed_after_the_gesture_basis_was_captured() {
+    let (mut engine, media, row) = arranged();
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureLayer {
+            layer: row,
+            settings: LayerSettings {
+                size: Extent2D::new(123, 87).unwrap(),
+                duration_ms: 777,
+                position: origin().position,
+            },
+        },
+    );
+    let MediaEditResult::MatrixLayerGeometryChanged { settings, .. } = edit(
+        &mut engine,
+        media,
+        request(row, RectGeometryMode::Translate, [20.0, 30.0]),
+    ) else {
+        panic!()
+    };
+    assert_eq!(settings.size, Extent2D::new(123, 87).unwrap());
+    assert_eq!(settings.duration_ms, 777);
+    assert_eq!(
+        inspect(&mut engine, media)
+            .items
+            .iter()
+            .find(|item| item.id == MatrixItemId::Layer { id: row })
+            .unwrap()
+            .layer
+            .unwrap(),
+        settings
+    );
+}
+
 fn origin() -> SpatialRect {
     SpatialRect {
         position: [10.25, -20.5],

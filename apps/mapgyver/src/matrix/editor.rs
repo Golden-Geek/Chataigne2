@@ -68,6 +68,8 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixEditorQuery) -> Result<Ma
     let followed = owner(engine, query.selected);
     let matches = query.document.is_none_or(|expected| expected == document);
     let mut page = MatrixEditorPage {
+        at: engine.time,
+        parameters: Vec::new(),
         document,
         document_matches: matches || (query.locked.is_none() && followed.is_some()),
         media: None,
@@ -140,6 +142,23 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixEditorQuery) -> Result<Ma
     let MediaEditResult::MatrixViewport { snapshot } = super::view::inspect(engine, media, viewport, selection)? else {
         return Err("unexpected Matrix editor projection".into());
     };
+    for row in snapshot
+        .rows
+        .iter()
+        .chain(snapshot.selected.iter().filter_map(|selected| selected.row.as_ref()))
+    {
+        let MatrixItemId::Layer { id } = row.item.id else {
+            continue;
+        };
+        if page.parameters.iter().any(|binding| binding.item == id.0) {
+            continue;
+        }
+        let node = engine.node_id_by_uuid(id.0).ok_or("Layer changed")?;
+        let Some(AppNode::MatrixElement(node)) = engine.nodes.get(node) else {
+            return Err("Layer changed".into());
+        };
+        page.parameters.push(node.geometry_bindings(engine, id.0));
+    }
     page.snapshot = Some(snapshot);
     Ok(page)
 }

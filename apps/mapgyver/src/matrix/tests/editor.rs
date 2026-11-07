@@ -18,6 +18,42 @@ fn query(selected: NodeUuid) -> MatrixEditorQuery {
         node: None,
     }
 }
+
+#[test]
+fn layer_bindings_are_bounded_and_include_the_independent_off_page_selection() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let rows = layers(&mut engine, matrix.media, None, 140);
+    let selected = layer(*rows.last().unwrap());
+    let mut request = query(selected.0);
+    request.viewport.row_count = 4;
+    let history = engine.ui_history_state();
+    let page = read(&mut engine, request);
+    assert_eq!(page.at, engine.time);
+    assert_eq!(page.parameters.len(), 5);
+    assert!(page.parameters.iter().any(|binding| binding.item == selected.0));
+    for binding in page.parameters {
+        for (uuid, declaration) in [
+            (binding.position, "parameters/position"),
+            (binding.size, "parameters/canvas_size"),
+        ] {
+            let parameter = engine.nodes.get(engine.node_id_by_uuid(uuid).unwrap()).unwrap();
+            assert_eq!(parameter.node_data().meta.decl_id.0, declaration);
+            let folder = engine.nodes.get(parameter.node_data().parent.unwrap()).unwrap();
+            assert_eq!(
+                engine
+                    .nodes
+                    .get(folder.node_data().parent.unwrap())
+                    .unwrap()
+                    .node_data()
+                    .meta
+                    .uuid,
+                binding.item
+            );
+        }
+    }
+    assert_eq!(engine.ui_history_state(), history);
+}
 fn read(engine: &mut AppEngine, query: MatrixEditorQuery) -> MatrixEditorPage {
     let payload = serde_json::to_value(MediaEdit::InspectMatrixEditor { query }).unwrap();
     let direct = AppNode::query_app_operation(engine, MEDIA_NAMESPACE, MEDIA_OPERATION, &payload)

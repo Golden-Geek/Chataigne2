@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
 	import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
+	import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
+	import { projectCellLayoutPage } from './parameter-projection';
 	import { appState, IconButton } from 'golden_ui';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { invokeMediaEdit } from '../media/operations';
@@ -31,6 +33,7 @@
 		onlabel(label: string | null): void;
 	} = $props();
 	const state = $state(cellLayoutState());
+	const panel = usePanelVisibility();
 	const reader = new CellLayoutReader(() => appState.session, state, invokeMediaEdit);
 	const geometry = createCellEditor(reader, () => props.present);
 	const selection = useDocumentSelection(),
@@ -49,7 +52,14 @@
 		interacting: () => state.interacting,
 		refresh: (query, resolve) => reader.refresh(query, resolve)
 	});
-	const page = $derived(reader.page),
+	const parameters = $derived(
+		panel.visible && reader.page ? geometry.projection.read(state.generation, reader.page.at) : null
+	);
+	const page = $derived(
+			reader.page && parameters && !state.interacting
+				? projectCellLayoutPage(reader.page, parameters)
+				: reader.page
+		),
 		layer = $derived(page?.row?.item.layer),
 		selected = $derived(
 			(geometry.activeCell

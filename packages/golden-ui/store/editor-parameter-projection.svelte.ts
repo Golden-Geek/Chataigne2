@@ -9,7 +9,7 @@ import {
 /** Shared receipt fence for an editor's own writes as well as its read snapshots. */
 export function createEditorParameterProjection(host: () => EditorParameterProjectionHost | null) {
 	let accepted = $state.raw<{
-		host: EditorParameterProjectionHost;
+		host: WeakRef<EditorParameterProjectionHost>;
 		generation: number;
 		at: EventTime;
 	} | null>(null);
@@ -32,18 +32,19 @@ export function createEditorParameterProjection(host: () => EditorParameterProje
 						ack.success &&
 						at &&
 						(!accepted ||
-							accepted.host !== current ||
+							accepted.host.deref() !== current ||
 							accepted.generation !== generation ||
 							compareEventTime(at, accepted.at) > 0)
 					)
-						accepted = { host: current, generation: current.snapshotGeneration, at };
+						// Retained panels must not pin a replaced session and its document graph.
+						accepted = { host: new WeakRef(current), generation: current.snapshotGeneration, at };
 				}
 			};
 		},
 		read(generation: number | null, at: EventTime) {
 			const current = host();
 			const boundary =
-				accepted?.host === current &&
+				accepted?.host.deref() === current &&
 				accepted.generation === current?.snapshotGeneration &&
 				compareEventTime(accepted.at, at) > 0
 					? accepted.at

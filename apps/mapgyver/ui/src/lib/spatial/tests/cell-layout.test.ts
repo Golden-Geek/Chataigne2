@@ -7,6 +7,8 @@ import type { MatrixLayoutCell } from '../../media/generated/MatrixLayoutCell';
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const query = { media: 'matrix', layer: 'layer', selected: 'cell', node: null, start: 0, count: 4 };
 const page: MatrixCellLayoutPage = {
+	at: { tick: 0, micro: 0, seq: 0 },
+	parameters: [],
 	media: 'matrix',
 	layer: 'layer',
 	row: null,

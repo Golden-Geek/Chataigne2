@@ -52,6 +52,53 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    pub(super) fn geometry_bindings(
+        &self,
+        engine: &AppEngine,
+        item: golden_core::node::NodeUuid,
+    ) -> super::protocol::MatrixGeometryBindings {
+        let uuid = |id| {
+            engine
+                .nodes
+                .get(id)
+                .expect("materialized Cell Parameter")
+                .node_data()
+                .meta
+                .uuid
+        };
+        super::protocol::MatrixGeometryBindings {
+            item,
+            position: uuid(self.position.id()),
+            size: uuid(self.size.id()),
+        }
+    }
+    pub(super) fn geometry_edits(&self, settings: CellSettings, resize: bool) -> Vec<golden_core::edit::Edit> {
+        use golden_core::edit::Edit;
+        let mut values = vec![(
+            self.position.id(),
+            ParamValue::Vec2(settings.position[0].into(), settings.position[1].into()),
+        )];
+        if resize && let Some(size) = settings.size {
+            values.push((
+                self.size.id(),
+                ParamValue::Vec2(size.width().into(), size.height().into()),
+            ));
+        }
+        let mut edits = vec![Edit::SetParamsAtomic {
+            values,
+            behaviour: ParameterEventBehaviour::Append,
+        }];
+        if resize {
+            edits.push(Edit::PatchMeta {
+                node: self.size.id(),
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(settings.size.is_some()),
+                    ..Default::default()
+                },
+            });
+        }
+        edits
+    }
     pub(crate) fn control_parameter(&self, action: super::controls::Action) -> Option<NodeId> {
         match action {
             super::controls::Action::Play => Some(self.play.id()),

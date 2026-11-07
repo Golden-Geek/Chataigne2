@@ -8,6 +8,7 @@ import type { ParamValue, UiNodeDto, UiParamDto } from '../../types';
 
 function fixture() {
 	let draft: ParamValue | undefined;
+	let enabledDraft: boolean | undefined;
 	const graph: GraphState = {
 		rootId: 1,
 		nodesById: new IdentifiedNodeMap([
@@ -28,6 +29,7 @@ function fixture() {
 		loading: { visible: false },
 		graph: { state: graph },
 		editOperations: {
+			enabled: () => enabledDraft,
 			get: (id: number, uuid: string) => (id === 2 && uuid === 'position' ? draft : undefined)
 		}
 	};
@@ -36,11 +38,28 @@ function fixture() {
 		setDraft: (value?: ParamValue) => {
 			draft = value;
 		},
+		setEnabled: (value?: boolean) => {
+			enabledDraft = value;
+		},
 		reader: editorParameterProjection(host, 1, { tick: 5, micro: 0, seq: 0 })
 	};
 }
 
 describe('shared editor Parameter projection', () => {
+	it('reads optional typed values and enabled state without inventing a disabled Parameter value', () => {
+		const { host, reader, setEnabled } = fixture();
+		const node = host.graph.state.nodesById.get(2)!;
+		host.graph.state.nodesById.set(2, { ...node, meta: { enabled: false } as UiNodeDto['meta'] });
+		expect(reader.read('position', 'vec2')).toBeUndefined();
+		expect(reader.enabled('position', true)).toBe(true);
+		host.graph.state.lastEventTime = { tick: 6, micro: 0, seq: 0 };
+		expect(reader.read('position', 'vec2')).toEqual([10, 20]);
+		expect(reader.enabled('position', true)).toBe(false);
+		setEnabled(true);
+		expect(reader.enabled('position', false)).toBe(true);
+		host.snapshotGeneration++;
+		expect(reader.enabled('position', false)).toBe(false);
+	});
 	it('fences graph delivery through the latest applied edit before releasing local presentation', () => {
 		const { host } = fixture();
 		const projection = createEditorParameterProjection(() => host);

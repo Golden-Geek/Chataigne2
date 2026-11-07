@@ -312,6 +312,9 @@ pub struct MatrixEditorQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixEditorPage {
+    pub at: golden_core::engine::EngineTime,
+    /// Geometry Parameters for visible Layers and the independent selected Layer.
+    pub parameters: Vec<MatrixGeometryBindings>,
     pub document: NodeUuid,
     pub document_matches: bool,
     pub media: Option<MediaId>,
@@ -340,6 +343,9 @@ pub struct MatrixLayoutCell {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixCellLayoutPage {
+    pub at: golden_core::engine::EngineTime,
+    /// The Layer and at most128 visible Cells plus one independently selected Cell.
+    pub parameters: Vec<MatrixGeometryBindings>,
     pub media: MediaId,
     pub layer: LayerId,
     pub row: Option<MatrixViewRow>,
@@ -349,6 +355,13 @@ pub struct MatrixCellLayoutPage {
     pub cells: Vec<MatrixLayoutCell>,
     pub selected_id: Option<CellId>,
     pub selected: Option<MatrixLayoutCell>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixGeometryBindings {
+    pub item: NodeUuid,
+    pub position: NodeUuid,
+    pub size: NodeUuid,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixSelectionSnapshot {
