@@ -5,16 +5,53 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual as equal } from 'node:util';
 import { openNativeEditor } from './native-editor.mjs';
+import { execFileSync } from 'node:child_process';
+import { adapterKey } from './native-adapter.mjs';
+import { createGestureQualification } from './gesture-qualification.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
-const native = await openNativeEditor();
+const gpuIndex = process.argv[3] === undefined ? null : Number(process.argv[3]);
+const probe = path.resolve('target/debug/native_qualification.exe');
+const hardware =
+	gpuIndex === null
+		? null
+		: JSON.parse(
+				execFileSync(probe, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })
+			);
+if (hardware)
+	assert(
+		Number.isInteger(gpuIndex) &&
+			hardware.adapters[gpuIndex] &&
+			!hardware.adapters[gpuIndex].software
+	);
+const native = await openNativeEditor({
+	prepareProfile: hardware
+		? async (root) => {
+				const folder = path.join(root, 'MapGyver');
+				await mkdir(folder, { recursive: true });
+				execFileSync(
+					probe,
+					[
+						'--role',
+						'gpu-preferences',
+						'--file',
+						path.join(folder, 'preferences.json'),
+						'--selected',
+						adapterKey(hardware.adapters[gpuIndex].id)
+					],
+					{ windowsHide: true }
+				);
+			}
+		: undefined
+});
 const page = native.page;
 page.setDefaultTimeout(9000);
 let token,
 	stage = 'setup',
 	hold = false,
-	closing = false;
+	closing = false,
+	qualification;
 const held = [],
 	requests = [],
 	receipts = [],
@@ -138,6 +175,12 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 		(v) => !near(v, first)
 	);
 	assert.equal(held.length, 1, 'one in-flight request only');
+	await qualification?.pending({ name, svg, control, initial, latest });
+	assert.deepEqual(
+		await inspect(),
+		before,
+		'native presentation/output observation cannot author the held edit'
+	);
 	const old = held.shift();
 	old.server.send(old.message);
 	await wait(
@@ -186,6 +229,7 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 		old_receipt_no_rewind: true,
 		canonical_undo_redo: true
 	});
+	await qualification?.after(name);
 }
 try {
 	await page.reload();
@@ -200,6 +244,13 @@ try {
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
 	});
+	if (hardware) {
+		await edit({
+			kind: 'ConfigureChannel',
+			reference: source,
+			source: { kind: 'SolidColor', rgba: [1, 0, 0, 1] }
+		});
+	}
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -246,6 +297,68 @@ try {
 	const cell = (await matrixSnapshot()).cells.find(
 		(c) => c.layer === layer && c.definition.column === column
 	).id;
+	// Complete document topology before the continuous output observation starts.
+	const { reference: composition } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Composition',
+		label: 'Gesture Composition'
+	});
+	await edit({
+		kind: 'ConfigureMediaResolution',
+		media: composition.media,
+		size: { kind: 'Fixed', extent: { width: 400, height: 300 } }
+	});
+	const comp = (value) => edit({ kind: 'Composition', reference: composition, edit: value });
+	const { instances } = await comp({ kind: 'AddInstances', sources: [source] });
+	const compSnapshot = async () => (await comp({ kind: 'Inspect' })).snapshot;
+	const original = (await compSnapshot()).instances[0];
+	await comp({
+		kind: 'ConfigureInstance',
+		instance: instances[0].instance,
+		definition: {
+			...original.definition,
+			transform: { position: [190, 140], scale: [1, 1], rotation_degrees: 23, pivot: [0.5, 0.5] }
+		}
+	});
+	const { screen, surface } = await screens({ kind: 'CreateScreen', label: 'Gesture Screen' });
+	await screens({ kind: 'RenameSurface', reference: surface, label: 'Gesture Surface' });
+	await screens({
+		kind: 'ConfigureScreen',
+		screen,
+		definition: {
+			enabled: true,
+			target: { kind: 'Spout', sender: `Gesture-${screen}`, extent: { width: 640, height: 360 } }
+		}
+	});
+	const surfaceSnapshot = async () =>
+		(await screens({ kind: 'InspectSurface', reference: surface })).snapshot;
+	const initialSurface = await surfaceSnapshot();
+	await screens({
+		kind: 'ConfigureSurface',
+		reference: surface,
+		definition: {
+			...initialSurface.definition,
+			source,
+			crop: { x: 0.2, y: 0.2, width: 0.5, height: 0.5 },
+			quad: {
+				corners: [
+					{ x: 0.2, y: 0.2 },
+					{ x: 0.8, y: 0.2 },
+					{ x: 0.8, y: 0.8 },
+					{ x: 0.2, y: 0.8 }
+				]
+			}
+		}
+	});
+	if (hardware)
+		qualification = await createGestureQualification({
+			native,
+			directory,
+			post,
+			source,
+			hardware,
+			gpuIndex
+		});
 	await tab('Medias').click();
 	await page
 		.locator('[data-panel-id="media-manager"]')
@@ -284,28 +397,6 @@ try {
 		async () => (await matrixSnapshot()).cells.find((c) => c.id === cell).definition.settings,
 		1.01
 	);
-	const { reference: composition } = await edit({
-		kind: 'CreateMedia',
-		media_kind: 'Composition',
-		label: 'Gesture Composition'
-	});
-	await edit({
-		kind: 'ConfigureMediaResolution',
-		media: composition.media,
-		size: { kind: 'Fixed', extent: { width: 400, height: 300 } }
-	});
-	const comp = (value) => edit({ kind: 'Composition', reference: composition, edit: value });
-	const { instances } = await comp({ kind: 'AddInstances', sources: [source] });
-	const compSnapshot = async () => (await comp({ kind: 'Inspect' })).snapshot;
-	const original = (await compSnapshot()).instances[0];
-	await comp({
-		kind: 'ConfigureInstance',
-		instance: instances[0].instance,
-		definition: {
-			...original.definition,
-			transform: { position: [190, 140], scale: [1, 1], rotation_degrees: 23, pivot: [0.5, 0.5] }
-		}
-	});
 	await tab('Medias').click();
 	const manager = page.locator('section[aria-label="Medias"]');
 	const parent = manager.getByRole('treeitem', { name: 'Gesture Composition', exact: true });
@@ -341,35 +432,6 @@ try {
 		compPanel.locator('[data-instance-resize="BottomRight"]'),
 		transform
 	);
-	const { screen, surface } = await screens({ kind: 'CreateScreen', label: 'Gesture Screen' });
-	await screens({
-		kind: 'ConfigureScreen',
-		screen,
-		definition: {
-			enabled: true,
-			target: { kind: 'Spout', sender: `Gesture-${screen}`, extent: { width: 640, height: 360 } }
-		}
-	});
-	const surfaceSnapshot = async () =>
-		(await screens({ kind: 'InspectSurface', reference: surface })).snapshot;
-	const initialSurface = await surfaceSnapshot();
-	await screens({
-		kind: 'ConfigureSurface',
-		reference: surface,
-		definition: {
-			...initialSurface.definition,
-			source,
-			crop: { x: 0.2, y: 0.2, width: 0.5, height: 0.5 },
-			quad: {
-				corners: [
-					{ x: 0.2, y: 0.2 },
-					{ x: 0.8, y: 0.2 },
-					{ x: 0.8, y: 0.8 },
-					{ x: 0.2, y: 0.8 }
-				]
-			}
-		}
-	});
 	await tab('Screens').click();
 	const tree = page.locator('section[aria-label="Screens"]');
 	const screenRow = tree.getByRole('treeitem', { name: 'Gesture Screen', exact: true });
@@ -420,6 +482,7 @@ try {
 		),
 		JSON.stringify(receipts.filter((r) => r.phase !== 'applied'))
 	);
+	const qualified = await qualification?.finish();
 	await writeFile(
 		path.join(directory, 'result.json'),
 		JSON.stringify(
@@ -431,8 +494,10 @@ try {
 				requests,
 				receipts,
 				errors,
-				scope:
-					'Functional bundled-app local geometry and history; no presented pixels or high-refresh timing claim'
+				qualification: qualified,
+				scope: qualified
+					? qualified.scope
+					: 'Functional bundled-app local geometry and history; no presented pixels or high-refresh timing claim'
 			},
 			null,
 			2
@@ -453,5 +518,9 @@ try {
 	throw error;
 } finally {
 	closing = true;
-	await native.close();
+	try {
+		await qualification?.close();
+	} finally {
+		await native.close();
+	}
 }

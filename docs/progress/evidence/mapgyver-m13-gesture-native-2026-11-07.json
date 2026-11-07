@@ -1,0 +1,76 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; Intel pending-overlay/output-continuity slice verified, NVIDIA comparison pending",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"drivers": {
+		"functional": "apps/mapgyver/tests/browser/native-gesture-presentation.mjs",
+		"native": "apps/mapgyver/tests/browser/gesture-qualification.mjs",
+		"physical_pixels": "apps/mapgyver/tests/native/pending_overlay.py",
+		"activation": "Supported computer-use skill @oai/sky returned the unique owned executable window, activated it and captured state; no user app or display settings changed.",
+		"prerequisites": "Prior current UI/software and isolated native build passed. New Node syntax and Python compilation checks passed before native validation. No product/Rust/protocol change in this qualification slice."
+	},
+	"binary": {
+		"path": "target/debug/deps/MapGyver-m134-gesture.exe",
+		"sha256": "ea8a0b65b63338c405dcf86e0e46bb03929c5cf046b401138801a3aef42cb54a",
+		"feature_commit": "93c42c9c47966b756b2b38b3b1189963d63ea910"
+	},
+	"intel": {
+		"result": "pass",
+		"artifacts": "target/m134-pending-qual-intel-arranged",
+		"pid": 10872,
+		"app_exit": 0,
+		"fixture_exit": 0,
+		"gpu": { "index": 0, "key": "dxgi:00000000:00015b69", "description": "Intel(R) Graphics" },
+		"functional": "All six real held-request geometry/history cases pass. Backend state remains unchanged throughout pending native-hit/pixel observation. Older receipts cannot rewind newer geometry, final canonical state settles and Undo/Redo matches exactly.",
+		"screen_pending": {
+			"current_edge_error_physical_px": 0.37110123083244856,
+			"stale_edge_blue_within_5px": false,
+			"native_hit": "Exact selected Surface corner0 at current DOM handle center"
+		},
+		"source_pending": {
+			"current_edge_error_physical_px": 0.37545355745113485,
+			"stale_edge_blue_within_5px": false,
+			"native_hit": "crop:0 at current DOM handle center"
+		},
+		"pixel_oracle": "Visible composited foreground pixels, exact owned PID/HWND, stable physical bounds/client placement, independently read DOM edge midpoint and DPR. The latest pending edge must have blue stroke pixels within2 physical px; the stale canonical edge must not. Native accepted-frame hit IDs are also queried independently through the public Pointer command.",
+		"dpi": { "dpr": 1.25, "window_dpi": 120 },
+		"output": {
+			"consumer_exit": 0,
+			"independent_sdk_copies": 690,
+			"logged_frames": 690,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 3221235458,
+			"first_frame": 61,
+			"last_frame": 752,
+			"maximum_receive_gap_ms": 50.068,
+			"pixel_checks": "Seven independent complete96x64 red-image checks: before gestures and after every geometry/history case. Output source is unchanged and independent of the edited previews.",
+			"limits": "Functional output continuity only; observed receive gaps are retained and are not cadence/performance acceptance. This does not qualify original production budgets."
+		},
+		"requests": 618,
+		"receipts": 618,
+		"unexpected_rejections": [],
+		"page_errors": [],
+		"display_observation": "Owned-window computer-use capture shows200Hz in the app footer, not proof of the required actual240Hz input/presented-frame qualification. No refresh settings changed."
+	},
+	"failed_baseline": {
+		"artifacts": "target/m134-pending-qual-intel",
+		"pid": 43120,
+		"fixture_exit": 1,
+		"finding": "All six geometry/history cases and both pending physical/native-hit checks passed, but the consumer recorded105 absent observations and one shared-handle replacement. This fixture still created Composition/Screen topology while observation was active.",
+		"handle_transition": {
+			"after_first_receive_ms": 6530.9929,
+			"from": 2147489218,
+			"to": 1073747778,
+			"new_handle_frame": 1
+		},
+		"correction": "Arrange every edited scene and output before starting the gesture-only consumer interval. The second Intel run passes with no absent observations and one stable handle. The baseline remains failed; topology-change continuity is not accepted or explained away.",
+		"retained_followup": "Inspect the recorded output replacement during scene/output topology creation before claiming continuity for those operations. The qualified interval covers gestures/history in an already arranged document."
+	},
+	"nvidia": {
+		"state": "Pending",
+		"next_action": "Run the unchanged verified arranged-scene fixture on exact hardware adapter1, activate its newly returned owned window, and compare the same physical/native-hit/output assertions."
+	},
+	"remaining": "NVIDIA comparison; Composition/Matrix visible geometry alignment; actual240Hz real-input presented pacing, long stalls and pointer-to-visible p95/p99; larger/fully populated3x3 workloads; ordinary controls/scroll/dock and silent-intent audit. Screen-creation/topology continuity observation retained. Original budgets and return-queue gates unchanged; no gate accepted."
+}
