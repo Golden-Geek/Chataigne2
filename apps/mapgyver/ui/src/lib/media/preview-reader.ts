@@ -2,8 +2,8 @@ import type { MediaPreviewQuery } from './generated/MediaPreviewQuery';
 import type { MediaPreviewPage } from './generated/MediaPreviewPage';
 import type { MediaEdit } from './generated/MediaEdit';
 import type { MediaEditResult } from './generated/MediaEditResult';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import { EditorReadQueue as ReadQueue } from 'golden_ui/store/editor-read-queue';
 
 export const previewReadState = () => ({
 	page: null as MediaPreviewPage | null,
@@ -17,7 +17,7 @@ interface PreviewConnection extends Connection {
 export class MediaPreviewReader<S extends PreviewConnection> {
 	private reads = new ReadQueue();
 	private disposed = false;
-	private current: (() => boolean) | null = null;
+	private key = '';
 	private displayed: (() => boolean) | null = null;
 	private session: () => S | null;
 	readonly state: ReturnType<typeof previewReadState>;
@@ -35,12 +35,11 @@ export class MediaPreviewReader<S extends PreviewConnection> {
 		const page = this.state.page;
 		return this.displayed?.() ? page : null;
 	}
-	refresh(query: MediaPreviewQuery) {
+	refresh(query: MediaPreviewQuery, resolve = false) {
 		// The native renderer outlives the graph transport. Preserve its valid presentation
 		// through selection, reconnect and same-project snapshots, independently of reads.
 		const retain = this.displayed?.() && this.state.page?.document_matches;
-		this.reads.invalidate();
-		this.current = null;
+		if (resolve) this.reads.invalidate();
 		if (!retain) this.state.page = null;
 		if (!retain) this.displayed = null;
 		this.state.loading = false;
@@ -52,11 +51,13 @@ export class MediaPreviewReader<S extends PreviewConnection> {
 			session.status !== 'connected' ||
 			session.loading.visible ||
 			session.projectGeneration === null
-		)
+		) {
+			this.reads.invalidate();
 			return;
+		}
 		const generation = session.snapshotGeneration,
 			project = session.projectGeneration,
-			history = session.currentHistoryStateId;
+			key = JSON.stringify(query);
 		// Project replacement/loading still fences the old view. A snapshot refresh or
 		// lost graph socket alone does not end the backend's project/native-view lifetime.
 		const displayed = () =>
@@ -65,17 +66,16 @@ export class MediaPreviewReader<S extends PreviewConnection> {
 			!session.loading.visible &&
 			session.projectGeneration === project;
 		this.displayed = displayed;
-		if (session.hasActiveEditSession) return;
+		this.key = key;
 		const current = () =>
-			this.current === current &&
+			this.key === key &&
 			displayed() &&
 			session.status === 'connected' &&
-			session.snapshotGeneration === generation &&
-			!session.hasActiveEditSession &&
-			session.currentHistoryStateId === history;
-		this.current = current;
+			session.snapshotGeneration === generation;
 		this.state.loading = true;
-		this.reads.request(
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectMediaPreview', query }),
 			(result) => {
@@ -96,7 +96,7 @@ export class MediaPreviewReader<S extends PreviewConnection> {
 	}
 	dispose() {
 		this.disposed = true;
-		this.current = null;
+		this.key = '';
 		this.displayed = null;
 		this.reads.invalidate();
 		this.state.page = null;

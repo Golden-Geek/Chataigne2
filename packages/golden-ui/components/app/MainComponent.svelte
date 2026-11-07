@@ -20,6 +20,10 @@
 	import { goldenDockviewTheme } from '../../dockview/goldenDockviewTheme';
 	import { createGoldenTabRenderer } from '../../dockview/createGoldenTabRenderer';
 	import { PanelContentBindings } from '../../dockview/panel-content-binding';
+	import {
+		createPanelVisibility,
+		panelVisibilityContext
+	} from '../../dockview/panel-visibility.svelte';
 
 	import type {
 		PanelApi,
@@ -214,6 +218,7 @@
 		const PanelComponent = panelDefinition?.component ?? UnknownPanel;
 
 		let mountedPanel: MountedPanel | undefined;
+		let visibility: ReturnType<typeof createPanelVisibility> | undefined;
 		let panelState: PanelState = {
 			panelId: options.id,
 			panelType: options.name,
@@ -266,8 +271,11 @@
 					}
 				};
 
+				visibility = createPanelVisibility(panelApi);
+				const context = new Map(panelContext);
+				context.set(panelVisibilityContext, visibility);
 				mountedPanel = mount(PanelComponent, {
-					context: panelContext,
+					context,
 					target: hostElement,
 					props: {
 						panelApi,
@@ -287,6 +295,7 @@
 				mountedPanel?.setPanelState(panelState);
 			},
 			dispose: (): void => {
+				visibility?.dispose();
 				contentBindings.set(options.id, null);
 				if (!mountedPanel) {
 					return;

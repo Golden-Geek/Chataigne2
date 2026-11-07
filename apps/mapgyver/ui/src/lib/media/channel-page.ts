@@ -1,8 +1,8 @@
 import type { MediaChannelsPage } from './generated/MediaChannelsPage';
 import type { MediaEdit } from './generated/MediaEdit';
 import type { MediaEditResult } from './generated/MediaEditResult';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import { ReadQueue } from 'golden_ui/store/bounded-read-queue';
 
 export const CHANNEL_PAGE_SIZE = 32;
 export const channelPageState = () => ({

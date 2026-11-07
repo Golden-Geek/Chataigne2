@@ -53,6 +53,25 @@ fn settings(engine: &mut AppEngine, media: MediaId, cell: CellId) -> CellSetting
         .definition
         .settings
 }
+
+#[test]
+fn cell_geometry_publishes_parameters_without_catalog_invalidation() {
+    use golden_core::events::EventKind;
+    let (mut engine, media, _, _, cell, _) = arranged(None);
+    engine.clear_ui_event_log();
+    geometry(&mut engine, media, cell, translate([10.25, -20.5], [20.0, 30.0]));
+    let events = engine.ui_events_since(None);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == MEDIA_NAMESPACE))
+    );
+}
 fn translate(origin: [f32; 2], delta: [f32; 2]) -> CellGeometryEdit {
     CellGeometryEdit::Translate {
         origin,

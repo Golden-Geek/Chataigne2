@@ -1,5 +1,8 @@
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import {
+	EditorReadQueue as ReadQueue,
+	editorHistoryMatches
+} from 'golden_ui/store/editor-read-queue';
 import type { MatrixCellLayoutPage } from '../media/generated/MatrixCellLayoutPage';
 import type { MatrixCellLayoutQuery } from '../media/generated/MatrixCellLayoutQuery';
 import type { MediaEdit } from '../media/generated/MediaEdit';
@@ -51,11 +54,11 @@ export class CellLayoutReader<S extends Host> {
 			session?.status !== 'connected' ||
 			session.loading.visible ||
 			session.hasActiveEditSession === true ||
-			this.state.history !== session.currentHistoryStateId ||
+			!editorHistoryMatches(session, this.state.history) ||
 			this.state.generation !== session.snapshotGeneration
 		);
 	}
-	refresh(query?: MatrixCellLayoutQuery) {
+	refresh(query?: MatrixCellLayoutQuery, resolve = false) {
 		if (this.disposed) return;
 		if (query) this.query = query;
 		if (!this.query) return;
@@ -69,15 +72,15 @@ export class CellLayoutReader<S extends Host> {
 			this.state.page = null;
 			this.state.error = '';
 		}
-		if (this.state.interacting || session?.hasActiveEditSession) return;
-		this.reads.invalidate();
+		if (this.state.interacting) return;
+		if (resolve) this.reads.invalidate();
 		if (
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
-			session.projectGeneration === null ||
-			session.hasActiveEditSession
+			session.projectGeneration === null
 		) {
+			this.reads.invalidate();
 			this.state.refreshing = false;
 			return;
 		}
@@ -94,9 +97,11 @@ export class CellLayoutReader<S extends Host> {
 			!session.loading.visible &&
 			session.snapshotGeneration === generation &&
 			session.projectGeneration === project &&
-			session.currentHistoryStateId === history &&
-			this.key === key;
-		this.reads.request(
+			this.key === key &&
+			!this.state.interacting;
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectMatrixCells', query: request }),
 			(result) => {

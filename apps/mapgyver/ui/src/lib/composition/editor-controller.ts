@@ -4,8 +4,11 @@ import type { CompositionEdit } from '../media/generated/CompositionEdit';
 import type { InstanceSnapshot } from '../media/generated/InstanceSnapshot';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import {
+	EditorReadQueue as ReadQueue,
+	editorHistoryMatches
+} from 'golden_ui/store/editor-read-queue';
 
 export const createCompositionEditorState = () => ({
 	page: null as CompositionEditorPage | null,
@@ -67,7 +70,7 @@ export class CompositionEditorController<S extends Connection> {
 			session?.status !== 'connected' ||
 			session.loading.visible ||
 			(this.state.page !== null &&
-				(this.state.presentedHistory !== session.currentHistoryStateId ||
+				(!editorHistoryMatches(session, this.state.presentedHistory) ||
 					this.state.presentedGeneration !== session.snapshotGeneration ||
 					this.context?.session !== session ||
 					this.context.generation !== session.snapshotGeneration))
@@ -82,7 +85,7 @@ export class CompositionEditorController<S extends Connection> {
 			session.snapshotGeneration === generation
 		);
 	}
-	refresh(query = this.query) {
+	refresh(query = this.query, resolve = false) {
 		if (this.disposed || !query) return;
 		this.query = query;
 		const session = this.getSession();
@@ -101,22 +104,21 @@ export class CompositionEditorController<S extends Connection> {
 		}
 		this.context = { session, generation };
 		// Keep admitted geometry and loaded widgets usable while a grouped edit is held.
-		if (this.state.pending || this.state.interacting || session.hasActiveEditSession) return;
+		if (this.state.pending || this.state.interacting) return;
 		const key = JSON.stringify(query),
 			history = session.currentHistoryStateId;
-		if (key !== this.queryKey) {
+		if (resolve || key !== this.queryKey) {
 			this.state.resolving = true;
 			this.state.error = '';
 		}
 		this.queryKey = key;
-		this.reads.invalidate();
+		if (resolve) this.reads.invalidate();
 		this.state.refreshing = true;
 		const current = () =>
-			this.current(session, generation) &&
-			!session.hasActiveEditSession &&
-			session.currentHistoryStateId === history &&
-			this.queryKey === key;
-		this.reads.request(
+			this.current(session, generation) && !this.state.interacting && this.queryKey === key;
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectCompositionEditor', query }),
 			(result) => {
@@ -145,6 +147,7 @@ export class CompositionEditorController<S extends Connection> {
 	}
 	setInteracting(active: boolean) {
 		this.state.interacting = active;
+		if (active) this.reads.invalidate();
 	}
 	acceptInstance(snapshot: InstanceSnapshot) {
 		const page = this.state.page,

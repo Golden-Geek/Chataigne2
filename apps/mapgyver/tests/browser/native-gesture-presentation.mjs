@@ -1,6 +1,6 @@
 // Actual bundled WebView; hold real requests through documented WebSocket routing.
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual as equal } from 'node:util';
@@ -11,10 +11,17 @@ import { createGestureQualification } from './gesture-qualification.mjs';
 import { createMixedGestureSources } from './gesture-mixed-sources.mjs';
 import { createEmptyGestureScenes, verifyEmptyGestureScenes } from './gesture-empty-scenes.mjs';
 import { verifyWorkbenchControls } from './gesture-workbench-controls.mjs';
+import { heldEditorInput } from './held-editor-input.mjs';
+import { contentLock } from './content-lock.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
-const gpuIndex = process.argv[3] === undefined ? null : Number(process.argv[3]);
+const gpuIndex =
+	process.argv[3] === undefined || process.argv[3].startsWith('--')
+		? null
+		: Number(process.argv[3]);
+const liveSync = process.argv.includes('--live-sync');
+const sharedTexture = process.argv.includes('--shared-texture');
 const mixed = process.argv.includes('--mixed-media');
 const workbench = process.argv.includes('--workbench-controls');
 const populated = process.argv.includes('--populated-3x3') || mixed;
@@ -73,6 +80,9 @@ let token,
 let mixedSources,
 	emptyReports = [],
 	workbenchReport;
+let livePreview = null;
+let livePreviewId = null;
+const liveChecks = [];
 const held = [],
 	requests = [],
 	receipts = [],
@@ -161,6 +171,25 @@ const values = (shape) =>
 	);
 const near = (a, b, tolerance = 0.00001) =>
 	a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < tolerance);
+async function liveInput(name, shape, control, inspector = false) {
+	stage = name;
+	liveChecks.push(
+		await heldEditorInput({
+			page,
+			name,
+			shape,
+			control,
+			inspector,
+			preview: livePreview?.locator('.native-preview')
+		})
+	);
+}
+async function liveInspector(name, shape) {
+	const row = page
+		.locator('.parameter-inspector')
+		.filter({ has: page.getByText('Position', { exact: true }) });
+	await liveInput(name, shape, row.locator('.infinite-slider').first(), true);
+}
 async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) {
 	stage = name;
 	await wait(
@@ -244,9 +273,12 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 	const after = await inspect();
 	assert(!equal(after, before));
 	const final = await values(shape);
+	const maximumCoordinateError = Math.max(
+		...final.map((value, index) => Math.abs(value - latest[index]))
+	);
 	assert(
 		near(final, latest, tolerance),
-		'final canonical geometry settles at the latest hint within the authored type precision'
+		`canonical geometry exceeds authored precision: ${JSON.stringify({ latest, final, maximumCoordinateError, tolerance })}`
 	);
 	await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	await wait(inspect, (v) => equal(v, before));
@@ -263,6 +295,7 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 		held_first: first,
 		held_latest: latest,
 		final,
+		maximum_coordinate_error: maximumCoordinateError,
 		one_inflight: true,
 		old_receipt_no_rewind: true,
 		canonical_undo_redo: true
@@ -280,7 +313,7 @@ try {
 		? mixedSources.records[0]
 		: await edit({
 				kind: 'CreateMedia',
-				media_kind: 'SolidColor',
+				media_kind: sharedTexture ? 'SharedTexture' : 'SolidColor',
 				label: 'Gesture source'
 			});
 	await edit({
@@ -288,7 +321,13 @@ try {
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
 	});
-	if (!mixed && (hardware || populated)) {
+	if (sharedTexture)
+		await edit({
+			kind: 'ConfigureChannel',
+			reference: source,
+			source: { kind: 'Spout', sender: 'Spout Demo Sender' }
+		});
+	if (!sharedTexture && !mixed && (hardware || populated)) {
 		await edit({
 			kind: 'ConfigureChannel',
 			reference: source,
@@ -440,6 +479,21 @@ try {
 		}
 	});
 	const emptyScene = mixed ? await createEmptyGestureScenes(edit, screens) : null;
+	if (liveSync) {
+		await writeFile(
+			path.join(directory, 'ready.json'),
+			JSON.stringify({
+				pid: native.app.pid,
+				binary: process.env.MAPGYVER_TEST_BINARY,
+				shared_texture: sharedTexture
+			})
+		);
+		const until = Date.now() + 180000;
+		while (!(await stat(path.join(directory, 'activated')).catch(() => null))) {
+			assert(Date.now() < until, 'owned live-editor foreground readiness expired');
+			await delay(100);
+		}
+	}
 	if (hardware)
 		qualification = await createGestureQualification({
 			native,
@@ -464,6 +518,25 @@ try {
 		.click();
 	await tab('Matrix').click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+	if (liveSync) {
+		const group = tab('Medias').locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]');
+		await group.getByRole('button', { name: 'Add panel in this group', exact: true }).click();
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('Media Preview', { exact: true }) })
+			.click();
+		livePreview = page.locator('.media-preview-panel:visible');
+		const previewId = await livePreview.getAttribute('data-panel-id');
+		assert(previewId);
+		livePreviewId = previewId;
+		livePreview = page.locator(`.media-preview-panel[data-panel-id="${previewId}"]`);
+		await wait(
+			() => livePreview.getAttribute('data-preview-media'),
+			(value) => value === reference.media
+		);
+		await (await contentLock(livePreview, false)).click();
+		await livePreview.locator('.native-preview[data-preview-state="available"]').waitFor();
+	}
 	if (populated)
 		await qualification?.grid({ phase: 'populated-before-gestures', snapshot, colors });
 	await grid.getByTitle('Select Layer 1', { exact: true }).click();
@@ -481,10 +554,20 @@ try {
 		async () => (await matrixSnapshot()).items.find((i) => i.id.id === layer).layer,
 		1.01
 	);
+	if (liveSync) {
+		await liveInput('Matrix Layer live canvas', layerRect, layerRect);
+		await liveInspector('Matrix Layer live Inspector', layerRect);
+	}
 	await tab('Matrix').click();
-	await grid
-		.getByTitle(`${snapshot.items[0].label} / ${snapshot.columns[0].label}`, { exact: true })
-		.click({ position: { x: 5, y: 5 } });
+	const firstCell = grid.getByTitle(`${snapshot.items[0].label} / ${snapshot.columns[0].label}`, {
+		exact: true
+	});
+	const firstCellBounds = await firstCell.boundingBox();
+	assert(firstCellBounds);
+	// The accepted Matrix controls occupy the top-left; select its ordinary image area.
+	await firstCell.click({
+		position: { x: firstCellBounds.width * 0.72, y: firstCellBounds.height * 0.5 }
+	});
 	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	await panel.getByRole('button', { name: 'Edit Layer Cells', exact: true }).click();
 	const cellSvg = panel.getByRole('group', { name: 'Matrix Cell layout controls', exact: true });
@@ -497,10 +580,24 @@ try {
 		async () => (await matrixSnapshot()).cells.find((c) => c.id === cell).definition.settings,
 		1.01
 	);
+	if (liveSync) {
+		await liveInput('Matrix Cell live canvas', cellRect, cellRect);
+		await liveInspector('Matrix Cell live Inspector', cellRect);
+	}
 	await tab('Medias').click();
 	const manager = page.locator('section[aria-label="Medias"]');
 	const parent = manager.getByRole('treeitem', { name: 'Gesture Composition', exact: true });
 	await parent.getByRole('button', { name: 'Gesture Composition', exact: true }).click();
+	if (liveSync) {
+		await page.locator(`.gc-dv-tab[data-content-panel-id="${livePreviewId}"]`).click();
+		await (await contentLock(livePreview, true)).click();
+		await wait(
+			() => livePreview.getAttribute('data-preview-media'),
+			(value) => value === composition.media
+		);
+		await (await contentLock(livePreview, false)).click();
+		await tab('Medias').click();
+	}
 	if ((await parent.getAttribute('aria-expanded')) === 'false') {
 		await parent.focus();
 		await parent.press('ArrowRight');
@@ -509,6 +606,9 @@ try {
 	await parent.focus();
 	await page.keyboard.press('ArrowRight');
 	await page.keyboard.press('Enter');
+	if (liveSync) {
+		await page.locator(`.gc-dv-tab[data-content-panel-id="${livePreviewId}"]`).click();
+	}
 	const compPanel = page.locator('section[aria-label="Composition"]');
 	const compSvg = compPanel.getByRole('group', {
 		name: 'Composition transform controls',
@@ -525,12 +625,22 @@ try {
 		compPanel.locator('[data-instance-handle="Translate"]'),
 		transform
 	);
+	if (liveSync) {
+		await liveInput(
+			'Composition live canvas',
+			compShape,
+			compPanel.locator('[data-instance-handle="Translate"]')
+		);
+		await liveInspector('Composition live Inspector', compShape);
+	}
 	await gesture(
 		'Composition rotated resize',
 		compSvg,
 		compShape,
 		compPanel.locator('[data-instance-resize="BottomRight"]'),
-		transform
+		transform,
+		// Canvas-pixel f32 transforms at400px have an ULP above0.00001.
+		0.0001
 	);
 	await tab('Screens').click();
 	const tree = page.locator('section[aria-label="Screens"]');
@@ -604,6 +714,7 @@ try {
 				app_pid: native.app.pid,
 				browser: native.browser.version(),
 				checks,
+				live_checks: liveChecks,
 				workbench: workbenchReport,
 				workload: {
 					populated_3x3: populated,
@@ -628,10 +739,20 @@ try {
 		JSON.stringify({ result: 'pass', checks: checks.map((c) => c.name), app_pid: native.app.pid })
 	);
 } catch (error) {
+	await page.screenshot({ path: path.join(directory, 'failure.png') }).catch(() => {});
 	await writeFile(
 		path.join(directory, 'failure.json'),
 		JSON.stringify(
-			{ stage, error: String(error), checks, requests, receipts, errors, log: native.log() },
+			{
+				stage,
+				error: String(error),
+				checks,
+				live_checks: liveChecks,
+				requests,
+				receipts,
+				errors,
+				log: native.log()
+			},
 			null,
 			2
 		)

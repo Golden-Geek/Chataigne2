@@ -12,7 +12,8 @@ const session = () => ({
 	snapshotGeneration: 1,
 	currentHistoryStateId: 1,
 	loading: { visible: false },
-	hasActiveEditSession: false
+	hasActiveEditSession: false,
+	editSessionEpoch: 0
 });
 const query = (selected = 'owner'): CompositionEditorQuery => ({
 	selected,
@@ -106,7 +107,46 @@ test('each panel owns one bounded active read and one latest replacement, withou
 	assert.equal(editor.channel?.label, 'latest');
 });
 
-test('selected definitions stay editable off page and live geometry does not trigger reads', async () => {
+test('Inspector edits publish continuously inside a group while later reads queue', async () => {
+	const host = session(),
+		state = createCompositionEditorState(),
+		first = deferred(),
+		last = deferred();
+	let calls = 0;
+	const editor = new CompositionEditorController(
+		() => host,
+		state,
+		() => {
+			calls++;
+			return calls === 1 ? Promise.resolve(reply()) : calls === 2 ? first.promise : last.promise;
+		}
+	);
+	editor.refresh(query());
+	await flush();
+	host.hasActiveEditSession = true;
+	host.editSessionEpoch++;
+	editor.refresh();
+	for (let index = 0; index < 20; index++) {
+		host.currentHistoryStateId++;
+		editor.refresh();
+	}
+	const live = reply();
+	if (live.kind !== 'CompositionEditor' || !live.page.selected) throw Error();
+	live.page.selected.definition.transform.position = [20, 30];
+	first.resolve(live);
+	await flush();
+	assert.deepEqual(editor.instance?.definition.transform.position, [20, 30]);
+	assert.equal(calls, 3);
+	assert.equal(editor.busy, false);
+	host.hasActiveEditSession = false;
+	host.editSessionEpoch++;
+	last.resolve(reply('stale'));
+	await flush();
+	assert.equal(editor.channel?.label, 'owner');
+	editor.dispose();
+});
+
+test('selected definitions stay editable off page and own live geometry does not trigger reads', async () => {
 	const host = session(),
 		state = createCompositionEditorState();
 	let reads = 0;

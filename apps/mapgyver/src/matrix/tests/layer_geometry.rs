@@ -55,6 +55,29 @@ fn arranged() -> (AppEngine, MediaId, LayerId) {
 }
 
 #[test]
+fn layer_geometry_publishes_parameters_without_catalog_invalidation() {
+    use golden_core::events::EventKind;
+    let (mut engine, media, row) = arranged();
+    engine.clear_ui_event_log();
+    edit(
+        &mut engine,
+        media,
+        request(row, RectGeometryMode::Translate, [20.0, 30.0]),
+    );
+    let events = engine.ui_events_since(None);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == MEDIA_NAMESPACE))
+    );
+}
+
+#[test]
 fn every_layer_resize_handle_rounds_dimensions_and_preserves_the_opposite_anchor_and_unrelated_settings() {
     for handle in [
         SpatialResizeHandle::TopLeft,

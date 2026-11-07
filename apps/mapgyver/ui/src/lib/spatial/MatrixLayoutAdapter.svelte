@@ -22,7 +22,7 @@
 		onenterlayer(layer: string): void;
 	} = $props();
 	const owner = createMatrixEditor(() => ({
-		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
+		selected: appState.session?.selectedNodeUuid ?? null,
 		document: props.document,
 		locked: props.media,
 		retained: props.media,

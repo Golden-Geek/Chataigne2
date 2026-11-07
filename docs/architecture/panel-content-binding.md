@@ -8,6 +8,9 @@ document Parameters.
 and follows visibility changes until the returned disposer runs. Retained content can suspend
 expensive live observation without losing target/title ownership. Visibility is presentation
 state, never an authored setting; showing an editor must resolve current document data again.
+The workbench installs a reactive visibility context for the panel's entire mounted subtree.
+Golden's shared editor observer consumes it automatically, including nested domain adapters;
+standalone content defaults to visible. Disposal retires the workbench subscription.
 `WorkbenchSession.selectedNodeUuid` exposes the first selected identity as a memoized primitive.
 Identity-based routing uses it rather than subscribing to full selected-node data, so ordinary
 Parameter projections cannot schedule unchanged routing reads. The graph index still resolves

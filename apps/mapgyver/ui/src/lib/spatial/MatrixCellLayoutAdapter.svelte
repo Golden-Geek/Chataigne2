@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
+	import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 	import { appState, IconButton } from 'golden_ui';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { invokeMediaEdit } from '../media/operations';
@@ -34,27 +35,19 @@
 	const geometry = createCellEditor(reader, () => props.present);
 	const selection = useDocumentSelection(),
 		preview = usePreview();
-	$effect(() => {
-		const session = appState.session;
-		const query = {
+	observeEditor({
+		query: () => ({
 			media: props.media,
 			layer: props.layer,
 			selected: props.cell,
-			node: session?.getSelectedNodes()[0]?.uuid ?? null,
+			node: appState.session?.selectedNodeUuid ?? null,
 			start: props.page * SPATIAL_PAGE_SIZE,
 			count: SPATIAL_PAGE_SIZE
-		};
-		if (session) {
-			void session.status;
-			void session.loading.visible;
-			void session.projectGeneration;
-			void session.snapshotGeneration;
-			void session.currentHistoryStateId;
-			void session.hasActiveEditSession;
-			void session.editSessionEpoch;
-			void session.getCustomEventSequence(MEDIA_NAMESPACE);
-		}
-		untrack(() => reader.refresh(query));
+		}),
+		topics: [MEDIA_NAMESPACE],
+		owners: () => (reader.page ? [reader.page.layer] : []),
+		interacting: () => state.interacting,
+		refresh: (query, resolve) => reader.refresh(query, resolve)
 	});
 	const page = $derived(reader.page),
 		layer = $derived(page?.row?.item.layer),

@@ -32,7 +32,7 @@
 	} = $props();
 	let selectedInstance = $state<string | null>(null);
 	const owner = createCompositionEditor(() => ({
-		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
+		selected: appState.session?.selectedNodeUuid ?? null,
 		document: props.document,
 		locked: props.reference,
 		retained: props.reference,

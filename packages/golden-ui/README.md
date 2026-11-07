@@ -24,6 +24,22 @@ provide opaque identities, current geometry at start and their existing edit lif
 retains separate taps while a previous edit closes, cancels stale targets/repeats and discards
 queued input on focus loss. Domain geometry and backend mutation semantics stay with callers.
 
+`store/editor-observation.svelte` is the common observation entry point for specialized
+editors. `observeEditor` takes a serializable query, metadata topics, bounded backend-resolved
+owner UUIDs and a refresh callback. It inherits the owning dock's visibility, separates routing
+identity from graph values and follows changed Parameter ancestor paths in the persistent
+indices. Nested owned controls work without per-view folder parsing, document scans or polling.
+Hidden tabs retain metadata/title routing and resolve fresh data when shown. Metadata views
+can restrict Parameter ancestry depth to avoid inspecting nested objects on every gesture.
+
+Pair it with `store/editor-read-queue`'s `EditorReadQueue.observe`: one active and one latest
+read publish valid live observations inside an edit-session epoch, then exact committed-history
+fencing resumes on closure. Never suspend a presentation reader merely because another widget
+has a grouped edit. Explicit mutations retain their exclusive edit ownership. Session, project,
+snapshot, query, cancellation and disposal still fence stale results. Ordinary latest-only reads
+use `store/bounded-read-queue` instead. Apps supply domain projections and intents; Golden owns
+these shared synchronization and panel-lifetime rules.
+
 `components/common/node-drag` owns the public node/Parameter drag payload and protected-dragover
 cache. Consumers resolve the payload against the current session/document generation and graph
 using both node ID and UUID before sending app intents; reopening identical saved UUIDs still

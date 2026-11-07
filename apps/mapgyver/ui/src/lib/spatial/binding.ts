@@ -2,8 +2,8 @@ import type { SpatialEditorQuery } from '../media/generated/SpatialEditorQuery';
 import type { SpatialEditorBinding } from '../media/generated/SpatialEditorBinding';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import { EditorReadQueue as ReadQueue } from 'golden_ui/store/editor-read-queue';
 import { targetKey } from './targets.ts';
 interface BindingConnection extends Connection {
 	readonly projectGeneration: number | null;
@@ -45,11 +45,11 @@ export class SpatialBindingReader<S extends BindingConnection> {
 	refresh(query: SpatialEditorQuery) {
 		if (this.disposed) return;
 		const session = this.session();
-		this.reads.invalidate();
 		if (
 			this.context &&
 			(this.context.session !== session || this.context.project !== session?.projectGeneration)
 		) {
+			this.reads.invalidate();
 			this.context = null;
 			this.state.binding = null;
 			this.state.error = '';
@@ -60,12 +60,12 @@ export class SpatialBindingReader<S extends BindingConnection> {
 			session.loading.visible ||
 			session.projectGeneration === null
 		) {
+			this.reads.invalidate();
 			this.state.refreshing = false;
 			return;
 		}
 		const generation = session.snapshotGeneration,
-			project = session.projectGeneration,
-			history = session.currentHistoryStateId;
+			project = session.projectGeneration;
 		const key = JSON.stringify([
 			query.selected,
 			query.document,
@@ -81,9 +81,10 @@ export class SpatialBindingReader<S extends BindingConnection> {
 			!session.loading.visible &&
 			session.snapshotGeneration === generation &&
 			session.projectGeneration === project &&
-			session.currentHistoryStateId === history &&
 			this.key === key;
-		this.reads.request(
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectSpatialEditor', query }),
 			(result) => {

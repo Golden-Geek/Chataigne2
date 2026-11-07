@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-07",
+  "gate": "M13/4 Active; no new acceptance credit",
+  "deliverable": "Shared Golden editor observation used by Composition, Matrix Layer/Cell, Screen/Surface and Media Preview",
+  "user_feedback": "Screen Warping and Surface Source feel very good; Composition/Spatial still lagged. Matrix and Media Preview were suspected, not confirmed.",
+  "cause": [
+    "Composition, Matrix and Media Preview suppressed reads throughout external grouped edits; advancing working history could discard live replies.",
+    "Composition/Matrix geometry intents also invalidated the entire media catalog on every sample."
+  ],
+  "implementation": [
+    "Golden bounded progressive read queue fences session/project/snapshot/query/edit epoch and restores exact history fencing outside a group.",
+    "Shared reactive editor observation uses changed typed Parameter ancestry under backend-resolved owners; no full-document scan or per-view folder parsing.",
+    "Dock visibility is inherited through Svelte context; hidden tabs suspend value observation while retaining metadata routing and fresh resolution on return.",
+    "Geometry intents retain typed deltas and authoritative replies without catalog-wide invalidation; structural/source/metadata edits retain catalog events."
+  ],
+  "software": {
+    "cargo_test_locked_MapGyver_lib": { "passed": 536, "ignored": 2, "failed": 0 },
+    "strict_clippy": "pass: MapGyver lib/tests with native-preview-smoke,application-process-fixture and -D warnings",
+    "app_node_tests": { "passed": 118, "failed": 0 },
+    "golden_vitest": { "files": 3, "passed": 10, "failed": 0 },
+    "svelte": "MapGyver, Chataigne and Golden browser fixtures: each 0 errors, 0 warnings",
+    "protocol": "No DTO changes; generated parity tests pass within Rust suite"
+  },
+  "native": {
+    "binary": "target/debug/deps/MapGyver-m134-shared-editors.exe",
+    "binary_sha256": "da45808f61acf4180ae8882cb14a6012383ae5b110dd9696565a80db241019f5",
+    "receipt": "target/m134-shared-editors-verified-20261107/result.json",
+    "receipt_sha256": "01e004e420c8b41a20764f4057fde893b62f67e10af87d37a36743a0e8917e1f",
+    "pid": 48816,
+    "fixture_exit_code": 0,
+    "source": "Spout Demo Sender, with eight additional Solid Color sources in populated 3x3 Matrix",
+    "held_input": [
+      { "view": "Matrix Layer canvas", "trusted_moves": 72, "geometry_changes_before_pointerup": 72 },
+      { "view": "Matrix Layer Inspector", "trusted_moves": 72, "geometry_changes_before_pointerup": 50 },
+      { "view": "Matrix Cell canvas", "trusted_moves": 72, "geometry_changes_before_pointerup": 72 },
+      { "view": "Matrix Cell Inspector", "trusted_moves": 72, "geometry_changes_before_pointerup": 52 },
+      { "view": "Composition canvas", "trusted_moves": 72, "geometry_changes_before_pointerup": 72 },
+      { "view": "Composition Inspector", "trusted_moves": 72, "geometry_changes_before_pointerup": 45 }
+    ],
+    "independent_media_preview": "Native view identity retained and available through all six held-input cases",
+    "delayed_reply_history_regressions": "Matrix Layer/Cell translation, Composition translation/rotated resize, Screen warp corner and Surface Source crop pass, including Undo/Redo",
+    "rotated_resize_max_coordinate_error_canvas_pixels": 0.00002054397441497713,
+    "rotated_resize_fixture_tolerance_canvas_pixels": 0.0001,
+    "page_errors": [],
+    "scope": "Functional trusted input, DOM geometry, live reader replies and native preview registration. These observations do not measure actual presented image FPS, video/overlay alignment or latency."
+  },
+  "failed_fixture_attempts_preserved": [
+    { "receipt": "target/m134-shared-editors-20261107/failure.json", "sha256": "edae3bfbe401d6fe08bec399c62e55dc65e7440de2ca8bc3f93e791b0e9b2f9b", "cause": "Cell selection point overlapped Play control; corrected hit point" },
+    { "receipt": "target/m134-shared-editors-corrected-20261107/failure.json", "sha256": "623acaa19393db9570d78f069c7bd28939d0b063c46d9229478e89b1424579dc", "cause": "Fixture queried detached hidden panel DOM; now retains observed panel identity" },
+    { "receipt": "target/m134-shared-editors-final-20261107/failure.json", "sha256": "1d2396a101c4790d1563d11cebd4f9fcfd0c355c161616aa602736d55a6b4230", "cause": "All six live cases passed; rotated-resize comparison used 0.00001 canvas pixels, below f32 precision near 400 pixels. Only this numerical fixture tolerance changed; timing budgets unchanged." }
+  ],
+  "remaining": "Actual presented 30+fps pacing/alignment/latency across required workloads and both GPUs; complete final-state/cancellation/progress acceptance; typed display-following or explicit output FPS and its persistence/recovery/caller checks. All original separate budgets and return gates remain."
+}

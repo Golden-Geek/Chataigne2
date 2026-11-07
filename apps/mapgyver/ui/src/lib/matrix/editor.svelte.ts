@@ -1,4 +1,5 @@
-import { onDestroy, untrack } from 'svelte';
+import { onDestroy } from 'svelte';
+import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { MatrixController, matrixState } from './authoring';
 import { invokeMediaEdit } from '../media/operations';
@@ -29,24 +30,13 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 			session?.status === 'connected' && !session.loading.visible
 		)
 	);
-	$effect(() => {
-		const current = session,
-			request = query();
-		void view.pending;
-		if (current) {
-			void current.status;
-			void current.loading.visible;
-			void current.snapshotGeneration;
-			void current.projectGeneration;
-			void current.currentHistoryStateId;
-			void current.hasActiveEditSession;
-			void current.editSessionEpoch;
-			void current.getCustomEventSequence(MEDIA_NAMESPACE);
-			void current.getCustomEventSequence(MATRIX_PLAYBACK_EVENT);
-		}
-		untrack(() => {
-			if (!current?.hasActiveEditSession) controller.observe(request);
-		});
+	observeEditor({
+		query,
+		topics: [MEDIA_NAMESPACE, MATRIX_PLAYBACK_EVENT],
+		pending: () => view.pending,
+		interacting: () => view.interacting,
+		owners: () => (controller.window ? [controller.window.media] : []),
+		refresh: (request, resolve) => controller.observe(request, resolve)
 	});
 	onDestroy(() => controller.dispose());
 	return {

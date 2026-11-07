@@ -1,4 +1,5 @@
-import { onDestroy, untrack } from 'svelte';
+import { onDestroy } from 'svelte';
+import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
@@ -43,23 +44,20 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 		},
 		finished: () => controller.refresh()
 	});
-	$effect(() => {
-		const current = session,
-			request = query();
-		if (current) {
-			void current.status;
-			void current.loading.visible;
-			void current.snapshotGeneration;
-			void current.currentHistoryStateId;
-			void current.hasActiveEditSession;
-			void current.editSessionEpoch;
-			void current.getCustomEventSequence(MEDIA_NAMESPACE);
-		}
-		untrack(() => {
+	observeEditor({
+		query,
+		topics: [MEDIA_NAMESPACE],
+		pending: () => view.pending,
+		interacting: () => view.interacting,
+		owners: () => [
+			...(controller.channel ? [controller.channel.reference.media] : []),
+			...(controller.composition ? [controller.composition.reference.media] : [])
+		],
+		refresh: (request, resolve) => controller.refresh(request, resolve),
+		observe: (shown, request) => {
 			gesture.observe();
-			if (activeInstance && request.selected !== activeInstance) gesture.stop();
-			controller.refresh(request);
-		});
+			if (!shown || (activeInstance && request.selected !== activeInstance)) gesture.stop();
+		}
 	});
 	onDestroy(() => {
 		gesture.dispose();

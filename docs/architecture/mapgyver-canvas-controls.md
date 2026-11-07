@@ -25,27 +25,25 @@ Undo/Redo, a new gesture waits for the matching projection instead of copying a 
 origin into an edit. Ordinary background refresh remains interactive; an admitted gesture
 keeps its ownership until it closes.
 
-Live Surface geometry publishes ordinary typed Parameter changes and a direct authoritative
-Surface reply. Geometry samples do not invalidate the entire Screens catalog; source/metadata
-and structural operations still do. This avoids making every outliner row and unrelated editor
-query compete with each pointer sample. Native render revision tracking remains unchanged.
+Surface, Composition and Matrix Layer/Cell geometry publish ordinary typed Parameter changes
+and direct authoritative replies. Continuous geometry intents do not invalidate the Screens
+or media catalog; source/metadata and structural operations still do. Native render revision
+tracking is unchanged, while unrelated catalog readers no longer compete with every sample.
 
-Screen/Surface editors observe typed leaves only for the backend-resolved, bounded visible
-owners and independent selected Surface. A new query reply does not itself request another
-identical query. This observation also covers Inspector, script and transport edits outside
-the editor's own gesture. Own gestures continue accepting their direct replies.
+All those editor readers and Media Preview use Golden's public `observeEditor` and
+`EditorReadQueue.observe` contracts. The observer follows changed Parameter ancestor paths
+under backend-resolved owners, including nested Placement nodes and off-page selections.
+Persistent-index differences avoid enumerating the document or copying a folder-parsing loop
+into every view. Metadata views limit ancestry depth; hidden adapters automatically inherit
+their dock's visibility. A query reply cannot trigger an identical query loop.
 
-The app's `ReadQueue.refresh` publishes sequential in-progress observations while retaining
-one active read and one latest replacement. Session, project, snapshot and query identify
-that live context. During an active edit group its stable edit-session epoch permits live
-observations even though Golden advances working history IDs on every sample. Outside the
-group, the exact committed history identity fences replies; group closure, context changes
-and starting an owned edit invalidate old work. Catalog row supplements and spatial target
-discovery do not refresh for each working history ID; metadata signals and group boundaries
-still refresh them.
-Other readers retain the existing latest-only `request` behavior. Continuous input therefore
-cannot starve every valid reply until release, without weakening document/history fences or
-copying backend geometry policy into the UI.
+The shared queue retains one active read and one latest replacement and publishes valid
+observations while another widget's grouped edit continues. Session, project, snapshot,
+semantic query and edit-session epoch identify the live context; rolling working-history IDs
+do not starve presentation. Group closure restores exact committed-history fencing. Owned
+gestures still suppress competing reads and accept their direct replies. Ordinary latest-only
+queries use Golden's `ReadQueue.request`. App controllers retain domain mutations and geometry;
+reusable synchronization and lifecycle rules belong in Golden rather than individual panels.
 
 Screen keyboard input retains up to 32 pending press/release gestures while an earlier edit
 closes or its authoritative geometry projection catches up. Each starts from the current
@@ -76,12 +74,11 @@ per-move IPC. Terminal hit testing remains native; changed bounds/DPR or ownersh
 the sequence. This lets Screen/Source control delivery proceed independently of metadata
 reply time, alongside the bounded authored-edit queue.
 
-Golden's public `PanelApi.observeVisibility` reports the actual dock visibility immediately
-and on changes, with explicit subscription disposal. Retained Screen/Surface tabs keep
-metadata, title and routing observation, but suspend live typed-leaf inspection while hidden.
-Showing a tab refreshes its bounded authoritative snapshot before further editing. This keeps
-offscreen tabs from adding per-sample queries to another editor's drag while preserving
-locked-panel identity and rename feedback.
+The workbench supplies one reactive visibility context to each mounted panel and its nested
+adapters. Golden's observer consumes it automatically; editors do not need visibility props
+or subscriptions at every layer. Retained tabs keep metadata, title and routing observation
+while suspending live value inspection. Showing a tab resolves its authoritative snapshot,
+preserving locked identity and rename feedback.
 
 Golden Video now wakes a separate presentation submission when live placement changes.
 It reuses admitted content textures and redraws affected presentation branches/outputs between

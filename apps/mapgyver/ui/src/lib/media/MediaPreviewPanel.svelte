@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, untrack } from 'svelte';
+	import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 	import {
 		appState,
 		IconButton,
@@ -25,7 +26,7 @@
 		choice = previewState(readPanelPersistedState<MediaPreviewState>(next.params));
 	};
 	const session = $derived(appState.session);
-	const selected = $derived(session?.getSelectedNodes()[0]?.uuid ?? null);
+	const selected = $derived(session?.selectedNodeUuid ?? null);
 	const readState = $state(previewReadState());
 	const reader = new MediaPreviewReader(() => session, readState, invokeMediaEdit);
 	const page = $derived(reader.page);
@@ -51,26 +52,19 @@
 			}
 		});
 	});
-	$effect(() => {
-		const current = session;
-		const query = {
+	observeEditor({
+		query: () => ({
 			selected: choice.lockedMedia ?? selected,
 			document: choice.lockedMedia ? choice.document : null,
 			channel: choice.channel,
 			start: choice.page * PREVIEW_PAGE_SIZE,
 			count: PREVIEW_PAGE_SIZE
-		};
-		if (current) {
-			void current.status;
-			void current.loading.visible;
-			void current.snapshotGeneration;
-			void current.projectGeneration;
-			void current.currentHistoryStateId;
-			void current.hasActiveEditSession;
-			void current.editSessionEpoch;
-			void current.getCustomEventSequence(MEDIA_NAMESPACE);
-		}
-		untrack(() => reader.refresh(query));
+		}),
+		topics: [MEDIA_NAMESPACE],
+		owners: () =>
+			page?.media ? [page.media, ...channels.map((channel) => channel.reference.channel)] : [],
+		parameterDepth: 2,
+		refresh: (query, resolve) => reader.refresh(query, resolve)
 	});
 	$effect(() => {
 		if (page?.channels && choice.page >= pages) {

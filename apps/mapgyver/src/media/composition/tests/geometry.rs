@@ -64,6 +64,43 @@ fn group(engine: &mut AppEngine, begin: bool) {
 }
 
 #[test]
+fn geometry_publishes_parameters_without_catalog_invalidation() {
+    use golden_core::events::EventKind;
+    let (mut engine, composition, instance) = instance_fixture();
+    engine.clear_ui_event_log();
+    edit(
+        &mut engine,
+        composition,
+        request(&instance, InstanceGeometryMode::Translate, [0.0, 0.0], [20.0, 30.0]),
+    );
+    let events = engine.ui_events_since(None);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::ParamChanged { .. }))
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == MEDIA_NAMESPACE))
+    );
+    engine.clear_ui_event_log();
+    crate::media::tests::apply(
+        &mut engine,
+        MediaEdit::RenameMedia {
+            media: composition.media,
+            label: "Renamed Composition".into(),
+        },
+    );
+    assert!(
+        engine
+            .ui_events_since(None)
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == MEDIA_NAMESPACE))
+    );
+}
+
+#[test]
 fn absolute_translation_samples_preserve_other_fields_and_group_history() {
     let (mut engine, composition, instance) = instance_fixture();
     let before = engine.undo_len();

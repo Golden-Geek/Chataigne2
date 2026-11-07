@@ -1,9 +1,9 @@
 import type { ApplicationSnapshot } from '../media/generated/ApplicationSnapshot';
-import { ReadQueue } from '../requests/read-queue.ts';
+import { ReadQueue } from 'golden_ui/store/bounded-read-queue';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
 export type Invoke<S> = (session: S, edit: MediaEdit) => Promise<MediaEditResult>;
-import type { Connection } from '../requests/connection';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
 
 export interface ApplicationState {
 	selected: string | null;

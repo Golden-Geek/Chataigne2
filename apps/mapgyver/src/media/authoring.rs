@@ -129,6 +129,17 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             .map_err(|error| error.to_string());
     }
     let pending_before = engine.edits.pending.len();
+    let live_geometry = matches!(
+        &edit,
+        MediaEdit::Composition {
+            edit: super::composition::protocol::CompositionEdit::EditInstanceGeometry { .. },
+            ..
+        } | MediaEdit::Matrix {
+            edit: crate::matrix::protocol::MatrixEdit::EditLayerGeometry { .. }
+                | crate::matrix::protocol::MatrixEdit::EditCellGeometry { .. },
+            ..
+        }
+    );
     let result = match edit {
         MediaEdit::CreateReference { target, label } => {
             super::reference::create(engine, manager(engine)?, target, label)?
@@ -429,9 +440,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             snapshot: super::queries::inspect_channel(engine, reference)?,
         },
     };
-    if engine.edits.pending.len() != pending_before {
+    if !live_geometry && engine.edits.pending.len() != pending_before {
         // Published inside the atomic edit boundary, including script/headless callers.
-        // The app namespace is also its retained authored-media notification topic.
+        // Geometry already publishes typed Parameter deltas and its authoritative reply.
+        // Catalog discovery must not run for every pointer sample.
         let event = golden_core::events::CustomEvent::from_latest_payload(MEDIA_NAMESPACE, None, &())
             .map_err(|error| error.to_string())?;
         engine.edits.push(Edit::EmitCustomEvent { event });

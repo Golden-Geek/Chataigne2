@@ -1,4 +1,5 @@
 import { onDestroy, untrack } from 'svelte';
+import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
@@ -11,6 +12,7 @@ export function createLayerEditor(
 	present: () => boolean
 ) {
 	const state = $state(createLatestEditGestureState());
+	const panel = usePanelVisibility();
 	let activeLayer = $state<string | null>(null);
 	let presentation = $state.raw<LayerPresentation | null>(null);
 	const gesture = createLayerGesture<WorkbenchSession>(() => owner.session, state, {
@@ -41,8 +43,8 @@ export function createLayerEditor(
 			void session.hasActiveEditSession;
 			void session.editSessionEpoch;
 		}
-		const available = present(),
-			selected = appState.session?.getSelectedNodes()[0]?.uuid;
+		const available = present() && panel.visible,
+			selected = appState.session?.selectedNodeUuid;
 		untrack(() => {
 			gesture.observe();
 			if (!available || (activeLayer && selected !== activeLayer)) gesture.stop();

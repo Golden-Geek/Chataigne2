@@ -36,8 +36,6 @@
 			)
 		)
 	);
-	let visible = $state(false);
-	$effect(() => panelApi.observeVisibility((value) => (visible = value)));
 	$effect(() => {
 		if (panel) {
 			const next = screenPanelState(
@@ -54,17 +52,14 @@
 			});
 		}
 	});
-	const owner = createScreenEditor(
-		() => ({
-			editor: editor === 'screen' ? 'Screen' : 'Surface',
-			selected: appState.session?.selectedNodeUuid ?? null,
-			document: choice.document,
-			locked: choice.locked ? choice.target : null,
-			retained: choice.target,
-			surface: choice.surface
-		}),
-		() => visible
-	);
+	const owner = createScreenEditor(() => ({
+		editor: editor === 'screen' ? 'Screen' : 'Surface',
+		selected: appState.session?.selectedNodeUuid ?? null,
+		document: choice.document,
+		locked: choice.locked ? choice.target : null,
+		retained: choice.target,
+		surface: choice.surface
+	}));
 	const selection = useDocumentSelection();
 	const { view, controller, gestureState, gesture } = owner;
 	const screen = $derived(controller.screen),

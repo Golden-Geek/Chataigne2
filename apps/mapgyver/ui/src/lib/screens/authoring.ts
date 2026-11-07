@@ -1,5 +1,8 @@
-import { ReadQueue } from '../requests/read-queue.ts';
-import type { Connection } from '../requests/connection';
+import {
+	EditorReadQueue as ReadQueue,
+	editorHistoryMatches
+} from 'golden_ui/store/editor-read-queue';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
 import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
 import type { ScreenEditorPage } from './generated/ScreenEditorPage';
 import type { ScreenEdit } from './generated/ScreenEdit';
@@ -73,9 +76,7 @@ export class ScreenEditorController<S extends EditorConnection> {
 			!this.page?.screen ||
 			session?.status !== 'connected' ||
 			session.loading.visible ||
-			(!this.state.interacting &&
-				!session.hasActiveEditSession &&
-				this.state.presentedHistory !== session.currentHistoryStateId)
+			(!this.state.interacting && !editorHistoryMatches(session, this.state.presentedHistory))
 		);
 	}
 	private current(session: S, generation: number, project: number) {
@@ -119,22 +120,17 @@ export class ScreenEditorController<S extends EditorConnection> {
 			project = session.projectGeneration;
 		if (resolve) this.reads.invalidate();
 		const key = JSON.stringify(query),
-			history = session.currentHistoryStateId,
-			editing = session.hasActiveEditSession === true,
-			revision = editing ? session.editSessionEpoch : history;
+			history = session.currentHistoryStateId;
 		if (resolve || key !== this.queryKey) this.state.resolving = true;
 		this.queryKey = key;
 		this.state.refreshing = true;
 		const current = () =>
 			this.current(session, generation, project) &&
 			this.queryKey === key &&
-			(session.hasActiveEditSession === true) === editing &&
-			(editing
-				? session.editSessionEpoch === revision
-				: session.currentHistoryStateId === history) &&
 			!this.state.interacting;
-		this.reads.refresh(
-			[session, generation, project, key, editing, revision],
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectEditor', query }),
 			(result) => {

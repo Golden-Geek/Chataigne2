@@ -7,8 +7,11 @@ import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSn
 import type { MatrixSelection } from '../media/generated/MatrixSelection';
 import type { MatrixEditorQuery } from '../media/generated/MatrixEditorQuery';
 import type { MatrixEditorPage } from '../media/generated/MatrixEditorPage';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import {
+	EditorReadQueue as ReadQueue,
+	editorHistoryMatches
+} from 'golden_ui/store/editor-read-queue';
 import { sameSelection } from './selection.ts';
 import { sameViewport } from './viewport.ts';
 
@@ -81,7 +84,7 @@ export class MatrixController<S extends EditorConnection> {
 			!this.window ||
 			session?.status !== 'connected' ||
 			session.loading.visible ||
-			this.state.history !== session.currentHistoryStateId
+			!editorHistoryMatches(session, this.state.history)
 		);
 	}
 	private current(session: S, generation: number, project: number) {
@@ -94,9 +97,9 @@ export class MatrixController<S extends EditorConnection> {
 			session.projectGeneration === project
 		);
 	}
-	observe(query: MatrixEditorQuery) {
+	observe(query: MatrixEditorQuery, resolve = false) {
 		this.query = query;
-		this.refresh();
+		this.refresh(resolve);
 	}
 	restore(viewport: MatrixViewport, selection: MatrixSelection | null, node: string | null) {
 		if (
@@ -120,7 +123,7 @@ export class MatrixController<S extends EditorConnection> {
 		this.state.viewport = viewport;
 		this.refresh();
 	}
-	refresh() {
+	refresh(resolve = false) {
 		if (this.disposed || !this.query) return;
 		const session = this.session();
 		if (
@@ -134,14 +137,15 @@ export class MatrixController<S extends EditorConnection> {
 			this.state.error = '';
 			this.state.readError = '';
 		}
-		if (this.state.pending || this.state.interacting || session?.hasActiveEditSession) return;
-		this.reads.invalidate();
+		if (this.state.pending || this.state.interacting) return;
+		if (resolve) this.reads.invalidate();
 		if (
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
 			session.projectGeneration === null
 		) {
+			this.reads.invalidate();
 			this.state.refreshing = false;
 			return;
 		}
@@ -162,8 +166,10 @@ export class MatrixController<S extends EditorConnection> {
 		const current = () =>
 			this.current(session, generation, project) &&
 			this.queryKey === key &&
-			session.currentHistoryStateId === history;
-		this.reads.request(
+			!this.state.interacting;
+		this.reads.observe(
+			session,
+			key,
 			current,
 			() => this.invoke(session, { kind: 'InspectMatrixEditor', query }),
 			(result) => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { ReadQueue } from '../read-queue.ts';
+import { test } from 'vitest';
+import { ReadQueue } from '../bounded-read-queue.ts';
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 const unexpectedError = (error: unknown) => assert.fail(String(error));

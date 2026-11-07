@@ -3,8 +3,8 @@ import type { MatrixTargetScope } from '../media/generated/MatrixTargetScope';
 import type { MatrixTargetId } from '../media/generated/MatrixTargetId';
 import type { MediaEdit } from '../media/generated/MediaEdit';
 import type { MediaEditResult } from '../media/generated/MediaEditResult';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import { ReadQueue } from 'golden_ui/store/bounded-read-queue';
 
 export const targetKey = (id: MatrixTargetId | null) =>
 	!id ? '' : id.kind === 'Column' ? `column:${id.column}` : `${id.item.kind}:${id.item.id}`;

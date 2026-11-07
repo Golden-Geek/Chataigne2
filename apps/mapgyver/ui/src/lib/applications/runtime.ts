@@ -1,6 +1,6 @@
 import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
-import type { Connection } from '../requests/connection';
-import { ReadQueue } from '../requests/read-queue.ts';
+import type { EditorReadHost as Connection } from 'golden_ui/store/editor-read-queue';
+import { ReadQueue } from 'golden_ui/store/bounded-read-queue';
 import type { Invoke } from './authoring';
 
 export interface RuntimeTransport {
