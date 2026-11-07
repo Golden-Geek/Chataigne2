@@ -29,7 +29,7 @@ export const invokeWorkbenchAppOperation = async (
 			}
 		});
 	if (options?.activity === 'background') await dispatch();
-	else await activity.run('Applying change', dispatch);
+	else await activity.run('Applying changes', dispatch);
 	const ack = acknowledgements[0];
 	if (acknowledgements.length !== 1 || !ack?.success || ack.status !== 'applied' || !ack.result) {
 		throw new Error(ack?.error_message ?? 'App operation did not return one committed result.');

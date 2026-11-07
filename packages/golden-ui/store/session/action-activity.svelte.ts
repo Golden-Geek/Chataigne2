@@ -75,7 +75,7 @@ export const userActionLabelForIntent = (intent: UiEditIntent): string | null =>
 		case 'setTextParamSmart':
 			return 'Updating text';
 		case 'invokeAppOperation':
-			return 'Applying change';
+			return 'Applying changes';
 		case 'setParamControlState':
 			return 'Changing control mode';
 		case 'setParamConstraints':
@@ -196,7 +196,7 @@ export const createWorkbenchUserActionActivity = (
 			...entries,
 			{
 				id,
-				label: normalizedIntentLabel(label) ?? 'Applying change',
+				label: normalizedIntentLabel(label) ?? 'Applying changes',
 				phase: 'queued',
 				queuedAtMs,
 				phaseChangedAtMs: queuedAtMs

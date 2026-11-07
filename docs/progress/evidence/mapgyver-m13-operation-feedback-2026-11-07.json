@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-07",
+  "milestone": "M13/4 truthful delayed operation feedback",
+  "gate": "Active; feedback slice verified, full smoothness gate remains open",
+  "acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+  "cause": "EngineStatus delayed on the boolean any-work-pending. A continuously occupied stream could cross 300ms even though every individual operation was fast. Presentation now uses the existing public oldest outstanding operation timestamp.",
+  "ownership": "Golden PendingFeedback presentation controller + EngineStatus. The coordinator/pipeline, silent/background classification, dispatch, history and acknowledgement fencing retain their contracts. No app-specific policy or protocol duplication is added.",
+  "policy": { "delay_ms": 300, "minimum_visible_ms": 350, "completion_grace_ms": 150, "overlapping_pending_grace_ms": 300, "clock": "same-window monotonic clock used by the existing session", "polling": false },
+  "behavior": [
+    "Long streams of fast acknowledged tracked edits stay quiet; phase/count updates cannot turn a gesture's duration into operation age.",
+    "Slow tracked work shows Applying changes. Overlapping successors coalesce; fresh fast work cannot indefinitely prolong an earlier slow notice.",
+    "Completion says Changes applied / Done and stops its spinner. Rejection remains visible. Session replacement, loading/disconnection and disposal cancel timers."
+  ],
+  "software": {
+    "golden_ui": "49 files,253 tests passed, including nine new controlled-clock feedback/count cases",
+    "mapgyver_ui": "Svelte 0 errors/0 warnings",
+    "chataigne_ui": "Svelte 0 errors/0 warnings after the final shared component/controller change",
+    "native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-feedback; exit0",
+    "unchanged_rust": "Prior512 app tests/2ignored and strict/generated proof retained; this slice changes no Rust or DTO contract",
+    "format": "Scoped Prettier, Node syntax and root/Core cargo fmt pass"
+  },
+  "native": {
+    "driver": "apps/mapgyver/tests/browser/native-pending-feedback.mjs",
+    "routing_reference": "https://playwright.dev/docs/api/class-websocketroute",
+    "installed_playwright": "1.61.1",
+    "artifacts": "target/mapgyver-m13-pending-final-20261107",
+    "binary": "target/debug/deps/MapGyver-m134-feedback.exe",
+    "sha256": "35b0986ec7e62199522124fdc516e77ccee54ceb9483332882bc9693253ec094",
+    "pid": 24204,
+    "exit": 0,
+    "fixture": "Actual Windows/WebView app and real server, authored populated3x3 Matrix; only selected request delivery/rejection/reconnect is fault-injected through documented WebSocket routing",
+    "checks": [
+      "Long trusted WebView pointer gesture sends30 real geometry requests; maximum observed routed request-to-applied receipt interval10ms. No Applying changes presentation appears.",
+      "Holding one geometry request makes progress visible; it stays visible until delivery resumes, reports Finishing then Changes applied / Done and retires.",
+      "Changing the owned test request's Matrix UUID to a nonexistent UUID produces a real server rejection. Failed stays visible and the authored snapshot remains exactly unchanged.",
+      "Closing a held request's connection establishes a new connection and clears abandoned feedback. No old deadline resurrects the notice."
+    ],
+    "expected_cleanup_receipt": { "code": "edit_session_not_active", "scope": "Only the correlated old endEdit request after reconnect, with its exact client edit ID and no-session-is-active message. This existing stale-end guard stays quiet; unrelated rejection fails the fixture." },
+    "page_errors": [],
+    "unexpected_rejections": [],
+    "requests": 247, "receipts": 246,
+    "unanswered_request": "Exactly the deliberately held/dropped geometry request in the disconnect case",
+    "earlier_pass": "target/mapgyver-m13-pending-settled-20261107: PID28952/exit0,31 fast requests/max9ms before the retained-count refinement; final artifact above supersedes this for current code",
+    "limits": "The10ms interval is transport fixture evidence, not pointer-to-visible latency. No actual240Hz/physical presented-frame/both-GPU/independent output or broader large-project smoothness claim. Silent parameter/event intent coverage and local gesture presentation still need the full M13/4 audit."
+  },
+  "failed_runs_retained": [
+    { "artifacts": "target/mapgyver-m13-pending-baseline-20261107", "finding": "Fixture began the long gesture before the warmup edit's end receipt settled; only one real geometry operation was observed, so that run cannot prove a fast stream." },
+    { "artifacts": "target/mapgyver-m13-pending-pointer-20261107", "finding": "Read-only pointer observation verified actual continuous capture and all four feedback behaviors passed. Blanket unexpected-rejection assertion then caught the existing correlated stale endEdit cleanup after reconnect. Final fixture waits actual end receipts, recognizes only that precise guarded error, and removes temporary pointer tracing." }
+  ],
+  "remaining": "M13/4 local pointer/viewport feedback independently of authoritative acknowledgements/media cadence across Surface, Screen, Composition and Matrix; ordinary controls/scroll/dock and silent intent audit; recorded actual high-refresh presented pacing, stalls and pointer-to-visible p95/p99, alignment, independent output, both GPUs and larger projects. All original budgets remain unchanged; no acceptance credit for this partial slice."
+}

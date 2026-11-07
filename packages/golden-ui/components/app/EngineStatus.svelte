@@ -1,49 +1,25 @@
 <script lang="ts">
 	import type { WorkbenchSession } from '../../store/workbench.svelte';
+	import { onDestroy } from 'svelte';
+	import { PendingFeedback } from '../../store/session/pending-feedback';
 
 	const { session } = $props<{ session: WorkbenchSession }>();
-	const ACTIVITY_DELAY_MS = 300;
-	let hasPendingActions = $derived(session.userActionPendingCount > 0);
-	let activityVisible = $state(false);
-	let activity = $state({ label: '', phase: '', phaseLabel: '', count: 0 });
+	let activity = $state({ visible: false, label: '', phase: '', phaseLabel: '', count: 0 });
+	const feedback = new PendingFeedback((next) => {
+		activity = next;
+	});
+	onDestroy(() => feedback.dispose());
+	const activityVisible = $derived(activity.visible);
 	let activityTitle = $derived(`${activity.label} — ${activity.phaseLabel}`);
-	let phaseLabel = $derived.by((): string => {
-		switch (session.userActionCurrentPhase) {
-			case 'queued':
-				return 'Queued';
-			case 'received':
-				return 'Received';
-			case 'applied':
-				return 'Finishing';
-			case 'rejected':
-				return 'Failed';
-			default:
-				return 'Processing';
-		}
-	});
-
-	// Phase/count updates must not restart the delay while work remains pending.
 	$effect(() => {
-		if (!hasPendingActions) {
-			activityVisible = false;
-			return;
-		}
-		const timer = setTimeout(() => {
-			activityVisible = true;
-		}, ACTIVITY_DELAY_MS);
-		return () => clearTimeout(timer);
-	});
-
-	// Keep the last pending description during fade-out instead of flashing a fallback.
-	$effect(() => {
-		if (!hasPendingActions) return;
-		const phase = session.userActionCurrentPhase ?? 'accepted';
-		activity = {
-			label: session.userActionCurrentLabel ?? 'Applying change',
-			phase,
-			phaseLabel,
-			count: session.userActionPendingCount
-		};
+		feedback.update({
+			owner: session,
+			enabled: session.status === 'connected' && !session.loading.visible,
+			count: session.userActionPendingCount,
+			oldestQueuedAtMs: session.userActionOldestQueuedAtMs,
+			label: session.userActionCurrentLabel,
+			phase: session.userActionCurrentPhase
+		});
 	});
 
 	let engineRateClass = $derived.by((): string => {
@@ -158,6 +134,9 @@
 
 	.visible .user-action-spinner {
 		animation-play-state: running;
+	}
+	.user-action-activity[data-phase='applied'] .user-action-spinner {
+		animation: none;
 	}
 
 	.user-action-label {
