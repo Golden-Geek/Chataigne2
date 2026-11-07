@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "gate": "M13/2",
+  "base_commit": "4f34e96170c7a28f4c69b71021839dc41d20b6a2",
+  "status": "Active; actual Intel float-source device loss and expanded-format recovery verified; NVIDIA loss assertion failed because this trigger did not prove its device loss",
+  "deliverable": "Actual MapGyver automatically rebuilds its Intel renderer after real device loss and imports fresh float, half-float, signed integer and planar P010 sources without app-side source reconfiguration.",
+  "authorization": "User explicitly authorized autonomous desktop work and as many driver resets as needed. Existing installed DXCap/controller workflow reused. No display settings or persistent driver-disable state changed.",
+  "cohorts": {
+    "limit": 2,
+    "used": 2,
+    "baseline": "No-reset preflight: both actual apps pass5 stages each and exit0; both native held-completion controls pass with no observed removal. Controller fixture exit0.",
+    "comparison": "One actual DXCap reset with both fresh actual apps and both held-completion native controls running. No third experiment or unchanged reset rerun."
+  },
+  "checks": [
+    "Golden qualification238 software tests and strict all-target Clippy passed before this unchanged-runtime batch; binaries retain the exact prior checked hashes.",
+    "Changed browser driver passes node --check and Prettier;6 pure controller-readiness checks pass before native.",
+    "Root and Golden Core cargo fmt pass. No production/protocol changes."
+  ],
+  "preflight": {
+    "controller": "target/m034-removal-92761191c84d405ab45c698709639b2e/result.json",
+    "qualification_pid": 1132,
+    "qualification_exit_code": 0,
+    "actual_apps": [
+      { "adapter": "Intel", "pid": 43376, "stages": 5, "node_source_app_exit_code": 0, "artifact": "target/mapgyver-m13-device-preflight-intel-20261107/result.json" },
+      { "adapter": "NVIDIA", "pid": 43692, "stages": 5, "node_source_app_exit_code": 0, "artifact": "target/mapgyver-m13-device-preflight-nvidia-20261107/result.json" }
+    ]
+  },
+  "trigger": {
+    "controller": "apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable target/debug/deps/golden_video-fa94e9e28cc1568b.exe -AllowDriverReset",
+    "command": "C:/Windows/System32/DXCap.exe -forcetdr",
+    "method": "Existing controller validates exact live native fixture PID/readiness and retains authoritative exit codes; elevated hidden Start-Process using existing Windows policy.",
+    "controller_artifact": "target/m034-removal-5607db674de3461ca32343254064da45/result.json",
+    "qualification_pid": 35144,
+    "ready_utc": "2026-11-07T00:37:28.4684865Z",
+    "finished_utc": "2026-11-07T00:37:43.7234626Z",
+    "dxcap_exit_code": 0,
+    "qualification_exit_code": 0,
+    "actual_removed_native_adapters": ["dxgi:00000000:00015b69"],
+    "native_reason": "0x887a0007",
+    "native_device_generation": "Intel generation1 ->2; original plan/project retained; recreate_ms1649",
+    "native_shutdown": "141ms; held-completion fixture requires zero remaining charged resources and normal producer exits. This byte-source control is not full-format app retirement accounting."
+  },
+  "intel_actual_app": {
+    "pid": 42224,
+    "adapter_before_after": "dxgi:00000000:00015b69",
+    "baseline_source": "RGBA32F4x4, fractional cyan; independent output[99,188,224,255]",
+    "observed_actual_loss": { "utc": "2026-11-07T00:37:41.950Z", "state": "Faulted", "error": "Backend: render device was lost", "sequence": 31 },
+    "fresh_source": "After controller completion, the external fixture destroys its removed producer device and recreates the same named source. MapGyver source definition, selection, Screen and Surface are not reconfigured.",
+    "source_session_before": "2e5a32db-aede-45c6-bef9-579338072e80",
+    "source_session_after": "d6c2be54-8cf4-471c-bbb8-ea280525f501",
+    "post_loss_stages": [
+      { "label": "restart-float", "dxgi": 2, "extent": [4,4], "actual_rgba": [137,224,99,255] },
+      { "label": "half-wide", "dxgi": 10, "extent": [6,4], "actual_rgba": [188,224,99,255] },
+      { "label": "sint-tall", "dxgi": 4, "extent": [4,6], "actual_rgba": [188,99,224,255] },
+      { "label": "p010-same-canonical-layout", "dxgi": 104, "extent": [4,4], "actual_rgba": [83,83,83,255] }
+    ],
+    "proof": "All complete96x64 independent SDK images satisfy unchanged2/255 SDR output tolerance. Public status verifies exact intrinsic extents, both preview installations and exact selected sender/GPU at each stage. No page errors; source/app/node exit0.",
+    "artifact": "target/mapgyver-m13-device-reset-intel-20261107/result.json"
+  },
+  "nvidia_failed_loss_assertion": {
+    "pid": 2500,
+    "adapter": "dxgi:00000000:79e2f347",
+    "baseline": "NV12 source and complete independent output pixels pass before reset.",
+    "observations": "No Backend: render device was lost sample. Transient Faulted/Running status reports source observations belong to a stale renderer project/device, then returns Running without error. Native held-completion control also records no NVIDIA GetDeviceRemovedReason failure.",
+    "result": "Node exit1: Actual app must observe real device loss. No NVIDIA post-loss format stages claimed. Owned source/app still close normally through finally; both PIDs are absent afterward.",
+    "artifact": "target/mapgyver-m13-device-reset-nvidia-20261107/failure.json",
+    "return_action": "Use a justified reset/removal targeting NVIDIA, with fresh owned readiness and actual per-device failure evidence; preserve Intel as control. An unchanged default DXCap reset is not a new useful experiment."
+  },
+  "limits": [
+    "One genuine Intel loss/recovery sample, not a latency percentile, physical cadence or production-memory qualification.",
+    "Sender recovery uses explicit external producer recreation after real loss; no automatic recovery behavior is attributed to that independent producer.",
+    "NVIDIA expanded-format actual device loss/recovery remains required; prior byte-source loss evidence is not substituted.",
+    "Actual D3D9 producer, broader actual-app native storage classes and named interpretation/API limits remain unaccepted."
+  ],
+  "gate_changes": "None:70/92 accepted gates,76%; M13 1/14,7%;7/14 phases complete,50%."
+}

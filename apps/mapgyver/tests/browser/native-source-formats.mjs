@@ -15,6 +15,10 @@ import { liveCases } from './native-source-live-cases.mjs';
 const directory = path.resolve(process.argv[2]);
 const index = Number(process.argv[3]);
 const continuous = process.argv[4] === '--continuous';
+const deviceMode = process.argv.find((argument) =>
+	['--device-reset', '--reset-preflight'].includes(argument)
+);
+assert(!deviceMode || continuous, 'Device recovery retains the continuous producer until reset');
 assert(Number.isInteger(index) && index >= 0);
 await mkdir(directory);
 const probe = path.resolve('target/debug/native_qualification.exe');
@@ -88,6 +92,7 @@ const page = native.page;
 let token, output;
 const errors = [],
 	stages = [];
+let deviceRecovery;
 page.on('pageerror', (error) => errors.push(String(error)));
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -198,6 +203,38 @@ async function checkpoint(label, view) {
 		await delay(100);
 	}
 }
+async function waitForDeviceCycle() {
+	const ready = { pid: native.app.pid, adapter: { index, key }, mode: deviceMode };
+	await writeFile(path.join(directory, 'reset-ready.json'), JSON.stringify(ready));
+	console.log(JSON.stringify({ reset_ready: ready }));
+	const samples = [];
+	const deadline = Date.now() + 90000;
+	let loss;
+	do {
+		assert(Date.now() < deadline, 'Device reset controller/loss observation expired');
+		assert.equal(native.app.exitCode, null, native.log());
+		const status = await page.evaluate(async () =>
+			JSON.parse(
+				await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+					request: JSON.stringify({ kind: 'mapgyverRuntimeStatus' })
+				})
+			)
+		);
+		if (!samples.length || samples.at(-1).status.sequence !== status.sequence)
+			samples.push({ utc: new Date().toISOString(), status });
+		if (status.error?.includes('render device was lost'))
+			loss ??= { utc: new Date().toISOString(), status };
+		await writeFile(
+			path.join(directory, 'reset-observations.json'),
+			JSON.stringify({ ready, loss, samples })
+		);
+		if (await stat(path.join(directory, 'reset-complete')).catch(() => null)) break;
+		await delay(100);
+	} while (true);
+	if (deviceMode === '--device-reset') assert(loss, 'Actual app must observe real device loss');
+	else assert.equal(loss, undefined, 'No-reset preflight must not claim removal');
+	deviceRecovery = { genuine: deviceMode === '--device-reset', loss, samples };
+}
 try {
 	await page.getByRole('tab').first().waitFor();
 	await page.evaluate(async () => {
@@ -239,8 +276,20 @@ try {
 		);
 		assert.equal((await observeNativeAdapter(page, hardware)).key, key);
 	};
-	for (const item of continuous ? liveCases : cases) {
+	const selectedCases = deviceMode
+		? [
+				liveCases.find((item) => item.label === (index === 0 ? 'float-cyan' : 'nv12')),
+				liveCases.find((item) => item.restart),
+				liveCases.find((item) => item.label === 'half-wide'),
+				liveCases.find((item) => item.label === 'sint-tall'),
+				liveCases.find((item) => item.label === 'p010-same-canonical-layout')
+			]
+		: continuous
+			? liveCases
+			: cases;
+	for (const item of selectedCases) {
 		if (item.restart) {
+			if (deviceMode) await waitForDeviceCycle();
 			child.stdin.write('stop\n');
 			assert((await reply()).includes('OK stopped'));
 			await page.waitForFunction(
@@ -331,7 +380,8 @@ try {
 				stages,
 				errors,
 				source_replacement: !continuous,
-				continuous_producer: continuous
+				continuous_producer: continuous,
+				device_recovery: deviceRecovery
 			},
 			null,
 			2

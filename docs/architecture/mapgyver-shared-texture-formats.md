@@ -17,8 +17,11 @@ remains separate from the app's downstream pass/output policy. The
 verifies24 actual-app stages across both GPUs: distinct unchanged-layout frames, float/integer/
 sRGB/planar transitions, exact intrinsic dimensions and stop/restart of the selected sender.
 The independent producer retains its SDK/device until explicit stop; new native storage waits
-for prior GPU completion. Device/D3D9, broader app classes and named interpretation/API limits
-still require acceptance.
+for prior GPU completion. The [device-reset slice](../progress/evidence/mapgyver-m13-format-device-reset-2026-11-07.json)
+then observes actual Intel float-source device loss, same-adapter rebuilding and fresh float,
+half-float, SINT and P010 output after external producer recreation. That default DXCap trigger
+does not prove NVIDIA device loss; its strict assertion remains failed. NVIDIA device recovery,
+D3D9, broader app classes and named interpretation/API limits still require acceptance.
 
 ## Current import path
 
