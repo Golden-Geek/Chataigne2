@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "gate": "M13/2",
+  "base_commit": "8ef4d62f180f2b1ec9c124d000f0627ac5626204",
+  "status": "Original available SDK native catalog functionally verified in the actual app; full gate remains unaccepted because named API/hardware/interpretation requirements are unresolved",
+  "deliverable": "Actual MapGyver independently receives/renders every native storage layout in the original70-Intel/68-NVIDIA SDK allocation catalog, without user format settings.",
+  "shipping_runtime": "Unchanged from8ef4d62f. This slice extends the existing finite owned-source fixture's exact row validation and supplies independent raw vectors/CPU SDR references.",
+  "scope": {
+    "fixed_catalog": "The original SDK allocation catalog, not a new sweep or a commit/test-count denominator. Current physical vendor/device pairs are asserted; each selected texture allocation and bit readback succeeds anew during this app check.",
+    "source": "One4x4 independent D3D11 UpdateSubresource/SDK SendTexture producer at a time. Each format replaces the producer. Defined native source bytes must roundtrip exactly before app pixels are inspected.",
+    "vectors": "apps/mapgyver/tests/browser/native-source-catalog.mjs, SHA256c0cb4e8651e1fb59b9c3286ca2b577b59c0e6b72c8b9456cc35e6800d52b1f5e. Includes typeless defaults, all available integer/normalized/narrow/float layouts, BGRA/sRGB/packed/XR and444/422/420 video. Video app vectors here use neutral chroma; earlier native precision/color/spatial receipts remain separate.",
+    "freshness": "Every adjacent case has a different expected RGBA tuple. Source replacement cannot pass by leaving the previous format's image displayed. Earlier continuous-producer/live-size proof remains its own receipt.",
+    "app": "Ordinary isolated app and private profile, exact explicit current GPU, public authored operations and real WebView2 controls. Public status confirms4x4 source dimensions and both native preview installations; selected sender/GPU are checked for every case.",
+    "pixels": "Every complete independent96x64 SDK output image is checked against mathematical CPU SDR references with unchanged2/255 RGBA tolerance.138 accepted images,847872 pixels; no page errors or fallback.",
+    "source_precision": "Exact native bytes are verified in the independent source. This8-bit downstream output is not a replacement for earlier float/integer precision or GPU budget/retirement qualification."
+  },
+  "checks": [
+    { "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet", "result": "239 passed,50 ignored,exit0 before native" },
+    { "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings", "result": "Pass,exit0 before native" },
+    { "command": "node --check and prettier --check for changed scripts; CPU catalog construction", "result": "Pass; exact70/68 counts, fixed ID-set equality and distinct adjacent expected RGBA verified before native" },
+    { "command": "cargo fmt --all;cargo fmt --manifest-path crates/golden_core/Cargo.toml --all", "result": "Pass" },
+    { "command": "Compare actual native format IDs against original allocation records", "result": "Both GPUs have no missing/additional selected native value" }
+  ],
+  "cohorts": {
+    "limit": 2,
+    "used": 2,
+    "baseline": "Both apps pass the first50 formats then fail an incorrect A8 expected RGB reference. Renderer returns[0,0,0,128]; initial oracle expected white RGB. This is a fixture/reference error, not a product rendering defect.",
+    "correction": "A8 is alpha only: absent RGB channels are zero. Existing native independent reference in formats/channels.rs already specifies[0,0,0,alpha]. Change only the new CPU oracle, keeping A8 in the matrix and preserving its nonzero alpha check. No shader change, budget relaxation or black-image waiver.",
+    "comparison": "Both complete catalogs pass with the corrected A8 reference. Failed baseline artifacts remain failed; no third cohort."
+  },
+  "intel": {
+    "adapter": "dxgi:00000000:00015b69",
+    "description": "Intel(R) Graphics",
+    "pid": 44968,
+    "accepted_cases": 70,
+    "formats": [1,2,3,4,9,10,11,12,13,14,15,16,17,18,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,41,42,43,48,49,50,51,52,53,54,56,57,58,59,60,61,62,63,64,65,85,86,87,88,89,90,91,92,93,100,101,102,103,104,105,107,108,109,115],
+    "maximum_observed_rgba_error": 2,
+    "node_source_app_exit_code": 0,
+    "command": "node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-app-catalog-comparison-intel-20261107 0 --catalog",
+    "artifact": "target/mapgyver-m13-app-catalog-comparison-intel-20261107/result.json",
+    "failed_baseline": "target/mapgyver-m13-app-catalog-baseline-intel-20261107/failure.json"
+  },
+  "nvidia": {
+    "adapter": "dxgi:00000000:90b3a15f",
+    "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "pid": 15616,
+    "accepted_cases": 68,
+    "formats": [1,2,3,4,9,10,11,12,13,14,15,16,17,18,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,41,42,43,48,49,50,51,52,53,54,56,57,58,59,60,61,62,63,64,65,85,86,87,88,89,90,91,92,93,100,101,102,103,104,107,108,109],
+    "maximum_observed_rgba_error": 2,
+    "node_source_app_exit_code": 0,
+    "command": "node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-app-catalog-comparison-nvidia-20261107 1 --catalog",
+    "artifact": "target/mapgyver-m13-app-catalog-comparison-nvidia-20261107/result.json",
+    "failed_baseline": "target/mapgyver-m13-app-catalog-baseline-nvidia-20261107/failure.json",
+    "original_unavailable_values": "P016105/BGR4444115 remain unaccepted with the original producer/backend/new-path return trigger. They are not filtered out of a successful denominator after a current failure; the original available scope already excludes them."
+  },
+  "environment": "Explicit MAPGYVER_TEST_BINARY/GOLDEN_VIDEO_TEST_BINARY select checked artifacts; no hardcoded stale test executable. App/GPU startup captures actual current adapters; NVIDIA's prior LUID change is not silently rebound in a running renderer.",
+  "binaries_sha256": {
+    "target/debug/deps/MapGyver-m132-d3d9.exe": "e55c5f92a2383473c9f2327575d61abf567d67b1da06c45ee614e09fc9c07de5",
+    "target/debug/deps/golden_video-911f31446169e35d.exe": "ed33aa39029edae2616f0065fee7a5804039cd92455ff7427dc744f28b19bd88"
+  },
+  "remaining_and_returns": [
+    "NVIDIA expanded-format device recovery: supported genuine same-LUID loss/reset, or explicitly revised adapter-identity contract; targeted PnP restart changes LUID and fails the original rebuild deadline.",
+    "NVIDIA actual D3D9 producer: an exposed D3D9Ex adapter/producer matching its current NVIDIA identity, then the exact pixel cases; current enumeration returns no match.",
+    "RGB32 native5-8 on both GPUs and P016/BGR4444 on NVIDIA: actual producer/backend publishes that shared native source or new evidence supports a justified import path. No unchanged allocator sweep.",
+    "Unadvertised colorimetry/chroma and arbitrary typeless producer-view interpretation: authoritative producer/API metadata or explicitly revised source contract. Default typeless paths and default limited-BT709 video are the tested scope; no inference or UI format settings are introduced."
+  ],
+  "gate_changes": "None:70/92 accepted gates,76%;M13 1/14,7%;7/14 phases complete,50%. Retain unresolved M13/2 scope with named blockers/return triggers before selecting the next sequential M13 gate."
+}

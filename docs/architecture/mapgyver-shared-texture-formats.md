@@ -30,7 +30,11 @@ revised identity contract. The [actual D3D9 receipt](../progress/evidence/mapgyv
 fixes another black-image defect: legacy XRGB metadata22 rejected actual native BGRX88 storage.
 Golden now admits that opaque alias alongside SDK BGRA87. Actual Intel D3D9 ARGB/XRGB/half-float/
 RGB10A2 source pixels and app output pass; NVIDIA D3D9Ex exposes no matching current LUID and
-stays unaccepted. Broader app classes and named interpretation/API limits remain.
+stays unaccepted. The [complete available app catalog](../progress/evidence/mapgyver-m13-app-catalog-2026-11-07.json)
+then verifies all original70-Intel/68-NVIDIA native layouts through ordinary app output, with
+independent source bits, distinct sequential colors and fixed SDR tolerance. These static
+producer replacements complement the earlier continuous source proof. Named interpretation/
+API and NVIDIA device/D3D9 requirements remain unaccepted with their concrete return triggers.
 
 ## Current import path
 
@@ -522,8 +526,9 @@ RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
 stays unaccepted. Recorded paths cover70 Intel/68 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
-Current remaining work is broader actual-app storage classes and retained NVIDIA device/D3D9
-scope. Continuous source changes and Intel device/D3D9 slices now have the receipts above.
+All original70/68 layouts now pass the ordinary app catalog receipt above. Remaining scope is
+retained NVIDIA device/D3D9 and named interpretation/API requirements, with no unchanged sweep
+or fallback. Continuous source changes and Intel device/D3D9 slices have separate receipts.
 Native default-path coverage does not resolve unadvertised colorimetry/chroma,
 arbitrary typeless view inference or the named rejected allocations, and does not close M13/2.
 

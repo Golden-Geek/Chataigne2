@@ -76,11 +76,11 @@ fn run(adapter: crate::native::AdapterId, name: &str) {
                 // The independent producer supports the canonical classes selected by this app check.
                 // Exact pitches prevent malformed input from reaching UpdateSubresource's raw pointer.
                 let pixel_bytes = match frame.format {
-                    2..=4 => 16,
-                    10 | 102 => 8,
-                    28 | 29 | 87 | 88 | 91 | 93 | 100 | 101 => 4,
-                    103 => 1,
-                    104 | 105 => 2,
+                    1..=4 => 16,
+                    9..=18 | 102 => 8,
+                    23..=39 | 41..=43 | 87..=93 | 100 | 101 | 108 | 109 => 4,
+                    48..=54 | 56..=59 | 85 | 86 | 104 | 105 | 107 | 115 => 2,
+                    60..=65 | 103 => 1,
                     _ => panic!("unselected app-fixture format"),
                 };
                 let planar = matches!(frame.format, 103..=105);

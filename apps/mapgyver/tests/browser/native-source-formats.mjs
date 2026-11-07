@@ -11,11 +11,14 @@ import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 import { contentLock } from './content-lock.mjs';
 import { liveCases, dx9Cases } from './native-source-live-cases.mjs';
+import { catalogCases } from './native-source-catalog.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const index = Number(process.argv[3]);
 const continuous = process.argv[4] === '--continuous';
 const dx9 = process.argv.includes('--d3d9');
+const catalog = process.argv.includes('--catalog');
+assert(!catalog || (!continuous && !dx9), 'Catalog cases explicitly replace each native source');
 assert(!dx9 || !continuous, 'D3D9 checks explicitly use sender replacement');
 const deviceMode = process.argv.find((argument) =>
 	['--device-reset', '--reset-preflight'].includes(argument)
@@ -295,11 +298,13 @@ try {
 				liveCases.find((item) => item.label === 'sint-tall'),
 				liveCases.find((item) => item.label === 'p010-same-canonical-layout')
 			]
-		: dx9
-			? dx9Cases
-			: continuous
-				? liveCases
-				: cases;
+		: catalog
+			? catalogCases(adapter)
+			: dx9
+				? dx9Cases
+				: continuous
+					? liveCases
+					: cases;
 	for (const item of selectedCases) {
 		if (item.restart) {
 			if (deviceMode) await waitForDeviceCycle();
