@@ -32,6 +32,7 @@ mod source_api;
 mod source_node;
 pub mod spatial;
 pub(crate) mod structure;
+pub(crate) mod targeting;
 mod visibility;
 
 pub use assets::{AssetNode, asset};

@@ -97,6 +97,20 @@ Prepare all values, validate ancestors against the complete normalized proposal,
 without intervening callbacks. History replays the whole proposal. Gesture groups retain one
 Undo operation while accepted samples can publish live feedback.
 
+Surface Media selection uses Golden's existing pure `parameter_companion_changes` boundary.
+Changing only the Media Parameter adds its first currently exposed Channel to the same atomic
+operation; clearing Media clears Channel. An explicitly supplied Channel in an atomic pair
+takes precedence. Re-selecting the same Media preserves the authored Channel, including its
+missing identity, so deletion/reorder never silently redirects a binding. A resolved foreign
+Channel rejects before history or events change. Generic Inspector, transport and raw engine
+Parameter edits all use this policy; there is no follow-up UI write.
+
+`media::targeting` owns proposal-time media/Reference resolution and ordered default selection;
+Matrix owns exposure checks against the complete Parameter proposal. Reference cycle validation
+shares that resolution instead of duplicating a chain walker. This is the first M13/14 slice:
+Reference's selected-output semantics, catalog-only bounded browsing, dependent Channel control
+and empty-target recovery still require their complete implementation and acceptance.
+
 Surface quad validation accepts finite invalid intermediate geometry. Render preparation owns
 homography executability; invalid crops still reject atomically. Composition geometry is
 backend-authoritative; authored/public degrees convert only at the rendering boundary.

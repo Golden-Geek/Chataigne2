@@ -28,6 +28,7 @@ mod layer_geometry;
 #[cfg(feature = "application-process-fixture")]
 mod scoped_stops;
 mod spatial_acceptance;
+mod surface_targeting;
 mod tests;
 mod transitions;
 

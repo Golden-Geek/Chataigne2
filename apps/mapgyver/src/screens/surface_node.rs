@@ -256,7 +256,44 @@ impl Node for SurfaceNode {
         if self.parameter_ids().contains(&change.parameter) {
             self.values(Some(change)).validate()?;
         }
+        if change.parameter == self.source_media.id() || change.parameter == self.source_channel.id() {
+            let values = self.values(Some(change));
+            if values.source_media.uuid.0.is_nil() && !values.source_channel.uuid.0.is_nil() {
+                return Err("Surface Channel requires a Media target".into());
+            }
+            if !values.source_channel.uuid.0.is_nil() {
+                crate::media::targeting::validate_output_membership(
+                    change,
+                    values.source_media.uuid,
+                    values.source_channel.uuid,
+                )?;
+            }
+        }
         Ok(())
+    }
+
+    fn parameter_companion_changes(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Vec<(NodeId, ParamValue)>, String> {
+        if change.parameter != self.source_media.id() || change.is_proposed(self.source_channel.id()) {
+            return Ok(Vec::new());
+        }
+        let ParamValue::Reference(media) = change.value else {
+            return Err("Surface Media target must be a Reference".into());
+        };
+        if media.uuid == self.source_media.get_ref().uuid {
+            return Ok(Vec::new());
+        }
+        let channel = if media.uuid.0.is_nil() {
+            None
+        } else {
+            crate::media::targeting::first_output(change, media.uuid)?
+        };
+        Ok(vec![(
+            self.source_channel.id(),
+            ParamValue::Reference(channel.map_or_else(NodeReference::empty, NodeReference::new)),
+        )])
     }
 
     fn normalize_parameter_change(

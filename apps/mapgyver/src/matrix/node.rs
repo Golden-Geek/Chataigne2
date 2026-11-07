@@ -174,6 +174,13 @@ impl ElementNode {
         node.expose_channel = ParameterHandle::new(settings.expose_channel);
         node
     }
+    pub(crate) fn exposed_for_validation(&self, change: &ParameterValidationContext<'_>) -> bool {
+        matches!(
+            change.parameter_value(self.expose_channel.id()),
+            Some(ParamValue::Bool(true))
+        )
+    }
+
     pub(crate) fn definition(&self) -> ElementDefinition {
         let settings = CompositeSettings {
             expose_channel: self.expose_channel.get(),

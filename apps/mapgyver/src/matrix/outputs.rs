@@ -28,6 +28,22 @@ pub(crate) fn exposed(engine: &AppEngine, channel: &ChannelNode) -> bool {
     })
 }
 
+pub(crate) fn exposed_for_validation(
+    change: &golden_core::node::ParameterValidationContext<'_>,
+    channel: &ChannelNode,
+) -> bool {
+    let Some(item) = channel.matrix_item() else { return true };
+    let uuid = match item {
+        MatrixItemId::Layer { id } => id.0,
+        MatrixItemId::Group { id } => id.0,
+    };
+    change
+        .resolve(uuid)
+        .and_then(|id| change.node(id))
+        .and_then(|node| node.as_any().downcast_ref::<super::ElementNode>())
+        .is_some_and(|node| node.exposed_for_validation(change))
+}
+
 pub(crate) fn guard(engine: &AppEngine, channel: &ChannelNode) -> Option<RevisionGuard> {
     let element = element(engine, channel)?;
     let parent = engine.nodes.get(channel.node_data().parent?)?;

@@ -1,0 +1,42 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/14",
+	"status": "Surface atomic selection slice verified; gate remains Active",
+	"batch": { "started_utc": "22:07", "cutoff_utc": "22:52", "verified_utc": "22:21" },
+	"progress": { "verified": 79, "total": 92, "overall_percent": 86, "m13_verified": 10, "m13_total": 14, "m13_percent": 71 },
+	"calculation": "No gate accepted.79/92 rounds to86%; M13 10/14 rounds to71%. No requirement, denominator or budget revision.",
+	"capability": "Changing a Surface's Media Parameter selects the first currently exposed Channel atomically. A caller-provided Channel in an explicit pair wins; clearing Media clears Channel. Re-selecting the same Media preserves the pinned Channel, including a missing UUID. A resolved foreign Channel rejects before history/events change.",
+	"architecture": "docs/architecture/mapgyver-parameters.md",
+	"implementation": {
+		"owners": "SurfaceNode derives companion values using Golden's existing pure atomic proposal hook. media::targeting owns proposal-time Reference resolution, default selection and membership; Matrix owns exposure from proposed Parameters. Cycle-creating media edits share membership resolution and retain full graph validation.",
+		"scaling": "No graph snapshot, document scan, polling, IO, new cache or UI follow-up write. Surface membership checks walk only the chosen Reference chain, never every channel/dependency of the source. Default selection walks the selected owner's ordered children until its first exposed output.",
+		"history": "The complete Media/Channel proposal is captured as one ordinary history operation. Undo/Redo restores its exact pair without re-running defaults.",
+		"unchanged": "No Golden Core, DTO/generated contract, UI component, authored schema or render-plan change in this slice. The existing generic Reference control already uses the same Parameter intent. New bounded picker/dependent Channel UI and Reference single-output behavior are not implemented by this milestone."
+	},
+	"software": {
+		"backend": { "command": "cargo test --locked -p MapGyver --lib --quiet", "passed": 568, "failed": 0, "ignored": 2, "exit": 0 },
+		"focused_cases": "Four cases cover ordered defaults, one history item/exact Undo/Redo, persistence, explicit pairs in reverse order, foreign rejection, clear, reorder, missing/deleted identity, same-Media no-op, configured/unconfigured References, raw engine edits and Matrix Final default.",
+		"strict": { "command": "cargo clippy --locked -p MapGyver --lib --tests --features golden_video/qualification -- -D warnings", "exit": 0 },
+		"native_compile": { "command": "cargo test --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering --no-run", "exit": 0 },
+		"native_strict": { "command": "cargo clippy --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering -- -D warnings", "exit": 0 },
+		"cadence": "After the initial suite passed, final review extracted shared target ownership and removed unnecessary Surface-wide dependency validation. Final full suite and strict/native prerequisites passed before the only hardware experiment.",
+		"format": "Root and golden_core cargo fmt, owning diff checks pass. UI/protocol checks from the prior surround milestone are retained only for unchanged source scope; no new bundled UI validation is claimed."
+	},
+	"native": {
+		"command": "target/debug/deps/matrix_rendering-c4e257fea1eae2ec.exe native_surface_media_parameter_default_and_explicit_channel_route_on_both_gpus --ignored --nocapture",
+		"binary_sha256": "fdd6159148618d67844a2aa2da83771879c8de0d4eb751e04198f7d62d2eb986",
+		"exit": 0,
+		"hardware_adapter_luids": ["00000000:00015b69", "00000000:90b3a15f"],
+		"stages_per_adapter": ["Media selects first red Channel", "explicit second blue Channel", "new Media automatically selects green Channel", "Undo restores prior Media and explicit blue Channel together"],
+		"complete_images": 24,
+		"texels_per_image": 768,
+		"maximum_nominal_error_255": 0,
+		"maximum_envelope_error_255": 0,
+		"outputs": "Two independent Screen outputs and one native preview per stage; actual accepted frames and independent Spout copies. Both owners retire with zero plan/source/output resources and balanced plan allocations.",
+		"receipt": "target/m1314-surface-targeting-native-20261107.log",
+		"receipt_sha256": "4a31ecf076792eceeb2825587803aeb2ce81c36bb129092b1dab6a176afd94bd",
+		"limits": "No actual desktop input, new Inspector dropdown, native DPI/timing or production-budget acceptance is inferred."
+	},
+	"remaining": "M13/14 still requires Reference single selected-output semantics with stable identity, a dependent Channel dropdown, bounded catalog-only Medias/folder browsing and backend ancestry/type validation, explicit nested Cell-reference validity, empty/missing/recovered targets without rerouting explicit bindings, chains/cycles, every caller, copy/history/reload, large catalogs and native/UI routing without duplicate producers.",
+	"next": "Continue the same active gate with Reference selected-channel/output identity and resolution; then shared bounded picker/query presentation and complete M13/14 acceptance. M13/13 retains its stopped-desktop-input return trigger."
+}
