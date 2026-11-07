@@ -1,0 +1,128 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/11",
+	"status": "Accepted",
+	"batch": { "started_utc": "20:50", "cutoff_utc": "21:35", "verification_finished_utc": "21:10" },
+	"progress": {
+		"verified": 78,
+		"total": 92,
+		"overall_percent": 85,
+		"m13_verified": 9,
+		"m13_total": 14,
+		"m13_percent": 64,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One existing gate accepted:78/92 rounds to85%; M13 9/14 rounds to64%; completed phases remain7/14(50%). No denominator, requirement or timing-budget revision.",
+	"capability": "Transition Time uses its own optional enabled metadata for Column/Cell override or inheritance. No separate boolean remains. Dormant time/curve values survive disabling, including ConfigureColumn(None). Layers retain mandatory time, Cell→Column→Layer precedence, zero-duration cuts and250ms base duration. Smooth replaces SmoothStep and is the default, mapping to the existing smoothstep interpolation.",
+	"architecture": "docs/architecture/mapgyver-matrix-controls.md",
+	"implementation": {
+		"owner": "MapGyver typed Column/Cell/Layer Parameters, cached authored policy and playback; existing Golden generic time/metadata widgets and history remain authoritative.",
+		"metadata": "Column/Cell projections read the actual duration Parameter's authored enabled metadata. Subtree metadata listeners invalidate the existing policy cache without replacing a Cell's media/source identity. The Column constructor's boolean is only a detached creation seed, matching the existing optional Size pattern; it is not authored or persisted state.",
+		"callers": "ConfigureColumn applies typed values and metadata in one operation/history item; None only disables metadata. Direct Golden Parameter/metadata edits, scripts and app-operation callers share that authority. Existing full public-caller parity tests include the renamed Smooth ConfigureColumn case.",
+		"schemas": "Column v2→v3 and Cell v3→v4; all allowed-reference types, persistence admission, manager/context-menu consumers and fixtures change together. Old schemas, boolean override records on current owners and old curve spellings reject without migration/aliases. Layer schema shape is unchanged. Both generated TransitionCurve DTOs come from the Rust exporter.",
+		"cleanup": "Separate override Parameters, cached boolean reads and old Inspector fixture toggles are removed. Unused hand-authored TransitionFields.svelte is deleted; all product controls use ordinary Golden Parameter widgets. Existing time fixtures use Transition Time and its metadata switch."
+	},
+	"software": {
+		"backend": {
+			"command": "cargo test --locked -p MapGyver --lib --quiet",
+			"passed": 564,
+			"ignored": 2,
+			"failed": 0,
+			"exit": 0,
+			"binary": "target/debug/deps/mapgyver-525cb3b3cf0e8654.exe",
+			"sha256": "a46ce16baa4ea8b8b145abe1f4f0675d473b97733358b7b96b86747071f17a44"
+		},
+		"behavior": "New tests verify defaults, obsolete enum rejection, disabled dormant values, metadata changes against already-bound configuration caches, Cell/Column/Layer precedence, zero/nonzero times, explicit Linear and default Smooth, one-step ConfigureColumn history, Column-with-Cell copy, exact project roundtrip and old-schema rejection. Existing actual interrupted three-Layer playback, application retention, all-caller parity and project tests pass. Old Linear-only stop/intermediate expectations now assert the actual Smooth weights.",
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings",
+			"exit": 0
+		},
+		"native_strict": {
+			"command": "cargo clippy --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering -- -D warnings",
+			"exit": 0
+		},
+		"generated": {
+			"media_files": 140,
+			"preview_files": 27,
+			"exact_rust_export_equality": true,
+			"temporary_outputs": ["target/m1311-media-generated", "target/m1311-preview-generated"]
+		},
+		"ui": { "command": "npm run check (apps/mapgyver/ui)", "errors": 0, "warnings": 0, "exit": 0 },
+		"manager_node_types": {
+			"command": "node --test apps/mapgyver/ui/src/lib/media/tests/tree.test.ts",
+			"passed": 1,
+			"exit": 0
+		},
+		"format": "Root and golden_core cargo fmt; touched UI/fixture/doc Prettier, Node syntax and owning diff checks pass. The existing ts-rs macro note about deny_unknown_fields remains; strict Rust lint passes."
+	},
+	"bundled": {
+		"binary": "target/debug/deps/MapGyver-m1311-transition-final.exe",
+		"sha256": "2bb42bceca8d04d85ef333edce8b5b0575687cf4bea12fb0beaff1cff47f7986",
+		"build_command": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-m1311-transition-final",
+		"build_exit": 0,
+		"command": "node apps/mapgyver/tests/browser/transition-metadata.mjs target/m1311-transition-ui-final-20261107",
+		"receipt": "target/m1311-transition-ui-final-20261107/result.json",
+		"receipt_sha256": "eb788ed10c4f83e56a6c35910fc78825a72cb71cf860cdf9c47819e76e1db78a",
+		"checks": "Actual generic Column and Cell widgets: no boolean field, default Smooth, keyboard enable, formatted nonzero/zero entry, mouse disable with dormant value retained, Undo/Redo and Linear selection. Actual Layer base250→700ms. Save/New/Load preserves disabled Column1234ms/Linear and enabled Cell0ms/Linear. All four groups pass, page errors0 and rejected requests0; fixture/host exit0.",
+		"screenshot": "target/m1311-transition-ui-final-20261107/inspector.png",
+		"visual_review": "Inspected final screenshot: inline optional metadata light on Transition Time and the ordinary clock field/curve selector, without an Override transition boolean. Browser preview is unavailable in the headless host; no desktop input/cadence claim.",
+		"column_lifecycle": {
+			"command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+			"exit": 0,
+			"scope": "Actual grid/Inspector Column transition authoring and exact Undo/Redo, shared Column/Cell process, disabled destination, markers and retirement; ordinary source/history/project host also exits0."
+		},
+		"corrected_attempts": "Initial software attempts exposed the EditQueue push API, test-only stale helper/empty-scene assumptions, old Linear expectations and not-yet-updated generated DTOs; final full suite and strict lint pass. Initial bundled project-load assertion wrongly expected an ok field; HTTP admission and loaded state were successful. The corrected fresh complete run passes. No product timing or acceptance limit changes."
+	},
+	"native": {
+		"software_prerequisites": "Final full backend suite, strict app/native fixture lint, UI check and fresh builds succeeded before the native run.",
+		"compile_command": "cargo test --locked --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test matrix_rendering --no-run",
+		"compile_exit": 0,
+		"binary": "target/debug/deps/matrix_rendering-c4e257fea1eae2ec.exe",
+		"sha256": "6f07b8eea405451391eacc6a365d1dc84756226a581cc4e233a8b78e64279a22",
+		"test": "matrix_pixels::transitions::native_layer_group_final_fades_preserve_interrupted_mixes_on_each_adapter",
+		"arguments": "--ignored --exact <test> --nocapture --test-threads=1",
+		"passed": 1,
+		"filtered_out": 20,
+		"exit": 0,
+		"elapsed_seconds": 18.66,
+		"coverage": "Existing real native fixture now configures a Smooth Column override and enables the interrupting Cell's Smooth time metadata. Layer/Group/Final outputs preserve the interrupted red/green mix while blue increases monotonically, then reach the exact blue endpoint. Actual channel demand retires to four distinct producers; existing bounded-capacity assertions pass. Sixteen32×24 endpoint images have maximum error0/255; three intermediate sample groups per GPU retain the existing4/255 weight and0.025 ratio tolerances.",
+		"adapters": [
+			{
+				"name": "Intel(R) Graphics",
+				"luid_low": 88937,
+				"luid_high": 0,
+				"device_runtime": "fea33a92-0101-466b-acfa-44346a3477e9",
+				"generation": 1,
+				"outgoing_ratio": 0.8164559222028693,
+				"intermediate_sample_groups": 3
+			},
+			{
+				"name": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"luid_low": 2427691359,
+				"luid_high": 0,
+				"device_runtime": "2e915432-672a-471d-98dd-aeefb41412d0",
+				"generation": 1,
+				"outgoing_ratio": 0.8179221835779422,
+				"intermediate_sample_groups": 3
+			}
+		],
+		"limits": "This is native transition correctness and bounded demand/capacity evidence. It does not qualify desktop interaction, production cadence/memory, full Matrix/native targets, driver reset or general GPU retirement. No reset/input was used."
+	},
+	"retained_failures": [
+		{
+			"command": "node apps/mapgyver/tests/headless/media.mjs --matrix-parameters-ui --matrix-viewport-ui",
+			"exit": 1,
+			"host_exit": 0,
+			"observation": "Supplementary older Matrix-parameters fixture stops at its Blend Mode update predicate after opacity; backend still reports Normal, with page errors0/rejections0. The viewport branch is not reached in this combined run. Cause is unproven; no pass is claimed."
+		},
+		{
+			"command": "node apps/mapgyver/tests/headless/media.mjs --matrix-viewport-ui",
+			"exit": 1,
+			"host_exit": 0,
+			"observation": "Supplementary viewport fixture's generic center header clicks leave the Matrix inspected, so its Transition Time switch wait expires before editing a duration. Cause is unproven; this is not transition timing evidence."
+		}
+	],
+	"return_action": "Retain both exact legacy UI failures in M09's final-regression return queue: reconcile current header/control hit regions and UI history/selection settling against actual typed nodes, then finish the original complete fixture scope. No further probe is added to this transition slice. Earlier timed-Matrix native source assertion and all format/input/Intel4K/memory/WOW64 gates remain open with their recorded triggers.",
+	"gate_change": "M13/11 Accepted. M13/12 alone Active next: reusable draggable/slidable time floats with formatted entry, constraints, units, cancellation, mixed selection and grouped history."
+}

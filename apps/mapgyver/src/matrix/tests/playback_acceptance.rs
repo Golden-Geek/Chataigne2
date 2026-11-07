@@ -54,7 +54,7 @@ fn actual_three_layer_columns_apply_cell_column_layer_precedence_atomically_from
             definition: ColumnDefinition {
                 transition: Some(TransitionDefinition {
                     duration_ms: 500,
-                    curve: TransitionCurve::SmoothStep,
+                    curve: TransitionCurve::Smooth,
                 }),
             },
         },
@@ -65,12 +65,8 @@ fn actual_three_layer_columns_apply_cell_column_layer_precedence_atomically_from
         .find(|cell| cell.layer == rows[0] && cell.definition.column == columns[1])
         .unwrap()
         .id;
-    for (field, value) in [
-        ("transition_override", ParamValue::Bool(true)),
-        ("duration_ms", ParamValue::Float(17.0)),
-    ] {
-        assert!(write(&mut engine, cell.0, field, value).success);
-    }
+    assert!(super::layer_settings::override_enabled(&mut engine, cell.0, true).success);
+    assert!(write(&mut engine, cell.0, "duration_ms", ParamValue::Float(17.0)).success);
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     edit(
@@ -101,7 +97,12 @@ fn actual_three_layer_columns_apply_cell_column_layer_precedence_atomically_from
     for (index, captured) in faded.iter().enumerate() {
         assert_eq!(captured.inputs.len(), 2);
         for input in &captured.inputs {
-            let (millis, incoming) = if index == 0 { (8, 8.0 / 17.0) } else { (125, 0.15625) };
+            let (millis, incoming) = if index == 0 {
+                let t: f32 = 8.0 / 17.0;
+                (8, t * t * (3.0 - 2.0 * t))
+            } else {
+                (125, 0.15625)
+            };
             let expected = if input.source == old[index] {
                 1.0 - incoming
             } else {

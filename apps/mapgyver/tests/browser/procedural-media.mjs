@@ -93,7 +93,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 				const document = await inspect();
 				assert.deepEqual(document.definition.canvas, { width: 640, height: 360 });
 				assert(!('transition' in document.definition), 'Transitions belong to Layers');
-				assert.equal(await parameter('Transition duration').count(), 0);
+				assert.equal(await parameter('Transition Time').count(), 0);
 				const layer = document.items.find((item) => item.id.kind === 'Layer');
 				await page
 					.getByRole('tab')
@@ -103,7 +103,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 					.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true })
 					.getByTitle(`Select ${layer.label}`, { exact: true })
 					.click();
-				const duration = parameter('Transition duration').locator('input.time-field');
+				const duration = parameter('Transition Time').locator('input.time-field');
 				await duration.fill('00:00:00.750');
 				await duration.press('Enter');
 				assert.equal(await parameter('Transition curve').count(), 0);
@@ -120,7 +120,7 @@ export async function verifyProceduralMediaUi({ base, edit, inspectMedia }) {
 				const document = (await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } }))
 					.snapshot;
 				assert.deepEqual(document.canvas, { width: 640, height: 360 });
-				assert.equal(await parameter('Transition duration').count(), 0);
+				assert.equal(await parameter('Transition Time').count(), 0);
 			}
 			assert.equal(media.channels[0].reference.media, reference.media);
 		}

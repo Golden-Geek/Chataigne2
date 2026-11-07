@@ -161,7 +161,7 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
                 definition: ColumnDefinition {
                     transition: Some(TransitionDefinition {
                         duration_ms: 500,
-                        curve: TransitionCurve::SmoothStep,
+                        curve: TransitionCurve::Smooth,
                     }),
                 },
             },

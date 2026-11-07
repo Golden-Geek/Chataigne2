@@ -378,7 +378,7 @@ pub(super) fn launch(
     let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(id) else {
         return Err("reference is not a Matrix column".into());
     };
-    let column_definition = node.definition();
+    let column_definition = node.definition(engine);
     let parent = super::column_axis::owner(id, |id| engine.nodes.get(id).map(|node| node as &dyn Node))
         .ok_or("Matrix column has no owner")?;
     let Some(AppNode::MediaChannel(root)) = engine.nodes.get(parent) else {

@@ -198,7 +198,7 @@ export async function verifyMediaParameters({
 		720,
 		async () => (await channel(output)).definition.source.output.definition.canvas
 	);
-	assert.equal(await parameter('Transition duration').count(), 0);
+	assert.equal(await parameter('Transition Time').count(), 0);
 	await page.screenshot({ path: 'target/mapgyver-matrix-channel-parameters-ui.png' });
 	assert.equal(rejected.length, rejectionCount + 1);
 }

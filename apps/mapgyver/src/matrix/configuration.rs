@@ -66,7 +66,7 @@ pub(crate) fn index(
             .into_iter()
             .max_by_key(|(duration, count)| (*count, std::cmp::Reverse(*duration)))
             .map_or(250, |(duration, _)| duration),
-        curve: TransitionCurve::Linear,
+        curve: TransitionCurve::Smooth,
     };
     let layer_overrides = document
         .snapshot

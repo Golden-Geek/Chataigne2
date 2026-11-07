@@ -239,7 +239,7 @@ fn column_snapshot(
         axis_index: index.column_positions[&id] as u32,
         parent: super::column_axis::parent(engine, node_id),
         label: node.node_data().meta.label.clone(),
-        definition: node.definition(),
+        definition: node.definition(engine),
         application: crate::applications::protocol::ApplicationId(id.0),
     })
 }

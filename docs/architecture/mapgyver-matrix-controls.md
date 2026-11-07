@@ -13,6 +13,16 @@ still supplies the Matrix's compact runtime markers; process supervision, demand
 callbacks remain in the backend and do not depend on mounting an Inspector. See the
 [M13/10 acceptance](../progress/evidence/mapgyver-m13-app-control-inspector-2026-11-07.json).
 
+Transition Time is the ordinary typed time Parameter (`parameters/duration_ms`). It is
+mandatory on Layers and optional on Columns and Cells: its own enabled metadata selects
+override versus inheritance. Disabling it preserves the dormant duration and curve. Playback
+reads that metadata from the document and invalidates its cached policy on metadata changes;
+there is no separate authored override boolean. Configured launches resolve Cell → Column →
+Layer, with a 250 ms base duration. Smooth is the default curve and maps to the existing
+smoothstep interpolation; Linear remains selectable on overrides. Cut still uses zero time.
+Column v3 and Cell v4 reject the former schemas, and the generated transition DTO exposes
+`Smooth` without an old-name alias. Generic Golden widgets own metadata, entry and history.
+
 The current M13/6 slice provides these intrinsic Trigger Parameters:
 
 | Owner                 | Declaration                         | Behavior                                                                                         |

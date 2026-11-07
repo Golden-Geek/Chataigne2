@@ -162,7 +162,11 @@ fn cell_stop_preserves_other_addresses_and_layer_stop_clears_all_its_independent
     scene.weights(0, at(now, 125));
     pulse(&mut scene.engine, scene.rows[0].0, "stop");
     assert_eq!(scene.weights(0, at(now, 175)), []);
-    assert_eq!(scene.weights(1, at(now, 175)), [(0, 0.3), (1, 0.7)]);
+    let weights = scene.weights(1, at(now, 175));
+    assert_eq!(weights.iter().map(|(source, _)| *source).collect::<Vec<_>>(), [0, 1]);
+    for ((_, weight), expected) in weights.iter().zip([0.216, 0.784]) {
+        assert!((weight - expected).abs() < 0.0001);
+    }
     assert_eq!(
         current(&scene.engine, scene.media).desired_column,
         Some(scene.columns[1])

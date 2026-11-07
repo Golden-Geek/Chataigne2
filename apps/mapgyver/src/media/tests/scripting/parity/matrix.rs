@@ -730,7 +730,7 @@ fn matrix_authoring_inspection_and_atomic_rejection_match_all_public_callers() {
             definition: ColumnDefinition {
                 transition: Some(TransitionDefinition {
                     duration_ms: 125,
-                    curve: TransitionCurve::SmoothStep,
+                    curve: TransitionCurve::Smooth,
                 }),
             },
         },

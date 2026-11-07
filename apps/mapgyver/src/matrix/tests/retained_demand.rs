@@ -220,40 +220,17 @@ fn independent_outgoing_deadlines_survive_interruption_reorder_deletion_undo_and
         let cell = crate::matrix::document::Document::load(&engine, reference.media)
             .unwrap()
             .cells[&(row, columns[1])];
-        let folder = engine
-            .nodes
-            .iter()
-            .find(|(_, node)| node.node_data().parent == Some(cell) && crate::parameters::is_parameter_folder(*node))
-            .unwrap()
-            .0;
-        for (field, value) in [
-            ("transition_override", golden_core::parameter::ParamValue::Bool(true)),
-            (
+        let owner = engine.nodes.get(cell).unwrap().node_data().meta.uuid;
+        assert!(super::layer_settings::override_enabled(&mut engine, owner, true).success);
+        assert!(
+            super::layer_settings::write(
+                &mut engine,
+                owner,
                 "duration_ms",
-                golden_core::parameter::ParamValue::Float(duration_ms as f64),
-            ),
-        ] {
-            let node = engine
-                .nodes
-                .iter()
-                .find(|(_, node)| {
-                    node.node_data().parent == Some(folder)
-                        && node.node_data().meta.decl_id.0 == format!("parameters/{field}")
-                })
-                .unwrap()
-                .0;
-            assert!(
-                apply_project_intent(
-                    &mut engine,
-                    UiEditIntent::SetParam {
-                        node,
-                        value,
-                        behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
-                    }
-                )
-                .success
-            );
-        }
+                golden_core::parameter::ParamValue::Float(duration_ms as f64)
+            )
+            .success
+        );
     }
     edit(
         &mut engine,

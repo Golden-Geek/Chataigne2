@@ -79,7 +79,7 @@ pub(super) fn load(engine: &AppEngine, root: NodeId) -> Result<Axis, String> {
                     axis_index: slots,
                     parent,
                     label: node.node_data().meta.label.clone(),
-                    definition: column.definition(),
+                    definition: column.definition(engine),
                     application: crate::applications::protocol::ApplicationId(uuid),
                 });
                 slots += 1;

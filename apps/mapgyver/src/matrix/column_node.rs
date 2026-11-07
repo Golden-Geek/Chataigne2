@@ -9,9 +9,9 @@ use golden_core::{
 };
 use std::sync::OnceLock;
 
-pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
+pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v3";
 
-#[node("mapgyver.matrix.column.v2", label = "Column", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.matrix.column.v3", label = "Column", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -19,15 +19,18 @@ pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
         play: ParamValue = ParamValue::Trigger() (label = "Play");
         cut: ParamValue = ParamValue::Trigger() (label = "Cut");
         stop: ParamValue = ParamValue::Trigger() (label = "Stop");
-        transition_override: bool = false (label = "Override transition");
         duration_ms: f64 = 250.0 [0.0..4294967295.0] (
-            label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
+            label = "Transition Time", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject",
+            enabled = self.initial_override, can_be_disabled = true
         );
-        curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
+        curve: Enum = "Smooth" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "Smooth"]));
     }
     node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");
 )]
 pub struct ColumnNode {
+    // Detached subtree seed; authored override state belongs to Transition Time metadata.
+    #[state(default = false)]
+    initial_override: bool,
     #[state(default = super::controls::Pulses::default())]
     pulses: super::controls::Pulses,
     #[state(default = OnceLock::new())]
@@ -49,7 +52,7 @@ impl ColumnNode {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
         if let Some(transition) = definition.transition {
-            node.transition_override = ParameterHandle::new(true);
+            node.initial_override = true;
             node.duration_ms = ParameterHandle::new(f64::from(transition.duration_ms));
             node.curve = ParameterHandle::new(Enum::new(curve_name(transition.curve)));
         }
@@ -77,38 +80,56 @@ impl ColumnNode {
             binding.invalidate_applications();
         }
     }
-    pub(crate) fn definition(&self) -> ColumnDefinition {
+    pub(crate) fn definition(&self, engine: &crate::app::AppEngine) -> ColumnDefinition {
         ColumnDefinition {
-            transition: self.transition_override.get().then(|| TransitionDefinition {
-                duration_ms: self.duration_ms.get() as u32,
-                curve: if self.curve.get_ref().as_str() == "SmoothStep" {
-                    TransitionCurve::SmoothStep
-                } else {
-                    TransitionCurve::Linear
-                },
-            }),
+            transition: engine
+                .nodes
+                .get(self.duration_ms.id())
+                .filter(|node| node.node_data().meta.enabled)
+                .map(|_| TransitionDefinition {
+                    duration_ms: self.duration_ms.get() as u32,
+                    curve: if self.curve.get_ref().as_str() == "Smooth" {
+                        TransitionCurve::Smooth
+                    } else {
+                        TransitionCurve::Linear
+                    },
+                }),
         }
     }
-    pub(crate) fn configuration_edit(&self, definition: ColumnDefinition) -> Edit {
-        let transition = definition.transition.unwrap_or_default();
-        Edit::SetParamsAtomic {
-            values: vec![
-                (
-                    self.transition_override.id(),
-                    ParamValue::Bool(definition.transition.is_some()),
-                ),
-                (
-                    self.duration_ms.id(),
-                    ParamValue::Float(f64::from(transition.duration_ms)),
-                ),
-                (self.curve.id(), ParamValue::Enum(curve_name(transition.curve).into())),
-            ],
-            behaviour: ParameterEventBehaviour::Append,
+    pub(crate) fn configuration_edits(&self, definition: ColumnDefinition) -> Vec<Edit> {
+        let mut edits = Vec::with_capacity(2);
+        if let Some(transition) = definition.transition {
+            edits.push(Edit::SetParamsAtomic {
+                values: vec![
+                    (
+                        self.duration_ms.id(),
+                        ParamValue::Float(f64::from(transition.duration_ms)),
+                    ),
+                    (self.curve.id(), ParamValue::Enum(curve_name(transition.curve).into())),
+                ],
+                behaviour: ParameterEventBehaviour::Append,
+            });
         }
+        edits.push(Edit::PatchMeta {
+            node: self.duration_ms.id(),
+            patch: golden_core::node::NodeMetaPatch {
+                enabled: Some(definition.transition.is_some()),
+                ..Default::default()
+            },
+        });
+        edits
     }
 }
-#[node("mapgyver.matrix.column.v2", from_struct)]
+#[node("mapgyver.matrix.column.v3", from_struct)]
 impl Node for ColumnNode {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        ctx.add_event_listener_subtree(self.id(), self.id(), 2);
+    }
+    fn on_meta_changed(&mut self, _: &mut ProcessCtx, node: NodeId, patch: golden_core::node::NodeMetaPatch) {
+        if node == self.duration_ms.id() && patch.enabled.is_some() {
+            self.invalidate();
+        }
+    }
     fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
         false
     }
@@ -175,14 +196,14 @@ impl Node for ColumnNode {
 fn curve_name(curve: TransitionCurve) -> &'static str {
     match curve {
         TransitionCurve::Linear => "Linear",
-        TransitionCurve::SmoothStep => "SmoothStep",
+        TransitionCurve::Smooth => "Smooth",
     }
 }
 pub(super) fn validate(duration: f64, curve: &str) -> Result<(), String> {
     if !duration.is_finite() || duration.fract() != 0.0 || !(0.0..=f64::from(u32::MAX)).contains(&duration) {
         return Err("Column duration must be a whole number of milliseconds in 0..4294967295".into());
     }
-    if !["Linear", "SmoothStep"].contains(&curve) {
+    if !["Linear", "Smooth"].contains(&curve) {
         return Err("Unknown Column transition curve".into());
     }
     Ok(())

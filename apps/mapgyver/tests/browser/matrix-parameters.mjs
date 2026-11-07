@@ -53,7 +53,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 		for (const item of [groups[0], layers[0]]) {
 			const row = (await inspect()).items.find((row) => row.id.id === item.id);
-			await grid.getByTitle(`Select ${row.label}`, { exact: true }).click();
+			await grid.locator(`[role="rowheader"][data-row-id="${row.id.id}"]`).click();
 			await parameter('Opacity').locator('input.number-field').waitFor();
 			assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
 			assert.equal(
@@ -106,7 +106,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 					['Position', 1, -3, 'position'],
 					['Canvas size', 0, 8, 'size'],
 					['Canvas size', 1, 4, 'size'],
-					['Transition duration', 0, 900, 'duration_ms']
+					['Transition Time', 0, 900, 'duration_ms']
 				]) {
 					const before = await inspect();
 					const input = parameter(label).locator('input.number-field').nth(component);
@@ -140,7 +140,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			element.dispatchEvent(new Event('scroll'));
 		});
 		await wait(
-			() => grid.getByTitle('Select Layer 1', { exact: true }).count(),
+			() => grid.locator(`[role="rowheader"][data-row-id="${layers[0].id}"]`).count(),
 			(count) => count === 0
 		);
 		const input = parameter('Opacity').locator('input.number-field');
@@ -154,13 +154,11 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			element.scrollTop = 0;
 			element.dispatchEvent(new Event('scroll'));
 		});
-		await grid
-			.getByTitle('Layer 1 / Column 1', { exact: true })
-			.first()
-			.click({ position: { x: 5, y: 5 } });
-		await grid
-			.getByRole('gridcell', { selected: true })
-			.click({ button: 'right', position: { x: 5, y: 5 } });
+		const cellTarget = grid.getByTitle('Layer 1 / Column 1', { exact: true }).first();
+		const cellBounds = await cellTarget.boundingBox();
+		assert(cellBounds);
+		await cellTarget.click({ position: { x: 8, y: cellBounds.height - 8 } });
+		await cellTarget.click({ button: 'right', position: { x: 8, y: cellBounds.height - 8 } });
 		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
 		await parameter('Enabled').locator('input[type=checkbox]').waitFor();
 		const cellSettings = (state) =>

@@ -42,9 +42,9 @@ pub enum EmptyCellPolicy {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 pub enum TransitionCurve {
-    #[default]
     Linear,
-    SmoothStep,
+    #[default]
+    Smooth,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(default)]
@@ -56,7 +56,7 @@ impl Default for TransitionDefinition {
     fn default() -> Self {
         Self {
             duration_ms: 250,
-            curve: TransitionCurve::Linear,
+            curve: TransitionCurve::Smooth,
         }
     }
 }
@@ -229,7 +229,7 @@ impl LayerSettings {
     pub(crate) fn transition(self) -> TransitionDefinition {
         TransitionDefinition {
             duration_ms: self.duration_ms,
-            curve: TransitionCurve::Linear,
+            curve: TransitionCurve::Smooth,
         }
     }
 }

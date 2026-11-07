@@ -39,6 +39,7 @@ mod playback_acceptance;
 mod retained_demand;
 mod stops;
 mod timeline;
+mod transition_metadata;
 mod validation;
 mod view;
 

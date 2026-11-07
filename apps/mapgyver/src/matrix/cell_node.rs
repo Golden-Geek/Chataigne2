@@ -15,18 +15,18 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
-#[node("mapgyver.matrix.cell.v3", label = "Cell")]
+pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v4";
+#[node("mapgyver.matrix.cell.v4", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
     play: ParamValue = ParamValue::Trigger() (label = "Play");
     cut: ParamValue = ParamValue::Trigger() (label = "Cut");
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
-        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
+        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
     shared_app_control: NodeReference = NodeReference::empty() (label = "Shared app control",
         description = "When no local App File is configured, share this Cell's App Control.",
         read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.matrix.cell.v3".into()]);
+        reference_allowed_node_types = vec!["mapgyver.matrix.cell.v4".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]);
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
@@ -36,9 +36,8 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
     fit_mode: Enum = "Fit" (label = "Fit Mode", enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     enabled: bool = true (label = "Enabled");
-    transition_override: bool = false (label = "Override transition");
-    duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject");
-    curve: Enum = "Linear" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "SmoothStep"]));
+    duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition Time", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject", enabled = false, can_be_disabled = true);
+    curve: Enum = "Smooth" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "Smooth"]));
 }
 node app_control: crate::applications::AppControlNode = (self.create_app_control()) (
     label = "App control"
@@ -213,15 +212,19 @@ impl CellNode {
         }
         .validate()
     }
-    pub(crate) fn transition(&self) -> Option<TransitionDefinition> {
-        self.transition_override.get().then(|| TransitionDefinition {
-            duration_ms: self.duration_ms.get() as u32,
-            curve: if self.curve.get_ref().as_str() == "SmoothStep" {
-                TransitionCurve::SmoothStep
-            } else {
-                TransitionCurve::Linear
-            },
-        })
+    pub(crate) fn transition(&self, engine: &AppEngine) -> Option<TransitionDefinition> {
+        engine
+            .nodes
+            .get(self.duration_ms.id())
+            .filter(|node| node.node_data().meta.enabled)
+            .map(|_| TransitionDefinition {
+                duration_ms: self.duration_ms.get() as u32,
+                curve: if self.curve.get_ref().as_str() == "Smooth" {
+                    TransitionCurve::Smooth
+                } else {
+                    TransitionCurve::Linear
+                },
+            })
     }
     fn create_app_control(&self) -> crate::applications::AppControlNode {
         let node = crate::applications::AppControlNode::embedded();
@@ -304,7 +307,7 @@ impl CellNode {
                 engine,
                 super::protocol::CellId(self.node_data().meta.uuid),
             )?,
-            transition: self.transition(),
+            transition: self.transition(engine),
             settings: self.settings(engine),
         })
     }
@@ -324,13 +327,13 @@ impl CellNode {
         }
     }
 }
-#[node("mapgyver.matrix.cell.v3", from_struct)]
+#[node("mapgyver.matrix.cell.v4", from_struct)]
 impl Node for CellNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
     }
     fn on_meta_changed(&mut self, _: &mut ProcessCtx, node: NodeId, patch: golden_core::node::NodeMetaPatch) {
-        if node == self.size.id()
+        if [self.size.id(), self.duration_ms.id()].contains(&node)
             && patch.enabled.is_some()
             && let Some(binding) = self.runtime.get()
         {
@@ -397,7 +400,6 @@ impl Node for CellNode {
             return;
         }
         if [
-            self.transition_override.id(),
             self.duration_ms.id(),
             self.curve.id(),
             self.position.id(),

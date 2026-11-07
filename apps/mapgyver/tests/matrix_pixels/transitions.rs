@@ -1,4 +1,5 @@
 use super::*;
+use golden_core::node::Node;
 use golden_io::PayloadPool;
 use golden_video::native::SpoutProbe;
 
@@ -146,6 +147,72 @@ pub(super) fn check(adapter: AdapterId) {
                 })
                 .collect(),
         },
+    );
+    // Exercise both override authorities in the real interrupted fade: the first launch
+    // reads Column metadata, and the interrupt reads Cell metadata over the Layer fallback.
+    matrix(
+        &mut engine,
+        root.media,
+        MatrixEdit::ConfigureColumn {
+            column: columns[1],
+            definition: ColumnDefinition {
+                transition: Some(TransitionDefinition {
+                    duration_ms: 6000,
+                    curve: TransitionCurve::Smooth,
+                }),
+            },
+        },
+    );
+    let cell = inspect(&mut engine, root.media)
+        .cells
+        .into_iter()
+        .find(|cell| cell.layer == layer && cell.definition.column == columns[2])
+        .unwrap()
+        .id;
+    let owner = engine.node_id_by_uuid(cell.0).unwrap();
+    let folder = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().parent == Some(owner) && node.node_data().meta.decl_id.0 == "parameters")
+        .unwrap()
+        .0;
+    let duration = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| {
+            node.node_data().parent == Some(folder) && node.node_data().meta.decl_id.0 == "parameters/duration_ms"
+        })
+        .unwrap()
+        .0;
+    for intent in [
+        golden_core::ui_sync::UiEditIntent::SetParam {
+            node: duration,
+            value: golden_core::parameter::ParamValue::Float(6000.0),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+        },
+        golden_core::ui_sync::UiEditIntent::PatchMeta {
+            node: duration,
+            patch: golden_core::ui_sync::NodeMetaPatch {
+                enabled: Some(true),
+                ..Default::default()
+            },
+        },
+    ] {
+        let ack = golden_core::application::apply_project_intent(&mut engine, intent);
+        assert!(ack.success, "{ack:?}");
+    }
+    assert_eq!(
+        inspect(&mut engine, root.media)
+            .cells
+            .into_iter()
+            .find(|candidate| candidate.id == cell)
+            .unwrap()
+            .definition
+            .transition,
+        Some(TransitionDefinition {
+            duration_ms: 6000,
+            curve: TransitionCurve::Smooth
+        })
     );
     let routes = [
         snapshot.items.iter().find(|i| i.id == item).unwrap().channel,

@@ -266,7 +266,7 @@ fn owned_application_configuration_inspection_and_rejection_match_every_public_c
                     definition: ColumnDefinition {
                         transition: Some(TransitionDefinition {
                             duration_ms: u32::MAX,
-                            curve: TransitionCurve::SmoothStep,
+                            curve: TransitionCurve::Smooth,
                         }),
                     },
                 },

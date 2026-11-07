@@ -6,7 +6,7 @@ use golden_core::{
 };
 use golden_video::Extent2D;
 
-fn parameter(engine: &AppEngine, owner: golden_core::node::NodeUuid, field: &str) -> NodeId {
+pub(super) fn parameter(engine: &AppEngine, owner: golden_core::node::NodeUuid, field: &str) -> NodeId {
     let owner = engine.node_id_by_uuid(owner).unwrap();
     let folder = engine
         .nodes
@@ -36,6 +36,24 @@ pub(super) fn write(
             node,
             value,
             behaviour: ParameterEventBehaviour::Append,
+        },
+    )
+}
+
+pub(super) fn override_enabled(
+    engine: &mut AppEngine,
+    owner: golden_core::node::NodeUuid,
+    enabled: bool,
+) -> golden_core::ui_sync::UiAck {
+    let node = parameter(engine, owner, "duration_ms");
+    apply_project_intent(
+        engine,
+        UiEditIntent::PatchMeta {
+            node,
+            patch: golden_core::ui_sync::NodeMetaPatch {
+                enabled: Some(enabled),
+                ..Default::default()
+            },
         },
     )
 }
@@ -189,14 +207,14 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             definition: ColumnDefinition {
                 transition: Some(TransitionDefinition {
                     duration_ms: 500,
-                    curve: TransitionCurve::SmoothStep,
+                    curve: TransitionCurve::Smooth,
                 }),
             },
         },
     );
     let cell = crate::matrix::document::Document::load(&engine, media).unwrap().cells[&(rows[0], columns[0])];
     let owner = engine.nodes.get(cell).unwrap().node_data().meta.uuid;
-    assert!(write(&mut engine, owner, "transition_override", ParamValue::Bool(true)).success);
+    assert!(override_enabled(&mut engine, owner, true).success);
     assert!(write(&mut engine, owner, "duration_ms", ParamValue::Float(17.0)).success);
     let result = edit(
         &mut engine,

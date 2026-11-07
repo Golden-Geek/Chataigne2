@@ -108,8 +108,10 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			await input.fill(value);
 			await input.press('Enter');
 		}
-		await parameter('Override transition').locator('input[type=checkbox]').check();
-		const duration = parameter('Transition duration').locator('input.number-field');
+		await parameter('Transition Time')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.click();
+		const duration = parameter('Transition Time').locator('input.number-field');
 		await duration.fill('00:00:01.234');
 		await duration.press('Enter');
 		await wait(inspect, (s) => s.columns[2].definition.transition?.duration_ms === 1234);

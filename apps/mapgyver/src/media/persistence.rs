@@ -4,6 +4,23 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if [
+            crate::matrix::column_node::COLUMN_TYPE,
+            crate::matrix::cell_node::CELL_TYPE,
+        ]
+        .contains(&record.node_type.as_str())
+            && record.children.iter().any(|folder| {
+                folder.children.iter().any(|parameter| {
+                    parameter
+                        .meta
+                        .decl_id
+                        .as_ref()
+                        .is_some_and(|id| id.0 == "parameters/transition_override")
+                })
+            })
+        {
+            return Err("Transition override belongs to Transition Time enabled metadata; boolean override Parameters are unsupported".into());
+        }
         if record.node_type.starts_with("mapgyver.media.channel") && record.node_type != "mapgyver.media.channel.v2" {
             return Err("Unsupported channel schema: Pictures require channel-owned File Parameters (v2)".into());
         }
@@ -67,7 +84,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         if record.node_type == "mapgyver.app_control.v1"
             && !matches!(
                 parent_type,
-                Some("mapgyver.matrix.column.v2" | "mapgyver.matrix.column_group.v1" | "mapgyver.matrix.cell.v3")
+                Some("mapgyver.matrix.column.v3" | "mapgyver.matrix.column_group.v1" | "mapgyver.matrix.cell.v4")
             )
         {
             return Err(
@@ -80,7 +97,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             && record.node_type != crate::matrix::column_group_node::COLUMN_GROUP_TYPE
         {
             return Err(format!(
-                "Unsupported Matrix Column schema '{}': typed Column v2 or Column Group v1 is required",
+                "Unsupported Matrix Column schema '{}': typed Column v3 or Column Group v1 is required",
                 record.node_type
             ));
         }

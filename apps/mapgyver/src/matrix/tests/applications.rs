@@ -27,7 +27,7 @@ fn column_owns_typed_transition_and_control_through_copy_history_and_project_rep
     let transition = ColumnDefinition {
         transition: Some(TransitionDefinition {
             duration_ms: u32::MAX,
-            curve: TransitionCurve::SmoothStep,
+            curve: TransitionCurve::Smooth,
         }),
     };
     edit(
@@ -72,7 +72,7 @@ fn column_owns_typed_transition_and_control_through_copy_history_and_project_rep
     assert!(engine.redo().unwrap());
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.column.v2", "mapgyver.matrix.column"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.column.v3", "mapgyver.matrix.column"))
             .is_err()
     );
     crate::media::validate_project(&engine).unwrap();
@@ -353,7 +353,7 @@ fn cell_app_control_duplicates_with_its_column_and_rejects_obsolete_schema() {
     );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v3", "mapgyver.matrix.cell.v1"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v4", "mapgyver.matrix.cell.v1"))
             .is_err()
     );
     assert!(engine.undo().unwrap());

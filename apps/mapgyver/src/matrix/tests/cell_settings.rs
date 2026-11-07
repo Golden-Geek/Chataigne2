@@ -154,7 +154,7 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
     assert!(engine.redo().unwrap());
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v3", "mapgyver.matrix.cell.v2"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v4", "mapgyver.matrix.cell.v2"))
             .is_err()
     );
     let mut file = engine.to_project_file_with(Node::project_encode_data).unwrap();

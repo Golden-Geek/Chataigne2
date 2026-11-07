@@ -56,35 +56,37 @@ export async function verifyNativeTimeControls({ page, edit, nativePid }) {
 			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
-		await grid.getByTitle(`Select ${layer.label}`, { exact: true }).click();
+		await grid.locator(`[role="rowheader"][data-row-id="${layer.id.id}"]`).click();
 		const layerDuration = async () =>
 			(await inspect()).items.find((item) => item.id.id === layer.id.id).layer.duration_ms;
-		await clock('Transition duration', '00:00:01.234', layerDuration, 1234);
+		await clock('Transition Time', '00:00:01.234', layerDuration, 1234);
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(layerDuration, (value) => value === 250);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(layerDuration, (value) => value === 1234);
-		await grid
-			.getByTitle(`${layer.label} / ${column.label}`, { exact: true })
-			.first()
-			.click({ position: { x: 5, y: 5 } });
-		await grid
-			.getByRole('gridcell', { selected: true })
-			.click({ button: 'right', position: { x: 5, y: 5 } });
+		const cellTarget = grid.getByTitle(`${layer.label} / ${column.label}`, { exact: true }).first();
+		const cellBounds = await cellTarget.boundingBox();
+		assert(cellBounds);
+		await cellTarget.click({ position: { x: 8, y: cellBounds.height - 8 } });
+		await cellTarget.click({ button: 'right', position: { x: 8, y: cellBounds.height - 8 } });
 		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
-		await parameter('Override transition').locator('input[type=checkbox]').check();
+		await parameter('Transition Time')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.click();
 		await clock(
-			'Transition duration',
+			'Transition Time',
 			'00:00:02.345',
 			async () =>
 				(await inspect()).cells.find((cell) => cell.id === prepared.cell).definition.transition
 					?.duration_ms,
 			2345
 		);
-		await grid.getByTitle(`Select ${column.label}`, { exact: true }).click();
-		await parameter('Override transition').locator('input[type=checkbox]').check();
+		await grid.locator(`[role="columnheader"][data-column-id="${column.id}"]`).click();
+		await parameter('Transition Time')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.click();
 		await clock(
-			'Transition duration',
+			'Transition Time',
 			'00:00:03.456',
 			async () => (await inspect()).columns[0].definition.transition?.duration_ms,
 			3456

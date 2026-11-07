@@ -1,8 +1,5 @@
 use super::*;
-use golden_core::{
-    node::Node,
-    parameter::{ParamValue, ParameterEventBehaviour},
-};
+use golden_core::parameter::ParamValue;
 use golden_time::{MonotonicTime, PlaybackRate, ShowPosition, TimeAuthority, TimeSnapshot};
 use std::collections::HashSet;
 
@@ -315,38 +312,9 @@ fn cell_override_and_disablement_are_typed_and_logical_direct_demand_works_witho
     ) else {
         panic!()
     };
+    assert!(super::layer_settings::override_enabled(&mut engine, cell.0, true).success);
     let owner = engine.node_id_by_uuid(cell.0).unwrap();
-    let folder = engine
-        .nodes
-        .iter()
-        .find(|(_, node)| node.node_data().parent == Some(owner) && crate::parameters::is_parameter_folder(*node))
-        .unwrap()
-        .0;
-    for (field, value) in [
-        ("transition_override", ParamValue::Bool(true)),
-        ("duration_ms", ParamValue::Float(17.0)),
-    ] {
-        let node = engine
-            .nodes
-            .iter()
-            .find(|(_, node)| {
-                node.node_data().parent == Some(folder)
-                    && node.node_data().meta.decl_id.0 == format!("parameters/{field}")
-            })
-            .unwrap()
-            .0;
-        assert!(
-            apply_project_intent(
-                &mut engine,
-                UiEditIntent::SetParam {
-                    node,
-                    value,
-                    behaviour: ParameterEventBehaviour::Append
-                }
-            )
-            .success
-        );
-    }
+    assert!(super::layer_settings::write(&mut engine, cell.0, "duration_ms", ParamValue::Float(17.0)).success);
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     let result = edit(

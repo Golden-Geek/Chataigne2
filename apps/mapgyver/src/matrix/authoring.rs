@@ -344,7 +344,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             let Some(AppNode::MatrixColumn(node)) = engine.nodes.get(document.column(column)?) else {
                 unreachable!()
             };
-            engine.edits.push(node.configuration_edit(definition));
+            for edit in node.configuration_edits(definition) {
+                engine.edits.push(edit);
+            }
         }
         MatrixEdit::ConfigureColumnApplication {
             column,

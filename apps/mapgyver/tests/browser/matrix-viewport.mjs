@@ -68,10 +68,16 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		await matrix({ kind: 'AddLayers', parent: null, count: 61 });
 		await matrix({ kind: 'AddColumns', count: 61 });
 		initial = await inspect();
-		await grid.getByTitle('Select Layer 1', { exact: true }).click();
-		await grid.getByTitle('Select Column 1', { exact: true }).click();
-		await parameter('Override transition').locator('input[type=checkbox]').check();
-		const duration = parameter('Transition duration').locator('input.number-field');
+		await grid
+			.locator(
+				`[role="rowheader"][data-row-id="${initial.items.find((item) => item.label === 'Layer 1').id.id}"]`
+			)
+			.click();
+		await grid.locator(`[role="columnheader"][data-column-id="${initial.columns[0].id}"]`).click();
+		await parameter('Transition Time')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.click();
+		const duration = parameter('Transition Time').locator('input.number-field');
 		await duration.fill('00:00:01.234');
 		const draftInput = await duration.elementHandle();
 		await matrix({
@@ -79,7 +85,10 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 			column: initial.columns[1].id,
 			label: 'Background renamed'
 		});
-		await grid.getByTitle('Select Background renamed', { exact: true }).waitFor();
+		await grid
+			.locator(`[role="columnheader"][data-column-id="${initial.columns[1].id}"]`)
+			.filter({ hasText: 'Background renamed' })
+			.waitFor();
 		assert.equal(
 			await duration.inputValue(),
 			'00:00:01.234',
@@ -104,10 +113,18 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 			(scroll) => scroll.top > 0 && scroll.left > 0
 		);
 		await wait(
-			() => grid.getByTitle('Select Column 1', { exact: true }).count(),
+			() =>
+				grid.locator(`[role="columnheader"][data-column-id="${initial.columns[0].id}"]`).count(),
 			(count) => count === 0
 		);
-		assert.equal(await grid.getByTitle('Select Layer 1', { exact: true }).count(), 0);
+		assert.equal(
+			await grid
+				.locator(
+					`[role="rowheader"][data-row-id="${initial.items.find((item) => item.label === 'Layer 1').id.id}"]`
+				)
+				.count(),
+			0
+		);
 		assert((await grid.getByRole('gridcell').count()) < 2048);
 		assert.deepEqual(await inspect(), beforeScroll);
 		const retainedScroll = await grid.evaluate((element) => ({
@@ -130,7 +147,9 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 			'Inspector/history refresh preserves the exact Matrix scroll position'
 		);
 		assert.equal(
-			await grid.getByTitle('Select Column 1', { exact: true }).count(),
+			await grid
+				.locator(`[role="columnheader"][data-column-id="${initial.columns[0].id}"]`)
+				.count(),
 			0,
 			'Inspector edit does not scroll selection into view'
 		);
@@ -155,7 +174,7 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 		}
 		await page.evaluate(() => (document.documentElement.style.fontSize = '125%'));
 		await duration.scrollIntoViewIfNeeded();
-		const label = await parameter('Transition duration').locator('.parameter-label').boundingBox();
+		const label = await parameter('Transition Time').locator('.parameter-label').boundingBox();
 		const input = await duration.boundingBox();
 		const outer = await page.locator('.inspector').boundingBox();
 		assert(
@@ -172,8 +191,14 @@ export async function verifyMatrixViewportUi({ base, edit, page: nativePage = nu
 			element.scrollTo({ top: 0, left: 0 });
 			element.dispatchEvent(new Event('scroll'));
 		});
-		await grid.getByTitle('Select Column 1', { exact: true }).waitFor();
-		await grid.getByTitle('Select Layer 1', { exact: true }).waitFor();
+		await grid
+			.locator(`[role="columnheader"][data-column-id="${initial.columns[0].id}"]`)
+			.waitFor();
+		await grid
+			.locator(
+				`[role="rowheader"][data-row-id="${initial.items.find((item) => item.label === 'Layer 1').id.id}"]`
+			)
+			.waitFor();
 		assert.deepEqual(await inspect(), edited, 'table scrolling does not author domain state');
 		assert.equal(await page.locator('[data-panel-id="matrix"] > .editor-toolbar').count(), 0);
 		assert((await grid.getByRole('gridcell').count()) <= 2048);

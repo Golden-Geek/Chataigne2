@@ -4,9 +4,9 @@ import { ASSET_NODE_TYPE } from './generated/constants.ts';
 const structuralTypes = [
 	'mapgyver.matrix.layer.v3',
 	'mapgyver.matrix.group.v2',
-	'mapgyver.matrix.column.v2',
+	'mapgyver.matrix.column.v3',
 	'mapgyver.matrix.column_group.v1',
-	'mapgyver.matrix.cell.v3'
+	'mapgyver.matrix.cell.v4'
 ];
 
 export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>

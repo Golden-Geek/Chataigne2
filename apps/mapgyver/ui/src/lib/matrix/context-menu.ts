@@ -11,7 +11,7 @@ export function registerMatrixContextMenu() {
 				'mapgyver.matrix.layer.v3',
 				'mapgyver.matrix.group.v2',
 				'mapgyver.matrix.column_group.v1',
-				'mapgyver.matrix.column.v2'
+				'mapgyver.matrix.column.v3'
 			].includes(node.node_type),
 		items: ({ node, graphState, session, closeMenu }) => {
 			let owner = node;
@@ -26,7 +26,7 @@ export function registerMatrixContextMenu() {
 			const edit: MatrixEdit =
 				node.node_type === 'mapgyver.matrix.column_group.v1'
 					? { kind: 'RemoveColumnGroup', group: node.uuid }
-					: node.node_type === 'mapgyver.matrix.column.v2'
+					: node.node_type === 'mapgyver.matrix.column.v3'
 						? { kind: 'RemoveColumn', column: node.uuid }
 						: {
 								kind: 'RemoveItem',

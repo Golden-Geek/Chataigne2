@@ -140,7 +140,7 @@ impl Frame {
                 duration,
                 curve: match transition.curve {
                     TransitionCurve::Linear => InterpolationCurve::Linear,
-                    TransitionCurve::SmoothStep => InterpolationCurve::SmoothStep,
+                    TransitionCurve::Smooth => InterpolationCurve::SmoothStep,
                 },
             });
         }
