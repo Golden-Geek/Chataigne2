@@ -1,5 +1,51 @@
 use super::*;
 
+#[test]
+fn live_geometry_publishes_typed_changes_without_invalidating_every_screen_reader() {
+    use golden_core::events::EventKind;
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    engine.clear_ui_event_log();
+    let result = apply(
+        &mut engine,
+        ScreenEdit::EditSurfaceGeometry {
+            reference,
+            edit: SurfaceGeometryEdit::QuadCorner {
+                corner: 0,
+                point: Point { x: 0.1, y: 0.2 },
+            },
+        },
+    );
+    assert!(matches!(result, ScreenEditResult::SurfaceChanged { .. }));
+    let events = engine.ui_events_since(None);
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::ParamChanged { .. }))
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == SCREEN_NAMESPACE))
+    );
+    assert_eq!(definition(&engine, reference).quad.corners[0], Point { x: 0.1, y: 0.2 });
+    engine.clear_ui_event_log();
+    apply(
+        &mut engine,
+        ScreenEdit::RenameSurface {
+            reference,
+            label: "Changed source label".into(),
+        },
+    );
+    assert!(
+        engine
+            .ui_events_since(None)
+            .iter()
+            .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == SCREEN_NAMESPACE)),
+        "metadata changes must still refresh Screen rows"
+    );
+}
+
 pub(super) fn session(engine: &mut AppEngine, begin: bool) {
     let intent = if begin {
         UiEditIntent::BeginEdit {

@@ -13,7 +13,8 @@ const session = () => ({
 	projectGeneration: 1 as number | null,
 	currentHistoryStateId: 1,
 	loading: { visible: false },
-	hasActiveEditSession: false
+	hasActiveEditSession: false,
+	editSessionEpoch: 0
 });
 const query = (selected = 'current'): ScreenEditorQuery => ({
 	editor: 'Screen',
@@ -315,6 +316,42 @@ test('live Screen definitions update output geometry while preserving the Surfac
 	assert.equal(controller.screen?.definition.enabled, true);
 	assert.equal(controller.surface?.reference.surface, 'surface');
 });
+
+test('continuous Inspector refreshes present in-flight geometry without waiting for input to stop', async () => {
+	const host = session(),
+		state = screenEditorState();
+	const first = deferred<ScreenEditResult>(),
+		second = deferred<ScreenEditResult>();
+	let reads = 0;
+	const controller = new ScreenEditorController(
+		() => host,
+		state,
+		async () => {
+			reads++;
+			return reads === 1 ? reply() : reads === 2 ? first.promise : second.promise;
+		}
+	);
+	controller.refresh(query());
+	await flush();
+	host.hasActiveEditSession = true;
+	host.editSessionEpoch++;
+	controller.refresh();
+	host.currentHistoryStateId++;
+	controller.refresh();
+	host.currentHistoryStateId++;
+	controller.refresh();
+	first.resolve(reply('current', surface(0.8)));
+	await flush();
+	assert.equal(
+		controller.surface?.definition.crop.width,
+		0.8,
+		'a valid in-progress snapshot must become visible while a newer read is pending'
+	);
+	second.resolve(reply('current', surface(0.6)));
+	await flush();
+	assert.equal(controller.surface?.definition.crop.width, 0.6);
+	assert.equal(reads, 3, 'one in-flight read and one latest replacement remain bounded');
+});
 test('off-page selection is projected independently and missing targets never fall back to another Screen', async () => {
 	const state = screenEditorState(),
 		host = session();
@@ -341,6 +378,36 @@ test('off-page selection is projected independently and missing targets never fa
 	controller.refresh();
 	await flush();
 	assert.equal(controller.screen, null);
+});
+
+test('ending an edit-session epoch fences its pending live snapshot before committed-history refresh', async () => {
+	const host = session(),
+		state = screenEditorState();
+	const pending = deferred<ScreenEditResult>();
+	let reads = 0;
+	const controller = new ScreenEditorController(
+		() => host,
+		state,
+		async () => (++reads === 2 ? pending.promise : reply())
+	);
+	controller.refresh(query());
+	await flush();
+	host.hasActiveEditSession = true;
+	host.editSessionEpoch++;
+	controller.refresh();
+	host.currentHistoryStateId++;
+	host.hasActiveEditSession = false;
+	host.editSessionEpoch++;
+	controller.refresh();
+	pending.resolve(reply('current', surface(0.8)));
+	await flush();
+	assert.equal(
+		controller.surface?.definition.crop.width,
+		1,
+		'the old group reply must not overwrite the final committed projection'
+	);
+	assert.equal(state.presentedHistory, host.currentHistoryStateId);
+	assert.equal(controller.busy, false);
 });
 test('persisted targets are independent, document-scoped identities without authored definitions', () => {
 	const id = '11111111-2222-4333-8444-555555555555';

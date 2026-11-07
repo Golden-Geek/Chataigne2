@@ -21,7 +21,7 @@
 			void session.status;
 			void session.loading.visible;
 			void session.snapshotGeneration;
-			void session.currentHistoryStateId;
+			if (!session.hasActiveEditSession) void session.currentHistoryStateId;
 			void session.editSessionEpoch;
 			void session.getCustomEventSequence(SCREEN_NAMESPACE);
 			void session.getCustomEventSequence(MEDIA_NAMESPACE);

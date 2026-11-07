@@ -16,7 +16,7 @@ export function createSpatialBinding(query: () => SpatialEditorQuery) {
 			void current.loading.visible;
 			void current.snapshotGeneration;
 			void current.projectGeneration;
-			void current.currentHistoryStateId;
+			if (!current.hasActiveEditSession) void current.currentHistoryStateId;
 			void current.editSessionEpoch;
 			void current.getCustomEventSequence(MEDIA_NAMESPACE);
 		}

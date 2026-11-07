@@ -1,0 +1,46 @@
+{
+  "gate": "M13/4 Active; continuous geometry request/observation fix verified, native presentation qualification remains open",
+  "date": "2026-11-07",
+  "batch": { "started_utc": "09:34", "stopping_time_utc": "10:19" },
+  "request": "The user's recording and30+fps/60preferred revision are owned by mapgyver-m13-cadence-revision-2026-11-07.json. Preserve smooth source content/opacity; fix direct-drag video geometry lag and Inspector-driven corner/crop overlay lag during input.",
+  "owning_fixes": [
+    "ScreenEditorController uses progressive bounded reads: one active plus one latest replacement. A valid live reply is no longer discarded just because input queued a newer read. Other ReadQueue.request callers remain latest-only.",
+    "Golden allocates a new working history ID for each step inside an open history transaction (engine/history.rs::push_step_into_active_history_transaction). Use the stable edit-session epoch while reading live geometry; group closure restores the exact committed-history fence. Project/snapshot/query/session/disposal fences remain intact.",
+    "Observe typed leaves for bounded backend-resolved visible Screen/Surface owners and independent selected Surface, including Inspector/script/transport edits. Unchanged snapshot replies cannot schedule an identical inspection loop.",
+    "Outliner row supplements and spatial binding discovery do not subscribe to every working-history step during a held edit; metadata events and group boundaries still refresh them.",
+    "EditSurfaceGeometry publishes ordinary typed Parameter changes plus its authoritative Surface reply without a catalog-wide Screens invalidation. Source/metadata/structural changes retain the invalidation. Native revision tracking, geometry validation and history policy are unchanged."
+  ],
+  "regression": {
+    "baseline": "A deferred-reader test reproduces a valid0.8 crop snapshot staying invisible at1.0 while newer same-context reads queue. Original authoring suite14pass/1fail; no hardware experiment depended on that failing check.",
+    "final": "The same test now advances during input, including changing working history IDs. A separate test rejects the old group's late snapshot after epoch closure and waits for the exact committed projection. Queue context replacement/cancellation/default latest-only behavior also pass."
+  },
+  "software": {
+    "rust": "cargo test --locked -p MapGyver --lib:533passed,2ignored,0failed; includes typed geometry publication without broad invalidation and metadata refresh preservation, generated media/Screen/preview parity and all existing geometry/history cases",
+    "typescript": "68 focused requests/Screen/Surface gesture/Composition/Matrix/spatial binding tests pass",
+    "svelte": "0errors,0warnings after fixing test error-handler typing",
+    "strict": "cargo clippy --locked -p MapGyver --lib --tests --features native-preview-smoke,application-process-fixture -- -D warnings:exit0",
+    "build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-surface-epoch:exit0",
+    "format": "Root/Core cargo fmt and touched authored TS/JS/Svelte Prettier; node syntax checks required before delivery."
+  },
+  "live_input": {
+    "fixture": "apps/mapgyver/tests/browser/surface-live-feedback.mjs uses a fresh owned bundled WebView, trusted pointer input, ordinary WebSocket requests/receipts and DOM geometry during48 held samples at16ms nominal waits. Same Solid Color scene/input coordinates for each run; no frontend store mutation or fabricated response.",
+    "baseline": { "pid": 39372, "result": "target/m134-surface-live-baseline-20261107/result.json", "sha256": "6ea7ce7695edf752b0b0488ab7adca8382a890f26f877d63db01e892d5c4dd0c", "binary": "MapGyver-m136-inspector-controls.exe" },
+    "first_fix_comparison": { "result": "target/m134-surface-live-fixed-20261107/result.json", "sha256": "03eb63e4f560572e04b65511195facb85c57fbeefb112051eaaec03c8ef468db", "finding": "Read-loop correction alone keeps row traffic120 vs124 and geometry submissions28 unchanged. Stop further probing; inspect the owning history implementation, which identifies working-history ID advancement during open groups. This changes the implementation decision to epoch-scoped observation and metadata refreshes." },
+    "final_verification": { "pid": 6552, "binary": "target/debug/deps/MapGyver-m134-surface-epoch.exe", "binary_sha256": "23b38dbf1724d1c596814fe6d5e928c8694de3666b0e0b0d1769ec161fae88de", "result": "target/m134-surface-live-epoch-20261107/result.json", "sha256": "307a3de1b979aedf7971adddf1f28bc6579b0764b5510a450fcc58ead0391295", "fixture_exit": 0, "app_exit": 0, "page_errors": 0, "screenshot": "surface.png inspected for workbench/Inspector context; WebView capture does not show the native image layer" },
+    "comparison": [
+      { "phase": "canvas-corner", "baseline_held_ms": 1327.9022, "final_held_ms": 1348.5982, "baseline_geometry_submissions": 28, "final_geometry_submissions": 46, "baseline_row_reads": 124, "final_row_reads": 8, "baseline_dom_changes": 45, "final_dom_changes": 45 },
+      { "phase": "canvas-crop", "baseline_geometry_submissions": 28, "final_geometry_submissions": 49, "baseline_row_reads": 124, "final_row_reads": 8, "baseline_dom_changes": 48, "final_dom_changes": 48 },
+      { "phase": "inspector-corner", "baseline_component_writes": 14, "final_component_writes": 14, "baseline_editor_reads": 92, "final_editor_reads": 60, "baseline_row_reads": 64, "final_row_reads": 8, "final_held_dom_changes": 13 },
+      { "phase": "inspector-crop-origin", "baseline_component_writes": 12, "final_component_writes": 12, "baseline_editor_reads": 91, "final_editor_reads": 52, "baseline_row_reads": 56, "final_row_reads": 8, "final_held_dom_changes": 12 },
+      { "phase": "inspector-crop-size", "baseline_component_writes": 12, "final_component_writes": 12, "baseline_editor_reads": 91, "final_editor_reads": 52, "baseline_row_reads": 56, "final_row_reads": 8, "final_held_dom_changes": 12 }
+    ],
+    "scope": "Request capacity and continuous DOM/authoritative snapshot observation only. Inspector travel produces12–14 actual integer-pixel component writes, so its1-second sample is not a30fps stimulus or native pacing test. Geometry submissions include the phase's final release; never report these counts as presented video FPS. The user-recorded Shared Texture presentation failure is not fully qualified by this Solid Color/DOM fixture."
+  },
+  "remaining": [
+    "Actual native video/overlay synchronization and30+fps presented manipulation with the moving Shared Texture source, both GPUs and recorded clocks/latency/stalls",
+    "Retained workloads, native/DOM alignment, final state/history/cancellation and delayed truthful progress acceptance at M13/4 scope",
+    "Real typed display-following/explicit output frame-rate choice and actual recovery/persistence/caller/cadence verification",
+    "Every separate M03/M05/M08/M12 timing/resource/retirement budget remains required; no unchanged failed capture probe is reopened"
+  ],
+  "acceptance": { "newly_closed_gates": [], "overall": "73/92 (79%)", "M13": "4/14 (29%)" }
+}

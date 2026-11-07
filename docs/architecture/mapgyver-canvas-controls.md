@@ -25,6 +25,28 @@ Undo/Redo, a new gesture waits for the matching projection instead of copying a 
 origin into an edit. Ordinary background refresh remains interactive; an admitted gesture
 keeps its ownership until it closes.
 
+Live Surface geometry publishes ordinary typed Parameter changes and a direct authoritative
+Surface reply. Geometry samples do not invalidate the entire Screens catalog; source/metadata
+and structural operations still do. This avoids making every outliner row and unrelated editor
+query compete with each pointer sample. Native render revision tracking remains unchanged.
+
+Screen/Surface editors observe typed leaves only for the backend-resolved, bounded visible
+owners and independent selected Surface. A new query reply does not itself request another
+identical query. This observation also covers Inspector, script and transport edits outside
+the editor's own gesture. Own gestures continue accepting their direct replies.
+
+The app's `ReadQueue.refresh` publishes sequential in-progress observations while retaining
+one active read and one latest replacement. Session, project, snapshot and query identify
+that live context. During an active edit group its stable edit-session epoch permits live
+observations even though Golden advances working history IDs on every sample. Outside the
+group, the exact committed history identity fences replies; group closure, context changes
+and starting an owned edit invalidate old work. Catalog row supplements and spatial target
+discovery do not refresh for each working history ID; metadata signals and group boundaries
+still refresh them.
+Other readers retain the existing latest-only `request` behavior. Continuous input therefore
+cannot starve every valid reply until release, without weakening document/history fences or
+copying backend geometry policy into the UI.
+
 Screen keyboard input retains up to 32 pending press/release gestures while an earlier edit
 closes or its authoritative geometry projection catches up. Each starts from the current
 accepted corner and keeps its own history group; held repeat still coalesces integer offsets

@@ -5,4 +5,5 @@ export interface Connection {
 	readonly currentHistoryStateId?: unknown;
 	readonly loading: { readonly visible: boolean };
 	readonly hasActiveEditSession?: boolean;
+	readonly editSessionEpoch?: number;
 }

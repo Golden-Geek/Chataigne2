@@ -55,29 +55,54 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			void current.loading.visible;
 			void current.snapshotGeneration;
 			void current.projectGeneration;
-			void current.currentHistoryStateId;
 			void current.hasActiveEditSession;
+			if (!current.hasActiveEditSession) void current.currentHistoryStateId;
 			void current.editSessionEpoch;
 			void current.getCustomEventSequence(SCREEN_NAMESPACE);
-			// Live Inspector feedback reads only backend-resolved owners' typed leaves.
-			if (current.hasActiveEditSession) {
-				for (const uuid of [
-					controller.page?.screen?.id,
-					controller.page?.surface?.reference.surface
-				]) {
-					const node = uuid ? current.graph.state.nodesById.getByUuid(uuid) : null;
-					const folder = node?.children
-						.map((id) => current.getNodeData(id))
-						.find((node) => node?.decl_id === 'parameters');
-					for (const id of folder?.children ?? [])
-						void current.graph.state.paramsById.get(id)?.value;
-				}
-			}
 		}
 		untrack(() => {
 			gesture.observe();
 			controller.refresh(request);
 		});
+	});
+	let observed: { session: WorkbenchSession; owners: string; values: string } | null = null;
+	$effect(() => {
+		const current = session,
+			page = controller.page;
+		if (!current || current.status !== 'connected' || current.loading.visible || !page?.screen) {
+			observed = null;
+			return;
+		}
+		// Follow bounded backend-resolved owners, including a selected off-page Surface.
+		// Snapshot replies must not themselves schedule another identical inspection.
+		const owners = [
+			...new Set([
+				page.screen.id,
+				...page.screen.surfaces.map((item) => item.reference.surface),
+				...(page.surface ? [page.surface.reference.surface] : [])
+			])
+		];
+		const ownerKey = JSON.stringify([
+			current.snapshotGeneration,
+			current.projectGeneration,
+			owners
+		]);
+		const values = JSON.stringify(
+			owners.map((uuid) => {
+				const node = current.graph.state.nodesById.getByUuid(uuid);
+				const folder = node?.children
+					.map((id) => current.getNodeData(id))
+					.find((item) => item?.decl_id === 'parameters');
+				return folder?.children.map((id) => current.graph.state.paramsById.get(id)?.value);
+			})
+		);
+		const changed =
+			observed?.session === current && observed.owners === ownerKey && observed.values !== values;
+		observed = { session: current, owners: ownerKey, values };
+		if (changed)
+			untrack(() => {
+				if (!view.interacting) controller.refresh();
+			});
 	});
 	onDestroy(() => {
 		gesture.dispose();

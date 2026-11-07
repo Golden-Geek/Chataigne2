@@ -86,6 +86,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         return serde_json::to_value(result).map_err(|error| error.to_string());
     }
     let pending = engine.edits.pending.len();
+    // Geometry already publishes typed Parameter changes and a direct Surface reply.
+    // A catalog-wide invalidation here makes every row/editor query compete with each sample.
+    let geometry_sample = matches!(&edit, ScreenEdit::EditSurfaceGeometry { .. });
     let result = match edit {
         ScreenEdit::InspectRow { .. }
         | ScreenEdit::InspectEditor { .. }
@@ -307,7 +310,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             ScreenEditResult::Changed
         }
     };
-    if engine.edits.pending.len() != pending {
+    if engine.edits.pending.len() != pending && !geometry_sample {
         let event = CustomEvent::from_latest_payload(SCREEN_NAMESPACE, None, &()).map_err(|error| error.to_string())?;
         engine.edits.push(Edit::EmitCustomEvent { event });
     }

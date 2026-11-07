@@ -73,7 +73,9 @@ export class ScreenEditorController<S extends EditorConnection> {
 			!this.page?.screen ||
 			session?.status !== 'connected' ||
 			session.loading.visible ||
-			(!this.state.interacting && this.state.presentedHistory !== session.currentHistoryStateId)
+			(!this.state.interacting &&
+				!session.hasActiveEditSession &&
+				this.state.presentedHistory !== session.currentHistoryStateId)
 		);
 	}
 	private current(session: S, generation: number, project: number) {
@@ -103,29 +105,35 @@ export class ScreenEditorController<S extends EditorConnection> {
 			this.context = null;
 		}
 		if (this.state.interacting || this.state.pending) return;
-		this.reads.invalidate();
 		if (
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
 			session.projectGeneration === null
 		) {
+			this.reads.invalidate();
 			this.state.refreshing = false;
 			return;
 		}
 		const generation = session.snapshotGeneration,
 			project = session.projectGeneration;
 		const key = JSON.stringify(query),
-			history = session.currentHistoryStateId;
+			history = session.currentHistoryStateId,
+			editing = session.hasActiveEditSession === true,
+			revision = editing ? session.editSessionEpoch : history;
 		if (key !== this.queryKey) this.state.resolving = true;
 		this.queryKey = key;
 		this.state.refreshing = true;
 		const current = () =>
 			this.current(session, generation, project) &&
 			this.queryKey === key &&
-			session.currentHistoryStateId === history &&
+			(session.hasActiveEditSession === true) === editing &&
+			(editing
+				? session.editSessionEpoch === revision
+				: session.currentHistoryStateId === history) &&
 			!this.state.interacting;
-		this.reads.request(
+		this.reads.refresh(
+			[session, generation, project, key, editing, revision],
 			current,
 			() => this.invoke(session, { kind: 'InspectEditor', query }),
 			(result) => {
