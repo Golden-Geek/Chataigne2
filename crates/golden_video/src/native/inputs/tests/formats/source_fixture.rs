@@ -9,18 +9,24 @@ use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Frame {
-    format: u32,
-    width: u32,
-    height: u32,
-    bytes: Vec<u8>,
+pub(super) struct Frame {
+    pub(super) format: u32,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) bytes: Vec<u8>,
     #[serde(default)]
-    continuous: bool,
+    pub(super) continuous: bool,
 }
 
 #[test]
 #[ignore = "owned stdio native producer; requires explicit app-fixture adapter/name environment"]
 fn owned_native_source_for_app_format_checks() {
+    let (adapter, name, done) = environment();
+    run(adapter.id, &name);
+    done.send(()).unwrap();
+}
+
+pub(super) fn environment() -> (crate::native::AdapterInfo, String, std::sync::mpsc::Sender<()>) {
     let index: usize = std::env::var("GOLDEN_VIDEO_APP_SOURCE_ADAPTER")
         .expect("explicit adapter required")
         .parse()
@@ -43,6 +49,10 @@ fn owned_native_source_for_app_format_checks() {
             std::process::exit(1);
         }
     });
+    (adapter, name, done)
+}
+
+fn run(adapter: crate::native::AdapterId, name: &str) {
     let mut live: Option<Sender> = None;
     let mut session = uuid::Uuid::nil();
     println!("OK ready");
@@ -89,8 +99,8 @@ fn owned_native_source_for_app_format_checks() {
                 } else {
                     drop(live.take());
                     live = Some(Sender::from_rows(
-                        adapter.id,
-                        &name,
+                        adapter,
+                        name,
                         format,
                         extent,
                         &frame.bytes,
@@ -109,5 +119,4 @@ fn owned_native_source_for_app_format_checks() {
         io::stdout().flush().unwrap();
     }
     drop(live);
-    done.send(()).unwrap();
 }

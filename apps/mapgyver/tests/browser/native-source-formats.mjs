@@ -10,11 +10,13 @@ import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 import { contentLock } from './content-lock.mjs';
-import { liveCases } from './native-source-live-cases.mjs';
+import { liveCases, dx9Cases } from './native-source-live-cases.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const index = Number(process.argv[3]);
 const continuous = process.argv[4] === '--continuous';
+const dx9 = process.argv.includes('--d3d9');
+assert(!dx9 || !continuous, 'D3D9 checks explicitly use sender replacement');
 const deviceMode = process.argv.find((argument) =>
 	['--device-reset', '--reset-preflight'].includes(argument)
 );
@@ -29,11 +31,18 @@ const adapter = hardware.adapters[index];
 assert(adapter && !adapter.software);
 const key = adapterKey(adapter.id);
 const sender = `MapGyverFormat-${randomUUID()}`;
+const sourceBinary = process.env.GOLDEN_VIDEO_TEST_BINARY;
+assert(
+	sourceBinary,
+	'Select the compiled qualification test artifact with GOLDEN_VIDEO_TEST_BINARY'
+);
 const child = spawn(
-	path.resolve('target/debug/deps/golden_video-fa94e9e28cc1568b.exe'),
+	path.resolve(sourceBinary),
 	[
 		'--exact',
-		'native::inputs::tests::formats::source_fixture::owned_native_source_for_app_format_checks',
+		dx9
+			? 'native::inputs::tests::formats::dx9_source_fixture::owned_d3d9_source_for_app_format_checks'
+			: 'native::inputs::tests::formats::source_fixture::owned_native_source_for_app_format_checks',
 		'--ignored',
 		'--nocapture',
 		'--test-threads=1'
@@ -286,9 +295,11 @@ try {
 				liveCases.find((item) => item.label === 'sint-tall'),
 				liveCases.find((item) => item.label === 'p010-same-canonical-layout')
 			]
-		: continuous
-			? liveCases
-			: cases;
+		: dx9
+			? dx9Cases
+			: continuous
+				? liveCases
+				: cases;
 	for (const item of selectedCases) {
 		if (item.restart) {
 			if (deviceMode) await waitForDeviceCycle();
@@ -363,7 +374,13 @@ try {
 		if (item.visual) await checkpoint(item.label, 'screen');
 		stages.push({
 			label: item.label,
-			native_format: item.format,
+			...(dx9
+				? {
+						source_api: 'D3D9Ex',
+						d3d9_format: item.format,
+						registered_format: item.registered_format
+					}
+				: { native_format: item.format }),
 			expected: item.rgba,
 			output: output.observations.at(-1),
 			preview_installed: true,
@@ -383,7 +400,8 @@ try {
 				errors,
 				source_replacement: !continuous,
 				continuous_producer: continuous,
-				device_recovery: deviceRecovery
+				device_recovery: deviceRecovery,
+				source_diagnostics: sourceError
 			},
 			null,
 			2

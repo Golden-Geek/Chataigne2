@@ -51,6 +51,7 @@ default = [
 dx = []
 dx12 = []
 gl = []
+qualification = ["dx"]
 
 [lib]
 name = "spout2_sys"

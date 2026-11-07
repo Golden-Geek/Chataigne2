@@ -8,6 +8,8 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 
 mod bridge;
 mod channels;
+#[cfg(feature = "qualification")]
+mod dx9_source_fixture;
 mod integers;
 pub(super) mod inventory;
 mod legacy;

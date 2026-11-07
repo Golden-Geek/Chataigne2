@@ -26,7 +26,11 @@ deadline. This does not authorize rebinding by label or PCI similarity. During c
 device loss the app now reports the runtime/backend failure before a dependent stale-source
 planning error. The regression covers that presentation correction; it does not qualify
 missing-LUID recovery. NVIDIA recovery returns on a supported same-LUID reset or an explicitly
-revised identity contract. D3D9, broader app classes and named interpretation/API limits remain.
+revised identity contract. The [actual D3D9 receipt](../progress/evidence/mapgyver-m13-d3d9-input-2026-11-07.json)
+fixes another black-image defect: legacy XRGB metadata22 rejected actual native BGRX88 storage.
+Golden now admits that opaque alias alongside SDK BGRA87. Actual Intel D3D9 ARGB/XRGB/half-float/
+RGB10A2 source pixels and app output pass; NVIDIA D3D9Ex exposes no matching current LUID and
+stays unaccepted. Broader app classes and named interpretation/API limits remain.
 
 ## Current import path
 
@@ -489,6 +493,14 @@ with real SourcePool/shader/readiness/storage retirement. Two retained legacy re
 six ARGB→XRGB→ARGB replacement phases, while both reject a float alias advertised as ARGB;
 registration alone never reports first-frame readiness. Earlier sRGB replacement cases pass.
 
+The [actual D3D9 receipt](../progress/evidence/mapgyver-m13-d3d9-input-2026-11-07.json) replaces
+metadata-only assumptions with real D3D9Ex allocation/upload/readback on Intel. Legacy21
+opens as BGRA87; legacy22 opens as BGRX88. Only22 accepts that extra native layout, retaining
+opaque alpha; ARGB over BGRX and unrelated native aliases remain rejected. Source half-float
+and RGB10A2 use explicit matching DXGI10/24 metadata. The qualification-only SDK fixture API
+owns native completion/registration and exposes no normal-build D3D9 output backend. NVIDIA
+needs an actually exposed D3D9Ex adapter matching its current LUID before these cases can pass.
+
 ## Remaining backend import work
 
 The allocation inventory sweeps native DXGI ordinals1–191 using the pinned SDK's exact
@@ -510,8 +522,9 @@ RG32 integer sources use typed integer bridges; float/packed BGR bridges and XR-
 compatible storage remain as described above. NVIDIA BGR4444 shared-allocation rejection
 stays unaccepted. Recorded paths cover70 Intel/68 NVIDIA native layouts, with54 direct layouts;
 the original70/68 allocation counts are unchanged and are never accepted-gate counts.
-Next is complete actual-app/continuous-producer/device recovery and actual D3D9 producer
-acceptance. Native default-path coverage does not resolve unadvertised colorimetry/chroma,
+Current remaining work is broader actual-app storage classes and retained NVIDIA device/D3D9
+scope. Continuous source changes and Intel device/D3D9 slices now have the receipts above.
+Native default-path coverage does not resolve unadvertised colorimetry/chroma,
 arbitrary typeless view inference or the named rejected allocations, and does not close M13/2.
 
 RGB32 native5–8 (typeless/FLOAT/UINT/SINT) fail the SDK allocator's mandatory shader-resource/render-target shared flags

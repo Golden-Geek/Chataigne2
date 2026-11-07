@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "gate": "M13/2",
+  "base_commit": "04872658a0410415e314ae1816e2ebca4cca1429",
+  "status": "Active; actual Intel D3D9 producer paths verified and black XRGB defect fixed; NVIDIA D3D9 adapter unavailable for its current LUID",
+  "deliverable": "Actual D3D9Ex XRGB shared textures render in MapGyver; legacy metadata22 now authenticates native BGRX storage instead of rejecting it as incompatible.",
+  "root_cause": {
+    "baseline": "Real D3D9 ARGB renders, then actual D3D9 XRGB produces uniformly transparent black[0,0,0,0] instead of[128,64,192,255].",
+    "boundary": "Golden spout_layout::descriptor_from_alias required native87 for both legacy metadata21/22. Actual D3D9 XRGB opens as native88(BGRX), so the valid alias was rejected.",
+    "correction": "Legacy22 admits actual BGRX88 as opaque/sRGB alongside the existing SDK BGRA87 mapping. Legacy21 still rejects BGRX; wrong RGBA/float/sRGB-storage registrations remain rejected. Other nonzero registrations remain exact.",
+    "location": "crates/golden_video/src/native/spout_layout.rs; regression in adjacent spout_layout/tests"
+  },
+  "producer": {
+    "boundary": "Public C/Rust spout2-sys qualification feature; apps/Golden tests never include private SDK files. Normal builds do not export/compile the new D3D9 fixture.",
+    "allocation": "Direct3DCreate9Ex; exact GetAdapterLUID match; IDirect3DDevice9Ex; one-mip D3DPOOL_DEFAULT/D3DUSAGE_RENDERTARGET shared IDirect3DTexture9. Independent raw rows uploaded through D3D9 system-memory surface/UpdateSurface.",
+    "proof": "Actual D3D9 EVENT completion and GetRenderTargetData/LockRect verify exact defined source bits before SDK registry/mutex publication. XRGB's undefined X byte is excluded from storage equality and interpreted opaque. No Golden shader/renderer generates source pixels.",
+    "alias_observer": "Separate D3D11 device opens a read-only alias solely to record its native format and exact extent; allocation and upload remain D3D9.",
+    "ownership": "Owned hidden window, D3D9 interfaces, query, texture, SDK registration/mutex and source-process watchdog; unfinished GPU uses drain before release or remain retained until confirmed removal/process watchdog. Each case explicitly replaces the producer.",
+    "source_contracts": [
+      { "d3d9": 21, "registration": 21, "actual_native_dxgi": 87, "alpha": "Straight" },
+      { "d3d9": 22, "registration": 22, "actual_native_dxgi": 88, "alpha": "Opaque" },
+      { "d3d9": 113, "registration": 10, "actual_native_dxgi": 10, "alpha": "Straight;half-float source includes fractional RGB/alpha" },
+      { "d3d9": 31, "registration": 24, "actual_native_dxgi": 24, "alpha": "Straight;10-bit RGB/2-bit alpha" }
+    ]
+  },
+  "cohorts": {
+    "used": 2,
+    "baseline": "Intel actual app: ARGB passes; XRGB fails transparent-black output. Failure retained at target/mapgyver-m13-d3d9-baseline-intel-20261107/failure.json.",
+    "comparison": "Corrected isolated actual app: Intel4/4 passes; NVIDIA fails before first source publication because no D3D9Ex adapter matches its requested LUID. No third experiment, driver reset or inventory rerun."
+  },
+  "checks": [
+    { "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet", "result": "239 passed,50 ignored; before corrected native cohort" },
+    { "command": "cargo test --locked -p MapGyver --lib -- --quiet", "result": "510 passed,2 ignored; before corrected native cohort" },
+    { "command": "cargo clippy --locked -p golden_video -p MapGyver --features golden_video/qualification --all-targets -- -D warnings", "result": "Pass,exit0 before native" },
+    { "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-d3d9", "result": "Pass,exit0; actual native app binary compiled before comparison" },
+    { "command": "node --check;prettier --check for both changed browser scripts;root/Core cargo fmt", "result": "Pass;initial script formatting finding corrected before baseline" },
+    { "command": "Verify vendor/spout2-sys-0.1.1/PATCHES.json against current files", "result": "All10 patched source hashes and2 documentation hashes match. Added file has null baseline hash because it is not an upstream file." }
+  ],
+  "intel": {
+    "adapter": "dxgi:00000000:00015b69",
+    "pid": 4440,
+    "command": "node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-d3d9-comparison-intel-20261107 0 --d3d9",
+    "environment": "Explicit MAPGYVER_TEST_BINARY and GOLDEN_VIDEO_TEST_BINARY select the checked artifacts; no stale hardcoded test executable is selected.",
+    "stages": [
+      { "label": "d3d9-argb", "expected": [192,96,24,128], "actual": [193,96,22,128] },
+      { "label": "d3d9-xrgb", "expected": [128,64,192,255], "actual": [128,64,192,255] },
+      { "label": "d3d9-half", "expected": [99,188,225,128], "actual": [99,188,225,128] },
+      { "label": "d3d9-rgb10a2", "expected": [99,188,225,170], "actual": [99,188,225,170] }
+    ],
+    "proof": "Every complete independent96x64 SDK output image meets existing2/255 SDR tolerance. Public source status reports exact4x4 dimensions, both native preview installations and selected sender/GPU preservation at every stage. No page errors; app/source/node exit0.",
+    "artifact": "target/mapgyver-m13-d3d9-comparison-intel-20261107/result.json"
+  },
+  "nvidia": {
+    "requested_adapter": "dxgi:00000000:90b3a15f",
+    "first_d3d9_format": 21,
+    "hresult": "0x80070490",
+    "cause": "Direct3D9Ex enumeration supplies no adapter whose GetAdapterLUID matches the requested current NVIDIA DXGI identity. Fixture fails before allocating/publishing source storage; it never falls back to Intel.",
+    "result": "Owned source test exits101; node exits1; no NVIDIA D3D9 pixels accepted. Owned actual app closes normally through finally.",
+    "artifact": "target/mapgyver-m13-d3d9-comparison-nvidia-20261107/failure.json",
+    "return_trigger": "An actual D3D9Ex adapter/producer exposes this NVIDIA LUID, for example after an appropriate attached-display/driver configuration is available; then rerun the exact source/pixel cases. No current API limitation is counted complete."
+  },
+  "binaries_sha256": {
+    "target/debug/deps/MapGyver-m132-d3d9.exe": "e55c5f92a2383473c9f2327575d61abf567d67b1da06c45ee614e09fc9c07de5",
+    "target/debug/deps/golden_video-911f31446169e35d.exe": "667515c75f39a01b3bb01edfb4d3c70170ab29958448debd98efa6e9284b2a56"
+  },
+  "producer_lifetime_followup": "After the native comparison, upload/target/readback COM references are retained as Source members and failed readback attempts remain completion-guarded through unwinding. Successful GPU command order and pixel interpretation are unchanged. Qualification software suite239/50ignored is rebuilt and passes; strict lint is rerun. The hashes above identify the actual native-comparison binaries, not a claim of additional native failure-path/retirement qualification after this retention refinement.",
+  "references": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-getrendertargetdata",
+    "Pinned SDK spoutSenderNames::CreateSender and spoutFrameCount::CreateAccessMutex; original SDK source/notice unchanged"
+  ],
+  "remaining": [
+    "NVIDIA actual D3D9 producer and missing-LUID device recovery remain unaccepted with separate concrete return triggers.",
+    "Broader actual-app native storage classes, unadvertised interpretation and named SDK allocation limits remain required.",
+    "Four static source replacements are not live D3D9 format/size/device recovery, a complete D3D9 format inventory, physical preview capture, precision/cadence or production-memory qualification."
+  ],
+  "gate_changes": "None:70/92 accepted gates,76%; M13 1/14,7%;7/14 phases complete,50%."
+}

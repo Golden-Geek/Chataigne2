@@ -87,3 +87,34 @@ export const liveCases = [
 		rgba: rgba([0.25, 0.75, 0.125])
 	}
 ];
+
+export const dx9Cases = [
+	{
+		label: 'd3d9-argb',
+		format: 21,
+		registered_format: 21,
+		pixel: [24, 96, 192, 128],
+		rgba: [192, 96, 24, 128]
+	},
+	{
+		label: 'd3d9-xrgb',
+		format: 22,
+		registered_format: 22,
+		pixel: [192, 64, 128, 0],
+		rgba: [128, 64, 192, 255]
+	},
+	{
+		label: 'd3d9-half',
+		format: 113,
+		registered_format: 10,
+		pixel: words([0x3000, 0x3800, 0x3a00, 0x3800], 2, 'writeUInt16LE'),
+		rgba: [99, 188, 225, 128]
+	},
+	{
+		label: 'd3d9-rgb10a2',
+		format: 31,
+		registered_format: 24,
+		pixel: words([(128 | (512 << 10) | (768 << 20) | (2 << 30)) >>> 0], 4, 'writeUInt32LE'),
+		rgba: [encode(128 / 1023), encode(512 / 1023), encode(768 / 1023), 170]
+	}
+];

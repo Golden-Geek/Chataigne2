@@ -1,5 +1,5 @@
 //! SDK registry values and native DXGI storage are distinct namespaces for legacy senders.
-use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM};
+use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8X8_UNORM};
 
 use crate::plan::{SpoutMetadata, SpoutSource};
 use crate::{AlphaMode, Extent2D, TextureDescriptor};
@@ -43,13 +43,14 @@ pub(super) fn observed(binding: &SpoutSource, extent: Extent2D, registered: u32)
 }
 
 /// Zero is unspecified metadata, not a native pixel layout. Only an opened/authenticated
-/// alias can supply its format; nonzero registrations retain their exact native contract.
+/// alias can supply its format. Legacy XRGB authenticates actual BGRA/BGRX storage;
+/// other nonzero registrations retain their exact native contract.
 pub(super) fn descriptor_from_alias(
     extent: Extent2D,
     registered: u32,
     native: DXGI_FORMAT,
 ) -> Option<TextureDescriptor> {
-    if registered == 0 {
+    if registered == 0 || (registered == 22 && native == DXGI_FORMAT_B8G8R8X8_UNORM) {
         native_descriptor(extent, native)
     } else if native == native_format(registered) {
         descriptor(extent, registered)

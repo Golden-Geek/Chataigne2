@@ -5,6 +5,36 @@ use std::time::Duration;
 use windows::Win32::Graphics::Dxgi::Common::*;
 
 #[test]
+fn legacy_xrgb_authenticates_both_sdk_bgra_and_actual_d3d9_bgrx_storage() {
+    let extent = Extent2D::new(4, 4).unwrap();
+    for (native, expected) in [
+        (DXGI_FORMAT_B8G8R8A8_UNORM, PixelFormat::Bgra8Unorm),
+        (DXGI_FORMAT_B8G8R8X8_UNORM, PixelFormat::Bgrx8Unorm),
+    ] {
+        let actual = descriptor_from_alias(extent, 22, native).unwrap();
+        assert_eq!(actual.format, expected);
+        assert_eq!(actual.alpha_mode, AlphaMode::Opaque);
+        assert_eq!(actual.color_encoding, ColorEncoding::Srgb);
+        let binding = SpoutSource {
+            sender: "Actual XRGB".into(),
+            descriptor: descriptor(extent, 22).unwrap(),
+            metadata: SpoutMetadata::Discover,
+            poll_interval: Duration::from_millis(16),
+            frame_count: SpoutFrameCount::Unversioned,
+        };
+        assert_eq!(observed_alias(&binding, extent, 22, native), Some(actual));
+    }
+    assert!(descriptor_from_alias(extent, 21, DXGI_FORMAT_B8G8R8X8_UNORM).is_none());
+    for invalid in [
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R32G32B32A32_FLOAT,
+        DXGI_FORMAT_B8G8R8X8_UNORM_SRGB,
+    ] {
+        assert!(descriptor_from_alias(extent, 22, invalid).is_none());
+    }
+}
+
+#[test]
 fn planar_video_admission_requires_even_dimensions_and_preserves_native_authentication() {
     let extent = Extent2D::new(4, 4).unwrap();
     for native in [103, 104, 105] {

@@ -21,6 +21,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=shim/spout_shim.cpp");
     println!("cargo:rerun-if-changed=shim/spout_shim.h");
+    println!("cargo:rerun-if-changed=shim/dx9_fixture.cpp");
     // Local SDK fixes must invalidate the static archive even when the shim is unchanged.
     println!("cargo:rerun-if-changed=vendor/Spout2/SPOUTSDK");
 
@@ -109,6 +110,10 @@ fn main() {
     }
 
     build.file("shim/spout_shim.cpp");
+    if std::env::var_os("CARGO_FEATURE_QUALIFICATION").is_some() {
+        build.define("SPOUT2_SHIM_QUALIFICATION", None);
+        build.file("shim/dx9_fixture.cpp");
+    }
     build.compile("spout2"); // emits cargo:rustc-link-lib=static=spout2
 
     // System libraries Spout links against on Windows. Some are also pulled in

@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
   "baseline": "UPSTREAM.json",
-  "purpose": "Truthful transfer status, explicit local counters, CPU-only metadata hints, opt-in GPU keyed sender ownership and caller-selected finite send waits, and explicit caller-owned sender registry metadata",
+  "purpose": "Truthful transfer status, explicit local counters, CPU-only metadata hints, opt-in GPU keyed sender ownership, finite send waits, caller-owned registry metadata and opt-in actual D3D9 qualification sources",
   "files": [
     {
       "path": "build.rs",
       "baseline_sha256": "0749bff731f62134befc965bc5a9582a8a65a7105ccd80cf8837ebdcadd8eca1",
-      "patched_sha256": "57835fd55d335eccb57b99ba0d409d7457907786b9255412327f2588afdecd73"
+      "patched_sha256": "dd29be77e4db0efa40c07d6ec52aa7d301333ff39a3496a2aa09bc69f6e48317"
     },
     {
       "path": "Cargo.toml",
       "baseline_sha256": "9243b506583953b227e7f229fdf879ba682a66a39edf6f234baf53a9b06a245e",
-      "patched_sha256": "38c7981939028d12158313e5bfe362f7d917fe1b29b6838a3fe8ad6e63a9251f"
+      "patched_sha256": "9d5ce88fb68926a38e44fd021fdc2c6df2163403c7383eef4733602cbec96c68"
     },
     {
       "path": "shim/spout_shim.cpp",
@@ -21,12 +21,17 @@
     {
       "path": "shim/spout_shim.h",
       "baseline_sha256": "615895c561c7bc6cc8dbc41aacba51db97c126d549c48ad2d95bbb3ff41eec29",
-      "patched_sha256": "1b28064b774d25baf54283e42ad69ec45b6413f9b5a18fae8f131ffccfc314f2"
+      "patched_sha256": "18f6f21cb711c90d096f4e85c8d18b3c2fd0977cfb47726423c395e4e42b85d0"
     },
     {
       "path": "src/lib.rs",
       "baseline_sha256": "3efa0a646fb5a93080f17504c769ea70f0584727097f3d5ec2c26c8370032fbc",
-      "patched_sha256": "f97c6e18f67c8b1c3cc93d5fc6684c239f2ffe0597c0e4672bf49d7746fe23e4"
+      "patched_sha256": "92319baed8405f08333dc3866d2b9786e75c17da30177eb467c88b466aa1bcd4"
+    },
+    {
+      "path": "shim/dx9_fixture.cpp",
+      "baseline_sha256": null,
+      "patched_sha256": "b793cc4923bd3605c0a7f2aedcb2ec2f313533acc066b2ccb259b551c1327a07"
     },
     {
       "path": "vendor/Spout2/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.cpp",
@@ -51,6 +56,6 @@
   ],
   "documentation": {
     "UPSTREAM.json": "92eb5e2a8d460009a6196b97de1119a4a2af0aafcfc9b38ecb45a32ff608b5fe",
-    "GOLDEN_PATCH.md": "c66796d879784e1928e4e2b881e71c3d9583b4494788c2b6e2015f43ec22c8da"
+    "GOLDEN_PATCH.md": "d25f1d6fd6eb025ab7e6f614a4566b59595541acc01ad990c67a9fb3482d31de"
   }
 }

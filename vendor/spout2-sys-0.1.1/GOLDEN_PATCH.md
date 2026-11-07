@@ -28,7 +28,7 @@ continue to follow repository layout and size rules. Do not perform unrelated up
 
 ## Extension ownership
 
-The local patch has six responsibilities:
+The local patch has seven responsibilities:
 
 - Report the exact result of each DX11 send/receive attempt. A retained legacy new-frame flag
   cannot establish that the current call copied an image. `Copied` follows actual copy/flush;
@@ -48,6 +48,12 @@ The local patch has six responsibilities:
   senders. This changes shared metadata without changing or converting native storage; unsafe
   callers must never pass receiver instances or foreign registrations. Golden's owned source
   fixture uses it to verify legacy ARGB/XRGB interpretation and reject mismatched native aliases.
+- Provide an opt-in `qualification` fixture that allocates/uploads actual D3D9Ex shared textures
+  on an exact LUID-matched hardware adapter and publishes them through the SDK registry/mutex.
+  It verifies defined source bits using D3D9 readback and GPU completion before publication;
+  XRGB's unused X byte is not treated as alpha. The public C/Rust fixture API is absent from
+  normal builds. Golden tests consume it without importing private SDK files. This does not
+  change Golden's keyed D3D11 output route or introduce a production D3D9 sender backend.
 
 Counter availability is separate from the runtime's local publication sequence and from GPU
 completion. The SDK's signed counter is bounded; the extension does not invent monotonic wrap
@@ -63,10 +69,12 @@ incoming senders remain supported. Sharing and counter modes are separate instan
 with no Windows registry writes or changes to other applications' settings.
 
 Incoming legacy registration values21/22 are separate from native DXGI values. Golden validates
-their actual BGRA alias, retains the registered and native formats independently, and applies
-straight ARGB/opaque XRGB alpha. Receiving and readiness share this interpretation. Both-GPU
-native SourcePool, shader, readiness and retirement checks pass for real SDK metadata over
-independent D3D11 storage; this does not claim actual D3D9 producer-device qualification.
+ARGB's actual BGRA alias and XRGB's actual BGRA/BGRX alias, retaining registered/native formats
+independently and applying straight ARGB/opaque XRGB alpha. Receiving/readiness share this
+interpretation. Earlier both-GPU metadata-over-D3D11 checks remain scoped to that storage.
+Actual Intel D3D9 ARGB, XRGB, half-float and RGB10A2 source/app checks now pass; NVIDIA D3D9Ex
+does not expose its requested current LUID in this configuration. That API limitation remains
+unaccepted in [the D3D9 receipt](../../docs/progress/evidence/mapgyver-m13-d3d9-input-2026-11-07.json).
 
 The named CPU lock protects counter decrement/restore and copy enqueueing. Keyed transfers
 acquire that metadata lock before GPU ownership and release both after enqueueing. Counter

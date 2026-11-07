@@ -24,6 +24,7 @@
  */
 #ifndef SPOUT2_SHIM_H
 #define SPOUT2_SHIM_H
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +36,20 @@ extern "C" {
  * failure. Always available regardless of which backends are enabled.
  */
 int spout_get_sdk_version(char* buf, int maxlen);
+
+/* Qualification-only independent D3D9Ex source. The caller owns a unique name and
+ * tightly sized readable source rows; supported D3DFORMAT values are21,22,31,113.
+ * Native completion and exact defined source bits are verified before registration.
+ * Returns NULL and the native HRESULT on failure. Normal builds do not export it. */
+#if defined(SPOUT2_SHIM_QUALIFICATION)
+typedef struct spout_dx9_fixture_t spout_dx9_fixture_t;
+spout_dx9_fixture_t* spout_dx9_fixture_create(unsigned int low, int high, const char* name,
+    unsigned int format, unsigned int width, unsigned int height,
+    const unsigned char* bytes, size_t length, unsigned int pitch, int* error);
+void spout_dx9_fixture_destroy(spout_dx9_fixture_t* source);
+/* Borrowed legacy handle, valid only while the caller retains the source. */
+void* spout_dx9_fixture_share_handle(spout_dx9_fixture_t* source);
+#endif
 
 /* ===================================================================== */
 /* DirectX 11 backend (spoutDX)                                          */

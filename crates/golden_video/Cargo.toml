@@ -9,7 +9,7 @@ description = "App-neutral video render plans and worker-owned resource foundati
 
 [features]
 d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue"]
-qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc"]
+qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc", "spout2-sys/qualification"]
 
 [dependencies]
 fontdue = "=0.9.4"

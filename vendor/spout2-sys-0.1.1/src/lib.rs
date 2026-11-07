@@ -54,6 +54,36 @@ mod ffi {
         _private: [u8; 0],
     }
 
+    /// Owned D3D9Ex source for explicit native qualification, absent from normal builds.
+    #[cfg(feature = "qualification")]
+    #[repr(C)]
+    pub struct spout_dx9_fixture_t {
+        _private: [u8; 0],
+    }
+
+    #[cfg(feature = "qualification")]
+    unsafe extern "C" {
+        /// Exact LUID, one selected D3DFORMAT and tightly sized independent source rows.
+        /// Creates/updates no foreign registration; GPU completion precedes publication.
+        /// Failure returns null and writes the exact native HRESULT.
+        pub fn spout_dx9_fixture_create(
+            adapter_low: c_uint,
+            adapter_high: i32,
+            name: *const c_char,
+            format: c_uint,
+            width: c_uint,
+            height: c_uint,
+            bytes: *const u8,
+            length: usize,
+            pitch: c_uint,
+            error: *mut i32,
+        ) -> *mut spout_dx9_fixture_t;
+        /// Waits for owned GPU work before releasing registration/texture/device.
+        pub fn spout_dx9_fixture_destroy(source: *mut spout_dx9_fixture_t);
+        /// Borrows the legacy share handle without transferring ownership.
+        pub fn spout_dx9_fixture_share_handle(source: *mut spout_dx9_fixture_t) -> *mut c_void;
+    }
+
     #[cfg(feature = "dx")]
     unsafe extern "C" {
         pub fn spout_dx_create() -> *mut spout_dx_t;
